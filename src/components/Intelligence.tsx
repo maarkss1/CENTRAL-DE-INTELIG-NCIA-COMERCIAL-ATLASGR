@@ -6,6 +6,7 @@ import {
 import { api } from '../lib/api';
 import type { Lead } from '../types';
 import { PIC_OPTIONS } from '../features/prospecting/constants/icp-options';
+import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
@@ -117,8 +118,11 @@ export function Intelligence() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-4 flex flex-col h-full">
+        <div className="space-y-8">
+            <AIPendingActions />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-gray-200 pt-8">
+                <div className="lg:col-span-4 flex flex-col h-full">
                 <div>
                     <h2 className="font-black text-2xl text-atlas-dark mb-2">Atlas Intelligence</h2>
                     <p className="text-gray-500 text-sm mb-4">Ferramentas de IA para potencializar suas abordagens — personalizadas com os dados reais do lead.</p>

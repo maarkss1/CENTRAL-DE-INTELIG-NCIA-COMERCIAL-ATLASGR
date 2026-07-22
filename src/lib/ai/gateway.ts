@@ -15,19 +15,7 @@ const MODEL_ALIASES: Record<string, string> = {
     'gemini-flash': 'gemini-flash-latest',
 };
 
-let cachedClient: GoogleGenAI | null = null;
 
-function getClient(): GoogleGenAI {
-    if (!GEMINI_API_KEY) {
-        throw new Error(
-            'GEMINI_API_KEY não configurada. Gere uma chave gratuita em https://aistudio.google.com/apikey (formato AIzaSy...) e defina GEMINI_API_KEY no .env.'
-        );
-    }
-    if (!cachedClient) {
-        cachedClient = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-    }
-    return cachedClient;
-}
 
 function messagesToPrompt(messages: BaseMessage[]): string {
     return messages
@@ -56,33 +44,48 @@ export interface AiChatModel {
  */
 export const getAiModel = (modelName: string = 'gemini-pro', temperature: number = 0.7): AiChatModel => {
     const resolvedModel = MODEL_ALIASES[modelName] || modelName;
+    const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
+    const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
 
     return {
         async invoke(messages: BaseMessage[]): Promise<AiInvokeResult> {
-            const ai = getClient();
             const prompt = messagesToPrompt(messages);
 
             let response;
             try {
-                response = await ai.models.generateContent({
-                    model: resolvedModel,
-                    contents: prompt,
-                    config: { temperature },
+                const res = await fetch(`${LITELLM_URL}/v1/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${LITELLM_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: resolvedModel,
+                        messages: [{ role: 'user', content: prompt }],
+                        temperature
+                    })
                 });
+
+                if (!res.ok) {
+                    const err = await res.text();
+                    throw new Error(err);
+                }
+                
+                response = await res.json();
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
-                throw new Error(`Falha ao chamar a Gemini API (modelo ${resolvedModel}): ${message}`);
+                throw new Error(`Falha ao chamar o LiteLLM Gateway (modelo ${resolvedModel}): ${message}`);
             }
 
-            const usage = response.usageMetadata;
+            const usage = response.usage;
             return {
-                content: response.text ?? '',
+                content: response.choices?.[0]?.message?.content ?? '',
                 response_metadata: {
-                    model: resolvedModel,
+                    model: response.model || resolvedModel,
                     tokenUsage: {
-                        totalTokens: usage?.totalTokenCount ?? 0,
-                        promptTokens: usage?.promptTokenCount ?? 0,
-                        completionTokens: usage?.candidatesTokenCount ?? 0,
+                        totalTokens: usage?.total_tokens ?? 0,
+                        promptTokens: usage?.prompt_tokens ?? 0,
+                        completionTokens: usage?.completion_tokens ?? 0,
                     },
                 },
             };

@@ -1,6 +1,6 @@
-{{- if not .Values.blueGreen.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.blueGreen.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "prospector-atlas.fullname" . }}
   labels:
@@ -12,6 +12,12 @@ spec:
   selector:
     matchLabels:
       {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+  strategy:
+    blueGreen:
+      activeService: {{ include "prospector-atlas.fullname" . }}
+      previewService: {{ include "prospector-atlas.fullname" . }}-preview
+      autoPromotionEnabled: true
+      autoPromotionSeconds: {{ .Values.blueGreen.autoPromotionSeconds }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}

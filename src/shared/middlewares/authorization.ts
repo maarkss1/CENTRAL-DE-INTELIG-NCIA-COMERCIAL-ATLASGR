@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthorizationService, Permission, Role } from '../../lib/auth/authorization.js';
 import { AuthRequest } from './authenticateToken.js';
 import { logger } from '../../lib/logger.js';
+import { getTenantPrisma } from '../../lib/tenant-prisma.js';
 
 export const requireTenant = (req: Request, res: Response, next: NextFunction): void => {
     const authReq = req as AuthRequest;
@@ -10,7 +11,13 @@ export const requireTenant = (req: Request, res: Response, next: NextFunction): 
         res.status(403).json({ success: false, error: 'User is not associated with any tenant/organization.' });
         return;
     }
-    next();
+    try {
+        authReq.db = getTenantPrisma(authReq.user.organizationId);
+        next();
+    } catch (err) {
+        logger.error({ err }, 'Failed to initialize Tenant Prisma');
+        res.status(500).json({ success: false, error: 'Internal Server Error.' });
+    }
 };
 
 export const requirePermission = (permission: Permission) => {

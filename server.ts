@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import RedisStore from 'rate-limit-redis';
+import { connection } from './src/lib/queue/redis.js';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
@@ -24,6 +26,9 @@ import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
+import { createAgentWorker } from './src/lib/queue/agent.worker.js';
+import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
+import { createSearchWorker } from './src/lib/queue/search.queue.js';
 import { initMeiliIndexes } from './src/lib/search/index.js';
 import { observabilityMiddleware } from './src/shared/middlewares/observability.js';
 import client from 'prom-client';
@@ -70,6 +75,9 @@ async function startServer() {
         max: 500,
         standardHeaders: true,
         legacyHeaders: false,
+        store: new RedisStore({
+            sendCommand: (...args: string[]) => (connection.call as any)(...args),
+        }),
         message: { success: false, error: 'Too many requests from this IP, please try again after 15 minutes' }
     });
     app.use('/api', apiLimiter);
@@ -137,12 +145,18 @@ async function startServer() {
     // ── Bootstrapping DI & Services ───────────────────────────────────────
     setupDI();
     const leadsWorker = createLeadsWorker();
+    const agentWorker = createAgentWorker();
+    const searchWorker = createSearchWorker();
+    const enrichmentWorker = createEnrichmentWorker();
     await initMeiliIndexes();
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
         await leadsWorker.close();
+        await agentWorker.close();
+        await searchWorker.close();
+        await enrichmentWorker.close();
         await prisma.$disconnect();
         process.exit(0);
     };

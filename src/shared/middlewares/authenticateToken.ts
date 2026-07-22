@@ -11,7 +11,10 @@ export interface AuthUser {
 
 export interface AuthRequest extends Request {
     user: AuthUser;
+    db?: any; // Prisma Client isolado por Tenant
 }
+
+import { requestContext } from '../../lib/async-context.js';
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -33,7 +36,9 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             organizationId: user.organizationId,
         };
 
-        next();
+        requestContext.run({ tenantId: user.organizationId, userId: user.id, role: user.role }, () => {
+            next();
+        });
     } catch (err) {
         logger.error({ err }, 'Authentication middleware error');
         res.status(401).json({ success: false, error: 'Invalid session.' });
