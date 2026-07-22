@@ -5,10 +5,17 @@ import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmToo
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { HumanMessage } from '@langchain/core/messages';
 
-// Requer OPENAI_API_KEY configurada
+const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
+const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
+
+// Utiliza o proxy LiteLLM (Gateway) para roteamento, rate limit e auditoria
 const llm = new ChatOpenAI({
     modelName: 'gpt-4o-mini',
     temperature: 0,
+    openAIApiKey: LITELLM_KEY,
+    configuration: {
+        baseURL: `${LITELLM_URL}/v1`
+    }
 });
 
 const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];

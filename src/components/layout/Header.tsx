@@ -1,7 +1,7 @@
 import { Home } from 'lucide-react';
 import { Logo } from '../Logo';
 
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts';
 
 interface HeaderProps {
     activeTab: TabType;

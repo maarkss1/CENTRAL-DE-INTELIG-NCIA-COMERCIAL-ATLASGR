@@ -8,6 +8,7 @@ import { ProspectingHub } from './features/prospecting/components/ProspectingHub
 import { EnricherHub } from './features/prospecting/components/EnricherHub';
 import { CrmBoard } from './components/CrmBoard';
 import { IntelligenceHub } from './features/intelligence/components/IntelligenceHub';
+import { PromptStudio } from './features/intelligence/components/PromptStudio';
 import { Dashboard } from './features/dashboard/components/Dashboard';
 import { CompanyList } from './features/companies/components/CompanyList';
 import { ContactList } from './features/contacts/components/ContactList';
@@ -27,6 +28,7 @@ function AppLayout() {
         if (path.includes('/prospect')) return 'prospect';
         if (path.includes('/enrich')) return 'enrich';
         if (path.includes('/intelligence')) return 'intelligence';
+        if (path.includes('/prompts')) return 'prompts';
         return 'dashboard';
     };
 
@@ -46,6 +48,7 @@ function AppLayout() {
                 <Route path="prospect" element={<ProspectingHub />} />
                 <Route path="enrich" element={<EnricherHub />} />
                 <Route path="intelligence" element={<IntelligenceHub />} />
+                <Route path="prompts" element={<PromptStudio />} />
             </Routes>
         </MainLayout>
     );

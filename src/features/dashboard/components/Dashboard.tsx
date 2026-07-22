@@ -14,6 +14,7 @@ const TOOLS: Array<{ tab: TabType; title: string; desc: string; icon: any; color
     { tab: 'prospect', title: 'Prospector de Mercado', desc: 'Descubra novas empresas via Google Places e Apollo com filtros precisos.', icon: Search, color: 'text-orange-600', bg: 'bg-orange-100' },
     { tab: 'enrich', title: 'Enriquecedor de Dados', desc: 'Rode o enriquecimento completo de CNPJ, telefones e e-mails de decisores.', icon: Sparkles, color: 'text-purple-600', bg: 'bg-purple-100' },
     { tab: 'intelligence', title: 'Inteligência Logística', desc: 'IA autônoma para análise de risco, scoring e geração de scripts de vendas.', icon: Zap, color: 'text-rose-600', bg: 'bg-rose-100' },
+    { tab: 'prompts', title: 'AI Prompt Studio', desc: 'Configure as diretrizes e regras de tom de voz para a Inteligência Artificial.', icon: Sparkles, color: 'text-fuchsia-600', bg: 'bg-fuchsia-100' },
     { tab: 'activities', title: 'Gestão de Atividades', desc: 'Controle tarefas, follow-ups e métricas de desempenho diário.', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-100' },
 ];
 

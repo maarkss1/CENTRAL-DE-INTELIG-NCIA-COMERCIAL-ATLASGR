@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { prisma } from '../src/lib/prisma.js';
 import { vectorStore } from '../src/lib/ai/vectorStore.js';
 import fs from 'fs';
