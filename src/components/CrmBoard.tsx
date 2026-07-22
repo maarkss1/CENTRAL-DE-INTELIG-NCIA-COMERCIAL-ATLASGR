@@ -1,10 +1,13 @@
 import React from "react";
 import { useState, useEffect, useCallback } from 'react';
-import { Download } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
 import { api } from '../lib/api';
+import { Button } from './ui/Button';
+import { IconPipeline, IconDownload, IconSpinner } from './icons';
+import { fadeInUp } from '../lib/motion';
 
 const COLUMNS: LeadStatus[] = [
     'Novo Lead',
@@ -116,27 +119,31 @@ export function CrmBoard() {
     }, [leads]);
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-white animate-in fade-in duration-500 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+        <div className="flex-1 flex flex-col h-full bg-gray-50/50 overflow-hidden">
+            <motion.div
+                variants={fadeInUp}
+                initial="hidden"
+                animate="show"
+                className="p-6 border-b border-black/5 flex items-center justify-between glass-panel shrink-0"
+            >
                 <div>
-                    <h2 className="font-bold text-2xl text-gray-900">🎯 Pipeline de Vendas</h2>
-                    <p className="text-gray-500 text-sm mt-1">Arraste os cards para atualizar o estágio da negociação</p>
+                    <h2 className="font-bold text-2xl text-atlas-dark flex items-center gap-2.5">
+                        <IconPipeline className="w-6 h-6 text-atlas-orange" />
+                        Pipeline de Vendas
+                    </h2>
+                    <p className="text-atlas-dark/50 text-sm mt-1">Arraste os cards para atualizar o estágio da negociação</p>
                 </div>
-                <button
-                    onClick={handleExportCsv}
-                    className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-gray-50 hover:border-atlas-orange/40 transition-colors shadow-sm"
-                    title="Exportar todos os leads no formato de importação de Leads do Bitrix24"
-                >
-                    <Download className="w-4 h-4" /> 💾 Exportar para Bitrix24
-                </button>
-            </div>
+                <Button variant="glass" onClick={handleExportCsv} title="Exportar todos os leads no formato de importação de Leads do Bitrix24">
+                    <IconDownload className="w-4 h-4 mr-2" /> Exportar para Bitrix24
+                </Button>
+            </motion.div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-gray-50/30">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
-                            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-gray-500 font-medium">Carregando pipeline...</p>
+                            <IconSpinner className="w-8 h-8 text-atlas-orange animate-spin" />
+                            <p className="text-atlas-dark/50 font-medium">Carregando pipeline...</p>
                         </div>
                     </div>
                 ) : (

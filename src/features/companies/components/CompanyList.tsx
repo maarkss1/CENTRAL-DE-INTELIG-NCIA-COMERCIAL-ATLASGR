@@ -1,9 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Company } from '../../../types';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
 import { api } from '../../../lib/api';
+import { Button } from '../../../components/ui/Button';
+import { Badge } from '../../../components/ui/Badge';
+import { Card } from '../../../components/ui/Card';
+import { staggerContainer, staggerItem, fadeInUp } from '../../../lib/motion';
+import {
+    IconSearch,
+    IconPlus,
+    IconBuilding,
+    IconMapPin,
+    IconEdit,
+    IconTrash,
+    IconSparkle,
+    IconSpinner,
+    IconCheck,
+    IconClose,
+} from '../../../components/icons';
 
 export function CompanyList() {
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -27,11 +43,11 @@ export function CompanyList() {
             if (searchTerm) {
                 queryParams.append('q', searchTerm);
             }
-            
+
             const url = `/api/companies?${queryParams.toString()}`;
             // Because our api wrapper returns { data, meta } if meta exists
             const response = await api.get<{data: Company[], meta: { totalPages: number }}>(url);
-            
+
             // Handle both legacy array response and new paginated response during transition
             if (Array.isArray(response)) {
                 setCompanies(response);
@@ -89,153 +105,166 @@ export function CompanyList() {
     return (
         <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8">
             <div className="max-w-7xl mx-auto space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <motion.div
+                    variants={fadeInUp}
+                    initial="hidden"
+                    animate="show"
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                >
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900">🏢 Empresas</h1>
-                        <p className="text-gray-500 mt-1">Gerencie a carteira de clientes e prospects</p>
+                        <h1 className="text-2xl font-bold text-atlas-dark flex items-center gap-2.5">
+                            <IconBuilding className="w-6 h-6 text-atlas-orange" />
+                            Empresas
+                        </h1>
+                        <p className="text-atlas-dark/50 mt-1">Gerencie a carteira de clientes e prospects</p>
                     </div>
-                    <button
-                        onClick={() => { setSelectedCompany(null); setIsFormOpen(true); }}
-                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-                    >
-                        <Plus className="w-5 h-5" />
-                        ➕ Nova Empresa
-                    </button>
-                </div>
+                    <Button variant="premium" onClick={() => { setSelectedCompany(null); setIsFormOpen(true); }}>
+                        <IconPlus className="w-4 h-4 mr-2" />
+                        Nova Empresa
+                    </Button>
+                </motion.div>
 
-                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4">
+                <Card className="p-4 flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">
-                        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <IconSearch className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-atlas-dark/30" />
                         <input
                             type="text"
-                            placeholder="🔎 Buscar por nome, CNPJ, cidade, segmento..."
+                            placeholder="Buscar por nome, CNPJ, cidade, segmento…"
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                            className="w-full pl-10 pr-4 py-2.5 bg-black/[0.02] border border-black/5 rounded-xl focus:ring-2 focus:ring-atlas-orange/20 focus:border-atlas-orange/40 transition-all outline-none text-sm"
                         />
                     </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <Card className="overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b border-gray-200 bg-gray-50/50">
-                                    <th className="p-4 text-sm font-medium text-gray-500">Empresa</th>
-                                    <th className="p-4 text-sm font-medium text-gray-500 hidden md:table-cell">Segmento</th>
-                                    <th className="p-4 text-sm font-medium text-gray-500 hidden lg:table-cell">Localização</th>
-                                    <th className="p-4 text-sm font-medium text-gray-500">Status</th>
-                                    <th className="p-4 text-sm font-medium text-gray-500 text-right">Ações</th>
+                                <tr className="border-b border-black/5 bg-black/[0.015]">
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wide text-atlas-dark/40">Empresa</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wide text-atlas-dark/40 hidden md:table-cell">Segmento</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wide text-atlas-dark/40 hidden lg:table-cell">Localização</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wide text-atlas-dark/40">Status</th>
+                                    <th className="p-4 text-xs font-bold uppercase tracking-wide text-atlas-dark/40 text-right">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <motion.tbody
+                                variants={staggerContainer(0.03)}
+                                initial="hidden"
+                                animate="show"
+                                className="divide-y divide-black/5"
+                            >
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={5} className="p-8 text-center text-gray-500">
+                                        <td colSpan={5} className="p-10 text-center text-atlas-dark/40">
                                             <div className="flex justify-center items-center gap-2">
-                                                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                                                ⏳ Carregando empresas...
+                                                <IconSpinner className="w-5 h-5 text-atlas-orange animate-spin" />
+                                                Carregando empresas…
                                             </div>
                                         </td>
                                     </tr>
                                 ) : companies.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="p-8 text-center text-gray-500">
-                                            🔍 Nenhuma empresa encontrada.
+                                        <td colSpan={5} className="p-10 text-center text-atlas-dark/40">
+                                            <div className="flex flex-col items-center gap-2">
+                                                <IconSearch className="w-6 h-6 text-atlas-dark/20" />
+                                                Nenhuma empresa encontrada.
+                                            </div>
                                         </td>
                                     </tr>
                                 ) : (
-                                    companies.map((company) => (
-                                        <tr key={company.id} className="hover:bg-gray-50/50 transition-colors group">
-                                            <td className="p-4">
-                                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setSelectedCompany(company); setViewMode('detail'); }}>
-                                                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                                        <Building2 className="w-5 h-5" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-gray-900">{company.tradeName || company.legalName}</p>
-                                                        <p className="text-sm text-gray-500">{company.cnpj || 'Sem CNPJ'}</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="p-4 hidden md:table-cell">
-                                                <div className="flex items-center gap-2 text-gray-600">
-                                                    <Building className="w-4 h-4 text-gray-400" />
-                                                    {company.segment || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="p-4 hidden lg:table-cell">
-                                                <div className="flex items-center gap-2 text-gray-600">
-                                                    <MapPin className="w-4 h-4 text-gray-400" />
-                                                    {company.city ? `${company.city}, ${company.state}` : '-'}
-                                                </div>
-                                            </td>
-                                            <td className="p-4">
-                                                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                    company.status === 'Ativo' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                                    'bg-gray-100 text-gray-700 border border-gray-200'
-                                                }`}>
-                                                    {company.status === 'Ativo' ? '✅' : '⛔'} {company.status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 text-right">
-                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => handleEnrich(company.id)}
-                                                        disabled={enrichingId === company.id}
-                                                        className="p-2 text-gray-400 hover:text-atlas-orange hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50"
-                                                        title="✨ Enriquecer com IA"
-                                                    >
-                                                        {enrichingId === company.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => { setSelectedCompany(company); setIsFormOpen(true); }}
-                                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                        title="Editar"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(company.id)}
-                                                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Excluir"
-                                                    >
-                                                        <Trash className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                            companies.map((company) => (
+                                                <motion.tr key={company.id} variants={staggerItem} className="hover:bg-black/[0.015] transition-colors group">
+                                                    <td className="p-4">
+                                                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setSelectedCompany(company); setViewMode('detail'); }}>
+                                                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                                                <IconBuilding className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-semibold text-atlas-dark">{company.tradeName || company.legalName}</p>
+                                                                <p className="text-sm text-atlas-dark/40">{company.cnpj || 'Sem CNPJ'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 hidden md:table-cell">
+                                                        <div className="flex items-center gap-2 text-atlas-dark/60 text-sm">
+                                                            <IconBuilding className="w-4 h-4 text-atlas-dark/25" />
+                                                            {company.segment || '-'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4 hidden lg:table-cell">
+                                                        <div className="flex items-center gap-2 text-atlas-dark/60 text-sm">
+                                                            <IconMapPin className="w-4 h-4 text-atlas-dark/25" />
+                                                            {company.city ? `${company.city}, ${company.state}` : '-'}
+                                                        </div>
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <Badge variant={company.status === 'Ativo' ? 'success' : 'default'}>
+                                                            {company.status === 'Ativo' ? <IconCheck className="w-3 h-3" /> : <IconClose className="w-3 h-3" />}
+                                                            {company.status}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="p-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <button
+                                                                onClick={() => handleEnrich(company.id)}
+                                                                disabled={enrichingId === company.id}
+                                                                className="p-2 text-atlas-dark/35 hover:text-atlas-orange hover:bg-atlas-orange/10 rounded-lg transition-colors disabled:opacity-50"
+                                                                title="Enriquecer com IA"
+                                                            >
+                                                                <IconSparkle className={`w-4 h-4 ${enrichingId === company.id ? 'animate-spin' : ''}`} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => { setSelectedCompany(company); setIsFormOpen(true); }}
+                                                                className="p-2 text-atlas-dark/35 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                title="Editar"
+                                                            >
+                                                                <IconEdit className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(company.id)}
+                                                                className="p-2 text-atlas-dark/35 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                title="Excluir"
+                                                            >
+                                                                <IconTrash className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))
                                 )}
-                            </tbody>
+                            </motion.tbody>
                         </table>
                     </div>
-                    
+
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
-                        <div className="p-4 border-t border-gray-200 bg-gray-50/50 flex justify-between items-center">
-                            <span className="text-sm text-gray-500">
+                        <div className="p-4 border-t border-black/5 bg-black/[0.015] flex justify-between items-center">
+                            <span className="text-sm text-atlas-dark/50">
                                 Página {page} de {totalPages}
                             </span>
                             <div className="flex gap-2">
-                                <button
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     disabled={page === 1}
                                     onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm font-medium"
                                 >
                                     Anterior
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     disabled={page === totalPages}
                                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors text-sm font-medium"
                                 >
                                     Próxima
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
-                </div>
+                </Card>
             </div>
 
             {isFormOpen && (
