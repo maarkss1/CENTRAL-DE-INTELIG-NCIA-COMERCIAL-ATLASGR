@@ -1,5 +1,6 @@
 import { AgentService } from '../services/agent.service.js';
 import { prisma } from '../../../lib/prisma.js';
+import { vectorService } from '../services/vector.service.js';
 
 export class SDRAgent extends AgentService {
     protected agentType = 'SDR_OUTBOUND';
@@ -19,6 +20,19 @@ Seu objetivo é analisar os dados de uma empresa e seus contatos para criar "Ice
 
         if (!lead || !lead.contact || !lead.company) return;
 
+        // 1. Busca Semântica na Base de Conhecimento (RAG)
+        // O Agente SDR busca se existe algum playbook, roteiro ou case de sucesso
+        // que seja similar ao segmento e características desta empresa.
+        const searchQuery = `Estratégia de prospecção e dores para segmento ${lead.company.segment || 'geral'}`;
+        const similarKnowledge = await vectorService.searchSimilar(searchQuery, 2);
+        
+        let ragContext = '';
+        if (similarKnowledge.length > 0) {
+            ragContext = similarKnowledge.map(k => `- ${k.content}`).join('\n');
+        } else {
+            ragContext = 'Sem contexto adicional no playbook.';
+        }
+
         const promptContext = `
 Dados do prospect:
 - Nome: ${lead.contact.name}
@@ -27,7 +41,10 @@ Dados do prospect:
 - Segmento: ${lead.company.segment || 'Desconhecido'}
 - Resumo de Qualificação: ${JSON.stringify(lead.qualification)}
 
-Escreva um e-mail curto de primeiro contato. Foco em dor/gatilho baseado no segmento.
+Histórico/Contexto da Base de Conhecimento Atlas (Playbooks e Cases):
+${ragContext}
+
+Escreva um e-mail curto de primeiro contato. Foco em dor/gatilho baseado no segmento e no contexto do Playbook fornecido acima.
 `;
 
         const generatedEmail = await this.processMessage(promptContext);

@@ -101,3 +101,34 @@ export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
     const pricing = PRICING_PER_MILLION_TOKENS[model] ?? PRICING_PER_MILLION_TOKENS['gemini-flash-latest'];
     return (usage.promptTokens / 1_000_000) * pricing.input + (usage.completionTokens / 1_000_000) * pricing.output;
 }
+
+/**
+ * Gera um embedding (array de floats) para o texto fornecido.
+ * Usado para a Memória Vetorial (RAG) do Agente SDR via pgvector.
+ */
+export const generateEmbedding = async (text: string): Promise<number[]> => {
+    // Usamos a API do Gemini via fetch. O URL litellm suporta `/v1/embeddings` se configurado,
+    // Mas para simplificar vamos direto no provider se o LITELLM_URL não for um proxy de embedding
+    const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
+    const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
+    
+    const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LITELLM_KEY}`
+        },
+        body: JSON.stringify({
+            model: 'text-embedding-004',
+            input: text
+        })
+    });
+    
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Failed to generate embedding: ${err}`);
+    }
+    
+    const data = await response.json();
+    return data.data[0].embedding;
+};

@@ -3,11 +3,11 @@ import { MainLayout } from './components/layout/MainLayout';
 import { TabType } from './components/layout/Header';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
-
+import { Login } from './features/auth/components/Login';
 import { ProspectingHub } from './features/prospecting/components/ProspectingHub';
 import { EnricherHub } from './features/prospecting/components/EnricherHub';
 import { CrmBoard } from './components/CrmBoard';
-import { Intelligence } from './components/Intelligence';
+import { IntelligenceHub } from './features/intelligence/components/IntelligenceHub';
 import { Dashboard } from './features/dashboard/components/Dashboard';
 import { CompanyList } from './features/companies/components/CompanyList';
 import { ContactList } from './features/contacts/components/ContactList';
@@ -45,7 +45,7 @@ function AppLayout() {
                 <Route path="activities" element={<ActivityList />} />
                 <Route path="prospect" element={<ProspectingHub />} />
                 <Route path="enrich" element={<EnricherHub />} />
-                <Route path="intelligence" element={<Intelligence />} />
+                <Route path="intelligence" element={<IntelligenceHub />} />
             </Routes>
         </MainLayout>
     );
@@ -55,7 +55,7 @@ export default function App() {
     return (
         <Routes>
             <Route path="/" element={<Navigate to="/app" replace />} />
-            <Route path="/login" element={<Navigate to="/app" replace />} />
+            <Route path="/login" element={<Login />} />
             <Route
                 path="/app/*"
                 element={
