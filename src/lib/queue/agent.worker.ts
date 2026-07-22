@@ -1,9 +1,10 @@
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, Queue } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { SDRAgent } from '../../features/intelligence/agents/sdr-agent.js';
 
 export const AGENT_QUEUE_NAME = 'intelligence-agents';
+export const agentQueue = new Queue(AGENT_QUEUE_NAME, { connection });
 
 interface AgentJobData {
     agentType: 'SDR_OUTBOUND';

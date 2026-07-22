@@ -4,10 +4,17 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 export const logger = pino({
     level: process.env.LOG_LEVEL || 'info',
-    // Em produção, logs devem ser gerados estruturados em JSON para OpenTelemetry/Loki/Elastic
-    // Em dev, formatamos para ficar legível no terminal.
+    // Em produção, envia logs estruturados para o Loki
+    // Em dev, formata para ficar legível no terminal.
     transport: isProduction
-        ? undefined
+        ? {
+            target: 'pino-loki',
+            options: {
+                batching: true,
+                interval: 5,
+                host: process.env.LOKI_HOST || 'http://loki:3100' // Dentro do docker-compose
+            }
+        }
         : {
             target: 'pino-pretty',
             options: {

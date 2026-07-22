@@ -1,11 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
 import type { BaseMessage } from '@langchain/core/messages';
 
-// Chamamos a API do Gemini diretamente (via SDK oficial @google/genai) em vez de depender
-// de um proxy LiteLLM rodando em Docker — uma dependência a menos entre "configurar a chave"
-// e "a IA responder". Se no futuro for necessário rotear para outros provedores (GPT, Claude,
-// etc.), o LITELLM_URL continua disponível como alternativa (ver getAiModelViaLiteLLM abaixo).
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// Constantes da API
+export const GEMINI_MODEL = 'gemini-2.5-pro';
 
 // Apelidos usados no restante do código (ai.service.ts, leadQualification.ts) mapeados para os
 // nomes de modelo reais da API Gemini. Usamos os aliases "-latest" para não quebrar de novo
@@ -42,7 +38,7 @@ export interface AiChatModel {
  * Retorna um "chat model" mínimo compatível com o padrão `.invoke([HumanMessage])` do LangChain,
  * mas que por baixo dos panos chama a Gemini API diretamente — sem depender do container LiteLLM.
  */
-export const getAiModel = (modelName: string = 'gemini-pro', temperature: number = 0.7): AiChatModel => {
+export const getAiModel = (modelName: string = 'gemini-pro', temperature: number = 0.7, agentContext: string = 'system'): AiChatModel => {
     const resolvedModel = MODEL_ALIASES[modelName] || modelName;
     const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
     const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
@@ -62,7 +58,9 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
                     body: JSON.stringify({
                         model: resolvedModel,
                         messages: [{ role: 'user', content: prompt }],
-                        temperature
+                        temperature,
+                        user: agentContext,
+                        metadata: { agent: agentContext }
                     })
                 });
 
