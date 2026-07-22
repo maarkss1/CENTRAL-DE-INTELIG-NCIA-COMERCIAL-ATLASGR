@@ -1,10 +1,5 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import {
-    Search, Loader2, ShieldCheck, AlertTriangle, Building2, MapPin, Users,
-    TrendingUp, Cpu, Database, Globe, CheckCircle2, Landmark, UserPlus, Sparkles,
-    SlidersHorizontal, ChevronDown, ChevronUp, Linkedin, Phone, Calendar, DollarSign, Wrench, Mail, type LucideIcon
-} from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult, DecisionMaker } from '../services/prospecting.service';
@@ -13,6 +8,15 @@ import {
     SEGMENTO_OPTIONS, LOCALIZACAO_OPTIONS, QUANTIDADE_OPTIONS, PORTE_OPTIONS, ESTADO_OPTIONS, TECNOLOGIA_OPTIONS,
     ATLAS_PERSONA_OPTIONS,
 } from '../constants/icp-options';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { fadeInUp, staggerContainer, staggerItem } from '../../../lib/motion';
+import {
+    IconSearch, IconSpinner, IconShieldCheck, IconWarning, IconBuilding, IconMapPin, IconContacts,
+    IconTrendUp, IconCpu, IconDatabase, IconGlobe, IconCheck, IconLandmark, IconUserPlus, IconSparkle,
+    IconSliders, IconChevronDown, IconChevronUp, IconLinkedin, IconPhone, IconCalendar, IconDollar,
+    IconWrench, IconMail, type AtlasIconProps,
+} from '../../../components/icons';
 
 type HubTab = 'cnpj' | 'discovery';
 
@@ -49,6 +53,8 @@ interface PromoteResult {
 function getErrorMessage(error: unknown, fallback: string): string {
     return error instanceof Error ? error.message : fallback;
 }
+
+const inputClass = "w-full p-3 bg-black/[0.02] rounded-xl border border-black/5 outline-none focus:border-atlas-orange/50 focus:ring-2 focus:ring-atlas-orange/15 transition-all text-sm font-medium text-atlas-dark";
 
 export function ProspectingHub() {
     const [tab, setTab] = useState<HubTab>('cnpj');
@@ -176,84 +182,88 @@ export function ProspectingHub() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6 sm:p-8 font-sans">
+        <div className="flex-1 overflow-y-auto bg-gray-50/50 p-6 sm:p-8">
             <div className="max-w-7xl mx-auto space-y-8">
-                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
-                    <h1 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-atlas-dark to-gray-600 tracking-tight">Prospecção & Inteligência <Sparkles className="inline-block text-atlas-orange -mt-1 ml-1" size={28} /></h1>
-                    <p className="text-gray-500 mt-2 text-sm font-medium">Motor de enriquecimento autônomo com IA para capturar leads corporativos de altíssimo nível.</p>
+                <motion.div variants={fadeInUp} initial="hidden" animate="show" className="mb-4">
+                    <h1 className="text-4xl font-black text-atlas-dark tracking-tight flex items-center gap-2">
+                        Prospecção &amp; Inteligência
+                        <IconSparkle className="text-atlas-orange w-7 h-7" />
+                    </h1>
+                    <p className="text-atlas-dark/50 mt-2 text-sm font-medium">Motor de enriquecimento autônomo com IA para capturar leads corporativos de altíssimo nível.</p>
                 </motion.div>
 
-                <div className="flex gap-3 bg-white/60 backdrop-blur-xl p-2 rounded-2xl border border-white shadow-sm w-fit relative z-10">
+                <motion.div variants={fadeInUp} initial="hidden" animate="show" className="flex gap-2 glass-panel p-2 rounded-2xl w-fit relative z-10">
                     <button
                         onClick={() => setTab('cnpj')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-gradient-to-br from-atlas-dark to-black text-white shadow-lg shadow-black/10 scale-100' : 'text-gray-500 hover:bg-white hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-atlas-dark text-white elevation-2' : 'text-atlas-dark/45 hover:bg-white/70'}`}
                     >
-                        <Landmark size={18} /> Auditoria Receita (CNPJ)
+                        <IconLandmark className="w-4 h-4" /> Auditoria Receita (CNPJ)
                     </button>
                     <button
                         onClick={() => setTab('discovery')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-atlas-orange to-[#ff6b3d] text-white shadow-lg shadow-atlas-orange/20 scale-100' : 'text-gray-500 hover:bg-white hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-atlas-orange to-atlas-light-orange text-white elevation-2' : 'text-atlas-dark/45 hover:bg-white/70'}`}
                     >
-                        <Database size={18} /> Radar Discovery (Apollo + IA)
+                        <IconDatabase className="w-4 h-4" /> Radar Discovery (Apollo + IA)
                     </button>
-                </div>
+                </motion.div>
 
                 {tab === 'cnpj' && (
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                        <div className="xl:col-span-4 bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm">
+                        <Card className="xl:col-span-4 p-6 sm:p-8">
                             <div className="flex items-center gap-2 mb-6">
                                 <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-atlas-orange">
-                                    <Landmark size={18} />
+                                    <IconLandmark className="w-[18px] h-[18px]" />
                                 </div>
-                                <h2 className="font-black text-xl text-atlas-dark">🏛️ Consulta Receita Federal</h2>
+                                <h2 className="font-black text-xl text-atlas-dark">Consulta Receita Federal</h2>
                             </div>
-                            <p className="text-xs text-gray-500 mb-4">Dados oficiais via BrasilAPI — sem chave, sem custo, direto da base da Receita Federal.</p>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">CNPJ</label>
+                            <p className="text-xs text-atlas-dark/45 mb-4">Dados oficiais via BrasilAPI — sem chave, sem custo, direto da base da Receita Federal.</p>
+                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">CNPJ</label>
                             <input
-                                className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark mb-4"
+                                className={`${inputClass} mb-4`}
                                 value={cnpjInput}
                                 placeholder="Ex: 19.131.243/0001-97"
                                 onChange={(e) => setCnpjInput(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleCnpjLookup()}
                             />
-                            <button
+                            <Button
+                                variant="premium"
+                                className="w-full py-3.5"
                                 onClick={handleCnpjLookup}
                                 disabled={cnpjLoading || !cnpjInput}
-                                className="w-full bg-atlas-orange text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-atlas-orange/20"
                             >
-                                {cnpjLoading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                                {cnpjLoading ? '⏳ Consultando...' : '🔎 Consultar'}
-                            </button>
+                                {cnpjLoading ? <IconSpinner className="w-[18px] h-[18px] mr-2 animate-spin" /> : <IconSearch className="w-[18px] h-[18px] mr-2" />}
+                                {cnpjLoading ? 'Consultando...' : 'Consultar'}
+                            </Button>
                             {cnpjError && (
                                 <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
-                                    <AlertTriangle size={14} className="mt-0.5 shrink-0" /> {cnpjError}
+                                    <IconWarning className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {cnpjError}
                                 </div>
                             )}
-                        </div>
+                        </Card>
 
                         <div className="xl:col-span-8">
                             {!cnpjResult && !cnpjLoading && (
-                                <div className="bg-white rounded-2xl border border-dashed border-gray-200 flex flex-col items-center justify-center p-10 min-h-[400px]">
-                                    <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
-                                        <Landmark className="text-gray-300" size={32} />
+                                <div className="bg-white rounded-2xl border border-dashed border-black/10 flex flex-col items-center justify-center p-10 min-h-[400px]">
+                                    <div className="bg-black/[0.02] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
+                                        <IconLandmark className="text-atlas-dark/20 w-8 h-8" />
                                     </div>
                                     <h3 className="font-black text-xl text-atlas-dark mb-2">Nenhuma consulta feita</h3>
-                                    <p className="text-sm text-gray-500 text-center max-w-sm">Digite um CNPJ para trazer dados cadastrais reais direto da Receita Federal.</p>
+                                    <p className="text-sm text-atlas-dark/45 text-center max-w-sm">Digite um CNPJ para trazer dados cadastrais reais direto da Receita Federal.</p>
                                 </div>
                             )}
 
                             {cnpjResult && !cnpjResult.found && (
-                                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 flex flex-col items-center justify-center min-h-[300px]">
-                                    <AlertTriangle className="text-amber-500 mb-4" size={40} />
+                                <Card className="p-10 flex flex-col items-center justify-center min-h-[300px]">
+                                    <IconWarning className="text-amber-500 mb-4 w-10 h-10" />
                                     <h3 className="font-black text-xl text-atlas-dark mb-2">
                                         {cnpjResult.error === 'invalid_format' ? 'CNPJ inválido' : 'CNPJ não encontrado na base da Receita'}
                                     </h3>
-                                    <p className="text-sm text-gray-500 text-center max-w-sm">
+                                    <p className="text-sm text-atlas-dark/45 text-center max-w-sm">
                                         {cnpjResult.error === 'invalid_format'
                                             ? 'Verifique os dígitos verificadores e tente novamente.'
                                             : 'Confira o número digitado — esse CNPJ não foi localizado na base pública.'}
                                     </p>
-                                </div>
+                                </Card>
                             )}
 
                             {cnpjResult?.found && cnpjResult.data && (
@@ -270,22 +280,22 @@ export function ProspectingHub() {
 
                 {tab === 'discovery' && (
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                        <div className="xl:col-span-4 bg-white p-6 sm:p-8 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden flex flex-col h-full max-h-[800px]">
+                        <Card className="xl:col-span-4 p-6 sm:p-8 relative overflow-hidden flex flex-col h-full max-h-[800px]">
                             <div className="absolute top-0 right-0 w-40 h-40 bg-atlas-orange opacity-5 transform rotate-45 translate-x-20 -translate-y-20" />
                             <div className="flex items-center gap-2 mb-6 relative z-10">
                                 <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center text-atlas-orange">
-                                    <Database size={18} />
+                                    <IconDatabase className="w-[18px] h-[18px]" />
                                 </div>
-                                <h2 className="font-black text-xl text-atlas-dark">🗺️ Motor de Busca Turbo</h2>
+                                <h2 className="font-black text-xl text-atlas-dark">Motor de Busca Turbo</h2>
                             </div>
-                            <p className="text-xs text-gray-500 mb-4 relative z-10">Busca real via Google Places, Apollo.io (Organization Search) e OpenStreetMap; cada candidato é validado na Receita Federal antes de virar Lead.</p>
+                            <p className="text-xs text-atlas-dark/45 mb-4 relative z-10">Busca real via Google Places, Apollo.io (Organization Search) e OpenStreetMap; cada candidato é validado na Receita Federal antes de virar Lead.</p>
 
                             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
                                 {dropdownFields.map(({ key, label, options }) => (
                                     <div key={key}>
-                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">{label}</label>
+                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">{label}</label>
                                         <select
-                                            className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                            className={inputClass}
                                             value={criteria[key]}
                                             onChange={(e) => setCriteria({ ...criteria, [key]: e.target.value })}
                                         >
@@ -295,9 +305,9 @@ export function ProspectingHub() {
                                 ))}
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Estado (refina a busca)</label>
+                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Estado (refina a busca)</label>
                                         <select
-                                            className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                            className={inputClass}
                                             value={criteria.estado || ''}
                                             onChange={(e) => setCriteria({ ...criteria, estado: e.target.value || undefined, cidade: e.target.value ? criteria.cidade : undefined })}
                                         >
@@ -306,22 +316,22 @@ export function ProspectingHub() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Cidade (opcional)</label>
+                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Cidade (opcional)</label>
                                         <input
                                             type="text"
                                             placeholder="Ex: Niterói"
                                             value={criteria.cidade || ''}
                                             onChange={(e) => setCriteria({ ...criteria, cidade: e.target.value || undefined })}
                                             disabled={!criteria.estado}
-                                            className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark disabled:opacity-50"
+                                            className={`${inputClass} disabled:opacity-50`}
                                         />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Quantidade de Leads</label>
+                                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Quantidade de Leads</label>
                                     <select
-                                        className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                        className={inputClass}
                                         value={criteria.quantidade}
                                         onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) })}
                                     >
@@ -331,18 +341,18 @@ export function ProspectingHub() {
 
                                 <button
                                     onClick={() => setShowAdvanced((v) => !v)}
-                                    className="flex items-center justify-between w-full text-[10px] tracking-wider font-bold uppercase text-gray-500 hover:text-atlas-orange transition-colors pt-2"
+                                    className="flex items-center justify-between w-full text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 hover:text-atlas-orange transition-colors pt-2"
                                 >
-                                    <span className="flex items-center gap-1.5"><SlidersHorizontal size={12} /> Filtros Avançados (Apollo.io)</span>
-                                    {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                    <span className="flex items-center gap-1.5"><IconSliders className="w-3 h-3" /> Filtros Avançados (Apollo.io)</span>
+                                    {showAdvanced ? <IconChevronUp className="w-3.5 h-3.5" /> : <IconChevronDown className="w-3.5 h-3.5" />}
                                 </button>
 
                                 {showAdvanced && (
                                     <div className="space-y-4 pt-1">
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Porte (nº de funcionários)</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Porte (nº de funcionários)</label>
                                             <select
-                                                className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                className={inputClass}
                                                 value={criteria.porte || ''}
                                                 onChange={(e) => setCriteria({ ...criteria, porte: e.target.value || undefined })}
                                             >
@@ -350,69 +360,69 @@ export function ProspectingHub() {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Faturamento Anual Estimado (USD)</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Faturamento Anual Estimado (USD)</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="number"
                                                     placeholder="Mínimo"
                                                     value={criteria.faturamentoMin ?? ''}
                                                     onChange={(e) => setCriteria({ ...criteria, faturamentoMin: e.target.value ? Number(e.target.value) : undefined })}
-                                                    className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                    className={inputClass}
                                                 />
                                                 <input
                                                     type="number"
                                                     placeholder="Máximo"
                                                     value={criteria.faturamentoMax ?? ''}
                                                     onChange={(e) => setCriteria({ ...criteria, faturamentoMax: e.target.value ? Number(e.target.value) : undefined })}
-                                                    className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                    className={inputClass}
                                                 />
                                             </div>
-                                            <p className="text-[10px] text-gray-400 mt-1">Dado da Apollo é normalizado em dólar, independente do mercado.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">Dado da Apollo é normalizado em dólar, independente do mercado.</p>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Palavras-chave adicionais</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Palavras-chave adicionais</label>
                                             <input
                                                 type="text"
                                                 placeholder="Ex: refrigerated, cargo, fleet"
                                                 value={criteria.palavrasChave || ''}
                                                 onChange={(e) => setCriteria({ ...criteria, palavrasChave: e.target.value || undefined })}
-                                                className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                className={inputClass}
                                             />
-                                            <p className="text-[10px] text-gray-400 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Nome específico da empresa</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Nome específico da empresa</label>
                                             <input
                                                 type="text"
                                                 placeholder="Ex: Tranziran"
                                                 value={criteria.nomeEmpresa || ''}
                                                 onChange={(e) => setCriteria({ ...criteria, nomeEmpresa: e.target.value || undefined })}
-                                                className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                className={inputClass}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Ano de Fundação (Mín e Máx)</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Ano de Fundação (Mín e Máx)</label>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="number"
                                                     placeholder="De"
                                                     value={criteria.anoFundacaoMin ?? ''}
                                                     onChange={(e) => setCriteria({ ...criteria, anoFundacaoMin: e.target.value ? Number(e.target.value) : undefined })}
-                                                    className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                    className={inputClass}
                                                 />
                                                 <input
                                                     type="number"
                                                     placeholder="Até"
                                                     value={criteria.anoFundacaoMax ?? ''}
                                                     onChange={(e) => setCriteria({ ...criteria, anoFundacaoMax: e.target.value ? Number(e.target.value) : undefined })}
-                                                    className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                    className={inputClass}
                                                 />
                                             </div>
-                                            <p className="text-[10px] text-gray-400 mt-1">A Apollo não filtra por ano nativamente — buscamos mais candidatos e filtramos localmente por fundação real.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">A Apollo não filtra por ano nativamente — buscamos mais candidatos e filtramos localmente por fundação real.</p>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Tecnologias Utilizadas</label>
-                                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-gray-50/50 rounded-xl border border-gray-200">
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Tecnologias Utilizadas</label>
+                                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-black/[0.02] rounded-xl border border-black/5">
                                                 {TECNOLOGIA_OPTIONS.map((opt) => {
                                                     const selected = (criteria.tecnologias || '').split(',').filter(Boolean).includes(opt.value);
                                                     return (
@@ -424,18 +434,18 @@ export function ProspectingHub() {
                                                                 const next = selected ? current.filter((v) => v !== opt.value) : [...current, opt.value];
                                                                 setCriteria({ ...criteria, tecnologias: next.length ? next.join(',') : undefined });
                                                             }}
-                                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-atlas-orange border-atlas-orange text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-atlas-orange/40'}`}
+                                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-atlas-orange border-atlas-orange text-white' : 'bg-white border-black/10 text-atlas-dark/60 hover:border-atlas-orange/40'}`}
                                                         >
                                                             {opt.label}
                                                         </button>
                                                     );
                                                 })}
                                             </div>
-                                            <p className="text-[10px] text-gray-400 mt-1">Lista curada e validada contra a API — a Apollo só filtra por identificador interno, não por nome livre.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">Lista curada e validada contra a API — a Apollo só filtra por identificador interno, não por nome livre.</p>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Excluir Tecnologias</label>
-                                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-gray-50/50 rounded-xl border border-gray-200">
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Excluir Tecnologias</label>
+                                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-black/[0.02] rounded-xl border border-black/5">
                                                 {TECNOLOGIA_OPTIONS.map((opt) => {
                                                     const selected = (criteria.tecnologiasExcluir || '').split(',').filter(Boolean).includes(opt.value);
                                                     return (
@@ -447,32 +457,32 @@ export function ProspectingHub() {
                                                                 const next = selected ? current.filter((v) => v !== opt.value) : [...current, opt.value];
                                                                 setCriteria({ ...criteria, tecnologiasExcluir: next.length ? next.join(',') : undefined });
                                                             }}
-                                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-red-300'}`}
+                                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-black/10 text-atlas-dark/60 hover:border-red-300'}`}
                                                         >
                                                             {opt.label}
                                                         </button>
                                                     );
                                                 })}
                                             </div>
-                                            <p className="text-[10px] text-gray-400 mt-1">Útil para descartar empresas que já usam a solução de um concorrente, por exemplo.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">Útil para descartar empresas que já usam a solução de um concorrente, por exemplo.</p>
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Excluir Localização</label>
+                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Excluir Localização</label>
                                             <input
                                                 type="text"
                                                 placeholder="Ex: São Paulo, Minas Gerais"
                                                 value={criteria.localizacaoExcluir || ''}
                                                 onChange={(e) => setCriteria({ ...criteria, localizacaoExcluir: e.target.value || undefined })}
-                                                className="w-full p-3 bg-gray-50/50 rounded-xl border border-gray-200 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-atlas-dark"
+                                                className={inputClass}
                                             />
-                                            <p className="text-[10px] text-gray-400 mt-1">Cidades/estados a descartar, separados por vírgula.</p>
+                                            <p className="text-[10px] text-atlas-dark/35 mt-1">Cidades/estados a descartar, separados por vírgula.</p>
                                         </div>
-                                        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 pt-1">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm text-atlas-dark/70 pt-1">
                                             <input
                                                 type="checkbox"
                                                 checked={!!criteria.apenasCapitalAberto}
                                                 onChange={(e) => setCriteria({ ...criteria, apenasCapitalAberto: e.target.checked || undefined })}
-                                                className="rounded border-gray-300 text-atlas-orange focus:ring-atlas-orange"
+                                                className="rounded border-black/20 text-atlas-orange focus:ring-atlas-orange"
                                             />
                                             Somente empresas de capital aberto (B3/bolsa)
                                         </label>
@@ -480,100 +490,91 @@ export function ProspectingHub() {
                                 )}
                             </div>
 
-                            <div className="pt-6 mt-2 relative z-10 border-t border-gray-100">
-                                <button
-                                    onClick={handleDiscover}
-                                    disabled={isSearching}
-                                    className="w-full bg-atlas-orange text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-atlas-orange/20"
-                                >
+                            <div className="pt-6 mt-2 relative z-10 border-t border-black/5">
+                                <Button variant="premium" className="w-full py-4" onClick={handleDiscover} disabled={isSearching}>
                                     {isSearching ? (
-                                        <><Loader2 className="animate-spin" size={20} /> <span>⏳ Buscando...</span></>
+                                        <><IconSpinner className="w-5 h-5 mr-2 animate-spin" /> Buscando...</>
                                     ) : (
-                                        <><Cpu size={20} /> <span>🚀 Encontrar Leads Ideais</span></>
+                                        <><IconCpu className="w-5 h-5 mr-2" /> Encontrar Leads Ideais</>
                                     )}
-                                </button>
+                                </Button>
                                 {discoverError && <p className="text-xs text-red-600 mt-2">{discoverError}</p>}
                             </div>
-                        </div>
+                        </Card>
 
                         <div className="xl:col-span-8 flex flex-col h-full">
                             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
-                                <h2 className="font-black text-2xl text-atlas-dark">✨ Resultados</h2>
+                                <h2 className="font-black text-2xl text-atlas-dark">Resultados</h2>
                                 {candidates.length > 0 && (
-                                    <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">🎯 {filteredCandidates.length}/{candidates.length} Candidatos</span>
+                                    <span className="bg-black/[0.03] text-atlas-dark/60 px-3 py-1 rounded-full text-xs font-bold">{filteredCandidates.length}/{candidates.length} Candidatos</span>
                                 )}
                             </div>
 
                             {candidates.length > 0 && !isSearching && (
                                 <div className="relative mb-4">
-                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <IconSearch className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-atlas-dark/30" />
                                     <input
                                         type="text"
-                                        placeholder="⚡ Filtrar resultados instantaneamente por nome, segmento, cidade..."
+                                        placeholder="Filtrar resultados instantaneamente por nome, segmento, cidade..."
                                         value={resultFilter}
                                         onChange={(e) => setResultFilter(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-atlas-orange/20 focus:border-atlas-orange transition-all outline-none"
+                                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-black/5 rounded-xl text-sm focus:ring-2 focus:ring-atlas-orange/15 focus:border-atlas-orange/40 transition-all outline-none"
                                     />
                                 </div>
                             )}
 
                             {apolloError && !isSearching && (
                                 <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
-                                    <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                                    <IconWarning className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                                     Apollo.io não retornou resultados: {apolloError}
                                 </div>
                             )}
 
                             {isSearching ? (
-                                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center p-10 min-h-[400px]">
+                                <div className="flex-1 bg-white rounded-2xl border border-black/5 elevation-1 flex flex-col items-center justify-center p-10 min-h-[400px]">
                                     <div className="w-24 h-24 relative mb-8">
-                                        <div className="absolute inset-0 border-4 border-gray-100 rounded-full" />
+                                        <div className="absolute inset-0 border-4 border-black/5 rounded-full" />
                                         <div className="absolute inset-0 border-4 border-atlas-orange rounded-full border-t-transparent animate-spin" />
                                         <div className="absolute inset-0 flex items-center justify-center text-atlas-orange">
-                                            <Globe size={32} className="animate-pulse" />
+                                            <IconGlobe className="w-8 h-8 animate-pulse" />
                                         </div>
                                     </div>
-                                    <h3 className="font-black text-xl text-atlas-dark mb-4 text-center">🌎 Mapeando Mercado...</h3>
+                                    <h3 className="font-black text-xl text-atlas-dark mb-4 text-center">Mapeando Mercado...</h3>
                                     <div className="space-y-3 w-full max-w-sm">
                                         {loadingSteps.map((step, idx) => (
-                                            <div key={idx} className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-atlas-orange' : idx < loadingStepIdx ? 'text-gray-400' : 'text-gray-200 opacity-50'}`}>
-                                                {idx < loadingStepIdx ? <CheckCircle2 size={16} /> : idx === loadingStepIdx ? <Loader2 size={16} className="animate-spin" /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
+                                            <div key={idx} className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-atlas-orange' : idx < loadingStepIdx ? 'text-atlas-dark/35' : 'text-atlas-dark/15'}`}>
+                                                {idx < loadingStepIdx ? <IconCheck className="w-4 h-4" /> : idx === loadingStepIdx ? <IconSpinner className="w-4 h-4 animate-spin" /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
                                                 {step}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             ) : candidates.length > 0 ? (
-                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                                        {filteredCandidates.length === 0 && (
-                                            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">
-                                                🔍 Nenhum candidato bate com "{resultFilter}".
-                                            </div>
-                                        )}
-                                        {filteredCandidates.map(({ c, i }) => (
-                                            <motion.div 
-                                                key={i} 
-                                                initial={{ opacity: 0, y: 10 }} 
-                                                animate={{ opacity: 1, y: 0 }} 
-                                                transition={{ delay: i * 0.05 }}
-                                            >
-                                                <CandidateCard
-                                                    candidate={c}
-                                                    onPromote={() => promoteCandidate(c, i)}
-                                                    isPromoting={promotingKey === `discovery-${i}`}
-                                                    promoted={!!promoted[`discovery-${i}`]}
-                                                    promotedResult={promoted[`discovery-${i}`]}
-                                                />
-                                            </motion.div>
-                                        ))}
-                                    </motion.div>
+                                <motion.div variants={staggerContainer(0.05)} initial="hidden" animate="show" className="space-y-4">
+                                    {filteredCandidates.length === 0 && (
+                                        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-dashed border-black/10 p-8 text-center text-sm text-atlas-dark/45">
+                                            Nenhum candidato bate com "{resultFilter}".
+                                        </div>
+                                    )}
+                                    {filteredCandidates.map(({ c, i }) => (
+                                        <motion.div key={i} variants={staggerItem}>
+                                            <CandidateCard
+                                                candidate={c}
+                                                onPromote={() => promoteCandidate(c, i)}
+                                                isPromoting={promotingKey === `discovery-${i}`}
+                                                promoted={!!promoted[`discovery-${i}`]}
+                                                promotedResult={promoted[`discovery-${i}`]}
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
                             ) : (
-                                <div className="flex-1 bg-white rounded-2xl border border-dashed border-gray-200 flex flex-col items-center justify-center p-10 min-h-[400px]">
-                                    <div className="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
-                                        <Search className="text-gray-300" size={32} />
+                                <div className="flex-1 bg-white rounded-2xl border border-dashed border-black/10 flex flex-col items-center justify-center p-10 min-h-[400px]">
+                                    <div className="bg-black/[0.02] w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5">
+                                        <IconSearch className="text-atlas-dark/20 w-8 h-8" />
                                     </div>
-                                    <h3 className="font-black text-xl text-atlas-dark mb-2">🔍 Nenhum lead encontrado</h3>
-                                    <p className="text-sm text-gray-500 text-center max-w-sm">
+                                    <h3 className="font-black text-xl text-atlas-dark mb-2">Nenhum lead encontrado</h3>
+                                    <p className="text-sm text-atlas-dark/45 text-center max-w-sm">
                                         Preencha os critérios de ICP ao lado e busque oportunidades reais de mercado via Google Places, Apollo.io e OpenStreetMap.
                                     </p>
                                 </div>
@@ -595,46 +596,46 @@ function CnpjResultCard({
     const isActive = d.situacaoCadastral?.toUpperCase() === 'ATIVA';
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-8 space-y-6">
+        <Card className="p-6 sm:p-8 space-y-6">
             <div className="flex items-start justify-between flex-wrap gap-4">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-black text-2xl text-atlas-dark">{d.tradeName}</h3>
                         <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            <ShieldCheck size={10} /> {d.situacaoCadastral}
+                            <IconShieldCheck className="w-2.5 h-2.5" /> {d.situacaoCadastral}
                         </span>
                     </div>
-                    <p className="text-sm text-gray-500">{d.legalName} · {result.cnpj}</p>
+                    <p className="text-sm text-atlas-dark/45">{d.legalName} · {result.cnpj}</p>
                 </div>
                 <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-xs font-bold">
-                    <CheckCircle2 size={12} /> ✅ Dados oficiais — Receita Federal
+                    <IconCheck className="w-3 h-3" /> Dados oficiais — Receita Federal
                 </span>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <InfoTile icon={Building2} label="Natureza Jurídica" value={d.naturezaJuridica} />
-                <InfoTile icon={Users} label="Porte / Funcionários" value={`${d.size} (${d.employeeCountEstimate}+ estimado)`} />
-                <InfoTile icon={TrendingUp} label="Capital Social" value={d.capitalSocial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
-                <InfoTile icon={MapPin} label="Localização" value={`${d.city}, ${d.state}`} />
+                <InfoTile icon={IconBuilding} label="Natureza Jurídica" value={d.naturezaJuridica} />
+                <InfoTile icon={IconContacts} label="Porte / Funcionários" value={`${d.size} (${d.employeeCountEstimate}+ estimado)`} />
+                <InfoTile icon={IconDollar} label="Capital Social" value={d.capitalSocial.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} />
+                <InfoTile icon={IconMapPin} label="Localização" value={`${d.city}, ${d.state}`} />
             </div>
 
             <div>
-                <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-1">Atividade Principal (CNAE {d.cnae})</p>
-                <p className="text-sm text-gray-700">{d.cnaeDescription}</p>
+                <p className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-1">Atividade Principal (CNAE {d.cnae})</p>
+                <p className="text-sm text-atlas-dark/70">{d.cnaeDescription}</p>
             </div>
 
             <div>
-                <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-2">Endereço</p>
-                <p className="text-sm text-gray-700">{d.address}, {d.city} - {d.state}, {d.zipCode}</p>
+                <p className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-2">Endereço</p>
+                <p className="text-sm text-atlas-dark/70">{d.address}, {d.city} - {d.state}, {d.zipCode}</p>
             </div>
 
             {d.qsa.length > 0 && (
                 <div>
-                    <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-2">Quadro Societário</p>
+                    <p className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-2">Quadro Societário</p>
                     <div className="flex flex-wrap gap-2">
                         {d.qsa.map((s, i) => (
-                            <span key={i} className="bg-gray-50 border border-gray-200 rounded-full px-3 py-1 text-xs text-gray-700">
-                                {s.nome} <span className="text-gray-400">· {s.qualificacao}</span>
+                            <span key={i} className="bg-black/[0.02] border border-black/5 rounded-full px-3 py-1 text-xs text-atlas-dark/70">
+                                {s.nome} <span className="text-atlas-dark/35">· {s.qualificacao}</span>
                             </span>
                         ))}
                     </div>
@@ -643,34 +644,30 @@ function CnpjResultCard({
 
             {d.phones.length > 0 && (
                 <div>
-                    <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-2">Telefones (Receita Federal)</p>
-                    <p className="text-sm text-gray-700">{d.phones.join(' · ')}</p>
+                    <p className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-2">Telefones (Receita Federal)</p>
+                    <p className="text-sm text-atlas-dark/70">{d.phones.join(' · ')}</p>
                 </div>
             )}
 
-            <div className="pt-4 border-t border-gray-100 flex justify-end">
+            <div className="pt-4 border-t border-black/5 flex justify-end">
                 {promoted ? (
-                    <span className="flex items-center gap-2 text-green-700 font-bold text-sm"><CheckCircle2 size={16} /> ✅ Adicionado ao CRM</span>
+                    <span className="flex items-center gap-2 text-green-700 font-bold text-sm"><IconCheck className="w-4 h-4" /> Adicionado ao CRM</span>
                 ) : (
-                    <button
-                        onClick={onPromote}
-                        disabled={isPromoting}
-                        className="bg-atlas-dark text-white px-6 py-3 rounded-full font-bold text-sm hover:bg-black transition-colors flex items-center gap-2 disabled:opacity-60"
-                    >
-                        {isPromoting ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
-                        {isPromoting ? '⏳ Adicionando...' : '➕ Adicionar ao CRM como Lead'}
-                    </button>
+                    <Button variant="default" className="rounded-full bg-atlas-dark hover:bg-atlas-dark/90 px-6" onClick={onPromote} disabled={isPromoting}>
+                        {isPromoting ? <IconSpinner className="w-4 h-4 mr-2 animate-spin" /> : <IconUserPlus className="w-4 h-4 mr-2" />}
+                        {isPromoting ? 'Adicionando...' : 'Adicionar ao CRM como Lead'}
+                    </Button>
                 )}
             </div>
-        </div>
+        </Card>
     );
 }
 
-function InfoTile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function InfoTile({ icon: Icon, label, value }: { icon: React.ComponentType<AtlasIconProps>; label: string; value: string }) {
     return (
-        <div className="bg-gray-50/70 rounded-xl p-3">
-            <div className="flex items-center gap-1.5 text-gray-400 mb-1">
-                <Icon size={12} />
+        <div className="bg-black/[0.02] rounded-xl p-3">
+            <div className="flex items-center gap-1.5 text-atlas-dark/35 mb-1">
+                <Icon className="w-3 h-3" />
                 <span className="text-[10px] tracking-wider font-bold uppercase">{label}</span>
             </div>
             <p className="text-sm font-bold text-atlas-dark truncate" title={value}>{value}</p>
@@ -699,7 +696,7 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
         { value: 'manager', label: 'Gerente' },
         { value: 'senior', label: 'Sênior' },
     ];
-    
+
     const DEPARTMENT_OPTIONS = [
         { value: 'sales', label: 'Vendas' },
         { value: 'marketing', label: 'Marketing' },
@@ -770,7 +767,7 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
                     onClick={() => setOpen(true)}
                     className="text-xs bg-indigo-50 text-indigo-700 font-bold px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-100 transition-colors"
                 >
-                    <Search size={14} /> Buscar Decisores Nesta Empresa
+                    <IconSearch className="w-3.5 h-3.5" /> Buscar Decisores Nesta Empresa
                 </button>
             </div>
         );
@@ -779,12 +776,12 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
     return (
         <div className="mt-4 p-4 border border-indigo-100 bg-indigo-50/30 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-sm text-indigo-900 flex items-center gap-2"><Users size={16} /> Pesquisa de Decisores (Apollo)</h4>
-                <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-xs">Fechar</button>
+                <h4 className="font-bold text-sm text-indigo-900 flex items-center gap-2"><IconContacts className="w-4 h-4" /> Pesquisa de Decisores (Apollo)</h4>
+                <button onClick={() => setOpen(false)} className="text-atlas-dark/40 hover:text-atlas-dark/70 text-xs">Fechar</button>
             </div>
 
             <div className="mb-4">
-                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Personas Atlas (Playbook de Pré-Vendas)</label>
+                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Personas Atlas (Playbook de Pré-Vendas)</label>
                 <div className="flex flex-wrap gap-1.5">
                     {ATLAS_PERSONA_OPTIONS.map((persona) => {
                         const active = isPersonaActive(persona);
@@ -794,48 +791,48 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
                                 type="button"
                                 onClick={() => togglePersona(persona)}
                                 title={persona.nivel}
-                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'}`}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-black/10 text-atlas-dark/60 hover:border-indigo-300'}`}
                             >
                                 {persona.label}
                             </button>
                         );
                     })}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">Direto da tabela "Contatos ideais" do Playbook — cada clique já ajusta cargo e senioridade.</p>
+                <p className="text-[10px] text-atlas-dark/35 mt-1">Direto da tabela "Contatos ideais" do Playbook — cada clique já ajusta cargo e senioridade.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Cargos Específicos (Vírgula)</label>
+                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Cargos Específicos (Vírgula)</label>
                     <input
                         type="text"
                         placeholder="Ex: Diretor de Logística, CEO"
                         value={criteria.cargos || ''}
                         onChange={(e) => setCriteria({ ...criteria, cargos: e.target.value || undefined })}
-                        className="w-full p-2.5 bg-white rounded-xl border border-gray-200 outline-none focus:border-indigo-400 text-sm"
+                        className="w-full p-2.5 bg-white rounded-xl border border-black/10 outline-none focus:border-indigo-400 text-sm"
                     />
                 </div>
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Palavras-chave (Perfil LinkedIn)</label>
+                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Palavras-chave (Perfil LinkedIn)</label>
                     <input
                         type="text"
                         placeholder="Ex: agile, supply chain"
                         value={criteria.palavrasChavePerfil || ''}
                         onChange={(e) => setCriteria({ ...criteria, palavrasChavePerfil: e.target.value || undefined })}
-                        className="w-full p-2.5 bg-white rounded-xl border border-gray-200 outline-none focus:border-indigo-400 text-sm"
+                        className="w-full p-2.5 bg-white rounded-xl border border-black/10 outline-none focus:border-indigo-400 text-sm"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Níveis de Senioridade</label>
+                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Níveis de Senioridade</label>
                     <div className="flex flex-wrap gap-2">
                         {SENIORITY_OPTIONS.map(opt => (
                             <button
                                 key={opt.value}
                                 onClick={() => toggleSeniority(opt.value)}
-                                className={`px-2 py-1 rounded-md text-xs font-medium border ${criteria.senioridades?.includes(opt.value) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-200 text-gray-600'}`}
+                                className={`px-2 py-1 rounded-md text-xs font-medium border ${criteria.senioridades?.includes(opt.value) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-black/10 text-atlas-dark/60'}`}
                             >
                                 {opt.label}
                             </button>
@@ -843,13 +840,13 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
                     </div>
                 </div>
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Departamentos</label>
+                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Departamentos</label>
                     <div className="flex flex-wrap gap-2">
                         {DEPARTMENT_OPTIONS.map(opt => (
                             <button
                                 key={opt.value}
                                 onClick={() => toggleDepartment(opt.value)}
-                                className={`px-2 py-1 rounded-md text-xs font-medium border ${criteria.departamentos?.includes(opt.value) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-gray-200 text-gray-600'}`}
+                                className={`px-2 py-1 rounded-md text-xs font-medium border ${criteria.departamentos?.includes(opt.value) ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-white border-black/10 text-atlas-dark/60'}`}
                             >
                                 {opt.label}
                             </button>
@@ -861,31 +858,31 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="flex gap-2">
                     <div className="flex-1">
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Cidade (opcional)</label>
+                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Cidade (opcional)</label>
                         <input
                             type="text"
                             value={criteria.cidade || ''}
                             onChange={(e) => setCriteria({ ...criteria, cidade: e.target.value || undefined })}
-                            className="w-full p-2.5 bg-white rounded-xl border border-gray-200 outline-none focus:border-indigo-400 text-sm"
+                            className="w-full p-2.5 bg-white rounded-xl border border-black/10 outline-none focus:border-indigo-400 text-sm"
                         />
                     </div>
                     <div className="flex-1">
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-500">Estado (opcional)</label>
+                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-atlas-dark/45">Estado (opcional)</label>
                         <input
                             type="text"
                             value={criteria.estado || ''}
                             onChange={(e) => setCriteria({ ...criteria, estado: e.target.value || undefined })}
-                            className="w-full p-2.5 bg-white rounded-xl border border-gray-200 outline-none focus:border-indigo-400 text-sm"
+                            className="w-full p-2.5 bg-white rounded-xl border border-black/10 outline-none focus:border-indigo-400 text-sm"
                         />
                     </div>
                 </div>
                 <div className="flex items-center pt-5">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-atlas-dark/70">
                         <input
                             type="checkbox"
                             checked={criteria.apenasEmailVerificado}
                             onChange={(e) => setCriteria({ ...criteria, apenasEmailVerificado: e.target.checked })}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-black/20 text-indigo-600 focus:ring-indigo-500"
                         />
                         Somente e-mails verificados
                     </label>
@@ -897,7 +894,7 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
                 disabled={isSearching}
                 className="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
             >
-                {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                {isSearching ? <IconSpinner className="w-4 h-4 animate-spin" /> : <IconSearch className="w-4 h-4" />}
                 {isSearching ? 'Buscando pessoas...' : 'Buscar Pessoas'}
             </button>
 
@@ -905,25 +902,25 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
 
             {results && (
                 <div className="mt-4 border-t border-indigo-100 pt-4">
-                    <h5 className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-3">Resultados ({results.length})</h5>
+                    <h5 className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-3">Resultados ({results.length})</h5>
                     {results.length === 0 ? (
-                        <p className="text-sm text-gray-500">Nenhuma pessoa encontrada com estes filtros.</p>
+                        <p className="text-sm text-atlas-dark/45">Nenhuma pessoa encontrada com estes filtros.</p>
                     ) : (
                         <div className="space-y-2">
                             {results.map((dm, idx) => (
-                                <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700">
+                                <div key={idx} className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-white border border-black/10 rounded-xl px-3 py-2 text-xs text-atlas-dark/70">
                                     <span className="font-bold text-sm text-atlas-dark">{dm.name}</span>
-                                    {dm.title && <span className="text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-md">{dm.title}</span>}
+                                    {dm.title && <span className="text-atlas-dark/45 font-medium bg-black/[0.03] px-2 py-0.5 rounded-md">{dm.title}</span>}
                                     {dm.email && (
                                         <span className="flex items-center gap-1 text-green-700 font-medium bg-green-50 px-2 py-0.5 rounded-md">
-                                            <Mail size={12} /> {dm.email}
+                                            <IconMail className="w-3 h-3" /> {dm.email}
                                             {dm.emailSource === 'hunter' && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
                                         </span>
                                     )}
-                                    {dm.phone && <span className="flex items-center gap-1 text-gray-600"><Phone size={12} /> {dm.phone}</span>}
+                                    {dm.phone && <span className="flex items-center gap-1 text-atlas-dark/60"><IconPhone className="w-3 h-3" /> {dm.phone}</span>}
                                     {dm.linkedinUrl && (
                                         <a href={dm.linkedinUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
-                                            <Linkedin size={12} /> LinkedIn
+                                            <IconLinkedin className="w-3 h-3" /> LinkedIn
                                         </a>
                                     )}
                                 </div>
@@ -946,37 +943,37 @@ function CandidateCard({
     const enrichment = promotedResult?.enrichment;
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 hover:border-atlas-orange/40 transition-all shadow-sm group">
+        <Card variant="interactive" className="p-6 group">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="font-black text-lg text-atlas-dark group-hover:text-atlas-orange transition-colors">{candidate.tradeName}</h3>
                         <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-green-100 text-green-700' : finalScore >= 45 ? 'bg-blue-100 text-blue-700' : 'bg-atlas-yellow/20 text-atlas-dark'}`}>
-                            <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
+                            <IconTrendUp className="w-2.5 h-2.5" /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
                         {enrichment?.company.googleRating && (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-yellow-50 text-yellow-700 border border-yellow-200">
-                                ⭐ {enrichment.company.googleRating} Google ({enrichment.company.googleReviewsCount})
+                                {enrichment.company.googleRating} Google ({enrichment.company.googleReviewsCount})
                             </span>
                         )}
                     </div>
 
-                    <div className="flex flex-wrap gap-4 text-xs font-semibold text-gray-500 mb-2">
-                        <span className="flex items-center gap-1.5"><Building2 size={14} className="text-gray-400" /> {candidate.segment}</span>
-                        <span className="flex items-center gap-1.5"><Users size={14} className="text-gray-400" /> {candidate.size}</span>
-                        <span className="flex items-center gap-1.5"><MapPin size={14} className="text-gray-400" /> {candidate.location}</span>
+                    <div className="flex flex-wrap gap-4 text-xs font-semibold text-atlas-dark/50 mb-2">
+                        <span className="flex items-center gap-1.5"><IconBuilding className="w-3.5 h-3.5 text-atlas-dark/30" /> {candidate.segment}</span>
+                        <span className="flex items-center gap-1.5"><IconContacts className="w-3.5 h-3.5 text-atlas-dark/30" /> {candidate.size}</span>
+                        <span className="flex items-center gap-1.5"><IconMapPin className="w-3.5 h-3.5 text-atlas-dark/30" /> {candidate.location}</span>
                         {candidate.foundedYear && (
-                            <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400" /> Fundada em {candidate.foundedYear}</span>
+                            <span className="flex items-center gap-1.5"><IconCalendar className="w-3.5 h-3.5 text-atlas-dark/30" /> Fundada em {candidate.foundedYear}</span>
                         )}
                         {candidate.annualRevenue != null && (
-                            <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-gray-400" /> {formatUsd(candidate.annualRevenue)}/ano</span>
+                            <span className="flex items-center gap-1.5"><IconDollar className="w-3.5 h-3.5 text-atlas-dark/30" /> {formatUsd(candidate.annualRevenue)}/ano</span>
                         )}
                         {candidate.phone && (
-                            <span className="flex items-center gap-1.5"><Phone size={14} className="text-gray-400" /> {candidate.phone}</span>
+                            <span className="flex items-center gap-1.5"><IconPhone className="w-3.5 h-3.5 text-atlas-dark/30" /> {candidate.phone}</span>
                         )}
                         {candidate.linkedinUrl && (
                             <a href={candidate.linkedinUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:underline">
-                                <Linkedin size={14} /> LinkedIn
+                                <IconLinkedin className="w-3.5 h-3.5" /> LinkedIn
                             </a>
                         )}
                     </div>
@@ -984,38 +981,38 @@ function CandidateCard({
                     {candidate.technologies && candidate.technologies.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2">
                             {candidate.technologies.map((tech, idx) => (
-                                <span key={idx} className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-full px-2 py-0.5 text-[10px] text-gray-600">
-                                    <Wrench size={9} /> {tech}
+                                <span key={idx} className="flex items-center gap-1 bg-black/[0.02] border border-black/5 rounded-full px-2 py-0.5 text-[10px] text-atlas-dark/60">
+                                    <IconWrench className="w-2.5 h-2.5" /> {tech}
                                 </span>
                             ))}
                         </div>
                     )}
 
                     {!enrichment && candidate.rationale && (
-                        <p className="text-xs text-gray-400 italic mb-2">"{candidate.rationale}"</p>
+                        <p className="text-xs text-atlas-dark/35 italic mb-2">"{candidate.rationale}"</p>
                     )}
 
                     <DecisionMakerSection candidate={candidate} />
 
                     {enrichment?.company.observations && (
-                        <div className="mt-3 p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                        <div className="mt-3 p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
                             <p className="text-[10px] tracking-wider font-bold uppercase text-indigo-500 mb-1 flex items-center gap-1">
-                                <Sparkles size={12} /> 📝 Resumo do Enriquecimento
+                                <IconSparkle className="w-3 h-3" /> Resumo do Enriquecimento
                             </p>
-                            <p className="text-xs text-gray-600 leading-relaxed">{enrichment.company.observations}</p>
+                            <p className="text-xs text-atlas-dark/60 leading-relaxed">{enrichment.company.observations}</p>
                         </div>
                     )}
 
                     {enrichment?.apolloContacts && enrichment.apolloContacts.length > 0 && (
                         <div className="mt-3">
-                            <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-2 flex items-center gap-1">
-                                <Users size={12} /> Decisores Descobertos (Apollo)
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-atlas-dark/45 mb-2 flex items-center gap-1">
+                                <IconContacts className="w-3 h-3" /> Decisores Descobertos (Apollo)
                             </p>
                             <div className="flex flex-wrap gap-2">
                                 {enrichment.apolloContacts.map((contact, idx) => (
-                                    <span key={idx} className="bg-gray-50 border border-gray-200 rounded-full px-3 py-1 text-xs text-gray-700 flex items-center gap-1">
+                                    <span key={idx} className="bg-black/[0.02] border border-black/5 rounded-full px-3 py-1 text-xs text-atlas-dark/70 flex items-center gap-1">
                                         <strong>{contact.name}</strong>
-                                        {contact.title && <span className="text-gray-400">· {contact.title}</span>}
+                                        {contact.title && <span className="text-atlas-dark/40">· {contact.title}</span>}
                                     </span>
                                 ))}
                             </div>
@@ -1023,18 +1020,19 @@ function CandidateCard({
                     )}
                 </div>
                 {promoted ? (
-                    <span className="flex items-center gap-2 text-green-700 font-bold text-sm shrink-0"><CheckCircle2 size={16} /> ✅ No CRM</span>
+                    <span className="flex items-center gap-2 text-green-700 font-bold text-sm shrink-0"><IconCheck className="w-4 h-4" /> No CRM</span>
                 ) : (
-                    <button
+                    <Button
+                        variant="glass"
+                        className="rounded-full hover:bg-atlas-orange hover:text-white w-full sm:w-auto justify-center shrink-0"
                         onClick={onPromote}
                         disabled={isPromoting}
-                        className="bg-gray-50 text-atlas-dark px-6 py-2.5 rounded-full font-bold text-sm hover:bg-atlas-orange hover:text-white transition-colors flex items-center gap-2 border border-gray-200 hover:border-atlas-orange w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
                     >
-                        {isPromoting ? <Loader2 className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
-                        {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer e Adicionar'}
-                    </button>
+                        {isPromoting ? <IconSpinner className="w-4 h-4 mr-2 animate-spin" /> : <IconShieldCheck className="w-4 h-4 mr-2" />}
+                        {isPromoting ? 'Enriquecendo...' : 'Enriquecer e Adicionar'}
+                    </Button>
                 )}
             </div>
-        </div>
+        </Card>
     );
 }
