@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bot, Check, X, Mail } from 'lucide-react';
 import { api } from '../../../lib/api';
 
@@ -21,8 +21,9 @@ export function AIPendingActions() {
 
     const fetchActions = async () => {
         try {
-            const res = await api.get<PendingAction[]>('/api/intelligence/pending');
-            setActions(res.data);
+            const response = await api.get<{ data: PendingAction[] }>('/api/intelligence/pending');
+            const actionsData = response.data;
+            setActions(Array.isArray(actionsData) ? actionsData : []);
         } catch (error) {
             console.error('Error fetching AI actions', error);
         } finally {

@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
+import { getAiModel } from '../../../lib/ai/gateway.js';
 
 export interface AgentMessage {
     role: 'system' | 'user' | 'assistant';
@@ -32,11 +33,20 @@ export abstract class AgentService {
     }
 
     protected async callLLM(messages: AgentMessage[]): Promise<string> {
-        // Integração genérica, num ambiente real seria chamado a OpenAI/Gemini via litellm ou SDK
-        logger.info({ agentType: this.agentType, messageCount: messages.length }, 'Calling LLM...');
+        logger.info({ agentType: this.agentType, messageCount: messages.length }, 'Calling LLM via LiteLLM...');
         
-        // Simulação do retorno do LLM
-        return "Mensagem gerada pelo agente " + this.agentType;
+        const model = getAiModel('gemini-pro', 0.7, this.agentType);
+        
+        try {
+            const result = await model.invoke(messages.map(m => ({
+                _getType: () => m.role,
+                content: m.content
+            })) as any);
+            return result.content;
+        } catch (error) {
+            logger.error({ err: error, agentType: this.agentType }, 'LLM call failed');
+            return "Erro ao gerar mensagem pelo agente " + this.agentType;
+        }
     }
 
     public async processMessage(content: string): Promise<string> {

@@ -33,6 +33,13 @@ import { initMeiliIndexes } from './src/lib/search/index.js';
 import { observabilityMiddleware } from './src/shared/middlewares/observability.js';
 import client from 'prom-client';
 import { setupDI } from './src/shared/di/setup.js';
+import { ExpressAdapter } from '@bull-board/express';
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { leadsQueue } from './src/lib/queue/index.js';
+import { searchQueue } from './src/lib/queue/search.queue.js';
+import { agentQueue } from './src/lib/queue/agent.worker.js';
+import { companyQueue, createCompanyWorker } from './src/lib/queue/company.worker.js';
 
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
@@ -82,6 +89,19 @@ async function startServer() {
     });
     app.use('/api', apiLimiter);
 
+    // Rate Limiting — 15 req/15min por IP nas rotas /api/intelligence
+    const aiLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 15,
+        standardHeaders: true,
+        legacyHeaders: false,
+        store: new RedisStore({
+            sendCommand: (...args: string[]) => (connection.call as any)(...args),
+        }),
+        message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
+    });
+    app.use('/api/intelligence', aiLimiter);
+
     app.use(express.json({ limit: '10mb' }));
 
     // ── Metrics ────────────────────────────────────────────────────────────
@@ -112,6 +132,21 @@ async function startServer() {
 
     // ── Auth (Better Auth) ─────────────────────────────────────────────────
     app.all('/api/auth/*', toNodeHandler(auth));
+
+    // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
+    const serverAdapter = new ExpressAdapter();
+    serverAdapter.setBasePath('/admin/queues');
+    createBullBoard({
+        queues: [
+            new BullMQAdapter(leadsQueue),
+            new BullMQAdapter(searchQueue),
+            new BullMQAdapter(agentQueue),
+            new BullMQAdapter(companyQueue)
+        ],
+        serverAdapter: serverAdapter,
+    });
+    // Protegemos o painel de administração com autenticação
+    app.use('/admin/queues', authenticateToken, requireTenant, serverAdapter.getRouter());
 
     // ── Rotas protegidas ───────────────────────────────────────────────────
     app.use(observabilityMiddleware);
@@ -147,6 +182,7 @@ async function startServer() {
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
     const searchWorker = createSearchWorker();
+    const companyWorker = createCompanyWorker();
     const enrichmentWorker = createEnrichmentWorker();
     await initMeiliIndexes();
 
@@ -156,6 +192,7 @@ async function startServer() {
         await leadsWorker.close();
         await agentWorker.close();
         await searchWorker.close();
+        await companyWorker.close();
         await enrichmentWorker.close();
         await prisma.$disconnect();
         process.exit(0);

@@ -327,5 +327,6 @@ export function Intelligence() {
                 </div>
             </div>
         </div>
+        </div>
     );
 }
