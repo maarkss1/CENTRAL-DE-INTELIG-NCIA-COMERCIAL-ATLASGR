@@ -68,6 +68,17 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
+worker:
+  enabled: true
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
 nodeSelector: {}
 
 tolerations: []
@@ -76,8 +87,13 @@ affinity: {}
 
 env:
   NODE_ENV: "production"
+  PORT: "3000"
+  LITELLM_URL: "http://prospector-atlas-litellm:4000"
 
 secrets:
   # JWT_SECRET: "secret"
   # DATABASE_URL: "postgresql://user:password@db-host:5432/db"
-  # GEMINI_API_KEY: "key"
+  # LITELLM_KEY: "sk-litellm"
+  # REDIS_URL: "redis://redis-host:6379"
+  # MEILISEARCH_URL: "http://meilisearch:7700"
+  # MEILISEARCH_MASTER_KEY: "masterKey"

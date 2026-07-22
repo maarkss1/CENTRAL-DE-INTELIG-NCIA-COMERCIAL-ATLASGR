@@ -1,7 +1,7 @@
 import { initTracing } from './src/lib/tracing.js';
 initTracing();
 
-import 'dotenv/config';
+import { env } from './src/config/env.js';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -41,23 +41,23 @@ import { searchQueue } from './src/lib/queue/search.queue.js';
 import { agentQueue } from './src/lib/queue/agent.worker.js';
 import { companyQueue, createCompanyWorker } from './src/lib/queue/company.worker.js';
 
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : (process.env.NODE_ENV !== 'production' ? ['http://localhost:3000', 'http://localhost:5173'] : []);
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
+    ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : (env.NODE_ENV !== 'production' ? ['http://localhost:3000', 'http://localhost:5173'] : []);
 
-if (process.env.NODE_ENV === 'production' && ALLOWED_ORIGINS.length === 0) {
+if (env.NODE_ENV === 'production' && ALLOWED_ORIGINS.length === 0) {
     console.error('FATAL ERROR: ALLOWED_ORIGINS is not set in production. Failing fast.');
     process.exit(1);
 }
 
 async function startServer() {
     const app = express();
-    const PORT = parseInt(process.env.PORT || '3000', 10);
+    const PORT = parseInt(env.PORT, 10);
 
     // ── Segurança ──────────────────────────────────────────────────────────
     // Helmet adiciona cabeçalhos HTTP de segurança (X-Frame-Options, HSTS, etc.)
     app.use(helmet({
-        contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+        contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
     }));
 
     // CORS — permite apenas origens explicitamente listadas em ALLOWED_ORIGINS
@@ -160,7 +160,7 @@ async function startServer() {
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
 
     // ── Frontend ───────────────────────────────────────────────────────────
-    if (process.env.NODE_ENV !== 'production') {
+    if (env.NODE_ENV !== 'production') {
         const vite = await createViteServer({
             server: { middlewareMode: true },
             appType: 'spa',
@@ -202,7 +202,7 @@ async function startServer() {
     process.on('SIGINT', () => shutdown('SIGINT'));
 
     app.listen(PORT, '0.0.0.0', () => {
-        logger.info({ port: PORT, env: process.env.NODE_ENV }, 'Server running');
+        logger.info({ port: PORT, env: env.NODE_ENV }, 'Server running');
     });
 }
 
