@@ -544,3 +544,63 @@ export function IconServer(props: AtlasIconProps) {
     </svg>
   );
 }
+
+export function IconShieldCheck(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.3 19 6v6c0 4.4-3 7.8-7 8.7-4-.9-7-4.3-7-8.7V6Z" strokeLinejoin="round" />
+      <path d="M9 12.2l2.1 2.1L15.3 10" />
+    </svg>
+  );
+}
+
+export function IconWarning(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M10.6 3.9 2.9 18a1.4 1.4 0 0 0 1.2 2.1h15.8a1.4 1.4 0 0 0 1.2-2.1L13.4 3.9a1.4 1.4 0 0 0-2.8 0Z" strokeLinejoin="round" />
+      <path d="M12 9.3v4.4" />
+      <path d="M12 16.8h0" strokeWidth={2.6} />
+    </svg>
+  );
+}
+
+export function IconLandmark(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 9.5 12 4l8.5 5.5" strokeLinejoin="round" />
+      <path d="M4.5 9.5h15V20h-15Z" strokeLinejoin="round" />
+      <path d="M8 12.5V17M12 12.5V17M16 12.5V17" />
+    </svg>
+  );
+}
+
+export function IconUserPlus(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="9.5" cy="8.2" r="3.2" />
+      <path d="M3.5 19.4c.7-3.3 2.9-5 6-5s5.3 1.7 6 5" />
+      <path d="M18 8.5v5M15.5 11h5" />
+    </svg>
+  );
+}
+
+export function IconSliders(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 6.5h9M17 6.5h3M4 12h3M9 17.5h11M7 17.5h0" />
+      <circle cx="14" cy="6.5" r="2.2" />
+      <circle cx="6" cy="12" r="2.2" />
+      <circle cx="7" cy="17.5" r="2.2" />
+    </svg>
+  );
+}
+
+export function IconDollar(props: AtlasIconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 6.5v11" />
+      <path d="M15 9.3c0-1.1-1.3-1.8-3-1.8s-3 .8-3 2 1.2 1.6 3 2 3 .9 3 2-1.3 2-3 2-3-.7-3-1.8" />
+    </svg>
+  );
+}
