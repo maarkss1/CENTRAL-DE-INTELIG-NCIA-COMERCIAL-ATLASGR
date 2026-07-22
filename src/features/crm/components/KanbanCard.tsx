@@ -1,12 +1,7 @@
 import React, { useState } from "react";
 import { Lead } from '../../../types';
-import { IconBuilding, IconUser, IconClock, IconSparkle, IconFlame, IconSnowflake } from '../../../components/icons';
-
-const TEMPERATURE_META = {
-    Quente: { icon: IconFlame, className: 'text-red-600 bg-red-50' },
-    Morno: { icon: IconSparkle, className: 'text-amber-600 bg-amber-50' },
-    Frio: { icon: IconSnowflake, className: 'text-sky-600 bg-sky-50' },
-} as const;
+import { IconBuilding, IconUser, IconClock, IconSparkle } from '../../../components/icons';
+import { TEMPERATURE_META } from '../constants/leadMeta';
 
 interface KanbanCardProps {
     key?: string;
