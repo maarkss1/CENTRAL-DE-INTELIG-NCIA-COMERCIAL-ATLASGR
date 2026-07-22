@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Bot, Activity, BrainCircuit, Database, Zap, Sparkles, TrendingUp, Cpu, Server, CheckCircle2 } from 'lucide-react';
 import { AIPendingActions } from './AIPendingActions';
 

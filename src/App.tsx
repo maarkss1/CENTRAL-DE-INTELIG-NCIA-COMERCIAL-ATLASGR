@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
-import { TabType } from './components/layout/Header';
+import { TabType } from './components/layout/nav';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
 import { Login } from './features/auth/components/Login';

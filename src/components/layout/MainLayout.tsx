@@ -1,7 +1,10 @@
-import { ReactNode } from 'react';
-import { Header, TabType } from './Header';
-import { Toaster } from '../ui/Toaster';
+import { ReactNode, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { Sidebar } from './Sidebar';
+import { Topbar } from './Topbar';
+import { TabType } from './nav';
+import { Toaster } from '../ui/Toaster';
+import { pageTransition } from '../../lib/motion';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -10,23 +13,38 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps) {
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
     return (
-        <div className="h-screen w-full flex flex-col bg-gray-50 text-[#333333] font-sans overflow-hidden">
-            <Header activeTab={activeTab} onTabChange={onTabChange} />
-            <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-[#F9FAFB]">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -15 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        className="flex-1 flex flex-col min-h-0 overflow-hidden"
-                    >
-                        {children}
-                    </motion.div>
-                </AnimatePresence>
-            </main>
+        <div className="relative flex h-screen w-full overflow-hidden bg-[#F9FAFB] font-sans text-[#333333]">
+            <div className="atlas-aurora" aria-hidden="true" />
+
+            <Sidebar
+                activeTab={activeTab}
+                onTabChange={onTabChange}
+                mobileOpen={mobileNavOpen}
+                onCloseMobile={() => setMobileNavOpen(false)}
+            />
+
+            <div className="relative z-[1] flex min-w-0 flex-1 flex-col">
+                <Topbar activeTab={activeTab} onOpenMobileMenu={() => setMobileNavOpen(true)} />
+
+                <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            variants={pageTransition}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
+                            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                        >
+                            {children}
+                        </motion.div>
+                    </AnimatePresence>
+                </main>
+            </div>
+
             <Toaster />
         </div>
     );
