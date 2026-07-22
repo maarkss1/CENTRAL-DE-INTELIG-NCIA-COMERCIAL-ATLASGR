@@ -3,7 +3,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { TabType } from './components/layout/Header';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 
-import { LoginScreen } from './features/auth/components/LoginScreen';
+
 import { ProspectingHub } from './features/prospecting/components/ProspectingHub';
 import { EnricherHub } from './features/prospecting/components/EnricherHub';
 import { CrmBoard } from './components/CrmBoard';
@@ -55,11 +55,13 @@ export default function App() {
     return (
         <Routes>
             <Route path="/" element={<Navigate to="/app" replace />} />
-            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/login" element={<Navigate to="/app" replace />} />
             <Route
                 path="/app/*"
                 element={
-                    <AppLayout />
+                    <ProtectedRoute>
+                        <AppLayout />
+                    </ProtectedRoute>
                 }
             />
         </Routes>

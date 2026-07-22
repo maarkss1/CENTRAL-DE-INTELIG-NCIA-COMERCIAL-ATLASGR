@@ -1,6 +1,5 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 
-import { leadService } from '../services/lead.service.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { leadSchema } from '../../../lib/zod.js';

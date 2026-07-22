@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import {
     Target, AlertCircle, RefreshCw, Copy, CheckCircle2, Mail, UserCheck, ShieldAlert, Phone,
-    MessageCircle, Linkedin, PhoneMissed, Calculator, Search, X, Building2, User,
+    MessageCircle, Linkedin, PhoneMissed, Calculator, Search, X, Building2, User, Swords,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Lead } from '../types';
+import { PIC_OPTIONS } from '../features/prospecting/constants/icp-options';
+import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
-    | 'profile' | 'risk' | 'linkedin_invite' | 'voicemail' | 'roi_pitch' | null;
+    | 'profile' | 'risk' | 'linkedin_invite' | 'voicemail' | 'roi_pitch' | 'competitor_battlecard' | null;
 
 const TOOLS = [
     { id: 'script_call', icon: Phone, title: 'Script de Ligação', desc: 'Cold call com abertura, diagnóstico, contorno e fechamento.' },
@@ -22,7 +24,10 @@ const TOOLS = [
     { id: 'linkedin_invite', icon: Linkedin, title: 'Convite LinkedIn', desc: 'Convite + mensagem de follow-up pós-aceite.' },
     { id: 'voicemail', icon: PhoneMissed, title: 'Script de Caixa Postal', desc: 'Recado de 20-30s para quando o decisor não atende.' },
     { id: 'roi_pitch', icon: Calculator, title: 'Pitch de Números (ROI)', desc: 'Gancho consultivo com impacto financeiro estimado.' },
+    { id: 'competitor_battlecard', icon: Swords, title: 'Contorno de Concorrente', desc: 'Gancho de abordagem real contra os concorrentes da Atlas.' },
 ] as const;
+
+const ATLAS_COMPETITORS = ['RasterGR', 'Buonny', 'BRK Tecnologia', 'OpentechGR', 'Apisul', 'Servis'];
 
 export function Intelligence() {
     const [activeTool, setActiveTool] = useState<ToolType>(null);
@@ -35,6 +40,9 @@ export function Intelligence() {
     const [pickerOpen, setPickerOpen] = useState(false);
     const [leadQuery, setLeadQuery] = useState('');
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+    const [competitorPickerOpen, setCompetitorPickerOpen] = useState(false);
+    const [competitor, setCompetitor] = useState('');
+    const [customCompetitor, setCustomCompetitor] = useState('');
 
     useEffect(() => {
         setLeadsLoading(true);
@@ -43,6 +51,18 @@ export function Intelligence() {
             .catch((e) => console.error('Error loading leads:', e))
             .finally(() => setLeadsLoading(false));
     }, []);
+
+    const handleSetPic = async (pic: string) => {
+        if (!selectedLead) return;
+        const nextPic = selectedLead.pic === pic ? null : pic;
+        try {
+            const updated = await api.put<Lead>(`/api/leads/${selectedLead.id}`, { pic: nextPic });
+            setSelectedLead(updated);
+            setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? { ...l, pic: nextPic as Lead['pic'] } : l)));
+        } catch (e) {
+            console.error('Error setting PIC:', e);
+        }
+    };
 
     const filteredLeads = leads.filter((l) => {
         const q = leadQuery.trim().toLowerCase();
@@ -54,17 +74,24 @@ export function Intelligence() {
         );
     });
 
-    const handleGenerate = async (tool: ToolType) => {
+    const handleGenerate = async (tool: ToolType, competitorOverride?: string) => {
+        if (tool === 'competitor_battlecard' && !competitorOverride) {
+            setCompetitorPickerOpen(true);
+            setActiveTool(tool);
+            return;
+        }
+
         setActiveTool(tool);
         setIsGenerating(true);
         setResult(null);
         setCopied(false);
+        setCompetitorPickerOpen(false);
 
         try {
             const response = await fetch('/api/intelligence', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool, leadId: selectedLead?.id }),
+                body: JSON.stringify({ tool, leadId: selectedLead?.id, competitor: competitorOverride }),
             });
 
             if (response.ok) {
@@ -91,8 +118,11 @@ export function Intelligence() {
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <div className="lg:col-span-4 flex flex-col h-full">
+        <div className="space-y-8">
+            <AIPendingActions />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-gray-200 pt-8">
+                <div className="lg:col-span-4 flex flex-col h-full">
                 <div>
                     <h2 className="font-black text-2xl text-atlas-dark mb-2">Atlas Intelligence</h2>
                     <p className="text-gray-500 text-sm mb-4">Ferramentas de IA para potencializar suas abordagens — personalizadas com os dados reais do lead.</p>
@@ -111,8 +141,21 @@ export function Intelligence() {
                                     <p className="text-xs text-gray-500 truncate flex items-center gap-1"><User size={11} /> {selectedLead.contact.name}{selectedLead.contact.role ? ` · ${selectedLead.contact.role}` : ''}</p>
                                 )}
                                 {selectedLead.temperature && (
-                                    <span className="inline-block mt-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white border border-atlas-orange/30 text-atlas-orange">{selectedLead.temperature}</span>
+                                    <span className="inline-block mt-1 mr-1.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white border border-atlas-orange/30 text-atlas-orange">{selectedLead.temperature}</span>
                                 )}
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {PIC_OPTIONS.map((pic) => (
+                                        <button
+                                            key={pic.value}
+                                            type="button"
+                                            title={pic.desc}
+                                            onClick={() => handleSetPic(pic.value)}
+                                            className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border transition-colors ${selectedLead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-400 hover:border-indigo-300'}`}
+                                        >
+                                            {pic.label.replace('PIC ', 'PIC')}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                             <button onClick={() => setPickerOpen(true)} className="text-xs font-bold text-gray-500 hover:text-atlas-orange shrink-0">Trocar</button>
                         </div>
@@ -166,6 +209,42 @@ export function Intelligence() {
                     </div>
                 )}
 
+                {competitorPickerOpen && (
+                    <div className="mb-5 p-3 border border-gray-200 rounded-xl bg-white shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] tracking-wider font-bold uppercase text-gray-500">Qual concorrente?</span>
+                            <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                            {ATLAS_COMPETITORS.map((c) => (
+                                <button
+                                    key={c}
+                                    onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
+                                    className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:border-atlas-orange/40 hover:bg-orange-50"
+                                >
+                                    {c}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Outro concorrente..."
+                                value={customCompetitor}
+                                onChange={(e) => setCustomCompetitor(e.target.value)}
+                                className="flex-1 p-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs outline-none focus:border-atlas-orange"
+                            />
+                            <button
+                                onClick={() => customCompetitor.trim() && handleGenerate('competitor_battlecard', customCompetitor.trim())}
+                                disabled={!customCompetitor.trim()}
+                                className="px-3 py-2 bg-atlas-dark text-white rounded-lg text-xs font-bold disabled:opacity-40"
+                            >
+                                Usar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 overflow-y-auto pr-2 pb-4 max-h-[600px] scrollbar-thin scrollbar-thumb-gray-200">
                     {TOOLS.map(tool => (
                         <div
@@ -196,7 +275,9 @@ export function Intelligence() {
                             <div className="w-2.5 h-2.5 rounded-full bg-atlas-orange animate-pulse"></div>
                             <span className="font-bold text-sm tracking-widest uppercase">Output de Inteligência</span>
                         </div>
-                        {selectedLead && (
+                        {activeTool === 'competitor_battlecard' && competitor ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">vs. {competitor}</span>
+                        ) : selectedLead && (
                             <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{selectedLead.company?.tradeName}</span>
                         )}
                     </div>

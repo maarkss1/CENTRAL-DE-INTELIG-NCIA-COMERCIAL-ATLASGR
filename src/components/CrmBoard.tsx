@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Download } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
+import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
 import { api } from '../lib/api';
 
 const COLUMNS: LeadStatus[] = [
@@ -19,6 +20,7 @@ const COLUMNS: LeadStatus[] = [
 export function CrmBoard() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
     const fetchLeads = useCallback(async () => {
         setLoading(true);
@@ -69,8 +71,7 @@ export function CrmBoard() {
     }, [fetchLeads]);
 
     const handleCardClick = useCallback((lead: Lead) => {
-        // To be implemented: Open Lead Detail Modal/Drawer
-        console.log('Clicked lead:', lead);
+        setSelectedLeadId(lead.id);
     }, []);
 
     const handleCardEnrich = useCallback(async (leadId: string) => {
@@ -155,6 +156,14 @@ export function CrmBoard() {
                     </div>
                 )}
             </div>
+
+            {selectedLeadId && (
+                <LeadDetailDrawer
+                    leadId={selectedLeadId}
+                    onClose={() => setSelectedLeadId(null)}
+                    onChanged={fetchLeads}
+                />
+            )}
         </div>
     );
 }

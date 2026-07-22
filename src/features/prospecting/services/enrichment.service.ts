@@ -535,7 +535,13 @@ async function runEnrichment(
             ? `https://${domainGuess.domain}`
             : `https://${domainGuess.domain} (não verificado)`;
     }
-    if (domainGuess.emails.length && !(company.emails || []).length && !updateData.emails) {
+    // Bug real corrigido aqui: quando o CNPJ não trazia e-mail (comum em MEI/autônomo), o bloco da
+    // Receita Federal acima já gravava `updateData.emails = []` — um array vazio, mas ainda assim
+    // "truthy" em JS — então o antigo guard `!updateData.emails` nunca deixava esse fallback rodar.
+    // Além disso, só aplicamos e-mail adivinhado quando o domínio foi REALMENTE verificado (resolveu
+    // via HTTP) — para domínio não verificado, "adivinhar" um e-mail em cima de um domínio que talvez
+    // nem exista é especulação demais para apresentar como dado da empresa.
+    if (domainGuess.verified && domainGuess.emails.length && !(company.emails || []).length && !(updateData.emails?.length)) {
         updateData.emails = domainGuess.emails;
     }
 

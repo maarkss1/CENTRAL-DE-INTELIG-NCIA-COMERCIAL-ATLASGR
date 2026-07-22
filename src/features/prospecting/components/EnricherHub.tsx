@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Sparkles, Loader2, Building2, Star, Clock, Users, ShieldCheck, MapPin, Wrench, Phone, Globe, Linkedin, Instagram, Twitter, Facebook } from 'lucide-react';
+import { Search, Sparkles, Loader2, Building2, Star, Clock, Users, ShieldCheck, MapPin, Wrench, Phone, Globe, Linkedin, Instagram, Twitter, Facebook, Mail } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
+import { findLikelyWhatsapp, whatsappLink } from '../../../lib/phone';
 
 interface EnrichResult {
     company: Company;
@@ -126,7 +127,13 @@ export function EnricherHub() {
                                         <h3 className="font-black text-2xl text-atlas-dark">{selected.tradeName || selected.legalName}</h3>
                                         <p className="text-sm text-gray-500">{selected.legalName} · {selected.cnpj || 'Sem CNPJ'}</p>
                                         <div className="flex flex-wrap gap-3 mt-2 text-xs">
-                                            {selected.phones?.[0] && <span className="flex items-center gap-1 text-gray-600"><Phone size={12} /> {selected.phones[0]}</span>}
+                                            {selected.phones?.[0] && <span className="flex items-center gap-1 text-gray-600"><Phone size={12} /> {selected.phones.join(' · ')}</span>}
+                                            {selected.emails?.[0] && <span className="flex items-center gap-1 text-gray-600"><Mail size={12} /> {selected.emails.join(' · ')}</span>}
+                                            {findLikelyWhatsapp(selected.phones) && (
+                                                <a href={whatsappLink(findLikelyWhatsapp(selected.phones)!)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-green-600 hover:underline">
+                                                    <Phone size={12} /> WhatsApp provável
+                                                </a>
+                                            )}
                                             {selected.website && <a href={selected.website} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline"><Globe size={12} /> Site</a>}
                                             {selected.linkedin && <a href={selected.linkedin} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline"><Linkedin size={12} /> LinkedIn</a>}
                                             {selected.instagram && <a href={selected.instagram} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-pink-600 hover:underline"><Instagram size={12} /> Instagram</a>}
@@ -154,6 +161,15 @@ export function EnricherHub() {
                                     <InfoTile icon={MapPin} label="Localização" value={selected.city ? `${selected.city}, ${selected.state}` : '-'} />
                                     <InfoTile icon={Users} label="Porte" value={selected.size || '-'} />
                                 </div>
+
+                                {selected.address && (
+                                    <div>
+                                        <p className="text-[10px] tracking-wider font-bold uppercase text-gray-500 mb-1 flex items-center gap-1">
+                                            <MapPin size={12} /> Endereço completo
+                                        </p>
+                                        <p className="text-sm text-gray-700">{selected.address}{selected.zipCode ? ` — CEP ${selected.zipCode}` : ''}</p>
+                                    </div>
+                                )}
 
                                 {selected.googleRating != null && (
                                     <div className="p-4 bg-yellow-50/50 border border-yellow-100 rounded-xl">

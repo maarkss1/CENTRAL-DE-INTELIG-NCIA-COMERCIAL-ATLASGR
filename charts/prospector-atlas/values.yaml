@@ -10,6 +10,11 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+blueGreen:
+  enabled: true
+  autoPromotionSeconds: 30 # Time to wait before automatically promoting the green version
+
+
 serviceAccount:
   create: true
   annotations: {}

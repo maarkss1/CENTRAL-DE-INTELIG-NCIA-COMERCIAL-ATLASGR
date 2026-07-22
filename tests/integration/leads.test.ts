@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { prisma } from '../../src/lib/prisma';
-import { leadService } from '../../src/features/crm/services/lead.service';
+import { LeadUseCases } from '../../src/features/crm/application/LeadUseCases';
+import { PrismaLeadRepository } from '../../src/features/crm/infra/PrismaLeadRepository';
 import { CompanyFactory, LeadFactory } from '../helpers/factories';
 
-describe('LeadService Integration', () => {
+const leadUseCases = new LeadUseCases(new PrismaLeadRepository());
+
+describe('LeadUseCases Integration', () => {
   beforeEach(async () => {
     await prisma.timelineEvent.deleteMany();
     await prisma.lead.deleteMany();
@@ -19,8 +22,8 @@ describe('LeadService Integration', () => {
       const data = LeadFactory.build({ companyId: company.id, organizationId: 'test-org-id', status: 'Novo Lead' });
       delete (data as any).organizationId;
 
-      const result = await leadService.create('test-org-id', data as never);
-      
+      const result = await leadUseCases.createLead('test-org-id', data as never);
+
       expect(result).toBeDefined();
       expect(result.companyId).toBe(company.id);
 

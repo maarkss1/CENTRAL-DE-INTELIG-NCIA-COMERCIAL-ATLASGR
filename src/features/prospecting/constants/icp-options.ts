@@ -63,6 +63,16 @@ export const ATLAS_PERSONA_OPTIONS = [
     { label: 'Financeiro / Controller', nivel: 'Co-decisor', titles: 'Financeiro,Controller,CFO,Gerente Financeiro', seniorities: ['director', 'manager'] },
 ] as const;
 
+// Os 3 PICs (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — cada um com gatilho,
+// decisor e discurso diferentes. Setado manualmente pelo SDR/AM após identificar o gatilho real
+// numa conversa (nunca inferido automaticamente — não há sinal confiável disponível hoje para
+// "processo judicial recente" ou "troca de liderança" sem uma fonte de dados dedicada).
+export const PIC_OPTIONS = [
+    { value: 'PIC1_Expansao', label: 'PIC 1 — Expansão Operacional', desc: 'Frota/rotas crescendo, mais terceiros, processo manual não acompanha.' },
+    { value: 'PIC2_Risco', label: 'PIC 2 — Pressão de Risco', desc: 'Sinistro recente, exigência de seguradora, medo de não-cobertura.' },
+    { value: 'PIC3_Transicao', label: 'PIC 3 — Transição de Liderança', desc: 'Novo diretor/gerente de risco, reestruturação, revisão de fornecedores.' },
+] as const;
+
 // Tecnologias como filtro de busca (Apollo `currently_using_any_of_technology_uids`).
 // A Apollo só filtra por "UID" (slug), não pelo nome de exibição — e não existe endpoint público
 // para listar todos os UIDs válidos. Esta lista foi validada uma a uma contra a API real (cada slug

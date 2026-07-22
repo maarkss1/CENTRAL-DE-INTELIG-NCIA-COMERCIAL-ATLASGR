@@ -5,6 +5,39 @@ import { Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AtlasLogo } from '../../../components/ui/AtlasLogo';
 
+/**
+ * O Better Auth às vezes devolve mensagens técnicas cruas (ex: "Failed to create user", que na
+ * prática é um erro de banco/servidor, não algo que o usuário causou) — traduzimos os casos
+ * conhecidos para português claro e acionável, e usamos uma mensagem honesta (não inventamos uma
+ * causa) para o que não reconhecemos, em vez de vazar a string técnica original.
+ */
+function translateAuthError(rawMessage: string | undefined, mode: 'signup' | 'signin'): string {
+    const msg = (rawMessage || '').toLowerCase();
+
+    if (msg.includes('already exist') || msg.includes('already registered') || msg.includes('user_already')) {
+        return 'Já existe uma conta com esse e-mail. Tente fazer login em vez de criar uma conta nova.';
+    }
+    if (msg.includes('invalid email') || msg.includes('email is invalid')) {
+        return 'E-mail inválido. Confira se digitou corretamente.';
+    }
+    if (msg.includes('password') && (msg.includes('short') || msg.includes('least') || msg.includes('minimum'))) {
+        return 'A senha é muito curta — use pelo menos 8 caracteres.';
+    }
+    if (msg.includes('invalid password') || msg.includes('invalid email or password') || msg.includes('invalid credentials')) {
+        return 'E-mail ou senha incorretos.';
+    }
+    if (msg.includes('failed to create user') || msg.includes('internal') || msg.includes('unexpected')) {
+        return 'Não foi possível criar a conta agora — é um problema do lado do servidor, não algo que você fez de errado. Tente novamente em alguns instantes; se persistir, avise o time técnico.';
+    }
+    if (!rawMessage) {
+        return mode === 'signup'
+            ? 'Falha ao criar conta. Tente novamente.'
+            : 'Falha na autenticação. Verifique suas credenciais.';
+    }
+    // Mensagem não reconhecida — mostramos como veio, mas sem pretender saber a causa exata.
+    return rawMessage;
+}
+
 export function LoginScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -26,7 +59,8 @@ export function LoginScreen() {
                 password
             });
             if (signUpError) {
-                setError(signUpError.message || 'Falha ao criar conta. Tente novamente.');
+                console.error('Sign up error:', signUpError);
+                setError(translateAuthError(signUpError.message, 'signup'));
                 setIsSubmitting(false);
                 return;
             }
@@ -38,7 +72,8 @@ export function LoginScreen() {
         });
 
         if (error) {
-            setError(error.message || 'Falha na autenticação. Verifique suas credenciais.');
+            console.error('Sign in error:', error);
+            setError(translateAuthError(error.message, 'signin'));
             setIsSubmitting(false);
         } else {
             navigate('/app');

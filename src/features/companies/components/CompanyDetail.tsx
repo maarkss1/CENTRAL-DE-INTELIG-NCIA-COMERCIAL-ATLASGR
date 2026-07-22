@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Clock, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Instagram, Twitter, Facebook, Phone } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Clock, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Instagram, Twitter, Facebook, Phone, Mail } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
+import { findLikelyWhatsapp, whatsappLink } from '../../../lib/phone';
 
 interface CompanyDetailProps {
     companyId: string;
@@ -130,7 +131,15 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                 <a href={company.facebook} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-700 hover:underline"><Facebook className="w-4 h-4" /> Facebook</a>
                             )}
                             {company.phones?.length > 0 && (
-                                <div className="flex items-center gap-1.5"><Phone className="w-4 h-4 text-gray-400" /> {company.phones[0]}</div>
+                                <div className="flex items-center gap-1.5"><Phone className="w-4 h-4 text-gray-400" /> {company.phones.join(' · ')}</div>
+                            )}
+                            {company.emails?.length > 0 && (
+                                <div className="flex items-center gap-1.5"><Mail className="w-4 h-4 text-gray-400" /> {company.emails.join(' · ')}</div>
+                            )}
+                            {findLikelyWhatsapp(company.phones) && (
+                                <a href={whatsappLink(findLikelyWhatsapp(company.phones)!)} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-green-600 hover:underline">
+                                    <Phone className="w-4 h-4" /> WhatsApp provável
+                                </a>
                             )}
                         </div>
                     </div>
@@ -247,6 +256,12 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                     <p className="text-xs text-gray-500 mb-1">Tamanho</p>
                                     <p className="text-sm font-medium text-gray-900">{company.size || '-'}</p>
                                 </div>
+                                {company.address && (
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">Endereço</p>
+                                        <p className="text-sm font-medium text-gray-900">{company.address}{company.zipCode ? ` — CEP ${company.zipCode}` : ''}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         {company.observations && (

@@ -80,6 +80,10 @@ export const leadSchema = z.object({
     owner: z.string().optional().nullable(),
     companyId: z.string().optional().nullable(),
     contactId: z.string().optional().nullable(),
+    // PIC (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — setado manualmente pelo SDR/AM.
+    pic: z.enum(['PIC1_Expansao', 'PIC2_Risco', 'PIC3_Transicao']).optional().nullable(),
+    // Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2) — objeto livre, ver LeadQualification no frontend.
+    qualification: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export const activitySchema = z.object({

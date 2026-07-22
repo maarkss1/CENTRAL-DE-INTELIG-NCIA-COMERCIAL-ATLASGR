@@ -174,6 +174,15 @@ model Lead {
   owner           String?
   lastInteraction DateTime?
   nextAction      DateTime?
+  // PIC (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — setado manualmente pelo SDR/AM
+  // após identificar o gatilho real na conversa (não é inferido automaticamente): "PIC1_Expansao"
+  // (transportadora em expansão operacional), "PIC2_Risco" (sob pressão de risco/sinistro), ou
+  // "PIC3_Transicao" (transição de liderança/reestruturação).
+  pic String?
+  // Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2) — contexto
+  // operacional, estrutura atual, dor mapeada, interesse/autoridade e próximo passo. Estruturado
+  // como JSON (ver LeadQualification no frontend) em vez de ~20 colunas separadas.
+  qualification Json?
 
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
@@ -261,7 +270,10 @@ model User {
   id             String       @id @default(cuid())
   name           String
   email          String       @unique
-  passwordHash   String
+  // Better Auth guarda a senha em Account.password (provider "credential"), não aqui — este
+  // campo é resquício de um fluxo de auth anterior e não é mais escrito por ninguém no app real.
+  // Precisa ser opcional para não quebrar `prisma.user.create()` do adapter do Better Auth.
+  passwordHash   String?
   role           String       @default("VISUALIZADOR")
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])

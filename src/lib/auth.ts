@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { twoFactor } from "better-auth/plugins";
 import { prisma } from "./prisma.js";
 
 export const auth = betterAuth({
@@ -10,6 +11,19 @@ export const auth = betterAuth({
         enabled: true,
         autoSignIn: true,
     },
+    socialProviders: {
+        google: {
+            clientId: process.env.GOOGLE_CLIENT_ID || "",
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        },
+        microsoft: {
+            clientId: process.env.MICROSOFT_CLIENT_ID || "",
+            clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
+        }
+    },
+    plugins: [
+        twoFactor()
+    ],
     user: {
         additionalFields: {
             role: {
@@ -18,7 +32,8 @@ export const auth = betterAuth({
             },
             organizationId: {
                 type: "string",
-                required: true
+                required: false,
+                input: false
             }
         }
     },

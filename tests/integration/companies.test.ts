@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { prisma } from '../../src/lib/prisma';
-import { companyService } from '../../src/features/companies/services/company.service';
+import { CompanyUseCases } from '../../src/features/companies/application/CompanyUseCases';
+import { PrismaCompanyRepository } from '../../src/features/companies/infra/PrismaCompanyRepository';
 import { CompanyFactory } from '../helpers/factories';
 
-describe('CompanyService Integration', () => {
+const companyUseCases = new CompanyUseCases(new PrismaCompanyRepository());
+
+describe('CompanyUseCases Integration', () => {
   beforeEach(async () => {
     await prisma.company.deleteMany();
   });
@@ -12,8 +15,8 @@ describe('CompanyService Integration', () => {
     it('should create a new company successfully', async () => {
       const data = CompanyFactory.build({ organizationId: 'test-org-id' });
       delete (data as any).id;
-      const result = await companyService.create('test-org-id', data as never);
-      
+      const result = await companyUseCases.createCompany('test-org-id', data as never);
+
       expect(result).toBeDefined();
       expect(result.id).toBeDefined();
       expect(result.legalName).toBe(data.legalName);
@@ -21,7 +24,7 @@ describe('CompanyService Integration', () => {
 
     it('should fail with invalid data', async () => {
       const data = { legalName: '' };
-      await expect(companyService.create('test-org-id', data as never)).rejects.toThrow();
+      await expect(companyUseCases.createCompany('test-org-id', data as never)).rejects.toThrow();
     });
   });
 
@@ -35,7 +38,7 @@ describe('CompanyService Integration', () => {
       await prisma.company.create({ data: { ...c1, tags: undefined } as any });
       await prisma.company.create({ data: { ...c2, tags: undefined } as any });
 
-      const companies = await companyService.findAll('test-org-id');
+      const companies = await companyUseCases.findCompanies('test-org-id');
       expect(companies.data.length).toBeGreaterThanOrEqual(2);
     });
   });

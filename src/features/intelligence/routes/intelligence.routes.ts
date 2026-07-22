@@ -8,12 +8,12 @@ const router = Router();
 
 router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { tool, leadId } = req.body as { tool: string; leadId?: string };
-        const result = await aiService.generateContent(tool, leadId);
+        const { tool, leadId, competitor } = req.body as { tool: string; leadId?: string; competitor?: string };
+        const result = await aiService.generateContent(tool, leadId, { competitor });
         res.json({ result });
     } catch (error: unknown) {
         const err = error as Error;
-        if (err.message === 'Invalid tool') {
+        if (err.message === 'Invalid tool' || err.message === 'Missing competitor') {
             res.status(400).json({ error: err.message });
             return;
         }
@@ -40,6 +40,69 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
         });
     } catch (error) {
         logger.error({ err: error }, 'Error queuing lead qualification');
+        next(error);
+    }
+});
+
+import { SDRAgent } from '../agents/sdr.agent.js';
+
+router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { leadId, sessionId } = req.body as { leadId?: string; sessionId?: string };
+
+        if (!leadId) {
+            res.status(400).json({ error: 'Missing leadId' });
+            return;
+        }
+
+        // Para evitar timeout da requisição HTTP, rodamos o agente assíncronamente sem esperar
+        // (Numa infra real, isso também iria pro BullMQ)
+        const agent = new SDRAgent();
+        agent.run(leadId, sessionId).catch(err => {
+            logger.error({ err, leadId }, 'SDR Agent background execution failed');
+        });
+
+        res.status(202).json({
+            message: 'SDR Agent qualification started in background',
+            leadId
+        });
+    } catch (error) {
+        logger.error({ err: error }, 'Error starting SDR Agent');
+        next(error);
+    }
+});
+
+// Rotas para AIPendingActions
+router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const db = (req as any).db || req.app.locals.prisma;
+        const pendingActions = await db.aIPendingAction.findMany({
+            where: { approved: false },
+            orderBy: { id: 'desc' }
+        });
+        res.json(pendingActions);
+    } catch (error) {
+        logger.error({ err: error }, 'Error fetching pending actions');
+        next(error);
+    }
+});
+
+router.post('/pending/:id/approve', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const db = (req as any).db || req.app.locals.prisma;
+        
+        const action = await db.aIPendingAction.update({
+            where: { id },
+            data: { approved: true }
+        });
+        
+        // Aqui enviaria o e-mail de verdade baseado no payload
+        logger.info({ actionId: id }, 'AI Action approved and simulated execution');
+        
+        res.json({ success: true, action });
+    } catch (error) {
+        logger.error({ err: error }, 'Error approving action');
         next(error);
     }
 });

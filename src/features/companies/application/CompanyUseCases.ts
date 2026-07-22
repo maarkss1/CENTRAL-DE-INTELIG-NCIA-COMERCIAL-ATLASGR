@@ -2,6 +2,7 @@ import { CompanyRepository } from '../domain/Company';
 import { z } from 'zod';
 import { companySchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
+import { enrichmentQueue } from '../../../lib/queue/enrichment.queue';
 
 export class CompanyUseCases {
     constructor(private companyRepository: CompanyRepository) {}
@@ -16,7 +17,16 @@ export class CompanyUseCases {
 
     async createCompany(organizationId: string, data: z.infer<typeof companySchema>) {
         const validated = companySchema.parse(data);
-        return this.companyRepository.create!(organizationId, validated as any);
+        const company = await this.companyRepository.create!(organizationId, validated as any);
+        
+        // Dispatch para a fila de enriquecimento
+        await enrichmentQueue.add('enrich-company', {
+            companyId: company.id,
+            cnpj: company.cnpj || undefined,
+            segmentKeywords: company.segment ? [company.segment] : undefined
+        });
+
+        return company;
     }
 
     async updateCompany(organizationId: string, id: string, data: Partial<z.infer<typeof companySchema>>) {

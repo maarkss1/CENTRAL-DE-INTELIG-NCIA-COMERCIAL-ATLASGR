@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
-    Trash, Send, Clock, User, FileText,
+    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save,
 } from 'lucide-react';
-import { Lead, Note, LeadStatus, LEAD_STATUS } from '../../../types';
+import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
+import { PIC_OPTIONS } from '../../prospecting/constants/icp-options';
 
 const STATUS_EMOJI: Record<string, string> = {
     'Novo Lead': '🆕', 'Qualificação': '🔎', 'Primeiro Contato': '☎️', 'Diagnóstico': '🩺',
@@ -34,6 +35,9 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [deleting, setDeleting] = useState(false);
     const [noteText, setNoteText] = useState('');
     const [savingNote, setSavingNote] = useState(false);
+    const [qualOpen, setQualOpen] = useState(false);
+    const [qualDraft, setQualDraft] = useState<LeadQualification>({});
+    const [savingQual, setSavingQual] = useState(false);
 
     const fetchLead = useCallback(async () => {
         try {
@@ -51,6 +55,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         fetchLead();
     }, [fetchLead]);
 
+    useEffect(() => {
+        if (lead?.qualification) setQualDraft(lead.qualification);
+    }, [lead?.qualification]);
+
     // Fecha com Esc
     useEffect(() => {
         const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -66,6 +74,30 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             onChanged();
         } catch {
             toast.error('Falha ao mudar o estágio do lead.');
+        }
+    };
+
+    const handleSetPic = async (pic: string) => {
+        if (!lead) return;
+        const nextPic = lead.pic === pic ? null : pic;
+        try {
+            await api.put(`/api/leads/${leadId}`, { pic: nextPic });
+            await fetchLead();
+        } catch {
+            toast.error('Falha ao definir o PIC.');
+        }
+    };
+
+    const handleSaveQualification = async () => {
+        setSavingQual(true);
+        try {
+            await api.put(`/api/leads/${leadId}`, { qualification: qualDraft });
+            toast.success('Checklist de qualificação salvo.');
+            await fetchLead();
+        } catch {
+            toast.error('Falha ao salvar o checklist.');
+        } finally {
+            setSavingQual(false);
         }
     };
 
@@ -168,6 +200,24 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             </button>
                         </div>
 
+                        {/* PIC (Perfil de Cliente Ideal) — setado manualmente pelo SDR/AM */}
+                        <div>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">🎯 PIC (Playbook de Pré-Vendas)</h3>
+                            <div className="flex flex-wrap gap-1.5">
+                                {PIC_OPTIONS.map((pic) => (
+                                    <button
+                                        key={pic.value}
+                                        type="button"
+                                        title={pic.desc}
+                                        onClick={() => handleSetPic(pic.value)}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                                    >
+                                        {pic.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Empresa */}
                         {company && (
                             <section>
@@ -223,6 +273,69 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 <p className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-xs text-gray-600 leading-relaxed">{company.observations}</p>
                             </section>
                         )}
+
+                        {/* Checklist de Qualificação (Playbook Comercial AtlasGR, 4.2) */}
+                        <section>
+                            <button
+                                onClick={() => setQualOpen((v) => !v)}
+                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 hover:text-atlas-orange transition-colors"
+                            >
+                                <span className="flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Checklist de Qualificação (Playbook)</span>
+                                {qualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                            {qualOpen && (
+                                <div className="bg-gray-50/70 rounded-xl p-4 space-y-4">
+                                    <QualGroup title="Contexto Operacional">
+                                        <QualInput label="Segmento da operação" value={qualDraft.segmentoOperacao} onChange={(v) => setQualDraft((d) => ({ ...d, segmentoOperacao: v }))} />
+                                        <QualInput label="Tipo de carga" value={qualDraft.tipoCarga} onChange={(v) => setQualDraft((d) => ({ ...d, tipoCarga: v }))} />
+                                        <QualInput label="Principais rotas" value={qualDraft.principaisRotas} onChange={(v) => setQualDraft((d) => ({ ...d, principaisRotas: v }))} />
+                                        <QualSelect label="Usa terceiros?" value={qualDraft.usaTerceiros} options={['', 'Sim', 'Não']} onChange={(v) => setQualDraft((d) => ({ ...d, usaTerceiros: v as LeadQualification['usaTerceiros'] }))} />
+                                        <QualInput label="Contratação de terceiros/mês" value={qualDraft.mediaContratacaoTerceiros} onChange={(v) => setQualDraft((d) => ({ ...d, mediaContratacaoTerceiros: v }))} />
+                                        <QualInput label="Viagens/mês" value={qualDraft.viagensPorMes} onChange={(v) => setQualDraft((d) => ({ ...d, viagensPorMes: v }))} />
+                                        <QualInput label="Frota própria (qtd)" value={qualDraft.frotaPropria} onChange={(v) => setQualDraft((d) => ({ ...d, frotaPropria: v }))} />
+                                        <QualInput label="Frota agregados (qtd)" value={qualDraft.frotaAgregados} onChange={(v) => setQualDraft((d) => ({ ...d, frotaAgregados: v }))} />
+                                        <QualInput label="Frota terceiros (qtd)" value={qualDraft.frotaTerceiros} onChange={(v) => setQualDraft((d) => ({ ...d, frotaTerceiros: v }))} />
+                                    </QualGroup>
+
+                                    <QualGroup title="Estrutura Atual">
+                                        <QualInput label="ERP/TMS utilizado" value={qualDraft.ermTms} onChange={(v) => setQualDraft((d) => ({ ...d, ermTms: v }))} />
+                                        <QualInput label="Rastreador utilizado" value={qualDraft.rastreador} onChange={(v) => setQualDraft((d) => ({ ...d, rastreador: v }))} />
+                                        <QualInput label="Seguradora" value={qualDraft.seguradora} onChange={(v) => setQualDraft((d) => ({ ...d, seguradora: v }))} />
+                                        <QualInput label="Corretora" value={qualDraft.corretora} onChange={(v) => setQualDraft((d) => ({ ...d, corretora: v }))} />
+                                        <QualInput label="Possui GR hoje? (com quem)" value={qualDraft.possuiGR} onChange={(v) => setQualDraft((d) => ({ ...d, possuiGR: v }))} />
+                                        <QualInput label="Cadastro/consulta de motorista (com quem)" value={qualDraft.possuiCadastroMotorista} onChange={(v) => setQualDraft((d) => ({ ...d, possuiCadastroMotorista: v }))} />
+                                        <QualInput label="Software logístico (com quem)" value={qualDraft.possuiSoftwareLogistico} onChange={(v) => setQualDraft((d) => ({ ...d, possuiSoftwareLogistico: v }))} />
+                                    </QualGroup>
+
+                                    <QualGroup title="Dor Mapeada">
+                                        <QualInput label="Dor principal identificada" value={qualDraft.dorPrincipal} onChange={(v) => setQualDraft((d) => ({ ...d, dorPrincipal: v }))} full />
+                                        <QualInput label="Detalhamento da dor (exemplo real)" value={qualDraft.detalhamentoDor} onChange={(v) => setQualDraft((d) => ({ ...d, detalhamentoDor: v }))} full />
+                                        <QualInput label="Impacto percebido (custo/risco/SLA/retrabalho/margem)" value={qualDraft.impactoPercebido} onChange={(v) => setQualDraft((d) => ({ ...d, impactoPercebido: v }))} full />
+                                        <QualSelect label="Conecta com qual solução Atlas?" value={qualDraft.solucaoAtlas} options={['', 'Profile', 'GR', 'Connect', 'Combinação']} onChange={(v) => setQualDraft((d) => ({ ...d, solucaoAtlas: v as LeadQualification['solucaoAtlas'] }))} />
+                                    </QualGroup>
+
+                                    <QualGroup title="Interesse e Autoridade">
+                                        <QualSelect label="Nível de autoridade" value={qualDraft.nivelAutoridade} options={['', 'Decisor', 'Influenciador', 'Usuário']} onChange={(v) => setQualDraft((d) => ({ ...d, nivelAutoridade: v as LeadQualification['nivelAutoridade'] }))} />
+                                        <QualSelect label="Interesse percebido" value={qualDraft.interessePercebido} options={['', 'Baixo', 'Médio', 'Alto']} onChange={(v) => setQualDraft((d) => ({ ...d, interessePercebido: v as LeadQualification['interessePercebido'] }))} />
+                                        <QualSelect label="Horizonte de decisão" value={qualDraft.horizonteDecisao} options={['', 'Imediato', '30 dias', '60-90 dias', 'Indefinido']} onChange={(v) => setQualDraft((d) => ({ ...d, horizonteDecisao: v as LeadQualification['horizonteDecisao'] }))} />
+                                    </QualGroup>
+
+                                    <QualGroup title="Próximo Passo">
+                                        <QualInput label="Expectativa do lead para a call" value={qualDraft.expectativaProximaCall} onChange={(v) => setQualDraft((d) => ({ ...d, expectativaProximaCall: v }))} full />
+                                        <QualInput label="Tema principal a explorar" value={qualDraft.temaProximaReuniao} onChange={(v) => setQualDraft((d) => ({ ...d, temaProximaReuniao: v }))} full />
+                                    </QualGroup>
+
+                                    <button
+                                        onClick={handleSaveQualification}
+                                        disabled={savingQual}
+                                        className="w-full flex items-center justify-center gap-2 bg-atlas-dark text-white py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-colors disabled:opacity-50"
+                                    >
+                                        {savingQual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        {savingQual ? 'Salvando...' : 'Salvar checklist'}
+                                    </button>
+                                </div>
+                            )}
+                        </section>
 
                         {/* Notas */}
                         <section>
@@ -289,5 +402,43 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                 </div>
             </div>
         </div>
+    );
+}
+
+function QualGroup({ title, children }: { title: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <p className="text-[9px] tracking-wider font-bold uppercase text-atlas-orange mb-1.5">{title}</p>
+            <div className="grid grid-cols-2 gap-2">{children}</div>
+        </div>
+    );
+}
+
+function QualInput({ label, value, onChange, full }: { label: string; value?: string; onChange: (v: string) => void; full?: boolean }) {
+    return (
+        <label className={`block ${full ? 'col-span-2' : ''}`}>
+            <span className="block text-[9px] text-gray-400 mb-0.5">{label}</span>
+            <input
+                type="text"
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full p-1.5 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-atlas-orange"
+            />
+        </label>
+    );
+}
+
+function QualSelect({ label, value, options, onChange }: { label: string; value?: string; options: string[]; onChange: (v: string) => void }) {
+    return (
+        <label className="block">
+            <span className="block text-[9px] text-gray-400 mb-0.5">{label}</span>
+            <select
+                value={value || ''}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full p-1.5 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-atlas-orange"
+            >
+                {options.map((o) => <option key={o} value={o}>{o || '—'}</option>)}
+            </select>
+        </label>
     );
 }

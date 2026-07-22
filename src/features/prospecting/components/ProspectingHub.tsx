@@ -16,7 +16,7 @@ import {
 
 type HubTab = 'cnpj' | 'discovery';
 
-const dropdownFields: Array<{ key: keyof Omit<ProspectCriteria, 'quantidade'>; label: string; options: string[] }> = [
+const dropdownFields: Array<{ key: 'segmento' | 'localizacao'; label: string; options: string[] }> = [
     { key: 'segmento', label: 'Segmento (ICP)', options: SEGMENTO_OPTIONS },
     { key: 'localizacao', label: 'Região de Atuação (ampla)', options: LOCALIZACAO_OPTIONS },
 ];

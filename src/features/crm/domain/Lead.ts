@@ -14,6 +14,8 @@ export interface Lead {
     companyId: string | null;
     contactId: string | null;
     organizationId: string | null;
+    pic: string | null;
+    qualification: Record<string, unknown> | null;
     createdAt: Date;
     updatedAt: Date;
     company?: unknown;

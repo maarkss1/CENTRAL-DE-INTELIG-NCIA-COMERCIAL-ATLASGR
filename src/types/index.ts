@@ -11,6 +11,43 @@ export type {
 
 export type { COMPANY_STATUS, LEAD_STATUS, ACTIVITY_TYPE, ACTIVITY_STATUS, LEAD_TEMPERATURE, CONTACT_STATUS } from '../lib/zod';
 
+/**
+ * Checklist de qualificação do SDR — Playbook Comercial AtlasGR, seção 4.2. Preenchido
+ * manualmente pelo time comercial durante a qualificação, nunca inferido automaticamente.
+ */
+export interface LeadQualification {
+    // 4.2.1 Contexto Operacional
+    segmentoOperacao?: string;
+    tipoCarga?: string;
+    principaisRotas?: string;
+    usaTerceiros?: 'Sim' | 'Não' | '';
+    mediaContratacaoTerceiros?: string;
+    viagensPorMes?: string;
+    frotaPropria?: string;
+    frotaAgregados?: string;
+    frotaTerceiros?: string;
+    // 4.2.2 Estrutura Atual
+    ermTms?: string;
+    rastreador?: string;
+    seguradora?: string;
+    corretora?: string;
+    possuiGR?: string;
+    possuiCadastroMotorista?: string;
+    possuiSoftwareLogistico?: string;
+    // 4.2.3 Dor Mapeada
+    dorPrincipal?: string;
+    detalhamentoDor?: string;
+    impactoPercebido?: string;
+    solucaoAtlas?: 'Profile' | 'GR' | 'Connect' | 'Combinação' | '';
+    // 4.2.4 Interesse e Autoridade
+    nivelAutoridade?: 'Decisor' | 'Influenciador' | 'Usuário' | '';
+    interessePercebido?: 'Baixo' | 'Médio' | 'Alto' | '';
+    horizonteDecisao?: 'Imediato' | '30 dias' | '60-90 dias' | 'Indefinido' | '';
+    // 4.2.5 Próximo Passo
+    expectativaProximaCall?: string;
+    temaProximaReuniao?: string;
+}
+
 export interface PaginatedMeta {
     total: number;
     page: number;
@@ -108,6 +145,10 @@ export interface Lead {
     lastInteraction?: string | null;
     nextAction?: string | null;
     organizationId?: string | null;
+    /** PIC (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — setado manualmente, nunca inferido automaticamente. */
+    pic?: 'PIC1_Expansao' | 'PIC2_Risco' | 'PIC3_Transicao' | null;
+    /** Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2). */
+    qualification?: LeadQualification | null;
 
     companyId?: string | null;
     company?: Company | null;

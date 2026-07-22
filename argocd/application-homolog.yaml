@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prospector-atlas-homolog
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/MaarksN/PROSPECTOR-ATLASGR.git'
+    targetRevision: develop
+    path: charts/prospector-atlas
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: homolog
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
