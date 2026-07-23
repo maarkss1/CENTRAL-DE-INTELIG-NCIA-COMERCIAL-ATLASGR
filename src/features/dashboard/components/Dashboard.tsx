@@ -20,6 +20,7 @@ import {
     IconArrowRight,
     IconBolt,
     type AtlasIconProps,
+  IconCpu, IconDatabase, IconFlame, IconSliders, IconCalendar, IconDollar, IconWrench, IconLandmark, IconUserPlus, IconClipboard, IconChat, IconBot
 } from '../../../components/icons';
 
 interface DashboardProps {
@@ -33,6 +34,21 @@ const TOOLS: Array<{ tab: TabType; title: string; desc: string; icon: React.Comp
     { tab: 'enrich', title: 'Enriquecedor de Dados', desc: 'Rode o enriquecimento completo de CNPJ, telefones e e-mails de decisores.', icon: IconSparkle, color: 'text-purple-600', bg: 'bg-purple-100' },
     { tab: 'intelligence', title: 'Inteligência Logística', desc: 'IA autônoma para análise de risco, scoring e geração de scripts de vendas.', icon: IconBrain, color: 'text-rose-600', bg: 'bg-rose-100' },
     { tab: 'activities', title: 'Gestão de Atividades', desc: 'Controle tarefas, follow-ups e métricas de desempenho diário.', icon: IconActivity, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+
+    { tab: 'roleplay', title: 'Roleplay', desc: 'Simulação de vendas e treinamentos práticos.', icon: IconBot, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { tab: 'chatbot', title: 'Chatbot', desc: 'Assistente virtual para autoatendimento e triagem.', icon: IconChat, color: 'text-cyan-600', bg: 'bg-cyan-100' },
+    { tab: 'document-editor', title: 'Documentos', desc: 'Criação e edição colaborativa de documentos.', icon: IconClipboard, color: 'text-stone-600', bg: 'bg-stone-100' },
+    { tab: 'analytics', title: 'Analytics', desc: 'Métricas e análises avançadas de performance.', icon: IconActivity, color: 'text-fuchsia-600', bg: 'bg-fuchsia-100' },
+    { tab: 'automations', title: 'Automações', desc: 'Crie fluxos de trabalho e gatilhos automatizados.', icon: IconCpu, color: 'text-teal-600', bg: 'bg-teal-100' },
+    { tab: 'team', title: 'Equipe', desc: 'Gestão de usuários, permissões e times.', icon: IconUserPlus, color: 'text-sky-600', bg: 'bg-sky-100' },
+    { tab: 'reports', title: 'Relatórios', desc: 'Geração de relatórios customizados e exportações.', icon: IconLandmark, color: 'text-amber-600', bg: 'bg-amber-100' },
+    { tab: 'integrations', title: 'Integrações', desc: 'Conecte com outras ferramentas e APIs.', icon: IconWrench, color: 'text-slate-600', bg: 'bg-slate-100' },
+    { tab: 'billing', title: 'Faturamento', desc: 'Gestão financeira, planos e pagamentos.', icon: IconDollar, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { tab: 'calendar', title: 'Calendário', desc: 'Agendamentos, reuniões e eventos.', icon: IconCalendar, color: 'text-red-600', bg: 'bg-red-100' },
+    { tab: 'settings', title: 'Configurações', desc: 'Ajustes gerais do sistema e preferências.', icon: IconSliders, color: 'text-gray-600', bg: 'bg-gray-100' },
+    { tab: 'notifications', title: 'Notificações', desc: 'Central de avisos e alertas do sistema.', icon: IconFlame, color: 'text-orange-600', bg: 'bg-orange-100' },
+    { tab: 'knowledge', title: 'Base de Conhecimento', desc: 'Artigos, tutoriais e documentação interna.', icon: IconDatabase, color: 'text-blue-600', bg: 'bg-blue-100' },
+
 ];
 
 function LiveClock() {

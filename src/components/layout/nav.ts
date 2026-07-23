@@ -8,10 +8,11 @@ import {
   IconRadar,
   IconSparkle,
   IconBrain,
+  IconBot, IconChat, IconClipboard, IconUserPlus, IconLandmark, IconWrench, IconDollar, IconCalendar, IconSliders, IconFlame, IconDatabase, IconCpu,
   type AtlasIconProps,
 } from '../icons';
 
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'roleplay' | 'chatbot' | 'document-editor' | 'analytics' | 'automations' | 'team' | 'reports' | 'integrations' | 'billing' | 'calendar' | 'settings' | 'notifications' | 'knowledge';
 
 export interface NavItem {
   tab: TabType;
@@ -28,4 +29,19 @@ export const NAV_ITEMS: NavItem[] = [
   { tab: 'enrich', label: 'Enriquecer', icon: IconSparkle },
   { tab: 'intelligence', label: 'Inteligência', icon: IconBrain },
   { tab: 'activities', label: 'Atividades', icon: IconActivity },
+
+  { tab: 'roleplay', label: 'Roleplay', icon: IconBot },
+  { tab: 'chatbot', label: 'Chatbot', icon: IconChat },
+  { tab: 'document-editor', label: 'Documentos', icon: IconClipboard },
+  { tab: 'analytics', label: 'Analytics', icon: IconActivity },
+  { tab: 'automations', label: 'Automações', icon: IconCpu },
+  { tab: 'team', label: 'Equipe', icon: IconUserPlus },
+  { tab: 'reports', label: 'Relatórios', icon: IconLandmark },
+  { tab: 'integrations', label: 'Integrações', icon: IconWrench },
+  { tab: 'billing', label: 'Faturamento', icon: IconDollar },
+  { tab: 'calendar', label: 'Calendário', icon: IconCalendar },
+  { tab: 'settings', label: 'Configurações', icon: IconSliders },
+  { tab: 'notifications', label: 'Notificações', icon: IconFlame },
+  { tab: 'knowledge', label: 'Base de Conhecimento', icon: IconDatabase },
+
 ];
