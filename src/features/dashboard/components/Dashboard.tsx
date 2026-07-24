@@ -23,33 +23,42 @@ import {
     type AtlasIconProps,
     IconSliders,
     IconBot,
-    IconRefresh
+    IconShieldCheck,
+    IconCpu
 } from '../../../components/icons';
 
 interface DashboardProps {
     onNavigate: (tab: TabType) => void;
 }
 
-const TOOLS_ATLASGR: Array<{ tab: TabType; title: string; desc: string; icon: React.ComponentType<AtlasIconProps>; color: string; bg: string }> = [
-    { tab: 'crm', title: 'AtlasGR Sales Cloud', desc: 'CRM e pipeline comercial inteligente estágio por estágio.', icon: IconPipeline, color: 'text-orange-600', bg: 'bg-orange-100' },
-    { tab: 'companies', title: 'AtlasGR Lead Engine', desc: 'Base de dados central de empresas, frotas e pessoas-chave.', icon: IconBuilding, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-    { tab: 'prospect', title: 'AtlasGR Prospect', desc: 'Motor de busca ativo para identificar transportadoras e embarcadores.', icon: IconRadar, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { tab: 'enrich', title: 'AtlasGR Prospect AI', desc: 'Enriquecimento profundo com IA de CNPJs, decisores e contatos.', icon: IconSparkle, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { tab: 'intelligence', title: 'AtlasGR Intelligence', desc: 'Agentes autônomos de IA para qualificação de risco e Cold Calls.', icon: IconBrain, color: 'text-rose-600', bg: 'bg-rose-100' },
-    { tab: 'prompts', title: 'AtlasGR Commercial OS', desc: 'AI Prompt Studio e gestão de inteligência comercial.', icon: IconSliders, color: 'text-amber-600', bg: 'bg-amber-100' },
-    { tab: 'activities', title: 'AtlasGR Growth', desc: 'Gestão de tarefas, follow-ups e automação de crescimento.', icon: IconActivity, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { tab: 'roleplay', title: 'Roleplay & Simulador IA', desc: 'Treinamento e simulação prática de vendas com cliente virtual.', icon: IconBot, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+interface ToolItem {
+    tab: TabType;
+    title: string;
+    desc: string;
+    icon: React.ComponentType<AtlasIconProps>;
+    badge: string;
+}
+
+const ATLASGR_TOOLS: ToolItem[] = [
+    { tab: 'crm', title: 'AtlasGR Sales Cloud', desc: 'CRM e pipeline comercial inteligente estágio por estágio.', icon: IconPipeline, badge: 'CRM' },
+    { tab: 'companies', title: 'AtlasGR Lead Engine', desc: 'Base central de empresas, frotas e pessoas-chave.', icon: IconBuilding, badge: 'Dados' },
+    { tab: 'prospect', title: 'AtlasGR Prospect', desc: 'Motor de busca ativo para transportadoras e embarcadores.', icon: IconRadar, badge: 'Busca' },
+    { tab: 'enrich', title: 'AtlasGR Prospect AI', desc: 'Enriquecimento profundo com IA de CNPJs e decisores.', icon: IconSparkle, badge: 'IA' },
+    { tab: 'intelligence', title: 'AtlasGR Intelligence', desc: 'Agentes autônomos de IA para qualificação de risco e Cold Calls.', icon: IconBrain, badge: 'RAG' },
+    { tab: 'prompts', title: 'AtlasGR Commercial OS', desc: 'AI Prompt Studio e engenharia de inteligência comercial.', icon: IconSliders, badge: 'Prompts' },
+    { tab: 'activities', title: 'AtlasGR Growth', desc: 'Gestão de tarefas, follow-ups e automação comercial.', icon: IconActivity, badge: 'Growth' },
+    { tab: 'roleplay', title: 'Roleplay Simulador IA', desc: 'Treinamento prático de vendas com cliente virtual interativo.', icon: IconBot, badge: 'Treino' },
 ];
 
-const TOOLS_TOTALTRACK: Array<{ tab: TabType; title: string; desc: string; icon: React.ComponentType<AtlasIconProps>; color: string; bg: string }> = [
-    { tab: 'crm', title: 'TotalTrack Sales Cloud', desc: 'Gestão de propostas de rastreamento, telemetria e segurança.', icon: IconPipeline, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { tab: 'companies', title: 'TotalTrack Lead Engine', desc: 'Frotas de logística, locadoras de máquinas e transportadoras.', icon: IconBuilding, color: 'text-cyan-600', bg: 'bg-cyan-100' },
-    { tab: 'prospect', title: 'TotalTrack Prospect', desc: 'Prospecção focada em gestores de frotas e gerentes de risco.', icon: IconRadar, color: 'text-sky-600', bg: 'bg-sky-100' },
-    { tab: 'enrich', title: 'TotalTrack Prospect AI', desc: 'Enriquecimento de dados de frotas corporativas e telemetria.', icon: IconSparkle, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-    { tab: 'intelligence', title: 'TotalTrack Intelligence', desc: 'Análise de risco PGR, câmeras ADAS/Fadiga e alertas Total Safe.', icon: IconBrain, color: 'text-blue-700', bg: 'bg-blue-100' },
-    { tab: 'prompts', title: 'TotalTrack Commercial OS', desc: 'Prompts e regras para venda de soluções de telemetria CAN/4G.', icon: IconSliders, color: 'text-teal-600', bg: 'bg-teal-100' },
-    { tab: 'activities', title: 'TotalTrack Growth', desc: 'Tarefas de instalação, testes de isca RF e cronogramas.', icon: IconActivity, color: 'text-emerald-600', bg: 'bg-emerald-100' },
-    { tab: 'roleplay', title: 'Roleplay & Simulador Fleet', desc: 'Treinamento prático de quebra de objeções em telemetria.', icon: IconBot, color: 'text-blue-600', bg: 'bg-blue-100' },
+const TOTALTRACK_TOOLS: ToolItem[] = [
+    { tab: 'crm', title: 'Total Easy 4G & Total Auto', desc: 'Rastreamento plug & play e gestão de frotas leves.', icon: IconCpu, badge: '4G Plug' },
+    { tab: 'companies', title: 'Total Frota & Total Máquinas', desc: 'Telemetria pesada, maquinário e controle de insumos.', icon: IconBuilding, badge: 'Frota' },
+    { tab: 'prospect', title: 'Total Jornada', desc: 'Controle automatizado de jornada de trabalho de motoristas.', icon: IconTarget, badge: 'Jornada' },
+    { tab: 'enrich', title: 'Total SAFE 4G / Dashcam', desc: 'Câmeras de vídeo-inteligência ADAS/Fadiga e prevenção.', icon: IconShieldCheck, badge: 'Vídeo IA' },
+    { tab: 'intelligence', title: 'TotalTrack Fleet AI Diagnostic', desc: 'Diagnóstico inteligente de riscos PGR e sinistralidade.', icon: IconBrain, badge: 'Diagnostic' },
+    { tab: 'prompts', title: 'Total Moto, Backup, Carreta & Isca', desc: 'Telemetria dedicada para motos, carretas e iscas RF.', icon: IconSliders, badge: 'Iscas RF' },
+    { tab: 'activities', title: 'TotalTrack Growth', desc: 'Cronogramas de instalação, testes de transmissão e ordens.', icon: IconActivity, badge: 'Ordens' },
+    { tab: 'roleplay', title: 'Simulador Objeções Telemetria', desc: 'Roleplay prático para quebra de objeções em telemetria.', icon: IconBot, badge: 'Simulador' },
 ];
 
 function LiveClock() {
@@ -58,8 +67,8 @@ function LiveClock() {
     const timeLabel = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     return (
         <div className="text-right">
-            <p className="text-sm font-medium text-gray-500 capitalize">{dateLabel}</p>
-            <p className="text-xl font-bold text-gray-800">{timeLabel}</p>
+            <p className="text-xs font-semibold text-gray-400 capitalize">{dateLabel}</p>
+            <p className="text-lg font-bold text-gray-800">{timeLabel}</p>
         </div>
     );
 }
@@ -76,7 +85,7 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-    const { brand, toggleBrand, brandName, brandSubtitle } = useBrand();
+    const { setBrand } = useBrand();
     const [stats, setStats] = useState({
         totalCompanies: 0,
         activeLeads: 0,
@@ -110,19 +119,17 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         fetchDashboardData();
     }, []);
 
-    const tools = brand === 'atlasgr' ? TOOLS_ATLASGR : TOOLS_TOTALTRACK;
-
     const cards = [
-        { title: 'Empresas', value: stats.totalCompanies, icon: IconBuilding, color: 'text-blue-600' },
+        { title: 'Empresas Base', value: stats.totalCompanies, icon: IconBuilding, color: 'text-blue-600' },
         { title: 'Leads Ativos', value: stats.activeLeads, icon: IconTarget, color: 'text-atlas-orange' },
         { title: 'Pendências', value: stats.pendingActivities, icon: IconActivity, color: 'text-purple-600' },
-        { title: 'Ganhos', value: stats.wonDeals, icon: IconCheck, color: 'text-green-600' }
+        { title: 'Ganhos', value: stats.wonDeals, icon: IconCheck, color: 'text-emerald-600' }
     ];
 
     if (loading) {
         return (
             <div className="flex-1 overflow-y-auto bg-gray-50 p-8 flex flex-col items-center">
-                <div className="w-full max-w-6xl space-y-12 pb-10">
+                <div className="w-full max-w-7xl space-y-12 pb-10">
                     <div className="flex items-center justify-between border-b border-gray-200 pb-6">
                         <div className="space-y-3">
                             <Skeleton className="h-9 w-72" />
@@ -130,10 +137,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                         </div>
                         <Skeleton className="h-10 w-32" />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                            <Skeleton key={i} className="h-56 rounded-3xl" />
-                        ))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <Skeleton className="h-96 rounded-3xl" />
+                        <Skeleton className="h-96 rounded-3xl" />
                     </div>
                 </div>
             </div>
@@ -141,106 +147,200 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 flex flex-col items-center">
-            <div className="w-full max-w-6xl space-y-10 pb-10">
+        <div className="flex-1 overflow-y-auto bg-gray-950/95 text-gray-100 p-8 flex flex-col items-center">
+            <div className="w-full max-w-7xl space-y-10 pb-10">
 
-                {/* Cabeçalho Dual Brand do Dashboard */}
+                {/* Cabeçalho da Plataforma */}
                 <motion.div
                     variants={fadeInUp}
                     initial="hidden"
                     animate="show"
-                    className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-200 pb-6"
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-gray-800 pb-6"
                 >
                     <div>
-                        <div className="mb-2 flex items-center gap-3">
-                            <div className="p-2 bg-orange-600 text-white rounded-xl shadow-sm">
-                                <IconBolt className="h-5 w-5" />
+                        <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-atlas-orange text-white rounded-xl shadow-lg shadow-atlas-orange/30">
+                                <IconBolt className="h-6 w-6" />
                             </div>
                             <div>
-                                <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-                                    {brandName} <span className="text-orange-600">Revenue OS</span>
+                                <h1 className="text-3xl font-black tracking-tight text-white">
+                                    PROSPECTOR <span className="text-atlas-orange">ATLASGR & TOTALTRACK</span>
                                 </h1>
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">{brandSubtitle}</p>
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-0.5">
+                                    Ecossistema Integrado de Inteligência Comercial e Telemetria de Frotas
+                                </p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        {/* Toggle de Marca Dual Context */}
-                        <button
-                            onClick={toggleBrand}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:border-orange-500 rounded-xl text-xs font-bold text-gray-700 shadow-xs hover:shadow-md transition-all"
-                        >
-                            <IconRefresh className="w-4 h-4 text-orange-600" />
-                            <span>Alternar Marca: <strong className="text-orange-600">{brand === 'atlasgr' ? 'TotalTrack' : 'AtlasGR'}</strong></span>
-                        </button>
-                        <LiveClock />
-                    </div>
+                    <LiveClock />
                 </motion.div>
 
-                {/* Grade de Ferramentas (App Hub) */}
+                {/* Métricas Globais */}
                 <motion.div
-                    variants={staggerContainer(0.07)}
+                    variants={staggerContainer(0.05)}
                     initial="hidden"
                     animate="show"
-                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    className="grid grid-cols-2 md:grid-cols-4 gap-4"
                 >
-                    {tools.map((tool) => (
-                        <motion.div key={tool.tab} variants={staggerItem}>
-                            <Card
-                                variant="interactive"
-                                tilt
-                                onClick={() => onNavigate(tool.tab)}
-                                className="group relative flex flex-col items-start p-8 overflow-hidden text-left h-full border border-gray-100 hover:border-orange-500/40 shadow-xs hover:shadow-xl transition-all"
-                            >
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 ${tool.bg} ${tool.color}`}>
-                                    <tool.icon className="w-7 h-7" />
+                    {cards.map((card, index) => (
+                        <motion.div key={index} variants={staggerItem}>
+                            <Card variant="glass" className="p-5 flex items-center gap-4 bg-gray-900/60 border border-gray-800/80">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gray-800/80 ${card.color}`}>
+                                    <card.icon className="w-5 h-5" />
                                 </div>
-                                <h3 className="font-bold text-xl text-gray-900 mb-2 tracking-tight">
-                                    {tool.title}
-                                </h3>
-                                <p className="text-gray-500 text-sm leading-relaxed mb-6">
-                                    {tool.desc}
-                                </p>
-
-                                <div className="mt-auto flex items-center gap-2 text-orange-600 font-bold text-xs uppercase tracking-wider opacity-80 group-hover:opacity-100 transition-opacity">
-                                    Acessar Módulo <IconArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                <div>
+                                    <p className="text-2xl font-black text-white leading-none">
+                                        <AnimatedNumber value={card.value} />
+                                    </p>
+                                    <p className="text-xs font-semibold text-gray-400 mt-1 uppercase tracking-wide">{card.title}</p>
                                 </div>
-
-                                <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${tool.bg}`}></div>
                             </Card>
                         </motion.div>
                     ))}
                 </motion.div>
 
-                {/* Métricas Rápidas */}
-                <div className="pt-4">
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                        <IconActivity className="w-4 h-4 text-orange-600" /> Visão Geral AtlasGR
-                    </h2>
+                {/* DOIS CARDS PRINCIPAIS (AtlasGR & TotalTrack) LADO A LADO */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                    {/* CARD 1: ATLASGR COMMERCIAL OS */}
                     <motion.div
-                        variants={staggerContainer(0.05)}
-                        initial="hidden"
-                        animate="show"
-                        className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="bg-gray-900/90 rounded-3xl border border-orange-500/30 p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between"
                     >
-                        {cards.map((card, index) => (
-                            <motion.div key={index} variants={staggerItem}>
-                                <Card variant="glass" className="p-5 flex items-center gap-4 border border-gray-100">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/80 shadow-xs ${card.color}`}>
-                                        <card.icon className="w-5 h-5" />
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <div>
+                            {/* Header do Card AtlasGR */}
+                            <div className="flex items-center justify-between mb-6 border-b border-gray-800 pb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-atlas-orange font-black text-xl">
+                                        AG
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-black text-gray-900 leading-none">
-                                            <AnimatedNumber value={card.value} />
-                                        </p>
-                                        <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wide">{card.title}</p>
+                                        <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                                            AtlasGR <span className="text-atlas-orange text-xs px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40">Commercial OS</span>
+                                        </h2>
+                                        <p className="text-xs text-gray-400 font-medium">Sales Cloud & Inteligência Comercial B2B</p>
                                     </div>
-                                </Card>
-                            </motion.div>
-                        ))}
+                                </div>
+                                <button
+                                    onClick={() => { setBrand('atlasgr'); onNavigate('crm'); }}
+                                    className="px-4 py-2 bg-atlas-orange hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <span>Abrir AtlasGR</span>
+                                    <IconArrowRight className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+                                Plataforma completa de inteligência comercial B2B para o setor de transporte e logística. Prospecção ativa de transportadoras e embarcadores, qualificação de risco com IA e gestão de funil.
+                            </p>
+
+                            {/* Lista de Ferramentas de IA do AtlasGR */}
+                            <div className="space-y-3 mb-6">
+                                <p className="text-xs font-bold uppercase tracking-widest text-orange-400 mb-2">Ferramentas de IA & Módulos AtlasGR:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {ATLASGR_TOOLS.map((t) => (
+                                        <div
+                                            key={t.tab}
+                                            onClick={() => { setBrand('atlasgr'); onNavigate(t.tab); }}
+                                            className="p-3.5 bg-gray-950/70 border border-gray-800 hover:border-orange-500/50 rounded-2xl cursor-pointer transition-all hover:bg-gray-800/50 group flex items-start gap-3"
+                                        >
+                                            <div className="p-2 bg-orange-500/10 text-atlas-orange rounded-xl shrink-0 group-hover:scale-110 transition-transform">
+                                                <t.icon className="w-4 h-4" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-xs font-bold text-white group-hover:text-atlas-orange transition-colors truncate">{t.title}</p>
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-500/30 text-orange-400">{t.badge}</Badge>
+                                                </div>
+                                                <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{t.desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+                            <span className="flex items-center gap-1.5"><IconCheck className="w-4 h-4 text-orange-500" /> RAG & Algoritmos de Risco</span>
+                            <span className="font-semibold text-orange-400">8 Módulos Ativos</span>
+                        </div>
                     </motion.div>
+
+                    {/* CARD 2: TOTALTRACK FLEET OS */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.1 }}
+                        className="bg-gray-900/90 rounded-3xl border border-blue-500/30 p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between"
+                    >
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                        <div>
+                            {/* Header do Card TotalTrack */}
+                            <div className="flex items-center justify-between mb-6 border-b border-gray-800 pb-5">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-black text-xl">
+                                        TT
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                                            TotalTrack <span className="text-blue-400 text-xs px-2 py-0.5 rounded-full bg-blue-500/20 border border-blue-500/40">Fleet OS</span>
+                                        </h2>
+                                        <p className="text-xs text-gray-400 font-medium">Telemetria, Rastreamento 4G & Segurança PGR</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => { setBrand('totaltrack'); onNavigate('crm'); }}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <span>Abrir TotalTrack</span>
+                                    <IconArrowRight className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+                                Soluções avançadas em telemetria veicular, câmeras inteligentes com IA (Fadiga/ADAS), controle de jornada de motoristas e sistemas de segurança para frotas corporativas e cargas.
+                            </p>
+
+                            {/* Lista de Ferramentas de IA & Módulos do TotalTrack */}
+                            <div className="space-y-3 mb-6">
+                                <p className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-2">Ferramentas de IA & Módulos TotalTrack:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {TOTALTRACK_TOOLS.map((t) => (
+                                        <div
+                                            key={t.tab}
+                                            onClick={() => { setBrand('totaltrack'); onNavigate(t.tab); }}
+                                            className="p-3.5 bg-gray-950/70 border border-gray-800 hover:border-blue-500/50 rounded-2xl cursor-pointer transition-all hover:bg-gray-800/50 group flex items-start gap-3"
+                                        >
+                                            <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl shrink-0 group-hover:scale-110 transition-transform">
+                                                <t.icon className="w-4 h-4" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors truncate">{t.title}</p>
+                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-500/30 text-blue-400">{t.badge}</Badge>
+                                                </div>
+                                                <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5">{t.desc}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-800 flex items-center justify-between text-xs text-gray-400">
+                            <span className="flex items-center gap-1.5"><IconCheck className="w-4 h-4 text-blue-400" /> Câmeras IA & Telemetria CAN/4G</span>
+                            <span className="font-semibold text-blue-400">8 Módulos Ativos</span>
+                        </div>
+                    </motion.div>
+
                 </div>
+
             </div>
         </div>
     );
