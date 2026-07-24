@@ -5,7 +5,7 @@ import { logger } from '../lib/logger.js';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.string().default('3000'),
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória'),
+  DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/prospector_atlas?schema=public'),
   REDIS_URL: z.string().optional(),
   ALLOWED_ORIGINS: z.string().optional(),
   BETTER_AUTH_SECRET: z.string().optional(),

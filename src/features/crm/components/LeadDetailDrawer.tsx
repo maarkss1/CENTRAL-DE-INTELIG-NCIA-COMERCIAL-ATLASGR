@@ -201,7 +201,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             )}
                             <Button variant="premium" size="sm" onClick={handleEnrich} disabled={enriching || !lead.companyId}>
                                 {enriching ? <IconSpinner className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <IconSparkle className="w-3.5 h-3.5 mr-1.5" />}
-                                {enriching ? 'Enriquecendo...' : 'Enriquecer'}
+                                {enriching ? 'Enriquecendo...' : 'Enriquecer Lead com IA'}
                             </Button>
                         </div>
 

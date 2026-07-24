@@ -168,7 +168,7 @@ export function ProspectingHub() {
                 size: candidate.size,
                 location: candidate.location,
                 source: 'Prospecção (Google Places / Apollo)',
-                autoEnrich: true,
+                autoEnrich: false, // Salva o Lead cru no CRM sem gastar créditos automáticos
                 linkedin: candidate.linkedinUrl,
                 phone: candidate.phone,
                 website: candidate.website,

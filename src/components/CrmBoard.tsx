@@ -1,12 +1,11 @@
-import React from "react";
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
 import { api } from '../lib/api';
 import { Button } from './ui/Button';
-import { IconPipeline, IconDownload, IconSpinner } from './icons';
+import { IconPipeline, IconDownload, IconSpinner, IconFilter } from './icons';
 import { fadeInUp } from '../lib/motion';
 
 const COLUMNS: LeadStatus[] = [
@@ -20,19 +19,25 @@ const COLUMNS: LeadStatus[] = [
     'Fechado Perdido'
 ];
 
+const ANOS_FILTER = ['Todos', '2025', '2026'];
+const MESES_FILTER = [
+    'Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
 export function CrmBoard() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+    const [selectedAno, setSelectedAno] = useState('Todos');
+    const [selectedMes, setSelectedMes] = useState('Todos');
 
     const fetchLeads = useCallback(async () => {
         setLoading(true);
         try {
-            // For the Kanban board, we want to fetch a large number of leads to visualize the full pipeline
-            // Future optimization: implement virtualized columns or load-on-scroll within columns
             const url = `/api/leads?limit=1000`;
-            const response = await api.get<{data: Lead[], meta?: { total: number, page: number, limit: number, totalPages: number }}>(url);
-            
+            const response = await api.get<{ data: Lead[] }>(url);
+
             if (Array.isArray(response)) {
                 setLeads(response);
             } else if (response && response.data) {
@@ -62,14 +67,13 @@ export function CrmBoard() {
         const leadId = e.dataTransfer.getData('leadId');
         if (!leadId) return;
 
-        // Optimistic update
         setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, status } : lead));
 
         try {
             await api.put(`/api/leads/${leadId}`, { status });
         } catch (error) {
             console.error('Error updating lead status:', error);
-            fetchLeads(); // Revert on error
+            fetchLeads();
         }
     }, [fetchLeads]);
 
@@ -97,7 +101,7 @@ export function CrmBoard() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `leads-bitrix24-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.download = `leads-atlasgr-${new Date().toISOString().slice(0, 10)}.csv`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -107,43 +111,90 @@ export function CrmBoard() {
         }
     }, []);
 
-    const groupedLeads = React.useMemo(() => {
+    // Filter leads by selected Year & Month
+    const filteredLeads = useMemo(() => {
+        return leads.filter(lead => {
+            if (!lead.createdAt) return true;
+            const date = new Date(lead.createdAt);
+            const yearStr = date.getFullYear().toString();
+            const monthIdx = date.getMonth(); // 0 = Jan, 1 = Fev...
+            const monthStr = MESES_FILTER[monthIdx + 1];
+
+            const matchAno = selectedAno === 'Todos' || yearStr === selectedAno;
+            const matchMes = selectedMes === 'Todos' || monthStr === selectedMes;
+
+            return matchAno && matchMes;
+        });
+    }, [leads, selectedAno, selectedMes]);
+
+    const groupedLeads = useMemo(() => {
         const grouped = {} as Record<LeadStatus, Lead[]>;
         COLUMNS.forEach(status => grouped[status] = []);
-        leads.forEach(lead => {
+        filteredLeads.forEach(lead => {
             if (grouped[lead.status]) {
                 grouped[lead.status].push(lead);
             }
         });
         return grouped;
-    }, [leads]);
+    }, [filteredLeads]);
 
     return (
         <div className="flex-1 flex flex-col h-full bg-gray-50/50 overflow-hidden">
+            {/* Header */}
             <motion.div
                 variants={fadeInUp}
                 initial="hidden"
                 animate="show"
-                className="p-6 border-b border-black/5 flex items-center justify-between glass-panel shrink-0"
+                className="p-6 border-b border-black/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel shrink-0"
             >
                 <div>
-                    <h2 className="font-bold text-2xl text-atlas-dark flex items-center gap-2.5">
-                        <IconPipeline className="w-6 h-6 text-atlas-orange" />
-                        Pipeline de Vendas
+                    <h2 className="font-black text-2xl text-atlas-dark flex items-center gap-2.5">
+                        <IconPipeline className="w-6 h-6 text-orange-600" />
+                        AtlasGR Sales Cloud
                     </h2>
-                    <p className="text-atlas-dark/50 text-sm mt-1">Arraste os cards para atualizar o estágio da negociação</p>
+                    <p className="text-atlas-dark/50 text-xs mt-0.5">Pipeline de negociações e gestão de oportunidades de risco e telemetria</p>
                 </div>
-                <Button variant="glass" onClick={handleExportCsv} title="Exportar todos os leads no formato de importação de Leads do Bitrix24">
-                    <IconDownload className="w-4 h-4 mr-2" /> Exportar para Bitrix24
-                </Button>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                    {/* Filtros Globais de Ano e Mês (Plano 07) */}
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-black/10 text-xs font-bold text-atlas-dark">
+                        <IconFilter className="w-3.5 h-3.5 text-orange-600" />
+                        <span>Ano:</span>
+                        <select
+                            value={selectedAno}
+                            onChange={e => setSelectedAno(e.target.value)}
+                            className="bg-transparent outline-none cursor-pointer text-orange-600"
+                        >
+                            {ANOS_FILTER.map(ano => (
+                                <option key={ano} value={ano}>{ano}</option>
+                            ))}
+                        </select>
+                        <span className="text-black/20">|</span>
+                        <span>Mês:</span>
+                        <select
+                            value={selectedMes}
+                            onChange={e => setSelectedMes(e.target.value)}
+                            className="bg-transparent outline-none cursor-pointer text-orange-600"
+                        >
+                            {MESES_FILTER.map(mes => (
+                                <option key={mes} value={mes}>{mes}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <Button variant="glass" onClick={handleExportCsv} title="Exportar leads no formato Bitrix24/AtlasGR">
+                        <IconDownload className="w-4 h-4 mr-2" /> Exportar CSV
+                    </Button>
+                </div>
             </motion.div>
 
+            {/* Kanban columns */}
             <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
-                            <IconSpinner className="w-8 h-8 text-atlas-orange animate-spin" />
-                            <p className="text-atlas-dark/50 font-medium">Carregando pipeline...</p>
+                            <IconSpinner className="w-8 h-8 text-orange-600 animate-spin" />
+                            <p className="text-atlas-dark/50 font-medium">Carregando AtlasGR Sales Cloud...</p>
                         </div>
                     </div>
                 ) : (

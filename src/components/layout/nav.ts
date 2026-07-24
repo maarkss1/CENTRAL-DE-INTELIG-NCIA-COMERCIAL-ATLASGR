@@ -12,7 +12,7 @@ import {
   type AtlasIconProps,
 } from '../icons';
 
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'roleplay' | 'chatbot' | 'document-editor' | 'analytics' | 'automations' | 'team' | 'reports' | 'integrations' | 'billing' | 'calendar' | 'settings' | 'notifications' | 'knowledge';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'roleplay' | 'chatbot' | 'document-editor' | 'analytics' | 'automations' | 'team' | 'reports' | 'integrations' | 'billing' | 'calendar' | 'settings' | 'notifications' | 'knowledge';
 
 export interface NavItem {
   tab: TabType;
@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { tab: 'prospect', label: 'Prospectar', icon: IconRadar },
   { tab: 'enrich', label: 'Enriquecer', icon: IconSparkle },
   { tab: 'intelligence', label: 'Inteligência', icon: IconBrain },
+  { tab: 'prompts', label: 'Commercial OS', icon: IconSliders },
   { tab: 'activities', label: 'Atividades', icon: IconActivity },
 
   { tab: 'roleplay', label: 'Roleplay', icon: IconBot },

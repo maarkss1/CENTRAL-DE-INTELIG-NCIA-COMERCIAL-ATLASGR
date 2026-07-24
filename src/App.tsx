@@ -2,12 +2,16 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { MainLayout } from './components/layout/MainLayout';
 import { TabType } from './components/layout/nav';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { BrandProvider } from './contexts/BrandContext';
+import { ClickSpark } from './components/ui/ClickSpark';
+import { FloatingChatbook } from './components/ui/FloatingChatbook';
 
 import { Login } from './features/auth/components/Login';
 import { ProspectingHub } from './features/prospecting/components/ProspectingHub';
 import { EnricherHub } from './features/prospecting/components/EnricherHub';
 import { CrmBoard } from './components/CrmBoard';
 import { IntelligenceHub } from './features/intelligence/components/IntelligenceHub';
+import { PromptStudio } from './features/intelligence/components/PromptStudio';
 import { Dashboard } from './features/dashboard/components/Dashboard';
 import { CompanyList } from './features/companies/components/CompanyList';
 import { ContactList } from './features/contacts/components/ContactList';
@@ -30,7 +34,6 @@ function AppLayout() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Map pathname to active tab
     const getActiveTab = (): TabType => {
         const path = location.pathname;
         if (path.includes('/companies')) return 'companies';
@@ -40,6 +43,7 @@ function AppLayout() {
         if (path.includes('/prospect')) return 'prospect';
         if (path.includes('/enrich')) return 'enrich';
         if (path.includes('/intelligence')) return 'intelligence';
+        if (path.includes('/prompts')) return 'prompts';
         if (path.includes('/roleplay')) return 'roleplay';
         if (path.includes('/chatbot')) return 'chatbot';
         if (path.includes('/document-editor')) return 'document-editor';
@@ -64,6 +68,8 @@ function AppLayout() {
 
     return (
         <MainLayout activeTab={getActiveTab()} onTabChange={handleTabChange}>
+            <ClickSpark />
+            <FloatingChatbook />
             <Routes>
                 <Route path="/" element={<Dashboard onNavigate={handleTabChange} />} />
                 <Route path="companies" element={<CompanyList />} />
@@ -73,6 +79,7 @@ function AppLayout() {
                 <Route path="prospect" element={<ProspectingHub />} />
                 <Route path="enrich" element={<EnricherHub />} />
                 <Route path="intelligence" element={<IntelligenceHub />} />
+                <Route path="prompts" element={<PromptStudio />} />
                 <Route path="roleplay" element={<RoleplayHub />} />
                 <Route path="chatbot" element={<ChatbotAssistente />} />
                 <Route path="document-editor" element={<EditorDocumentos />} />
@@ -86,7 +93,6 @@ function AppLayout() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="knowledge" element={<Base />} />
-
             </Routes>
         </MainLayout>
     );
@@ -94,17 +100,19 @@ function AppLayout() {
 
 export default function App() {
     return (
-        <Routes>
-            <Route path="/" element={<Navigate to="/app" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route
-                path="/app/*"
-                element={
-                    <ProtectedRoute>
-                        <AppLayout />
-                    </ProtectedRoute>
-                }
-            />
-        </Routes>
+        <BrandProvider>
+            <Routes>
+                <Route path="/" element={<Navigate to="/app" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route
+                    path="/app/*"
+                    element={
+                        <ProtectedRoute>
+                            <AppLayout />
+                        </ProtectedRoute>
+                    }
+                />
+            </Routes>
+        </BrandProvider>
     );
 }
