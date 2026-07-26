@@ -1,0 +1,22 @@
+<USER_REQUEST>
+crie todos esses arqyuvo detro de repositruo. com os seus respectivos codigos.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-07-20T12:23:12-03:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Gemini 3.1 Pro (Low). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE><USER_REQUEST>
+crie todos esses arqyuvo detro de repositruo. com os seus respectivos codigos.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-07-20T12:26:02-03:00.
+</ADDITIONAL_METADATA>
+<USER_SETTINGS_CHANGE>
+The user changed setting `Model Selection` from None to Gemini 3.1 Pro (High). No need to comment on this change if the user doesn't ask about it. If reporting what model you are, please use a human readable name instead of the exact string.
+</USER_SETTINGS_CHANGE><USER_REQUEST>
+Continue
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-07-20T13:19:25-03:00.
+</ADDITIONAL_METADATA>
