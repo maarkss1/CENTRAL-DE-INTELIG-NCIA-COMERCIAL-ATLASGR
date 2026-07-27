@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Plus, Code, Zap, Save, Check, Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Sparkles, Plus, Save, Check, Bot } from 'lucide-react';
 
 export function AiToolBuilder() {
   const [toolName, setToolName] = useState('');

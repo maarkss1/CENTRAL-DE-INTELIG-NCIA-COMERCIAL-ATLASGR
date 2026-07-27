@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Layers, CheckCircle2, ShieldCheck, ArrowRight, ExternalLink, Zap, HelpCircle, FileText } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Layers, CheckCircle2, ExternalLink } from 'lucide-react';
 
 export function BitrixGuideHub() {
   const [activeTab, setActiveTab] = useState<'practices' | 'pipeline' | 'field_mapping' | 'tutorials'>('practices');

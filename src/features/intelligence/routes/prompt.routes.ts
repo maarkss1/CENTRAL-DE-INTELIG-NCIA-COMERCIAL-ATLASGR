@@ -28,7 +28,7 @@ const createPromptSchema = z.object({
 promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, next) => {
     try {
         const { name, category, variables } = req.body;
-        const tenantId = req.tenantId || 'system';
+        const tenantId = (req as any).tenantId || 'system';
 
         const prompt = await prisma.prompt.create({
             data: {

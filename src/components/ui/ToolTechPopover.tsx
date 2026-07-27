@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sparkles, Filter, ExternalLink, Info } from 'lucide-react';
+import { X, Filter, Info } from 'lucide-react';
 import { TechToolInfo } from './TechToolLogo';
 
 interface ToolTechPopoverProps {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Zap, Flame, Sparkles, Copy, Check, RefreshCw, BookOpen, HelpCircle, Lightbulb, ShieldAlert, ShieldCheck, Layers, Award, FileText, Compass } from 'lucide-react';
+import { Target, Zap, Flame, Sparkles, Copy, Check, RefreshCw, BookOpen, HelpCircle, Lightbulb, ShieldAlert, ShieldCheck, Award, FileText, Compass } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 
 type FrameworkType = 'spin' | 'snap' | 'aida' | 'meddpicc' | 'challenger';

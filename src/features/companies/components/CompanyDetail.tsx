@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Clock, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Instagram, Twitter, Facebook, Phone, Mail, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Phone, ShieldCheck } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
-import { findLikelyWhatsapp, whatsappLink } from '../../../lib/phone';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';

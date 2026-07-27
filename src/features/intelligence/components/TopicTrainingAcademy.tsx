@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, Sparkles, CheckCircle2, Play, Award, ArrowRight, Loader2 } from 'lucide-react';
+import { BookOpen, Sparkles, Award, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function TopicTrainingAcademy() {
