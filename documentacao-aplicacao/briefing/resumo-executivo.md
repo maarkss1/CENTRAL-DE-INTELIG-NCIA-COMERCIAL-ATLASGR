@@ -1,0 +1,3 @@
+# Resumo Executivo
+
+O Prospector AtlasGR é uma plataforma comercial avançada de CRM e Inteligência B2B, desenhada para centralizar a operação comercial, desde a prospecção autônoma até o fechamento de vendas. A aplicação oferece um ambiente moderno e responsivo, focado em metodologias comprovadas (SPIN, SNAP, MEDDPICC), com recursos de rastreamento de inteligência e suporte de assistentes de IA (Roleplay e Web Agent). O principal benefício é a unificação de todas as etapas do funil de vendas em uma interface fluida, garantindo que o time comercial acompanhe contatos, empresas, agendas e o pipeline de forma organizada e eficiente.
