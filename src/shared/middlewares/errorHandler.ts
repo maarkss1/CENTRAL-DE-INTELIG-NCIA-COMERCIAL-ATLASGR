@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 import { logger } from '../../lib/logger.js';
 
 export interface ApiResponse<T = unknown> {
@@ -41,6 +42,23 @@ export const errorHandler = (err: Error & { statusCode?: number; details?: unkno
             details: err.details
         });
         return;
+    }
+
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2002') {
+            res.status(409).json({
+                success: false,
+                error: 'Conflito de Dados: Este registro já existe.'
+            });
+            return;
+        }
+        if (err.code === 'P2025') {
+            res.status(404).json({
+                success: false,
+                error: 'Registro não encontrado.'
+            });
+            return;
+        }
     }
 
     const status = err.statusCode ?? 500;

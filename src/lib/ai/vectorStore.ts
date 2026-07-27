@@ -1,10 +1,5 @@
 import { prisma } from '../prisma.js';
-import { OpenAIEmbeddings } from '@langchain/openai';
-
-// Configura o gerador de embeddings (default usa a chave OPENAI_API_KEY do .env)
-const embeddings = new OpenAIEmbeddings({
-    modelName: 'text-embedding-3-small',
-});
+import { generateEmbedding } from './gateway.js';
 
 export interface SearchResult {
     id: string;
@@ -18,8 +13,8 @@ export const vectorStore = {
      * Gera o embedding para um texto e salva um novo chunk no banco de dados.
      */
     async addDocumentChunk(documentId: string, content: string): Promise<void> {
-        // Gera o vetor numérico (1536 dimensões) a partir do texto
-        const vector = await embeddings.embedQuery(content);
+        // Gera o vetor numérico (1536 dimensões OpenAI / 768 Gemini) a partir do texto
+        const vector = await generateEmbedding(content);
         
         // Formata o vetor no padrão aceito pelo pgvector '[0.1, 0.2, ...]'
         const vectorString = `[${vector.join(',')}]`;
@@ -35,7 +30,7 @@ export const vectorStore = {
      * Realiza uma busca vetorial (Cosine Similarity) para achar os trechos mais relevantes do playbook.
      */
     async similaritySearch(query: string, limit: number = 3): Promise<SearchResult[]> {
-        const vector = await embeddings.embedQuery(query);
+        const vector = await generateEmbedding(query);
         const vectorString = `[${vector.join(',')}]`;
 
         // Operador <=> calcula o Cosine Distance no pgvector.

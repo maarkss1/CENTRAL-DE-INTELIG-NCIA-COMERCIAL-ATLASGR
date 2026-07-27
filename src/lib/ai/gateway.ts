@@ -119,7 +119,7 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
             'Authorization': `Bearer ${LITELLM_KEY}`
         },
         body: JSON.stringify({
-            model: 'text-embedding-004',
+            model: 'gemini/text-embedding-004',
             input: text
         })
     });

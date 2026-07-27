@@ -14,6 +14,7 @@ import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './src/lib/auth.js';
 import { intelligenceRoutes } from './src/features/intelligence/routes/intelligence.routes.js';
+import { promptRoutes } from './src/features/intelligence/routes/prompt.routes.js';
 import { authenticateToken } from './src/shared/middlewares/authenticateToken.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { prisma } from './src/lib/prisma.js';
@@ -60,11 +61,13 @@ async function startServer() {
         contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
     }));
 
-    // CORS — permite apenas origens explicitamente listadas em ALLOWED_ORIGINS
+    // CORS — permite qualquer origem em ambiente de desenvolvimento
     app.use(cors({
         origin: (origin, callback) => {
             // Permitir requests sem origin (Postman, curl, apps mobile)
             if (!origin) return callback(null, true);
+            // Permitir todas as origens localmente para acesso na rede
+            if (env.NODE_ENV !== 'production') return callback(null, true);
             if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
             callback(new Error(`CORS policy: origin ${origin} not allowed`));
         },
@@ -158,6 +161,7 @@ async function startServer() {
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
+    app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
 
     // ── Frontend ───────────────────────────────────────────────────────────
     if (env.NODE_ENV !== 'production') {

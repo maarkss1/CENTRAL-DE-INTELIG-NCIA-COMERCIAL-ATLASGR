@@ -72,6 +72,26 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
     }
 });
 
+import { VectorSearchService } from '../services/vector-search.service.js';
+
+router.get('/search', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const query = req.query.q as string;
+        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 5;
+
+        if (!query) {
+            res.status(400).json({ error: 'Search query (q) is required' });
+            return;
+        }
+
+        const results = await VectorSearchService.searchChunks(query, limit);
+        res.json({ results });
+    } catch (error) {
+        logger.error({ err: error }, 'Error performing vector search');
+        next(error);
+    }
+});
+
 // Rotas para AIPendingActions
 router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

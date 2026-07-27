@@ -16,7 +16,8 @@ export type ContentTool =
     | 'linkedin_invite'
     | 'voicemail'
     | 'roi_pitch'
-    | 'competitor_battlecard';
+    | 'competitor_battlecard'
+    | 'cadence_sequence';
 
 /**
  * Material de referência extraído literalmente do Playbook de Pré-Vendas Atlas e do Playbook
@@ -94,6 +95,7 @@ const TOOL_CONFIG: Record<ContentTool, { model: 'gemini-pro' | 'gemini-flash'; t
     voicemail: { model: 'gemini-flash', temperature: 0.65 },
     roi_pitch: { model: 'gemini-pro', temperature: 0.4 },
     competitor_battlecard: { model: 'gemini-pro', temperature: 0.4 },
+    cadence_sequence: { model: 'gemini-pro', temperature: 0.6 },
 };
 
 /** Instruções específicas de cada ferramenta — o "molde" de cada tipo de conteúdo gerado. */
@@ -129,6 +131,13 @@ Formate cada uma como "OBJEÇÃO → IMPLICAÇÃO → PERGUNTA DE CONTORNO".`,
     competitor_battlecard: `O lead mencionou ou usa um concorrente da Atlas (nome informado abaixo, em "Concorrente mencionado"). Use a base real de concorrentes da Atlas para montar um contorno: (1) reconheça o ponto forte real do concorrente sem desmerecer, (2) aponte a fraqueza real dele de forma factual, (3) use o gancho de abordagem já validado pelo playbook (adapte a redação, mantenha a essência), (4) feche com uma pergunta que abre espaço pra Atlas se diferenciar. Base de concorrentes:
 ${ATLAS_COMPETITORS_REFERENCE}
 Se o concorrente informado não estiver na lista acima, monte o contorno usando o mesmo padrão de raciocínio (reconhecer força real, expor gap operacional, perguntar sobre orquestração de dados/tratativa/ROI) sem inventar fatos específicos sobre uma empresa que você não conhece.`,
+
+    cadence_sequence: `Crie uma sequência completa de cadência de prospecção outbound de 5 dias (Steps) para este lead, alternando entre E-mail, LinkedIn e Call.
+Estrutura exigida:
+- Dia 1: E-mail (Abertura focada na dor principal) + Convite de LinkedIn.
+- Dia 3: Call (Roteiro curto de 30 seg) + E-mail de Follow-up caso não atenda.
+- Dia 5: E-mail de "Break-up" amigável (tentativa final de conexão).
+Use o contexto do lead fornecido para personalizar fortemente a dor e a abordagem.`,
 };
 
 /**
@@ -193,13 +202,18 @@ async function buildLeadContext(leadId?: string | null): Promise<LeadContext> {
 }
 
 export class AIService {
-    async generateContent(tool: string, leadId?: string | null, extra?: { competitor?: string }) {
+    async generateContent(tool: string, leadId?: string | null, extra?: { competitor?: string, tone?: string }) {
         if (!(tool in TOOL_PROMPTS)) {
             throw new Error('Invalid tool');
         }
         const toolId = tool as ContentTool;
 
-        let promptStr = `${SYSTEM_PREAMBLE}\n\n${TOOL_PROMPTS[toolId]}`;
+        let basePreamble = SYSTEM_PREAMBLE;
+        if (extra?.tone) {
+            basePreamble += `\nESTILO DE COMUNICAÇÃO (TOM DE VOZ EXIGIDO): ${extra.tone}`;
+        }
+
+        let promptStr = `${basePreamble}\n\n${TOOL_PROMPTS[toolId]}`;
 
         if (toolId === 'competitor_battlecard') {
             if (!extra?.competitor?.trim()) {
