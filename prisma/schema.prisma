@@ -397,7 +397,7 @@ model DocumentChunk {
   documentId String
   document   Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
   content    String
-  vector     Unsupported("vector(1536)")?
+  vector     Unsupported("vector(768)")?
 
   @@index([documentId])
 }

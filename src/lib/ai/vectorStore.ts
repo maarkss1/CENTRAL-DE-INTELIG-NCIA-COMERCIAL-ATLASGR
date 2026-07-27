@@ -13,7 +13,7 @@ export const vectorStore = {
      * Gera o embedding para um texto e salva um novo chunk no banco de dados.
      */
     async addDocumentChunk(documentId: string, content: string): Promise<void> {
-        // Gera o vetor numérico (1536 dimensões OpenAI / 768 Gemini) a partir do texto
+        // Gera o vetor numérico (768 dimensões Gemini) a partir do texto
         const vector = await generateEmbedding(content);
         
         // Formata o vetor no padrão aceito pelo pgvector '[0.1, 0.2, ...]'
