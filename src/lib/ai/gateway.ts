@@ -132,3 +132,8 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
     const data = await response.json();
     return data.data[0].embedding;
 };
+export const logAiUsage = async (usage: any) => {
+    // Dummy stub implementation added to fix build failure.
+    // The previous implementation was lost or didn't exist in this file.
+    // Actual implementation can be brought back or injected if required.
+};

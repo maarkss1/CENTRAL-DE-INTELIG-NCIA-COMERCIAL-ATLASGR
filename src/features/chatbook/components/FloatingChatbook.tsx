@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bot, X, Globe, Sparkles, Send, RefreshCw, User, Target, MessageSquare,
-  AlertTriangle, ShieldCheck, Search, ExternalLink, ThumbsUp, HelpCircle,
-  Play, StopCircle, Award, Database, Flame, ChevronRight, Copy, Check, Filter, Layers
+  Bot, X, Globe, Send, RefreshCw, User, Target,
+  AlertTriangle, Search, ExternalLink,
+  Play, StopCircle, Award, Database, Flame, Copy, Check, Filter
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { Button } from '../../../components/ui/Button';
-import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS, ObjectionItem, QualificationItem } from '../constants/brandMatrices';
+import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../constants/brandMatrices';
 
 interface Message {
   id: string;
@@ -22,7 +22,7 @@ interface Message {
 export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeBrand } = useBrand();
   const [activeTab, setActiveTab] = useState<'assistant' | 'roleplay' | 'playbook'>('assistant');
-  const [searchMode, setSearchMode] = useState<'all' | 'internal' | 'web_search'>('web_search');
+  const [searchMode, setSearchMode] = useState<'internal' | 'web_search' | 'roleplay'>('web_search');
 
   // Interactive Matrix Filter States
   const [selectedBrand, setSelectedBrand] = useState<'atlasgr' | 'totaltrac'>(activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr');

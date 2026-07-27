@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, Send, Bot, RefreshCw, Target, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, Copy, Check, Send, Bot, RefreshCw, ShieldCheck, Zap } from 'lucide-react';
 import { Button } from './Button';
 
 interface AIEmailGeneratorProps {
@@ -20,7 +20,6 @@ export function AIEmailGenerator({
   companySize = '50-200 Colaboradores (Mid-Market)'
 }: AIEmailGeneratorProps) {
   const [tone, setTone] = useState<'consultative' | 'direct' | 'roi_focused' | 'hyper_personalized'>('consultative');
-  const [icpFit, setIcpFit] = useState<'High' | 'Medium'>('High');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [icpAnalysis, setIcpAnalysis] = useState<string>('');

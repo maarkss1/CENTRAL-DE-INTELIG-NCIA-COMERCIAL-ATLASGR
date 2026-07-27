@@ -19,7 +19,7 @@ export function FloatingChatbook() {
             >
                 <IconBook className="w-5 h-5" />
                 <span className="text-sm">Playbook Flutuante</span>
-                <Badge variant="neutral" className="bg-white/20 text-white border-none text-[10px] px-1.5 py-0.5">
+                <Badge variant="default" className="bg-white/20 text-white border-none text-[10px] px-1.5 py-0.5">
                     SPIN / BANT
                 </Badge>
             </button>

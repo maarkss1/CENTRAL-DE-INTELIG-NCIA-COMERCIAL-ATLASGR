@@ -39,7 +39,7 @@ const TOOL_ORDER: ToolType[] = [
   'ia_superagent', 'ia_scripts', 'ia_automations', 'ia_abordagem', 'ia_generator', 'ia_rag', 'ai_config', 'reports',
 ];
 
-export function SinglePageDashboard() {
+export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab: string) => void }) {
   const { activeBrand, setActiveBrand } = useBrand();
   const { currentUser } = useAuth();
   const { theme, toggleTheme } = useTheme();

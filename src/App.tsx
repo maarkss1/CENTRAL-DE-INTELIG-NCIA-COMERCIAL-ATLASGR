@@ -43,7 +43,7 @@ function AppLayout() {
   return (
     <MainLayout activeTab={activeTab} onTabChange={setActiveTab}>
       <Suspense fallback={<PageFallback />}>
-        {activeTab === 'dashboard' && <SinglePageDashboard onSelectModule={(tab) => setActiveTab(tab)} />}
+        {activeTab === 'dashboard' && <SinglePageDashboard onSelectModule={(tab: TabType | string) => setActiveTab(tab as TabType)} />}
         {activeTab === 'prospect' && <ProspectingHub />}
         {activeTab === 'crm' && <CrmBoard />}
         {activeTab === 'intelligence' && <IntelligenceHub />}

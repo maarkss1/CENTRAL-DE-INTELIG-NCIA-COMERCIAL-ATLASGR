@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { PRESET_USERS, UserPreset } from '../features/auth/constants/userPresets';
+import { UserPreset } from '../features/auth/constants/userPresets';
 import { useBrand } from './BrandContext';
 
 export interface UserSession {

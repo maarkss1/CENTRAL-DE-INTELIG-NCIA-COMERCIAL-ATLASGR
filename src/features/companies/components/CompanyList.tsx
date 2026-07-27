@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2, LayoutGrid, LayoutList, Filter, Wrench, Globe, Phone, ExternalLink, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2, LayoutGrid, LayoutList, Wrench, ExternalLink } from 'lucide-react';
 import { Company } from '../../../types';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
@@ -23,7 +22,7 @@ export function CompanyList() {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
-    const { companies, meta, loading, error, refetch, deleteCompany } = useCompanies({
+    const { companies, meta, loading, refetch, deleteCompany } = useCompanies({
         page,
         limit: 20,
         search: searchTerm || undefined,
