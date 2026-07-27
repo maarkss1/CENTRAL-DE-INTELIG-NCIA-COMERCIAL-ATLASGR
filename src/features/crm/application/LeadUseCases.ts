@@ -155,4 +155,46 @@ export class LeadUseCases {
 
         return [headers.map(escape).join(';'), ...rows].join('\n');
     }
+
+    async exportLeadToBitrix(organizationId: string, leadId: string | undefined, webhookUrl: string) {
+        const { Bitrix24Adapter } = await import('../../../lib/adapters/crm/Bitrix24Adapter');
+        const adapter = new Bitrix24Adapter(webhookUrl.endsWith('/') ? webhookUrl : webhookUrl + '/');
+
+        // Se passar um lead específico, exporta só ele. Se não passar, exporta o mais recente ou os selecionados (simplificado para um aqui)
+        if (leadId) {
+            const l = await this.leadRepository.findById!(organizationId, leadId);
+            if (!l) throw new Error('Lead não encontrado');
+            
+            const iEnriched: any = {
+                socialReason: (l.company as any)?.legalName || l.source || '',
+                fantasyName: (l.company as any)?.tradeName || l.source || '',
+                cnaeMain: (l.company as any)?.cnae || '',
+                employeesCount: (l.company as any)?.size || '',
+                estimatedRevenue: '',
+                commercialPhone: (l.company as any)?.phones?.[0] || (l.contact as any)?.phone || '',
+                generalEmail: (l.contact as any)?.email || '',
+                website: (l.company as any)?.website || '',
+                description: (l.company as any)?.observations || '',
+                decisionMakers: l.contact ? [{
+                    name: (l.contact as any).name,
+                    role: (l.contact as any).role,
+                    phone: (l.contact as any).phone,
+                    whatsapp: (l.contact as any).whatsapp,
+                    corporateEmail: (l.contact as any).email,
+                }] : [],
+                intelligence: {
+                    fitScore: l.score || 0,
+                    fitReason: 'Lead prospectado no AtlasGR',
+                    painPoints: [],
+                    valueProposition: ''
+                }
+            };
+            
+            const dealId = await adapter.exportLead(iEnriched);
+            return { dealId };
+        } else {
+            // Bulk export mock for now
+            return { success: true, message: 'Exportação em lote via webhook em breve' };
+        }
+    }
 }

@@ -1,173 +1,137 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
-
-  /* Identidade AtlasGR — imutável */
+  --font-sans: "Montserrat", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", "Outfit", sans-serif;
+  
   --color-atlas-orange: #FF5618;
-  --color-atlas-dark: #333333;
-  --color-atlas-yellow: #FFC500;
+  --color-atlas-orange-medium: #FF6B10;
   --color-atlas-light-orange: #FF8008;
+  --color-atlas-yellow: #FFC500;
+  --color-atlas-dark: #333333;
+  --color-atlas-deep-bg: #0d0d11;
+  --color-ring: #FF5618;
 
-  /* Elevação — sombras suaves em camadas (Depth Design) */
-  --shadow-elevation-1: 0 1px 2px rgba(20, 20, 24, 0.04), 0 1px 1px rgba(20, 20, 24, 0.03);
-  --shadow-elevation-2: 0 6px 16px rgba(20, 20, 24, 0.06), 0 2px 6px rgba(20, 20, 24, 0.04);
-  --shadow-elevation-3: 0 16px 40px rgba(20, 20, 24, 0.10), 0 4px 14px rgba(20, 20, 24, 0.06);
-  --shadow-elevation-4: 0 28px 70px rgba(20, 20, 24, 0.14), 0 10px 28px rgba(20, 20, 24, 0.08);
-  --shadow-glow-orange: 0 0 0 1px rgba(255, 86, 24, 0.14), 0 10px 30px -6px rgba(255, 86, 24, 0.38);
+  --color-totaltrack-blue: #0088CC;
 
-  /* Motion — durações e curvas premium */
-  --ease-premium: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-spring-soft: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 450ms;
-}
+  --color-neon-blue: #00f0ff;
+  --color-neon-purple: #b026ff;
+  --color-neon-pink: #ff0055;
+  --color-deep-bg: #030305;
 
-:root {
-  --glass-bg: rgba(255, 255, 255, 0.70);
-  --glass-bg-strong: rgba(255, 255, 255, 0.86);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-blur: 20px;
+  /* Tokens semânticos — usados por Card/Badge e qualquer estado (sucesso/alerta/erro/info) em vez de
+     cinza/verde/vermelho crus do Tailwind, mantendo o mesmo nível de saturação neon da marca. */
+  --color-success: #22e0a0;
+  --color-warning: #ffc500;
+  --color-danger: #ff3866;
+  --color-info: #00b8ff;
+
+  /* Escala de raio única para cards/painéis — antes rounded-xl/2xl/3xl/[2.5rem] conviviam sem critério. */
+  --radius-card: 1.25rem;
+  --radius-card-lg: 1.75rem;
+
+  --animate-toast-in: toast-in 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
+  --animate-gradient-xy: gradient-xy 15s ease infinite;
+  --animate-gradient-flow: gradient-flow 8s ease infinite;
+  --animate-spin-slow: spin 12s linear infinite;
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 86, 24, 0.3)); }
+    50% { filter: drop-shadow(0 0 30px rgba(255, 86, 24, 0.7)); }
+  }
+  @keyframes gradient-xy {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  @keyframes gradient-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
 }
 
 @layer base {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 86, 24, 0.35) transparent;
+  body {
+    background-color: var(--color-deep-bg);
+    color: #e2e8f0;
+    overflow-x: hidden;
+    font-family: var(--font-sans);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+  
+  h1 { font-size: 3.5rem; line-height: 1.1; font-weight: 700; }
+  h2 { font-size: 2.5rem; line-height: 1.2; font-weight: 700; }
+  h3 { font-size: 2rem; line-height: 1.3; font-weight: 600; }
+
+  button, a, [role="button"] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.95);
   }
 
-  *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+  /* Glassmorphism utilities */
+  .glass-panel {
+    background: rgba(10, 10, 15, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  }
+  
+  .glass-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   }
 
-  *::-webkit-scrollbar-track {
+  .text-glow {
+    text-shadow: 0 0 20px currentColor;
+  }
+
+  /* Custom Rounded Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
     background: transparent;
   }
-
-  *::-webkit-scrollbar-thumb {
-    background-color: rgba(51, 51, 51, 0.18);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-    transition: background-color var(--duration-base) var(--ease-premium);
+  ::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.3);
+    border-radius: 9999px;
   }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 86, 24, 0.55);
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-atlas-orange);
-    outline-offset: 2px;
-    border-radius: 4px;
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 150, 150, 0.5);
   }
 }
 
 @layer utilities {
-  /* Superfícies de vidro (Glassmorphism) */
-  .glass-panel {
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
-    border: 1px solid var(--glass-border);
-  }
-
-  .glass-panel-strong {
-    background: var(--glass-bg-strong);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid var(--glass-border);
-  }
-
-  .elevation-1 { box-shadow: var(--shadow-elevation-1); }
-  .elevation-2 { box-shadow: var(--shadow-elevation-2); }
-  .elevation-3 { box-shadow: var(--shadow-elevation-3); }
-  .elevation-4 { box-shadow: var(--shadow-elevation-4); }
-  .glow-orange { box-shadow: var(--shadow-glow-orange); }
-
-  .shimmer {
-    position: relative;
-    overflow: hidden;
-    background: rgba(51, 51, 51, 0.08);
-  }
-
-  .shimmer::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.55),
-      transparent
-    );
-    animation: atlas-shimmer 1.8s var(--ease-premium) infinite;
-  }
-
-  /* Fundo vivo — Aurora / Gradient Mesh em CSS puro (leve, GPU-friendly) */
-  .atlas-aurora {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .atlas-aurora::before,
-  .atlas-aurora::after {
-    content: "";
-    position: absolute;
-    width: 60vw;
-    height: 60vw;
-    border-radius: 999px;
-    filter: blur(90px);
-    opacity: 0.16;
-    will-change: transform;
-  }
-
-  .atlas-aurora::before {
-    top: -20%;
-    left: -10%;
-    background: radial-gradient(circle, var(--color-atlas-orange), transparent 70%);
-    animation: atlas-aurora-drift-a 26s ease-in-out infinite;
-  }
-
-  .atlas-aurora::after {
-    bottom: -25%;
-    right: -10%;
-    background: radial-gradient(circle, var(--color-atlas-yellow), transparent 70%);
-    animation: atlas-aurora-drift-b 32s ease-in-out infinite;
-  }
-
-  .atlas-noise {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    mix-blend-mode: overlay;
-  }
-}
-
-@keyframes atlas-shimmer {
-  100% { transform: translateX(100%); }
-}
-
-@keyframes atlas-aurora-drift-a {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(6%, 8%) scale(1.08); }
-}
-
-@keyframes atlas-aurora-drift-b {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(-5%, -6%) scale(1.06); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
+  /* Assinatura visual da marca Atlas: título em degradê laranja -> branco.
+     Precisa estar em @layer utilities (não @layer base) para vencer utilitários
+     como text-white aplicados nos componentes base (Tailwind resolve empates de
+     camada por ordem de origem, e este bloco vem depois da injeção de utilities). */
+  .text-gradient-brand {
+    background-image: linear-gradient(90deg, var(--color-atlas-orange), #ffffff);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
   }
 }

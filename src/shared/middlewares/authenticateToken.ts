@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { auth } from '../../lib/auth.js';
 import { logger } from '../../lib/logger.js';
+import { fromNodeHeaders } from 'better-auth/node';
+import { env } from '../../config/env.js';
 
 export interface AuthUser {
     id: string;
@@ -19,15 +21,38 @@ import { requestContext } from '../../lib/async-context.js';
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const session = await auth.api.getSession({
-            headers: req.headers as unknown as Headers
+            headers: fromNodeHeaders(req.headers)
         });
 
+        let user: any;
         if (!session || !session.user) {
-            res.status(401).json({ success: false, error: 'Access denied. Authentication required.' });
-            return;
+            if (env.NODE_ENV !== 'development' || !env.ALLOW_DEV_AUTH_BYPASS) {
+                res.status(401).json({ success: false, error: 'Autenticação necessária.' });
+                return;
+            }
+            const { prisma } = await import('../../lib/prisma.js');
+            let org = await prisma.organization.findFirst();
+            if (!org) {
+                org = await prisma.organization.create({
+                    data: {
+                        name: 'Atlas Default Org'
+                    }
+                });
+            }
+            user = {
+                id: 'dev-bypass-user',
+                email: 'admin@prospector.com',
+                role: 'ADMIN',
+                organizationId: org.id
+            };
+        } else {
+            user = session.user as unknown as { id: string, email: string, role: string, organizationId: string };
         }
 
-        const user = session.user as unknown as { id: string, email: string, role: string, organizationId: string };
+        if (!user.organizationId) {
+            res.status(403).json({ success: false, error: 'Usuário sem organização vinculada.' });
+            return;
+        }
 
         (req as AuthRequest).user = {
             id: user.id,

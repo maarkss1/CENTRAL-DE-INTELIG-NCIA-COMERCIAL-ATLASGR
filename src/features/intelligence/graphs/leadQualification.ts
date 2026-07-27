@@ -1,6 +1,6 @@
 import { StateGraph, START, END, Annotation } from '@langchain/langgraph';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { getAiModel } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 
 // Define the state for the graph
@@ -57,7 +57,8 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
         return { companyInfo };
     })
     .addNode('analyze', async (state) => {
-        const model = getAiModel('gemini-pro', 0.2);
+        const model = getAiModel('gemini-pro', 0.2, 'leadQualification');
+        const startTime = Date.now();
 
         const response = await model.invoke([
             new SystemMessage(
@@ -65,6 +66,12 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
             ),
             new HumanMessage(`Dados da empresa: ${state.companyInfo}`),
         ]);
+
+        await logAiUsage({
+            model: response.response_metadata.model,
+            usage: response.response_metadata.tokenUsage,
+            latencyMs: Date.now() - startTime,
+        });
 
         try {
             const jsonText = (response.content as string).replace(/```json/g, '').replace(/```/g, '').trim();

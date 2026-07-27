@@ -1,18 +1,23 @@
 import { Queue, Worker, QueueEvents, Job } from 'bullmq';
-import { connection } from './redis.js';
+import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { meili } from '../search/index.js';
 
 export const SEARCH_QUEUE_NAME = 'search-indexing';
 
 export const searchQueue = new Queue(SEARCH_QUEUE_NAME, { connection });
-export const searchQueueEvents = new QueueEvents(SEARCH_QUEUE_NAME, { connection });
+export const searchQueueEvents = queuesEnabled
+    ? new QueueEvents(SEARCH_QUEUE_NAME, { connection })
+    : null;
 
-searchQueueEvents.on('completed', ({ jobId }) => {
+searchQueue.on('error', (err) => logger.warn({ message: err.message }, 'searchQueue offline'));
+searchQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'searchQueueEvents offline'));
+
+searchQueueEvents?.on('completed', ({ jobId }) => {
     logger.debug({ jobId }, 'Job completed in search queue');
 });
 
-searchQueueEvents.on('failed', ({ jobId, failedReason }) => {
+searchQueueEvents?.on('failed', ({ jobId, failedReason }) => {
     logger.error({ jobId, failedReason }, 'Job failed in search queue');
 });
 

@@ -6,6 +6,7 @@ import type { DecisionMakerCriteria } from './apollo.service';
 import { searchGooglePlacesCandidates } from './places.service';
 import { searchNominatimCandidates } from './nominatim.service';
 import { toPrismaLeadStatus, fromPrismaLeadStatus, fromPrismaCompanyStatus } from '../../../lib/enumMap';
+import { getProspectingProviderMode } from '../../../config/prospecting-integrations.js';
 
 export interface ProspectCriteria {
     segmento: string;
@@ -69,6 +70,8 @@ export interface ProspectCandidate {
     foundedYear?: number | null;
     annualRevenue?: number | null;
     technologies?: string[];
+    emails?: string[];
+    apolloContacts?: DecisionMaker[];
     /** Decisores encontrados via Apollo People Search (+ Hunter.io como fallback de e-mail) já na descoberta. */
     decisionMakers?: DecisionMaker[];
 }
@@ -77,6 +80,7 @@ export interface DiscoverResult {
     candidates: ProspectCandidate[];
     sources: Array<{ title: string; uri: string }>;
     apolloError?: string;
+    providerMode: 'free' | 'hybrid';
 }
 
 /** Monta a localização mais precisa disponível: cidade + estado > estado > região ampla do playbook. */
@@ -153,8 +157,11 @@ export async function discoverCandidates(criteria: ProspectCriteria): Promise<Di
     const total = Math.max(1, Math.min(100, criteria.quantidade || 10));
     const allCandidates: ProspectCandidate[] = [];
     const seenNames = new Set<string>();
+    const providerMode = getProspectingProviderMode();
 
-    const apollo = await fetchApolloCandidates(criteria, total);
+    const apollo = providerMode === 'hybrid'
+        ? await fetchApolloCandidates(criteria, total)
+        : { candidates: [], error: undefined };
     for (const candidate of apollo.candidates) {
         const key = candidate.tradeName.trim().toLowerCase();
         if (seenNames.has(key)) continue;
@@ -163,7 +170,7 @@ export async function discoverCandidates(criteria: ProspectCriteria): Promise<Di
     }
 
     const remaining = total - allCandidates.length;
-    if (remaining > 0) {
+    if (providerMode === 'hybrid' && remaining > 0) {
         const placesCandidates = await discoverViaGooglePlaces(criteria, remaining, seenNames);
         for (const candidate of placesCandidates) {
             const key = candidate.tradeName.trim().toLowerCase();
@@ -184,7 +191,17 @@ export async function discoverCandidates(criteria: ProspectCriteria): Promise<Di
         }
     }
 
-    return { candidates: allCandidates, sources: [], apolloError: apollo.error };
+    return {
+        candidates: allCandidates,
+        sources: [
+            {
+                title: 'OpenStreetMap Nominatim',
+                uri: 'https://nominatim.openstreetmap.org/',
+            },
+        ],
+        apolloError: providerMode === 'hybrid' ? apollo.error : undefined,
+        providerMode,
+    };
 }
 
 /**

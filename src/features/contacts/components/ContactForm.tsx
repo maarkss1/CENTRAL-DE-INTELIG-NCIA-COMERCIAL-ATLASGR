@@ -1,9 +1,8 @@
 import React from "react";
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { X } from 'lucide-react';
 import { Contact, Company } from '../../../types';
 import { Button } from '../../../components/ui/Button';
-import { IconClose, IconSpinner, IconSave } from '../../../components/icons';
 
 interface ContactFormProps {
     contact?: Contact | null;
@@ -11,7 +10,8 @@ interface ContactFormProps {
     onSave: () => void;
 }
 
-const inputClass = "w-full px-4 py-2 bg-black/[0.02] border border-black/5 rounded-xl focus:ring-2 focus:ring-atlas-orange/15 focus:border-atlas-orange/40 outline-none transition-all";
+const inputClass = "w-full px-4 py-2 bg-slate-950/60 border border-white/10 rounded-xl text-sm text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-atlas-orange/40 focus:border-atlas-orange outline-none transition-colors";
+const labelClass = "text-sm font-medium text-gray-400";
 
 export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
     const [companies, setCompanies] = useState<Company[]>([]);
@@ -66,19 +66,14 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-atlas-dark/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ type: 'spring', stiffness: 340, damping: 30 }}
-                className="glass-panel-strong elevation-4 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
-            >
-                <div className="p-6 border-b border-black/5 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-atlas-dark">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-900/95 backdrop-blur-xl rounded-card-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] border border-white/10">
+                <div className="p-6 border-b border-white/10 flex justify-between items-center">
+                    <h2 className="text-xl font-display font-bold text-white">
                         {contact ? 'Editar Contato' : 'Novo Contato'}
                     </h2>
-                    <button onClick={onClose} className="p-2 text-atlas-dark/35 hover:text-atlas-dark hover:bg-black/5 rounded-xl transition-colors">
-                        <IconClose className="w-5 h-5" />
+                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer">
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
@@ -86,11 +81,11 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
                     <form id="contact-form" onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">Nome *</label>
+                                <label className={labelClass}>Nome *</label>
                                 <input required type="text" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">Empresa *</label>
+                                <label className={labelClass}>Empresa *</label>
                                 <select required value={formData.companyId || ''} onChange={e => setFormData({...formData, companyId: e.target.value})} className={inputClass}>
                                     <option value="" disabled>Selecione uma empresa</option>
                                     {companies.map(company => (
@@ -99,39 +94,39 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
                                 </select>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">Cargo</label>
+                                <label className={labelClass}>Cargo</label>
                                 <input type="text" value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">E-mail</label>
+                                <label className={labelClass}>E-mail</label>
                                 <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">Telefone</label>
+                                <label className={labelClass}>Telefone</label>
                                 <input type="text" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">WhatsApp</label>
+                                <label className={labelClass}>WhatsApp</label>
                                 <input type="text" value={formData.whatsapp || ''} onChange={e => setFormData({...formData, whatsapp: e.target.value})} className={inputClass} />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <label className="text-sm font-semibold text-atlas-dark/70">Observações</label>
+                                <label className={labelClass}>Observações</label>
                                 <textarea rows={3} value={formData.observations || ''} onChange={e => setFormData({...formData, observations: e.target.value})} className={`${inputClass} resize-none`} />
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <div className="p-6 border-t border-black/5 flex justify-end gap-3">
-                    <Button type="button" variant="ghost" onClick={onClose}>
+                <div className="p-6 border-t border-white/10 flex justify-end gap-3">
+                    <Button type="button" variant="ghost" onClick={onClose} className="text-gray-300">
                         Cancelar
                     </Button>
-                    <Button type="submit" form="contact-form" variant="premium" disabled={loading}>
-                        {loading ? <IconSpinner className="w-4 h-4 mr-2 animate-spin" /> : <IconSave className="w-4 h-4 mr-2" />}
+                    <Button type="submit" form="contact-form" disabled={loading}>
+                        {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />}
                         {contact ? 'Salvar Alterações' : 'Criar Contato'}
                     </Button>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

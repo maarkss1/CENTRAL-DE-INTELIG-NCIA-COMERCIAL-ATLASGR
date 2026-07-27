@@ -1,6 +1,8 @@
 import type { ProspectCriteria, ProspectCandidate, DecisionMaker } from './prospecting.service';
 import { buildLocationLabel } from './prospecting.service';
 import { findEmailViaHunter, findPeopleViaDomainSearch } from './hunter.service';
+import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
+import { fetchWithTimeout } from '../../../lib/http.js';
 
 const APOLLO_SEARCH_URL = 'https://api.apollo.io/v1/organizations/search';
 const APOLLO_ORG_ENRICH_URL = 'https://api.apollo.io/v1/organizations/enrich';
@@ -140,7 +142,7 @@ export async function fetchApolloCandidates(
     criteria: ProspectCriteria,
     count: number
 ): Promise<{ candidates: ProspectCandidate[]; error?: string }> {
-    const apiKey = process.env.APOLLO_API_KEY;
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey) return { candidates: [] };
 
     const extraKeywords = criteria.palavrasChave
@@ -193,7 +195,7 @@ export async function fetchApolloCandidates(
     }
 
     try {
-        const res = await fetch(APOLLO_SEARCH_URL, {
+        const res = await fetchWithTimeout(APOLLO_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -201,7 +203,7 @@ export async function fetchApolloCandidates(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        });
+        }, 15_000);
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -260,14 +262,14 @@ export async function fetchApolloCandidates(
 export async function enrichOrganizationByDomain(
     domain: string
 ): Promise<{ organization: ApolloOrganization | null; error?: string }> {
-    const apiKey = process.env.APOLLO_API_KEY;
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { organization: null };
 
     try {
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
             headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-        });
+        }, 15_000);
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -292,14 +294,14 @@ export async function enrichPersonByName(
     domain?: string | null,
     organizationName?: string | null
 ): Promise<{ contact: ApolloContact | null; error?: string }> {
-    const apiKey = process.env.APOLLO_API_KEY;
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !fullName.trim()) return { contact: null };
 
     const [firstName, ...rest] = fullName.trim().split(/\s+/);
     const lastName = rest.join(' ');
 
     try {
-        const res = await fetch(APOLLO_PEOPLE_MATCH_URL, {
+        const res = await fetchWithTimeout(APOLLO_PEOPLE_MATCH_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
             body: JSON.stringify({
@@ -309,7 +311,7 @@ export async function enrichPersonByName(
                 organization_name: organizationName || undefined,
                 reveal_personal_emails: true,
             }),
-        });
+        }, 15_000);
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -403,11 +405,11 @@ export async function enrichOrganizationWithContacts(
     domain: string,
     limit: number = 3
 ): Promise<{ contacts: ApolloContact[]; error?: string; source?: 'apollo' | 'hunter' }> {
-    const apiKey = process.env.APOLLO_API_KEY;
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
     try {
-        const res = await fetch(APOLLO_PEOPLE_SEARCH_URL, {
+        const res = await fetchWithTimeout(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -421,7 +423,7 @@ export async function enrichOrganizationWithContacts(
                 per_page: limit,
                 page: 1,
             }),
-        });
+        }, 15_000);
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -459,7 +461,7 @@ export async function searchDecisionMakersAdvanced(
     criteria: DecisionMakerCriteria,
     limit: number = 10
 ): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
-    const apiKey = process.env.APOLLO_API_KEY;
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
     try {
@@ -488,7 +490,7 @@ export async function searchDecisionMakersAdvanced(
             body.contact_email_status = ['verified'];
         }
 
-        const res = await fetch(APOLLO_PEOPLE_SEARCH_URL, {
+        const res = await fetchWithTimeout(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -496,7 +498,7 @@ export async function searchDecisionMakersAdvanced(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        });
+        }, 15_000);
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

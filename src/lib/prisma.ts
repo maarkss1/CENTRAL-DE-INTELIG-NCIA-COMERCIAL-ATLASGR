@@ -4,6 +4,7 @@ import { AuditService } from './audit/audit.service.js';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 import { searchQueue } from './queue/search.queue.js';
+import { queuesEnabled } from './queue/redis.js';
 import { logger } from './logger.js';
 import { requestContext } from './async-context.js';
 const connectionString = process.env.DATABASE_URL || "postgresql://dummy:dummy@localhost:5432/dummy";
@@ -165,7 +166,7 @@ export const prisma = basePrisma.$extends({
                  afterState: operation === 'delete' ? undefined : result
              }).catch(err => logger.error(err, 'AuditLog failed'));
              
-             if (model === 'Company' || model === 'Lead') {
+             if (queuesEnabled && (model === 'Company' || model === 'Lead')) {
                  const indexName = model === 'Company' ? 'companies' : 'leads';
                  const searchAction = operation === 'delete' ? 'delete' : (operation === 'create' ? 'add' : 'update');
                  searchQueue.add(searchAction, {

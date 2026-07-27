@@ -9,6 +9,7 @@ services:
       - "${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
+      - HOST=0.0.0.0
       # Dentro da rede Docker os serviços se enxergam pelo nome do serviço, não por localhost/porta
       # publicada no host — por isso aqui sobrescrevemos DATABASE_URL/REDIS_URL do .env (que apontam
       # para localhost:5434/6379, corretos apenas para `npm run dev` rodando fora do Docker).
@@ -33,6 +34,16 @@ services:
       - APOLLO_API_KEY=${APOLLO_API_KEY}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
       - HUNTER_API_KEY=${HUNTER_API_KEY}
+      - PROSPECTING_PROVIDER_MODE=${PROSPECTING_PROVIDER_MODE:-free}
+      - CNPJ_PROVIDER=${CNPJ_PROVIDER:-brasilapi}
+      - ALLOW_DEV_AUTH_BYPASS=false
+      - API_RATE_LIMIT_MAX=${API_RATE_LIMIT_MAX:-600}
+      - AI_RATE_LIMIT_MAX=${AI_RATE_LIMIT_MAX:-30}
+      - JSON_BODY_LIMIT=${JSON_BODY_LIMIT:-2mb}
+      - TRUST_PROXY=${TRUST_PROXY:-true}
+      - EXPOSE_METRICS=${EXPOSE_METRICS:-false}
+      - ENABLE_SEARCH=${ENABLE_SEARCH:-true}
+      - ENABLE_QUEUES=${ENABLE_QUEUES:-true}
     depends_on:
       postgres-primary:
         condition: service_healthy

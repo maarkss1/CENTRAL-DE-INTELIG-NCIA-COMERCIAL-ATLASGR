@@ -1,72 +1,81 @@
-import { createLogger } from '../logger';
+import fetch from 'node-fetch';
 
-const logger = createLogger('apollo-enrichment');
-
-export interface EnrichedLeadData {
-    companyName: string;
-    cnpj?: string;
-    revenueRange?: string;
-    employeeCount?: number;
-    decisionMakers: Array<{
-        name: string;
-        title: string;
-        email?: string;
-        linkedinUrl?: string;
-    }>;
+export interface ApolloEnrichmentData {
+    revenue?: string;
+    headcount?: number;
+    technologies?: string[];
+    description?: string;
+    industry?: string;
 }
 
-export async function enrichCompanyData(companyName: string, domain?: string): Promise<EnrichedLeadData> {
-    logger.info(`Iniciando enriquecimento para: ${companyName} (${domain || 'sem domínio'})`);
+export class ApolloService {
+    private apiKey: string;
+    private baseUrl = 'https://api.apollo.io/v1';
 
-    const apiKey = process.env.APOLLO_API_KEY;
-
-    if (!apiKey) {
-        logger.warn('APOLLO_API_KEY não configurada. Utilizando Mock Inteligente para testes.');
-        return {
-            companyName,
-            revenueRange: 'R$ 10M - R$ 50M',
-            employeeCount: 120,
-            decisionMakers: [
-                {
-                    name: 'Carlos Eduardo Silva',
-                    title: 'Gerente de Risco e Gerenciamento de Carga',
-                    email: `carlos.silva@${domain || 'transportadora.com.br'}`,
-                    linkedinUrl: 'https://linkedin.com/in/carlos-silva-log'
-                },
-                {
-                    name: 'Mariana Oliveira',
-                    title: 'Diretora de Operações & Logística',
-                    email: `mariana.oliveira@${domain || 'transportadora.com.br'}`,
-                    linkedinUrl: 'https://linkedin.com/in/mariana-ops'
-                }
-            ]
-        };
+    constructor() {
+        this.apiKey = process.env.APOLLO_API_KEY || '';
     }
 
-    try {
-        const response = await fetch('https://api.apollo.io/v1/organizations/enrich', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'Api-Key': apiKey
-            },
-            body: JSON.stringify({ domain, name: companyName })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Apollo API respondeu com status ${response.status}`);
+    /**
+     * Busca dados da empresa no Apollo.io
+     * Em ambiente de desenvolvimento sem API KEY válida, retorna dados Mockados para evitar custos.
+     */
+    async enrichCompany(domain: string, companyName: string): Promise<ApolloEnrichmentData> {
+        if (!this.apiKey || process.env.NODE_ENV !== 'production') {
+            console.log(`[Apollo Mock] Enriquecendo ${companyName} (${domain})...`);
+            // Simula delay de rede
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            return {
+                revenue: '$1M - $10M',
+                headcount: 45,
+                technologies: ['Salesforce', 'React', 'AWS'],
+                description: `Transportadora fictícia enriquecida pelo Mock Apollo. Especializada em cargas fracionadas.`,
+                industry: 'Logistics and Supply Chain'
+            };
         }
 
-        const data = await response.json();
-        return {
-            companyName: data.organization?.name || companyName,
-            revenueRange: data.organization?.estimated_num_employees ? `${data.organization.estimated_num_employees * 50}k USD` : 'N/A',
-            employeeCount: data.organization?.estimated_num_employees || 50,
-            decisionMakers: []
-        };
-    } catch (error) {
-        logger.error('Erro na chamada da API Apollo:', error);
-        throw error;
+        try {
+            console.log(`[Apollo Real] Buscando dados de ${domain}...`);
+            const response = await fetch(`${this.baseUrl}/organizations/enrich?domain=${domain}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'x-api-key': this.apiKey
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Apollo API Error: ${response.statusText}`);
+                return {};
+            }
+
+            const data = await response.json() as any;
+            const org = data.organization;
+
+            if (!org) return {};
+
+            return {
+                revenue: org.estimated_num_employees ? this.estimateRevenue(org.estimated_num_employees) : undefined,
+                headcount: org.estimated_num_employees,
+                technologies: org.current_technologies?.map((t: any) => t.name) || [],
+                description: org.short_description || org.description,
+                industry: org.industry
+            };
+        } catch (error) {
+            console.error('Erro na integração com Apollo:', error);
+            return {};
+        }
+    }
+
+    private estimateRevenue(employees: number): string {
+        if (employees < 10) return '< $1M';
+        if (employees < 50) return '$1M - $10M';
+        if (employees < 200) return '$10M - $50M';
+        if (employees < 1000) return '$50M - $100M';
+        return '> $100M';
     }
 }
+
+export const apolloService = new ApolloService();

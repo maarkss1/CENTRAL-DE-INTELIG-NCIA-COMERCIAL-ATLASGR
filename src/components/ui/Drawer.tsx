@@ -1,0 +1,92 @@
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface DrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  side?: 'right' | 'left';
+}
+
+export function Drawer({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  children,
+  side = 'right'
+}: DrawerProps) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const slideVariants = {
+    closed: {
+      x: side === 'right' ? '100%' : '-100%',
+      opacity: 0
+    },
+    open: {
+      x: 0,
+      opacity: 1,
+      transition: { type: 'spring', damping: 25, stiffness: 250 }
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm"
+          />
+
+          {/* Drawer Content */}
+          <motion.div
+            initial="closed"
+            animate="open"
+            exit="closed"
+            variants={slideVariants}
+            className={`relative z-10 w-full max-w-lg bg-slate-900 border-l border-white/10 shadow-2xl flex flex-col h-full ml-auto ${
+              side === 'left' ? 'mr-auto ml-0 border-r border-l-0' : ''
+            }`}
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-white/10 flex items-center justify-between bg-slate-900/80 backdrop-blur-md sticky top-0 z-10">
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">{title}</h3>
+                {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="Fechar gaveta"
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-atlas-orange outline-none"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {children}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}

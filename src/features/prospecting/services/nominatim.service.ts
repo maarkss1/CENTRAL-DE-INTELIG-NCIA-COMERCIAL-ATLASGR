@@ -1,30 +1,52 @@
-import type { PlaceCandidate } from './places.service';
+import type { PlaceCandidate, PlaceSearchResult } from './places.service';
+import { fetchWithTimeout } from '../../../lib/http.js';
+
+const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_HEADERS = {
+    'User-Agent': 'ProspectorAtlas/1.0 (commercial-prospecting; contact=local-app)',
+    Accept: 'application/json',
+};
+
+async function fetchNominatim(query: string, count: number): Promise<any[]> {
+    const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        addressdetails: '1',
+        extratags: '1',
+        namedetails: '1',
+        limit: String(Math.min(Math.max(count, 1), 20)),
+    });
+    const res = await fetchWithTimeout(`${NOMINATIM_BASE_URL}?${params.toString()}`, {
+        method: 'GET',
+        headers: NOMINATIM_HEADERS,
+    }, 10_000);
+
+    if (!res.ok) {
+        console.error('Nominatim error:', await res.text());
+        return [];
+    }
+
+    return res.json();
+}
 
 /** Busca candidatos reais de empresas por categoria+região via OpenStreetMap Nominatim. */
 export async function searchNominatimCandidates(query: string, count: number): Promise<PlaceCandidate[]> {
     if (!query.trim()) return [];
 
     try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=${Math.min(Math.max(count, 1), 20)}`, {
-            method: 'GET',
-            headers: {
-                'User-Agent': 'ProspectorAtlas/1.0',
-            }
-        });
-
-        if (!res.ok) {
-            console.error('Nominatim error:', await res.text());
-            return [];
-        }
-
-        const data = await res.json();
+        const data = await fetchNominatim(query, count);
         
         return data.map((p: any) => {
             const addr = p.address || {};
             const city = addr.city || addr.town || addr.village;
             const state = addr.state;
+            const tags = p.extratags || {};
             
-            const tradeName = p.name || p.display_name?.split(',')[0] || 'Empresa sem nome';
+            const tradeName =
+                p.namedetails?.name ||
+                p.name ||
+                p.display_name?.split(',')[0] ||
+                'Empresa sem nome';
 
             return {
                 tradeName,
@@ -33,12 +55,42 @@ export async function searchNominatimCandidates(query: string, count: number): P
                 state,
                 rating: undefined,
                 userRatingCount: undefined,
-                phone: undefined, // Nominatim usually doesn't have phone in standard search endpoint
-                website: undefined,
+                phone: tags.phone || tags['contact:phone'],
+                website: tags.website || tags['contact:website'],
             } satisfies PlaceCandidate;
         });
     } catch (error) {
         console.error('Error searching Nominatim candidates:', error);
         return [];
+    }
+}
+
+/** Busca um estabelecimento específico usando somente dados abertos do OpenStreetMap. */
+export async function searchNominatimPlace(
+    companyName: string,
+    locationStr: string
+): Promise<PlaceSearchResult | null> {
+    const query = `${companyName} ${locationStr}`.trim();
+    if (!query) return null;
+
+    try {
+        const [place] = await fetchNominatim(query, 1);
+        if (!place) return null;
+
+        const tags = place.extratags || {};
+        return {
+            id: `osm:${place.osm_type || 'place'}:${place.osm_id || place.place_id}`,
+            displayName:
+                place.namedetails?.name ||
+                place.name ||
+                place.display_name?.split(',')[0] ||
+                companyName,
+            formattedAddress: place.display_name,
+            nationalPhoneNumber: tags.phone || tags['contact:phone'],
+            websiteUri: tags.website || tags['contact:website'],
+        };
+    } catch (error) {
+        console.error('Error searching Nominatim place:', error);
+        return null;
     }
 }

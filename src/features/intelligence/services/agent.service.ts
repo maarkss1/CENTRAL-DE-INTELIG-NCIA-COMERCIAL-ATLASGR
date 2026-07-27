@@ -1,6 +1,6 @@
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
-import { getAiModel } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 
 export interface AgentMessage {
     role: 'system' | 'user' | 'assistant';
@@ -36,12 +36,18 @@ export abstract class AgentService {
         logger.info({ agentType: this.agentType, messageCount: messages.length }, 'Calling LLM via LiteLLM...');
         
         const model = getAiModel('gemini-pro', 0.7, this.agentType);
-        
+        const startTime = Date.now();
+
         try {
             const result = await model.invoke(messages.map(m => ({
                 _getType: () => m.role,
                 content: m.content
             })) as any);
+            await logAiUsage({
+                model: result.response_metadata.model,
+                usage: result.response_metadata.tokenUsage,
+                latencyMs: Date.now() - startTime,
+            });
             return result.content;
         } catch (error) {
             logger.error({ err: error, agentType: this.agentType }, 'LLM call failed');

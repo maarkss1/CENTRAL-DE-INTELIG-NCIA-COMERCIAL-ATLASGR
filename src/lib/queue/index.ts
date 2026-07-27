@@ -1,5 +1,5 @@
 import { Queue, Worker, QueueEvents, Job } from 'bullmq';
-import { connection } from './redis.js';
+import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { aiService } from '../../features/intelligence/services/ai.service.js';
 import { prisma } from '../prisma.js';
@@ -11,14 +11,18 @@ import { prisma } from '../prisma.js';
 export const LEADS_QUEUE_NAME = 'leads-enrichment';
 
 export const leadsQueue = new Queue(LEADS_QUEUE_NAME, { connection });
+export const leadsQueueEvents = queuesEnabled
+    ? new QueueEvents(LEADS_QUEUE_NAME, { connection })
+    : null;
 
-export const leadsQueueEvents = new QueueEvents(LEADS_QUEUE_NAME, { connection });
+leadsQueue.on('error', (err) => logger.warn({ message: err.message }, 'leadsQueue offline'));
+leadsQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'leadsQueueEvents offline'));
 
-leadsQueueEvents.on('completed', ({ jobId }) => {
+leadsQueueEvents?.on('completed', ({ jobId }) => {
     logger.info({ jobId }, 'Job completed in leads queue');
 });
 
-leadsQueueEvents.on('failed', ({ jobId, failedReason }) => {
+leadsQueueEvents?.on('failed', ({ jobId, failedReason }) => {
     logger.error({ jobId, failedReason }, 'Job failed in leads queue');
 });
 

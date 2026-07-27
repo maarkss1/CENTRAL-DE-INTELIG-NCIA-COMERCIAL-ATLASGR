@@ -10,9 +10,9 @@ model_list:
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
-  - model_name: claude-3-opus
+  - model_name: claude-sonnet
     litellm_params:
-      model: anthropic/claude-3-opus-20240229
+      model: anthropic/claude-sonnet-4-5-20250929
   - model_name: ollama-llama3
     litellm_params:
       model: ollama/llama3
@@ -24,7 +24,7 @@ litellm_settings:
   drop_params: true
   num_retries: 3
   request_timeout: 60
-  fallbacks: [{"gemini-pro": ["gemini-flash"]}]
+  fallbacks: [{"gemini-pro": ["gemini-flash"]}, {"gpt-4o": ["gemini-pro"]}, {"claude-sonnet": ["gemini-pro"]}]
 
 router_settings:
   routing_strategy: usage-based-routing

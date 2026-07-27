@@ -1,3 +1,6 @@
+import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
+import { fetchWithTimeout } from '../../../lib/http.js';
+
 export interface PlaceCandidate {
     tradeName: string;
     address?: string;
@@ -11,11 +14,11 @@ export interface PlaceCandidate {
 
 /** Busca candidatos reais de empresas por categoria+região (ex: "Transportadora em Rio de Janeiro") via Google Places (New) Text Search. */
 export async function searchGooglePlacesCandidates(query: string, count: number): Promise<PlaceCandidate[]> {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const apiKey = getPaidProspectingKey('GOOGLE_MAPS_API_KEY');
     if (!apiKey || !query.trim()) return [];
 
     try {
-        const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -28,7 +31,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
                 languageCode: 'pt-BR',
                 maxResultCount: Math.min(Math.max(count, 1), 20),
             }),
-        });
+        }, 12_000);
 
         if (!res.ok) {
             console.error('Google Places (discovery) error:', await res.text());
@@ -75,14 +78,14 @@ export async function searchGooglePlace(
     companyName: string,
     locationStr: string
 ): Promise<PlaceSearchResult | null> {
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    const apiKey = getPaidProspectingKey('GOOGLE_MAPS_API_KEY');
     if (!apiKey) return null;
 
     const query = `${companyName} ${locationStr}`.trim();
     if (!query) return null;
 
     try {
-        const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -93,7 +96,7 @@ export async function searchGooglePlace(
                 textQuery: query,
                 languageCode: 'pt-BR'
             }),
-        });
+        }, 12_000);
 
         if (!res.ok) {
             console.error('Google Places API error:', await res.text());

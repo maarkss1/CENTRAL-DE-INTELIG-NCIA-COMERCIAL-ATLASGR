@@ -1,41 +1,67 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
-export type BrandMode = 'atlasgr' | 'totaltrack';
+export type Brand = 'atlasgr' | 'totaltrac';
+
+export interface BrandInfo {
+    id: Brand;
+    name: string;
+    operatingSystemName: string;
+    slogan: string;
+    description: string;
+    primaryColor: string;
+    accentColor: string;
+    badgeBg: string;
+    badgeText: string;
+}
+
+export const BRAND_CONFIGS: Record<Brand, BrandInfo> = {
+    atlasgr: {
+        id: 'atlasgr',
+        name: 'AtlasGR',
+        operatingSystemName: 'Revenue OS',
+        slogan: 'Inteligência & Aceleração Comercial B2B',
+        description: 'Gestão de risco de carga, scoring inteligente e motor de prospecção preditiva.',
+        primaryColor: '#f97316', // atlas-orange
+        accentColor: 'from-amber-500 to-orange-600',
+        badgeBg: 'bg-orange-100 text-orange-800 border-orange-200',
+        badgeText: 'AtlasGR',
+    },
+    totaltrac: {
+        id: 'totaltrac',
+        name: 'TotalTrac',
+        operatingSystemName: 'Fleet OS',
+        slogan: 'Conectar para Cuidar',
+        description: 'Telemetria CAN, videotelemetria com IA, controle de jornada, iscas RF e imobilizadores.',
+        primaryColor: '#0284c7', // sky-600 / blue
+        accentColor: 'from-blue-600 to-cyan-500',
+        badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
+        badgeText: 'TotalTrac',
+    }
+};
 
 interface BrandContextType {
-    brand: BrandMode;
-    setBrand: (brand: BrandMode) => void;
-    toggleBrand: () => void;
-    brandName: string;
-    brandSubtitle: string;
-    brandColor: string;
+    activeBrand: Brand;
+    setActiveBrand: (brand: Brand) => void;
+    brandInfo: BrandInfo;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 export function BrandProvider({ children }: { children: ReactNode }) {
-    const [brand, setBrand] = useState<BrandMode>('atlasgr');
+    const [activeBrand, setActiveBrand] = useState<Brand>('atlasgr');
 
-    const toggleBrand = () => {
-        setBrand(prev => (prev === 'atlasgr' ? 'totaltrack' : 'atlasgr'));
-    };
-
-    const value: BrandContextType = {
-        brand,
-        setBrand,
-        toggleBrand,
-        brandName: brand === 'atlasgr' ? 'AtlasGR' : 'TotalTrack',
-        brandSubtitle: brand === 'atlasgr' ? 'Commercial OS • Revenue Intelligence' : 'Fleet OS • Telemetria & Rastreamento',
-        brandColor: brand === 'atlasgr' ? 'orange' : 'blue',
-    };
-
-    return <BrandContext.Provider value={value}>{children}</BrandContext.Provider>;
+    return (
+        <BrandContext.Provider value={{ activeBrand, setActiveBrand, brandInfo: BRAND_CONFIGS[activeBrand] }}>
+            {children}
+        </BrandContext.Provider>
+    );
 }
 
 export function useBrand() {
     const context = useContext(BrandContext);
-    if (!context) {
-        throw new Error('useBrand deve ser usado dentro de um BrandProvider');
+    if (context === undefined) {
+        throw new Error('useBrand must be used within a BrandProvider');
     }
     return context;
 }
+

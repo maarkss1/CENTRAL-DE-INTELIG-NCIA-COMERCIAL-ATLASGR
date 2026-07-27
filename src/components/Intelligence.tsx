@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
     Target, AlertCircle, RefreshCw, Copy, CheckCircle2, Mail, UserCheck, ShieldAlert, Phone,
     MessageCircle, Linkedin, PhoneMissed, Calculator, Search, X, Building2, User, Swords,
+    Sparkles, Zap, ChevronDown, Check, Bot, Activity, BrainCircuit, Fingerprint
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Lead } from '../types';
@@ -24,10 +26,13 @@ const TOOLS = [
     { id: 'linkedin_invite', icon: Linkedin, title: 'Convite LinkedIn', desc: 'Convite + mensagem de follow-up pós-aceite.' },
     { id: 'voicemail', icon: PhoneMissed, title: 'Script de Caixa Postal', desc: 'Recado de 20-30s para quando o decisor não atende.' },
     { id: 'roi_pitch', icon: Calculator, title: 'Pitch de Números (ROI)', desc: 'Gancho consultivo com impacto financeiro estimado.' },
-    { id: 'competitor_battlecard', icon: Swords, title: 'Contorno de Concorrente', desc: 'Gancho de abordagem real contra os concorrentes da Atlas.' },
+    { id: 'competitor_battlecard', icon: Swords, title: 'Contorno de Concorrente', desc: 'Gancho de abordagem real contra concorrentes.' },
 ] as const;
 
 const ATLAS_COMPETITORS = ['RasterGR', 'Buonny', 'BRK Tecnologia', 'OpentechGR', 'Apisul', 'Servis'];
+const TONES = ['Consultivo', 'Provocativo', 'Relacional', 'Técnico'];
+const OBJECTIVES = ['Descoberta', 'Follow-up', 'Fechamento'];
+const PERSONAS = ['Dono / CEO', 'Diretor de Logística / Supply', 'Head / Gerente de GR (Risco)', 'TI / Compras'];
 
 export function Intelligence() {
     const [activeTool, setActiveTool] = useState<ToolType>(null);
@@ -44,6 +49,15 @@ export function Intelligence() {
     const [competitor, setCompetitor] = useState('');
     const [customCompetitor, setCustomCompetitor] = useState('');
 
+    const [tone, setTone] = useState('Consultivo');
+    const [objective, setObjective] = useState('Descoberta');
+    const [personaFallback, setPersonaFallback] = useState('Dono / CEO');
+
+    // UI States for custom dropdowns
+    const [activeDropdown, setActiveDropdown] = useState<'tone' | 'objective' | 'persona' | null>(null);
+
+    const resultRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         setLeadsLoading(true);
         api.get<{ data: Lead[] }>('/api/leads?limit=100')
@@ -51,6 +65,12 @@ export function Intelligence() {
             .catch((e) => console.error('Error loading leads:', e))
             .finally(() => setLeadsLoading(false));
     }, []);
+
+    useEffect(() => {
+        if (result && resultRef.current) {
+            resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [result]);
 
     const handleSetPic = async (pic: string) => {
         if (!selectedLead) return;
@@ -91,7 +111,14 @@ export function Intelligence() {
             const response = await fetch('/api/intelligence', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tool, leadId: selectedLead?.id, competitor: competitorOverride }),
+                body: JSON.stringify({ 
+                    tool, 
+                    leadId: selectedLead?.id, 
+                    competitor: competitorOverride,
+                    tone,
+                    objective,
+                    personaFallback: !selectedLead ? personaFallback : undefined
+                }),
             });
 
             if (response.ok) {
@@ -103,7 +130,7 @@ export function Intelligence() {
             }
         } catch (error) {
             console.error('Error generating intelligence:', error);
-            setResult('Erro ao conectar com a IA.');
+            setResult('Falha na rede neural. Conexão perdida com a IA.');
         } finally {
             setIsGenerating(false);
         }
@@ -117,216 +144,481 @@ export function Intelligence() {
         }
     };
 
+    const containerVariants: Variants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.05 }
+        }
+    };
+
+    const itemVariants: Variants = {
+        hidden: { opacity: 0, y: 10 },
+        show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } }
+    };
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 bg-gray-50/30 min-h-screen p-4 lg:p-8 rounded-3xl">
             <AIPendingActions />
             
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 border-t border-gray-200 pt-8">
-                <div className="lg:col-span-4 flex flex-col h-full">
-                <div>
-                    <h2 className="font-black text-2xl text-atlas-dark mb-2">Atlas Intelligence</h2>
-                    <p className="text-gray-500 text-sm mb-4">Ferramentas de IA para potencializar suas abordagens — personalizadas com os dados reais do lead.</p>
-                </div>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 border-t border-gray-200/60 pt-8">
+                {/* ESQUERDA: CONFIGURAÇÕES E FERRAMENTAS */}
+                <div className="xl:col-span-5 flex flex-col h-full space-y-6">
+                    <div>
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-atlas-orange/10 border border-atlas-orange/20 text-atlas-orange mb-3"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="text-xs font-bold uppercase tracking-wider">Premium AI Suite</span>
+                        </motion.div>
+                        <h2 className="font-black text-4xl text-gray-900 tracking-tight mb-2">Atlas<span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-orange-400">NEXUS</span> Intelligence</h2>
+                        <p className="text-gray-500 text-sm leading-relaxed max-w-md">O arsenal definitivo de IA Generativa. Ferramentas ultra-personalizadas alimentadas por algoritmos preditivos e dados em tempo real.</p>
+                    </div>
 
-                {/* Seletor de lead — sem isso, o conteúdo gerado fica genérico */}
-                <div className="mb-5">
-                    {selectedLead ? (
-                        <div className="p-3 rounded-xl border-2 border-atlas-orange bg-orange-50/50 flex items-start gap-3">
-                            <div className="shrink-0 w-9 h-9 rounded-lg bg-atlas-orange text-white flex items-center justify-center">
-                                <Building2 size={16} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="font-black text-sm text-atlas-dark truncate">{selectedLead.company?.tradeName || 'Empresa sem nome'}</p>
-                                {selectedLead.contact?.name && (
-                                    <p className="text-xs text-gray-500 truncate flex items-center gap-1"><User size={11} /> {selectedLead.contact.name}{selectedLead.contact.role ? ` · ${selectedLead.contact.role}` : ''}</p>
-                                )}
-                                {selectedLead.temperature && (
-                                    <span className="inline-block mt-1 mr-1.5 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white border border-atlas-orange/30 text-atlas-orange">{selectedLead.temperature}</span>
-                                )}
-                                <div className="flex flex-wrap gap-1 mt-1.5">
-                                    {PIC_OPTIONS.map((pic) => (
+                    {/* SELETOR DE LEAD PREMIUM */}
+                    <div className="relative">
+                        {selectedLead ? (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="p-4 rounded-2xl border border-atlas-orange/30 bg-gradient-to-br from-white to-orange-50/30 shadow-[0_8px_30px_rgb(234,88,12,0.12)] relative overflow-hidden group"
+                            >
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-atlas-orange/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                                <div className="flex items-start gap-4 relative z-10">
+                                    <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-atlas-orange to-orange-600 text-white flex items-center justify-center shadow-inner relative">
+                                        <Building2 size={20} />
+                                        <div className="absolute inset-0 rounded-xl border border-white/20"></div>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-black text-lg text-gray-900 truncate tracking-tight">{selectedLead.company?.tradeName || 'Empresa Desconhecida'}</p>
+                                        {selectedLead.contact?.name && (
+                                            <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
+                                                <User size={12} className="text-gray-400" /> 
+                                                <span className="font-medium">{selectedLead.contact.name}</span>
+                                                {selectedLead.contact.role && <span className="text-gray-300">|</span>}
+                                                {selectedLead.contact.role && <span>{selectedLead.contact.role}</span>}
+                                            </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-1.5 mt-3">
+                                            {selectedLead.temperature && (
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-600 shadow-sm">
+                                                    <Activity size={10} className={selectedLead.temperature === 'Quente' ? 'text-red-500' : selectedLead.temperature === 'Morno' ? 'text-amber-500' : 'text-blue-500'} />
+                                                    {selectedLead.temperature}
+                                                </span>
+                                            )}
+                                            {PIC_OPTIONS.map((pic) => (
+                                                <button
+                                                    key={pic.value}
+                                                    type="button"
+                                                    title={pic.desc}
+                                                    onClick={() => handleSetPic(pic.value)}
+                                                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border transition-all ${selectedLead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-500'}`}
+                                                >
+                                                    {pic.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setPickerOpen(true)} 
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-atlas-orange hover:text-white transition-colors shrink-0"
+                                        title="Trocar Lead"
+                                    >
+                                        <RefreshCw size={14} />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <button
+                                onClick={() => setPickerOpen(true)}
+                                className="w-full p-5 rounded-2xl border-2 border-dashed border-gray-300 hover:border-atlas-orange/60 hover:bg-orange-50/50 text-gray-500 hover:text-atlas-orange transition-all flex flex-col items-center justify-center gap-3 group"
+                            >
+                                <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-orange-100 flex items-center justify-center transition-colors">
+                                    <Search size={18} className="text-gray-400 group-hover:text-atlas-orange" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="font-bold text-sm text-gray-700 group-hover:text-atlas-orange">Vincular Lead Alvo (Recomendado)</p>
+                                    <p className="text-[11px] text-gray-400 mt-1 max-w-xs mx-auto">Para hiper-personalização, a IA analisará segmento, porte e stack tecnológico do lead.</p>
+                                </div>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* MODAL DE SELEÇÃO DE LEAD */}
+                    <AnimatePresence>
+                        {pickerOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute z-50 left-0 right-0 mt-2 p-4 border border-gray-200/60 rounded-2xl bg-white/80 backdrop-blur-xl shadow-2xl"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-[10px] tracking-widest font-bold uppercase text-gray-400 flex items-center gap-1">
+                                        <Fingerprint size={12} /> Selecionar Alvo
+                                    </span>
+                                    <button onClick={() => setPickerOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={14} /></button>
+                                </div>
+                                <div className="relative mb-3">
+                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Pesquisar por empresa ou contato..."
+                                        value={leadQuery}
+                                        onChange={(e) => setLeadQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-xl text-sm font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                    />
+                                </div>
+                                <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+                                    {leadsLoading && <p className="text-xs font-medium text-gray-400 text-center py-4">Buscando banco de dados...</p>}
+                                    {!leadsLoading && filteredLeads.length === 0 && (
+                                        <p className="text-xs font-medium text-gray-400 text-center py-4">Nenhum alvo detectado.</p>
+                                    )}
+                                    {filteredLeads.map((l) => (
                                         <button
-                                            key={pic.value}
-                                            type="button"
-                                            title={pic.desc}
-                                            onClick={() => handleSetPic(pic.value)}
-                                            className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full border transition-colors ${selectedLead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-400 hover:border-indigo-300'}`}
+                                            key={l.id}
+                                            onClick={() => { setSelectedLead(l); setPickerOpen(false); setLeadQuery(''); }}
+                                            className="w-full text-left p-3 rounded-xl hover:bg-orange-50 flex items-center gap-3 transition-colors group border border-transparent hover:border-atlas-orange/20"
                                         >
-                                            {pic.label.replace('PIC ', 'PIC')}
+                                            <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-white flex items-center justify-center shrink-0">
+                                                <Building2 size={14} className="text-gray-400 group-hover:text-atlas-orange" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-sm text-gray-800 truncate group-hover:text-atlas-orange">{l.company?.tradeName || 'Sem empresa'}</p>
+                                                {l.contact?.name && <p className="text-[11px] text-gray-400 truncate">{l.contact.name}</p>}
+                                            </div>
                                         </button>
                                     ))}
                                 </div>
-                            </div>
-                            <button onClick={() => setPickerOpen(true)} className="text-xs font-bold text-gray-500 hover:text-atlas-orange shrink-0">Trocar</button>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => setPickerOpen(true)}
-                            className="w-full p-3 rounded-xl border-2 border-dashed border-gray-200 hover:border-atlas-orange/50 text-sm font-bold text-gray-500 hover:text-atlas-orange transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Search size={14} /> Selecionar um lead (recomendado)
-                        </button>
-                    )}
-                    {!selectedLead && (
-                        <p className="text-[11px] text-gray-400 mt-1.5 px-1">Sem lead selecionado, o conteúdo gerado será genérico — vinculando a um lead real, a IA usa segmento, cidade, decisor e dados de enriquecimento para personalizar.</p>
-                    )}
-                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                {pickerOpen && (
-                    <div className="mb-5 p-3 border border-gray-200 rounded-xl bg-white shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] tracking-wider font-bold uppercase text-gray-500">Buscar lead</span>
-                            <button onClick={() => setPickerOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
-                        </div>
-                        <div className="relative mb-2">
-                            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Empresa, contato ou segmento..."
-                                value={leadQuery}
-                                onChange={(e) => setLeadQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs outline-none focus:border-atlas-orange"
-                            />
-                        </div>
-                        <div className="max-h-56 overflow-y-auto space-y-1">
-                            {leadsLoading && <p className="text-xs text-gray-400 text-center py-3">Carregando leads...</p>}
-                            {!leadsLoading && filteredLeads.length === 0 && (
-                                <p className="text-xs text-gray-400 text-center py-3">Nenhum lead encontrado — prospecte e promova leads primeiro.</p>
-                            )}
-                            {filteredLeads.map((l) => (
-                                <button
-                                    key={l.id}
-                                    onClick={() => { setSelectedLead(l); setPickerOpen(false); setLeadQuery(''); }}
-                                    className="w-full text-left p-2 rounded-lg hover:bg-orange-50/60 flex items-center gap-2 text-xs"
+                    {/* PARÂMETROS DE NEURO-GERAÇÃO (Custom Dropdowns) */}
+                    <div className="bg-white p-5 rounded-2xl border border-gray-200/60 shadow-sm relative z-40">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-1.5">
+                            <BrainCircuit size={14} className="text-atlas-orange" /> Parâmetros Neurais
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {/* Dropdown Tom de Voz */}
+                            <div className="relative">
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Matriz de Tom</label>
+                                <button 
+                                    onClick={() => setActiveDropdown(activeDropdown === 'tone' ? null : 'tone')}
+                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
                                 >
-                                    <Building2 size={13} className="text-gray-400 shrink-0" />
-                                    <span className="font-bold text-atlas-dark truncate">{l.company?.tradeName || 'Sem empresa'}</span>
-                                    {l.contact?.name && <span className="text-gray-400 truncate">· {l.contact.name}</span>}
+                                    {tone} <ChevronDown size={14} className="text-gray-400" />
                                 </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                                <AnimatePresence>
+                                    {activeDropdown === 'tone' && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                                            className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                        >
+                                            {TONES.map(t => (
+                                                <div 
+                                                    key={t} onClick={() => { setTone(t); setActiveDropdown(null); }}
+                                                    className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                >
+                                                    {t} {tone === t && <Check size={14} className="text-atlas-orange" />}
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
 
-                {competitorPickerOpen && (
-                    <div className="mb-5 p-3 border border-gray-200 rounded-xl bg-white shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] tracking-wider font-bold uppercase text-gray-500">Qual concorrente?</span>
-                            <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mb-3">
-                            {ATLAS_COMPETITORS.map((c) => (
-                                <button
-                                    key={c}
-                                    onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
-                                    className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:border-atlas-orange/40 hover:bg-orange-50"
+                            {/* Dropdown Objetivo */}
+                            <div className="relative">
+                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Vetor de Objetivo</label>
+                                <button 
+                                    onClick={() => setActiveDropdown(activeDropdown === 'objective' ? null : 'objective')}
+                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
                                 >
-                                    {c}
+                                    {objective} <ChevronDown size={14} className="text-gray-400" />
                                 </button>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Outro concorrente..."
-                                value={customCompetitor}
-                                onChange={(e) => setCustomCompetitor(e.target.value)}
-                                className="flex-1 p-2 bg-gray-50/50 border border-gray-200 rounded-lg text-xs outline-none focus:border-atlas-orange"
-                            />
-                            <button
-                                onClick={() => customCompetitor.trim() && handleGenerate('competitor_battlecard', customCompetitor.trim())}
-                                disabled={!customCompetitor.trim()}
-                                className="px-3 py-2 bg-atlas-dark text-white rounded-lg text-xs font-bold disabled:opacity-40"
-                            >
-                                Usar
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3 overflow-y-auto pr-2 pb-4 max-h-[600px] scrollbar-thin scrollbar-thumb-gray-200">
-                    {TOOLS.map(tool => (
-                        <div
-                            key={tool.id}
-                            onClick={() => handleGenerate(tool.id as ToolType)}
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all group flex items-start gap-4 ${activeTool === tool.id ? 'border-atlas-orange bg-orange-50/50 shadow-sm' : 'border-gray-100 bg-white hover:border-atlas-orange/30'}`}
-                        >
-                            <div className={`shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${activeTool === tool.id ? 'bg-atlas-orange text-white' : 'bg-gray-50 text-atlas-orange group-hover:bg-orange-50'}`}>
-                                <tool.icon size={22} />
+                                <AnimatePresence>
+                                    {activeDropdown === 'objective' && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                                            className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                        >
+                                            {OBJECTIVES.map(o => (
+                                                <div 
+                                                    key={o} onClick={() => { setObjective(o); setActiveDropdown(null); }}
+                                                    className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                >
+                                                    {o} {objective === o && <Check size={14} className="text-atlas-orange" />}
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                            <div>
-                                <h3 className="font-black text-base text-atlas-dark mb-1 leading-tight group-hover:text-atlas-orange transition-colors">{tool.title}</h3>
-                                <p className="text-xs text-gray-500 mb-2 leading-relaxed">{tool.desc}</p>
-                                <span className={`font-bold text-[10px] uppercase tracking-wider ${activeTool === tool.id ? 'text-atlas-orange' : 'text-gray-400 group-hover:text-atlas-orange'}`}>
-                                    Usar ferramenta →
-                                </span>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
 
-            <div className="lg:col-span-8">
-                <div className="bg-white border border-gray-200 rounded-2xl h-full min-h-[500px] flex flex-col overflow-hidden shadow-sm sticky top-24">
-                    {/* Header bar */}
-                    <div className="bg-atlas-dark p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-white">
-                            <div className="w-2.5 h-2.5 rounded-full bg-atlas-orange animate-pulse"></div>
-                            <span className="font-bold text-sm tracking-widest uppercase">Output de Inteligência</span>
-                        </div>
-                        {activeTool === 'competitor_battlecard' && competitor ? (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">vs. {competitor}</span>
-                        ) : selectedLead && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">{selectedLead.company?.tradeName}</span>
-                        )}
-                    </div>
-
-                    <div className="p-8 flex-1 flex flex-col bg-gray-50/30">
-                        {!activeTool && !isGenerating && !result && (
-                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                                <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                    <Target size={40} className="text-gray-300" />
-                                </div>
-                                <h3 className="font-black text-xl text-atlas-dark mb-2">Pronto para gerar</h3>
-                                <p className="font-medium text-sm text-center max-w-xs">Selecione uma ferramenta ao lado para a IA analisar o contexto e gerar o conteúdo.</p>
-                            </div>
-                        )}
-
-                        {isGenerating && (
-                            <div className="flex-1 flex flex-col items-center justify-center text-atlas-orange">
-                                <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center mb-6 relative">
-                                    <div className="absolute inset-0 border-4 border-atlas-orange border-t-transparent rounded-full animate-spin"></div>
-                                    <RefreshCw size={24} className="text-atlas-orange animate-pulse" />
-                                </div>
-                                <h3 className="font-black text-lg text-atlas-dark mb-1">Processando</h3>
-                                <p className="font-bold animate-pulse text-sm uppercase tracking-wider text-gray-500">Atlas IA analisando dados...</p>
-                            </div>
-                        )}
-
-                        {result && !isGenerating && (
-                            <div className="flex-1 flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-                                <div className="flex justify-between items-center mb-4">
-                                    <div className="text-xs font-bold uppercase tracking-wider text-gray-400">
-                                        Resultado Gerado
-                                    </div>
-                                    <button
-                                        onClick={handleCopy}
-                                        className="flex items-center gap-2 text-xs font-bold text-gray-500 hover:text-atlas-dark transition-colors bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm"
+                            {/* Dropdown Persona (Fallback) */}
+                            {!selectedLead && (
+                                <div className="relative sm:col-span-2">
+                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Persona Simulada</label>
+                                    <button 
+                                        onClick={() => setActiveDropdown(activeDropdown === 'persona' ? null : 'persona')}
+                                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
                                     >
-                                        {copied ? <CheckCircle2 size={16} className="text-green-500"/> : <Copy size={16}/>}
-                                        {copied ? 'COPIADO' : 'COPIAR TEXTO'}
+                                        {personaFallback} <ChevronDown size={14} className="text-gray-400" />
+                                    </button>
+                                    <AnimatePresence>
+                                        {activeDropdown === 'persona' && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
+                                                className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                            >
+                                                {PERSONAS.map(p => (
+                                                    <div 
+                                                        key={p} onClick={() => { setPersonaFallback(p); setActiveDropdown(null); }}
+                                                        className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                    >
+                                                        {p} {personaFallback === p && <Check size={14} className="text-atlas-orange" />}
+                                                    </div>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* MODAL COMPETIDOR (OVERLAY) */}
+                    <AnimatePresence>
+                        {competitorPickerOpen && (
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="absolute z-50 inset-x-0 mt-4 p-5 border border-atlas-orange/30 rounded-2xl bg-white/90 backdrop-blur-2xl shadow-2xl shadow-atlas-orange/10"
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-[10px] tracking-widest font-black uppercase text-atlas-orange flex items-center gap-1.5">
+                                        <Swords size={14} /> Selecione o Concorrente
+                                    </span>
+                                    <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={14} /></button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {ATLAS_COMPETITORS.map((c) => (
+                                        <button
+                                            key={c}
+                                            onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-700 hover:border-atlas-orange hover:bg-atlas-orange hover:text-white transition-all shadow-sm"
+                                        >
+                                            {c}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Ou digite o nome de outro concorrente..."
+                                        value={customCompetitor}
+                                        onChange={(e) => setCustomCompetitor(e.target.value)}
+                                        className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                    />
+                                    <button
+                                        onClick={() => customCompetitor.trim() && handleGenerate('competitor_battlecard', customCompetitor.trim())}
+                                        disabled={!customCompetitor.trim()}
+                                        className="px-4 py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold disabled:opacity-40 transition-colors shadow-md"
+                                    >
+                                        Gerar Battlecard
                                     </button>
                                 </div>
-                                <div className="flex-1 bg-white p-6 rounded-xl border border-gray-100 shadow-inner whitespace-pre-wrap font-medium text-gray-700 leading-relaxed overflow-y-auto">
-                                    {result}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* GRID DE FERRAMENTAS */}
+                    <div className="flex-1 overflow-hidden relative">
+                        <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-gray-50/30 to-transparent z-10 pointer-events-none"></div>
+                        <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-gray-50/30 to-transparent z-10 pointer-events-none"></div>
+                        <motion.div 
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="show"
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 overflow-y-auto pr-2 pb-4 max-h-[600px] scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent"
+                        >
+                            {TOOLS.map(tool => (
+                                <motion.div
+                                    variants={itemVariants}
+                                    whileHover={{ scale: 1.02, y: -2 }}
+                                    whileTap={{ scale: 0.98 }}
+                                    key={tool.id}
+                                    onClick={() => handleGenerate(tool.id as ToolType)}
+                                    className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[140px] relative overflow-hidden
+                                        ${activeTool === tool.id 
+                                            ? 'border-atlas-orange bg-gradient-to-br from-orange-50 to-white shadow-lg shadow-atlas-orange/20 ring-1 ring-atlas-orange/50' 
+                                            : 'border-gray-200/60 bg-white hover:border-atlas-orange/40 hover:shadow-xl hover:shadow-gray-200/50'
+                                        }`}
+                                >
+                                    {/* Efeito Glow Interno */}
+                                    {activeTool === tool.id && (
+                                        <div className="absolute inset-0 bg-gradient-to-br from-atlas-orange/5 to-transparent pointer-events-none"></div>
+                                    )}
+                                    
+                                    <div className="flex items-start justify-between relative z-10">
+                                        <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
+                                            ${activeTool === tool.id 
+                                                ? 'bg-gradient-to-br from-atlas-orange to-orange-500 text-white shadow-md' 
+                                                : 'bg-gray-50 border border-gray-100 text-gray-500 group-hover:bg-orange-50 group-hover:text-atlas-orange group-hover:border-orange-100'
+                                            }`}
+                                        >
+                                            <tool.icon size={18} />
+                                        </div>
+                                        {activeTool === tool.id && (
+                                            <span className="w-2 h-2 rounded-full bg-atlas-orange animate-ping absolute right-1 top-1"></span>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="relative z-10 mt-3">
+                                        <h3 className={`font-black text-sm mb-1 leading-tight transition-colors line-clamp-1
+                                            ${activeTool === tool.id ? 'text-atlas-orange' : 'text-gray-900 group-hover:text-atlas-orange'}`}
+                                        >
+                                            {tool.title}
+                                        </h3>
+                                        <p className="text-[10px] text-gray-500 leading-snug line-clamp-2">{tool.desc}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    </div>
+                </div>
+
+                {/* DIREITA: ÁREA DE OUTPUT / DISPLAY HOLOGRÁFICO */}
+                <div className="xl:col-span-7 flex flex-col" ref={resultRef}>
+                    <div className="bg-gray-900 rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-2xl relative ring-1 ring-white/10 sticky top-24">
+                        {/* BACKGROUND GLOW */}
+                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-atlas-orange/20 rounded-full blur-[100px] pointer-events-none"></div>
+                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+                        {/* Top Bar MacOS Style */}
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-black/20 backdrop-blur-md relative z-20">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-atlas-orange animate-pulse">Sintetizando...</span>}
+                                <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10 flex items-center gap-2">
+                                    <Bot size={12} className="text-gray-400" />
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">Nexus Engine v2.0</span>
                                 </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Área de Conteúdo */}
+                        <div className="flex-1 flex flex-col p-8 relative z-10">
+                            {!activeTool && !isGenerating && !result && (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center">
+                                    <motion.div 
+                                        initial={{ opacity: 0, scale: 0.8 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ duration: 0.8, ease: "easeOut" }}
+                                        className="relative"
+                                    >
+                                        <div className="absolute inset-0 bg-atlas-orange/20 blur-2xl rounded-full"></div>
+                                        <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-2xl">
+                                            <BrainCircuit size={40} className="text-gray-400" />
+                                        </div>
+                                    </motion.div>
+                                    <h3 className="font-black text-3xl text-white mb-3 tracking-tight">Sistema em Standby</h3>
+                                    <p className="font-medium text-sm text-gray-400 max-w-sm leading-relaxed">
+                                        O motor neural está aguardando. Selecione uma ferramenta tática no painel à esquerda para iniciar a síntese.
+                                    </p>
+                                </div>
+                            )}
+
+                            {isGenerating && (
+                                <div className="flex-1 flex flex-col items-center justify-center">
+                                    <div className="relative flex items-center justify-center w-32 h-32 mb-8">
+                                        {/* Orbital Rings */}
+                                        <motion.div 
+                                            animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-0 border-t-2 border-r-2 border-atlas-orange/50 rounded-full"
+                                        ></motion.div>
+                                        <motion.div 
+                                            animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-2 border-b-2 border-l-2 border-white/30 rounded-full"
+                                        ></motion.div>
+                                        <div className="absolute inset-4 bg-atlas-orange/10 rounded-full blur-md animate-pulse"></div>
+                                        <Zap size={32} className="text-atlas-orange relative z-10 animate-pulse" />
+                                    </div>
+                                    <h3 className="font-black text-2xl text-white mb-2 tracking-tight">Gerando Inteligência</h3>
+                                    <p className="font-bold text-xs uppercase tracking-[0.2em] text-atlas-orange">Processando algoritmos cognitivos...</p>
+                                    
+                                    {/* Progress Bar Fake */}
+                                    <div className="w-48 h-1 bg-white/10 rounded-full mt-6 overflow-hidden">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: "100%" }} 
+                                            transition={{ duration: 15 }} 
+                                            className="h-full bg-atlas-orange"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {result && !isGenerating && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex-1 flex flex-col h-full"
+                                >
+                                    <div className="flex justify-between items-end mb-6">
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-atlas-orange mb-1 flex items-center gap-1.5">
+                                                <CheckCircle2 size={12} /> Síntese Concluída
+                                            </p>
+                                            <h3 className="text-xl font-bold text-white">
+                                                {activeTool === 'competitor_battlecard' && competitor ? `Battlecard: vs ${competitor}` : selectedLead ? `Output: ${selectedLead.company?.tradeName}` : 'Output Gerado'}
+                                            </h3>
+                                        </div>
+                                        <button
+                                            onClick={handleCopy}
+                                            className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all ${
+                                                copied 
+                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                                                : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                                            }`}
+                                        >
+                                            {copied ? <CheckCircle2 size={14}/> : <Copy size={14}/>}
+                                            {copied ? 'COPIADO!' : 'COPIAR'}
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex-1 bg-black/40 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-white/10 shadow-inner overflow-y-auto relative scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                        {/* Decoration Corners */}
+                                        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-atlas-orange/50 rounded-tl-lg"></div>
+                                        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-atlas-orange/50 rounded-tr-lg"></div>
+                                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-atlas-orange/50 rounded-bl-lg"></div>
+                                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-atlas-orange/50 rounded-br-lg"></div>
+                                        
+                                        <motion.div 
+                                            initial={{ opacity: 0 }} 
+                                            animate={{ opacity: 1 }} 
+                                            transition={{ delay: 0.2 }}
+                                            className="whitespace-pre-wrap font-mono text-[13px] md:text-sm text-gray-300 leading-relaxed"
+                                        >
+                                            {result}
+                                        </motion.div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
         </div>
     );
 }

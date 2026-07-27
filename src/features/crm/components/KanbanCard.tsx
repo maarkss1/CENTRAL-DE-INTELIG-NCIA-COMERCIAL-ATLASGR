@@ -1,23 +1,40 @@
 import React, { useState } from "react";
 import { Lead } from '../../../types';
-import { IconBuilding, IconUser, IconClock, IconSparkle } from '../../../components/icons';
-import { TEMPERATURE_META } from '../constants/leadMeta';
+import { Building2, User, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { TechToolLogo } from '../../../components/ui/TechToolLogo';
+
+const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
 interface KanbanCardProps {
-    key?: string;
     lead: Lead;
-    onDragStart: (e: React.DragEvent, leadId: string) => void;
     onClick: (lead: Lead) => void;
     onEnrich?: (leadId: string) => Promise<void>;
 }
 
-export const KanbanCard = React.memo(function KanbanCard({ lead, onDragStart, onClick, onEnrich }: KanbanCardProps) {
+export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnrich }: KanbanCardProps) {
     const [enriching, setEnriching] = useState(false);
-    const temperature = lead.temperature ? TEMPERATURE_META[lead.temperature as keyof typeof TEMPERATURE_META] : undefined;
 
-    const handleDragStart = (e: React.DragEvent) => {
-        e.dataTransfer.setData('leadId', lead.id);
-        onDragStart(e, lead.id);
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ 
+        id: lead.id,
+        data: {
+            type: 'Lead',
+            lead
+        }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
     };
 
     const handleEnrich = async (e: React.MouseEvent) => {
@@ -31,44 +48,54 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onDragStart, on
         }
     };
 
+    const companyTech = lead.company?.technologies || [];
+
     return (
         <div
-            draggable
-            onDragStart={handleDragStart}
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
             onClick={() => onClick(lead)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(lead); } }}
-            className="group cursor-grab rounded-xl border border-black/5 bg-white p-4 elevation-1 transition-all duration-200 hover:-translate-y-0.5 hover:border-atlas-orange/25 hover:elevation-2 active:cursor-grabbing"
+            className={`bg-gray-800/80 p-4 rounded-2xl border border-gray-700/60 shadow-md cursor-grab active:cursor-grabbing hover:border-blue-500/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-blue-500 z-50 bg-gray-900' : ''}`}
         >
-            <div className="flex items-start justify-between gap-2 mb-2">
-                <h4 className="font-semibold text-atlas-dark transition-colors group-hover:text-atlas-orange">
+            <div className="flex justify-between items-start mb-2">
+                <h4 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm">
                     {lead.company?.tradeName || lead.company?.legalName || 'Sem Empresa'}
                 </h4>
-                {lead.score != null && (
-                    <span className="shrink-0 inline-flex items-center gap-1 text-xs font-bold bg-atlas-orange/10 text-atlas-orange px-2 py-1 rounded-lg">
-                        {temperature && <temperature.icon className="w-3 h-3" />}
-                        {lead.score}
+                {lead.score && (
+                    <span className="text-xs font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-lg">
+                        {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : ''}{lead.score}
                     </span>
                 )}
             </div>
 
-            <div className="space-y-2 mt-3 text-sm text-atlas-dark/60">
+            <div className="space-y-2 mt-2 text-xs text-gray-300">
                 {lead.contact && (
-                    <div className="flex items-center gap-1.5">
-                        <IconUser className="w-3.5 h-3.5 text-atlas-dark/35 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-gray-300">
+                        <User className="w-3.5 h-3.5 text-blue-400" />
                         <span className="truncate">{lead.contact.name}</span>
                     </div>
                 )}
                 {lead.company?.segment && (
-                    <div className="flex items-center gap-1.5">
-                        <IconBuilding className="w-3.5 h-3.5 text-atlas-dark/35 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-gray-400">
+                        <Building2 className="w-3.5 h-3.5 text-gray-400" />
                         <span className="truncate">{lead.company.segment}</span>
                     </div>
                 )}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-black/5">
-                    <div className="flex items-center gap-1.5 text-xs text-atlas-dark/35">
-                        <IconClock className="w-3.5 h-3.5" />
+
+                {/* Logos das Ferramentas no Card CRM */}
+                {companyTech.length > 0 && (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                        {companyTech.slice(0, 3).map((tech, i) => (
+                            <TechToolLogo key={i} techName={tech} size="sm" />
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-700/50">
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                        <Calendar className="w-3.5 h-3.5" />
                         {new Date(lead.updatedAt || lead.createdAt || '').toLocaleDateString('pt-BR')}
                     </div>
                     {onEnrich && lead.companyId && (
@@ -76,9 +103,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onDragStart, on
                             onClick={handleEnrich}
                             disabled={enriching}
                             title="Reenriquecer com dados da Receita Federal"
-                            className="flex items-center gap-1 text-[11px] font-bold text-atlas-orange hover:text-atlas-light-orange disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors pointer-events-auto"
+                            onPointerDown={(e) => e.stopPropagation()}
                         >
-                            <IconSparkle className={`w-3 h-3 ${enriching ? 'animate-spin' : ''}`} />
+                            {enriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                             {enriching ? 'Enriquecendo...' : 'Enriquecer'}
                         </button>
                     )}

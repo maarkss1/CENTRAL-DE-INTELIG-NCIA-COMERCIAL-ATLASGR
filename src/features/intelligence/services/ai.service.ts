@@ -1,13 +1,13 @@
-import { getAiModel, estimateCostUsd } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { HumanMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
+import { redactSensitiveData } from './guardrails.service.js';
 
 export type ContentTool =
     | 'script_call'
     | 'script_whatsapp'
     | 'script_email'
-    | 'cadence_sequence'
     | 'prompt'
     | 'objections'
     | 'followup'
@@ -85,7 +85,6 @@ const TOOL_CONFIG: Record<ContentTool, { model: 'gemini-pro' | 'gemini-flash'; t
     script_call: { model: 'gemini-flash', temperature: 0.7 },
     script_whatsapp: { model: 'gemini-flash', temperature: 0.85 },
     script_email: { model: 'gemini-flash', temperature: 0.65 },
-    cadence_sequence: { model: 'gemini-pro', temperature: 0.5 },
     prompt: { model: 'gemini-pro', temperature: 0.5 },
     objections: { model: 'gemini-pro', temperature: 0.45 },
     followup: { model: 'gemini-flash', temperature: 0.6 },
@@ -107,8 +106,6 @@ Formate a resposta nos 6 blocos numerados acima, cada um pronto para ser falado 
     script_whatsapp: `Crie DUAS variações de mensagem de prospecção para WhatsApp (Social Selling), seguindo a régua real da Atlas: curto + contexto + 1 pergunta objetiva, nunca texto longo. Rotule "VARIAÇÃO A (validar fit — primeiro contato)" seguindo o padrão "Oi, [Nome]! Aqui é [SDR] da Atlas. Vi [contexto curto]. Rápido: hoje quando dá exceção (atraso/desvio/ocorrência), vocês tratam com SLA ou ainda cai no WhatsApp?" e "VARIAÇÃO B (mais neutra, sem soar vendas)" perguntando direto quem responde por tratativa de ocorrências/GR na empresa. Nenhuma das duas deve pedir reunião de cara — isso só depois de confirmar fit.`,
 
     script_email: `Crie um Cold E-mail seguindo a estrutura real da Atlas: DUAS opções de assunto curtas (3-6 palavras, específicas, sem "proposta"/"parceria"/"URGENTE") e UM corpo com 4 partes: 1) conectar com o contexto do lead (cenário: expansão/pressão de risco/troca de liderança), 2) apontar consequência sem dramatizar (SLA estourando, retrabalho, atrito com seguradora quando a tratativa é manual), 3) posicionar a Atlas como gestão por exceção — não "mais um monitoramento", 4) CTA simples de uma pergunta binária sobre como tratam exceção hoje. Máximo 120 palavras no corpo.`,
-
-    cadence_sequence: `Crie uma sequência de cadência de prospecção comercial B2B em 5 Passos Estruturados (Dia 1: Email Inicial, Dia 3: LinkedIn Connect, Dia 5: Cold Call Spin Selling, Dia 8: WhatsApp Consultivo, Dia 12: Break-up Email) altamente adaptada ao segmento e contexto da empresa abaixo.`,
 
     prompt: `Crie 4 perguntas de qualificação profundas (estilo BANT/SPIN) para a próxima ligação/reunião com este lead, cada uma seguida de UMA linha explicando o que a resposta revela para o vendedor (ex: orçamento, autoridade, urgência, ou o tamanho real da dor).`,
 
@@ -234,26 +231,24 @@ export class AIService {
             promptStr += GROUNDING_INSTRUCTION;
         }
 
-        const { model: modelAlias, temperature } = TOOL_CONFIG[toolId];
+        // Configuração editável via AIConfigCenter tem prioridade sobre o padrão hardcoded da ferramenta.
+        const customSetting = await prisma.aiEngineSetting.findUnique({ where: { toolKey: toolId } });
+        const { model: modelAlias, temperature } = customSetting
+            ? { model: customSetting.model, temperature: customSetting.temperature }
+            : TOOL_CONFIG[toolId];
         const model = getAiModel(modelAlias, temperature, toolId);
         const startTime = Date.now();
         const response = await model.invoke([new HumanMessage(promptStr)]);
         const latencyMs = Date.now() - startTime;
 
-        const usage = response.response_metadata.tokenUsage;
-        const cost = estimateCostUsd(response.response_metadata.model, usage);
-
-        await prisma.aILog.create({
-            data: {
-                tokens: usage.totalTokens,
-                cost,
-                latencyMs,
-                model: response.response_metadata.model,
-                promptId: dbPrompt?.id,
-            },
+        await logAiUsage({
+            model: response.response_metadata.model,
+            usage: response.response_metadata.tokenUsage,
+            latencyMs,
+            promptId: dbPrompt?.id,
         });
 
-        return response.content;
+        return redactSensitiveData(response.content).text;
     }
 
     async qualifyLead(leadId: string, companyInfo: string) {

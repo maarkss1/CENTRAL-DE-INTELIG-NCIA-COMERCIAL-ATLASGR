@@ -1,3 +1,6 @@
+import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
+import { fetchWithTimeout } from '../../../lib/http.js';
+
 export interface HunterEmailResult {
     email: string | null;
     score?: number;
@@ -16,7 +19,7 @@ export interface HunterPersonContact {
  * Usado como fallback quando a Apollo não retorna e-mail para um decisor encontrado.
  */
 export async function findEmailViaHunter(domain: string, fullName: string): Promise<HunterEmailResult> {
-    const apiKey = process.env.HUNTER_API_KEY;
+    const apiKey = getPaidProspectingKey('HUNTER_API_KEY');
     if (!apiKey || !domain || !fullName.trim()) return { email: null };
 
     const [firstName, ...rest] = fullName.trim().split(/\s+/);
@@ -30,7 +33,7 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
             last_name: lastName,
             api_key: apiKey,
         });
-        const res = await fetch(`https://api.hunter.io/v2/email-finder?${params.toString()}`);
+        const res = await fetchWithTimeout(`https://api.hunter.io/v2/email-finder?${params.toString()}`, {}, 12_000);
         if (!res.ok) return { email: null };
         const data = await res.json();
         return { email: data?.data?.email || null, score: data?.data?.score };
@@ -52,7 +55,7 @@ export async function findPeopleViaDomainSearch(
     domain: string,
     limit: number = 10
 ): Promise<{ contacts: HunterPersonContact[]; error?: string }> {
-    const apiKey = process.env.HUNTER_API_KEY;
+    const apiKey = getPaidProspectingKey('HUNTER_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
     try {
@@ -62,7 +65,7 @@ export async function findPeopleViaDomainSearch(
             type: 'personal', // só e-mails associados a uma pessoa nomeada, não genéricos (contato@, sac@...)
             limit: String(Math.min(limit, 100)),
         });
-        const res = await fetch(`https://api.hunter.io/v2/domain-search?${params.toString()}`);
+        const res = await fetchWithTimeout(`https://api.hunter.io/v2/domain-search?${params.toString()}`, {}, 12_000);
         if (!res.ok) {
             const text = await res.text().catch(() => '');
             return { contacts: [], error: `Hunter Domain Search respondeu ${res.status}: ${text.slice(0, 150)}` };

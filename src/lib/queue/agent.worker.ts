@@ -5,6 +5,7 @@ import { SDRAgent } from '../../features/intelligence/agents/sdr-agent.js';
 
 export const AGENT_QUEUE_NAME = 'intelligence-agents';
 export const agentQueue = new Queue(AGENT_QUEUE_NAME, { connection });
+agentQueue.on('error', (err) => logger.warn({ message: err.message }, 'agentQueue offline'));
 
 interface AgentJobData {
     agentType: 'SDR_OUTBOUND';

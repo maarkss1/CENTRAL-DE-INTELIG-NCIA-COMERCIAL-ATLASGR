@@ -3,10 +3,24 @@
 // fornecidos pelo time comercial.
 
 export const SEGMENTO_OPTIONS = [
-    'Transportadora (frota própria/agregados/terceiros)',
-    'Embarcador',
+    'Transportadora / Frotista',
     'Operador Logístico (3PL/4PL)',
-    'Facilities / RH com terceirização (via Atlas Profile)',
+    'Indústria (Embarcador)',
+    'Varejo / E-commerce (Embarcador)',
+    'Agro / Trading (Embarcador)',
+    'Distribuidor / Atacadista',
+    'Gerenciadora de Risco (GR)',
+    'Corretora de Seguros',
+    'Seguradora',
+];
+
+export const TOTALTRAC_SEGMENTO_OPTIONS = [
+    'Transportadora',
+    'Empresas de Logística',
+    'Frotas Corporativas',
+    'Transporte Refrigerado / Frigorificado',
+    'Locação de Máquinas Pesadas',
+    'Embarcador com Frota Própria'
 ];
 
 // RJ e Grande SP aparecem no playbook como regiões de maior índice de roubo — prioridade de risco.
@@ -61,6 +75,15 @@ export const ATLAS_PERSONA_OPTIONS = [
     { label: 'TI / Integrações / Dados', nivel: 'Gatekeeper', titles: 'TI,Tecnologia da Informação,Gerente de TI,Integrações', seniorities: ['manager'] },
     { label: 'Compras / Suprimentos', nivel: 'Gatekeeper', titles: 'Compras,Suprimentos,Gerente de Compras', seniorities: ['manager'] },
     { label: 'Financeiro / Controller', nivel: 'Co-decisor', titles: 'Financeiro,Controller,CFO,Gerente Financeiro', seniorities: ['director', 'manager'] },
+] as const;
+
+export const TOTALTRAC_PERSONA_OPTIONS = [
+    { label: 'Dono / CEO', nivel: 'Decisor final', titles: 'CEO,Dono,Diretor Presidente,Diretor Geral', seniorities: ['c_suite'] },
+    { label: 'Diretor de Operações / Logística', nivel: 'Decisor final', titles: 'Diretor de Operações,COO,Diretor Operacional,Diretor de Logística', seniorities: ['c_suite', 'director'] },
+    { label: 'Gerente de Frotas / Transportes', nivel: 'Influenciador-chave / Decisor', titles: 'Gerente de Frotas,Gerente de Transportes,Gestor de Frotas', seniorities: ['manager'] },
+    { label: 'Gerente de Risco / Segurança', nivel: 'Influenciador forte', titles: 'Gerente de Risco,Gerente de Segurança,Segurança Patrimonial', seniorities: ['manager'] },
+    { label: 'RH / DP (Para Jornada)', nivel: 'Usuário / Influenciador', titles: 'RH,Recursos Humanos,Departamento Pessoal,Gerente de RH', seniorities: ['manager'] },
+    { label: 'Coordenador de Logística', nivel: 'Usuário influente', titles: 'Coordenador de Logística,Supervisor de Logística', seniorities: ['manager'] },
 ] as const;
 
 // Os 3 PICs (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — cada um com gatilho,

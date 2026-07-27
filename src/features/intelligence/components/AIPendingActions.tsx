@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { Bot, Check, X, Mail } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { Card } from '../../../components/ui/Card';
-import { Badge } from '../../../components/ui/Badge';
-import { staggerContainer, staggerItem } from '../../../lib/motion';
-import { IconBot, IconCheck, IconClose, IconMail, IconSpinner } from '../../../components/icons';
 
 interface PendingAction {
     id: string;
@@ -53,86 +49,78 @@ export function AIPendingActions() {
         setActions(prev => prev.filter(a => a.id !== id));
     };
 
-    if (loading) {
-        return (
-            <div className="p-4 text-atlas-dark/50 flex items-center gap-2">
-                <IconSpinner className="w-4 h-4 animate-spin text-atlas-orange" /> Carregando ações da IA...
-            </div>
-        );
-    }
+    if (loading) return <div className="p-4 text-gray-500">Carregando ações da IA...</div>;
 
     if (actions.length === 0) {
         return (
-            <div className="p-8 text-center flex flex-col items-center">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center">
                 <div className="bg-blue-50 p-4 rounded-full mb-4">
-                    <IconBot className="w-8 h-8 text-blue-500" />
+                    <Bot className="w-8 h-8 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-bold text-atlas-dark mb-1">Nenhuma ação pendente</h3>
-                <p className="text-atlas-dark/50">Seus agentes autônomos estão ociosos no momento.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhuma ação pendente</h3>
+                <p className="text-gray-500">Seus agentes autônomos estão ociosos no momento.</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-atlas-dark flex items-center gap-2">
-                <IconBot className="w-6 h-6 text-indigo-600" />
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                <Bot className="mr-2 w-6 h-6 text-indigo-600" /> 
                 Ações Autônomas Aguardando Aprovação
             </h2>
-
-            <motion.div variants={staggerContainer(0.06)} initial="hidden" animate="show" className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {actions.map(action => (
-                    <motion.div key={action.id} variants={staggerItem}>
-                        <Card variant="interactive" className="overflow-hidden">
-                            <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-3 flex items-center justify-between">
-                                <div className="flex items-center text-indigo-800 font-semibold text-sm gap-2">
-                                    <IconMail className="w-4 h-4" />
-                                    Rascunho de E-mail
-                                </div>
-                                <Badge variant="default" className="bg-indigo-100 text-indigo-800">
-                                    {action.entity}
-                                </Badge>
+                    <div key={action.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                        <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center text-indigo-800 font-medium text-sm">
+                                <Mail className="w-4 h-4 mr-2" />
+                                Rascunho de E-mail
+                            </div>
+                            <span className="bg-indigo-100 text-indigo-800 text-xs px-2 py-1 rounded-full font-semibold">
+                                {action.entity}
+                            </span>
+                        </div>
+                        
+                        <div className="p-4 space-y-3">
+                            <div>
+                                <p className="text-xs text-gray-500 font-medium">Para</p>
+                                <p className="text-sm text-gray-900 font-medium truncate">{action.payload.to || 'Desconhecido'}</p>
+                            </div>
+                            
+                            <div>
+                                <p className="text-xs text-gray-500 font-medium">Assunto</p>
+                                <p className="text-sm text-gray-900 truncate">{action.payload.subject}</p>
                             </div>
 
-                            <div className="p-4 space-y-3">
-                                <div>
-                                    <p className="text-xs text-atlas-dark/45 font-medium">Para</p>
-                                    <p className="text-sm text-atlas-dark font-medium truncate">{action.payload.to || 'Desconhecido'}</p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs text-atlas-dark/45 font-medium">Assunto</p>
-                                    <p className="text-sm text-atlas-dark truncate">{action.payload.subject}</p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs text-atlas-dark/45 font-medium mb-1">Mensagem Gerada</p>
-                                    <div className="bg-black/[0.02] rounded-lg p-3 text-sm text-atlas-dark/70 h-32 overflow-y-auto whitespace-pre-wrap">
-                                        {action.payload.body}
-                                    </div>
+                            <div>
+                                <p className="text-xs text-gray-500 font-medium mb-1">Mensagem Gerada</p>
+                                <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700 h-32 overflow-y-auto whitespace-pre-wrap">
+                                    {action.payload.body}
                                 </div>
                             </div>
+                        </div>
 
-                            <div className="border-t border-black/5 p-3 bg-black/[0.015] flex gap-2">
-                                <button
-                                    onClick={() => handleApprove(action.id)}
-                                    className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-semibold transition-colors"
-                                >
-                                    <IconCheck className="w-4 h-4" />
-                                    Aprovar Envio
-                                </button>
-                                <button
-                                    onClick={() => handleDiscard(action.id)}
-                                    className="flex items-center justify-center bg-white hover:bg-red-50 text-red-600 border border-black/10 py-2 px-3 rounded-lg text-sm transition-colors"
-                                    title="Descartar"
-                                >
-                                    <IconClose className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </Card>
-                    </motion.div>
+                        <div className="border-t border-gray-100 p-3 bg-gray-50 flex gap-2">
+                            <button
+                                onClick={() => handleApprove(action.id)}
+                                className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                                <Check className="w-4 h-4 mr-1.5" />
+                                Aprovar Envio
+                            </button>
+                            <button
+                                onClick={() => handleDiscard(action.id)}
+                                className="flex items-center justify-center bg-white hover:bg-red-50 text-red-600 border border-gray-200 py-2 px-3 rounded-lg text-sm transition-colors"
+                                title="Descartar"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
                 ))}
-            </motion.div>
+            </div>
         </div>
     );
 }

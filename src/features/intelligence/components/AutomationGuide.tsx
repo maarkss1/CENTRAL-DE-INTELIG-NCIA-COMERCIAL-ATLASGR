@@ -1,0 +1,498 @@
+import { useState } from 'react';
+import { Workflow, Link, Zap, GitCommit, ChevronDown, Check, Copy, Download, Layers, Bot } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const TRIGGERS = [
+    { id: 'webhook', title: 'Webhook Customizado (HTTP POST)', desc: 'Recebe payloads JSON em tempo real de qualquer app.' },
+    { id: 'gmail', title: 'Gmail / Outlook (Novo E-mail Recebido)', desc: 'Disparado quando um e-mail chega na caixa de entrada.' },
+    { id: 'forms', title: 'Formulários (Typeform / Tally / Google Forms)', desc: 'Disparado no envio de uma nova resposta de formulário.' },
+    { id: 'sheets', title: 'Google Sheets / Airtable (Nova Linha)', desc: 'Disparado quando um novo registro é adicionado.' },
+    { id: 'bitrix_event', title: 'Bitrix24 / CRM Event (Mudança de Estágio)', desc: 'Disparado quando um lead entra em um novo funil.' },
+    { id: 'cron', title: 'Schedule / Cron (Tempo Programado)', desc: 'Executa a cada X minutos, horas ou em um horário fixo.' }
+];
+
+const ACTIONS = [
+    { id: 'bitrix_deal', title: 'Bitrix24 CRM (Criar/Atualizar Deal ou Lead)', desc: 'Insere os dados limpos e qualificados no pipeline de vendas.' },
+    { id: 'hubspot', title: 'HubSpot (Criar Contato & Empresa)', desc: 'Registra novo contato com propriedade de origem.' },
+    { id: 'slack', title: 'Slack / Discord (Notificar Canal de Vendas)', desc: 'Envia card de alerta com botão de acesso ao lead.' },
+    { id: 'db_upsert', title: 'Banco de Dados (PostgreSQL / MySQL / Redis)', desc: 'Executa query SQL para gravação auditável.' },
+    { id: 'email_send', title: 'Envio de E-mail Automático (SMTP / SendGrid)', desc: 'Envia resposta instantânea personalizada.' },
+    { id: 'whatsapp', title: 'WhatsApp Business API (Disparo de Mensagem)', desc: 'Inicia conversa no WhatsApp com o lead.' }
+];
+
+const TOOLS = [
+    { id: 'n8n', title: 'n8n (Workflow Self-Hosted / Cloud)', desc: 'Gratuito, open-source e sem limites de operações.' },
+    { id: 'make', title: 'Make / Integromat', desc: 'Interface visual altamente flexível para integração SaaS.' },
+    { id: 'zapier', title: 'Zapier', desc: 'Conexão simples em 2 cliques com milhares de apps.' },
+    { id: 'python_script', title: 'Script Python Custom (Nativo)', desc: 'Automação via código executado em servidor ou Docker.' },
+    { id: 'powershell_cron', title: 'PowerShell Scheduled Task', desc: 'Automação nativa de infraestrutura Windows/Linux.' }
+];
+
+const AI_LAYERS = [
+    { id: 'none', title: 'Sem Filtro de IA (Mapeamento Direto de Campos)' },
+    { id: 'icp_qualifier', title: 'Filtro ICP com OpenAI (Qualificação de Lead)' },
+    { id: 'sentiment', title: 'Análise de Sentimento & URGÊNCIA' },
+    { id: 'enrichment', title: 'Resumo & Enriquecimento Automático via Web Scraping' }
+];
+
+export function AutomationGuide() {
+    const [triggerApp, setTriggerApp] = useState(TRIGGERS[0].id);
+    const [actionApp, setActionApp] = useState(ACTIONS[0].id);
+    const [tool, setTool] = useState(TOOLS[0].id);
+    const [aiLayer, setAiLayer] = useState(AI_LAYERS[1].id);
+    const [automationGoal, setAutomationGoal] = useState('Enriquecer lead vindo do site, qualificar via IA e criar Deal no Bitrix24');
+    
+    const [generating, setGenerating] = useState(false);
+    const [activeDropdown, setActiveDropdown] = useState<'trigger' | 'action' | 'tool' | 'ai' | null>(null);
+    const [result, setResult] = useState<{
+        blueprint: string;
+        n8nJson: string;
+        codeScript: string;
+    } | null>(null);
+    const [activeTabOutput, setActiveTabOutput] = useState<'blueprint' | 'json' | 'code'>('blueprint');
+    const [copied, setCopied] = useState(false);
+
+    const selectedTriggerObj = TRIGGERS.find(t => t.id === triggerApp) || TRIGGERS[0];
+    const selectedActionObj = ACTIONS.find(a => a.id === actionApp) || ACTIONS[0];
+    const selectedToolObj = TOOLS.find(t => t.id === tool) || TOOLS[0];
+    const selectedAiObj = AI_LAYERS.find(a => a.id === aiLayer) || AI_LAYERS[1];
+
+    const handleGenerate = () => {
+        setGenerating(true);
+
+        setTimeout(() => {
+            const blueprint = `=============================================================================
+GUIA E ARQUITETURA DE AUTOMAÇÃO: ${selectedToolObj.title.toUpperCase()}
+Objetivo: ${automationGoal}
+Gatilho (Origem): ${selectedTriggerObj.title}
+Ação (Destino): ${selectedActionObj.title}
+Camada de Inteligência: ${selectedAiObj.title}
+=============================================================================
+
+PASSO 1: CONFIGURAÇÃO DO GATILHO (TRIGGER)
+-----------------------------------------------------------------------------
+1. No ${selectedToolObj.title}, crie um novo fluxo de trabalho (Workflow).
+2. Adicione o nó inicial do tipo [${selectedTriggerObj.title}].
+3. Copie a URL do Webhook/Endpoint gerado e cole no aplicativo de origem.
+4. Execute um teste no app de origem enviando uma requisição de exemplo.
+
+PASSO 2: CAMADA DE TRATAMENTO DE DADOS & INTELIGÊNCIA ARTIFICIAL
+-----------------------------------------------------------------------------
+1. Adicione um nó de Code / Function para validar se os campos obrigatórios (nome, e-mail, telefone/CNPJ) estão presentes.
+2. ${selectedAiObj.id !== 'none' ? `Conecte um nó de OpenAI / LLM Engine com a seguinte instrução:\n   "Classifique o lead enviado. Se o score de alinhamento B2B for >= 70, marque status = QUALIFIED. Responda em JSON."` : 'Mapeie diretamente os dados para o formato JSON final.'}
+
+PASSO 3: EXECUÇÃO DA AÇÃO FINAL (DESTINO)
+-----------------------------------------------------------------------------
+1. Conecte o nó do [${selectedActionObj.title}].
+2. Selecione a operação: "Create" ou "Upsert".
+3. Faça o mapeamento de campos (Field Mapping):
+   - Nome do Lead  <-- {{ $json.body.name }}
+   - E-mail        <-- {{ $json.body.email }}
+   - Observação IA <-- {{ $json.ai_summary }}
+4. Ative o Workflow em modo Produção!`;
+
+            const n8nJson = JSON.stringify({
+                name: `Automação: ${selectedTriggerObj.title.split(' ')[0]} ➔ ${selectedActionObj.title.split(' ')[0]}`,
+                nodes: [
+                    {
+                        parameters: { httpMethod: "POST", path: "atlas-webhook-entry" },
+                        name: "Webhook Entry",
+                        type: "n8n-nodes-base.webhook",
+                        typeVersion: 1,
+                        position: [250, 300]
+                    },
+                    {
+                        parameters: {
+                            model: "gpt-4o-mini",
+                            options: { temperature: 0.2 },
+                            prompt: `Analise este lead para ${automationGoal}: {{ $json.body }}`
+                        },
+                        name: "OpenAI Qualifier",
+                        type: "@n8n/n8n-nodes-langchain.chainLLM",
+                        typeVersion: 1,
+                        position: [480, 300]
+                    },
+                    {
+                        parameters: {
+                            resource: "deal",
+                            operation: "create",
+                            title: "Lead {{ $json.body.name }}",
+                            pipelineId: "main_pipeline"
+                        },
+                        name: selectedActionObj.title.split(' ')[0],
+                        type: "n8n-nodes-base.bitrix24",
+                        typeVersion: 1,
+                        position: [710, 300]
+                    }
+                ],
+                connections: {
+                    "Webhook Entry": { main: [[{ node: "OpenAI Qualifier", type: "main", index: 0 }]] },
+                    "OpenAI Qualifier": { main: [[{ node: selectedActionObj.title.split(' ')[0], type: "main", index: 0 }]] }
+                }
+            }, null, 2);
+
+            const codeScript = `import requests
+import json
+import logging
+
+# Automação Autônoma sem dependência de plataformas pagas
+# Origem: ${selectedTriggerObj.title}
+# Destino: ${selectedActionObj.title}
+
+logging.basicConfig(level=logging.INFO)
+
+def run_automation_pipeline(event_payload: dict):
+    logging.info("Recebido evento de automação...")
+    
+    # 1. Validação de dados
+    email = event_payload.get("email")
+    if not email:
+        logging.error("E-mail ausente. Ignorando evento.")
+        return False
+        
+    # 2. Camada de Inteligência IA (${selectedAiObj.title})
+    logging.info("Enviando dados para a Inteligência Artificial...")
+    ai_qualification = {
+        "status": "QUALIFIED",
+        "score": 85,
+        "summary": "Empresa do setor de transporte com auto interesse."
+    }
+    
+    # 3. Disparo para o aplicativo de destino (${selectedActionObj.title})
+    logging.info("Enviando dados para ${selectedActionObj.title}...")
+    destination_payload = {
+        "lead_email": email,
+        "ai_score": ai_qualification["score"],
+        "notes": ai_qualification["summary"]
+    }
+    
+    # TODO: Fazer chamada HTTP POST real para o destino
+    print("Mapeamento concluído com sucesso:")
+    print(json.dumps(destination_payload, indent=2))
+    return True
+
+if __name__ == "__main__":
+    sample_event = {"name": "Carlos Silva", "email": "carlos@empresa.com.br", "company": "Silva Logística"}
+    run_automation_pipeline(sample_event)
+`;
+
+            setResult({ blueprint, n8nJson, codeScript });
+            setGenerating(false);
+            setCopied(false);
+        }, 1300);
+    };
+
+    const handleCopy = () => {
+        if (!result) return;
+        let text = '';
+        if (activeTabOutput === 'blueprint') text = result.blueprint;
+        if (activeTabOutput === 'json') text = result.n8nJson;
+        if (activeTabOutput === 'code') text = result.codeScript;
+
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleDownload = () => {
+        if (!result) return;
+        let content = '';
+        let filename = '';
+        if (activeTabOutput === 'blueprint') {
+            content = result.blueprint;
+            filename = 'guia_automacao.txt';
+        } else if (activeTabOutput === 'json') {
+            content = result.n8nJson;
+            filename = 'workflow_n8n.json';
+        } else if (activeTabOutput === 'code') {
+            content = result.codeScript;
+            filename = 'automation_script.py';
+        }
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="space-y-8">
+            <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-[#0B101D] rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden border border-white/10"
+            >
+                {/* Ambient glow */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[100px] pointer-events-none -mt-40 -mr-40"></div>
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[100px] pointer-events-none -mb-40 -ml-40"></div>
+
+                <div className="relative z-10 flex flex-col items-center text-center mb-10">
+                    <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-amber-500 to-orange-600 border border-white/20 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.3)]"
+                    >
+                        <Workflow size={40} className="text-white" />
+                    </motion.div>
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 mb-4 backdrop-blur-md">
+                        <Zap size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Automation Engine & Workflow Designer</span>
+                    </div>
+                    <h3 className="text-4xl font-black text-white mb-4 tracking-tight">
+                        Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">Guia e Construtor de Automações</span>
+                    </h3>
+                    <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
+                        Mapeie fluxos de automação entre origens e destinos. Obtenha o blueprint passo a passo, schema JSON pronto para n8n/Make e scripts de automação.
+                    </p>
+                </div>
+
+                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
+                    
+                    {/* App Origem */}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
+                            <Link size={14} /> App de Origem (Gatilho / Trigger)
+                        </label>
+                        <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'trigger' ? null : 'trigger')}
+                            className="w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-amber-400/50 transition-colors"
+                        >
+                            <span className="truncate">{selectedTriggerObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                        </button>
+                        <AnimatePresence>
+                            {activeDropdown === 'trigger' && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
+                                >
+                                    {TRIGGERS.map(t => (
+                                        <div 
+                                            key={t.id} onClick={() => { setTriggerApp(t.id); setActiveDropdown(null); }}
+                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-amber-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5 border-b border-white/5 last:border-none"
+                                        >
+                                            <div className="flex justify-between items-center font-bold text-white">
+                                                {t.title} {triggerApp === t.id && <Check size={16} className="text-amber-400" />}
+                                            </div>
+                                            <span className="text-xs text-slate-400">{t.desc}</span>
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* App Destino */}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-orange-400">
+                            <GitCommit size={14} /> App de Destino (Ação / Action)
+                        </label>
+                        <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'action' ? null : 'action')}
+                            className="w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-orange-400/50 transition-colors"
+                        >
+                            <span className="truncate">{selectedActionObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                        </button>
+                        <AnimatePresence>
+                            {activeDropdown === 'action' && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
+                                >
+                                    {ACTIONS.map(a => (
+                                        <div 
+                                            key={a.id} onClick={() => { setActionApp(a.id); setActiveDropdown(null); }}
+                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-orange-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5 border-b border-white/5 last:border-none"
+                                        >
+                                            <div className="flex justify-between items-center font-bold text-white">
+                                                {a.title} {actionApp === a.id && <Check size={16} className="text-orange-400" />}
+                                            </div>
+                                            <span className="text-xs text-slate-400">{a.desc}</span>
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Ferramenta de Orquestração */}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-yellow-400">
+                            <Layers size={14} /> Ferramenta de Orquestração
+                        </label>
+                        <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'tool' ? null : 'tool')}
+                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors"
+                        >
+                            <span className="truncate">{selectedToolObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                        </button>
+                        <AnimatePresence>
+                            {activeDropdown === 'tool' && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                >
+                                    {TOOLS.map(t => (
+                                        <div 
+                                            key={t.id} onClick={() => { setTool(t.id); setActiveDropdown(null); }}
+                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                        >
+                                            {t.title} {tool === t.id && <Check size={16} className="text-yellow-400" />}
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Camada de IA */}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-rose-400">
+                            <Bot size={14} /> Camada de Inteligência IA
+                        </label>
+                        <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'ai' ? null : 'ai')}
+                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors"
+                        >
+                            <span className="truncate">{selectedAiObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                        </button>
+                        <AnimatePresence>
+                            {activeDropdown === 'ai' && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                >
+                                    {AI_LAYERS.map(a => (
+                                        <div 
+                                            key={a.id} onClick={() => { setAiLayer(a.id); setActiveDropdown(null); }}
+                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                        >
+                                            {a.title} {aiLayer === a.id && <Check size={16} className="text-rose-400" />}
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                {/* Campo Objetivo */}
+                <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-slate-400">
+                        Objetivo Principal da Automação
+                    </label>
+                    <input 
+                        type="text"
+                        placeholder="Ex: Enriquecer lead e criar oportunidade no CRM"
+                        value={automationGoal}
+                        onChange={(e) => setAutomationGoal(e.target.value)}
+                        className="w-full bg-transparent text-white text-sm placeholder-slate-600 focus:outline-none border-b border-white/10 focus:border-amber-400 transition-colors pb-2"
+                    />
+                </div>
+
+                <div className="relative z-10 flex justify-center">
+                    <button 
+                        onClick={handleGenerate}
+                        disabled={generating}
+                        className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest hover:from-amber-400 hover:to-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.3)] hover:shadow-[0_0_60px_rgba(245,158,11,0.5)]"
+                    >
+                        {generating && (
+                            <motion.div 
+                                animate={{ rotate: 360 }} 
+                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                className="absolute inset-0 border-2 border-white/50 rounded-full border-t-transparent border-l-transparent"
+                            />
+                        )}
+                        {generating ? (
+                            <GitCommit size={18} className="animate-pulse" />
+                        ) : (
+                            <Workflow size={18} className="group-hover:scale-110 transition-transform" />
+                        )}
+                        {generating ? 'Mapeando Arquitetura de Automação...' : 'Gerar Guia & Blueprint de Automação'}
+                    </button>
+                </div>
+            </motion.div>
+
+            {/* Resultado da Automação */}
+            <AnimatePresence>
+                {result && !generating && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-[#0B101D] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                    >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-white/10 pb-4">
+                            <div className="flex items-center gap-3 text-amber-400 text-xs font-mono uppercase tracking-widest">
+                                <Zap size={16} />
+                                Arquitetura Gerada para {selectedToolObj.title}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleCopy}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                                        copied 
+                                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                                        : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+                                    }`}
+                                >
+                                    {copied ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar</>}
+                                </button>
+                                <button
+                                    onClick={handleDownload}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 border border-amber-500/40 transition-all"
+                                >
+                                    <Download size={14} /> Baixar Blueprint
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Abas */}
+                        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+                            <button
+                                onClick={() => setActiveTabOutput('blueprint')}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    activeTabOutput === 'blueprint' 
+                                    ? 'bg-amber-500 text-white shadow-lg' 
+                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                }`}
+                            >
+                                Blueprint Passo a Passo
+                            </button>
+                            <button
+                                onClick={() => setActiveTabOutput('json')}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    activeTabOutput === 'json' 
+                                    ? 'bg-orange-600 text-white shadow-lg' 
+                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                }`}
+                            >
+                                Payload Workflow (n8n JSON)
+                            </button>
+                            <button
+                                onClick={() => setActiveTabOutput('code')}
+                                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                    activeTabOutput === 'code' 
+                                    ? 'bg-sky-600 text-white shadow-lg' 
+                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                }`}
+                            >
+                                Script Python Equivalente
+                            </button>
+                        </div>
+
+                        <div className="bg-[#050811] rounded-2xl border border-white/10 p-6 shadow-inner relative">
+                            <pre className="text-[13px] md:text-sm text-amber-200 whitespace-pre-wrap font-mono overflow-x-auto custom-scrollbar leading-relaxed max-h-[500px]">
+                                {activeTabOutput === 'blueprint' && result.blueprint}
+                                {activeTabOutput === 'json' && result.n8nJson}
+                                {activeTabOutput === 'code' && result.codeScript}
+                            </pre>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

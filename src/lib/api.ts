@@ -9,17 +9,36 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
         (defaultHeaders as Record<string, string>)['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(endpoint, {
-        ...options,
-        headers: {
-            ...defaultHeaders,
-            ...options?.headers,
+    const controller = new AbortController();
+    const timeoutMs = Number((import.meta as any).env?.VITE_API_TIMEOUT_MS || 15_000);
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const signal = options?.signal
+        ? AbortSignal.any([options.signal, controller.signal])
+        : controller.signal;
+
+    let response: Response;
+    try {
+        response = await fetch(endpoint, {
+            ...options,
+            signal,
+            credentials: 'include',
+            headers: {
+                ...defaultHeaders,
+                ...options?.headers,
+            }
+        });
+    } catch (error) {
+        if (controller.signal.aborted) {
+            throw new Error('A API demorou demais para responder. Tente novamente.');
         }
-    });
+        throw new Error('Não foi possível conectar ao servidor.');
+    } finally {
+        window.clearTimeout(timeout);
+    }
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || `API request failed with status ${response.status}`);
+        throw new Error(errorData?.error || errorData?.message || `API request failed with status ${response.status}`);
     }
 
     // For 204 No Content

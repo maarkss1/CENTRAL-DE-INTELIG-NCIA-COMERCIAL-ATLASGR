@@ -1,76 +1,84 @@
-import * as React from 'react';
-import { motion } from 'motion/react';
-import { cn } from '../../lib/utils';
-import { useTilt } from '../../lib/motion';
+/* eslint-disable react-refresh/only-export-components */
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "../../lib/utils"
 
-type ConflictingProps = 'onDrag' | 'onDragStart' | 'onDragEnd' | 'onAnimationStart' | 'onAnimationEnd';
+const cardVariants = cva(
+  "relative overflow-hidden rounded-card text-gray-100",
+  {
+    variants: {
+      variant: {
+        default: "bg-slate-900/60 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
+        stat: "bg-gradient-to-br from-white/[0.06] to-white/[0.01] backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
+        outline: "border border-white/10 bg-transparent",
+        accent: "bg-slate-900/60 backdrop-blur-xl border border-atlas-orange/30 shadow-[0_0_30px_-10px_rgba(255,86,24,0.4)]",
+      },
+      padding: {
+        default: "p-6",
+        sm: "p-4",
+        lg: "p-8",
+        none: "p-0",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      padding: "default",
+    },
+  }
+)
 
-export interface CardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, ConflictingProps> {
-  variant?: 'default' | 'glass' | 'elevated' | 'interactive';
-  /** Ativa inclinação 3D sutil que segue o cursor (desativada com prefers-reduced-motion). */
-  tilt?: boolean;
+export interface CardProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof cardVariants> {
+  /** Faixa de destaque laranja→branco no topo do card — assinatura visual da marca Atlas. */
+  accentBar?: boolean
 }
 
-const VARIANT_CLASSES: Record<NonNullable<CardProps['variant']>, string> = {
-  default: 'bg-white border border-slate-100 elevation-1',
-  glass: 'glass-panel elevation-2',
-  elevated: 'bg-white border border-slate-100 elevation-3',
-  interactive:
-    'bg-white border border-slate-100 elevation-2 hover:elevation-3 hover:border-atlas-orange/25 hover:-translate-y-1 transition-all duration-300 cursor-pointer',
-};
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant, padding, accentBar, children, ...props }, ref) => (
+    <div ref={ref} className={cn(cardVariants({ variant, padding, className }))} {...props}>
+      {accentBar && (
+        <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-atlas-orange via-orange-300 to-white" />
+      )}
+      {children}
+    </div>
+  )
+)
+Card.displayName = "Card"
 
-export const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = 'default', tilt = false, children, style, onClick, onKeyDown, role, tabIndex, ...props }, forwardedRef) => {
-    const { ref: tiltRef, style: tiltStyle, onPointerMove, onPointerLeave } = useTilt(6);
+const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("flex flex-col gap-1 mb-4", className)} {...props} />
+  )
+)
+CardHeader.displayName = "CardHeader"
 
-    // Cards clicáveis precisam ser alcançáveis e ativáveis por teclado (WCAG 2.1.1),
-    // já que renderizam como <div> em vez de <button>.
-    const a11yProps = onClick
-      ? {
-          role: role ?? 'button',
-          tabIndex: tabIndex ?? 0,
-          onClick,
-          onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
-            onKeyDown?.(event);
-            if (!event.defaultPrevented && (event.key === 'Enter' || event.key === ' ')) {
-              event.preventDefault();
-              (onClick as React.MouseEventHandler<HTMLDivElement>)(event as unknown as React.MouseEvent<HTMLDivElement>);
-            }
-          },
-        }
-      : { role, tabIndex, onClick, onKeyDown };
+const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
+  ({ className, ...props }, ref) => (
+    <h3 ref={ref} className={cn("font-display text-lg font-bold text-white tracking-tight", className)} {...props} />
+  )
+)
+CardTitle.displayName = "CardTitle"
 
-    if (!tilt) {
-      return (
-        <div
-          ref={forwardedRef}
-          style={style}
-          className={cn('rounded-2xl', VARIANT_CLASSES[variant], className)}
-          {...a11yProps}
-          {...props}
-        >
-          {children}
-        </div>
-      );
-    }
+const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
+  ({ className, ...props }, ref) => (
+    <p ref={ref} className={cn("text-sm text-gray-400", className)} {...props} />
+  )
+)
+CardDescription.displayName = "CardDescription"
 
-    return (
-      <motion.div
-        ref={(node) => {
-          tiltRef.current = node;
-          if (typeof forwardedRef === 'function') forwardedRef(node);
-          else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-        }}
-        style={{ ...style, ...tiltStyle, transformStyle: 'preserve-3d' }}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
-        className={cn('rounded-2xl', VARIANT_CLASSES[variant], className)}
-        {...a11yProps}
-        {...props}
-      >
-        {children}
-      </motion.div>
-    );
-  }
-);
-Card.displayName = 'Card';
+const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("text-sm text-gray-300", className)} {...props} />
+  )
+)
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => (
+    <div ref={ref} className={cn("flex items-center gap-3 mt-4 pt-4 border-t border-white/10", className)} {...props} />
+  )
+)
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, cardVariants }

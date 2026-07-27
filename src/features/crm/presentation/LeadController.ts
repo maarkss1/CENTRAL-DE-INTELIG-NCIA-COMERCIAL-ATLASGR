@@ -91,4 +91,22 @@ export class LeadController {
             next(error);
         }
     };
+
+    exportToBitrix24 = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const { webhookUrl, leadId } = req.body;
+            
+            if (!webhookUrl) {
+                res.status(400).json({ success: false, error: 'webhookUrl é obrigatório' });
+                return;
+            }
+
+            // O LeadUseCases vai exportar o lead via Adapter
+            const result = await this.leadUseCases.exportLeadToBitrix(orgId, leadId, webhookUrl);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

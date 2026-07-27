@@ -1,6 +1,7 @@
 import { prisma } from '../../../lib/prisma.js';
 import { isValidCnpj, sanitizeCnpj, formatCnpj } from './cnpj.util';
 import { searchGooglePlace } from './places.service';
+import { searchNominatimPlace } from './nominatim.service';
 import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from './apollo.service';
 import { fromPrismaCompanyStatus } from '../../../lib/enumMap';
 
@@ -545,15 +546,19 @@ async function runEnrichment(
         updateData.emails = domainGuess.emails;
     }
 
-    // Google Places API (Meu Negócio) Enrichment
+    // Google Places is optional. OpenStreetMap is the zero-cost fallback.
     const locationQuery = updateData.city || company.city || '';
     const stateQuery = updateData.state || company.state || '';
-    const place = await searchGooglePlace(updateData.tradeName || company.tradeName, `${locationQuery} ${stateQuery}`.trim());
+    const companyName = updateData.tradeName || company.tradeName;
+    const location = `${locationQuery} ${stateQuery}`.trim();
+    const googlePlace = await searchGooglePlace(companyName, location);
+    const place = googlePlace || await searchNominatimPlace(companyName, location);
+    const placeSource = googlePlace ? 'Google-Places' : 'OpenStreetMap-Nominatim';
     
     if (place) {
-        updateData.googleRating = place.rating;
-        updateData.googleReviewsCount = place.userRatingCount;
-        updateData.businessHours = place.businessHours;
+        if (place.rating != null) updateData.googleRating = place.rating;
+        if (place.userRatingCount != null) updateData.googleReviewsCount = place.userRatingCount;
+        if (place.businessHours != null) updateData.businessHours = place.businessHours;
         
         if (place.websiteUri && !domainGuess.verified) {
             updateData.website = place.websiteUri;
@@ -565,13 +570,13 @@ async function runEnrichment(
         await prisma.enrichmentLog.create({
             data: {
                 companyId,
-                source: 'Google-Places',
+                source: placeSource,
                 field: 'reputacao-local',
                 status: 'success',
                 rawData: JSON.parse(JSON.stringify(place)),
             }
         });
-        enrichmentSourceLabel += ' + Google';
+        enrichmentSourceLabel += googlePlace ? ' + Google' : ' + OpenStreetMap';
     }
 
     // Apollo Organization Enrich — perfil firmográfico completo (tecnologias, keywords, redes

@@ -1,45 +1,54 @@
-import { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Spark {
-    id: number;
-    x: number;
-    y: number;
+  id: number;
+  x: number;
+  y: number;
 }
 
-export function ClickSpark() {
-    const [sparks, setSparks] = useState<Spark[]>([]);
+export const ClickSpark: React.FC = () => {
+  const [sparks, setSparks] = useState<Spark[]>([]);
 
-    useEffect(() => {
-        const handleClick = (e: MouseEvent) => {
-            const newSpark = {
-                id: Date.now() + Math.random(),
-                x: e.clientX,
-                y: e.clientY,
-            };
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const newSpark = { id: Date.now(), x: e.clientX, y: e.clientY };
+      setSparks((prev) => [...prev, newSpark]);
+      
+      setTimeout(() => {
+        setSparks((prev) => prev.filter((s) => s.id !== newSpark.id));
+      }, 1000);
+    };
 
-            setSparks(prev => [...prev.slice(-10), newSpark]);
+    window.addEventListener('click', handleClick);
+    return () => window.removeEventListener('click', handleClick);
+  }, []);
 
-            setTimeout(() => {
-                setSparks(prev => prev.filter(s => s.id !== newSpark.id));
-            }, 600);
-        };
-
-        window.addEventListener('click', handleClick);
-        return () => window.removeEventListener('click', handleClick);
-    }, []);
-
-    return (
-        <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
-            {sparks.map(spark => (
-                <div
-                    key={spark.id}
-                    className="absolute -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: spark.x, top: spark.y }}
-                >
-                    <span className="block h-8 w-8 animate-ping rounded-full bg-gradient-to-r from-orange-500/40 via-amber-400/30 to-blue-500/40 blur-xs" />
-                    <span className="absolute inset-0 block h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full bg-orange-400 opacity-80" />
-                </div>
-            ))}
-        </div>
-    );
-}
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden">
+      <AnimatePresence>
+        {sparks.map((spark) => (
+          <React.Fragment key={spark.id}>
+            {/* Core burst */}
+            <motion.div
+              initial={{ opacity: 1, scale: 0 }}
+              animate={{ opacity: 0, scale: 2 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute h-12 w-12 rounded-full border border-sky-400 bg-sky-400/20 shadow-[0_0_20px_rgba(56,189,248,0.5)]"
+              style={{ left: spark.x - 24, top: spark.y - 24 }}
+            />
+            {/* Ring expansion */}
+            <motion.div
+              initial={{ opacity: 0.8, scale: 0, borderWidth: '4px' }}
+              animate={{ opacity: 0, scale: 4, borderWidth: '0px' }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="absolute h-16 w-16 rounded-full border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.4)]"
+              style={{ left: spark.x - 32, top: spark.y - 32 }}
+            />
+          </React.Fragment>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+};

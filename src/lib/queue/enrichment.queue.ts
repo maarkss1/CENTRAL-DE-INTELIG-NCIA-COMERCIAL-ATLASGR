@@ -6,6 +6,7 @@ import { enrichCompany } from '../../features/prospecting/services/enrichment.se
 export const ENRICHMENT_QUEUE_NAME = 'enrichment-queue';
 
 export const enrichmentQueue = new Queue(ENRICHMENT_QUEUE_NAME, { connection });
+enrichmentQueue.on('error', (err) => logger.warn({ message: err.message }, 'enrichmentQueue offline'));
 
 interface EnrichmentJobData {
     companyId: string;

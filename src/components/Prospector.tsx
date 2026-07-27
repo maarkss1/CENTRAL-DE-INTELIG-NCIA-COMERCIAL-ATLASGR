@@ -19,7 +19,7 @@ interface ProspectorProps {
 const loadingSteps = [
     "Consultando bases públicas (Receita Federal)...",
     "Cruzando dados com LinkedIn...",
-    "Analisando fit com ICP da Atlas...",
+    "Analisando fit com ICP da AtlasGR...",
     "Calculando Score de Propensão...",
     "Finalizando prospecção..."
 ];
@@ -181,7 +181,7 @@ export function Prospector({ onSaveLead }: ProspectorProps) {
                         </div>
                         <h3 className="font-black text-xl text-atlas-dark mb-2">Nenhum lead encontrado</h3>
                         <p className="text-sm text-gray-500 text-center max-w-sm">
-                            Preencha os critérios de Perfil de Cliente Ideal (ICP) ao lado e deixe o motor de IA da Atlas buscar as melhores oportunidades de mercado.
+                            Preencha os critérios de Perfil de Cliente Ideal (ICP) ao lado e deixe o motor de IA da AtlasGR buscar as melhores oportunidades de mercado.
                         </p>
                     </div>
                 )}

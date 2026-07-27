@@ -1,18 +1,23 @@
 import { Queue, Worker, QueueEvents, Job } from 'bullmq';
-import { connection } from './redis.js';
+import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { prisma } from '../prisma.js';
 
 export const COMPANY_QUEUE_NAME = 'companies-enrichment';
 
 export const companyQueue = new Queue(COMPANY_QUEUE_NAME, { connection });
-export const companyQueueEvents = new QueueEvents(COMPANY_QUEUE_NAME, { connection });
+export const companyQueueEvents = queuesEnabled
+    ? new QueueEvents(COMPANY_QUEUE_NAME, { connection })
+    : null;
 
-companyQueueEvents.on('completed', ({ jobId }) => {
+companyQueue.on('error', (err) => logger.warn({ message: err.message }, 'companyQueue offline'));
+companyQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'companyQueueEvents offline'));
+
+companyQueueEvents?.on('completed', ({ jobId }) => {
     logger.info({ jobId }, 'Job completed in company enrichment queue');
 });
 
-companyQueueEvents.on('failed', ({ jobId, failedReason }) => {
+companyQueueEvents?.on('failed', ({ jobId, failedReason }) => {
     logger.error({ jobId, failedReason }, 'Job failed in company enrichment queue');
 });
 

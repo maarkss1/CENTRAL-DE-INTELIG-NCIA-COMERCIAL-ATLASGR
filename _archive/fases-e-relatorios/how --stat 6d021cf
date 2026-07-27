@@ -1,0 +1,55 @@
+[33mcommit 8c8404327a51dfca8f4475e6f8ccb5bcc8df2d0e[m[33m ([m[1;31morigin/feat/crm-core-13656488037292136124[m[33m)[m
+Merge: c97587a 34539db
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Fri Jul 17 01:13:19 2026 -0300
+
+    Merge branch 'main' into feat/crm-core-13656488037292136124
+
+[33mcommit 34539db6702c1e64383ae60c17cbe2dd0f52b57a[m
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Fri Jul 17 00:23:26 2026 -0300
+
+    19
+
+[33mcommit 6d021cf4508bfe383dd2a17fc4f71690b7826eab[m
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Fri Jul 17 03:21:22 2026 +0000
+
+    feat(crm): implement core crm modules and pipeline
+    
+    - Update Prisma schema with Company, Contact, Lead extensions, Activity, Note, and TimelineEvent models.
+    - Create Express API routes with Zod validation and dedicated Service classes.
+    - Implement React UI for Companies, Contacts, Dashboard, Activities, and Timeline.
+    - Refactor CrmBoard into a full drag-and-drop Kanban pipeline.
+    - Upgrade to Prisma v7 with prisma.config.ts support.
+    
+    Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>
+
+[33mcommit 5b1ff1c8285fa770109d67a9e03c528b6b235ca0[m
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Thu Jul 16 22:24:38 2026 -0300
+
+    feat: Implement Sales Intelligence modules
+
+[33mcommit 2576d1bef27008c9ad0b2b4f5c542f3ed49ac93c[m[33m ([m[1;31morigin/fix/fase0-auditoria-6982685511152096188[m[33m)[m
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Thu Jul 16 22:17:58 2026 +0000
+
+    feat: consolidação da arquitetura base (Fase 0)
+    
+    - Setup estrutural (src/components/layout, features, lib, etc)
+    - Configuração de ESLint e Prettier
+    - Correção de bugs de tipagem do Typescript
+    - Inicialização e setup do Prisma
+    - Configuração CI Github Actions
+    - Documentação e Relatório Final
+    
+    Co-authored-by: google-labs-jules[bot] <161369871+google-labs-jules[bot]@users.noreply.github.com>
+
+[33mcommit 439df3cac192666cc3b5b2d30e3d9f2dcb0e2654[m
+Author: MaarksN <130610135+MaarksN@users.noreply.github.com>
+Date:   Thu Jul 16 18:28:16 2026 -0300
+
+    feat: initialize Atlas Smart CRM application
+    
+    Scaffolded the project with React, Vite, Tailwind CSS, and TypeScript. Added core UI structure, lead management types, and initial branding configurations.

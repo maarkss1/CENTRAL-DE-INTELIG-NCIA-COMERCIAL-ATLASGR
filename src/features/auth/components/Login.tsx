@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { authClient } from '../../../lib/auth-client';
+import { Logo } from '../../../components/Logo';
+import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
 
 export function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -13,36 +15,62 @@ export function Login() {
                 provider,
                 callbackURL: '/app',
             });
-            // The browser will redirect to the OAuth provider, so we won't hit here immediately
         } catch (err: any) {
             setError(`Falha ao fazer login com ${provider}. Tente novamente.`);
             setIsLoading(false);
         }
     };
 
+    const handleDevLogin = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            await authClient.signUp.email({
+                email: 'admin@prospector.com',
+                password: 'password123',
+                name: 'Administrador',
+                callbackURL: '/app'
+            }).catch(() => {});
+            
+            const res = await authClient.signIn.email({
+                email: 'admin@prospector.com',
+                password: 'password123',
+                callbackURL: '/app'
+            });
+            
+            if (res.error) {
+                setError(res.error.message || 'Erro no login de dev');
+                setIsLoading(false);
+            }
+        } catch (err: any) {
+            setError('Falha no login de desenvolvimento.');
+            setIsLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center p-4">
-            {/* Background elements */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px]" />
+        <div className="min-h-screen bg-[#0a0a0c] flex items-center justify-center p-4 relative overflow-hidden">
+            {/* Split Glowing Background: Left Orange / Right Blue */}
+            <div className="absolute inset-0 flex z-0 overflow-hidden pointer-events-none">
+                <div className="w-1/2 h-full bg-gradient-to-br from-amber-600 via-orange-600 to-rose-700 opacity-30 blur-2xl" />
+                <div className="w-1/2 h-full bg-gradient-to-bl from-sky-500 via-blue-600 to-indigo-800 opacity-30 blur-2xl" />
             </div>
 
-            <div className="relative w-full max-w-md bg-[#121214]/80 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+            <div className="relative z-10 w-full max-w-md bg-[#121214]/85 backdrop-blur-2xl border border-white/15 rounded-[3rem] p-10 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 mb-6">
-                        <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                    <div className="flex items-center justify-center gap-6 mb-6 p-4 rounded-3xl bg-white/5 border border-white/10 shadow-inner">
+                        <Logo variant="white" className="h-10" />
+                        <div className="h-8 w-[1px] bg-white/20" />
+                        <TotalTrackLogo className="h-9" />
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">NexusOne OS</h1>
-                    <p className="text-gray-400 text-sm">
-                        Enterprise Prospecting & Intelligence
+                    <h2 className="text-xl font-black text-white tracking-tight uppercase">Plataforma Comercial</h2>
+                    <p className="text-gray-400 text-xs font-medium mt-1">
+                        AtlasGR & TotalTrac • Inteligência B2B
                     </p>
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                    <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
                         {error}
                     </div>
                 )}
@@ -51,9 +79,9 @@ export function Login() {
                     <button
                         onClick={() => handleSocialLogin('google')}
                         disabled={isLoading}
-                        className="w-full relative group flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                        className="w-full relative group flex items-center justify-center gap-3 px-6 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold transition-all duration-300 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-md"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <svg className="w-5 h-5 relative z-10" viewBox="0 0 24 24">
                             <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                             <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
@@ -66,9 +94,9 @@ export function Login() {
                     <button
                         onClick={() => handleSocialLogin('microsoft')}
                         disabled={isLoading}
-                        className="w-full relative group flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-medium transition-all duration-300 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                        className="w-full relative group flex items-center justify-center gap-3 px-6 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold transition-all duration-300 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-md"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                         <svg className="w-5 h-5 relative z-10" viewBox="0 0 21 21">
                             <path fill="#f35325" d="M0 0h10v10H0z" />
                             <path fill="#81bc06" d="M11 0h10v10H11z" />
@@ -77,10 +105,24 @@ export function Login() {
                         </svg>
                         <span className="relative z-10">Continuar com Microsoft</span>
                     </button>
+
+                    <div className="relative flex items-center py-2">
+                        <div className="flex-grow border-t border-white/10"></div>
+                        <span className="flex-shrink-0 mx-4 text-xs font-bold text-gray-500">OU</span>
+                        <div className="flex-grow border-t border-white/10"></div>
+                    </div>
+
+                    <button
+                        onClick={handleDevLogin}
+                        disabled={isLoading}
+                        className="w-full relative group flex items-center justify-center gap-3 px-6 py-4 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black transition-all duration-300 hover:brightness-110 shadow-[0_10px_30px_rgba(255,86,24,0.4)] disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+                    >
+                        <span className="relative z-10">🚀 Login Rápido (Desenvolvimento)</span>
+                    </button>
                 </div>
 
                 <div className="mt-8 pt-6 border-t border-white/5">
-                    <p className="text-xs text-center text-gray-500">
+                    <p className="text-xs text-center text-gray-500 font-medium">
                         Acesso exclusivo para clientes corporativos.<br />
                         Ambiente protegido e monitorado (Zero Trust).
                     </p>
