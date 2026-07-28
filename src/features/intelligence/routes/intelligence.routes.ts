@@ -8,13 +8,43 @@ import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { studioGenerationSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
 
-router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/studio', validateRequest(studioGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { tool, leadId, competitor } = req.body as { tool: string; leadId?: string; competitor?: string };
-        const result = await aiService.generateContent(tool, leadId, { competitor });
+        const result = await studioService.generate(req.body as StudioGenerationRequest);
+        res.json({ result });
+    } catch (error) {
+        logger.error({ err: error }, 'Error generating AI studio artifact');
+        next(error);
+    }
+});
+
+const contentGenerationSchema = z.object({
+    tool: z.string().min(1).max(80),
+    leadId: z.string().min(1).max(100).optional(),
+    competitor: z.string().trim().max(200).optional(),
+    tone: z.string().trim().max(80).optional(),
+    objective: z.string().trim().max(100).optional(),
+    personaFallback: z.string().trim().max(200).optional(),
+    brandId: z.enum(['atlasgr', 'totaltrac']).default('atlasgr'),
+});
+
+router.post('/', validateRequest(contentGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { tool, leadId, competitor, tone, objective, personaFallback, brandId } = req.body as z.infer<typeof contentGenerationSchema>;
+        const authRequest = req as AuthRequest;
+        const result = await aiService.generateContent(tool, leadId, {
+            competitor,
+            tone,
+            objective,
+            personaFallback,
+            brandId,
+            organizationId: authRequest.user.organizationId,
+        });
         res.json({ result });
     } catch (error: unknown) {
         const err = error as Error;
@@ -100,9 +130,13 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction): P
 // Rotas para AIPendingActions
 router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const db = (req as any).db || req.app.locals.prisma;
+        const authRequest = req as AuthRequest;
+        const db = authRequest.db || prisma;
         const pendingActions = await db.aIPendingAction.findMany({
-            where: { approved: false },
+            where: {
+                approved: false,
+                organizationId: authRequest.user.organizationId,
+            },
             orderBy: { id: 'desc' }
         });
         res.json(pendingActions);
@@ -115,19 +149,49 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction): 
 router.post('/pending/:id/approve', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
-        const db = (req as any).db || req.app.locals.prisma;
+        const authRequest = req as AuthRequest;
+        const db = authRequest.db || prisma;
+        const pendingAction = await db.aIPendingAction.findFirst({
+            where: { id, organizationId: authRequest.user.organizationId, approved: false },
+        });
+        if (!pendingAction) {
+            res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
+            return;
+        }
         
         const action = await db.aIPendingAction.update({
             where: { id },
             data: { approved: true }
         });
         
-        // Aqui enviaria o e-mail de verdade baseado no payload
-        logger.info({ actionId: id }, 'AI Action approved and simulated execution');
+        logger.info({ actionId: id }, 'AI action approved for downstream execution');
         
         res.json({ success: true, action });
     } catch (error) {
         logger.error({ err: error }, 'Error approving action');
+        next(error);
+    }
+});
+
+router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const authRequest = req as AuthRequest;
+        const db = authRequest.db || prisma;
+        const pendingAction = await db.aIPendingAction.findFirst({
+            where: {
+                id: req.params.id,
+                organizationId: authRequest.user.organizationId,
+                approved: false,
+            },
+        });
+        if (!pendingAction) {
+            res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
+            return;
+        }
+        await db.aIPendingAction.delete({ where: { id: pendingAction.id } });
+        res.status(204).send();
+    } catch (error) {
+        logger.error({ err: error }, 'Error discarding pending AI action');
         next(error);
     }
 });
@@ -148,8 +212,8 @@ const putAiSettingsSchema = z.object({
     settings: z.array(
         z.object({
             toolKey: z.string().min(1),
-            provider: z.string().min(1),
-            model: z.string().min(1),
+            provider: z.literal('Groq'),
+            model: z.enum(['gemini-pro', 'gemini-flash']),
             temperature: z.number().min(0).max(2),
         }),
     ),
@@ -182,13 +246,17 @@ router.put('/ai-settings', validateRequest(putAiSettingsSchema), async (req: Req
 // (mesmo /api/analytics/overview usado no LiveStatsWidget) e devolve uma leitura executiva em Markdown.
 const reportSchema = z.object({
     metrics: z.record(z.string(), z.unknown()),
+    brandId: z.enum(['atlasgr', 'totaltrac']).default('atlasgr'),
 });
 
 router.post('/report', validateRequest(reportSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { metrics } = req.body as { metrics: Record<string, unknown> };
+        const { metrics, brandId } = req.body as z.infer<typeof reportSchema>;
+        const brandContext = brandId === 'totaltrac'
+            ? 'TotalTrac (tecnologia para telemetria, videotelemetria, jornada e proteção de frotas)'
+            : 'AtlasGR (inteligência comercial e gestão de risco logístico)';
 
-        const prompt = `Você é um analista de operações comerciais da Atlas (SaaS de inteligência logística e gerenciamento de risco).
+        const prompt = `Você é um analista de operações comerciais da ${brandContext}.
 Abaixo estão os números atuais da plataforma (CRM, prospecção e pipeline):
 
 ${JSON.stringify(metrics, null, 2)}

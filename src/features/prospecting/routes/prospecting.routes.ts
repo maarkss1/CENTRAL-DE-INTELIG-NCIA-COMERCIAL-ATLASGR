@@ -1,10 +1,21 @@
 import { Router, Request, Response, NextFunction } from 'express';
 
 import { discoverCandidates, promoteToCrm, discoverDecisionMakers } from '../services/prospecting.service.js';
+import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
+
+// Revalida o login técnico da Apollo por API key sem consumir créditos.
+router.post('/apollo/reconnect', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const status = await checkApolloConnection();
+        res.json({ success: true, data: status });
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Descoberta de candidatos via IA a partir de um ICP (Perfil de Cliente Ideal).
 router.post('/discover', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -14,7 +25,7 @@ router.post('/discover', async (req: Request, res: Response, next: NextFunction)
             res.status(400).json({ success: false, error: 'Critérios de busca inválidos' });
             return;
         }
-        const result = await discoverCandidates(criteria as any);
+        const result = await discoverCandidates(criteria);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

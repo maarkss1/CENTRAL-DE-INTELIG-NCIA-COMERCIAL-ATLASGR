@@ -296,16 +296,17 @@ model User {
 }
 
 model Organization {
-  id         String     @id @default(cuid())
-  name       String     @unique
-  users      User[]
-  companies  Company[]
-  contacts   Contact[]
-  leads      Lead[]
-  prospects  Prospect[]
-  activities Activity[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id               String            @id @default(cuid())
+  name             String            @unique
+  users            User[]
+  companies        Company[]
+  contacts         Contact[]
+  leads            Lead[]
+  prospects        Prospect[]
+  activities       Activity[]
+  aiPendingActions AIPendingAction[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 }
 
 model KnowledgeChunk {
@@ -393,9 +394,9 @@ model Document {
 }
 
 model DocumentChunk {
-  id         String                       @id @default(cuid())
+  id         String                      @id @default(cuid())
   documentId String
-  document   Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
   content    String
   vector     Unsupported("vector(768)")?
 
@@ -437,11 +438,15 @@ model AIEvaluation {
 }
 
 model AIPendingAction {
-  id       String  @id @default(cuid())
-  entity   String
-  action   String
-  payload  Json
-  approved Boolean @default(false)
+  id             String        @id @default(cuid())
+  entity         String
+  action         String
+  payload        Json
+  approved       Boolean       @default(false)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, approved])
 }
 
 /// Modelo/provedor de IA escolhido para cada ferramenta (toolKey = chave em ContentTool, ex.

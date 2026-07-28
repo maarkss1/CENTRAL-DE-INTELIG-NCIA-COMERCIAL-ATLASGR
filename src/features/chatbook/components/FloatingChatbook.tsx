@@ -2,11 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, X, Globe, Send, RefreshCw, User, Target,
-  AlertTriangle, Search, ExternalLink,
+  AlertTriangle,
   Play, StopCircle, Award, Database, Flame, Copy, Check, Filter
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { Button } from '../../../components/ui/Button';
+import { api } from '../../../lib/api';
 import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../constants/brandMatrices';
 
 interface Message {
@@ -15,12 +16,10 @@ interface Message {
   text: string;
   timestamp: string;
   source?: 'internal' | 'web_search' | 'roleplay';
-  searchQuery?: string;
-  webResults?: Array<{ title: string; snippet: string; url: string }>;
 }
 
 export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { activeBrand } = useBrand();
+  const { activeBrand, brandInfo } = useBrand();
   const [activeTab, setActiveTab] = useState<'assistant' | 'roleplay' | 'playbook'>('assistant');
   const [searchMode, setSearchMode] = useState<'internal' | 'web_search' | 'roleplay'>('web_search');
 
@@ -35,12 +34,12 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
     setSelectedBrand(activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr');
   }, [activeBrand]);
 
-  // State do Assistente Conversacional & Web Agent
+  // Estado do assistente conversacional.
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'bot',
-      text: 'Olá! Sou o Atlas Copilot & Web Agent. Posso consultar nossa base de leads interna ou realizar buscas externas na web em tempo real sobre empresas, CNPJs e inteligência de mercado.',
+      text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
       timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
       source: 'web_search'
     }
@@ -49,12 +48,25 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
   const [isSearching, setIsSearching] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setMessages([{
+      id: `${activeBrand}-${Date.now()}`,
+      sender: 'bot',
+      text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
+      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      source: 'web_search',
+    }]);
+  }, [activeBrand, brandInfo.name]);
+
   // State do Simulador de Roleplay
   const [roleplayPersona, setRoleplayPersona] = useState<'skeptical_cfo' | 'strict_buyer' | 'tech_director'>('skeptical_cfo');
   const [roleplayActive, setRoleplayActive] = useState(false);
   const [roleplayMessages, setRoleplayMessages] = useState<Array<{ sender: 'sdr' | 'buyer'; text: string }>>([]);
   const [roleplayInput, setRoleplayInput] = useState('');
   const [roleplayScore, setRoleplayScore] = useState<{ clarity: number; objectionHandling: number; total: number } | null>(null);
+  const [roleplayFeedback, setRoleplayFeedback] = useState('');
+  const [roleplayError, setRoleplayError] = useState('');
+  const [isRoleplayThinking, setIsRoleplayThinking] = useState(false);
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -68,7 +80,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  // Envio de Mensagem / Pesquisa Externa no Chatbot Assistente
+  // Envio de mensagem ao copiloto real, com contexto local opcional.
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputQuery.trim() || isSearching) return;
@@ -86,77 +98,94 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
     setMessages((prev) => [...prev, userMsg]);
     setIsSearching(true);
 
-    await new Promise((r) => setTimeout(r, 800));
-
-    let botResponse = '';
-    let webResults: Array<{ title: string; snippet: string; url: string }> | undefined = undefined;
-
     const queryLower = userText.toLowerCase();
 
-    // 1. Busca por Objeções na Base Expandida de 100 itens
     const matchedObjection = BRAND_OBJECTIONS.find((o) =>
-      queryLower.includes(o.brand) ||
-      queryLower.includes(o.segment.toLowerCase()) ||
-      queryLower.includes(o.persona.toLowerCase()) ||
-      queryLower.includes('objeção') ||
-      queryLower.includes('caro') ||
-      queryLower.includes('concorrente') ||
-      queryLower.includes('rastreador') ||
-      queryLower.includes('crm')
+      o.brand === selectedBrand && (
+        queryLower.includes(o.segment.toLowerCase()) ||
+        queryLower.includes(o.persona.toLowerCase()) ||
+        queryLower.includes('objeção') ||
+        queryLower.includes('caro') ||
+        queryLower.includes('concorrente') ||
+        queryLower.includes('rastreador') ||
+        queryLower.includes('crm')
+      )
     );
 
-    // 2. Busca por Qualificação na Base Expandida
     const matchedQual = BRAND_QUALIFICATIONS.find((q) =>
-      queryLower.includes(q.framework.toLowerCase()) ||
-      queryLower.includes('qualificar') ||
-      queryLower.includes('pergunta') ||
-      queryLower.includes(q.segment.toLowerCase())
+      q.brand === selectedBrand && (
+        queryLower.includes(q.framework.toLowerCase()) ||
+        queryLower.includes('qualificar') ||
+        queryLower.includes('pergunta') ||
+        queryLower.includes(q.segment.toLowerCase())
+      )
     );
 
-    if (searchMode === 'web_search' || queryLower.includes('cnpj') || queryLower.includes('empresa') || queryLower.includes('buscar web')) {
-      botResponse = `🔍 **Pesquisa Externa Realizada**: Varri fontes públicas e inteligência de mercado sobre "${userText}".\n\nEncontrei insights valiosos para enriquecer sua abordagem comercial:`;
-      webResults = [
-        { title: `Relatório Corporativo: ${userText}`, snippet: `Empresas no perfil de ${userText} possuem alta demanda por automação comercial e redução de CAC.`, url: `https://google.com/search?q=${encodeURIComponent(userText)}` },
-        { title: `Receita Federal & Dados CNPJ`, snippet: `Empresa Ativa | Porte Mid-Market/Enterprise | Quadro Sócio-Administrador verificado.`, url: 'https://receita.fazenda.gov.br' },
-        { title: `Mídias & Presença Digital`, snippet: `Equipe comercial ativa e infraestrutura em nuvem mapeada.`, url: 'https://linkedin.com' }
-      ];
-    } else if (matchedObjection) {
-      botResponse = `🎯 **Matriz de Objeções Mapeada (${matchedObjection.brand.toUpperCase()})**:\n\n**Segmento**: ${matchedObjection.segment}\n**Persona**: ${matchedObjection.persona}\n\n**❓ Objeção**: "${matchedObjection.objectionTitle}"\n\n**💬 Script de Contorno Recomendado**:\n${matchedObjection.responseScript}\n\n💡 **Diferencial**: ${matchedObjection.keyDifferentiator}`;
-    } else if (matchedQual) {
-      botResponse = `📋 **Matriz de Qualificação (${matchedQual.framework} - ${matchedQual.brand.toUpperCase()})**:\n\n**Segmento**: ${matchedQual.segment}\n**Persona**: ${matchedQual.persona}\n**Categoria**: ${matchedQual.questionCategory}\n\n**❓ Pergunta de Diagnóstico**:\n"${matchedQual.questionText}"\n\n🎯 **Resposta Esperada**: ${matchedQual.idealAnswer}`;
-    } else {
-      botResponse = `Analisamos sua consulta na nossa base expandida de **100 Objeções** e **100 Qualificações**. Para obter a melhor abordagem para ${selectedBrand.toUpperCase()}, informe a persona (ex: CFO, VP de Vendas, Diretor de Logística) ou a objeção enfrentada!`;
+    const localContext = searchMode === 'internal'
+      ? [
+          matchedObjection
+            ? `MATRIZ DE OBJEÇÃO:\n${JSON.stringify(matchedObjection, null, 2)}`
+            : '',
+          matchedQual
+            ? `MATRIZ DE QUALIFICAÇÃO:\n${JSON.stringify(matchedQual, null, 2)}`
+            : '',
+        ].filter(Boolean).join('\n\n')
+      : '';
+
+    try {
+      const response = await api.post<{ result: { answer: string; webAccess: false } }>('/api/intelligence/studio', {
+        kind: 'assistant',
+        brand: {
+          name: brandInfo.name,
+          description: brandInfo.description,
+        },
+        inputs: {
+          question: userText,
+          mode: searchMode === 'internal' ? 'internal' : 'general',
+          localContext,
+        },
+      }, { timeoutMs: 90_000 });
+
+      setMessages((prev) => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'bot',
+        text: response.result.answer,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        source: searchMode,
+      }]);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'Falha inesperada';
+      setMessages((prev) => [...prev, {
+        id: (Date.now() + 1).toString(),
+        sender: 'bot',
+        text: `Não consegui consultar o motor de IA agora. ${reason}`,
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        source: searchMode,
+      }]);
+    } finally {
+      setIsSearching(false);
     }
-
-    const botMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      sender: 'bot',
-      text: botResponse,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      source: searchMode,
-      webResults
-    };
-
-    setMessages((prev) => [...prev, botMsg]);
-    setIsSearching(false);
   };
 
   // Roleplay Simulator Interactions extraídas das 100 objeções
   const startRoleplay = () => {
     setRoleplayActive(true);
     setRoleplayScore(null);
+    setRoleplayFeedback('');
+    setRoleplayError('');
     
     // Pega objeções da marca selecionada na base de 100
     const brandObjs = BRAND_OBJECTIONS.filter(o => o.brand === selectedBrand);
     const randomObj = brandObjs[Math.floor(Math.random() * brandObjs.length)];
+    const objectionText = randomObj.objectionText.replace(/[.!?]+$/, '');
 
     let initialGreeting = '';
     if (roleplayPersona === 'skeptical_cfo') {
-      initialGreeting = `Olá! Sou o CFO. Em nossa operação de ${randomObj.segment}, ${randomObj.objectionText}. O que a sua solução traz de retorno financeiro para justificar a contratação?`;
+      initialGreeting = `Olá! Sou o CFO. Em nossa operação de ${randomObj.segment}, ${objectionText}. O que a sua solução traz de retorno financeiro para justificar a contratação?`;
     } else if (roleplayPersona === 'strict_buyer') {
-      initialGreeting = `Boa tarde. Em nossa operação de ${randomObj.segment}, ${randomObj.objectionText}. Por que deveríamos perder tempo avaliando o ${selectedBrand.toUpperCase()}?`;
+      initialGreeting = `Boa tarde. Em nossa operação de ${randomObj.segment}, ${objectionText}. Por que deveríamos perder tempo avaliando o ${selectedBrand.toUpperCase()}?`;
     } else {
-      initialGreeting = `Oi. Sou o Diretor Técnico. Falando como ${randomObj.persona}, a dor principal em ${randomObj.segment} é que ${randomObj.objectionText}. Como vocês resolvem isso na prática?`;
+      initialGreeting = `Oi. Sou o Diretor Técnico. Falando como ${randomObj.persona}, a dor principal em ${randomObj.segment} é que ${objectionText}. Como vocês resolvem isso na prática?`;
     }
 
     setRoleplayMessages([{ sender: 'buyer', text: initialGreeting }]);
@@ -164,35 +193,63 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
 
   const handleRoleplaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!roleplayInput.trim() || !roleplayActive) return;
+    if (!roleplayInput.trim() || !roleplayActive || isRoleplayThinking) return;
 
     const userText = roleplayInput;
     setRoleplayInput('');
+    setRoleplayError('');
+    setRoleplayFeedback('');
+    const transcript = [...roleplayMessages, { sender: 'sdr' as const, text: userText }];
+    setRoleplayMessages(transcript);
+    setIsRoleplayThinking(true);
 
-    setRoleplayMessages((prev) => [...prev, { sender: 'sdr', text: userText }]);
+    const playbookContext = BRAND_OBJECTIONS
+      .filter((item) => item.brand === selectedBrand)
+      .slice(0, 3)
+      .map((item) => JSON.stringify({
+        segment: item.segment,
+        persona: item.persona,
+        objection: item.objectionText,
+        responseGuidance: item.responseScript,
+        differentiator: item.keyDifferentiator,
+      }))
+      .join('\n');
 
-    await new Promise((r) => setTimeout(r, 700));
+    try {
+      const response = await api.post<{
+        result: {
+          reply: string;
+          feedback: string;
+          clarity: number;
+          objectionHandling: number;
+          total: number;
+        };
+      }>('/api/intelligence/studio', {
+        kind: 'roleplay',
+        brand: {
+          name: brandInfo.name,
+          description: brandInfo.description,
+        },
+        inputs: {
+          persona: roleplayPersona,
+          message: userText,
+          transcript,
+          playbookContext,
+        },
+      }, { timeoutMs: 90_000 });
 
-    // Seleciona réplica avançada da base de 100
-    const brandObjs = BRAND_OBJECTIONS.filter(o => o.brand === selectedBrand);
-    const sampleObj = brandObjs[Math.floor(Math.random() * brandObjs.length)];
-
-    let buyerReply = '';
-    if (roleplayPersona === 'skeptical_cfo') {
-      buyerReply = `Entendi seu argumento sobre ${sampleObj.keyDifferentiator}. Mas como o ${selectedBrand.toUpperCase()} prova esse payback sem inflar custos operacionais adicionais?`;
-    } else if (roleplayPersona === 'strict_buyer') {
-      buyerReply = `A resposta foi boa sobre ${sampleObj.segment}. Se vocês cobrirem a proposta da concorrência e garantirem onboarding imediato, posso marcar uma reunião com a diretoria.`;
-    } else {
-      buyerReply = `Fiquei impressionado com o argumento. Gostaria de receber a documentação técnica para validar a aprovação do time.`;
+      setRoleplayMessages((prev) => [...prev, { sender: 'buyer', text: response.result.reply }]);
+      setRoleplayFeedback(response.result.feedback);
+      setRoleplayScore({
+        clarity: response.result.clarity,
+        objectionHandling: response.result.objectionHandling,
+        total: response.result.total,
+      });
+    } catch (error) {
+      setRoleplayError(error instanceof Error ? error.message : 'Falha ao consultar o motor de IA');
+    } finally {
+      setIsRoleplayThinking(false);
     }
-
-    setRoleplayMessages((prev) => [...prev, { sender: 'buyer', text: buyerReply }]);
-
-    setRoleplayScore({
-      clarity: 94,
-      objectionHandling: 90,
-      total: 92
-    });
   };
 
   // Filtered Lists for Objections and Qualifications
@@ -239,12 +296,12 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="font-extrabold text-base text-white tracking-tight">Atlas Copilot & Web Agent</h2>
+                    <h2 className="font-extrabold text-base text-white tracking-tight">{brandInfo.name} Copilot</h2>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      Live Web AI
+                      Groq IA
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400">Pesquisas Externas, Assistente Comercial e Matriz por Marca/Persona</p>
+                  <p className="text-xs text-gray-400">Assistente comercial com base interna; sem navegação web</p>
                 </div>
               </div>
 
@@ -265,7 +322,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                   activeTab === 'assistant' ? 'bg-atlas-orange text-white shadow-md font-extrabold' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                <Globe className="w-4 h-4" /> Assistente & Web Search
+                <Globe className="w-4 h-4" /> Assistente IA
               </button>
               <button
                 onClick={() => setActiveTab('roleplay')}
@@ -285,12 +342,12 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
               </button>
             </div>
 
-            {/* CONTEÚDO DA ABA 1: ASSISTENTE CONVERSACIONAL & WEB AGENT */}
+            {/* CONTEÚDO DA ABA 1: ASSISTENTE CONVERSACIONAL */}
             {activeTab === 'assistant' && (
               <div className="flex-1 flex flex-col min-h-0 bg-slate-900/50">
                 {/* Mode Selector */}
                 <div className="p-3 border-b border-white/10 bg-slate-950/40 flex items-center justify-between text-xs">
-                  <span className="text-gray-400 font-medium">Modo de Busca:</span>
+                  <span className="text-gray-400 font-medium">Fonte de contexto:</span>
                   <div className="flex items-center gap-1.5 bg-slate-800 p-1 rounded-xl border border-white/10">
                     <button
                       onClick={() => setSearchMode('web_search')}
@@ -298,7 +355,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                         searchMode === 'web_search' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      <Globe className="w-3.5 h-3.5" /> Pesquisa Web Externa
+                      <Globe className="w-3.5 h-3.5" /> IA geral (sem web)
                     </button>
                     <button
                       onClick={() => setSearchMode('internal')}
@@ -306,7 +363,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                         searchMode === 'internal' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                       }`}
                     >
-                      <Database className="w-3.5 h-3.5" /> Base Atlas Interna
+                      <Database className="w-3.5 h-3.5" /> Base {brandInfo.name}
                     </button>
                   </div>
                 </div>
@@ -327,33 +384,13 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       >
                         <div className="flex items-center justify-between gap-2 text-[10px] opacity-75 pb-1 border-b border-white/10">
                           <span className="font-bold uppercase tracking-wider">
-                            {msg.sender === 'user' ? 'Você' : 'Atlas AI Web Agent'}
+                            {msg.sender === 'user' ? 'Você' : `${brandInfo.name} Copilot`}
                           </span>
                           <span>{msg.timestamp}</span>
                         </div>
 
                         <p className="whitespace-pre-line">{msg.text}</p>
 
-                        {msg.webResults && (
-                          <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-1">
-                              <Search className="w-3 h-3" /> Resultados Encontrados na Web (Fontes Externas)
-                            </span>
-                            <div className="space-y-2">
-                              {msg.webResults.map((res, idx) => (
-                                <div key={idx} className="p-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-[11px] space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-bold text-indigo-300 truncate">{res.title}</span>
-                                    <a href={res.url} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white shrink-0">
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  </div>
-                                  <p className="text-gray-400 text-[10px] leading-tight">{res.snippet}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -361,7 +398,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                   {isSearching && (
                     <div className="flex items-center gap-2 text-xs text-indigo-400 bg-slate-800/80 p-3 rounded-2xl border border-white/10 w-fit animate-pulse">
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Consultando dados na web e varrendo inteligência de mercado...</span>
+                      <span>Consultando o motor Groq...</span>
                     </div>
                   )}
 
@@ -372,7 +409,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                 <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10 bg-slate-950/80 flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder={searchMode === 'web_search' ? '🔎 Digite o nome da empresa, CNPJ ou tópico para buscar na web...' : '💬 Faça uma pergunta ao assistente comercial...'}
+                    placeholder={searchMode === 'web_search' ? 'Pergunte à IA geral (sem dados da web em tempo real)...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
                     value={inputQuery}
                     onChange={(e) => setInputQuery(e.target.value)}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs border border-white/10 focus:outline-none focus:ring-1 focus:ring-atlas-orange"
@@ -442,11 +479,12 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                     <div className="flex items-center gap-2">
                       <Award className="w-5 h-5 text-emerald-400" />
                       <div>
-                        <span className="font-bold text-white block">Avaliação de Desempenho do SDR</span>
-                        <span className="text-[10px] text-gray-400">Clareza: {roleplayScore.clarity}% | Contorno Objeções: {roleplayScore.objectionHandling}%</span>
+                        <span className="font-bold text-white block">Feedback estimado pela IA</span>
+                        <span className="text-[10px] text-gray-400">Clareza: {roleplayScore.clarity}% | Contorno de objeções: {roleplayScore.objectionHandling}%</span>
+                        {roleplayFeedback && <span className="text-[10px] text-emerald-200 block mt-1">{roleplayFeedback}</span>}
                       </div>
                     </div>
-                    <span className="text-lg font-black text-emerald-400">{roleplayScore.total}% Score</span>
+                    <span className="text-lg font-black text-emerald-400">{roleplayScore.total}% estimado</span>
                   </div>
                 )}
 
@@ -463,6 +501,17 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       </div>
                     </div>
                   ))}
+                  {isRoleplayThinking && (
+                    <div className="flex items-center gap-2 text-xs text-amber-300">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      O comprador simulado está analisando sua resposta...
+                    </div>
+                  )}
+                  {roleplayError && (
+                    <div className="p-3 rounded-xl border border-red-500/30 bg-red-500/10 text-xs text-red-300">
+                      Não foi possível continuar o roleplay: {roleplayError}
+                    </div>
+                  )}
                 </div>
 
                 {roleplayActive && (
@@ -472,9 +521,10 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       placeholder="Responda à pergunta do comprador..."
                       value={roleplayInput}
                       onChange={(e) => setRoleplayInput(e.target.value)}
+                      disabled={isRoleplayThinking}
                       className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs border border-white/10 focus:outline-none focus:ring-1 focus:ring-atlas-orange"
                     />
-                    <Button type="submit" size="sm" className="px-4 py-2.5 bg-amber-500 text-slate-950 font-bold cursor-pointer">
+                    <Button type="submit" size="sm" disabled={isRoleplayThinking} className="px-4 py-2.5 bg-amber-500 text-slate-950 font-bold cursor-pointer">
                       <Send className="w-4 h-4" />
                     </Button>
                   </form>

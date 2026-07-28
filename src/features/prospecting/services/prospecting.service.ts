@@ -23,8 +23,7 @@ export interface ProspectCriteria {
     faturamentoMax?: number;
     /** Palavras-chave adicionais (além do segmento), separadas por vírgula. Opcional. */
     palavrasChave?: string;
-    /** Busca por nome específico de empresa (Apollo q_organization_name). Opcional. */
-    /** Busca por nome específico de empresa (Apollo q_organization_name). Opcional. */
+    /** Nome da empresa/local para Google Maps, Apollo e fallback OpenStreetMap. Opcional. */
     nomeEmpresa?: string;
     /** Ano mínimo de fundação. Opcional. */
     anoFundacaoMin?: number;
@@ -90,9 +89,14 @@ export function buildLocationLabel(criteria: ProspectCriteria): string {
     return criteria.localizacao;
 }
 
-/** Monta a query de busca no Google Places a partir do segmento + localização mais precisa disponível. */
+/** Monta a pesquisa nominal do Google Places/OpenStreetMap, preservando segmento e localização. */
 function buildPlacesQuery(criteria: ProspectCriteria): string {
-    return `${criteria.segmento.split('(')[0].trim()} em ${buildLocationLabel(criteria)}`;
+    const companyOrPlace = criteria.nomeEmpresa?.trim();
+    const segment = criteria.segmento.split('(')[0].trim();
+    const location = buildLocationLabel(criteria);
+    return [companyOrPlace, companyOrPlace ? segment : null, location ? `em ${location}` : null]
+        .filter(Boolean)
+        .join(' ');
 }
 
 /** Descoberta via Google Places (New) Text Search — empresas reais, sem IA generativa envolvida. */

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Zap, Flame, Sparkles, Copy, Check, RefreshCw, BookOpen, HelpCircle, Lightbulb, ShieldAlert, ShieldCheck, Award, FileText, Compass } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { useBrand } from '../../../contexts/BrandContext';
+import { api } from '../../../lib/api';
 
 type FrameworkType = 'spin' | 'snap' | 'aida' | 'meddpicc' | 'challenger';
 
@@ -15,20 +17,75 @@ interface MethodologyFormState {
   mainBenefit: string;
 }
 
+interface MethodologyMeta {
+  persona: string;
+  icpSize: string;
+  fitAssessment: string;
+}
+
+type MethodologyResult =
+  | {
+      type: 'spin';
+      meta: MethodologyMeta;
+      situation: string[];
+      problem: string[];
+      implication: string[];
+      needPayoff: string[];
+    }
+  | {
+      type: 'snap';
+      meta: MethodologyMeta;
+      simple: { description: string; checklist: string[] };
+      invaluable: { description: string; differentiator: string };
+      align: { description: string; strategicFit: string };
+      priorities: { description: string; urgencyTrigger: string };
+    }
+  | {
+      type: 'aida';
+      meta: MethodologyMeta;
+      attention: { hook: string; opening: string };
+      interest: { body: string };
+      desire: { proof: string };
+      action: { cta: string };
+    }
+  | {
+      type: 'meddpicc';
+      meta: MethodologyMeta;
+      metrics: string;
+      economicBuyer: string;
+      decisionCriteria: string;
+      decisionProcess: string;
+      paperProcess: string;
+      identifiedPain: string;
+      champion: string;
+      competitors: string;
+    }
+  | {
+      type: 'challenger';
+      meta: MethodologyMeta;
+      teach: { title: string; script: string };
+      tailor: { title: string; script: string };
+      takeControl: { title: string; script: string };
+    };
+
 export function SalesMethodologyStudio() {
+  const { activeBrand, brandInfo } = useBrand();
   const [activeTab, setActiveTab] = useState<FrameworkType>('spin');
   const [form, setForm] = useState<MethodologyFormState>({
-    targetPersona: 'Diretor Comercial / VP de Vendas / CEO',
-    companySegment: 'Tecnologia / SaaS B2B / Logística',
+    targetPersona: activeBrand === 'totaltrac' ? 'Diretor de Operações / Gestor de Frota' : 'Diretor de Logística / Head de GR',
+    companySegment: activeBrand === 'totaltrac' ? 'Transportadoras / Frotas corporativas' : 'Logística / Transporte de cargas',
     icpSize: 'Mid-Market (50 a 500 colaboradores)',
-    techStack: 'Salesforce, AWS, React, SAP',
-    solutionName: 'Plataforma AtlasGR (IA + Prospecção Autônoma)',
-    mainPainPoint: 'Ciclo de vendas longo e perda de tempo de SDRs com pesquisas manuais de leads',
-    mainBenefit: 'Aumento de 300% na taxa de qualificação e redução de 50% no CAC'
+    techStack: 'A confirmar durante a descoberta',
+    solutionName: brandInfo.name,
+    mainPainPoint: activeBrand === 'totaltrac'
+      ? 'Baixa visibilidade sobre consumo, jornada e eventos da frota'
+      : 'Dificuldade de comprovar e auditar o cumprimento das regras de gerenciamento de risco',
+    mainBenefit: 'Hipótese: reduzir trabalho manual e aumentar a previsibilidade operacional, sujeito a diagnóstico',
   });
 
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<MethodologyResult | null>(null);
+  const [generationError, setGenerationError] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (text: string, key: string) => {
@@ -40,116 +97,26 @@ export function SalesMethodologyStudio() {
   const handleGenerate = async () => {
     setGenerating(true);
     setResult(null);
+    setGenerationError('');
 
-    await new Promise((r) => setTimeout(r, 800));
-
-    if (activeTab === 'spin') {
-      setResult({
-        type: 'spin',
-        meta: { persona: form.targetPersona, icpSize: form.icpSize, matchScore: '98%' },
-        situation: [
-          `Como o seu time de vendas realiza o mapeamento e qualificação de novos clientes hoje no segmento de ${form.companySegment}?`,
-          `Quantos SDRs e executivos de conta utilizam a stack técnica (${form.techStack}) para gerenciar a operação?`,
-          `Qual é o tempo médio gasto por vendedor para pesquisar o histórico de um lead de porte ${form.icpSize} antes da primeira ligação?`
-        ],
-        problem: [
-          `Vocês percebem gargalos na passagem de leads da pré-venda para os executivos ao lidar com a dor de: "${form.mainPainPoint}"?`,
-          `A falta de dados de contatos diretos (telefones e e-mails de decisores) tem inflado o Custo de Aquisição de Clientes (CAC)?`,
-          `Qual é a maior resistência que a figura de ${form.targetPersona} enfrenta para atingir as metas trimestrais da empresa?`
-        ],
-        implication: [
-          `Se a equipe continuar enfrentando "${form.mainPainPoint}", qual é o impacto financeiro acumulado por mês para uma operação de porte ${form.icpSize}?`,
-          `Como a demora de 3 a 5 dias no primeiro contato com o lead afeta a taxa de conversão final frente aos concorrentes?`,
-          `Qual é a consequência de não ter previsibilidade de pipeline para o cargo de ${form.targetPersona} no planejamento anual?`
-        ],
-        needPayoff: [
-          `Se você pudesse automatizar 80% da pesquisa de leads e entregar informações enriquecidas via ${form.solutionName}, quanto a sua conversão aumentaria?`,
-          `Como alcançar o resultado de "${form.mainBenefit}" impactaria a posição de mercado da empresa nos próximos 90 dias?`,
-          `Qual seria o valor estratégico de integrar inteligência autônoma diretamente com a sua stack atual (${form.techStack})?`
-        ],
-        objectionHandler: [
-          { objection: 'Já temos uma ferramenta de CRM/leads.', response: `Exatamente por utilizar ${form.techStack}, o ${form.solutionName} não substitui, mas potencializa o seu ecossistema atual, entregando dados validados em milissegundos.` },
-          { objection: 'Não temos orçamento agora.', response: `Ao resolver "${form.mainPainPoint}", nossa solução se paga no primeiro contrato fechado, gerando ${form.mainBenefit}.` }
-        ]
-      });
-    } else if (activeTab === 'snap') {
-      setResult({
-        type: 'snap',
-        meta: { persona: form.targetPersona, icpSize: form.icpSize, matchScore: '97%' },
-        simple: {
-          title: 'S — Keep it Simple (Simplicidade Extrema para C-Level)',
-          description: `Apresente o ${form.solutionName} sem jargões: "Uma camada de IA autônoma para ${form.targetPersona} que resolve ${form.mainPainPoint} em 3 cliques."`,
-          checklist: ['Proposta comercial concisa de 1 página', 'Sem onboarding burocrático ou código complexo', `Conexão nativa com a stack (${form.techStack})`]
+    try {
+      const response = await api.post<{ result: MethodologyResult }>('/api/intelligence/studio', {
+        kind: 'methodology',
+        brand: {
+          name: brandInfo.name,
+          description: brandInfo.description,
         },
-        invaluable: {
-          title: 'N — Be iNvaluable (Diferencial Inestimável)',
-          description: `Entregue dados que o cliente não possui: "Detectamos que 45% das empresas de porte ${form.icpSize} no setor de ${form.companySegment} perdem vendas por falta de velocidade na qualificação."`,
-          differentiator: `Garantia de ${form.mainBenefit} com automação de ponta.`
+        inputs: {
+          framework: activeTab,
+          ...form,
         },
-        align: {
-          title: 'A — Always Align (Alinhamento com Objetivos da Persona)',
-          description: `Alinhe o projeto diretamente aos KPIs da liderança (${form.targetPersona}): "${form.mainBenefit}."`,
-          strategicFit: `Compatibilidade total com o plano de expansão de receita da operação.`
-        },
-        priorities: {
-          title: 'P — Raise Priorities (Senso de Urgência & Custo da Inação)',
-          description: `Destaque a urgência comercial para uma empresa de porte ${form.icpSize}.`,
-          urgencyTrigger: `Custo estimado de inação: R$ 18.000/mês em oportunidades perdidas por cada vendedor sem prospecção automatizada.`
-        }
-      });
-    } else if (activeTab === 'aida') {
-      setResult({
-        type: 'aida',
-        meta: { persona: form.targetPersona, icpSize: form.icpSize, matchScore: '99%' },
-        attention: {
-          hook: `Assunto: ${form.targetPersona}: Solução para ${form.mainPainPoint} na ${form.companySegment}`,
-          opening: `Olá ${form.targetPersona}, acompanhando operações de porte ${form.icpSize} no setor de ${form.companySegment}, notamos o desafio de manter a eficiência na aquisição de clientes.`
-        },
-        interest: {
-          body: `Percebemos que empresas operando com a stack (${form.techStack}) costumam perder tempo precioso quando a qualificação de leads é manual, gerando a dor de ${form.mainPainPoint}.`
-        },
-        desire: {
-          proof: `Com o ${form.solutionName}, entregamos ${form.mainBenefit}. Nossa tecnologia autônoma permite que decisores no seu cargo acelerem o fechamento sem aumentar a equipe.`
-        },
-        action: {
-          cta: `Teria 10 minutos nesta quinta-feira às 14h para uma simulação prática com dados da sua empresa?`,
-          linkText: 'Responder E-mail para Agendar Demo'
-        }
-      });
-    } else if (activeTab === 'meddpicc') {
-      setResult({
-        type: 'meddpicc',
-        meta: { persona: form.targetPersona, icpSize: form.icpSize, matchScore: '99%' },
-        metrics: `KPIs Quantificáveis: Redução de 50% no CAC, ganho de 15h/semana por SDR e ${form.mainBenefit}.`,
-        economicBuyer: `Decisor Econômico: ${form.targetPersona} (detém autoridade de orçamento e aprovação final de capex/opex).`,
-        decisionCriteria: `Critérios de Escolha: Integração com ${form.techStack}, compliance LGPD, velocidade de enriquecimento e facilidade de adoção.`,
-        decisionProcess: `Processo de Decisão: Demo técnica (1ª semana) -> Validação com SDRs (2ª semana) -> Aprovação de contrato (3ª semana).`,
-        paperProcess: `Fluxo Jurídico/Compras: Validação da minuta de SaaS B2B, emissão de NDA e faturamento faturado via CNPJ.`,
-        identifiedPain: `Dor Crítica Mapeada: "${form.mainPainPoint}", gerando perda de receita recorrente e ciclo de vendas estagnado.`,
-        champion: `Internally Champion: Coordenador de Pré-vendas ou Head de Sales Ops que advoga pela automatização.`,
-        competitors: `Concorrentes/Status Quo: Prospecção manual via planilha (status quo) vs Soluções concorrentes sem IA integrada.`
-      });
-    } else {
-      // Challenger Sale
-      setResult({
-        type: 'challenger',
-        meta: { persona: form.targetPersona, icpSize: form.icpSize, matchScore: '98%' },
-        teach: {
-          title: '1. Teach (Ensine com Insights Únicos)',
-          script: `“Muitas empresas no setor de ${form.companySegment} acreditam que contratar mais SDRs resolve a meta. Na verdade, nossos dados mostram que o problema é a qualidade da informação prévia: 60% do tempo do vendedor é desperdiçado pesquisando contatos errados.”`
-        },
-        tailor: {
-          title: '2. Tailor (Personalize para a Persona)',
-          script: `“Para você como ${form.targetPersona}, o que realmente importa não é o volume de tentativas, mas sim garantir ${form.mainBenefit} com total alinhamento à sua infraestrutura (${form.techStack}).”`
-        },
-        takeControl: {
-          title: '3. Take Control (Assuma o Controle Comercial)',
-          script: `“Para avançarmos com segurança, não precisamos de um piloto longo. Sugiro rodarmos um teste de 14 dias com 500 leads reais da ${form.companySegment}. Se provarmos o resultado, fechamos o contrato anual. Vamos agendar para terça-feira?”`
-        }
-      });
+      }, { timeoutMs: 90_000 });
+      setResult(response.result);
+    } catch (error) {
+      setGenerationError(error instanceof Error ? error.message : 'Falha ao consultar o motor de IA');
+    } finally {
+      setGenerating(false);
     }
-
-    setGenerating(false);
   };
 
   return (
@@ -168,7 +135,7 @@ export function SalesMethodologyStudio() {
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black text-white tracking-tight">Estúdio de Metodologias de Vendas B2B</h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> 5 Frameworks Elite
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> 5 frameworks · Groq IA
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-1">
@@ -234,7 +201,7 @@ export function SalesMethodologyStudio() {
               <h3 className="font-bold text-white text-base">Parâmetros ICP & Persona Target</h3>
             </div>
             <span className="text-[10px] bg-atlas-orange/10 text-atlas-orange font-bold px-2 py-0.5 rounded border border-atlas-orange/20">
-              Precisão Máxima
+              Rascunho para revisão
             </span>
           </div>
 
@@ -305,7 +272,7 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label className="font-bold text-gray-300 block mb-1">Principal Benefício / ROI Prometido</label>
+              <label className="font-bold text-gray-300 block mb-1">Hipótese de benefício / ROI a validar</label>
               <textarea
                 rows={2}
                 value={form.mainBenefit}
@@ -347,6 +314,12 @@ export function SalesMethodologyStudio() {
             </div>
           )}
 
+          {generationError && !generating && (
+            <div className="p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-sm text-red-300">
+              Não foi possível gerar a estratégia: {generationError}
+            </div>
+          )}
+
           {result && !generating && (
             <motion.div
               initial={{ opacity: 0, y: 15 }}
@@ -364,8 +337,8 @@ export function SalesMethodologyStudio() {
                     <p className="text-[11px] text-gray-400">Porte ICP: {result.meta.icpSize}</p>
                   </div>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold border border-emerald-500/30">
-                  {result.meta.matchScore} Fit Score
+                <span className="max-w-sm px-3 py-1 rounded-xl bg-amber-500/10 text-amber-200 font-semibold border border-amber-500/30 text-right">
+                  Validar: {result.meta.fitAssessment}
                 </span>
               </div>
 

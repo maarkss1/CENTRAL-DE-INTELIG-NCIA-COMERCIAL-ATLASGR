@@ -1,32 +1,40 @@
 import { useState } from 'react';
-import { BookOpen, Sparkles, Award, Loader2 } from 'lucide-react';
+import { BookOpen, Sparkles, Award, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useBrand } from '../../../contexts/BrandContext';
+import { api } from '../../../lib/api';
 
 export function TopicTrainingAcademy() {
+  const { brandInfo } = useBrand();
   const [topic, setTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState('');
   const [trainingModule, setTrainingModule] = useState<{
     title: string;
     description: string;
     steps: { step: number; title: string; detail: string; tip: string }[];
   } | null>(null);
 
-  const handleGenerateTraining = (e: React.FormEvent) => {
+  const handleGenerateTraining = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic) return;
     setIsGenerating(true);
-    setTimeout(() => {
-      setTrainingModule({
-        title: `Treinamento Masterclass: ${topic}`,
-        description: `Módulo prático de capacitação comercial gerado especificamente para o tema "${topic}".`,
-        steps: [
-          { step: 1, title: 'Conceitos Fundamentais & Diagnóstico', detail: `Entenda o cenário real do cliente ao abordar ${topic}. Mapeie quem é o decisor (CFO, VP ou Gerente Operacional).`, tip: 'Use a pergunta SPIN de Situação para abrir a conversa sem soar agressivo.' },
-          { step: 2, title: 'Demonstração de Valor & ROI Calculado', detail: `Apresente números concretos de economia e redução de risco GR com base em ${topic}.`, tip: 'Sempre compare o custo da inação contra a contratação da solução.' },
-          { step: 3, title: 'Simulação de Objeções & Fechamento', detail: `Saiba responder com autoridade técnica quando o cliente questionar prazos ou investimentos sobre ${topic}.`, tip: 'Aplique o framework SNAP: torne simples, traga urgência e mostre alinhamento.' }
-        ]
-      });
+    setError('');
+    setTrainingModule(null);
+    try {
+      const response = await api.post<{
+        result: NonNullable<typeof trainingModule>;
+      }>('/api/intelligence/studio', {
+        kind: 'training',
+        brand: { name: brandInfo.name, description: brandInfo.description },
+        inputs: { topic },
+      }, { timeoutMs: 90_000 });
+      setTrainingModule(response.result);
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o treinamento.');
+    } finally {
       setIsGenerating(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -67,6 +75,13 @@ export function TopicTrainingAcademy() {
           </button>
         </div>
       </form>
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {trainingModule && (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-2">

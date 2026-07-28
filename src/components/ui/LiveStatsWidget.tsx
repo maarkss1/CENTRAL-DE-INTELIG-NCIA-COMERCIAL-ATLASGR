@@ -4,9 +4,9 @@
  * Shown on the home screen between the Clock and the 2 main cards.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Users, TrendingUp, Activity, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Building2, Users, TrendingUp, Activity, Wifi, WifiOff, Loader2, RotateCw } from 'lucide-react';
 import { analyticsDB } from '../../lib/db';
 import { Card } from './Card';
 import { Badge } from './Badge';
@@ -27,34 +27,35 @@ export function LiveStatsWidget() {
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await analyticsDB.overview();
-        setStats(data);
-        setConnected(true);
-      } catch {
-        // Fallback offline mode with placeholder data
-        setStats({
-          totalCompanies: 0,
-          totalContacts: 0,
-          totalLeads: 0,
-          totalActivities: 0,
-          pendingActivities: 0,
-          closedThisMonth: 0,
-          pipelineValue: 0,
-          conversionRate: 0,
-        });
-        setConnected(false);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await analyticsDB.overview();
+      setStats(data);
+      setConnected(true);
+    } catch {
+      // Fallback offline mode with placeholder data
+      setStats({
+        totalCompanies: 0,
+        totalContacts: 0,
+        totalLeads: 0,
+        totalActivities: 0,
+        pendingActivities: 0,
+        closedThisMonth: 0,
+        pipelineValue: 0,
+        conversionRate: 0,
+      });
+      setConnected(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => {
     load();
     const interval = setInterval(load, 60_000); // refresh every 60s
     return () => clearInterval(interval);
-  }, []);
+  }, [load]);
 
   const statCards = [
     {
@@ -99,16 +100,29 @@ export function LiveStatsWidget() {
           </div>
 
           {/* Database Connection Badge */}
-          <Badge variant={connected ? 'success' : 'warning'} className="flex items-center gap-2 px-3.5 py-1.5">
-            {loading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : connected ? (
-              <Wifi className="w-3.5 h-3.5" />
-            ) : (
-              <WifiOff className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2">
+            <Badge variant={connected ? 'success' : 'warning'} className="flex items-center gap-2 px-3.5 py-1.5">
+              {loading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : connected ? (
+                <Wifi className="w-3.5 h-3.5" />
+              ) : (
+                <WifiOff className="w-3.5 h-3.5" />
+              )}
+              <span>{loading ? 'Conectando...' : connected ? 'PostgreSQL Conectado' : 'Modo Offline'}</span>
+            </Badge>
+            {!loading && !connected && (
+              <button
+                type="button"
+                onClick={load}
+                title="Tentar reconectar"
+                aria-label="Tentar reconectar ao banco de dados"
+                className="p-1.5 rounded-lg bg-white/10 border border-white/10 hover:border-atlas-orange text-gray-300 hover:text-atlas-orange transition-all cursor-pointer"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
             )}
-            <span>{loading ? 'Conectando...' : connected ? 'PostgreSQL Conectado' : 'Modo Offline'}</span>
-          </Badge>
+          </div>
         </div>
 
         {/* Stats Grid */}

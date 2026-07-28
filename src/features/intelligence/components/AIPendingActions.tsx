@@ -21,9 +21,8 @@ export function AIPendingActions() {
 
     const fetchActions = async () => {
         try {
-            const response = await api.get<{ data: PendingAction[] }>('/api/intelligence/pending');
-            const actionsData = response.data;
-            setActions(Array.isArray(actionsData) ? actionsData : []);
+            const response = await api.get<PendingAction[]>('/api/intelligence/pending');
+            setActions(Array.isArray(response) ? response : []);
         } catch (error) {
             console.error('Error fetching AI actions', error);
         } finally {
@@ -45,8 +44,12 @@ export function AIPendingActions() {
     };
 
     const handleDiscard = async (id: string) => {
-        // Num cenário real teríamos uma rota de delete/discard
-        setActions(prev => prev.filter(a => a.id !== id));
+        try {
+            await api.delete(`/api/intelligence/pending/${id}`);
+            setActions(prev => prev.filter(a => a.id !== id));
+        } catch (error) {
+            console.error('Error discarding', error);
+        }
     };
 
     if (loading) return <div className="p-4 text-gray-500">Carregando ações da IA...</div>;
@@ -108,7 +111,7 @@ export function AIPendingActions() {
                                 className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
                             >
                                 <Check className="w-4 h-4 mr-1.5" />
-                                Aprovar Envio
+                                Aprovar rascunho
                             </button>
                             <button
                                 onClick={() => handleDiscard(action.id)}

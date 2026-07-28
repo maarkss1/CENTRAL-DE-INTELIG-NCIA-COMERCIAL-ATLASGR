@@ -9,6 +9,8 @@ import { api } from '../lib/api';
 import type { Lead } from '../types';
 import { PIC_OPTIONS } from '../features/prospecting/constants/icp-options';
 import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
+import { useBrandAccent } from '../hooks/useBrandAccent';
+import { useBrand } from '../contexts/BrandContext';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
@@ -32,9 +34,14 @@ const TOOLS = [
 const ATLAS_COMPETITORS = ['RasterGR', 'Buonny', 'BRK Tecnologia', 'OpentechGR', 'Apisul', 'Servis'];
 const TONES = ['Consultivo', 'Provocativo', 'Relacional', 'Técnico'];
 const OBJECTIVES = ['Descoberta', 'Follow-up', 'Fechamento'];
-const PERSONAS = ['Dono / CEO', 'Diretor de Logística / Supply', 'Head / Gerente de GR (Risco)', 'TI / Compras'];
+const ATLAS_PERSONAS = ['Dono / CEO', 'Diretor de Logística / Supply', 'Head / Gerente de GR (Risco)', 'TI / Compras'];
+const TOTALTRAC_PERSONAS = ['Dono / CEO', 'Gestor de Frota', 'Diretor de Operações / Logística', 'Segurança / SSMA', 'TI / Compras'];
 
 export function Intelligence() {
+    const accent = useBrandAccent();
+    const { activeBrand } = useBrand();
+    const suggestedCompetitors = activeBrand === 'atlasgr' ? ATLAS_COMPETITORS : [];
+    const personas = activeBrand === 'atlasgr' ? ATLAS_PERSONAS : TOTALTRAC_PERSONAS;
     const [activeTool, setActiveTool] = useState<ToolType>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [result, setResult] = useState<string | null>(null);
@@ -65,6 +72,12 @@ export function Intelligence() {
             .catch((e) => console.error('Error loading leads:', e))
             .finally(() => setLeadsLoading(false));
     }, []);
+
+    useEffect(() => {
+        setPersonaFallback('Dono / CEO');
+        setCompetitor('');
+        setCustomCompetitor('');
+    }, [activeBrand]);
 
     useEffect(() => {
         if (result && resultRef.current) {
@@ -108,29 +121,19 @@ export function Intelligence() {
         setCompetitorPickerOpen(false);
 
         try {
-            const response = await fetch('/api/intelligence', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    tool, 
-                    leadId: selectedLead?.id, 
-                    competitor: competitorOverride,
-                    tone,
-                    objective,
-                    personaFallback: !selectedLead ? personaFallback : undefined
-                }),
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setResult(data.result);
-            } else {
-                const err = await response.json().catch(() => null);
-                setResult(err?.error ? `Erro ao gerar conteúdo: ${err.error}` : 'Erro ao gerar conteúdo. Tente novamente.');
-            }
+            const response = await api.post<{ result: string }>('/api/intelligence', {
+                tool,
+                leadId: selectedLead?.id,
+                competitor: competitorOverride,
+                tone,
+                objective,
+                personaFallback: !selectedLead ? personaFallback : undefined,
+                brandId: activeBrand,
+            }, { timeoutMs: 90_000 });
+            setResult(response.result);
         } catch (error) {
             console.error('Error generating intelligence:', error);
-            setResult('Falha na rede neural. Conexão perdida com a IA.');
+            setResult(error instanceof Error ? `Não foi possível gerar o conteúdo: ${error.message}` : 'Não foi possível gerar o conteúdo.');
         } finally {
             setIsGenerating(false);
         }
@@ -173,7 +176,7 @@ export function Intelligence() {
                             <Sparkles className="w-4 h-4" />
                             <span className="text-xs font-bold uppercase tracking-wider">Premium AI Suite</span>
                         </motion.div>
-                        <h2 className="font-black text-4xl text-gray-900 tracking-tight mb-2">Atlas<span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-orange-400">NEXUS</span> Intelligence</h2>
+                        <h2 className="font-black text-4xl text-gray-900 tracking-tight mb-2">{accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Outreach Intelligence</span></h2>
                         <p className="text-gray-500 text-sm leading-relaxed max-w-md">O arsenal definitivo de IA Generativa. Ferramentas ultra-personalizadas alimentadas por algoritmos preditivos e dados em tempo real.</p>
                     </div>
 
@@ -376,7 +379,7 @@ export function Intelligence() {
                                                 initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
                                                 className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
                                             >
-                                                {PERSONAS.map(p => (
+                                                {personas.map(p => (
                                                     <div 
                                                         key={p} onClick={() => { setPersonaFallback(p); setActiveDropdown(null); }}
                                                         className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
@@ -403,12 +406,12 @@ export function Intelligence() {
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-[10px] tracking-widest font-black uppercase text-atlas-orange flex items-center gap-1.5">
-                                        <Swords size={14} /> Selecione o Concorrente
+                                        <Swords size={14} /> {suggestedCompetitors.length ? 'Selecione o Concorrente' : 'Informe o Concorrente'}
                                     </span>
                                     <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={14} /></button>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    {ATLAS_COMPETITORS.map((c) => (
+                                    {suggestedCompetitors.map((c) => (
                                         <button
                                             key={c}
                                             onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
@@ -512,7 +515,7 @@ export function Intelligence() {
                                 {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-atlas-orange animate-pulse">Sintetizando...</span>}
                                 <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10 flex items-center gap-2">
                                     <Bot size={12} className="text-gray-400" />
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">Nexus Engine v2.0</span>
+                                    <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">{accent.brandName} Engine v2.0</span>
                                 </div>
                             </div>
                         </div>

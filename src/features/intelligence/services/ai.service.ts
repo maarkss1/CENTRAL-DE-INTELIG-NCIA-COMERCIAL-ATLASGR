@@ -74,6 +74,14 @@ DIRETRIZES CRÍTICAS:
 3. CONTEXTO É LEI: Ancore a resposta NOS DADOS FORNECIDOS (nome, região, tecnologias). NUNCA alucine fatos (números ou nomes não fornecidos).
 4. SAÍDA DIRETA: Responda EXATAMENTE o que foi pedido, em Markdown elegante. SEM introduções ("Aqui está..."). Tom de autoridade absoluta, seguro e consultivo.`;
 
+const TOTALTRAC_SYSTEM_PREAMBLE = `Você é uma inteligência artificial analítica de alto nível, atuando como Arquiteto de Soluções e Estrategista de Vendas B2B Enterprise da TotalTrac.
+A TotalTrac atua com telemetria CAN, videotelemetria com IA, controle de jornada, iscas RF e imobilizadores.
+DIRETRIZES CRÍTICAS:
+1. PRECISÃO: não invente números, clientes, funcionalidades, compatibilidades ou integrações.
+2. CONTEXTO: use os dados fornecidos do lead. Trate toda dor não confirmada como hipótese a validar.
+3. FOCO: conecte a conversa a segurança da frota, comportamento de condução, jornada, visibilidade operacional e proteção do ativo somente quando houver aderência.
+4. SAÍDA DIRETA: responda exatamente o solicitado, em Markdown claro, com tom consultivo e sem jargões vazios.`;
+
 /** Quando há contexto real do lead, força a IA a efetivamente USAR os dados em vez de ignorá-los. */
 const GROUNDING_INSTRUCTION = `\n\nIMPORTANTE: use pelo menos 2 dados concretos do contexto do lead acima (nome da empresa, cidade/região, segmento, tecnologia detectada, ou algo do resumo de enriquecimento) — o texto tem que ficar claramente sobre ESSA empresa, não algo genérico que serviria para qualquer lead.`;
 
@@ -137,6 +145,37 @@ Estrutura exigida:
 Use o contexto do lead fornecido para personalizar fortemente a dor e a abordagem.`,
 };
 
+const TOTALTRAC_TOOL_OVERRIDES: Partial<Record<ContentTool, string>> = {
+    script_call: `Crie um script de cold call em 6 blocos: (1) confirmação da pessoa responsável por frota/operação,
+(2) contexto curto, (3) duas perguntas de diagnóstico, (4) hipótese de impacto, (5) posicionamento da TotalTrac
+sem prometer resultado não comprovado e (6) próximo passo simples. Use frases naturais e prontas para falar.`,
+    script_whatsapp: `Crie duas mensagens curtas de primeiro contato por WhatsApp. Cada uma deve citar um contexto
+real do lead, levantar uma hipótese sobre visibilidade/segurança da frota e terminar com uma única pergunta.
+Não peça reunião antes de validar o fit.`,
+    script_email: `Crie duas opções de assunto e um cold e-mail de até 120 palavras. Conecte o contexto do lead a
+uma hipótese relevante para telemetria, videotelemetria, jornada ou proteção do ativo; apresente a TotalTrac sem
+inventar ganhos; termine com uma pergunta objetiva sobre o processo atual.`,
+    objections: `Monte as 3 objeções mais prováveis para uma conversa sobre tecnologia de frota. Para cada uma,
+responda no formato "OBJEÇÃO → COMO RECONHECER → PERGUNTA DE DIAGNÓSTICO". Não desmereça fornecedores atuais
+e não alegue diferenciais que não foram fornecidos.`,
+    followup: `Crie um e-mail de follow-up pós-reunião para a TotalTrac. Resuma somente o contexto disponível,
+liste até 3 pontos a validar sobre frota/segurança/jornada e proponha um próximo passo com responsável e prazo.`,
+    risk: `Liste os 3 riscos comerciais mais prováveis desta negociação para a TotalTrac. Para cada risco,
+explique o sinal observado nos dados recebidos e uma ação preventiva concreta. Não trate ausência de dado como fato.`,
+    competitor_battlecard: `Crie um contorno consultivo para o concorrente informado: reconheça que a solução
+atual pode atender parte da operação, faça perguntas sobre lacunas de telemetria, jornada, evidência em vídeo e
+proteção do ativo, e sugira um critério objetivo de comparação. Não invente fatos sobre o concorrente.`,
+};
+
+export interface GenerateContentOptions {
+    competitor?: string;
+    tone?: string;
+    objective?: string;
+    personaFallback?: string;
+    brandId?: 'atlasgr' | 'totaltrac';
+    organizationId?: string;
+}
+
 /**
  * Discurso por PIC — da "Matriz de Decisão e Convencimento" do Playbook de Pré-Vendas Atlas. O PIC
  * é setado manualmente pelo SDR/AM (nunca inferido), então só entra no contexto quando o lead já
@@ -155,11 +194,14 @@ interface LeadContext {
 }
 
 /** Monta um bloco de contexto real (Company + Contact + Lead) para personalizar o prompt — sem isso, a IA só produz conteúdo genérico. */
-async function buildLeadContext(leadId?: string | null): Promise<LeadContext> {
+async function buildLeadContext(leadId?: string | null, organizationId?: string): Promise<LeadContext> {
     if (!leadId) return { text: '' };
 
-    const lead = await prisma.lead.findUnique({
-        where: { id: leadId },
+    const lead = await prisma.lead.findFirst({
+        where: {
+            id: leadId,
+            ...(organizationId ? { organizationId } : {}),
+        },
         include: { company: true, contact: true },
     });
     if (!lead) return { text: '' };
@@ -199,18 +241,25 @@ async function buildLeadContext(leadId?: string | null): Promise<LeadContext> {
 }
 
 export class AIService {
-    async generateContent(tool: string, leadId?: string | null, extra?: { competitor?: string, tone?: string }) {
+    async generateContent(tool: string, leadId?: string | null, extra?: GenerateContentOptions) {
         if (!(tool in TOOL_PROMPTS)) {
             throw new Error('Invalid tool');
         }
         const toolId = tool as ContentTool;
 
-        let basePreamble = SYSTEM_PREAMBLE;
+        const isTotalTrac = extra?.brandId === 'totaltrac';
+        let basePreamble = isTotalTrac ? TOTALTRAC_SYSTEM_PREAMBLE : SYSTEM_PREAMBLE;
         if (extra?.tone) {
             basePreamble += `\nESTILO DE COMUNICAÇÃO (TOM DE VOZ EXIGIDO): ${extra.tone}`;
         }
+        if (extra?.objective) {
+            basePreamble += `\nOBJETIVO DESTA PEÇA: ${extra.objective}. Ajuste o CTA e a profundidade a esse estágio.`;
+        }
 
-        let promptStr = `${basePreamble}\n\n${TOOL_PROMPTS[toolId]}`;
+        const toolPrompt = isTotalTrac
+            ? TOTALTRAC_TOOL_OVERRIDES[toolId] || TOOL_PROMPTS[toolId]
+            : TOOL_PROMPTS[toolId];
+        let promptStr = `${basePreamble}\n\n${toolPrompt}`;
 
         if (toolId === 'competitor_battlecard') {
             if (!extra?.competitor?.trim()) {
@@ -225,10 +274,12 @@ export class AIService {
             promptStr += `\n\nInstruções adicionais definidas pelo time: ${JSON.stringify(dbPrompt.variables)}`;
         }
 
-        const context = await buildLeadContext(leadId);
+        const context = await buildLeadContext(leadId, extra?.organizationId);
         promptStr += context.text;
         if (context.text) {
             promptStr += GROUNDING_INSTRUCTION;
+        } else if (extra?.personaFallback) {
+            promptStr += `\n\nContexto manual disponível: persona alvo = ${extra.personaFallback}. Como não há lead selecionado, não invente empresa, região, porte ou tecnologia.`;
         }
 
         // Configuração editável via AIConfigCenter tem prioridade sobre o padrão hardcoded da ferramenta.

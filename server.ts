@@ -7,8 +7,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import RedisStore from 'rate-limit-redis';
-import { connection } from './src/lib/queue/redis.js';
+import { RedisStore, type RedisReply } from 'rate-limit-redis';
+import { rateLimiterConnection } from './src/lib/queue/redis.js';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
@@ -24,6 +24,7 @@ import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
+import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -50,6 +51,9 @@ if (env.NODE_ENV === 'production' && ALLOWED_ORIGINS.length === 0) {
     console.error('FATAL ERROR: ALLOWED_ORIGINS is not set in production. Failing fast.');
     process.exit(1);
 }
+
+const sendRateLimitCommand = (...args: string[]): Promise<RedisReply> =>
+    rateLimiterConnection.call(args[0], ...args.slice(1)) as Promise<RedisReply>;
 
 async function startServer() {
     const app = express();
@@ -86,7 +90,7 @@ async function startServer() {
         standardHeaders: true,
         legacyHeaders: false,
         store: new RedisStore({
-            sendCommand: (...args: string[]) => (connection.call as any)(...args),
+            sendCommand: sendRateLimitCommand,
         }),
         message: { success: false, error: 'Too many requests from this IP, please try again after 15 minutes' }
     });
@@ -95,11 +99,11 @@ async function startServer() {
     // Rate Limiting — 15 req/15min por IP nas rotas /api/intelligence
     const aiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 15,
+        max: env.AI_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
         store: new RedisStore({
-            sendCommand: (...args: string[]) => (connection.call as any)(...args),
+            sendCommand: sendRateLimitCommand,
         }),
         message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
     });
@@ -162,6 +166,17 @@ async function startServer() {
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
+    app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+
+    // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
+    // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa
+    // requisições sem arquivo correspondente e isso re-executa toda a cadeia de
+    // middlewares (incluindo o apiLimiter) repetidamente para a mesma requisição,
+    // estourando o rate limit em segundos com uma única chamada a um endpoint
+    // inexistente (ex.: /api/analytics/overview, que nunca teve rota registrada).
+    app.use('/api', (_req, res) => {
+        res.status(404).json({ success: false, error: 'Not found' });
+    });
 
     // ── Frontend ───────────────────────────────────────────────────────────
     if (env.NODE_ENV !== 'production') {

@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, Send, Bot, RefreshCw, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, Copy, Check, Send, Bot, RefreshCw, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import { Button } from './Button';
+import { useBrand } from '../../contexts/BrandContext';
+import { api } from '../../lib/api';
 
 interface AIEmailGeneratorProps {
   companyName?: string;
@@ -19,50 +21,41 @@ export function AIEmailGenerator({
   technologies = ['React', 'AWS', 'Salesforce'],
   companySize = '50-200 Colaboradores (Mid-Market)'
 }: AIEmailGeneratorProps) {
+  const { brandInfo } = useBrand();
   const [tone, setTone] = useState<'consultative' | 'direct' | 'roi_focused' | 'hyper_personalized'>('consultative');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [icpAnalysis, setIcpAnalysis] = useState<string>('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
 
   const generateEmail = async () => {
     setGenerating(true);
     setCopied(false);
+    setError('');
 
     try {
-      // Simulação da chamada da IA Gemini LangChain com prompts enriquecidos voltados para Persona e ICP
-      await new Promise((resolve) => setTimeout(resolve, 850));
-
-      const techStackStr = technologies.join(', ');
-
-      if (tone === 'consultative') {
-        setSubject(`Otimização de eficiência comercial & tech stack na ${companyName}`);
-        setIcpAnalysis(`🎯 ICP Match Score: 96% | Persona: ${role} | Stack Detectada: ${techStackStr}`);
-        setBody(
-          `Olá ${contactName},\n\nNotei a liderança da ${companyName} no setor de ${sector} e identificamos uma sinergia direta com a sua infraestrutura técnica atual (${techStackStr}).\n\nComo ${role}, sabemos que um dos maiores desafios em operações do porte da ${companyName} (${companySize}) é manter a velocidade de qualificação de leads sem inflar o Custo de Aquisição de Clientes (CAC).\n\nCom a plataforma AtlasGR, entregamos uma camada de inteligência autônoma que qualifica e enriquece 100% dos prospects no CRM antes da primeira abordagem.\n\nTeria 10 minutos nesta quinta-feira às 14h para vermos uma simulação baseada em dados reais da ${companyName}?\n\nAtenciosamente,\nEquipe de Inteligência Comercial`
-        );
-      } else if (tone === 'direct') {
-        setSubject(`Aceleração de Vendas B2B para ${companyName}`);
-        setIcpAnalysis(`⚡ Abordagem Direta C-Level | Persona: ${role} | Foco: ROI Imediato`);
-        setBody(
-          `Olá ${contactName},\n\nDireto ao ponto: ajudamos líderes no cargo de ${role} em empresas de ${sector} a reduzirem o ciclo de fechamento em até 45% automatizando a prospecção ativa.\n\nConstatamos que a ${companyName} tem o perfil exato (ICP Ideal) para alavancar nossos conectores neurais integrados com a sua stack (${techStackStr}).\n\nConsegue falar amanhã às 15h por 10 minutos?\n\nAbraços,`
-        );
-      } else if (tone === 'roi_focused') {
-        setSubject(`Redução de CAC e ROI de Vendas na ${companyName}`);
-        setIcpAnalysis(`💰 Foco Financeiro & Métrica de Retorno | Persona: ${role} | ICP: ${companySize}`);
-        setBody(
-          `Olá ${contactName},\n\nEstudos recentes em empresas de ${sector} com mais de ${companySize} demonstram que SDRs perdem até 15 horas semanais com pesquisas manuais de dados.\n\nAplicando a inteligência de prospecção do AtlasGR para ${companyName}, estimamos um retorno de investimento (ROI) de 4.2x no primeiro trimestre ao eliminar o tempo ocioso pré-venda.\n\nPodemos agendar uma rápida apresentação dos números projetados para a ${companyName}?\n\nAtenciosamente,`
-        );
-      } else {
-        setSubject(`Ideia de arquitetura comercial para ${contactName} (${companyName}) 🚀`);
-        setIcpAnalysis(`🔥 Hiper-personalização | Persona: ${role} | Contexto Tecnológico`);
-        setBody(
-          `Olá ${contactName}!\n\nParabéns pelo crescimento acelerado da ${companyName} no segmento de ${sector}.\n\nAnalisamos que sua estrutura utiliza soluções avançadas como ${techStackStr}. Desenvolvemos um módulo de inteligência de vendas com IA que se conecta perfeitamente a esse ecossistema, entregando leads prontos para abordagem.\n\nTopa fazer um teste rápido sem compromisso nesta semana?\n\nUm abraço,`
-        );
-      }
-    } catch {
-      setSubject('Erro ao gerar e-mail');
+      const response = await api.post<{
+        result: { subject: string; body: string; icpAnalysis: string };
+      }>('/api/intelligence/studio', {
+        kind: 'email',
+        brand: { name: brandInfo.name, description: brandInfo.description },
+        inputs: {
+          companyName,
+          contactName,
+          sector,
+          role,
+          technologies,
+          companySize,
+          tone,
+        },
+      }, { timeoutMs: 90_000 });
+      setSubject(response.result.subject);
+      setBody(response.result.body);
+      setIcpAnalysis(response.result.icpAnalysis);
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o e-mail.');
     } finally {
       setGenerating(false);
     }
@@ -129,6 +122,13 @@ export function AIEmailGenerator({
           </button>
         </div>
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {!body ? (
         <div className="text-center p-6 border border-dashed border-white/10 rounded-xl bg-white/5 space-y-3">

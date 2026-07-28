@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Shield, Truck, ArrowRight, ChevronLeft, Search, LayoutTemplate,
@@ -26,6 +26,7 @@ import { BitrixGuideHub } from '../../intelligence/components/BitrixGuideHub';
 import { ReportsHub } from '../../intelligence/components/ReportsHub';
 import { SoundFX } from '../../../lib/soundEffects';
 import { LiveStatsWidget } from '../../../components/ui/LiveStatsWidget';
+import { navigationBus } from '../../../lib/navigationBus';
 
 type ScreenStep = 'home' | 'company_tools' | 'tool_active';
 type ToolType =
@@ -33,13 +34,7 @@ type ToolType =
   | 'ai_builder' | 'topic_training' | 'bitrix'
   | 'ia_superagent' | 'ia_scripts' | 'ia_automations' | 'ia_abordagem' | 'ia_generator' | 'ia_rag' | 'ai_config' | 'reports';
 
-const TOOL_ORDER: ToolType[] = [
-  'prospect', 'crm', 'intelligence', 'companies', 'contacts', 'activities', 'roleplay',
-  'ai_builder', 'topic_training', 'bitrix',
-  'ia_superagent', 'ia_scripts', 'ia_automations', 'ia_abordagem', 'ia_generator', 'ia_rag', 'ai_config', 'reports',
-];
-
-export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab: string) => void }) {
+export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSelectModule?: (tab: string) => void }) {
   const { activeBrand, setActiveBrand } = useBrand();
   const { currentUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -48,23 +43,61 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
+  // Histórico de navegação entre ferramentas (dentro da mesma empresa), para que as setas
+  // voltem/avancem pela sequência de ações do usuário — em vez de percorrer cegamente a
+  // lista fixa das 18 ferramentas, o que misturava telas sem relação nenhuma entre si.
+  const [toolHistory, setToolHistory] = useState<ToolType[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   const handleSelectCompany = (brand: 'atlasgr' | 'totaltrac') => {
     SoundFX.playClick();
     setActiveBrand(brand);
+    setToolHistory([]);
+    setHistoryIndex(-1);
     setStep('company_tools');
   };
 
   const handleOpenTool = (tool: ToolType) => {
     SoundFX.playClick();
+    const base = toolHistory.slice(0, historyIndex + 1);
+    const next = [...base, tool];
+    setToolHistory(next);
+    setHistoryIndex(next.length - 1);
     setActiveTool(tool);
     setStep('tool_active');
   };
 
-  const handleCycleTool = (direction: 1 | -1) => {
+  // Permite que o comando de voz (montado fora desta árvore, em MainLayout) abra uma ferramenta de
+  // verdade — antes ele chamava react-router `navigate('/app/crm')` para uma rota que não existe,
+  // então "abrir CRM" por voz só trocava a URL sem mudar nada na tela.
+  const handleOpenToolRef = useRef(handleOpenTool);
+  handleOpenToolRef.current = handleOpenTool;
+  useEffect(() => {
+    return navigationBus.subscribe((tool) => {
+      handleOpenToolRef.current(tool);
+    });
+  }, []);
+
+  // Seta ‹: volta uma ação — se não há ferramenta anterior no histórico, volta ao índice
+  // (grid de ferramentas), que é exatamente onde o usuário estava antes de abrir a primeira.
+  const handleGoBack = () => {
     SoundFX.playClick();
-    const currentIndex = TOOL_ORDER.indexOf(activeTool);
-    const nextIndex = (currentIndex + direction + TOOL_ORDER.length) % TOOL_ORDER.length;
-    setActiveTool(TOOL_ORDER[nextIndex]);
+    if (historyIndex <= 0) {
+      setStep('company_tools');
+      return;
+    }
+    const newIndex = historyIndex - 1;
+    setHistoryIndex(newIndex);
+    setActiveTool(toolHistory[newIndex]);
+  };
+
+  // Seta ›: avança novamente para uma ferramenta que o usuário tinha acabado de sair via ‹.
+  const handleGoForward = () => {
+    if (historyIndex >= toolHistory.length - 1) return;
+    SoundFX.playClick();
+    const newIndex = historyIndex + 1;
+    setHistoryIndex(newIndex);
+    setActiveTool(toolHistory[newIndex]);
   };
 
   const handleSaveState = () => {
@@ -145,7 +178,10 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
                 whileHover={{ scale: 1.025, y: -8 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSelectCompany('atlasgr')}
-                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(255,86,24,0.18)] hover:shadow-[0_35px_90px_rgba(255,86,24,0.35)] border-atlas-orange/15 hover:border-atlas-orange/60 group"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectCompany('atlasgr'); } }}
+                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(255,86,24,0.18)] hover:shadow-[0_35px_90px_rgba(255,86,24,0.35)] border-atlas-orange/15 hover:border-atlas-orange/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-atlas-orange/40"
               >
                 <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange to-orange-300" />
                 <div className="absolute top-0 right-0 w-80 h-80 bg-atlas-orange/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
@@ -175,7 +211,10 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
                 whileHover={{ scale: 1.025, y: -8 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleSelectCompany('totaltrac')}
-                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(0,136,204,0.18)] hover:shadow-[0_35px_90px_rgba(0,136,204,0.35)] border-totaltrack-blue/15 hover:border-totaltrack-blue/60 group"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectCompany('totaltrac'); } }}
+                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(0,136,204,0.18)] hover:shadow-[0_35px_90px_rgba(0,136,204,0.35)] border-totaltrack-blue/15 hover:border-totaltrack-blue/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-totaltrack-blue/40"
               >
                 <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-totaltrack-blue to-sky-300" />
                 <div className="absolute top-0 right-0 w-80 h-80 bg-totaltrack-blue/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
@@ -464,7 +503,9 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
               {/* CARD 15: SIMULADOR COGNITIVO DE COMPRADOR */}
               <AppleToolCard
                 title={activeBrand === 'atlasgr' ? "Atlas Simulador Cognitivo: Comprador de Risco" : "TotalTrac Simulador Cognitivo: Comprador de Frota"}
-                desc="Simule compradores complexos, formule matrizes de dor e preveja objeções específicas do setor de risco logístico."
+                desc={activeBrand === 'atlasgr'
+                  ? "Simule compradores complexos, formule matrizes de dor e preveja objeções específicas do setor de risco logístico."
+                  : "Simule gestores de frota, formule hipóteses de dor e prepare perguntas sobre telemetria, jornada e segurança operacional."}
                 icon={<BrainCircuit className="w-8 h-8 text-danger" />}
                 badge="Simulação Cognitiva"
                 onClick={() => handleOpenTool('ia_generator')}
@@ -474,8 +515,10 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
 
               {/* CARD 16: MEMÓRIA VETORIAL (RAG) */}
               <AppleToolCard
-                title="Memória Atlas: Base de Conhecimento (RAG)"
-                desc="Gerencie a base de conhecimento (Embeddings). Injeção de playbooks, apólices e dados estruturados para a IA."
+                title={activeBrand === 'atlasgr' ? "Memória Atlas: Base de Conhecimento (RAG)" : "Memória TotalTrac: Base de Conhecimento (RAG)"}
+                desc={activeBrand === 'atlasgr'
+                  ? "Gerencie embeddings de playbooks, apólices e dados estruturados para contextualizar a IA."
+                  : "Gerencie embeddings de playbooks de telemetria, jornada, videotelemetria e dados estruturados para contextualizar a IA."}
                 icon={<Database className="w-8 h-8 text-info" />}
                 badge="Memória Vetorial"
                 onClick={() => handleOpenTool('ia_rag')}
@@ -485,13 +528,13 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
 
               {/* CARD 17: CENTRAL DE MOTORES DE IA */}
               <AppleToolCard
-                title="Central de Motores de IA: Gemini, GPT-4o & Claude"
-                desc="Escolha o provedor/modelo (Gemini, GPT-4o, Claude) e a temperatura usados por cada ferramenta de geração de conteúdo."
+                title="Central de Motores de IA: Groq + Llama"
+                desc="Escolha entre os perfis Groq conectados (Llama rápido ou qualidade) e ajuste a temperatura de cada ferramenta."
                 icon={<Cpu className="w-8 h-8 text-atlas-orange" />}
                 badge="Motores de IA"
                 onClick={() => handleOpenTool('ai_config')}
                 highlight={true}
-                visible={!searchQuery || 'motores ia gemini gpt claude provedor modelo configuracao'.includes(searchQuery.toLowerCase())}
+                visible={!searchQuery || 'motores ia groq llama provedor modelo configuracao'.includes(searchQuery.toLowerCase())}
                 brand={activeBrand}
               />
 
@@ -521,27 +564,28 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
             <div className="flex flex-wrap items-center justify-between p-4 rounded-3xl bg-slate-900/70 border border-white/10 shadow-xl backdrop-blur-2xl gap-3">
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleCycleTool(-1)}
-                  title="Ferramenta Anterior"
-                  aria-label="Ferramenta Anterior"
+                  onClick={handleGoBack}
+                  title="Voltar (ferramenta anterior ou índice)"
+                  aria-label="Voltar (ferramenta anterior ou índice)"
                   className="flex items-center justify-center w-10 h-10 rounded-2xl bg-white text-slate-900 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
                 >
                   <ChevronLeft className="w-5 h-5 text-atlas-orange" />
                 </button>
 
                 <button
-                  onClick={() => handleCycleTool(1)}
-                  title="Próxima Ferramenta"
-                  aria-label="Próxima Ferramenta"
-                  className="flex items-center justify-center w-10 h-10 rounded-2xl bg-white text-slate-900 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
+                  onClick={handleGoForward}
+                  disabled={historyIndex >= toolHistory.length - 1}
+                  title="Avançar"
+                  aria-label="Avançar"
+                  className="flex items-center justify-center w-10 h-10 rounded-2xl bg-white text-slate-900 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <ChevronRight className="w-5 h-5 text-atlas-orange" />
                 </button>
 
                 <button
                   onClick={() => { SoundFX.playClick(); setStep('home'); }}
-                  title="Início (Relógio & Cards)"
-                  aria-label="Início (Relógio & Cards)"
+                  title="Início (Escolha da Empresa)"
+                  aria-label="Início (Escolha da Empresa)"
                   className="flex items-center justify-center w-10 h-10 rounded-2xl bg-white/10 text-gray-200 hover:bg-white/15 transition-all cursor-pointer border border-white/10"
                 >
                   <Home className="w-5 h-5" />
@@ -625,7 +669,10 @@ function AppleToolCard({ title, desc, icon, badge, onClick, highlight, visible, 
       whileHover={{ scale: 1.03, y: -6 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`p-8 rounded-[2.8rem] border transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 ${gradientBgClass} ${borderClass}`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className={`p-8 rounded-[2.8rem] border transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-atlas-orange/30 ${gradientBgClass} ${borderClass}`}
     >
       <div className="flex items-center justify-between">
         <div className={`p-4 rounded-2xl shadow-xs shrink-0 [&_svg]:w-8 [&_svg]:h-8 ${iconBgClass}`}>

@@ -3,19 +3,20 @@ import { motion } from 'motion/react';
 import {
     Search, Loader2, ShieldCheck, AlertTriangle, Building2, MapPin, Users,
     TrendingUp, Cpu, Database, Globe, CheckCircle2, Landmark, UserPlus, Sparkles,
-    SlidersHorizontal, ChevronDown, ChevronUp, Linkedin, Phone, Calendar, DollarSign, Wrench, Mail, type LucideIcon
+    SlidersHorizontal, ChevronDown, ChevronUp, Linkedin, Phone, Calendar, DollarSign, Wrench, Mail,
+    RefreshCw, Wifi, WifiOff, type LucideIcon
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult, DecisionMaker } from '../services/prospecting.service';
-import type { DecisionMakerCriteria } from '../services/apollo.service';
+import type { ApolloConnectionStatus, DecisionMakerCriteria } from '../services/apollo.service';
 import {
     SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, QUANTIDADE_OPTIONS, PORTE_OPTIONS, ESTADO_OPTIONS, TECNOLOGIA_OPTIONS,
-    ATLAS_PERSONA_OPTIONS
+    ATLAS_PERSONA_OPTIONS, TOTALTRAC_PERSONA_OPTIONS
 } from '../constants/icp-options';
 import { useBrand } from '../../../contexts/BrandContext';
+import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { GamificationWidget } from '../../../components/ui/GamificationWidget';
-import * as XLSX from 'xlsx';
 
 type HubTab = 'cnpj' | 'discovery';
 
@@ -62,6 +63,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function ProspectingHub() {
     const { activeBrand, brandInfo } = useBrand();
+    const accent = useBrandAccent();
     const [tab, setTab] = useState<HubTab>('cnpj');
 
     const activeSegments = activeBrand === 'totaltrac' ? TOTALTRAC_SEGMENTO_OPTIONS : SEGMENTO_OPTIONS;
@@ -85,15 +87,14 @@ export function ProspectingHub() {
             ...prev,
             segmento: activeSegments[0]
         }));
-    }, [activeBrand]);
+    }, [activeSegments]);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
     const [loadingStepIdx, setLoadingStepIdx] = useState(0);
     const [candidates, setCandidates] = useState<ProspectCandidate[]>([]);
     const [discoverError, setDiscoverError] = useState<string | null>(null);
-    const [apolloError, setApolloError] = useState<string | null>(null);
-    const [cities, setCities] = useState<string[]>([]);
+    const [apolloError, setApolloError] = useState<string | null>(null);    const [cities, setCities] = useState<string[]>([]);
     const [isSavingBatch, setIsSavingBatch] = useState(false);
 
     useEffect(() => {
@@ -106,7 +107,7 @@ export function ProspectingHub() {
         if (uf) {
             fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
                 .then(r => r.json())
-                .then((data: any[]) => setCities(data.map(d => d.nome)))
+                .then((data: Array<{ nome: string }>) => setCities(data.map(d => d.nome)))
                 .catch(() => setCities([]));
         } else {
             setCities([]);
@@ -164,8 +165,9 @@ export function ProspectingHub() {
             );
         });
 
-    const exportToExcel = () => {
+    const exportToExcel = async () => {
         if (candidates.length === 0) return;
+        const XLSX = await import('xlsx');
         const data = candidates.map(c => ({
             'Nome Fantasia': c.tradeName,
             'Razão Social': c.legalNameGuess || c.tradeName,
@@ -177,12 +179,12 @@ export function ProspectingHub() {
             'Emails': c.emails ? c.emails.join(', ') : '',
             'Telefones': c.phone || '',
             'LinkedIn': c.linkedinUrl || '',
-            'Decisores': c.apolloContacts ? c.apolloContacts.map((d: any) => `${d.name} (${d.title}) - ${d.email || ''}`).join(' | ') : ''
+            'Decisores': c.apolloContacts ? c.apolloContacts.map((d) => `${d.name} (${d.title}) - ${d.email || ''}`).join(' | ') : ''
         }));
         const worksheet = XLSX.utils.json_to_sheet(data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Prospects');
-        XLSX.writeFile(workbook, `AtlasGR_Prospects_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        XLSX.writeFile(workbook, `${brandInfo.name}_Prospects_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
 
     const handleCnpjLookup = async () => {
@@ -220,6 +222,8 @@ export function ProspectingHub() {
         }
     };
 
+
+
     const promoteCnpjResult = async () => {
         if (!cnpjResult?.found || !cnpjResult.data) return;
         const key = `cnpj-${cnpjResult.cnpj}`;
@@ -255,7 +259,7 @@ export function ProspectingHub() {
                 segment: candidate.segment,
                 size: candidate.size,
                 location: candidate.location,
-                source: 'AtlasGR Prospect (OpenStreetMap / Apollo opcional)',
+                source: `${brandInfo.name} Prospect (OpenStreetMap / Apollo opcional)`,
                 autoEnrich: false, // Salvar como lead cru para economizar créditos
                 linkedin: candidate.linkedinUrl,
                 phone: candidate.phone,
@@ -273,7 +277,9 @@ export function ProspectingHub() {
         <div className="flex-1 overflow-y-auto bg-transparent p-6 sm:p-8 font-sans">
             <div className="max-w-7xl mx-auto space-y-8">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 space-y-4">
-                    <h1 className="text-4xl font-black text-gradient-brand tracking-tight">AtlasGR Prospect <Sparkles className="inline-block text-atlas-orange -mt-1 ml-1" size={28} /></h1>
+                    <h1 className="text-4xl font-black tracking-tight text-white">
+                        {brandInfo.name} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Prospect</span> <Sparkles className={`inline-block ${accent.text} -mt-1 ml-1`} size={28} />
+                    </h1>
                     <p className="text-gray-400 text-sm font-medium">Motor de enriquecimento autônomo com IA para capturar leads corporativos de altíssimo nível.</p>
                     <GamificationWidget />
                 </motion.div>
@@ -391,7 +397,9 @@ export function ProspectingHub() {
                                 </div>
                                 <h2 className="font-black text-xl text-white">🗺️ Motor de Busca Turbo</h2>
                             </div>
-                            <p className="text-xs text-gray-400 mb-4 relative z-10">Busca real via OpenStreetMap e fontes públicas; Apollo é usado somente quando uma chave opcional está habilitada.</p>
+                            <p className="text-xs text-gray-400 mb-3 relative z-10">Busca real via Google Maps, OpenStreetMap e Apollo quando as integrações estão habilitadas.</p>
+
+
 
                             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
                                 {dropdownFields.map(({ key, label, options }) => (
@@ -436,6 +444,22 @@ export function ProspectingHub() {
                                             {cities.map((city) => <option key={city} value={city}>{city}</option>)}
                                         </select>
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Pesquisar por nome ou empresa</label>
+                                    <div className="relative">
+                                        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                                        <input
+                                            type="search"
+                                            placeholder="Ex: Transportadora ABC, armazém..."
+                                            value={criteria.nomeEmpresa || ''}
+                                            onChange={(e) => setCriteria({ ...criteria, nomeEmpresa: e.target.value || undefined })}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleDiscover()}
+                                            className="w-full py-3 pl-9 pr-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1">Refina Google Maps, Apollo e OpenStreetMap pelo nome informado.</p>
                                 </div>
 
                                 <div>
@@ -499,16 +523,6 @@ export function ProspectingHub() {
                                                 className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
                                             />
                                             <p className="text-[10px] text-gray-400 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Nome específico da empresa</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Ex: Tranziran"
-                                                value={criteria.nomeEmpresa || ''}
-                                                onChange={(e) => setCriteria({ ...criteria, nomeEmpresa: e.target.value || undefined })}
-                                                className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
-                                            />
                                         </div>
                                         <div>
                                             <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Ano de Fundação (Mín e Máx)</label>
@@ -815,6 +829,8 @@ function InfoTile({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
 }
 
 function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
+    const { activeBrand, brandInfo } = useBrand();
+    const personaOptions = activeBrand === 'totaltrac' ? TOTALTRAC_PERSONA_OPTIONS : ATLAS_PERSONA_OPTIONS;
     const [open, setOpen] = useState(false);
     const [criteria, setCriteria] = useState<DecisionMakerCriteria>({
         apenasEmailVerificado: true,
@@ -852,12 +868,14 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
         }));
     };
 
-    const isPersonaActive = (persona: typeof ATLAS_PERSONA_OPTIONS[number]) => {
+    type PersonaOption = { label: string; nivel: string; titles: string; seniorities: readonly string[] };
+
+    const isPersonaActive = (persona: PersonaOption) => {
         const currentTitles = (criteria.cargos || '').split(',').map((t) => t.trim()).filter(Boolean);
         return persona.titles.split(',').every((t) => currentTitles.includes(t));
     };
 
-    const togglePersona = (persona: typeof ATLAS_PERSONA_OPTIONS[number]) => {
+    const togglePersona = (persona: PersonaOption) => {
         setCriteria((c) => {
             const currentTitles = (c.cargos || '').split(',').map((t) => t.trim()).filter(Boolean);
             const personaTitles = persona.titles.split(',');
@@ -920,9 +938,9 @@ function DecisionMakerSection({ candidate }: { candidate: ProspectCandidate }) {
             </div>
 
             <div className="mb-4">
-                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Personas AtlasGR (Playbook de Pré-Vendas)</label>
+                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Personas {brandInfo.name} (Playbook de Pré-Vendas)</label>
                 <div className="flex flex-wrap gap-1.5">
-                    {ATLAS_PERSONA_OPTIONS.map((persona) => {
+                    {personaOptions.map((persona) => {
                         const active = isPersonaActive(persona);
                         return (
                             <button

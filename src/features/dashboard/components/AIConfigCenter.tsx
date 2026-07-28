@@ -5,13 +5,10 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { api } from '../../../lib/api';
 
-/** Modelos disponíveis via LiteLLM Gateway — mesmos aliases de src/lib/ai/gateway.ts. */
+/** Perfis realmente disponíveis no runtime atual. Os values são aliases lógicos do gateway. */
 const MODEL_OPTIONS = [
-  { value: 'gemini-flash', label: 'Gemini Flash', provider: 'Google' },
-  { value: 'gemini-pro', label: 'Gemini Pro', provider: 'Google' },
-  { value: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o mini', provider: 'OpenAI' },
-  { value: 'claude-sonnet', label: 'Claude Sonnet', provider: 'Anthropic' },
+  { value: 'gemini-flash', label: 'Llama 3.1 8B · rápido', provider: 'Groq' },
+  { value: 'gemini-pro', label: 'Llama 3.3 70B · qualidade', provider: 'Groq' },
 ] as const;
 
 const PROVIDER_BY_MODEL: Record<string, string> = Object.fromEntries(
@@ -82,7 +79,15 @@ export const AIConfigCenter: React.FC = () => {
         setSettings((prev) => {
           const next = { ...prev };
           for (const s of saved) {
-            next[s.toolKey] = { toolKey: s.toolKey, provider: s.provider, model: s.model, temperature: s.temperature };
+            const supportedModel = MODEL_OPTIONS.some((option) => option.value === s.model)
+              ? s.model
+              : DEFAULT_MODEL;
+            next[s.toolKey] = {
+              toolKey: s.toolKey,
+              provider: PROVIDER_BY_MODEL[supportedModel],
+              model: supportedModel,
+              temperature: s.temperature,
+            };
           }
           return next;
         });
@@ -133,7 +138,7 @@ export const AIConfigCenter: React.FC = () => {
           </div>
           <div>
             <CardTitle className="text-gradient-brand">Central de Motores de IA</CardTitle>
-            <CardDescription>Escolha o provedor/modelo e a temperatura usados por cada ferramenta de geração de conteúdo.</CardDescription>
+            <CardDescription>Escolha entre os perfis Groq realmente conectados e ajuste a criatividade de cada ferramenta.</CardDescription>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving || loading} className="shrink-0">

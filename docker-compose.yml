@@ -31,6 +31,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
       # Integrações externas de prospecção/enriquecimento — sem isso o container nunca recebia as chaves.
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - APOLLO_API_KEY=${APOLLO_API_KEY}
       - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
       - HUNTER_API_KEY=${HUNTER_API_KEY}
@@ -160,6 +161,7 @@ services:
     environment:
       - LITELLM_MASTER_KEY=${LITELLM_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB}?schema=litellm
       - STORE_MODEL_IN_DB=True
     volumes:

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Download } from 'lucide-react';
+import { Download, WifiOff } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
@@ -7,6 +7,9 @@ import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
 import { api } from '../lib/api';
 import { leadsDB } from '../lib/db';
 import { ContextualTip } from './ui/ContextualTip';
+import { EmptyState } from './ui/EmptyState';
+import { useBrand } from '../contexts/BrandContext';
+import { toast } from '../lib/toast';
 import { 
     DndContext, 
     closestCenter, 
@@ -29,8 +32,10 @@ const COLUMNS: LeadStatus[] = [
 ];
 
 export function CrmBoard() {
+    const { brandInfo } = useBrand();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
 
@@ -45,17 +50,19 @@ export function CrmBoard() {
 
     const fetchLeads = useCallback(async () => {
         setLoading(true);
+        setError(null);
         try {
             const url = `/api/leads?limit=1000`;
             const response = await api.get<{data: Lead[], meta?: { total: number, page: number, limit: number, totalPages: number }}>(url);
-            
+
             if (Array.isArray(response)) {
                 setLeads(response);
             } else if (response && response.data) {
                 setLeads(response.data);
             }
-        } catch (error) {
-            console.error('Error fetching leads:', error);
+        } catch (err) {
+            console.error('Error fetching leads:', err);
+            setError(err instanceof Error ? err.message : 'Não foi possível carregar o pipeline comercial.');
         } finally {
             setLoading(false);
         }
@@ -135,7 +142,7 @@ export function CrmBoard() {
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement('a');
         link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `leads_atlasgr_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.setAttribute('download', `leads_${brandInfo.name.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -166,24 +173,24 @@ export function CrmBoard() {
             <div className="p-6 border-b border-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-900/90 backdrop-blur-xl shrink-0 gap-4">
                 <div>
                     <h2 className="font-extrabold text-2xl text-white tracking-tight flex items-center gap-2">
-                        🎯 AtlasGR Sales Cloud (Pipeline CRM)
+                        🎯 {brandInfo.name} Sales Cloud (Pipeline CRM)
                     </h2>
                     <p className="text-gray-400 text-xs mt-1">Arraste os cards para avançar no funil comercial e veja as ferramentas mapeadas em cada conta</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => alert('Importação do Bitrix24 será ativada na próxima atualização!')}
+                        onClick={() => toast.info('Importação direta do Bitrix24 ainda não está disponível — chegando em breve.')}
                         className="flex items-center gap-2 bg-gray-800 border border-gray-700 text-gray-300 px-4 py-2 rounded-xl font-bold text-xs hover:bg-gray-700 transition-colors"
-                        title="Importar leads do Bitrix24"
+                        title="Importar leads do Bitrix24 (em breve)"
                     >
-                        <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 Importar do Bitrix24
+                        <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 Importar do Bitrix24 (em breve)
                     </button>
                     <button
                         onClick={handleExportCsv}
                         className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition-colors shadow-md"
-                        title="Exportar todos os leads"
+                        title="Exportar todos os leads para uma planilha CSV"
                     >
-                        <Download className="w-4 h-4" /> 💾 Exportar para Bitrix24
+                        <Download className="w-4 h-4" /> 💾 Exportar CSV
                     </button>
                 </div>
             </div>
@@ -205,6 +212,14 @@ export function CrmBoard() {
                             <p className="text-gray-400 font-medium text-sm">Carregando pipeline comercial...</p>
                         </div>
                     </div>
+                ) : error ? (
+                    <EmptyState
+                        icon={<WifiOff className="w-8 h-8 text-atlas-orange" />}
+                        title="Não foi possível carregar o pipeline"
+                        description={error}
+                        actionLabel="Tentar novamente"
+                        onAction={fetchLeads}
+                    />
                 ) : (
                     <DndContext
                         sensors={sensors}
