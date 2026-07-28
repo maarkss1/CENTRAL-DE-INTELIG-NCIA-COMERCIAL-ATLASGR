@@ -172,16 +172,6 @@ async function startServer() {
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
 
-    // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
-    // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa
-    // requisições sem arquivo correspondente e isso re-executa toda a cadeia de
-    // middlewares (incluindo o apiLimiter) repetidamente para a mesma requisição,
-    // estourando o rate limit em segundos com uma única chamada a um endpoint
-    // inexistente (ex.: /api/analytics/overview, que nunca teve rota registrada).
-    app.use('/api', (_req, res) => {
-        res.status(404).json({ success: false, error: 'Not found' });
-    });
-
     // ── Frontend ───────────────────────────────────────────────────────────
     if (env.NODE_ENV !== 'production') {
         const vite = await createViteServer({
