@@ -20,6 +20,7 @@ const CompanyList = lazy(() => import('./features/companies/components/CompanyLi
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
+const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 
 function PageFallback() {
   return (
@@ -52,6 +53,7 @@ function AppLayout() {
         {activeTab === 'contacts' && <ContactList />}
         {activeTab === 'activities' && <ActivityList />}
         {activeTab === 'chatbook' && <ChatbookHub />}
+        {activeTab === 'integrations' && <Integrations />}
       </Suspense>
     </MainLayout>
   );
