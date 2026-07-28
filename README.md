@@ -53,3 +53,4 @@ Variáveis requeridas:
 - Imports utilizando paths relativos/alias padronizados.
 - Tipagens fortes usando TypeScript estrito.
 - Tratamento de erro global implementado em `server.ts` e classes em `src/utils`.
+Para a documentação completa, consulte o [Índice da Documentação](docs/README.md).
