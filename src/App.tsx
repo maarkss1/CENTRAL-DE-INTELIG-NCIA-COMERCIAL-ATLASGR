@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Skeleton } from './components/ui/Skeleton';
 import { ClickSpark } from './components/ui/ClickSpark';
 
@@ -69,7 +70,9 @@ export default function App() {
                 path="/app/*"
                 element={
                   <ProtectedRoute>
-                    <AppLayout />
+                    <ErrorBoundary>
+                      <AppLayout />
+                    </ErrorBoundary>
                   </ProtectedRoute>
                 }
               />

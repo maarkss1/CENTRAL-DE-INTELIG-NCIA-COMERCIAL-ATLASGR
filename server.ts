@@ -89,9 +89,9 @@ async function startServer() {
         max: 500,
         standardHeaders: true,
         legacyHeaders: false,
-        store: new RedisStore({
+        store: env.NODE_ENV === 'production' ? new RedisStore({
             sendCommand: sendRateLimitCommand,
-        }),
+        }) : undefined,
         message: { success: false, error: 'Too many requests from this IP, please try again after 15 minutes' }
     });
     app.use('/api', apiLimiter);
@@ -102,9 +102,9 @@ async function startServer() {
         max: env.AI_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        store: new RedisStore({
+        store: env.NODE_ENV === 'production' ? new RedisStore({
             sendCommand: sendRateLimitCommand,
-        }),
+        }) : undefined,
         message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
     });
     app.use('/api/intelligence', aiLimiter);

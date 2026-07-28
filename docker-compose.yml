@@ -1,221 +1,42 @@
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      target: runner
-    ports:
-      - "${APP_PORT:-3000}:3000"
+  postgres:
+    image: postgres:16-alpine
+    container_name: atlas_postgres
     environment:
-      - NODE_ENV=production
-      - HOST=0.0.0.0
-      # Dentro da rede Docker os serviços se enxergam pelo nome do serviço, não por localhost/porta
-      # publicada no host — por isso aqui sobrescrevemos DATABASE_URL/REDIS_URL do .env (que apontam
-      # para localhost:5434/6379, corretos apenas para `npm run dev` rodando fora do Docker).
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB}?schema=public
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
-      - APP_URL=${APP_URL}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - MEILI_HOST=http://meilisearch:7700
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
-      - MINIO_ENDPOINT=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - STORAGE_BUCKET=${STORAGE_BUCKET}
-      - LITELLM_URL=http://litellm:4000/v1
-      - LITELLM_KEY=${LITELLM_KEY}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318/v1/traces
-      # Integrações externas de prospecção/enriquecimento — sem isso o container nunca recebia as chaves.
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - APOLLO_API_KEY=${APOLLO_API_KEY}
-      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
-      - HUNTER_API_KEY=${HUNTER_API_KEY}
-      - PROSPECTING_PROVIDER_MODE=${PROSPECTING_PROVIDER_MODE:-free}
-      - CNPJ_PROVIDER=${CNPJ_PROVIDER:-brasilapi}
-      - ALLOW_DEV_AUTH_BYPASS=false
-      - API_RATE_LIMIT_MAX=${API_RATE_LIMIT_MAX:-600}
-      - AI_RATE_LIMIT_MAX=${AI_RATE_LIMIT_MAX:-30}
-      - JSON_BODY_LIMIT=${JSON_BODY_LIMIT:-2mb}
-      - TRUST_PROXY=${TRUST_PROXY:-true}
-      - EXPOSE_METRICS=${EXPOSE_METRICS:-false}
-      - ENABLE_SEARCH=${ENABLE_SEARCH:-true}
-      - ENABLE_QUEUES=${ENABLE_QUEUES:-true}
-    depends_on:
-      postgres-primary:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      meilisearch:
-        condition: service_started
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  postgres-primary:
-    image: pgvector/pgvector:pg15
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      POSTGRES_USER: prospector
+      POSTGRES_PASSWORD: prospector_pass
+      POSTGRES_DB: prospectordb
     ports:
-      - "${POSTGRES_PORT:-5434}:5432"
+      - "5434:5432"
     volumes:
-      - pgdata-primary:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - prospector-net
+      - atlas_pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    container_name: atlas_redis
+    command: redis-server --requirepass prospector_redis_pass
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "6379:6379"
     volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "${GRAFANA_PORT:-3001}:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
-    depends_on:
-      - prometheus
-      - loki
-    volumes:
-      - grafana_data:/var/lib/grafana
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  loki:
-    image: grafana/loki:latest
-    ports:
-      - "${LOKI_PORT:-3100}:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - prospector-net
+      - atlas_redisdata:/data
     restart: unless-stopped
 
   meilisearch:
-    image: getmeili/meilisearch:v1.12
+    image: getmeili/meilisearch:v1.6
+    container_name: atlas_meilisearch
     environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
-      - MEILI_ENV=production
+      - MEILI_MASTER_KEY=atlasgr_meili_master_key
+      - MEILI_ENV=development
     ports:
-      - "${MEILI_PORT:-7700}:7700"
+      - "7700:7700"
     volumes:
-      - meilisearch_data:/meili_data
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
-    ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
-    volumes:
-      - minio_data:/data
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  litellm:
-    image: ghcr.io/berriai/litellm:main-latest
-    ports:
-      - "${LITELLM_PORT:-4000}:4000"
-    environment:
-      - LITELLM_MASTER_KEY=${LITELLM_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-primary:5432/${POSTGRES_DB}?schema=litellm
-      - STORE_MODEL_IN_DB=True
-    volumes:
-      - ./litellm-config.yaml:/app/config.yaml
-    command: ["--config", "/app/config.yaml", "--port", "4000"]
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  n8n:
-    image: docker.n8n.io/n8nio/n8n
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - NODE_ENV=production
-      - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=America/Sao_Paulo
-      # Postgres for n8n (optional, but good for production)
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
-      - DB_POSTGRESDB_HOST=postgres-primary
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_USER=${POSTGRES_USER}
-      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - n8n_data:/home/node/.n8n
-    depends_on:
-      - postgres-primary
-    networks:
-      - prospector-net
-    restart: unless-stopped
-
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-    ports:
-      - "${JAEGER_UI_PORT:-16686}:16686"
-      - "${JAEGER_OTLP_PORT:-4318}:4318"
-    networks:
-      - prospector-net
+      - atlas_meilidata:/meili_data
     restart: unless-stopped
 
 volumes:
-  pgdata-primary:
-  redisdata:
-  meilisearch_data:
-  minio_data:
-  grafana_data:
-  n8n_data:
-
-networks:
-  prospector-net:
-    driver: bridge
+  atlas_pgdata:
+  atlas_redisdata:
+  atlas_meilidata:
