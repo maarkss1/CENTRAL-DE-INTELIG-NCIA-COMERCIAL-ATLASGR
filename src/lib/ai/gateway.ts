@@ -184,29 +184,6 @@ export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
     return (usage.promptTokens / 1_000_000) * pricing.input + (usage.completionTokens / 1_000_000) * pricing.output;
 }
 
-export interface LogAiUsageParams {
-    model: string;
-    usage: AiTokenUsage;
-    latencyMs: number;
-    promptId?: string;
-}
-
-/**
- * Persiste o consumo de tokens/custo de uma chamada de IA em AILog, para auditoria e billing.
- */
-export const logAiUsage = async ({ model, usage, latencyMs, promptId }: LogAiUsageParams): Promise<void> => {
-    const { prisma } = await import('../prisma.js');
-    await prisma.aILog.create({
-        data: {
-            model,
-            tokens: usage.totalTokens,
-            cost: estimateCostUsd(model, usage),
-            latencyMs,
-            promptId,
-        },
-    });
-};
-
 /**
  * Gera um embedding (array de floats) para o texto fornecido.
  * Usado para a Memória Vetorial (RAG) do Agente SDR via pgvector.
