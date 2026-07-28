@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Skeleton } from './components/ui/Skeleton';
 import { ClickSpark } from './components/ui/ClickSpark';
 
@@ -19,6 +20,7 @@ const CompanyList = lazy(() => import('./features/companies/components/CompanyLi
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
+const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 
 function PageFallback() {
   return (
@@ -43,7 +45,7 @@ function AppLayout() {
   return (
     <MainLayout activeTab={activeTab} onTabChange={setActiveTab}>
       <Suspense fallback={<PageFallback />}>
-        {activeTab === 'dashboard' && <SinglePageDashboard onSelectModule={(tab) => setActiveTab(tab)} />}
+        {activeTab === 'dashboard' && <SinglePageDashboard onSelectModule={(tab: TabType | string) => setActiveTab(tab as TabType)} />}
         {activeTab === 'prospect' && <ProspectingHub />}
         {activeTab === 'crm' && <CrmBoard />}
         {activeTab === 'intelligence' && <IntelligenceHub />}
@@ -51,6 +53,7 @@ function AppLayout() {
         {activeTab === 'contacts' && <ContactList />}
         {activeTab === 'activities' && <ActivityList />}
         {activeTab === 'chatbook' && <ChatbookHub />}
+        {activeTab === 'integrations' && <Integrations />}
       </Suspense>
     </MainLayout>
   );
@@ -69,7 +72,9 @@ export default function App() {
                 path="/app/*"
                 element={
                   <ProtectedRoute>
-                    <AppLayout />
+                    <ErrorBoundary>
+                      <AppLayout />
+                    </ErrorBoundary>
                   </ProtectedRoute>
                 }
               />

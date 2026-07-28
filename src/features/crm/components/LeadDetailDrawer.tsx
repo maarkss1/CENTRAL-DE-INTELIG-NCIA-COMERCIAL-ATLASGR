@@ -8,6 +8,7 @@ import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { PIC_OPTIONS } from '../../prospecting/constants/icp-options';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
+import { useBrand } from '../../../contexts/BrandContext';
 
 const STATUS_EMOJI: Record<string, string> = {
     'Novo Lead': '🆕', 'Qualificação': '🔎', 'Primeiro Contato': '☎️', 'Diagnóstico': '🩺',
@@ -30,6 +31,7 @@ interface LeadDetailDrawerProps {
 }
 
 export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawerProps) {
+    const { activeBrand, brandInfo } = useBrand();
     const [lead, setLead] = useState<Lead | null>(null);
     const [loading, setLoading] = useState(true);
     const [enriching, setEnriching] = useState(false);
@@ -134,7 +136,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         if (!noteText.trim()) return;
         setSavingNote(true);
         try {
-            await api.post<Note>(`/api/leads/${leadId}/notes`, { content: noteText.trim(), author: 'Equipe AtlasGR' });
+            await api.post<Note>(`/api/leads/${leadId}/notes`, { content: noteText.trim(), author: `Equipe ${brandInfo.name}` });
             setNoteText('');
             toast.success('Nota adicionada.');
             await fetchLead();
@@ -270,7 +272,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {/* AI Cold Email Generator Copilot */}
                         <section>
                             <AIEmailGenerator
-                                companyName={company?.legalName || lead.tradeName || 'Empresa Lead'}
+                                companyName={company?.legalName || company?.tradeName || 'Empresa Lead'}
                                 contactName={lead.contact?.name || 'Decisor de Compras'}
                                 sector={company?.segment || 'Mercado B2B'}
                                 role={lead.contact?.role || 'Diretor Comercial'}
@@ -322,7 +324,12 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         <QualInput label="Dor principal identificada" value={qualDraft.dorPrincipal} onChange={(v) => setQualDraft((d) => ({ ...d, dorPrincipal: v }))} full />
                                         <QualInput label="Detalhamento da dor (exemplo real)" value={qualDraft.detalhamentoDor} onChange={(v) => setQualDraft((d) => ({ ...d, detalhamentoDor: v }))} full />
                                         <QualInput label="Impacto percebido (custo/risco/SLA/retrabalho/margem)" value={qualDraft.impactoPercebido} onChange={(v) => setQualDraft((d) => ({ ...d, impactoPercebido: v }))} full />
-                                        <QualSelect label="Conecta com qual solução AtlasGR?" value={qualDraft.solucaoAtlas} options={['', 'Profile', 'GR', 'Connect', 'Combinação']} onChange={(v) => setQualDraft((d) => ({ ...d, solucaoAtlas: v as LeadQualification['solucaoAtlas'] }))} />
+                                        <QualSelect
+                                            label={`Conecta com qual solução ${brandInfo.name}?`}
+                                            value={qualDraft.solucaoAtlas}
+                                            options={activeBrand === 'totaltrac' ? ['', 'Telemetria', 'Trava Remota', 'M2M', 'Combinação'] : ['', 'Profile', 'GR', 'Connect', 'Combinação']}
+                                            onChange={(v) => setQualDraft((d) => ({ ...d, solucaoAtlas: v as LeadQualification['solucaoAtlas'] }))}
+                                        />
                                     </QualGroup>
 
                                     <QualGroup title="Interesse e Autoridade">

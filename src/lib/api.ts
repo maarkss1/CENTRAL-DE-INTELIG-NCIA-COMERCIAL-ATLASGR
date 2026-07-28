@@ -1,4 +1,14 @@
-export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+export interface ApiRequestOptions extends RequestInit {
+    timeoutMs?: number;
+}
+
+type ViteImportMeta = ImportMeta & {
+    env?: {
+        VITE_API_TIMEOUT_MS?: string;
+    };
+};
+
+export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
     const defaultHeaders = {
         'Content-Type': 'application/json',
     };
@@ -10,7 +20,8 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
     }
 
     const controller = new AbortController();
-    const timeoutMs = Number((import.meta as any).env?.VITE_API_TIMEOUT_MS || 15_000);
+    const timeoutMs = options?.timeoutMs
+        ?? Number((import.meta as ViteImportMeta).env?.VITE_API_TIMEOUT_MS || 15_000);
     const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
     const signal = options?.signal
         ? AbortSignal.any([options.signal, controller.signal])
@@ -18,16 +29,18 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
 
     let response: Response;
     try {
+        const requestOptions = { ...(options || {}) };
+        delete requestOptions.timeoutMs;
         response = await fetch(endpoint, {
-            ...options,
+            ...requestOptions,
             signal,
             credentials: 'include',
             headers: {
                 ...defaultHeaders,
-                ...options?.headers,
+                ...requestOptions.headers,
             }
         });
-    } catch (error) {
+    } catch {
         if (controller.signal.aborted) {
             throw new Error('A API demorou demais para responder. Tente novamente.');
         }
@@ -64,8 +77,8 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
 }
 
 export const api = {
-    get: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'GET' }),
-    post: <T>(url: string, body?: unknown, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
-    put: <T>(url: string, body?: unknown, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
-    delete: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
+    get: <T>(url: string, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'GET' }),
+    post: <T>(url: string, body?: unknown, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
+    put: <T>(url: string, body?: unknown, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+    delete: <T>(url: string, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
 };

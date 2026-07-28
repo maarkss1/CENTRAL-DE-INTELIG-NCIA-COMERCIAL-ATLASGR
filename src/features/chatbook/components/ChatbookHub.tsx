@@ -5,12 +5,35 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../../contexts/BrandContext';
+import { api } from '../../../lib/api';
+
+interface SpeechRecognitionEventLike {
+    results: {
+        [index: number]: {
+            [index: number]: { transcript: string };
+        };
+    };
+}
+
+interface SpeechRecognitionLike {
+    continuous: boolean;
+    lang: string;
+    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+    onerror: (() => void) | null;
+    onend: (() => void) | null;
+    start(): void;
+    stop(): void;
+}
+
+interface SpeechRecognitionConstructorLike {
+    new(): SpeechRecognitionLike;
+}
 
 // TypeScript declaration for Web Speech API
 declare global {
     interface Window {
-        webkitSpeechRecognition: any;
-        SpeechRecognition: any;
+        webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
+        SpeechRecognition?: SpeechRecognitionConstructorLike;
     }
 }
 
@@ -136,9 +159,15 @@ export function ChatbookHub() {
         strengths: string[];
         improvements: string[];
     } | null>(null);
+    const [turnEvaluations, setTurnEvaluations] = useState<Array<{
+        clarity: number;
+        objectionHandling: number;
+        total: number;
+        feedback: string;
+    }>>([]);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
     const personasAtlas = [
         { id: 'diretor_logistica', label: 'Diretor de Logística & Supply', desc: 'Focado em ROI, eficiência de processos e redução de sinistros.' },
@@ -159,7 +188,7 @@ export function ChatbookHub() {
     }, [messages, isThinking]);
 
     useEffect(() => {
-        let interval: any;
+        let interval: ReturnType<typeof setInterval> | undefined;
         if (simulationActive && simulationMode === 'voice' && !isFinished) {
             interval = setInterval(() => setCallDuration(p => p + 1), 1000);
         }
@@ -174,12 +203,12 @@ export function ChatbookHub() {
 
     // Setup speech recognition
     useEffect(() => {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
             recognitionRef.current = new SpeechRecognition();
             recognitionRef.current.continuous = false;
             recognitionRef.current.lang = 'pt-BR';
-            recognitionRef.current.onresult = (event: any) => {
+            recognitionRef.current.onresult = (event: SpeechRecognitionEventLike) => {
                 const transcript = event.results[0][0].transcript;
                 setInputMessage(transcript);
                 setIsListening(false);
@@ -242,6 +271,7 @@ export function ChatbookHub() {
         setSimulationActive(true);
         setIsFinished(false);
         setAnalysisResult(null);
+        setTurnEvaluations([]);
         setCallDuration(0);
 
         const initialGreeting = activeBrand === 'totaltrac'
@@ -259,7 +289,7 @@ export function ChatbookHub() {
         speakText(initialGreeting);
     };
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!inputMessage.trim() || isThinking) return;
 
         const userMsg: Message = {
@@ -269,55 +299,83 @@ export function ChatbookHub() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        setMessages(prev => [...prev, userMsg]);
         const text = inputMessage.trim();
+        const nextMessages = [...messages, userMsg];
+        setMessages(nextMessages);
         setInputMessage('');
         setIsThinking(true);
 
-        setTimeout(() => {
-            generateBotResponse(text);
-            setIsThinking(false);
-        }, 1200);
-    };
+        const persona = ['diretor_operacoes', 'diretor_logistica'].includes(selectedPersona)
+            ? 'tech_director'
+            : ['gestor_frota', 'comprador_pme'].includes(selectedPersona)
+                ? 'skeptical_cfo'
+                : 'strict_buyer';
+        const playbookContext = JSON.stringify({
+            difficulty,
+            persona: currentPersonas.find((item) => item.id === selectedPersona),
+            qualificationCriteria: QUALIFICATION_CRITERIA.map((item) => ({
+                category: item.category,
+                criteria: activeBrand === 'totaltrac' ? item.totaltrac : item.atlas,
+                question: activeBrand === 'totaltrac' ? item.spinQuestionTotaltrac : item.spinQuestionAtlas,
+            })),
+            objections: OBJECTIONS_DATA.map((item) => ({
+                title: item.title,
+                technique: item.technique,
+                guidance: activeBrand === 'totaltrac' ? item.bestResponseTotaltrac : item.bestResponseAtlas,
+            })),
+        });
 
-    const generateBotResponse = (userText: string) => {
-        const lower = userText.toLowerCase();
-        let botText = '';
+        try {
+            const response = await api.post<{
+                result: {
+                    reply: string;
+                    feedback: string;
+                    clarity: number;
+                    objectionHandling: number;
+                    total: number;
+                };
+            }>('/api/intelligence/studio', {
+                kind: 'roleplay',
+                brand: {
+                    name: brandInfo.name,
+                    description: brandInfo.description,
+                },
+                inputs: {
+                    persona,
+                    message: text,
+                    transcript: nextMessages.map((message) => ({
+                        sender: message.sender === 'user' ? 'sdr' : 'buyer',
+                        text: message.text,
+                    })),
+                    playbookContext,
+                },
+            }, { timeoutMs: 90_000 });
 
-        if (activeBrand === 'totaltrac') {
-            if (lower.includes('telemetria') || lower.includes('can') || lower.includes('consumo')) {
-                botText = 'Interessante essa leitura direta da rede CAN. Mas como fica o custo de instalação e a garantia nos veículos novos?';
-            } else if (lower.includes('isca') || lower.includes('jammer') || lower.includes('bloqueio') || lower.includes('imobilizador')) {
-                botText = 'Os roubos por jammer realmente têm sido uma dor de cabeça pra gente. Essa isca de radiofrequência (RF) funciona mesmo quando o sinal 4G cai?';
-            } else if (lower.includes('jornada') || lower.includes('motorista') || lower.includes('hora')) {
-                botText = 'O controle de jornada é um ponto crítico. Nosso RH tem receio de passivos trabalhistas. Como o Total Jornada ajuda a evitar horas extras indevidas?';
-            } else if (lower.includes('preco') || lower.includes('valor') || lower.includes('caro') || lower.includes('orcamento')) {
-                botText = 'Entendi a proposta, mas nosso orçamento está bem apertado este ano. Por que eu deveria trocar meu fornecedor atual de rastreamento por vocês?';
-            } else {
-                botText = 'Certo! E em termos de suporte e central 24 horas, como funciona o atendimento em caso de sinistro ou emergência na pista?';
-            }
-        } else {
-            if (lower.includes('risco') || lower.includes('seguradora') || lower.includes('apolice')) {
-                botText = 'Nossa seguradora exige regras rígidas de GR. Como a inteligência da AtlasGR garante que nada vai falhar no dia do sinistro?';
-            } else if (lower.includes('ia') || lower.includes('autonoma') || lower.includes('scoring')) {
-                botText = 'Vocês falam bastante sobre IA autônoma e scoring. De que forma isso substitui ou melhora a central que já contratamos?';
-            } else if (lower.includes('preco') || lower.includes('valor') || lower.includes('custo')) {
-                botText = 'O conceito é interessante, mas qual o custo de implementação e o ROI estimado para uma frota do nosso porte?';
-            } else {
-                botText = 'Entendo. E como é a integração com nossos sistemas legados e ERPs de transporte?';
-            }
-        }
-
-        setMessages(prev => [
-            ...prev,
-            {
+            const botMessage = {
                 id: Date.now().toString(),
                 sender: 'bot',
-                text: botText,
+                text: response.result.reply,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-        ]);
-        speakText(botText);
+            } satisfies Message;
+            setMessages(prev => [...prev, botMessage]);
+            setTurnEvaluations(prev => [...prev, {
+                clarity: response.result.clarity,
+                objectionHandling: response.result.objectionHandling,
+                total: response.result.total,
+                feedback: response.result.feedback,
+            }]);
+            speakText(response.result.reply);
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : 'Falha inesperada';
+            setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                sender: 'bot',
+                text: `Não consegui consultar o comprador simulado agora. ${reason}`,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }]);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     const finishSimulation = () => {
@@ -329,30 +387,25 @@ export function ChatbookHub() {
             setIsListening(false);
         }
 
-        const score = Math.floor(Math.random() * 21) + 80; // 80 to 100
+        const average = (field: 'clarity' | 'objectionHandling' | 'total') =>
+            turnEvaluations.length
+                ? Math.round(turnEvaluations.reduce((sum, item) => sum + item[field], 0) / turnEvaluations.length)
+                : 0;
+        const score = average('total');
         setAnalysisResult({
             score,
-            qualificationsHit: [
-                'Identificação de Autoridade (Tomador de decisão de frota/GR)',
-                'Diagnóstico de Dor Principal (Leitura CAN / Jammer / Regras GR)',
-                'Apresentação de Solução com ROI Claro'
-            ],
-            objectionsHandled: [
-                'Contorno de objeção de preço vs valor entregue',
-                'Diferenciação frente a fornecedores comuns de rastreamento'
-            ],
-            feedback: activeBrand === 'totaltrac'
-                ? 'Excelente condução! Você explorou muito bem os diferenciais exclusivos da TotalTrac (Telemetria CAN real, Iscas RF anti-jammer e Total Jornada), contornando objeções de custo com foco em economia operacional.'
-                : 'Ótima performance! Você manteve o foco na camada de inteligência da AtlasGR, destacando a prevenção de perdas e a garantia de conformidade com apólices de seguro.',
+            qualificationsHit: [],
+            objectionsHandled: [],
+            feedback: turnEvaluations.at(-1)?.feedback
+                || 'Envie ao menos uma resposta ao comprador para receber uma avaliação pedagógica.',
             strengths: [
-                'Discurso claro e focado nas dores do cliente',
-                'Uso de perguntas SPIN para qualificar o Lead',
-                'Demonstração de autoridade técnica'
+                `Clareza média estimada: ${average('clarity')}%`,
+                `Tratamento de objeções estimado: ${average('objectionHandling')}%`,
+                `${turnEvaluations.length} resposta(s) analisada(s) pelo motor Groq`,
             ],
-            improvements: [
-                'Aprofundar a validação do prazo de implantação (Timeline)',
-                'Fixar o próximo passo antes de encerrar a conversa'
-            ]
+            improvements: turnEvaluations.length
+                ? turnEvaluations.slice(-3).map((item) => item.feedback)
+                : ['Continue a conversa para gerar recomendações baseadas nas suas respostas.'],
         });
     };
 
@@ -709,19 +762,19 @@ export function ChatbookHub() {
                                     
                                     <div className="relative z-10 text-center md:text-left flex-1">
                                         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-widest mb-4">
-                                            <Trophy className="w-4 h-4" /> Relatório Comercial Gamificado
+                                            <Trophy className="w-4 h-4" /> Relatório pedagógico · Groq IA
                                         </div>
                                         <h2 className="text-4xl lg:text-5xl font-black mb-3 tracking-tight">Análise de Desempenho</h2>
                                         <p className="text-gray-400 text-base md:text-lg font-medium leading-relaxed max-w-2xl">{analysisResult.feedback}</p>
                                     </div>
 
                                     <div className="relative z-10 flex flex-col items-center bg-white/10 backdrop-blur-xl px-12 py-8 rounded-[2rem] border border-white/20 shrink-0">
-                                        <span className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">XP Adquirido</span>
+                                        <span className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Pontuação estimada</span>
                                         <div className="flex items-baseline gap-1">
                                             <span className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-300 to-orange-500 tracking-tighter">{analysisResult.score}</span>
                                         </div>
                                         <div className="mt-4 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-bold uppercase tracking-widest">
-                                            Alta Performance
+                                            Estimativa pedagógica
                                         </div>
                                     </div>
                                 </div>
@@ -729,7 +782,7 @@ export function ChatbookHub() {
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
                                     <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100 space-y-6">
                                         <h3 className="font-black text-xl text-emerald-900 flex items-center gap-3 tracking-tight">
-                                            <div className="p-2 bg-emerald-100 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-600" /></div> Pontos Fortes Observados
+                                            <div className="p-2 bg-emerald-100 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-600" /></div> Métricas estimadas pela IA
                                         </h3>
                                         <ul className="space-y-4">
                                             {analysisResult.strengths.map((s, idx) => (

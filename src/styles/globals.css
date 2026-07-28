@@ -63,8 +63,6 @@
 
 @layer base {
   body {
-    background-color: var(--color-deep-bg);
-    color: #e2e8f0;
     overflow-x: hidden;
     font-family: var(--font-sans);
   }
@@ -135,3 +133,4 @@
     color: transparent;
   }
 }
+@custom-variant dark (&:where(.dark, .dark *));

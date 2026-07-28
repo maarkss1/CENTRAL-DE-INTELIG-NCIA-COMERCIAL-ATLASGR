@@ -75,7 +75,10 @@ export function ClockCalendarWidget() {
             return (
               <button
                 key={day}
+                type="button"
                 onClick={() => setSelectedDate(day)}
+                aria-label={`Ver compromissos do dia ${day}`}
+                aria-pressed={isSelected}
                 className={`py-2 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer ${
                   isToday
                     ? 'bg-gradient-to-br from-atlas-orange to-atlas-yellow text-white font-black shadow-lg shadow-atlas-orange/30 ring-2 ring-atlas-orange/30'

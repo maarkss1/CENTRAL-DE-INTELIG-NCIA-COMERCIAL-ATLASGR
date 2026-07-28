@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Mic, MicOff, Sparkles, Volume2, Command, Check } from 'lucide-react';
+import { Mic, Sparkles, Volume2, Command, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
+import { navigationBus } from '../../lib/navigationBus';
 
 export function VoiceCommandWidget() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [recognition, setRecognition] = useState<any>(null);
-  const navigate = useNavigate();
   const { setActiveBrand } = useBrand();
 
   useEffect(() => {
@@ -32,11 +31,11 @@ export function VoiceCommandWidget() {
         const textLower = currentText.toLowerCase();
 
         if (textLower.includes('crm') || textLower.includes('pipeline')) {
-          navigate('/app/crm');
+          navigationBus.requestTool('crm');
           setLastAction('Navegou para o CRM Board');
           stopListening();
         } else if (textLower.includes('prospector') || textLower.includes('buscar lead')) {
-          navigate('/app/prospect');
+          navigationBus.requestTool('prospect');
           setLastAction('Navegou para o Prospector');
           stopListening();
         } else if (textLower.includes('atlas') || textLower.includes('atlas gr')) {
@@ -48,15 +47,15 @@ export function VoiceCommandWidget() {
           setLastAction('Alternou para operação TotalTrac');
           stopListening();
         } else if (textLower.includes('inteligência') || textLower.includes('metodologia')) {
-          navigate('/app/intelligence');
+          navigationBus.requestTool('intelligence');
           setLastAction('Abriu Estúdio de Inteligência');
           stopListening();
         } else if (textLower.includes('contato') || textLower.includes('contatos')) {
-          navigate('/app/contacts');
+          navigationBus.requestTool('contacts');
           setLastAction('Navegou para Lista de Contatos');
           stopListening();
         } else if (textLower.includes('empresa') || textLower.includes('empresas')) {
-          navigate('/app/companies');
+          navigationBus.requestTool('companies');
           setLastAction('Navegou para Lista de Empresas');
           stopListening();
         }
@@ -72,7 +71,7 @@ export function VoiceCommandWidget() {
 
       setRecognition(rec);
     }
-  }, [navigate, setActiveBrand]);
+  }, [setActiveBrand]);
 
   const toggleListening = () => {
     if (!recognition) {

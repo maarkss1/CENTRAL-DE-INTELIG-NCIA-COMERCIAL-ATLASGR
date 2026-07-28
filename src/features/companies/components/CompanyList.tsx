@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2, LayoutGrid, LayoutList, Filter, Wrench, Globe, Phone, ExternalLink, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2, LayoutGrid, LayoutList, Wrench, ExternalLink, WifiOff } from 'lucide-react';
 import { Company } from '../../../types';
 import { CompanyForm } from './CompanyForm';
 import { CompanyDetail } from './CompanyDetail';
@@ -187,6 +186,16 @@ export function CompanyList() {
                     <div className="p-16 text-center bg-gray-800/30 rounded-3xl border border-gray-800 flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
                         <p className="text-gray-400 font-medium text-sm">Carregando carteira de empresas e logos de ferramentas...</p>
+                    </div>
+                ) : error ? (
+                    <div className="bg-gray-800/40 border border-gray-700/50 rounded-3xl p-8">
+                        <EmptyState
+                            title="Não foi possível carregar as empresas"
+                            description={error}
+                            actionLabel="Tentar novamente"
+                            onAction={refetch}
+                            icon={<WifiOff className="w-10 h-10 text-atlas-orange" />}
+                        />
                     </div>
                 ) : companies.length === 0 ? (
                     <div className="bg-gray-800/40 border border-gray-700/50 rounded-3xl p-8">

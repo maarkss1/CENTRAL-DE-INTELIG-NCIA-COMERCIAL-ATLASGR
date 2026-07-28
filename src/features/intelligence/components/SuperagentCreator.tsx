@@ -1,14 +1,17 @@
 import { useState } from 'react';
-import { Bot, Sparkles, Brain, Cpu, Database, Network, Power, ChevronDown, Check, Terminal, Copy, Download, Sliders, Zap, Code2 } from 'lucide-react';
+import { Bot, Sparkles, Brain, Cpu, Database, Network, Power, ChevronDown, Check, Terminal, Copy, Download, Sliders, Zap, Code2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { useBrand } from '../../../contexts/BrandContext';
+import { api } from '../../../lib/api';
 
 const PROVIDERS = [
+    { id: 'groq', name: 'Groq Cloud (Llama Fast)', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] },
     { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'o1-preview', 'gpt-4-turbo'] },
     { id: 'anthropic', name: 'Anthropic', models: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku'] },
     { id: 'google', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'] },
     { id: 'deepseek', name: 'DeepSeek AI', models: ['deepseek-r1', 'deepseek-v3', 'deepseek-coder'] },
-    { id: 'ollama', name: 'Local Ollama (Self-Hosted)', models: ['llama-3.3-70b', 'qwen-2.5-coder-32b', 'mistral-large-2'] },
-    { id: 'groq', name: 'Groq Cloud (Llama Fast)', models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'] }
+    { id: 'ollama', name: 'Local Ollama (Self-Hosted)', models: ['llama-3.3-70b', 'qwen-2.5-coder-32b', 'mistral-large-2'] }
 ];
 
 const ROLES = [
@@ -44,6 +47,8 @@ const TOOLS_LIST = [
 ];
 
 export function SuperagentCreator() {
+    const accent = useBrandAccent();
+    const { brandInfo } = useBrand();
     const [name, setName] = useState('');
     const [provider, setProvider] = useState(PROVIDERS[0].id);
     const [model, setModel] = useState(PROVIDERS[0].models[0]);
@@ -61,6 +66,8 @@ export function SuperagentCreator() {
     } | null>(null);
     const [activeTabOutput, setActiveTabOutput] = useState<'prompt' | 'json' | 'python' | 'powershell'>('prompt');
     const [copied, setCopied] = useState(false);
+    const [error, setError] = useState('');
+    const [resultSource, setResultSource] = useState<'ai' | 'local'>('ai');
 
     const [activeDropdown, setActiveDropdown] = useState<'provider' | 'model' | 'role' | 'temp' | 'memory' | null>(null);
 
@@ -81,11 +88,12 @@ export function SuperagentCreator() {
         );
     };
 
-    const handleCreate = () => {
+    const handleCreateOffline = () => {
         setGenerating(true);
-        const agentName = name || 'Nexus SDR Alpha';
+        setError('');
+        const agentName = name || `${accent.brandName} SDR Alpha`;
 
-        setTimeout(() => {
+        {
             const systemPrompt = `[SYSTEM PROMPT - ${agentName.toUpperCase()}]
 Você é o Superagente de IA "${agentName}", atuando estritamente como ${role}.
 
@@ -124,7 +132,8 @@ Você é o Superagente de IA "${agentName}", atuando estritamente como ${role}.
                     similarity_threshold: 0.82
                 },
                 tools: selectedTools,
-                status: "active",
+                status: "draft",
+                requires_review_before_deploy: true,
                 created_at: new Date().toISOString()
             }, null, 2);
 
@@ -150,10 +159,9 @@ class ${agentName.replace(/[^a-zA-Z0-9]/g, '')}Agent:
         logging.info(f"Processando lead: {lead_data.get('company_name', 'Desconhecido')}")
         # Lógica de integração LLM
         return {
-            "status": "QUALIFIED",
-            "score": 92,
+            "status": "REVIEW_REQUIRED",
             "agent": self.name,
-            "recommended_action": "Schedule Discovery Call"
+            "recommended_action": "Review output before any external action"
         }
 
 if __name__ == "__main__":
@@ -185,8 +193,8 @@ function Test-AgentEngine {
     Write-Host "[+] Testando canal de comunicação para $Name..." -ForegroundColor Gray
     Start-Sleep -Seconds 1
     return @{
-        Status = "ONLINE"
-        LatencyMs = 45
+        Status = "DRAFT_VALIDATED"
+        RequiresReview = $true
         MemoryEngine = "${memory}"
         ActiveToolsCount = ${selectedTools.length}
     }
@@ -197,14 +205,52 @@ $status | ConvertTo-Json -Depth 3
 `;
 
             setResult({
-                summary: `Superagente "${agentName}" provisionado e ativo!\nEngine: ${currentProviderObj.name} (${model})\nPapel: ${role}\nTemperatura: ${temperature}\nMemória: ${memory}`,
+                summary: `Modelo local do projeto "${agentName}" gerado; revisão e implantação ainda são necessárias.\nEngine alvo: ${currentProviderObj.name} (${model})\nPapel: ${role}\nTemperatura: ${temperature}\nMemória: ${memory}`,
                 systemPrompt,
                 jsonConfig,
                 pythonScript,
                 powershellScript
             });
+            setResultSource('local');
             setGenerating(false);
-        }, 1500);
+        }
+    };
+
+    const handleCreate = async () => {
+        setGenerating(true);
+        setError('');
+        setResult(null);
+        const agentName = name.trim() || `${brandInfo.name} SDR Alpha`;
+        try {
+            const response = await api.post<{
+                result: {
+                    summary: string;
+                    systemPrompt: string;
+                    jsonConfig: string;
+                    pythonScript: string;
+                    powershellScript: string;
+                };
+            }>('/api/intelligence/studio', {
+                kind: 'superagent',
+                brand: { name: brandInfo.name, description: brandInfo.description },
+                inputs: {
+                    name: agentName,
+                    provider: currentProviderObj.name,
+                    model,
+                    role,
+                    temperature: Number(temperature),
+                    memory: MEMORIES.find(item => item.id === memory)?.title || memory,
+                    tools: selectedTools.map(toolId => TOOLS_LIST.find(item => item.id === toolId)?.name || toolId),
+                },
+            }, { timeoutMs: 90_000 });
+            setResult(response.result);
+            setResultSource('ai');
+            setCopied(false);
+        } catch (generationError) {
+            setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o projeto do agente.');
+        } finally {
+            setGenerating(false);
+        }
     };
 
     const handleCopyCurrent = () => {
@@ -257,24 +303,24 @@ $status | ConvertTo-Json -Depth 3
                 className="bg-[#0A0D14] rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden border border-white/10"
             >
                 {/* Background ambient lighting */}
-                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-violet-600/15 rounded-full blur-[150px] pointer-events-none -mt-40 -mr-40"></div>
-                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-fuchsia-600/15 rounded-full blur-[120px] pointer-events-none -mb-40 -ml-40"></div>
+                <div className={`absolute top-0 right-0 w-[600px] h-[600px] ${accent.blobA} rounded-full blur-[150px] pointer-events-none -mt-40 -mr-40`}></div>
+                <div className={`absolute bottom-0 left-0 w-[500px] h-[500px] ${accent.blobB} rounded-full blur-[120px] pointer-events-none -mb-40 -ml-40`}></div>
 
                 <div className="relative z-10 flex flex-col items-center text-center mb-10">
-                    <motion.div 
+                    <motion.div
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ delay: 0.2 }}
-                        className="w-20 h-20 rounded-[2rem] bg-gradient-to-br from-violet-600 to-fuchsia-600 border border-white/20 flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(124,58,237,0.35)]"
+                        className={`w-20 h-20 rounded-[2rem] bg-gradient-to-br ${accent.gradient} border border-white/20 flex items-center justify-center mb-6 ${accent.glow}`}
                     >
                         <Bot size={40} className="text-white" />
                     </motion.div>
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-violet-400 mb-4 backdrop-blur-md">
+                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 ${accent.text} mb-4 backdrop-blur-md`}>
                         <Network size={14} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Multi-Agent AI Engine Builder</span>
                     </div>
                     <h3 className="text-4xl font-black text-white mb-4 tracking-tight">
-                        Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400">Fábrica de Superagentes</span>
+                        {accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Fábrica de Superagentes</span>
                     </h3>
                     <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">
                         Configure e versione agentes autônomos com motores neurais avançados. Defina provedor, modelo, temperatura, memória RAG e ferramentas executáveis.
@@ -285,42 +331,42 @@ $status | ConvertTo-Json -Depth 3
                     
                     {/* Campo 1: Identificação */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-violet-300">
+                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Bot size={14} /> Nome e Identificação do Agente
                         </label>
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             placeholder="Ex: SDR Alpha Outbound, Insight Bot..."
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-transparent text-white text-lg placeholder-gray-600 focus:outline-none border-b border-white/10 focus:border-violet-400 transition-colors pb-2"
+                            className={`w-full bg-transparent text-white text-lg placeholder-gray-600 focus:outline-none border-b border-white/10 focus:${accent.border} transition-colors pb-2`}
                         />
                     </div>
 
                     {/* Campo 2: Papel / Função */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-fuchsia-300">
+                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Papel & Especialidade (Role)
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'role' ? null : 'role')}
-                            className="w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-fuchsia-400/50 transition-colors"
+                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{role}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'role' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                                     className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-64 overflow-y-auto"
                                 >
                                     {ROLES.map(r => (
-                                        <div 
+                                        <div
                                             key={r.id} onClick={() => { setRole(r.title); setActiveDropdown(null); }}
-                                            className="px-5 py-3.5 text-sm text-gray-300 hover:bg-violet-900/30 hover:text-white cursor-pointer flex flex-col border-b border-white/5 last:border-none"
+                                            className="px-5 py-3.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white cursor-pointer flex flex-col border-b border-white/5 last:border-none"
                                         >
                                             <div className="flex justify-between items-center font-bold text-white">
-                                                {r.title} {role === r.title && <Check size={16} className="text-violet-400" />}
+                                                {r.title} {role === r.title && <Check size={16} className={accent.text} />}
                                             </div>
                                             <span className="text-xs text-gray-400 mt-0.5">{r.desc}</span>
                                         </div>
@@ -341,6 +387,7 @@ $status | ConvertTo-Json -Depth 3
                         >
                             <span className="truncate">{currentProviderObj.name}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
                         </button>
+                        <p className="mt-2 text-[10px] text-gray-500">Alvo do projeto; a implantação exige a credencial desse provedor.</p>
                         <AnimatePresence>
                             {activeDropdown === 'provider' && (
                                 <motion.div 
@@ -362,27 +409,28 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 4: Modelo Cognitivo */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-indigo-400">
+                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Modelo Cognitivo Específico
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'model' ? null : 'model')}
-                            className="w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-indigo-400/50 transition-colors"
+                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{model}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
                         </button>
+                        <p className="mt-2 text-[10px] text-gray-500">O Groq configurado gera os artefatos; este modelo será usado pelo agente implantado.</p>
                         <AnimatePresence>
                             {activeDropdown === 'model' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                                     className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {currentProviderObj.models.map(m => (
-                                        <div 
+                                        <div
                                             key={m} onClick={() => { setModel(m); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-gray-300 hover:bg-indigo-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
-                                            {m} {model === m && <Check size={16} className="text-indigo-400" />}
+                                            {m} {model === m && <Check size={16} className={accent.text} />}
                                         </div>
                                     ))}
                                 </motion.div>
@@ -457,7 +505,7 @@ $status | ConvertTo-Json -Depth 3
 
                 {/* Seleção de Ferramentas / Capabilities */}
                 <div className="relative z-10 max-w-5xl mx-auto mb-10 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-                    <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 text-pink-400">
+                    <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
                         <Zap size={14} /> Ferramentas & Capabilities Habilitadas para o Agente
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -469,13 +517,13 @@ $status | ConvertTo-Json -Depth 3
                                     type="button"
                                     onClick={() => toggleTool(t.id)}
                                     className={`px-4 py-3 rounded-xl border text-xs font-bold text-left transition-all flex items-center justify-between ${
-                                        isSelected 
-                                        ? 'bg-violet-600/30 border-violet-400 text-white shadow-[0_0_15px_rgba(124,58,237,0.2)]'
+                                        isSelected
+                                        ? `${accent.selectedBg} text-white`
                                         : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
                                     }`}
                                 >
                                     <span>{t.name}</span>
-                                    {isSelected && <Check size={14} className="text-violet-400 shrink-0" />}
+                                    {isSelected && <Check size={14} className="text-white shrink-0" />}
                                 </button>
                             );
                         })}
@@ -484,10 +532,10 @@ $status | ConvertTo-Json -Depth 3
 
                 {/* Botão de Geração */}
                 <div className="relative z-10 flex justify-center">
-                    <button 
+                    <button
                         onClick={handleCreate}
                         disabled={generating}
-                        className="group relative flex items-center justify-center gap-3 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 text-white px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest hover:from-violet-500 hover:to-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden shadow-[0_0_40px_rgba(124,58,237,0.4)] hover:shadow-[0_0_60px_rgba(124,58,237,0.6)]"
+                        className={`group relative flex items-center justify-center gap-3 bg-gradient-to-r ${accent.gradientVia} text-white px-12 py-4 rounded-full font-black text-sm uppercase tracking-widest transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden ${accent.glow}`}
                     >
                         {generating && (
                             <motion.div 
@@ -501,9 +549,24 @@ $status | ConvertTo-Json -Depth 3
                         ) : (
                             <Power size={18} className="group-hover:scale-110 transition-transform" />
                         )}
-                        {generating ? 'Compilando e Provisionando Superagente...' : 'Provisionar Superagente de IA'}
+                        {generating ? 'Projetando Superagente...' : 'Gerar Projeto de Superagente'}
                     </button>
                 </div>
+                {error && (
+                    <div role="alert" className="relative z-10 mx-auto mt-5 flex max-w-3xl flex-col gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="flex items-start gap-2">
+                            <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                            {error}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleCreateOffline}
+                            className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-white/15"
+                        >
+                            Usar modelo local
+                        </button>
+                    </div>
+                )}
             </motion.div>
 
             {/* Resultado do Provisionamento */}
@@ -522,9 +585,14 @@ $status | ConvertTo-Json -Depth 3
                                     <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]">
                                         <Sparkles size={20} />
                                     </div>
-                                    Superagente Operacional e Ativo
+                                    Projeto de Superagente Gerado
                                 </h4>
-                                <p className="text-xs text-gray-400 mt-1 font-mono">{result.summary.split('\n')[0]}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                    <p className="text-xs text-gray-400 font-mono">{result.summary.split('\n')[0]}</p>
+                                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${resultSource === 'ai' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-amber-500/15 text-amber-300'}`}>
+                                        {resultSource === 'ai' ? 'GERADO POR IA' : 'MODELO LOCAL'}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="flex items-center gap-3">
@@ -540,7 +608,7 @@ $status | ConvertTo-Json -Depth 3
                                 </button>
                                 <button
                                     onClick={handleDownloadCurrent}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-violet-600/30 text-violet-300 hover:bg-violet-600/50 border border-violet-500/40 transition-all"
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider ${accent.bgSoft} ${accent.textSoft} ${accent.hoverBg} border ${accent.borderSoft} transition-all`}
                                 >
                                     <Download size={14} /> Baixar Artefato
                                 </button>
@@ -552,8 +620,8 @@ $status | ConvertTo-Json -Depth 3
                             <button
                                 onClick={() => setActiveTabOutput('prompt')}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                                    activeTabOutput === 'prompt' 
-                                    ? 'bg-violet-600 text-white shadow-lg' 
+                                    activeTabOutput === 'prompt'
+                                    ? `${accent.solidBg} text-white shadow-lg`
                                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                                 }`}
                             >
@@ -562,8 +630,8 @@ $status | ConvertTo-Json -Depth 3
                             <button
                                 onClick={() => setActiveTabOutput('json')}
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                                    activeTabOutput === 'json' 
-                                    ? 'bg-fuchsia-600 text-white shadow-lg' 
+                                    activeTabOutput === 'json'
+                                    ? 'bg-slate-600 text-white shadow-lg'
                                     : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
                                 }`}
                             >

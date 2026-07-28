@@ -33,12 +33,13 @@ export function Drawer({
   const slideVariants = {
     closed: {
       x: side === 'right' ? '100%' : '-100%',
-      opacity: 0
+      opacity: 0,
+      transition: { type: 'spring' as const, damping: 25, stiffness: 250 }
     },
     open: {
-      x: 0,
+      x: '0%',
       opacity: 1,
-      transition: { type: 'spring', damping: 25, stiffness: 250 }
+      transition: { type: 'spring' as const, damping: 25, stiffness: 250 }
     }
   };
 

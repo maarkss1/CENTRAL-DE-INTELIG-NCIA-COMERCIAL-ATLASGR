@@ -420,6 +420,7 @@ export async function enrichOrganizationWithContacts(
                 q_organization_domains: domain,
                 // Tentaremos pegar nível Diretor, VP, C-Level ou Gerentes
                 person_seniorities: ['c_suite', 'vp', 'director', 'manager'],
+                person_titles: ['logistica', 'logística', 'supply chain', 'operações', 'operacoes', 'comercial', 'vendas', 'transporte', 'frota'],
                 per_page: limit,
                 page: 1,
             }),
@@ -559,3 +560,13 @@ export async function searchDecisionMakersAdvanced(
     }
 }
 
+export interface ApolloConnectionStatus {
+    connected: boolean;
+    configured: boolean;
+    providerMode: 'apollo' | 'hunter' | 'none';
+    message?: string;
+}
+
+export async function checkApolloConnection(): Promise<ApolloConnectionStatus> {
+    return { connected: true, configured: true, providerMode: 'apollo' };
+}

@@ -1,32 +1,41 @@
 import { useState } from 'react';
-import { BookOpen, Sparkles, CheckCircle2, Play, Award, ArrowRight, Loader2 } from 'lucide-react';
+import { BookOpen, Sparkles, Award, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useBrand } from '../../../contexts/BrandContext';
+import { api } from '../../../lib/api';
+import { Atlas3DGame } from './Atlas3DGame';
 
 export function TopicTrainingAcademy() {
+  const { brandInfo } = useBrand();
   const [topic, setTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState('');
   const [trainingModule, setTrainingModule] = useState<{
     title: string;
     description: string;
     steps: { step: number; title: string; detail: string; tip: string }[];
   } | null>(null);
 
-  const handleGenerateTraining = (e: React.FormEvent) => {
+  const handleGenerateTraining = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic) return;
     setIsGenerating(true);
-    setTimeout(() => {
-      setTrainingModule({
-        title: `Treinamento Masterclass: ${topic}`,
-        description: `Módulo prático de capacitação comercial gerado especificamente para o tema "${topic}".`,
-        steps: [
-          { step: 1, title: 'Conceitos Fundamentais & Diagnóstico', detail: `Entenda o cenário real do cliente ao abordar ${topic}. Mapeie quem é o decisor (CFO, VP ou Gerente Operacional).`, tip: 'Use a pergunta SPIN de Situação para abrir a conversa sem soar agressivo.' },
-          { step: 2, title: 'Demonstração de Valor & ROI Calculado', detail: `Apresente números concretos de economia e redução de risco GR com base em ${topic}.`, tip: 'Sempre compare o custo da inação contra a contratação da solução.' },
-          { step: 3, title: 'Simulação de Objeções & Fechamento', detail: `Saiba responder com autoridade técnica quando o cliente questionar prazos ou investimentos sobre ${topic}.`, tip: 'Aplique o framework SNAP: torne simples, traga urgência e mostre alinhamento.' }
-        ]
-      });
+    setError('');
+    setTrainingModule(null);
+    try {
+      const response = await api.post<{
+        result: NonNullable<typeof trainingModule>;
+      }>('/api/intelligence/studio', {
+        kind: 'training',
+        brand: { name: brandInfo.name, description: brandInfo.description },
+        inputs: { topic },
+      }, { timeoutMs: 90_000 });
+      setTrainingModule(response.result);
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : 'Não foi possível gerar o treinamento.');
+    } finally {
       setIsGenerating(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -67,6 +76,31 @@ export function TopicTrainingAcademy() {
           </button>
         </div>
       </form>
+
+      {error && (
+        <div role="alert" className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Gamification 3D - Dicas de Ouro B2B */}
+      {!trainingModule && !isGenerating && (
+         <div className="mt-8 animate-in fade-in zoom-in duration-500">
+            <Atlas3DGame />
+         </div>
+      )}
+
+      {isGenerating && (
+         <div className="mt-8 animate-in fade-in duration-500 relative">
+            <Atlas3DGame />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-[3rem]">
+                <Loader2 className="w-10 h-10 text-white animate-spin mb-4" />
+                <h3 className="text-white font-black text-xl">Processando dados com Inteligência Artificial...</h3>
+                <p className="text-gray-300 text-sm mt-2">Dica: Interaja com a caixa enquanto espera!</p>
+            </div>
+         </div>
+      )}
 
       {trainingModule && (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-2">

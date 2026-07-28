@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../../components/ui/Button';
 import { analyticsDB } from '../../../lib/db';
 import { api } from '../../../lib/api';
+import { useBrand } from '../../../contexts/BrandContext';
 
 type Metrics = Awaited<ReturnType<typeof analyticsDB.overview>>;
 
@@ -27,6 +28,7 @@ function renderReportMarkdown(markdown: string) {
 }
 
 export function ReportsHub() {
+  const { activeBrand } = useBrand();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [report, setReport] = useState<string | null>(null);
@@ -48,7 +50,11 @@ export function ReportsHub() {
     setGenerating(true);
     setError(null);
     try {
-      const { result } = await api.post<{ result: string }>('/api/intelligence/report', { metrics });
+      const { result } = await api.post<{ result: string }>(
+        '/api/intelligence/report',
+        { metrics, brandId: activeBrand },
+        { timeoutMs: 90_000 },
+      );
       setReport(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao gerar o relatório.');

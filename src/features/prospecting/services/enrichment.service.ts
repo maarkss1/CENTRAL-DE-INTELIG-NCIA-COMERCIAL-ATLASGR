@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma.js';
-import { isValidCnpj, sanitizeCnpj, formatCnpj } from './cnpj.util';
+import { isValidCnpj, sanitizeCnpj, formatCnpj, discoverCnpjByName } from './cnpj.util';
+import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
 import { searchNominatimPlace } from './nominatim.service';
 import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from './apollo.service';
@@ -473,8 +474,14 @@ async function runEnrichment(
     // Company hoje (só o código CNAE é), mas precisa estar disponível aqui pro critério de aderência.
     let cnaeDescription: string | undefined;
 
-    if (cnpj && isValidCnpj(cnpj)) {
-        const lookup = await fetchCnpjData(cnpj);
+    let finalCnpj = cnpj;
+    if (!finalCnpj && company.tradeName) {
+        const discovered = await discoverCnpjByName(company.tradeName);
+        if (discovered) finalCnpj = discovered;
+    }
+
+    if (finalCnpj && isValidCnpj(finalCnpj)) {
+        const lookup = await fetchCnpjData(finalCnpj);
 
         await prisma.enrichmentLog.create({
             data: {
@@ -687,6 +694,13 @@ async function runEnrichment(
         const sourceLabel = contactsSource === 'hunter' ? 'Hunter.io' : 'Apollo';
         summaryParts.push(`decisores identificados via ${sourceLabel}: ${apolloContacts.map((c) => `${c.name} (${c.title || 'cargo não informado'})`).join(', ')}`);
     }
+
+    const icebreakerService = new IcebreakerService();
+    const icebreaker = await icebreakerService.generateIcebreaker(companyName || '');
+    if (icebreaker) {
+        summaryParts.push(`\n\n💡 Sugestão de Quebra-Gelo: "${icebreaker}"`);
+    }
+
     if (summaryParts.length > 0) {
         updateData.observations = `Resumo do enriquecimento — ${summaryParts.join('; ')}.`;
     }

@@ -55,6 +55,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
       - name: Audit for vulnerabilities
         run: npm audit --audit-level=high
         continue-on-error: true # Known issue with better-auth pending upstream resolution

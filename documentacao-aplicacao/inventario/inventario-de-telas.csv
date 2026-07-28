@@ -1,0 +1,11 @@
+Nº,Tela,Módulo,Finalidade,Recursos presentes,Arquivo da imagem
+01,Login,Acesso,Autenticação de usuários,"Login social, Login Dev",01-login.png
+02,Dashboard Principal,Dashboard,Visão geral e seleção,"Cards, métricas",01-dashboard-principal.png
+03,Prospecção,Prospecção,Busca de leads,"Filtros, lista",01-prospeccao.png
+04,CRM,CRM,Gestão visual,"Kanban, cards",02-crm.png
+05,Metodologias,Inteligência,Qualificação,"SPIN, SNAP",03-metodologias.png
+06,Empresas,Cadastros,Base de empresas,"Tabela, pesquisa",01-empresas.png
+07,Contatos,Cadastros,Base de pessoas,"Tabela, pesquisa",02-contatos.png
+08,Agenda,Relatórios,Atividades,"Calendário, tarefas",01-agenda.png
+09,Roleplay & Objeções,Inteligência,Treinamento,"Chatbot, análise",04-roleplay.png
+10,Menu do Usuário,Configurações,Conta e perfil,"Troca de conta",01-menu-usuario.png

@@ -54,6 +54,7 @@ Escreva um e-mail curto de primeiro contato. Foco em dor/gatilho baseado no segm
             data: {
                 entity: 'Lead',
                 action: 'send_email',
+                organizationId: tenantId,
                 payload: {
                     leadId,
                     to: lead.contact.email,

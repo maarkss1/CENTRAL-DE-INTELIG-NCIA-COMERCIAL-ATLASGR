@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import { useActivities } from '../../../hooks/useDatabase';
 import { Activity } from '../../../types';
+import React from 'react';
 
-const TYPE_ICONS: Record<string, JSX.Element> = {
+const TYPE_ICONS: Record<string, React.JSX.Element> = {
   'ligação': <Phone className="w-4 h-4" />,
   'e-mail': <Mail className="w-4 h-4" />,
   'whatsapp': <MessageCircle className="w-4 h-4" />,
@@ -92,8 +93,8 @@ export function ActivityList() {
   });
 
   const handleToggleStatus = async (a: Activity) => {
-    const isDone = a.status === 'done' || a.status === 'Concluída';
-    await updateActivity(a.id, { status: isDone ? 'pending' : 'done' });
+    const isDone = a.status === 'Concluída';
+    await updateActivity(a.id, { status: isDone ? 'Pendente' : 'Concluída' });
   };
 
   const handleDelete = async (id: string) => {
@@ -206,7 +207,7 @@ export function ActivityList() {
               const typeIcon = TYPE_ICONS[typeKey] ?? <ActivityIcon className="w-4 h-4" />;
               const typeColor = TYPE_COLORS[typeKey] ?? 'bg-gray-100 text-gray-600 border-gray-200';
               const statusStyle = STATUS_STYLES[a.status] ?? 'bg-gray-100 text-gray-500 border-gray-200';
-              const isDone = a.status === 'done' || a.status === 'Concluída';
+              const isDone = a.status === 'Concluída';
               const formattedDate = a.date
                 ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(a.date) ? `${a.date}T12:00:00` : a.date)
                     .toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
@@ -225,7 +226,7 @@ export function ActivityList() {
                       {typeIcon} {a.type}
                     </span>
                     <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${statusStyle}`}>
-                      {isDone ? 'Concluída' : (a.status === 'cancelled' || a.status === 'Cancelada') ? 'Cancelada' : 'Pendente'}
+                      {isDone ? 'Concluída' : (a.status === 'Cancelada') ? 'Cancelada' : 'Pendente'}
                     </span>
                   </div>
 

@@ -1,12 +1,16 @@
 model_list:
+  # Apelidos "gemini-pro"/"gemini-flash" mantidos de propósito — são os nomes lógicos usados em todo
+  # o app (ai.service.ts, gateway.ts, ReportsHub) para "modelo de raciocínio" vs "modelo rápido".
+  # Repontados para Groq (tier gratuito, sem cartão) em vez de Gemini (a chave do projeto ficou sem
+  # crédito de prepagamento) — assim nenhum código de aplicação precisa mudar, só o roteamento aqui.
   - model_name: gemini-pro
     litellm_params:
-      model: gemini/gemini-pro-latest
-      api_key: "os.environ/GEMINI_API_KEY"
+      model: groq/llama-3.3-70b-versatile
+      api_key: "os.environ/GROQ_API_KEY"
   - model_name: gemini-flash
     litellm_params:
-      model: gemini/gemini-flash-latest
-      api_key: "os.environ/GEMINI_API_KEY"
+      model: groq/llama-3.1-8b-instant
+      api_key: "os.environ/GROQ_API_KEY"
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o

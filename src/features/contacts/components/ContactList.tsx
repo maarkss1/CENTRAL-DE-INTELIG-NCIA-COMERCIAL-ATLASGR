@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   User, Building, Mail, Phone, Plus, Search, Edit, Trash2,
-  Sparkles, Loader2, AlertCircle, ChevronLeft, ChevronRight, Linkedin
+  Sparkles, Loader2, AlertCircle, ChevronLeft, ChevronRight, Linkedin, WifiOff
 } from 'lucide-react';
 import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
@@ -129,6 +129,17 @@ export function ContactList() {
               <tbody className="divide-y divide-gray-50">
                 {loading
                   ? [...Array(6)].map((_, i) => <SkeletonRow key={i} />)
+                  : error
+                  ? (
+                    <tr>
+                      <td colSpan={5} className="p-16 text-center">
+                        <div className="flex flex-col items-center gap-2 text-gray-400">
+                          <WifiOff className="w-8 h-8 text-gray-300" />
+                          <p className="text-xs text-gray-400">Não foi possível carregar os contatos. Veja o aviso acima.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )
                   : contacts.length === 0
                   ? (
                     <tr>

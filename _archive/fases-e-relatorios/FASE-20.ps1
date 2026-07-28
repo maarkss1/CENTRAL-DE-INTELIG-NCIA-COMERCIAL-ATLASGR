@@ -1,1 +1,0 @@
-#Requires -Version 5.1" C:\Users\Mah\.gemini\antigravity\brain\614eae9f-6d6b-4451-8137-161d310a4c70\.system_generated\logs\transcript_full.jsonl > C:\Users\Mah\Documents\GitHub\PROSPECTOR-ATLAS\debug_find.txt
