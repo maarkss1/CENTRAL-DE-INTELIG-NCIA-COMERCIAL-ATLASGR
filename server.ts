@@ -25,6 +25,8 @@ import { activityRoutes } from './src/features/activities/routes/activity.routes
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
+import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
+import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -167,6 +169,8 @@ async function startServer() {
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+    app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
+    app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
 
     // ── Frontend ───────────────────────────────────────────────────────────
     if (env.NODE_ENV !== 'production') {
