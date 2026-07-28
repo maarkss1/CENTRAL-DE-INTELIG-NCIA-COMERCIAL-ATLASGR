@@ -107,7 +107,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-transparent flex flex-col items-center relative min-h-screen font-sans p-4 md:p-8 space-y-8 text-gray-100">
+    <div className="flex-1 overflow-y-auto bg-transparent flex flex-col items-center relative min-h-screen font-sans p-4 md:p-8 space-y-8">
 
       <div className="w-full max-w-7xl space-y-8">
 

@@ -3,6 +3,7 @@ import { BookOpen, Sparkles, Award, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
+import { Atlas3DGame } from './Atlas3DGame';
 
 export function TopicTrainingAcademy() {
   const { brandInfo } = useBrand();
@@ -81,6 +82,24 @@ export function TopicTrainingAcademy() {
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
+      )}
+
+      {/* Gamification 3D - Dicas de Ouro B2B */}
+      {!trainingModule && !isGenerating && (
+         <div className="mt-8 animate-in fade-in zoom-in duration-500">
+            <Atlas3DGame />
+         </div>
+      )}
+
+      {isGenerating && (
+         <div className="mt-8 animate-in fade-in duration-500 relative">
+            <Atlas3DGame />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-[3rem]">
+                <Loader2 className="w-10 h-10 text-white animate-spin mb-4" />
+                <h3 className="text-white font-black text-xl">Processando dados com Inteligência Artificial...</h3>
+                <p className="text-gray-300 text-sm mt-2">Dica: Interaja com a caixa enquanto espera!</p>
+            </div>
+         </div>
       )}
 
       {trainingModule && (
