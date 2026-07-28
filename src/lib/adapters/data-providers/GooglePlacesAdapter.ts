@@ -1,28 +1,61 @@
 import { IDataProvider } from './IDataProvider';
-import { IEnrichedLead, IProspectingFilter, ISourceData } from '../../../types/prospecting';
+import { IProspectingFilter } from '../../../types/prospecting';
+import { IEnrichmentResult } from '../../../types/enrichment';
+import { searchGooglePlace } from '../../../features/prospecting/services/places.service';
 
 export class GooglePlacesAdapter implements IDataProvider {
   providerName = 'Google Places';
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichedLead>[]> {
-    // TODO: Implementar integração com Google Places API (TextSearch / NearbySearch)
-    // Retorna resultados baseados no filter.segment e filter.city/state
+  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
-  async enrich(lead: Partial<IEnrichedLead>): Promise<Partial<IEnrichedLead>> {
-    // TODO: Implementar Google Place Details API (extrair reviews, rating, url, website)
-    const source: ISourceData = {
-      sourceName: this.providerName,
-      extractedAt: new Date().toISOString(),
-      confidence: 'Alto',
-    };
+  async enrich(query: { cnpj?: string; name?: string; domain?: string; location?: string }): Promise<Partial<IEnrichmentResult>> {
+    const startTime = Date.now();
     
-    return {
-      ...lead,
-      // googleRating: 4.5,
-      // googleReviewsCount: 100,
-      sources: [...(lead.sources || []), source],
-    };
+    if (!query.name) {
+      return {};
+    }
+
+    try {
+      const place = await searchGooglePlace(query.name, query.location || '');
+      if (!place) {
+        return {};
+      }
+
+      return {
+        address: {
+           fullAddress: place.formattedAddress,
+        },
+        contacts: {
+          phones: place.nationalPhoneNumber ? [place.nationalPhoneNumber] : [],
+          emails: [],
+          decisionMakers: []
+        },
+        social: {
+          website: place.websiteUri
+        },
+        enrichment: {
+          sources: [{ sourceName: this.providerName, extractedAt: new Date().toISOString() }],
+          confidence: {
+            company: 0,
+            address: 85,
+            contacts: 90, // Telefones do Google tendem a ser muito precisos/atualizados
+            social: 100 // O site no GMB costuma ser exato
+          },
+          timestamp: new Date().toISOString(),
+          executionTime: Date.now() - startTime
+        },
+        // Usamos um campo customizado no company para guardar o rating e reviews se necessário fora da IEnrichmentResult stricta
+        company: {
+           // rating: place.rating,
+           // reviewsCount: place.userRatingCount
+        }
+      };
+
+    } catch (error) {
+       console.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
+       return {};
+    }
   }
 }
