@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason, Browsers, WASocket } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState as getMultiFileAuthState, DisconnectReason, Browsers, WASocket } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
@@ -25,7 +25,7 @@ export async function initWhatsApp() {
         fs.mkdirSync(authFolder, { recursive: true });
     }
 
-    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+    const { state, saveCreds } = await getMultiFileAuthState(authFolder);
 
     sock = makeWASocket.default({
         auth: state,

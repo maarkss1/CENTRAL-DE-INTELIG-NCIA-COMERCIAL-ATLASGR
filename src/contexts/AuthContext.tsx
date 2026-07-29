@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { setActiveBrand } = useBrand();
   const sessionData = null; const isPending = false;
 
-  let currentUser: UserSession | null = {
+  const currentUser: UserSession | null = {
       id: 'admin',
       name: 'Administrador',
       email: 'admin@prospector.com',
