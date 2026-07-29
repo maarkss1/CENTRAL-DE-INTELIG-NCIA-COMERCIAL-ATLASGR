@@ -57,15 +57,15 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
                 ) : (
                     // BACKGROUND UNIFICADO PARA AS DEMAIS PÁGINAS (RESPEITA A MARCA)
                     <div 
-                        className="w-full h-full relative overflow-hidden transition-all duration-700"
+                        className="w-full h-full relative overflow-hidden transition-all duration-700 bg-white"
                         style={{
-                            background: theme === 'light'
-                                ? (isAtlas ? 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)')
-                                : (isAtlas ? 'linear-gradient(135deg, #2a1107 0%, #0d0401 100%)' : 'linear-gradient(135deg, #071524 0%, #01080f 100%)'),
+                            background: isAtlas
+                                ? 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)'
+                                : 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
                         }}
                     >
-                        <div className={`absolute top-0 right-0 w-[1000px] h-[1000px] rounded-full blur-[120px] animate-pulse ${theme === 'light' ? (isAtlas ? 'bg-orange-300/30' : 'bg-sky-300/30') : (isAtlas ? 'bg-[#FF5618]/25' : 'bg-[#0088CC]/25')}`} />
-                        <div className={`absolute bottom-0 left-0 w-[800px] h-[800px] rounded-full blur-[100px] ${theme === 'light' ? (isAtlas ? 'bg-atlas-orange/20' : 'bg-[#0088CC]/20') : (isAtlas ? 'bg-[#FF5618]/15' : 'bg-[#0088CC]/15')}`} />
+                        <div className={`absolute top-0 right-0 w-[1000px] h-[1000px] rounded-full blur-[120px] animate-pulse ${isAtlas ? 'bg-orange-200/40' : 'bg-sky-200/40'}`} />
+                        <div className={`absolute bottom-0 left-0 w-[800px] h-[800px] rounded-full blur-[100px] ${isAtlas ? 'bg-orange-100/30' : 'bg-sky-100/30'}`} />
                     </div>
                 )}
             </div>

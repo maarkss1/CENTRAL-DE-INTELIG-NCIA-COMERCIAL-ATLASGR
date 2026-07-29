@@ -408,7 +408,7 @@ log_info "Automação finalizada com êxito!"
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[#090D16] rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden border border-white/10"
+                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
             >
                 {/* Background effects */}
                 <div className={`absolute top-0 right-0 w-[500px] h-[500px] ${accent.blobA} rounded-full blur-[100px] pointer-events-none -mt-40 -mr-40`}></div>

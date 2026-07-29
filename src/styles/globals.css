@@ -9,25 +9,25 @@
   --color-atlas-orange-medium: #FF6B10;
   --color-atlas-light-orange: #FF8008;
   --color-atlas-yellow: #FFC500;
+  --color-atlas-orange: #FF5618;
+  --color-atlas-orange-medium: #FF6B10;
+  --color-atlas-light-orange: #FF8008;
+  --color-atlas-yellow: #FFC500;
   --color-atlas-dark: #333333;
-  --color-atlas-deep-bg: #0d0d11;
   --color-ring: #FF5618;
 
   --color-totaltrack-blue: #0088CC;
 
-  --color-neon-blue: #00f0ff;
-  --color-neon-purple: #b026ff;
-  --color-neon-pink: #ff0055;
-  --color-deep-bg: #030305;
+  --bg-base: #ffffff;
+  --bg-card: #ffffff;
+  --brand-primary: #FF5618;
+  --brand-accent: #FF6B10;
 
-  /* Tokens semânticos — usados por Card/Badge e qualquer estado (sucesso/alerta/erro/info) em vez de
-     cinza/verde/vermelho crus do Tailwind, mantendo o mesmo nível de saturação neon da marca. */
-  --color-success: #22e0a0;
-  --color-warning: #ffc500;
-  --color-danger: #ff3866;
-  --color-info: #00b8ff;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
 
-  /* Escala de raio única para cards/painéis — antes rounded-xl/2xl/3xl/[2.5rem] conviviam sem critério. */
   --radius-card: 1.25rem;
   --radius-card-lg: 1.75rem;
 
@@ -47,8 +47,8 @@
     50% { transform: translateY(-20px); }
   }
   @keyframes pulse-glow {
-    0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 86, 24, 0.3)); }
-    50% { filter: drop-shadow(0 0 30px rgba(255, 86, 24, 0.7)); }
+    0%, 100% { filter: drop-shadow(0 0 15px rgba(255, 86, 24, 0.2)); }
+    50% { filter: drop-shadow(0 0 30px rgba(255, 86, 24, 0.4)); }
   }
   @keyframes gradient-xy {
     0%, 100% { background-position: 0% 50%; }
@@ -65,11 +65,14 @@
   body {
     overflow-x: hidden;
     font-family: var(--font-sans);
+    background-color: var(--bg-base);
+    color: #1f2937;
   }
   
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.03em;
+    color: #111827;
   }
   
   h1 { font-size: 3.5rem; line-height: 1.1; font-weight: 700; }
@@ -84,27 +87,27 @@
     transform: scale(0.95);
   }
 
-  /* Glassmorphism utilities */
+  /* Clean Light Glassmorphism utilities */
   .glass-panel {
-    background: rgba(10, 10, 15, 0.6);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(229, 231, 235, 0.8);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
   }
   
   .glass-card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    background: #ffffff;
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(229, 231, 235, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   }
 
   .text-glow {
-    text-shadow: 0 0 20px currentColor;
+    text-shadow: 0 0 12px currentColor;
   }
 
-  /* Custom Rounded Scrollbar */
+  /* Custom Rounded Light Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -113,21 +116,17 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(150, 150, 150, 0.3);
+    background: rgba(203, 213, 225, 0.8);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(150, 150, 150, 0.5);
+    background: rgba(148, 163, 184, 1);
   }
 }
 
 @layer utilities {
-  /* Assinatura visual da marca Atlas: título em degradê laranja -> branco.
-     Precisa estar em @layer utilities (não @layer base) para vencer utilitários
-     como text-white aplicados nos componentes base (Tailwind resolve empates de
-     camada por ordem de origem, e este bloco vem depois da injeção de utilities). */
   .text-gradient-brand {
-    background-image: linear-gradient(90deg, var(--color-atlas-orange), #ffffff);
+    background-image: linear-gradient(90deg, var(--brand-primary), #111827);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;

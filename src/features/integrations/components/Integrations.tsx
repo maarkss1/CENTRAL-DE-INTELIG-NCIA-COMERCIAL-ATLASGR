@@ -49,15 +49,15 @@ export function Integrations() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#030305] p-8 transition-colors duration-300">
+        <div className="flex-1 overflow-y-auto bg-white p-8 transition-colors duration-300">
             <div className="max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center gap-4 border-b border-gray-200 dark:border-white/10 pb-6">
-                    <div className="w-12 h-12 bg-white dark:bg-white/5 rounded-xl flex items-center justify-center shadow-sm text-atlas-orange border border-gray-100 dark:border-white/10">
+                <div className="flex items-center gap-4 border-b border-gray-200 pb-6">
+                    <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-[var(--brand-primary)] border border-gray-200">
                         <IconWrench className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Integrações Omnicanal</h1>
-                        <p className="text-gray-500 dark:text-gray-400">Conecte seus canais de comunicação com a IA do AtlasGR.</p>
+                        <h1 className="text-3xl font-bold text-gray-900">Integrações Omnicanal</h1>
+                        <p className="text-gray-500">Conecte seus canais de comunicação com a IA do AtlasGR.</p>
                     </div>
                 </div>
 

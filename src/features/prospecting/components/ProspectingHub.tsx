@@ -53,7 +53,7 @@ interface PromoteResult {
             googleReviewsCount?: number;
             observations?: string;
         };
-        apolloContacts?: Array<{ name: string; title: string | null; email: string | null }>;
+        apolloContacts?: Array<{ name: string; title: string | null; email: string | null; phone?: string | null; linkedin_url?: string | null }>;
     };
 }
 
@@ -1165,12 +1165,32 @@ function CandidateCard({
                             <p className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 flex items-center gap-1">
                                 <Users size={12} /> Decisores Descobertos (Apollo)
                             </p>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col gap-3">
                                 {enrichment.apolloContacts.map((contact, idx) => (
-                                    <span key={idx} className="bg-white/5 border border-white/10 rounded-full px-3 py-1 text-xs text-gray-300 flex items-center gap-1">
-                                        <strong>{contact.name}</strong>
-                                        {contact.title && <span className="text-gray-400">· {contact.title}</span>}
-                                    </span>
+                                    <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-gray-300 flex flex-col gap-2">
+                                        <div className="flex items-center justify-between">
+                                            <strong className="text-white text-sm">{contact.name}</strong>
+                                            {contact.linkedin_url && (
+                                                <a href={contact.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
+                                                    LinkedIn
+                                                </a>
+                                            )}
+                                        </div>
+                                        {contact.title && <span className="text-gray-400">{contact.title}</span>}
+
+                                        <div className="flex flex-wrap items-center gap-3 mt-1">
+                                            {contact.email && (
+                                                <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md">
+                                                    <Mail size={12} className="text-gray-400" /> {contact.email}
+                                                </span>
+                                            )}
+                                            {contact.phone && (
+                                                <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md">
+                                                    <Phone size={12} className="text-gray-400" /> {contact.phone}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>

@@ -75,7 +75,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030305] text-slate-100 flex items-center justify-center relative overflow-hidden font-sans p-4">
+    <div className="min-h-screen bg-white text-slate-900 flex items-center justify-center relative overflow-hidden font-sans p-4">
       {/* Elementos Ambientais Gradient Glow */}
       <motion.div
         animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}

@@ -23,6 +23,7 @@ const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHu
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 const GameWidget = lazy(() => import('./features/gamification/components/GameWidget').then(m => ({ default: m.GameWidget })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
+const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 
 function PageFallback() {
   return (
@@ -57,14 +58,18 @@ function AppLayout() {
         {activeTab === 'chatbook' && <ChatbookHub />}
         {activeTab === 'integrations' && <Integrations />}
         {activeTab === 'knowledge' && (
-          <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#030305] p-8">
+          <div className="flex-1 overflow-y-auto bg-white p-8">
              <div className="max-w-6xl mx-auto space-y-6">
                 <GameWidget />
              </div>
           </div>
         )}
       </Suspense>
+
+      {/* Gamification and Navigation Global Layers */}
       <Suspense fallback={null}>
+        <GameWidget />
+        <OnboardingTour />
         <AIDockWidget />
       </Suspense>
     </MainLayout>

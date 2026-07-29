@@ -6,7 +6,7 @@ import { fetchWithTimeout } from '../../../lib/http.js';
 
 const APOLLO_SEARCH_URL = 'https://api.apollo.io/v1/organizations/search';
 const APOLLO_ORG_ENRICH_URL = 'https://api.apollo.io/v1/organizations/enrich';
-const APOLLO_PEOPLE_SEARCH_URL = 'https://api.apollo.io/v1/mixed_people/search';
+const APOLLO_PEOPLE_SEARCH_URL = 'https://api.apollo.io/v1/mixed_people/api_search';
 const APOLLO_PEOPLE_MATCH_URL = 'https://api.apollo.io/v1/people/match';
 
 // limitamos aos N primeiros candidatos de cada busca para não estourar cota das APIs.
