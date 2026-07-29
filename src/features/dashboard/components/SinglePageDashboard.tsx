@@ -5,7 +5,7 @@ import {
   Target, Building2, User, Activity, Bot, Sun, Moon, Save,
   Check, ChevronRight, SlidersHorizontal,
   Plus, BookOpen, Layers, Home,
-  TerminalSquare, Workflow, MessagesSquare, Database, Cpu, FileBarChart, BrainCircuit
+  TerminalSquare, Workflow, MessagesSquare, Database, Cpu, FileBarChart, BrainCircuit, Sparkles
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
