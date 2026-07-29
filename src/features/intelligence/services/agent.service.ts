@@ -1,6 +1,8 @@
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import type { Prisma } from '@prisma/client';
 
 export interface AgentMessage {
     role: 'system' | 'user' | 'assistant';
@@ -27,7 +29,7 @@ export abstract class AgentService {
             data: {
                 sessionId: this.sessionId,
                 agentType: this.agentType,
-                messages: messages as any
+                messages: messages as unknown as Prisma.InputJsonValue,
             }
         });
     }
@@ -39,10 +41,12 @@ export abstract class AgentService {
         const startTime = Date.now();
 
         try {
-            const result = await model.invoke(messages.map(m => ({
-                _getType: () => m.role,
-                content: m.content
-            })) as any);
+            const langChainMessages = messages.map((message) => {
+                if (message.role === 'system') return new SystemMessage(message.content);
+                if (message.role === 'assistant') return new AIMessage(message.content);
+                return new HumanMessage(message.content);
+            });
+            const result = await model.invoke(langChainMessages);
             await logAiUsage({
                 model: result.response_metadata.model,
                 usage: result.response_metadata.tokenUsage,
@@ -51,23 +55,24 @@ export abstract class AgentService {
             return result.content;
         } catch (error) {
             logger.error({ err: error, agentType: this.agentType }, 'LLM call failed');
-            return "Erro ao gerar mensagem pelo agente " + this.agentType;
+            throw new Error(`Falha ao gerar mensagem pelo agente ${this.agentType}`, { cause: error });
         }
     }
 
     public async processMessage(content: string): Promise<string> {
         const history = await this.loadMemory();
         
-        if (history.length === 0) {
-            history.push({ role: 'system', content: this.getSystemPrompt() });
-        }
+        const priorConversation = history.filter((message) => message.role !== 'system').slice(-20);
+        const boundedHistory: AgentMessage[] = [
+            { role: 'system', content: this.getSystemPrompt() },
+            ...priorConversation,
+            { role: 'user', content },
+        ];
         
-        history.push({ role: 'user', content });
+        const responseContent = await this.callLLM(boundedHistory);
+        boundedHistory.push({ role: 'assistant', content: responseContent });
         
-        const responseContent = await this.callLLM(history);
-        history.push({ role: 'assistant', content: responseContent });
-        
-        await this.saveMemory(history);
+        await this.saveMemory(boundedHistory);
         return responseContent;
     }
 

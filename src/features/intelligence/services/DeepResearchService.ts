@@ -30,7 +30,7 @@ async function inferMissingInsights(lead: Partial<IEnrichedLead>): Promise<Infer
   try {
     const response = await model.invoke([
       new SystemMessage(
-        'Você sintetiza dados públicos de empresas de logística/transporte para um CRM comercial B2B. Baseie-se ESTRITAMENTE nos fatos fornecidos — nunca invente tecnologias, números ou serviços que não estejam implícitos neles. Se não houver base suficiente para um campo, deixe-o vazio. Responda SOMENTE com JSON válido, sem markdown, no formato exato: {"description": string (1-2 frases, ou ""), "technologies": string[] (nomes de tecnologias/sistemas prováveis dado o setor, ou [])}.',
+        'Você sintetiza dados públicos de empresas de logística/transporte para um CRM comercial B2B. Baseie-se ESTRITAMENTE nos fatos fornecidos — nunca invente tecnologias, números ou serviços. Uma tecnologia só pode aparecer se estiver explicitamente citada nos fatos; não a infira pelo setor. Se não houver base suficiente para um campo, deixe-o vazio. Responda SOMENTE com JSON válido, sem markdown, no formato exato: {"description": string (1-2 frases, ou ""), "technologies": string[] (tecnologias explicitamente citadas, ou [])}.',
       ),
       new HumanMessage(`Fatos conhecidos sobre a empresa:\n${knownFacts.join(' | ')}`),
     ]);
@@ -67,11 +67,15 @@ export class DeepResearchService {
     for (const provider of this.providers) {
       try {
         const result = await provider.enrich(enrichedLead);
+        const providerSources = result.enrichment?.sources?.map((source) => ({
+          ...source,
+          confidence: 'Médio' as const,
+        })) || [];
 
         enrichedLead = {
           ...enrichedLead,
           ...result,
-          sources: [...(enrichedLead.sources || []), ...((result as any).enrichment?.sources || [])]
+          sources: [...(enrichedLead.sources || []), ...providerSources]
         };
       } catch (err) {
         console.error(`[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`, err);

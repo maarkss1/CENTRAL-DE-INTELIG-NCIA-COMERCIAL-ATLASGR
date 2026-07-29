@@ -43,16 +43,7 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
             p && `Contato/decisor: ${p.name}${p.role ? `, ${p.role}` : ''}`,
         ].filter(Boolean);
 
-        let companyInfo = parts.length > 0 ? parts.join(' | ') : 'Empresa cadastrada sem dados de enriquecimento ainda.';
-
-        // --- RAG (Retrieval-Augmented Generation) via pgvector ---
-        // Aqui simularíamos a geração do embedding da string `companyInfo` usando genai.
-        // ex: const embedding = await generateEmbedding(companyInfo);
-        // E buscaríamos no pgvector:
-        // const knowledge = await prisma.$queryRaw`SELECT title, content FROM "KnowledgeDocument" ORDER BY embedding <=> ${embedding}::vector LIMIT 2;`;
-        
-        // Mock de recuperação de contexto RAG
-        companyInfo += `\n\n[CONTEXTO RAG]: Segundo o Playbook de Vendas, empresas do segmento de logística com este perfil costumam ter um ciclo de vendas de 45 dias e alta adoção de tecnologias cloud.`;
+        const companyInfo = parts.length > 0 ? parts.join(' | ') : 'Empresa cadastrada sem dados de enriquecimento ainda.';
 
         return { companyInfo };
     })

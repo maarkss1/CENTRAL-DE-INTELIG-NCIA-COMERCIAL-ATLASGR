@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Zap, MessageSquareWarning, Target, FileText, Settings, X, Send, User, ChevronUp } from 'lucide-react';
+import { Bot, Zap, MessageSquareWarning, Target, FileText, Settings, X, Send, User } from 'lucide-react';
 
 type AITool = 'copilot' | 'groq' | 'roleplay' | 'objections' | 'qualification' | 'playbook' | null;
 
@@ -16,8 +16,8 @@ export function AIDockWidget() {
   
   // Chat States
   const [messages, setMessages] = useState<Record<string, Message[]>>({
-    copilot: [{ id: '1', role: 'agent', content: 'Olá! Sou o Copiloto de Vendas. Como posso te ajudar hoje?' }],
-    groq: [{ id: '2', role: 'agent', content: 'Groq IA pronta. Pesquisa ultra-rápida na base interna iniciada.' }],
+    copilot: [{ id: '1', role: 'agent', content: 'Olá! Sou o Copiloto de Vendas. Envie o contexto do lead e diga o que você precisa.' }],
+    groq: [{ id: '2', role: 'agent', content: 'Consulta rápida pronta. Para usar conhecimento interno, inclua o trecho do playbook na mensagem.' }],
     roleplay: [{ id: '3', role: 'agent', content: 'Pronto para simular uma call difícil. Qual seu pitch?' }],
     objections: [{ id: '4', role: 'agent', content: 'Qual objeção você encontrou? ("Tá caro", "Não tenho tempo", etc)' }],
     qualification: [{ id: '5', role: 'agent', content: 'Cole o resumo da conversa e extrairei os dados BANT.' }],
@@ -61,20 +61,30 @@ export function AIDockWidget() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: userText, tool: activeTool })
+            credentials: 'include',
+            body: JSON.stringify({
+                message: userText,
+                tool: activeTool,
+                history: (messages[activeTool] || []).slice(-10).map((message) => ({
+                    role: message.role === 'agent' ? 'assistant' : 'user',
+                    content: message.content,
+                })),
+            })
         });
         const data = await res.json();
-        
-        const replyText = data.success ? data.reply : 'Erro ao processar (Endpoint não configurado ou offline).';
+
+        const replyText = res.ok && data.success
+            ? data.reply
+            : data.error || 'Não foi possível processar a solicitação.';
         
         setMessages(prev => ({
             ...prev,
             [activeTool]: [...(prev[activeTool] || []), { id: Date.now().toString(), role: 'agent', content: replyText }]
         }));
-    } catch (err) {
+    } catch {
         setMessages(prev => ({
             ...prev,
-            [activeTool]: [...(prev[activeTool] || []), { id: Date.now().toString(), role: 'agent', content: 'Falha na rede.' }]
+            [activeTool]: [...(prev[activeTool] || []), { id: Date.now().toString(), role: 'agent', content: 'Não foi possível conectar ao motor de IA. Tente novamente.' }]
         }));
     } finally {
         setIsLoading(false);

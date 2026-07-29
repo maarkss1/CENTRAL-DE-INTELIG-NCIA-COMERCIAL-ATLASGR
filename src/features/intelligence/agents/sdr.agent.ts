@@ -4,21 +4,36 @@ import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { HumanMessage } from '@langchain/core/messages';
+import type { Prisma } from '@prisma/client';
 
 const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
 const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
 
 // Utiliza o proxy LiteLLM (Gateway) para roteamento, rate limit e auditoria
 const llm = new ChatOpenAI({
-    modelName: 'gpt-4o-mini',
+    modelName: 'gemini-flash',
     temperature: 0,
     openAIApiKey: LITELLM_KEY,
+    maxRetries: 2,
+    timeout: 60_000,
     configuration: {
-        baseURL: `${LITELLM_URL}/v1`
+        baseURL: `${LITELLM_URL.replace(/\/+$/, '').replace(/\/v1$/i, '')}/v1`
     }
 });
 
 const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];
+
+interface AgentTraceMessage {
+    _getType(): string;
+    content: unknown;
+    tool_calls?: unknown;
+}
+
+interface StoredAgentTraceMessage {
+    role: string;
+    content: string;
+    toolCalls?: string;
+}
 
 export class SDRAgent {
     async run(leadId: string, sessionId?: string) {
@@ -45,22 +60,22 @@ Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar 
 
         const sid = sessionId || `session-${leadId}-${Date.now()}`;
         
-        // Salvar a trilha de pensamento e memória no banco para auditoria
-        await this.updateMemory(sid, result.messages.map((m: any) => ({
+        // Salva somente a trilha operacional observável para auditoria; não depende de raciocínio privado.
+        await this.updateMemory(sid, (result.messages as AgentTraceMessage[]).map((m) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-            tool_calls: m.tool_calls || undefined
+            toolCalls: m.tool_calls ? JSON.stringify(m.tool_calls) : undefined,
         })));
 
         return { success: true, sessionId: sid };
     }
 
-    private async updateMemory(sessionId: string, messages: any) {
+    private async updateMemory(sessionId: string, messages: StoredAgentTraceMessage[]) {
         await prisma.agentMemory.create({
             data: {
                 sessionId,
                 agentType: 'SDR',
-                messages
+                messages: messages as unknown as Prisma.InputJsonValue,
             }
         });
     }

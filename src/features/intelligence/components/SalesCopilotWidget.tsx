@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, X, Send, User, Sparkles } from 'lucide-react';
 
@@ -11,7 +11,7 @@ interface Message {
 export function SalesCopilotWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-      { id: '1', role: 'agent', content: 'Olá! Sou seu Copiloto de Vendas IA. Como posso ajudar com seus Leads hoje?' }
+      { id: '1', role: 'agent', content: 'Olá! Sou seu Copiloto de Vendas IA. Envie o contexto do lead e a tarefa que você quer resolver.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -37,15 +37,23 @@ export function SalesCopilotWidget() {
       const res = await fetch('/api/agent/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.content })
+        credentials: 'include',
+        body: JSON.stringify({
+          message: userMessage.content,
+          tool: 'copilot',
+          history: messages.slice(-10).map((message) => ({
+            role: message.role === 'agent' ? 'assistant' : 'user',
+            content: message.content,
+          })),
+        })
       });
       
       const data = await res.json();
       
-      if (data.success) {
+      if (res.ok && data.success) {
           setMessages(prev => [...prev, { id: Date.now().toString(), role: 'agent', content: data.reply }]);
       } else {
-          setMessages(prev => [...prev, { id: Date.now().toString(), role: 'agent', content: 'Desculpe, encontrei um erro ao processar sua solicitação.' }]);
+          setMessages(prev => [...prev, { id: Date.now().toString(), role: 'agent', content: data.error || 'Desculpe, não foi possível processar sua solicitação.' }]);
       }
     } catch (error) {
       console.error(error);

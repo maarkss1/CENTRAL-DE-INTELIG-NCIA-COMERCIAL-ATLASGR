@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 import { aiService } from '../services/ai.service.js';
 import { leadsQueue } from '../../../lib/queue/index.js';
@@ -111,15 +111,23 @@ import { VectorSearchService } from '../services/vector-search.service.js';
 
 router.get('/search', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const query = req.query.q as string;
-        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 5;
+        const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+        const requestedLimit = Number.parseInt(String(req.query.limit || '5'), 10);
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.max(1, Math.min(20, requestedLimit))
+            : 5;
 
         if (!query) {
             res.status(400).json({ error: 'Search query (q) is required' });
             return;
         }
+        if (query.length > 2_000) {
+            res.status(400).json({ error: 'Search query is too long' });
+            return;
+        }
 
-        const results = await VectorSearchService.searchChunks(query, limit);
+        const organizationId = (req as AuthRequest).user.organizationId;
+        const results = await VectorSearchService.searchChunks(query, organizationId, limit);
         res.json({ results });
     } catch (error) {
         logger.error({ err: error }, 'Error performing vector search');
@@ -256,20 +264,20 @@ router.post('/report', validateRequest(reportSchema), async (req: Request, res: 
             ? 'TotalTrac (tecnologia para telemetria, videotelemetria, jornada e proteção de frotas)'
             : 'AtlasGR (inteligência comercial e gestão de risco logístico)';
 
-        const prompt = `Você é um analista de operações comerciais da ${brandContext}.
-Abaixo estão os números atuais da plataforma (CRM, prospecção e pipeline):
-
-${JSON.stringify(metrics, null, 2)}
-
-Escreva um relatório executivo curto em Markdown interpretando esses dados para a liderança comercial:
+        const systemPrompt = `Você é um analista de operações comerciais da ${brandContext}.
+Escreva um relatório executivo curto em Markdown interpretando os dados fornecidos para a liderança comercial:
 1. Um resumo de 2-3 frases do estado atual.
 2. Os 2 pontos mais fortes e os 2 pontos mais fracos, cada um em uma linha.
 3. 3 recomendações de ação concretas e priorizadas para a próxima semana.
 Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que não estão no JSON.`;
+        const userPrompt = `Números atuais da plataforma (CRM, prospecção e pipeline):\n${JSON.stringify(metrics, null, 2)}`;
 
         const model = getAiModel('gemini-flash', 0.4, 'report_interpretation');
         const startTime = Date.now();
-        const response = await model.invoke([new HumanMessage(prompt)]);
+        const response = await model.invoke([
+            new SystemMessage(systemPrompt),
+            new HumanMessage(userPrompt),
+        ]);
         const latencyMs = Date.now() - startTime;
 
         await logAiUsage({

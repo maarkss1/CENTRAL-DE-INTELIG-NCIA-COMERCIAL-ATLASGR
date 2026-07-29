@@ -1,4 +1,4 @@
-import { HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
@@ -258,7 +258,13 @@ async function invokeText(
 ): Promise<string> {
     const model = getAiModel(modelAlias, temperature, context);
     const startedAt = Date.now();
-    const response = await model.invoke([new HumanMessage(prompt)]);
+    const userPrompt = prompt.startsWith(SYSTEM_RULES)
+        ? prompt.slice(SYSTEM_RULES.length).trimStart()
+        : prompt;
+    const response = await model.invoke([
+        new SystemMessage(SYSTEM_RULES),
+        new HumanMessage(userPrompt),
+    ]);
     await logAiUsage({
         model: response.response_metadata.model,
         usage: response.response_metadata.tokenUsage,

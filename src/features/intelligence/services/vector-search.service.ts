@@ -5,7 +5,7 @@ import { logger } from '../../../lib/logger.js';
 export interface SearchResult {
     id: string;
     content: string;
-    metadata: any;
+    metadata: unknown;
     similarity: number;
 }
 
@@ -13,7 +13,8 @@ export class VectorSearchService {
     /**
      * Atualiza o embedding de um KnowledgeChunk existente.
      */
-    static async updateChunkEmbedding(chunkId: string, content: string): Promise<boolean> {
+    static async updateChunkEmbedding(chunkId: string, content: string, organizationId: string): Promise<boolean> {
+        if (!organizationId) return false;
         try {
             const vector = await generateEmbedding(content);
             if (!vector) return false;
@@ -25,6 +26,7 @@ export class VectorSearchService {
                 UPDATE "KnowledgeChunk" 
                 SET embedding = ${vectorString}::vector
                 WHERE id = ${chunkId}
+                  AND metadata->>'organizationId' = ${organizationId}
             `;
             return true;
         } catch (error) {
@@ -36,7 +38,8 @@ export class VectorSearchService {
     /**
      * Busca semântica por similaridade de Cosseno nos KnowledgeChunks.
      */
-    static async searchChunks(query: string, limit: number = 5): Promise<SearchResult[]> {
+    static async searchChunks(query: string, organizationId: string, limit: number = 5): Promise<SearchResult[]> {
+        if (!organizationId) return [];
         try {
             const vector = await generateEmbedding(query);
             if (!vector) return [];
@@ -52,6 +55,7 @@ export class VectorSearchService {
                     1 - (embedding <=> ${vectorString}::vector) as similarity
                 FROM "KnowledgeChunk"
                 WHERE embedding IS NOT NULL
+                  AND metadata->>'organizationId' = ${organizationId}
                 ORDER BY embedding <=> ${vectorString}::vector
                 LIMIT ${limit}
             `;
