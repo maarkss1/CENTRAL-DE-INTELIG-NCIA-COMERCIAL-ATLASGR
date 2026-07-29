@@ -42,7 +42,6 @@ export const NAV_ITEMS: NavItem[] = [
   { tab: 'billing', label: 'Faturamento', icon: IconDollar },
   { tab: 'calendar', label: 'Calendário', icon: IconCalendar },
   { tab: 'settings', label: 'Configurações', icon: IconSliders },
-  { tab: 'notifications', label: 'Notificações', icon: IconFlame },
-  { tab: 'knowledge', label: 'Base de Conhecimento', icon: IconDatabase },
+  { tab: 'knowledge', label: 'Academy & Fun', icon: IconFlame },
 
 ];

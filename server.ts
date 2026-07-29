@@ -27,6 +27,7 @@ import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
+import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -171,6 +172,7 @@ async function startServer() {
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
+    app.use('/api/agent', authenticateToken, requireTenant, agentRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
     // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa

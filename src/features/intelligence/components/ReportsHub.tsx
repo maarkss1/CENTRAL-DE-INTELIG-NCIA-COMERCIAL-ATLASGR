@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/Button';
 import { analyticsDB } from '../../../lib/db';
 import { api } from '../../../lib/api';
 import { useBrand } from '../../../contexts/BrandContext';
+import { GlowChart } from '../../analytics/components/GlowChart';
 
 type Metrics = Awaited<ReturnType<typeof analyticsDB.overview>>;
 
@@ -71,13 +72,13 @@ export function ReportsHub() {
             <FileBarChart size={22} />
           </div>
           <div>
-            <CardTitle className="text-gradient-brand">Relatórios: Geração & Interpretação por IA</CardTitle>
-            <CardDescription>A IA lê os números reais da plataforma e escreve uma leitura executiva com recomendações.</CardDescription>
+            <CardTitle className="text-gradient-brand">Relatórios & C-Level Analytics</CardTitle>
+            <CardDescription>Geração e interpretação de análises estatísticas ao vivo por Inteligência Artificial.</CardDescription>
           </div>
         </div>
         <Button onClick={handleGenerate} disabled={generating || loadingMetrics || !metrics}>
           {generating ? <Loader2 size={16} className="animate-spin" /> : report ? <RefreshCw size={16} /> : <Sparkles size={16} />}
-          <span className="ml-2">{generating ? 'Gerando…' : report ? 'Gerar Novamente' : 'Gerar Relatório'}</span>
+          <span className="ml-2">{generating ? 'Processando...' : report ? 'Gerar Novamente' : 'Interpretar Dados com IA'}</span>
         </Button>
       </CardHeader>
 
@@ -86,6 +87,11 @@ export function ReportsHub() {
       )}
 
       <CardContent className="space-y-6">
+        {/* GlowChart adicionado aqui (Data Viz 3.0) */}
+        <div className="mb-8 w-full">
+          <GlowChart />
+        </div>
+
         {/* Métricas usadas como base do relatório */}
         <div className="rounded-card border border-white/10 bg-white/[0.03] p-4">
           <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-3">Dados-base (tempo real)</h4>
@@ -118,9 +124,12 @@ export function ReportsHub() {
           ) : report ? (
             <div>{renderReportMarkdown(report)}</div>
           ) : (
-            <p className="text-sm text-gray-500 italic py-10 text-center">
-              Clique em "Gerar Relatório" para uma interpretação executiva dos dados acima.
-            </p>
+            <div className="flex flex-col items-center justify-center text-center py-10">
+              <Sparkles className="w-8 h-8 text-atlas-orange/50 mb-3" />
+              <p className="text-sm text-gray-400 max-w-md">
+                Clique no botão acima para que a nossa IA analise as métricas atuais e construa um diagnóstico executivo automático.
+              </p>
+            </div>
           )}
         </div>
       </CardContent>

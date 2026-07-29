@@ -13,6 +13,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { ClockCalendarWidget } from '../../../components/ui/ClockCalendarWidget';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
+import { Magnetic } from '../../../components/ui/Magnetic';
 import { ProspectingHub } from '../../prospecting/components/ProspectingHub';
 import { CrmBoard } from '../../../components/CrmBoard';
 import { IntelligenceHub } from '../../intelligence/components/IntelligenceHub';
@@ -199,10 +200,12 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                 </div>
 
                 <div className="w-full relative z-10 pt-6">
-                  <div className="w-full bg-gradient-to-r from-atlas-orange via-orange-500 to-orange-400 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-wider text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_12px_35px_rgba(255,86,24,0.6)] group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_18px_50px_rgba(255,86,24,0.8)] group-hover:scale-[1.02] transition-all">
-                    <span>Acessar Operação AtlasGR</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <Magnetic strength={15}>
+                    <div className="w-full bg-gradient-to-r from-atlas-orange via-orange-500 to-orange-400 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-wider text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_12px_35px_rgba(255,86,24,0.6)] group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_18px_50px_rgba(255,86,24,0.8)] group-hover:scale-[1.02] transition-all">
+                      <span>Acessar Operação AtlasGR</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </Magnetic>
                 </div>
               </motion.div>
 
@@ -232,10 +235,12 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                 </div>
 
                 <div className="w-full relative z-10 pt-6">
-                  <div className="w-full bg-gradient-to-r from-totaltrack-blue via-sky-500 to-blue-600 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-wider text-xs shadow-xl shadow-totaltrack-blue/40 group-hover:scale-[1.02] transition-all">
-                    <span>Acessar Operação TotalTrac</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <Magnetic strength={15}>
+                    <div className="w-full bg-gradient-to-r from-totaltrack-blue via-sky-500 to-sky-400 text-white font-black py-4 px-6 rounded-2xl flex items-center justify-center gap-3 uppercase tracking-wider text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_12px_35px_rgba(0,136,204,0.6)] group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_18px_50px_rgba(0,136,204,0.8)] group-hover:scale-[1.02] transition-all">
+                      <span>Acessar Operação TotalTrac</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </Magnetic>
                 </div>
               </motion.div>
 
