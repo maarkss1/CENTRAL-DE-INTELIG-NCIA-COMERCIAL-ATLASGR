@@ -15,12 +15,12 @@ export class SearchEngineService {
     const searchPromises = this.providers.map((provider) =>
       provider.search(filters).catch((err) => {
         console.error(`[SearchEngine] Erro no provedor ${provider.providerName}:`, err);
-        return [] as Partial<IEnrichedLead>[];
+        return [];
       })
     );
 
     const results = await Promise.all(searchPromises);
-    const flatResults = results.flat();
+    const flatResults = results.flat() as any;
     
     // Regra: Nunca retornar dados duplicados.
     // Consolidação baseada em CNPJ ou Nome (similaridade)

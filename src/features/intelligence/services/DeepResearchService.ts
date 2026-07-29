@@ -71,7 +71,7 @@ export class DeepResearchService {
         enrichedLead = {
           ...enrichedLead,
           ...result,
-          sources: [...(enrichedLead.sources || []), ...(result.sources || [])]
+          sources: [...(enrichedLead.sources || []), ...((result as any).enrichment?.sources || [])]
         };
       } catch (err) {
         console.error(`[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`, err);

@@ -1,4 +1,5 @@
-import { IEnrichedLead, IProspectingFilter } from '../../../types/prospecting';
+import { IProspectingFilter } from '../../../types/prospecting';
+import { IEnrichmentResult } from '../../../types/enrichment';
 
 export interface IDataProvider {
   /**
@@ -9,10 +10,10 @@ export interface IDataProvider {
   /**
    * Busca novas empresas baseadas nos filtros informados
    */
-  search(filters: IProspectingFilter): Promise<Partial<IEnrichedLead>[]>;
+  search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]>;
 
   /**
-   * Enriquece os dados de uma empresa específica
+   * Enriquece os dados de uma empresa específica (passando tipicamente cnpj, nome, ou site)
    */
-  enrich(lead: Partial<IEnrichedLead>): Promise<Partial<IEnrichedLead>>;
+  enrich(query: { cnpj?: string; name?: string; domain?: string; location?: string }): Promise<Partial<IEnrichmentResult>>;
 }
