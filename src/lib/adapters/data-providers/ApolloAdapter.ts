@@ -6,7 +6,7 @@ import { enrichOrganizationByDomain, enrichOrganizationWithContacts } from '../.
 export class ApolloAdapter implements IDataProvider {
   providerName = 'Apollo.io';
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -74,7 +74,7 @@ export class ApolloAdapter implements IDataProvider {
            }
        };
 
-    } catch (error) {
+    } catch (error: unknown) {
        console.error(`[ApolloAdapter] Request failed for domain ${domain}:`, error);
        return {};
     }

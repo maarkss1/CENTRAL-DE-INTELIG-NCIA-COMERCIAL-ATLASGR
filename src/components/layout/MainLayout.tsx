@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
-import { Header, TabType } from './Header';
+import { TabType } from './Header';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';

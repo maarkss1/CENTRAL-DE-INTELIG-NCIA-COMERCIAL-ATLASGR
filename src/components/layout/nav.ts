@@ -8,7 +8,7 @@ import {
   IconRadar,
   IconSparkle,
   IconBrain,
-  IconBot, IconChat, IconClipboard, IconUserPlus, IconLandmark, IconWrench, IconDollar, IconCalendar, IconSliders, IconFlame, IconDatabase, IconCpu,
+  IconBot, IconChat, IconClipboard, IconUserPlus, IconLandmark, IconWrench, IconDollar, IconCalendar, IconSliders, IconFlame, IconCpu,
   type AtlasIconProps,
 } from '../icons';
 

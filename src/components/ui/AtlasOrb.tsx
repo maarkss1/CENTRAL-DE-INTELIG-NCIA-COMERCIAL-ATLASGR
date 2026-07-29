@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
+import { Canvas } from '@react-three/fiber';
 import { Float, Sparkles, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
-import * as THREE from 'three';
+
 
 function OrbCore() {
   const { isAtlas } = useBrandAccent();

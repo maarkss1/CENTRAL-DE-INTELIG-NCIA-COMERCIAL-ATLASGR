@@ -21,7 +21,7 @@ export class CnpjWsAdapter implements IDataProvider {
               }
               if (res.status >= 500 && attempt < attempts) continue;
               return res;
-          } catch (error) {
+          } catch (error: unknown) {
               clearTimeout(timeout);
               lastError = error;
               if (attempt >= attempts) throw error;
@@ -41,7 +41,7 @@ export class CnpjWsAdapter implements IDataProvider {
           : `(${d}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
   }
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -67,7 +67,7 @@ export class CnpjWsAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as any;
+        const raw = await res.json() as Record<string, any>;
 
         const mainActivity = raw.estabelecimento?.atividade_principal;
         const address = raw.estabelecimento;
@@ -119,7 +119,7 @@ export class CnpjWsAdapter implements IDataProvider {
                 executionTime: Date.now() - startTime
             }
         };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error(`[CnpjWsAdapter] Request failed for CNPJ ${cnpj}:`, error);
         return {};
     }

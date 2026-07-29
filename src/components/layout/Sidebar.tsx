@@ -1,6 +1,6 @@
-import React from 'react';
+
 import { 
-    Home, LayoutTemplate, Search, Target, Users, Building2, 
+    Home, LayoutTemplate, Search, Users, Building2, 
     Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
@@ -9,8 +9,8 @@ import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TabType } from './Header';
 
 interface SidebarProps {
-    activeTab: string;
-    onTabChange: (tab: string) => void;
+    activeTab: TabType;
+    onTabChange: (tab: TabType) => void;
 }
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -18,20 +18,20 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     const isAtlas = activeBrand === 'atlasgr';
 
     const coreTools = [
-        { id: 'dashboard', label: 'Painel Central', icon: <Home size={20} /> },
-        { id: 'prospect', label: 'Prospecção', icon: <Search size={20} /> },
-        { id: 'crm', label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
-        { id: 'contacts', label: 'Decisores', icon: <Users size={20} /> },
-        { id: 'companies', label: 'Empresas', icon: <Building2 size={20} /> },
-        { id: 'activities', label: 'Agenda', icon: <Activity size={20} /> },
+        { id: 'dashboard' as TabType, label: 'Painel Central', icon: <Home size={20} /> },
+        { id: 'prospect' as TabType, label: 'Prospecção', icon: <Search size={20} /> },
+        { id: 'crm' as TabType, label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
+        { id: 'contacts' as TabType, label: 'Decisores', icon: <Users size={20} /> },
+        { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
+        { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
     ];
 
     const aiTools = [
-        { id: 'roleplay', label: 'Dojo de Vendas', icon: <Bot size={20} /> },
-        { id: 'intelligence', label: 'Hub de IA', icon: <Zap size={20} /> },
-        { id: 'topic_training', label: 'Academy', icon: <BookOpen size={20} /> },
-        { id: 'bitrix', label: 'Bitrix24', icon: <Layers size={20} /> },
-        { id: 'reports', label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
+        { id: 'roleplay' as TabType, label: 'Dojo de Vendas', icon: <Bot size={20} /> },
+        { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
+        { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
+        { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
+        { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
     ];
 
     return (

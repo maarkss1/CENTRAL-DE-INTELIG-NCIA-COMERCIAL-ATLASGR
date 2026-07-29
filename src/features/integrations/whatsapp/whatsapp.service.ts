@@ -27,7 +27,7 @@ export async function initWhatsApp() {
 
     const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
-    sock = makeWASocket.default({
+    sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
         browser: Browsers.macOS('Desktop'),
@@ -35,9 +35,9 @@ export async function initWhatsApp() {
         logger: pino({ level: 'silent' }) as any
     });
 
-    sock.ev.on('creds.update', saveCreds);
+    sock?.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async (update) => {
+    sock?.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
         
         if (qr) {
@@ -48,7 +48,7 @@ export async function initWhatsApp() {
 
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('conexão whatsapp fechada. Reconectar:', shouldReconnect);
+            // Conexão fechada
             status = 'disconnected';
             currentQr = null;
             if (shouldReconnect) {
@@ -59,7 +59,7 @@ export async function initWhatsApp() {
             }
             whatsappEvents.emit('status', status);
         } else if (connection === 'open') {
-            console.log('WhatsApp Conectado com Sucesso!');
+            // Conexão bem sucedida
             status = 'connected';
             currentQr = null;
             whatsappEvents.emit('status', status);
@@ -67,7 +67,7 @@ export async function initWhatsApp() {
     });
 
     // Escuta novas mensagens (Opcional, para salvar no CRM no futuro)
-    sock.ev.on('messages.upsert', async (m) => {
+    sock?.ev.on('messages.upsert', async (m) => {
         // console.log(JSON.stringify(m, undefined, 2))
     });
 }
@@ -108,7 +108,8 @@ export async function sendWhatsAppMessage(number: string, text: string) {
         formattedNumber = `${formattedNumber}@s.whatsapp.net`;
     }
 
-    const [result] = await sock.onWhatsApp(formattedNumber);
+    const results = await sock.onWhatsApp(formattedNumber);
+    const result = results?.[0];
     if (!result?.exists) {
         throw new Error('O número fornecido não está registrado no WhatsApp.');
     }

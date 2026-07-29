@@ -5,7 +5,7 @@ export async function getGoogleAuthUrl() {
 
 export async function processGoogleCallback(code: string) {
     // Placeholder to exchange code for tokens
-    console.log('Received Google auth code:', code);
+    // Received auth code
     return { success: true, tokens: { access_token: 'mock_token' } };
 }
 

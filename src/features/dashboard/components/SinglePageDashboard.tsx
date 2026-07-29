@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ClockCalendarWidget } from '../../../components/ui/ClockCalendarWidget';
 import { LiveStatsWidget } from '../../../components/ui/LiveStatsWidget';
 import { useBrand } from '../../../contexts/BrandContext';

@@ -34,7 +34,7 @@ export class BrasilApiAdapter implements IDataProvider {
               clearTimeout(timeout);
               if (res.status >= 500 && attempt < attempts) continue;
               return res;
-          } catch (error) {
+          } catch (error: unknown) {
               clearTimeout(timeout);
               lastError = error;
               if (attempt >= attempts) throw error;
@@ -53,7 +53,7 @@ export class BrasilApiAdapter implements IDataProvider {
           : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
   }
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -73,7 +73,7 @@ export class BrasilApiAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as any;
+        const raw = await res.json() as Record<string, any>;
         const employeeEstimate = PORTE_TO_EMPLOYEE_ESTIMATE[raw.codigo_porte] ?? PORTE_TO_EMPLOYEE_ESTIMATE[5];
 
         const addressParts = [raw.logradouro, raw.numero, raw.complemento, raw.bairro].filter(Boolean);
@@ -127,7 +127,7 @@ export class BrasilApiAdapter implements IDataProvider {
                 executionTime: Date.now() - startTime
             }
         };
-    } catch (error) {
+    } catch (error: unknown) {
         console.error(`[BrasilApiAdapter] Request failed for CNPJ ${cnpj}:`, error);
         return {};
     }

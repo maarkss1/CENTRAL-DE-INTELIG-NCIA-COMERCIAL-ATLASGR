@@ -44,7 +44,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
 
     // Simplified DnD state update logic for demonstration
     // In a real app, this would dispatch to backend and update local state optimistically
-    console.log(`Moved deal ${activeId} over ${overId}`);
+    // handle drag over
   };
 
   return (

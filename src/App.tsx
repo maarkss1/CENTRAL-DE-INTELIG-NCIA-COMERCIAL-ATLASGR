@@ -12,7 +12,7 @@ import { ClickSpark } from './components/ui/ClickSpark';
 
 // Lazy loaded feature modules
 const SinglePageDashboard = lazy(() => import('./features/dashboard/components/SinglePageDashboard').then((m) => ({ default: m.SinglePageDashboard })));
-const Login = lazy(() => import('./features/auth/components/Login').then((m) => ({ default: m.Login })));
+// Login feature is not directly used here as route redirects
 const ProspectingHub = lazy(() => import('./features/prospecting/components/ProspectingHub').then(m => ({ default: m.ProspectingHub })));
 const CrmBoard = lazy(() => import('./components/CrmBoard').then(m => ({ default: m.CrmBoard })));
 const IntelligenceHub = lazy(() => import('./features/intelligence/components/IntelligenceHub').then(m => ({ default: m.IntelligenceHub })));

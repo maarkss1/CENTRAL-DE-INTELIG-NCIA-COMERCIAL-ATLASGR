@@ -113,12 +113,7 @@ export function ProspectingHub() {
             setSelectedCandidates(new Set(filteredCandidates.map(c => c.i)));
         }
     };
-    const toggleSelect = (idx: number) => {
-        const next = new Set(selectedCandidates);
-        if (next.has(idx)) next.delete(idx);
-        else next.add(idx);
-        setSelectedCandidates(next);
-    };
+    // toggleSelect unused
     const bulkSave = async () => {
         if (selectedCandidates.size === 0 || isSavingBatch) return;
         setIsSavingBatch(true);
@@ -1248,7 +1243,7 @@ export function DecisionMakerSearch({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="flex gap-2">
-                    <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                    
                 <div className="flex-1">
                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Cidade (opcional)</label>
                         <input
@@ -1258,7 +1253,7 @@ export function DecisionMakerSearch({
                             className="w-full p-2.5 bg-slate-900/60 rounded-xl border border-white/10 outline-none focus:border-indigo-400 text-sm"
                         />
                     </div>
-                    <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                    
                 <div className="flex-1">
                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Estado (opcional)</label>
                         <input

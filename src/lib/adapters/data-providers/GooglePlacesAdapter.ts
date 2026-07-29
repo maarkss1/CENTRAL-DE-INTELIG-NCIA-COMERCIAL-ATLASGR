@@ -6,7 +6,7 @@ import { searchGooglePlace } from '../../../features/prospecting/services/places
 export class GooglePlacesAdapter implements IDataProvider {
   providerName = 'Google Places';
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -53,7 +53,7 @@ export class GooglePlacesAdapter implements IDataProvider {
         }
       };
 
-    } catch (error) {
+    } catch (error: unknown) {
        console.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
        return {};
     }

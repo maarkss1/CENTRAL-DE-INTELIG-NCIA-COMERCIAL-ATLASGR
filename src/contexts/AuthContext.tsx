@@ -1,8 +1,6 @@
-import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
 import { UserPreset } from '../features/auth/constants/userPresets';
-import { useBrand } from './BrandContext';
 import { authClient } from '../lib/auth-client';
-import { isAuthorizedLoginEmail } from '../config/access-policy';
 
 export interface UserSession {
   id: string;
@@ -28,8 +26,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { setActiveBrand } = useBrand();
-  const sessionData = null; const isPending = false;
+  const isPending = false;
 
   let currentUser: UserSession | null = {
       id: 'admin',

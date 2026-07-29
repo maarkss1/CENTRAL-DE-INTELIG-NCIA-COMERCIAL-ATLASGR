@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AtlasOrb } from '../../../components/ui/AtlasOrb';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { SoundFX } from '../../../lib/soundEffects';
-import { Bot, ChevronRight, X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 
 type TourStep = {
   id: number;
@@ -53,6 +53,7 @@ export function OnboardingTour() {
       }, 1500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, []);
 
   const handleNext = () => {

@@ -21,13 +21,12 @@ const QUICK_ACTIONS: Record<string, string[]> = {
 export function AIDockWidget() {
   const [activeTool, setActiveTool] = useState<AITool>(null);
   const [isDockExpanded, setIsDockExpanded] = useState(false);
-  const [roleplayMode, setRoleplayMode] = useState<'voice'|'text'>('voice');
+
   
   // Chat States
   const [messages, setMessages] = useState<Record<string, Message[]>>({
     copilot: [{ id: '1', role: 'agent', content: 'Olá! Sou o Copiloto de Vendas. Envie o contexto do lead e diga o que você precisa.' }],
     groq: [{ id: '2', role: 'agent', content: 'Consulta rápida pronta. Para usar conhecimento interno, inclua o trecho do playbook na mensagem.' }],
-    roleplay: [{ id: '3', role: 'agent', content: 'Pronto para simular uma call difícil. Qual seu pitch?' }],
     objections: [{ id: '4', role: 'agent', content: 'Qual objeção você encontrou? ("Tá caro", "Não tenho tempo", etc)' }],
     qualification: [{ id: '5', role: 'agent', content: 'Informe o segmento ou empresa que você vai ligar e gerarei as melhores perguntas BANT/SPIN.' }],
     playbook: [{ id: '6', role: 'agent', content: 'Qual filtro ou processo de playbook você deseja aplicar?' }],

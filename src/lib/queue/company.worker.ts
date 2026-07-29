@@ -43,7 +43,7 @@ export const createCompanyWorker = () => {
             logger.info({ companyId }, "Company Enriched Successfully");
 
             return { success: true, processedAt: new Date().toISOString() };
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error({ err: error }, 'Error during company enrichment');
             throw error;
         }

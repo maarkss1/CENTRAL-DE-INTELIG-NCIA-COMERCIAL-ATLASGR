@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useTheme } from '../../../contexts/ThemeContext';

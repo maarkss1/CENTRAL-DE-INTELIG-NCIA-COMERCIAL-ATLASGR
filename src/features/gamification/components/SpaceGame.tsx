@@ -1,5 +1,5 @@
-import React, { useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useRef, useState, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Stars, Float, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -15,7 +15,7 @@ function Player({ position, onCollect }: { position: [number, number, number], o
     if (!ref.current) return;
     
     // Simplificando o controle de input (em um cenário real, usaríamos um hook para teclas)
-    const speed = SPEED * 30 * delta;
+    // Velocidade era usada para controles manuais
     
     // Atualizaríamos a posição baseada nas teclas...
     // Para simplificar, a nave segue o mouse:

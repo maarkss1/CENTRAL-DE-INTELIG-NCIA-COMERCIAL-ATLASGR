@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, Users, TrendingUp, Activity, Wifi, WifiOff, Loader2, RotateCw } from 'lucide-react';
 import { analyticsDB } from '../../lib/db';
-import { Card } from './Card';
+
 import { Badge } from './Badge';
 
 interface Stats {

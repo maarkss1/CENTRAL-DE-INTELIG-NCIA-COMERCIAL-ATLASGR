@@ -48,6 +48,7 @@ export const createLeadsWorker = () => {
                 where: { id: leadId },
                 data: {
                     score: score ?? undefined,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     temperature: temperature as any,
                     timeline: {
                         create: {
@@ -61,7 +62,7 @@ export const createLeadsWorker = () => {
             logger.info({ leadId, status: qualificationResult.status, score }, "Lead Qualified Successfully");
 
             return { success: true, processedAt: new Date().toISOString(), result: qualificationResult };
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error({ err: error }, 'Error during lead qualification');
             throw error;
         }

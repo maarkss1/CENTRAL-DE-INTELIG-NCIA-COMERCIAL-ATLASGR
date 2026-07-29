@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { SpaceGame } from './SpaceGame';
 import { Card } from '../../../components/ui/Card';

@@ -37,25 +37,26 @@ export const prisma = basePrisma.$extends({
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
-        const bypassRls = (store as any)?.bypassRls || false;
+        const bypassRls = (store as Record<string, unknown>)?.bypassRls || false;
         
         const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
         const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];
         const isAuditable = auditableModels.includes(model as string);
 
         if (tenantId && tenantModels.includes(model as string)) {
+          const a = args as Record<string, unknown>;
           if (operation === 'create' || operation === 'createMany') {
-             if ((args as any).data) {
-                if (Array.isArray((args as any).data)) {
-                  (args as any).data = (args as any).data.map((d: any) => ({ ...d, organizationId: tenantId }));
+             if (a.data) {
+                if (Array.isArray(a.data)) {
+                  a.data = (a.data as Record<string, unknown>[]).map(d => ({ ...d, organizationId: tenantId }));
                 } else {
-                  (args as any).data = { ...(args as any).data, organizationId: tenantId };
+                  a.data = { ...(a.data as Record<string, unknown>), organizationId: tenantId };
                 }
              }
           }
           if (operation === 'upsert') {
-             if ((args as any).create) {
-                (args as any).create = { ...(args as any).create, organizationId: tenantId };
+             if (a.create) {
+                a.create = { ...(a.create as Record<string, unknown>), organizationId: tenantId };
              }
           }
         }
@@ -63,11 +64,12 @@ export const prisma = basePrisma.$extends({
         // --- 2. Soft Delete (Read Filtering) ---
         if (isAuditable) {
           if (['findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy'].includes(operation)) {
-             (args as any).where = { ...(args as any).where, deletedAt: null };
+             const a = args as Record<string, unknown>;
+             a.where = { ...(a.where as Record<string, unknown>), deletedAt: null };
           }
         }
 
-        const executeWithRls = async (prismaPromise: any) => {
+        const executeWithRls = async (prismaPromise: unknown) => {
           if (!tenantId && !bypassRls) return await prismaPromise;
           const [, res] = await basePrisma.$transaction([
             basePrisma.$executeRawUnsafe(
@@ -81,41 +83,47 @@ export const prisma = basePrisma.$extends({
         };
 
         // --- 3. Audit Log - Capture Before State ---
-        let beforeState: any = null;
+        let beforeState: Record<string, unknown> | null = null;
         if (isAuditable && (operation === 'update' || operation === 'delete')) {
            try {
-              beforeState = await executeWithRls((basePrisma as any)[model as string].findUnique({ where: (args as any).where }));
-           } catch (e) {
+              const a = args as Record<string, unknown>;
+              const modelDelegate = (basePrisma as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+              beforeState = await executeWithRls((modelDelegate.findUnique as (args: unknown) => Promise<unknown>)({ where: a.where })) as Record<string, unknown> | null;
+           } catch (_e) {
               // Ignore if we can't find it or where is complex
            }
         }
 
         // --- 4. Execute Query (Intercepting Delete) ---
-        let result: any;
+        let result: Record<string, unknown> | null = null;
         let affectedIds: string[] = [];
+        const basePrismaRecord = basePrisma as unknown as Record<string, unknown>;
+        const a = args as Record<string, unknown>;
 
         if (isAuditable && operation === 'delete') {
-            result = await executeWithRls((basePrisma as any)[model as string].update({
-                where: (args as any).where,
+            const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
+            result = await executeWithRls((modelDelegate.update as (args: unknown) => Promise<unknown>)({
+                where: a.where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
             }));
             if (result && result.id) {
                affectedIds.push(result.id);
             }
         } else if (isAuditable && operation === 'deleteMany') {
+            const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
             // Need to fetch IDs first to cascade
-            const recordsToSoftDelete = await executeWithRls((basePrisma as any)[model as string].findMany({
-                where: (args as any).where,
+            const recordsToSoftDelete = await executeWithRls((modelDelegate.findMany as (args: unknown) => Promise<unknown>)({
+                where: a.where,
                 select: { id: true }
-            }));
-            affectedIds = recordsToSoftDelete.map((r: any) => r.id);
+            })) as Record<string, unknown>[];
+            affectedIds = recordsToSoftDelete.map((r) => r.id as string);
 
-            result = await executeWithRls((basePrisma as any)[model as string].updateMany({
-                where: (args as any).where,
+            result = await executeWithRls((modelDelegate.updateMany as (args: unknown) => Promise<unknown>)({
+                where: a.where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
             }));
         } else {
-            result = await executeWithRls(query(args));
+            result = await executeWithRls(query(args)) as Record<string, unknown>;
         }
 
         // --- Cascade Soft Deletes ---
@@ -154,7 +162,7 @@ export const prisma = basePrisma.$extends({
 
         // --- 5. Audit Log & Search Queue ---
         if (isAuditable && ['create', 'update', 'delete'].includes(operation) && result) {
-             const action = operation.toUpperCase() as any;
+             const action = operation.toUpperCase();
              const entityId = result.id;
              AuditService.log({
                  action,
