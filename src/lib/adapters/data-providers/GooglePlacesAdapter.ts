@@ -35,6 +35,11 @@ export class GooglePlacesAdapter implements IDataProvider {
         social: {
           website: place.websiteUri
         },
+        company: {
+          googleRating: place.rating,
+          googleReviewsCount: place.userRatingCount,
+          businessHours: place.businessHours,
+        },
         enrichment: {
           sources: [{ sourceName: this.providerName, extractedAt: new Date().toISOString() }],
           confidence: {
@@ -45,11 +50,6 @@ export class GooglePlacesAdapter implements IDataProvider {
           },
           timestamp: new Date().toISOString(),
           executionTime: Date.now() - startTime
-        },
-        // Usamos um campo customizado no company para guardar o rating e reviews se necessário fora da IEnrichmentResult stricta
-        company: {
-           // rating: place.rating,
-           // reviewsCount: place.userRatingCount
         }
       };
 

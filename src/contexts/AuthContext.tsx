@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, ReactNode } from 'react';
 import { UserPreset } from '../features/auth/constants/userPresets';
 import { useBrand } from './BrandContext';
 import { authClient } from '../lib/auth-client';
+import { isAuthorizedLoginEmail } from '../config/access-policy';
 
 export interface UserSession {
   id: string;
@@ -32,16 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   let currentUser: UserSession | null = null;
 
-  if (sessionData?.user) {
+  if (sessionData?.user && isAuthorizedLoginEmail(sessionData.user.email)) {
       const user = sessionData.user;
-      const isAdmin = user.email.toLowerCase() === 'marcelo.nascimento@atlasgr.com.br';
 
       currentUser = {
           id: user.id,
           name: user.name || 'Usuário',
           email: user.email,
-          role: isAdmin ? 'admin' : 'user',
-          roleTitle: isAdmin ? 'Administrador Master' : 'Usuário',
+          role: 'admin',
+          roleTitle: 'Administrador Comercial',
           brand: 'atlasgr', // Default
           permissions: ['all'],
           avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { authClient } from '../../../lib/auth-client';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
+import { AUTHORIZED_LOGIN_EMAIL } from '../../../config/access-policy';
 
 export function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -67,6 +68,9 @@ export function Login() {
                     <p className="text-slate-500 text-xs font-medium mt-1">
                         AtlasGR & TotalTrac • Inteligência B2B
                     </p>
+                    <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
+                        Acesso autorizado somente para {AUTHORIZED_LOGIN_EMAIL}
+                    </p>
                 </div>
 
                 {error && (
@@ -93,7 +97,7 @@ export function Login() {
 
                 <div className="mt-8 pt-6 border-t border-slate-100">
                     <p className="text-xs text-center text-slate-400 font-medium">
-                        Acesso exclusivo para clientes corporativos.<br />
+                        O mesmo usuário pode acessar em mais de um navegador ou dispositivo.<br />
                         Ambiente protegido e monitorado (Zero Trust).
                     </p>
                 </div>

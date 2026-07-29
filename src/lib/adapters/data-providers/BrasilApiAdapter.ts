@@ -94,6 +94,10 @@ export class BrasilApiAdapter implements IDataProvider {
                 cnaeDescription: raw.cnae_fiscal_descricao,
                 size: raw.porte,
                 employeeCountEstimate: employeeEstimate.count,
+                qsa: (raw.qsa || []).map((partner: { nome_socio: string; qualificacao_socio: string }) => ({
+                    nome: partner.nome_socio,
+                    qualificacao: partner.qualificacao_socio,
+                })),
             },
             address: {
                 street: raw.logradouro,

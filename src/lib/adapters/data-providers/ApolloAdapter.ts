@@ -45,6 +45,10 @@ export class ApolloAdapter implements IDataProvider {
            company: org ? {
                tradeName: org.name,
                employeeCountEstimate: org.estimated_num_employees,
+               technologies: org.technology_names?.slice(0, 20),
+               keywords: org.keywords?.slice(0, 20),
+               logoUrl: org.logo_url,
+               apolloOrgId: org.id,
            } : undefined,
            social: org ? {
                linkedin: org.linkedin_url,
