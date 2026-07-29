@@ -35,13 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (sessionData?.user && isAuthorizedLoginEmail(sessionData.user.email)) {
       const user = sessionData.user;
+      const isAdmin = user.email.toLowerCase() === 'marcelo.nascimento@atlasgr.com.br';
 
       currentUser = {
           id: user.id,
           name: user.name || 'Usuário',
           email: user.email,
-          role: 'admin',
-          roleTitle: 'Administrador Comercial',
+          role: isAdmin ? 'admin' : 'user',
+          roleTitle: isAdmin ? 'Administrador Master' : 'Executivo Comercial B2B',
           brand: 'atlasgr', // Default
           permissions: ['all'],
           avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'

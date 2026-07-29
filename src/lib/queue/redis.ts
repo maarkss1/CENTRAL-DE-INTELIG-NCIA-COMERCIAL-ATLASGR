@@ -58,3 +58,23 @@ rateLimiterConnection.on('error', (err) => {
         logger.error({ err }, 'Rate limiter Redis connection error');
     }
 });
+
+// Conexão fail-fast para caches no caminho da aplicação. Ela é separada da conexão
+// bloqueante do BullMQ para que uma indisponibilidade do Redis nunca prenda uma
+// requisição de enriquecimento.
+export const cacheConnection = new Redis(redisUrl, {
+    lazyConnect: !queuesEnabled,
+    maxRetriesPerRequest: 1,
+    enableOfflineQueue: false,
+    retryStrategy(times) {
+        if (times > 3 && !process.env.REDIS_URL) {
+            return null;
+        }
+        return Math.min(times * 500, 5000);
+    },
+});
+
+cacheConnection.on('error', (err) => {
+    if (!queuesEnabled) return;
+    logger.warn({ message: err.message }, 'Enrichment cache Redis unavailable; continuing without cache');
+});

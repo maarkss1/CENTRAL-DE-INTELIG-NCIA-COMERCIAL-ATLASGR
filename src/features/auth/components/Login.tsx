@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { authClient } from '../../../lib/auth-client';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
-import { AUTHORIZED_LOGIN_EMAIL } from '../../../config/access-policy';
+import { AUTHORIZED_LOGIN_EMAILS } from '../../../config/access-policy';
 
 export function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +69,8 @@ export function Login() {
                         AtlasGR & TotalTrac • Inteligência B2B
                     </p>
                     <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600">
-                        Acesso autorizado somente para {AUTHORIZED_LOGIN_EMAIL}
+                        Acesso autorizado somente para:<br />
+                        {AUTHORIZED_LOGIN_EMAILS.join(' ou ')}
                     </p>
                 </div>
 
