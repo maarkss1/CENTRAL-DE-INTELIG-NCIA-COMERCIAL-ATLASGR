@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState as baileyUseMultiFileAuthState, DisconnectReason, Browsers, WASocket } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, Browsers, WASocket } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
@@ -25,7 +25,7 @@ export async function initWhatsApp() {
         fs.mkdirSync(authFolder, { recursive: true });
     }
 
-    const { state, saveCreds } = await baileyUseMultiFileAuthState(authFolder);
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
 
     sock = makeWASocket.default({
         auth: state,
@@ -39,7 +39,7 @@ export async function initWhatsApp() {
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
-
+        
         if (qr) {
             // Gera a imagem do QR Code em Base64 para enviar ao Frontend
             currentQr = await qrcode.toDataURL(qr);

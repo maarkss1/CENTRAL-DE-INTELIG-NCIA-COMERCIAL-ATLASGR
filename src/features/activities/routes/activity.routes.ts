@@ -11,12 +11,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const activities = await activityService.findAll(orgId, req.query.date as string | undefined);
-        const limit = Number(req.query.limit) || activities.length;
-        res.json({
-            success: true,
-            data: activities,
-            meta: { total: activities.length, page: 1, limit, totalPages: 1 },
-        });
+        res.json({ success: true, data: activities });
     } catch (error) {
         next(error);
     }

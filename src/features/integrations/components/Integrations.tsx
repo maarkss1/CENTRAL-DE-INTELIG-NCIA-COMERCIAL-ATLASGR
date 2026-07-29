@@ -82,7 +82,7 @@ export function Integrations() {
                             </div>
 
                             {status === 'disconnected' && (
-                                <button
+                                <button 
                                     onClick={handleConnect}
                                     disabled={loading}
                                     className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
@@ -99,7 +99,7 @@ export function Integrations() {
                             )}
 
                             {status === 'connected' && (
-                                <button
+                                <button 
                                     onClick={handleDisconnect}
                                     disabled={loading}
                                     className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
@@ -125,7 +125,7 @@ export function Integrations() {
                                 <span className="w-3 h-3 rounded-full bg-red-500"></span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Desconectado</span>
                             </div>
-                            <button
+                            <button 
                                 onClick={async () => {
                                     const res = await fetch('/api/google/auth-url');
                                     const data = await res.json();
