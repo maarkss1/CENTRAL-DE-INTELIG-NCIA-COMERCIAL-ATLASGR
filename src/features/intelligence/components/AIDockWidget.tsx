@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, MessageSquareWarning, Target, FileText, Settings, X, Send, User } from 'lucide-react';
-import { VoiceRoleplay } from './VoiceRoleplay';
-
 type AITool = 'copilot' | 'groq' | 'roleplay' | 'objections' | 'qualification' | 'playbook' | null;
 
 interface Message {
@@ -108,7 +106,6 @@ export function AIDockWidget() {
   const tools = [
       { id: 'copilot', icon: <Bot className="w-5 h-5" />, label: 'Atlas Copilot', color: 'bg-atlas-orange' },
       { id: 'groq', icon: <Zap className="w-5 h-5" />, label: 'Groq IA', color: 'bg-indigo-500' },
-      { id: 'roleplay', icon: <User className="w-5 h-5" />, label: 'Roleplay', color: 'bg-fuchsia-500' },
       { id: 'objections', icon: <MessageSquareWarning className="w-5 h-5" />, label: 'Objeções', color: 'bg-rose-500' },
       { id: 'qualification', icon: <Target className="w-5 h-5" />, label: 'Qualificação', color: 'bg-emerald-500' },
       { id: 'playbook', icon: <FileText className="w-5 h-5" />, label: 'Filtros Playbook', color: 'bg-sky-500' },
@@ -128,13 +125,6 @@ export function AIDockWidget() {
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className="fixed bottom-24 right-6 w-96 h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 flex flex-col z-50 overflow-hidden"
           >
-            {activeTool === 'roleplay' && roleplayMode === 'voice' ? (
-                <VoiceRoleplay 
-                    onClose={() => setActiveTool(null)} 
-                    onSwitchToText={() => setRoleplayMode('text')} 
-                />
-            ) : (
-                <>
             {/* Header */}
             <div className={`${activeToolData.color} p-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3 text-white">
@@ -148,9 +138,7 @@ export function AIDockWidget() {
               </div>
               
               <div className="flex items-center gap-3">
-                {activeTool === 'roleplay' && roleplayMode === 'text' && (
-                    <button onClick={() => setRoleplayMode('voice')} className="text-[10px] uppercase font-bold text-white/80 hover:text-white transition-colors">Modo Voz</button>
-                )}
+
                 <button onClick={() => setActiveTool(null)} className="text-white/80 hover:text-white transition-colors">
                     <X className="w-5 h-5" />
                 </button>
@@ -220,8 +208,7 @@ export function AIDockWidget() {
                 </button>
               </form>
             </div>
-            </>
-            )}
+            
           </motion.div>
         )}
       </AnimatePresence>

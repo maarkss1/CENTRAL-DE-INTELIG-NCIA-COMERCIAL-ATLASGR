@@ -21,6 +21,7 @@ import { CompanyList } from '../../companies/components/CompanyList';
 import { ContactList } from '../../contacts/components/ContactList';
 import { ActivityList } from '../../activities/components/ActivityList';
 import { ChatbookHub } from '../../chatbook/components/ChatbookHub';
+import { VoiceRoleplay } from '../../intelligence/components/VoiceRoleplay';
 import { AiToolBuilder } from '../../intelligence/components/AiToolBuilder';
 import { TopicTrainingAcademy } from '../../intelligence/components/TopicTrainingAcademy';
 import { BitrixGuideHub } from '../../intelligence/components/BitrixGuideHub';
@@ -240,7 +241,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectCompany('atlasgr'); } }}
-                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(255,86,24,0.18)] hover:shadow-[0_35px_90px_rgba(255,86,24,0.35)] border-atlas-orange/15 hover:border-atlas-orange/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-atlas-orange/40"
+                className="p-8 md:p-10 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[360px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(255,86,24,0.18)] hover:shadow-[0_35px_90px_rgba(255,86,24,0.35)] border-atlas-orange/15 hover:border-atlas-orange/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-atlas-orange/40"
               >
                 <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange to-orange-300" />
                 <div className="absolute top-0 right-0 w-80 h-80 bg-atlas-orange/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
@@ -275,7 +276,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectCompany('totaltrac'); } }}
-                className="p-10 md:p-12 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[480px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(0,136,204,0.18)] hover:shadow-[0_35px_90px_rgba(0,136,204,0.35)] border-totaltrack-blue/15 hover:border-totaltrack-blue/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-totaltrack-blue/40"
+                className="p-8 md:p-10 rounded-[3.5rem] border transition-all duration-500 cursor-pointer flex flex-col items-center justify-between text-center min-h-[360px] relative overflow-hidden bg-white shadow-[0_25px_70px_rgba(0,136,204,0.18)] hover:shadow-[0_35px_90px_rgba(0,136,204,0.35)] border-totaltrack-blue/15 hover:border-totaltrack-blue/60 group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-totaltrack-blue/40"
               >
                 <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-totaltrack-blue to-sky-300" />
                 <div className="absolute top-0 right-0 w-80 h-80 bg-totaltrack-blue/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
@@ -696,7 +697,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
             {activeTool === 'companies' && <CompanyList />}
             {activeTool === 'contacts' && <ContactList />}
             {activeTool === 'activities' && <ActivityList />}
-            {activeTool === 'roleplay' && <ChatbookHub />}
+            {activeTool === 'roleplay' && <div className="h-[600px] max-w-4xl mx-auto w-full"><VoiceRoleplay onClose={handleGoBack} onSwitchToText={() => {}} /></div>}
             {activeTool === 'ai_builder' && <AiToolBuilder />}
             {activeTool === 'topic_training' && <TopicTrainingAcademy />}
             {activeTool === 'bitrix' && <BitrixGuideHub />}
@@ -759,10 +760,10 @@ function AppleToolCard({ title, desc, icon, badge, onClick, highlight, visible, 
         role="button"
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-        className={`p-6 md:p-8 rounded-[2rem] transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[280px] group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-900 ${isAtlas ? 'focus-visible:ring-atlas-orange/30' : 'focus-visible:ring-totaltrack-blue/30'} ${gradientBgClass} ${borderClass}`}
+        className={`p-5 md:p-6 rounded-[2rem] transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[220px] group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-900 ${isAtlas ? 'focus-visible:ring-atlas-orange/30' : 'focus-visible:ring-totaltrack-blue/30'} ${gradientBgClass} ${borderClass}`}
       >
         <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 rounded-2xl shadow-sm shrink-0 [&_svg]:w-7 [&_svg]:h-7 ${iconBgClass}`}>
+          <div className={`p-3 rounded-2xl shadow-sm shrink-0 [&_svg]:w-6 [&_svg]:h-6 ${iconBgClass}`}>
             {icon}
           </div>
           <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${badgeClass}`}>
@@ -771,7 +772,7 @@ function AppleToolCard({ title, desc, icon, badge, onClick, highlight, visible, 
         </div>
 
         <div className="flex-1 mb-4">
-          <h3 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight mb-2">{title}</h3>
+          <h3 className="text-base md:text-lg font-black tracking-tight text-slate-900 leading-tight mb-2">{title}</h3>
           <p className="text-xs text-slate-500 leading-relaxed font-semibold">{desc}</p>
         </div>
 
