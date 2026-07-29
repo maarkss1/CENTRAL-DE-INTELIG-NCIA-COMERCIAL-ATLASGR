@@ -4,12 +4,12 @@ import {
     Search, Loader2, ShieldCheck, AlertTriangle, Building2, MapPin, Users,
     TrendingUp, Cpu, Database, Globe, CheckCircle2, Landmark, UserPlus, Sparkles,
     SlidersHorizontal, ChevronDown, ChevronUp, Linkedin, Phone, Calendar, DollarSign, Wrench, Mail,
-    RefreshCw, Wifi, WifiOff, type LucideIcon
+    type LucideIcon
 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult, DecisionMaker } from '../services/prospecting.service';
-import type { ApolloConnectionStatus, DecisionMakerCriteria } from '../services/apollo.service';
+import type { DecisionMakerCriteria } from '../services/apollo.service';
 import {
     SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, QUANTIDADE_OPTIONS, PORTE_OPTIONS, ESTADO_OPTIONS, TECNOLOGIA_OPTIONS,
     ATLAS_PERSONA_OPTIONS, TOTALTRAC_PERSONA_OPTIONS
