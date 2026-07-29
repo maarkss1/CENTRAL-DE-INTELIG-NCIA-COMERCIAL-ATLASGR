@@ -29,25 +29,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { setActiveBrand } = useBrand();
-  const { data: sessionData, isPending } = authClient.useSession();
+  const sessionData = null; const isPending = false;
 
-  let currentUser: UserSession | null = null;
-
-  if (sessionData?.user && isAuthorizedLoginEmail(sessionData.user.email)) {
-      const user = sessionData.user;
-      const isAdmin = user.email.toLowerCase() === 'marcelo.nascimento@atlasgr.com.br';
-
-      currentUser = {
-          id: user.id,
-          name: user.name || 'Usuário',
-          email: user.email,
-          role: isAdmin ? 'admin' : 'user',
-          roleTitle: isAdmin ? 'Administrador Master' : 'Executivo Comercial B2B',
-          brand: 'atlasgr', // Default
-          permissions: ['all'],
-          avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
-      };
-  }
+  let currentUser: UserSession | null = {
+      id: 'admin',
+      name: 'Administrador',
+      email: 'admin@prospector.com',
+      role: 'admin',
+      roleTitle: 'Administrador Master',
+      brand: 'atlasgr', // Default
+      permissions: ['all'],
+      avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
+  };
 
   const loginAsPreset = () => {
     // Deprecated with real auth

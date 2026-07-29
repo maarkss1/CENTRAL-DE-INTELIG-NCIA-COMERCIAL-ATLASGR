@@ -231,5 +231,183 @@ function generate100Qualifications(): QualificationItem[] {
   return list;
 }
 
-export const BRAND_OBJECTIONS: ObjectionItem[] = generate100Objections();
-export const BRAND_QUALIFICATIONS: QualificationItem[] = generate100Qualifications();
+
+export const TRANSCRIBED_OBJECTIONS: ObjectionItem[] = [
+  {
+    id: 'transcribed-obj-0',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "O preço do frete de vocês está acima da média de mercado que pagamos hoje.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-1',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "Já temos contratos de longo prazo e parceiros logísticos homologados, não queremos trocar agora.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-2',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "O nosso sistema (TMS) não integra bem com transportadoras externas e geraríamos retrabalho manual.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-3',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "Tivemos problemas graves com avarias de carga com parceiros anteriores, como garantem a segurança da nossa operação?",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-4',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "A matriz não aprova mudança de fornecedor de transporte sem um longo processo de homologação compliance (GR, Seguro, Ambiental).",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-5',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "Não vemos necessidade de terceirizar a frota para essa rota específica, preferimos nossa frota própria dedicada.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-6',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "Vocês não possuem capilaridade na região Nordeste, que é onde temos os maiores gargalos de entrega hoje.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-7',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "O prazo de pagamento de vocês é curto, nosso contas a pagar exige faturamento com 60 dias da emissão da fatura.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  },
+  {
+    id: 'transcribed-obj-8',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    objectionTitle: 'Objeção Mapeada em Reunião',
+    objectionText: "Estamos cortando custos de logística neste quarter, não há orçamento para testar novas modalidades premium.",
+    responseScript: 'Entendo perfeitamente o seu lado. No entanto, analisando o cenário...',
+    keyDifferentiator: 'Análise consultiva baseada em histórico.'
+  }
+];
+
+export const BRAND_OBJECTIONS: ObjectionItem[] = [...generate100Objections(), ...TRANSCRIBED_OBJECTIONS];
+
+export const TRANSCRIBED_QUALIFICATIONS: QualificationItem[] = [
+  {
+    id: 'transcribed-qual-0',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Qual o volume de cargas/mês ou faturamento mensal de frete gasto pela empresa hoje?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-1',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "A empresa possui frota própria dedicada ou 100% do frete é terceirizado/spot?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-2',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Quais as rotas/praças onde a empresa tem maior índice de atraso ou devolução logística (SLA quebrado)?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-3',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Qual TMS/ERP logístico vocês usam hoje para o roteiramento e expedição?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-4',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Quais as regras de Gerenciamento de Risco (GR) exigidas pela sua apólice de seguro para este tipo de carga (Agro/Saúde)?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-5',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Quem assina as aprovações de novas transportadoras no comitê de compras da matriz?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-6',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Quais os prazos mínimos que vocês precisam que a carga chegue no cliente final (Lead Time)?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  },
+  {
+    id: 'transcribed-qual-7',
+    brand: 'atlasgr',
+    segment: 'Logística & Transportes',
+    persona: 'Diretor de Logística',
+    framework: 'SPIN',
+    questionCategory: 'Situação',
+    questionText: "Qual a taxa de avaria tolerável hoje antes de gerar penalidades contratuais (multas) para a transportadora?",
+    idealAnswer: 'Resposta baseada nas operações do cliente.'
+  }
+];
+
+export const BRAND_QUALIFICATIONS: QualificationItem[] = [...generate100Qualifications(), ...TRANSCRIBED_QUALIFICATIONS];

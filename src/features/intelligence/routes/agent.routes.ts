@@ -48,7 +48,7 @@ const MODE_PROMPTS: Record<AssistantMode, string> = {
     playbook: `Ajude a aplicar um playbook comercial. Como nenhum playbook foi anexado a este endpoint, não atribua regras à AtlasGR sem evidência; peça ao usuário o trecho ou apresente a sugestão como prática geral.`,
     objections: `Atue como treinador de objeções. Reconheça a preocupação do comprador, identifique a informação ausente e sugira uma resposta curta seguida de uma pergunta de diagnóstico. Não pressione nem invente prova social.`,
     roleplay: `Simule um comprador B2B realista. Responda como o comprador, mantenha continuidade com o histórico e apresente uma objeção coerente com o que o usuário disse. Não invente fatos sobre uma empresa real.`,
-    qualification: `Extraia BANT e GPCT somente do texto fornecido. Para cada campo sem evidência, escreva "Não identificado". Separe ao final as perguntas que ainda precisam ser feitas. Use Markdown conciso.`,
+    qualification: `Atue como um gerador de perguntas de qualificação. Com base nos dados do lead ou segmento informados, gere de 4 a 6 perguntas estratégicas (SPIN ou BANT) prontas para o vendedor utilizar na ligação, explicando brevemente o que cada resposta revela. Não extraia dados, apenas gere as perguntas de forma direta.`,
 };
 
 const MODE_TEMPERATURES: Record<AssistantMode, number> = {

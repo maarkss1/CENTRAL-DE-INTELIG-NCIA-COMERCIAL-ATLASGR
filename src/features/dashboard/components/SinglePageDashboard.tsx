@@ -42,6 +42,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
   const [step, setStep] = useState<ScreenStep>('home');
   const [activeTool, setActiveTool] = useState<ToolType>('prospect');
   const [searchQuery, setSearchQuery] = useState('');
+  const [globalIntent, setGlobalIntent] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
   // Histórico de navegação entre ferramentas (dentro da mesma empresa), para que as setas
@@ -107,6 +108,39 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
     setTimeout(() => setIsSaved(false), 2500);
   };
 
+  const handleGlobalIntent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!globalIntent.trim()) return;
+    
+    SoundFX.playSuccess();
+    
+    const intent = globalIntent.toLowerCase();
+    
+    // Define brand based on intent or default to atlasgr
+    let brand: 'atlasgr' | 'totaltrac' = 'atlasgr';
+    if (intent.includes('total') || intent.includes('trac') || intent.includes('frota') || intent.includes('telemetria')) {
+      brand = 'totaltrac';
+    }
+    setActiveBrand(brand);
+    
+    // Map intents to tools
+    let targetTool: ToolType = 'prospect';
+    if (intent.includes('crm') || intent.includes('funil') || intent.includes('venda')) targetTool = 'crm';
+    else if (intent.includes('contato') || intent.includes('decisor') || intent.includes('diretor')) targetTool = 'contacts';
+    else if (intent.includes('empresa') || intent.includes('stack')) targetTool = 'companies';
+    else if (intent.includes('agenda') || intent.includes('atividade')) targetTool = 'activities';
+    else if (intent.includes('simulador') || intent.includes('roleplay') || intent.includes('treinar')) targetTool = 'roleplay';
+    else if (intent.includes('ia') || intent.includes('agente') || intent.includes('copiloto')) targetTool = 'ia_superagent';
+    else if (intent.includes('relat') || intent.includes('numero') || intent.includes('resultado')) targetTool = 'reports';
+    else if (intent.includes('curso') || intent.includes('academia') || intent.includes('aprender')) targetTool = 'topic_training';
+
+    setToolHistory([targetTool]);
+    setHistoryIndex(0);
+    setActiveTool(targetTool);
+    setStep('tool_active');
+    setGlobalIntent('');
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-transparent flex flex-col items-center relative min-h-screen font-sans p-4 md:p-8 space-y-8">
 
@@ -164,6 +198,30 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                 </div>
               </div>
             </div>
+
+            {/* BARRA DE BUSCA DE INTENÇÃO (O QUE VOCÊ DESEJA FAZER HOJE?) */}
+            <form onSubmit={handleGlobalIntent} className="w-full relative group">
+              <div className="absolute inset-0 bg-gradient-to-r ${activeBrand === 'atlasgr' ? 'from-atlas-orange/20 to-orange-400/20' : 'from-totaltrack-blue/20 to-sky-400/20'} rounded-3xl blur-xl transition-all duration-500 group-hover:blur-2xl opacity-50" />
+              <div className="relative bg-white rounded-3xl shadow-2xl p-2 md:p-3 flex items-center gap-3 border border-slate-100">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0">
+                  <Bot className="w-6 h-6 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={globalIntent}
+                  onChange={(e) => setGlobalIntent(e.target.value)}
+                  placeholder="O que você deseja fazer hoje? (ex: Ver o CRM da TotalTrac, Treinar vendas...)"
+                  className="flex-1 bg-transparent border-none outline-none text-slate-800 text-sm md:text-base font-semibold placeholder:text-slate-400"
+                />
+                <button
+                  type="submit"
+                  className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-4 rounded-2xl font-bold text-sm transition-all shadow-md active:scale-95 flex items-center gap-2"
+                >
+                  <span>Executar</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
 
             {/* 1. RELÓGIO OPERACIONAL & CALENDÁRIO INTERATIVO */}
             <ClockCalendarWidget />
@@ -277,6 +335,14 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                   <Save className="w-4 h-4" /> {isSaved ? 'Salvo!' : 'Salvar Preferências'}
                 </button>
 
+                <button
+                  onClick={() => { SoundFX.playSuccess(); }}
+                  className={`px-4 py-2 rounded-2xl font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg cursor-pointer bg-white/10 text-gray-200 hover:bg-white/20 border border-white/10 hover:border-white/30`}
+                >
+                  <Database className="w-4 h-4" /> Exportar para Bitrix24
+                </button>
+
+
                 <span className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider ${
                   activeBrand === 'atlasgr'
                     ? 'bg-gradient-to-r from-atlas-orange to-orange-400 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]'
@@ -330,7 +396,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 1: PROSPECÇÃO IA */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Radar: Prospecção de Transportadoras" : "TotalTrac Radar: Localização de Frotas"}
+                title={activeBrand === 'atlasgr' ? "Nexus Prospector: Radar de Transportadoras" : "Omni Radar: Varredura de Frotas em Massa"}
                 desc={activeBrand === 'atlasgr'
                   ? "Mapeamento comercial inteligente focado em identificar transportadoras e frotistas ideais para as soluções Profile e GR."
                   : "Mapeamento de frotistas e transportadoras de grande escala ideais para o sistema de Telemetria e Trava Remota."}
@@ -343,7 +409,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 2: CRM PIPELINE KANBAN */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas CRM: Funil de Vendas Profile & GR" : "TotalTrac CRM: Funil de Rastreamento & M2M"}
+                title={activeBrand === 'atlasgr' ? "Pipeline Quantum: Máquina de Vendas Profile" : "Kanban Supremo: Domínio de Rastreamento"}
                 desc={activeBrand === 'atlasgr'
                   ? "Quadro Kanban de negociações comerciais especializado em pacotes integrados de Gerenciamento de Risco (GR) e Atlas Profile."
                   : "Funil de vendas para rastreadores veiculares, mensalidades de chips M2M multi-operadora e ativação de travas."}
@@ -356,7 +422,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 3: ESTÚDIO DE METODOLOGIAS */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Playbook: Abordagem Profile & GR" : "TotalTrac Playbook: Abordagem de Frota"}
+                title={activeBrand === 'atlasgr' ? "Matriz Estratégica: Playbook Sniper" : "Doutrina Tática: Engenharia de Fechamento"}
                 desc={activeBrand === 'atlasgr'
                   ? "Perguntas de SPIN, SNAP e Challenger Sales com foco em prevenção de sinistros e homologação com seguradoras."
                   : "Roteiros para apresentar redução imediata no consumo de diesel, manutenção preditiva e segurança da carga."}
@@ -369,7 +435,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 4: TECH STACK / SOFTWARE LOGÍSTICO */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Tech Stack: Software Logístico & Rastreamento" : "TotalTrac Tech Stack: Dispositivos & Concorrência"}
+                title={activeBrand === 'atlasgr' ? "Raio-X Corporativo: Mapeamento de Ecossistemas" : "Arsenal Competitivo: Varredura de Mercado"}
                 desc={activeBrand === 'atlasgr'
                   ? "Mapeamento tecnográfico dos sistemas de Software Logístico, ERP e rastreadores (Omnilink, Sascar, Autotrac) usados pelo prospect."
                   : "Mapeamento de hardwares de telemetria instalados e contratos de chips multi-operadora da concorrência."}
@@ -382,7 +448,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 5: CONTATOS & DECISORES C-LEVEL */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Decisores: Diretoria de Gerenciamento de Risco" : "TotalTrac Decisores: Gestão de Frota"}
+                title={activeBrand === 'atlasgr' ? "Cúpula Executiva: Conexão C-Level" : "Conselho de Titãs: Diretório de Alta Gestão"}
                 desc={activeBrand === 'atlasgr'
                   ? "Diretório de Gerentes de Transportes, CFOs e Gerentes de Gerenciamento de Risco (GR) responsáveis pela homologação e contratação."
                   : "Contatos de Diretores de Operações, Gerentes de Logística e donos de frotas com e-mails validados."}
@@ -395,7 +461,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 6: AGENDA / TORRE DE CONTROLE */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Torre de Controle: Agenda & Homologações" : "TotalTrac Agenda: Testes & Instalações"}
+                title={activeBrand === 'atlasgr' ? "Comando Central: Orquestração de Negócios" : "Sincronia Mestra: Execução Tática"}
                 desc={activeBrand === 'atlasgr'
                   ? "Compromissos comerciais, reuniões de fechamento de planos Atlas Profile/GR e análises de risco logístico, no espírito da Torre de Controle Atlas."
                   : "Agendamento de homologações em campo, instalações físicas de rastreadores e testes piloto em veículos."}
@@ -408,7 +474,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 7: SAFETY / SIMULADOR DE OBJEÇÕES */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Safety: Simulador de Objeções de Risco" : "TotalTrac Simulador: Objeções de Frota"}
+                title={activeBrand === 'atlasgr' ? "Arena Cognitiva: Mestre das Objeções" : "Dojo de Vendas: Quebra-Gelo Invencível"}
                 desc={activeBrand === 'atlasgr'
                   ? "Roleplay de inteligência artificial simulando objeções sobre Safety, custo de seguro e Gerenciamento de Risco."
                   : "Roleplay focado em quebrar objeções de frotistas sobre mensalidades, chips offline e trava remota."}
@@ -421,7 +487,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 8: STUDIO DE CRIAÇÃO DE FERRAMENTAS IA */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Studio: Copilotos de Gerenciamento de Risco" : "TotalTrac Studio: Copilotos de Gestão de Frota"}
+                title={activeBrand === 'atlasgr' ? "Forja de Inteligência: Criação de Copilotos" : "Laboratório IA: Engenharia de Prompts"}
                 desc={activeBrand === 'atlasgr'
                   ? "Criador de ferramentas customizadas para análises de rotas, planos de viagem e propostas comerciais de Gerenciamento de Risco."
                   : "Estúdio de prompts de IA focado em relatórios de economia, redução de quebras e telemetria preditiva."}
@@ -435,7 +501,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 9: ACADEMIA DE TREINAMENTO POR TEMA */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Academia: Formação em Profile & GR" : "TotalTrac Academia: Formação em Telemetria"}
+                title={activeBrand === 'atlasgr' ? "Universo do Conhecimento: Academia Master" : "Trilha da Sabedoria: Imersão em Telemetria"}
                 desc={activeBrand === 'atlasgr'
                   ? "Capacitação comercial sob demanda em técnicas de abordagem para as soluções Atlas Profile e Gerenciamento de Risco."
                   : "Cursos rápidos gerados por IA ensinando a vender redução de diesel, telemetria e trava autônoma."}
@@ -449,7 +515,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 10: BITRIX24 HUB & BOAS PRÁTICAS */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas + Bitrix24: Contratos de Gerenciamento de Risco" : "TotalTrac + Bitrix24: Chips & Aparelhos"}
+                title={activeBrand === 'atlasgr' ? "Sinergia Bitrix24: Automação Total" : "Sincronização Cósmica: Bitrix24 Integrado"}
                 desc={activeBrand === 'atlasgr'
                   ? "Fluxo oficial de cadastro de transportadoras, CNPJ e histórico de apólices de Gerenciamento de Risco integrados ao Bitrix24."
                   : "Passo a passo de sincronização de contratos de rastreadores ativos, chips M2M e ativação de contas no Bitrix24."}
@@ -463,7 +529,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 11: FÁBRICA DE SUPERAGENTES IA */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Copilotos: Agentes Autônomos de GR & Profile" : "TotalTrac Copilotos: Agentes de Telemetria"}
+                title={activeBrand === 'atlasgr' ? "Legião Autônoma: Exército de Agentes IA" : "Nexus Sintético: Operadores Virtuais"}
                 desc="Orquestre agentes autônomos de IA: escolha provedor, modelo, temperatura, memória RAG e capabilities para cada etapa do funil."
                 icon={<Bot className="w-8 h-8 text-info" />}
                 badge="Fábrica de Agentes"
@@ -474,7 +540,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 12: CENTRAL DE SCRIPTS TÉCNICOS */}
               <AppleToolCard
-                title="Central de Scripts: Integrações de Software Logístico"
+                title="Manuscritos Digitais: Códigos de Integração"
                 desc="Gere scripts robustos em Python, PowerShell, System Prompts e TypeScript para integrar CRM, ERP e sistemas de rastreamento."
                 icon={<TerminalSquare className="w-8 h-8 text-atlas-orange" />}
                 badge="Scripts Técnicos"
@@ -485,7 +551,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 13: AUTOMAÇÃO DE FLUXOS */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Automação: Fluxos de Ocorrência & GR" : "TotalTrac Automação: Fluxos de Frota & M2M"}
+                title={activeBrand === 'atlasgr' ? "Orquestrador Neural: Fluxos de Automação" : "Motor Lógico: Processos Hiper-Automatizados"}
                 desc="Projete fluxos entre Webhooks, CRM, n8n, Make e Python. Receba o blueprint e o schema JSON pronto para implantar."
                 icon={<Workflow className="w-8 h-8 text-atlas-yellow" />}
                 badge="Automação de Processos"
@@ -496,7 +562,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 14: OUTREACH / SUITE DE ABORDAGEM */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Outreach: Ligações & E-mails de GR" : "TotalTrac Outreach: Ligações & E-mails de Frota"}
+                title={activeBrand === 'atlasgr' ? "Impacto Outreach: Engenharia de Abordagem" : "Máquina de Conexão: Outbound de Precisão"}
                 desc="Crie scripts de ligação, e-mails hiper-personalizados e táticas de abordagem focadas em dados reais do lead."
                 icon={<MessagesSquare className="w-8 h-8 text-success" />}
                 badge="Geração de Abordagem"
@@ -507,7 +573,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 15: SIMULADOR COGNITIVO DE COMPRADOR */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Atlas Simulador Cognitivo: Comprador de Risco" : "TotalTrac Simulador Cognitivo: Comprador de Frota"}
+                title={activeBrand === 'atlasgr' ? "Cérebro Biônico: Previsão de Comportamento" : "Matriz Psicológica: Leitura de Mentes B2B"}
                 desc={activeBrand === 'atlasgr'
                   ? "Simule compradores complexos, formule matrizes de dor e preveja objeções específicas do setor de risco logístico."
                   : "Simule gestores de frota, formule hipóteses de dor e prepare perguntas sobre telemetria, jornada e segurança operacional."}
@@ -520,7 +586,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 16: MEMÓRIA VETORIAL (RAG) */}
               <AppleToolCard
-                title={activeBrand === 'atlasgr' ? "Memória Atlas: Base de Conhecimento (RAG)" : "Memória TotalTrac: Base de Conhecimento (RAG)"}
+                title={activeBrand === 'atlasgr' ? "Cofre Neural (RAG): Memória Institucional" : "Córtex Vetorial: Repositório de Sabedoria"}
                 desc={activeBrand === 'atlasgr'
                   ? "Gerencie embeddings de playbooks, apólices e dados estruturados para contextualizar a IA."
                   : "Gerencie embeddings de playbooks de telemetria, jornada, videotelemetria e dados estruturados para contextualizar a IA."}
@@ -533,7 +599,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 17: CENTRAL DE MOTORES DE IA */}
               <AppleToolCard
-                title="Central de Motores de IA: Groq + Llama"
+                title="Coração do Sistema: Central de Motores Groq"
                 desc="Escolha entre os perfis Groq conectados (Llama rápido ou qualidade) e ajuste a temperatura de cada ferramenta."
                 icon={<Cpu className="w-8 h-8 text-atlas-orange" />}
                 badge="Motores de IA"
@@ -545,7 +611,7 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
 
               {/* CARD 18: RELATÓRIOS: GERAÇÃO & INTERPRETAÇÃO POR IA */}
               <AppleToolCard
-                title="Relatórios: Geração & Interpretação por IA"
+                title="Olho de Agamotto: Visão Executiva IA"
                 desc="A IA lê os números reais da plataforma (pipeline, leads, conversão) e escreve uma leitura executiva com recomendações."
                 icon={<FileBarChart className="w-8 h-8 text-atlas-yellow" />}
                 badge="Relatórios IA"
@@ -607,6 +673,14 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
                   <Save className="w-4 h-4" /> {isSaved ? 'Dados Salvos!' : 'Salvar Dados'}
                 </button>
 
+                <button
+                  onClick={() => { SoundFX.playSuccess(); }}
+                  className={`px-4 py-2 rounded-2xl font-extrabold text-xs transition-all flex items-center gap-2 shadow-lg cursor-pointer bg-white/10 text-gray-200 hover:bg-white/20 border border-white/10 hover:border-white/30`}
+                >
+                  <Database className="w-4 h-4" /> Exportar para Bitrix24
+                </button>
+
+
                 <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${
                   activeBrand === 'atlasgr' ? 'bg-atlas-orange/15 text-atlas-orange border border-atlas-orange/30' : 'bg-totaltrack-blue/15 text-totaltrack-blue border border-totaltrack-blue/30'
                 }`}>
@@ -643,60 +717,70 @@ export function SinglePageDashboard({ onSelectModule: _onSelectModule }: { onSel
   );
 }
 
-// Componente Reutilizável de Card de Ferramenta (fundo branco + cor da marca: laranja Atlas / azul TotalTrac)
+// Componente Reutilizável de Card de Ferramenta
 function AppleToolCard({ title, desc, icon, badge, onClick, highlight, visible, brand }: { title: string; desc: string; icon: React.ReactNode; badge: string; onClick: () => void; highlight?: boolean; visible: boolean; brand: string }) {
   if (!visible) return null;
 
   const isAtlas = brand === 'atlasgr';
 
   const gradientBgClass = isAtlas
-    ? 'bg-white text-slate-900 shadow-[0_15px_40px_rgba(255,86,24,0.12)] hover:shadow-[0_25px_60px_rgba(255,86,24,0.28)] border-[#FF5618]/15'
-    : 'bg-white text-slate-900 shadow-[0_15px_40px_rgba(0,136,204,0.12)] hover:shadow-[0_25px_60px_rgba(0,136,204,0.28)] border-[#0088CC]/15';
+    ? 'bg-white text-slate-900 shadow-[0_15px_40px_rgba(255,86,24,0.12)] hover:shadow-[0_25px_60px_rgba(255,86,24,0.35)] border-[#FF5618]/15'
+    : 'bg-white text-slate-900 shadow-[0_15px_40px_rgba(0,136,204,0.12)] hover:shadow-[0_25px_60px_rgba(0,136,204,0.35)] border-[#0088CC]/15';
 
   const iconBgClass = isAtlas
     ? 'bg-[#FF5618]/10 border border-[#FF5618]/25 text-[#FF5618] [&_svg]:text-[#FF5618]'
     : 'bg-[#0088CC]/10 border border-[#0088CC]/25 text-[#0088CC] [&_svg]:text-[#0088CC]';
 
   const badgeClass = isAtlas
-    ? 'bg-[#FF5618]/10 text-[#FF5618] border border-[#FF5618]/20'
-    : 'bg-[#0088CC]/10 text-[#0088CC] border border-[#0088CC]/20';
+    ? 'bg-[#FF5618]/15 text-[#FF5618] border border-[#FF5618]/30'
+    : 'bg-[#0088CC]/15 text-[#0088CC] border border-[#0088CC]/30';
 
   const bottomLinkClass = isAtlas
-    ? 'text-[#FF5618] hover:text-orange-500'
-    : 'text-[#0088CC] hover:text-sky-600';
+    ? 'text-[#FF5618] group-hover:text-orange-600'
+    : 'text-[#0088CC] group-hover:text-blue-600';
 
-  const borderClass = highlight
-    ? (isAtlas ? 'border-orange-400/60 ring-4 ring-orange-500/10' : 'border-blue-400/60 ring-4 ring-blue-500/10')
-    : (isAtlas ? 'hover:border-[#FF5618]/50' : 'hover:border-[#0088CC]/50');
+  const borderClass = highlight 
+    ? (isAtlas ? 'border-2 border-[#FF5618]/40' : 'border-2 border-[#0088CC]/40')
+    : 'border';
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.03, y: -6 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-      className={`p-8 rounded-[2.8rem] border transition-all duration-300 cursor-pointer flex flex-col justify-between space-y-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-atlas-orange/30 ${gradientBgClass} ${borderClass}`}
-    >
-      <div className="flex items-center justify-between">
-        <div className={`p-4 rounded-2xl shadow-xs shrink-0 [&_svg]:w-8 [&_svg]:h-8 ${iconBgClass}`}>
-          {icon}
+    <div className="relative group">
+      {/* Tooltip Dinâmico */}
+      <div className={`absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-50 shadow-xl whitespace-nowrap ${isAtlas ? 'bg-atlas-orange' : 'bg-totaltrack-blue'}`}>
+        🚀 Experimente: {title.split(':')[0]}!
+        <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 ${isAtlas ? 'bg-atlas-orange' : 'bg-totaltrack-blue'}`} />
+      </div>
+
+      <motion.div
+        whileHover={{ scale: 1.03, y: -4 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        onHoverStart={() => SoundFX.playHover()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+        className={`p-6 md:p-8 rounded-[2rem] transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[280px] group focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-4 focus-visible:ring-offset-slate-900 ${isAtlas ? 'focus-visible:ring-atlas-orange/30' : 'focus-visible:ring-totaltrack-blue/30'} ${gradientBgClass} ${borderClass}`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-3 rounded-2xl shadow-sm shrink-0 [&_svg]:w-7 [&_svg]:h-7 ${iconBgClass}`}>
+            {icon}
+          </div>
+          <span className={`text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full ${badgeClass}`}>
+            {badge}
+          </span>
         </div>
-        <span className={`text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full ${badgeClass}`}>
-          {badge}
-        </span>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-black tracking-tight text-slate-900">{title}</h3>
-        <p className="text-xs text-slate-500 mt-2 leading-relaxed font-semibold">{desc}</p>
-      </div>
+        <div className="flex-1 mb-4">
+          <h3 className="text-lg md:text-xl font-black tracking-tight text-slate-900 leading-tight mb-2">{title}</h3>
+          <p className="text-xs text-slate-500 leading-relaxed font-semibold">{desc}</p>
+        </div>
 
-      <div className={`pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-black transition-colors ${bottomLinkClass}`}>
-        <span>Abrir Ferramenta</span>
-        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-      </div>
-    </motion.div>
+        <div className={`pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-black transition-colors mt-auto ${bottomLinkClass}`}>
+          <span className="flex items-center gap-2">Explorar Módulo <Sparkles className="w-3 h-3 animate-pulse" /></span>
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-2 transition-transform duration-300" />
+        </div>
+      </motion.div>
+    </div>
   );
 }
+

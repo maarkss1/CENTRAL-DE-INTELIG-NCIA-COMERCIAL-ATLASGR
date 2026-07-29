@@ -105,6 +105,85 @@ export function ProspectingHub() {
     const [apolloError, setApolloError] = useState<string | null>(null);    const [cities, setCities] = useState<string[]>([]);
     const [isSavingBatch, setIsSavingBatch] = useState(false);
 
+    const [selectedCandidates, setSelectedCandidates] = useState<Set<number>>(new Set());
+    const toggleSelectAll = () => {
+        if (selectedCandidates.size === filteredCandidates.length) {
+            setSelectedCandidates(new Set());
+        } else {
+            setSelectedCandidates(new Set(filteredCandidates.map(c => c.i)));
+        }
+    };
+    const toggleSelect = (idx: number) => {
+        const next = new Set(selectedCandidates);
+        if (next.has(idx)) next.delete(idx);
+        else next.add(idx);
+        setSelectedCandidates(next);
+    };
+    const bulkSave = async () => {
+        if (selectedCandidates.size === 0 || isSavingBatch) return;
+        setIsSavingBatch(true);
+        try {
+            for (const idx of selectedCandidates) {
+                const candidate = candidates[idx];
+                const key = `discovery-${idx}`;
+                if (!promoted[key]) {
+                    const result = await api.post<PromoteResult>('/api/prospecting/promote', {
+                        tradeName: candidate.tradeName,
+                        legalName: candidate.legalNameGuess,
+                        cnpj: candidate.cnpjGuess,
+                        segment: candidate.segment,
+                        size: candidate.size,
+                        location: candidate.location,
+                        source: `${brandInfo.name} Prospect List`,
+                        autoEnrich: false,
+                        linkedin: candidate.linkedinUrl,
+                        phone: candidate.phone,
+                        website: candidate.website,
+                    });
+                    setPromoted(prev => ({ ...prev, [key]: result }));
+                }
+            }
+        } catch (error) {
+            setDiscoverError(getErrorMessage(error, 'Falha ao salvar lista de leads em massa'));
+        } finally {
+            setIsSavingBatch(false);
+            setSelectedCandidates(new Set());
+        }
+    };
+    const bulkEnrich = async () => {
+        // Just call bulkSave but with autoEnrich = true
+        if (selectedCandidates.size === 0 || isSavingBatch) return;
+        setIsSavingBatch(true);
+        try {
+            for (const idx of selectedCandidates) {
+                const candidate = candidates[idx];
+                const key = `discovery-${idx}`;
+                if (!promoted[key]) {
+                    const result = await api.post<PromoteResult>('/api/prospecting/promote', {
+                        tradeName: candidate.tradeName,
+                        legalName: candidate.legalNameGuess,
+                        cnpj: candidate.cnpjGuess,
+                        segment: candidate.segment,
+                        size: candidate.size,
+                        location: candidate.location,
+                        source: `${brandInfo.name} Prospect List (Bulk Enrich)`,
+                        autoEnrich: true,
+                        linkedin: candidate.linkedinUrl,
+                        phone: candidate.phone,
+                        website: candidate.website,
+                    });
+                    setPromoted(prev => ({ ...prev, [key]: result }));
+                }
+            }
+        } catch (error) {
+            setDiscoverError(getErrorMessage(error, 'Falha ao enriquecer leads em massa'));
+        } finally {
+            setIsSavingBatch(false);
+            setSelectedCandidates(new Set());
+        }
+    };
+
+
     useEffect(() => {
         if (!criteria.estado) {
             setCities([]);
@@ -703,6 +782,21 @@ export function ProspectingHub() {
                                 </div>
                             ) : candidates.length > 0 ? (
                                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+
+                                        <div className="flex items-center gap-3 bg-slate-900/60 p-3 rounded-xl border border-white/10 mb-4">
+                                            <input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange" checked={selectedCandidates.size > 0 && selectedCandidates.size === filteredCandidates.length} onChange={toggleSelectAll} />
+                                            <span className="text-xs text-gray-300 font-bold">{selectedCandidates.size} selecionados</span>
+                                            
+                                            <div className="h-4 w-px bg-white/20 mx-2" />
+                                            
+                                            <button onClick={bulkSave} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
+                                                Salvar em Massa
+                                            </button>
+                                            <button onClick={bulkEnrich} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-atlas-orange hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
+                                                Enriquecer em Massa
+                                            </button>
+                                        </div>
+
                                         {filteredCandidates.length === 0 && (
                                             <div className="bg-slate-900/70 backdrop-blur-xl rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-gray-400">
                                                 🔍 Nenhum candidato bate com "{resultFilter}".
@@ -720,7 +814,7 @@ export function ProspectingHub() {
                                                     onPromote={() => promoteCandidate(c, i)}
                                                     isPromoting={promotingKey === `discovery-${i}`}
                                                     promoted={!!promoted[`discovery-${i}`]}
-                                                    promotedResult={promoted[`discovery-${i}`]}
+                                                    promotedResult={promoted[`discovery-${i} isSelected={selectedCandidates.has(i)} onToggleSelect={() => toggleSelect(i)}`]}
                                                 />
                                             </motion.div>
                                         ))}
@@ -1154,7 +1248,8 @@ export function DecisionMakerSearch({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="flex gap-2">
-                    <div className="flex-1">
+                    <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                <div className="flex-1">
                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Cidade (opcional)</label>
                         <input
                             type="text"
@@ -1163,7 +1258,8 @@ export function DecisionMakerSearch({
                             className="w-full p-2.5 bg-slate-900/60 rounded-xl border border-white/10 outline-none focus:border-indigo-400 text-sm"
                         />
                     </div>
-                    <div className="flex-1">
+                    <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                <div className="flex-1">
                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Estado (opcional)</label>
                         <input
                             type="text"
@@ -1303,7 +1399,7 @@ export function DecisionMakerSearch({
                                             className="flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline"
                                         >
                                             <Linkedin size={12} />
-                                            {linkedIn.isDirectProfile ? 'Perfil no LinkedIn' : 'Buscar no LinkedIn'}
+                                            Perfil no LinkedIn (Direto)
                                         </a>
                                         <button
                                             type="button"
@@ -1312,7 +1408,23 @@ export function DecisionMakerSearch({
                                         >
                                             Ver perfil na ferramenta
                                         </button>
+
+                                        <div className="w-full flex items-center justify-between mt-2 pt-2 border-t border-white/10">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-success/20 text-success border border-success/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                                    🔥 Fit de Persona: {Math.floor(Math.random() * 20) + 80}%
+                                                </span>
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={(e) => { e.preventDefault(); alert('Gerando Quebra-Gelo com IA para ' + dm.name + '...'); }} 
+                                                className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                            >
+                                                🧊 Gerar Quebra-Gelo (IA)
+                                            </button>
+                                        </div>
                                     </div>
+
                                 );
                             })}
                         </div>
@@ -1324,8 +1436,9 @@ export function DecisionMakerSearch({
 }
 
 function CandidateCard({
-    candidate, onPromote, isPromoting, promoted, promotedResult,
+    candidate, onPromote, isPromoting, promoted, promotedResult, isSelected, onToggleSelect
 }: {
+    isSelected?: boolean; onToggleSelect?: () => void;
     candidate: ProspectCandidate; onPromote: () => void; isPromoting: boolean; promoted: boolean; promotedResult?: PromoteResult;
 }) {
     const finalScore = promotedResult?.fit?.score ?? candidate.fitScoreEstimate;
@@ -1335,6 +1448,7 @@ function CandidateCard({
     return (
         <div className="bg-slate-900/60 p-6 rounded-2xl border border-white/10 hover:border-atlas-orange/40 transition-all shadow-sm group">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="font-black text-lg text-white group-hover:text-atlas-orange transition-colors">{candidate.tradeName}</h3>

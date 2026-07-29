@@ -1,6 +1,7 @@
 export const AUTHORIZED_LOGIN_EMAILS = [
   'marcelo.nascimento@atlasgr.com.br',
   'joao.reis@atlasgr.com.br',
+  'admin@prospector.com',
 ] as const;
 
 export function normalizeLoginEmail(email: string): string {

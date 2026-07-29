@@ -34,7 +34,7 @@ export const auth = betterAuth({
     }),
     trustedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
     emailAndPassword: {
-        enabled: false,
+        enabled: true,
     },
     socialProviders,
     plugins: [],

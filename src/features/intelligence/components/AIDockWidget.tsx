@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, MessageSquareWarning, Target, FileText, Settings, X, Send, User } from 'lucide-react';
+import { VoiceRoleplay } from './VoiceRoleplay';
 
 type AITool = 'copilot' | 'groq' | 'roleplay' | 'objections' | 'qualification' | 'playbook' | null;
 
@@ -13,6 +14,7 @@ interface Message {
 export function AIDockWidget() {
   const [activeTool, setActiveTool] = useState<AITool>(null);
   const [isDockExpanded, setIsDockExpanded] = useState(false);
+  const [roleplayMode, setRoleplayMode] = useState<'voice'|'text'>('voice');
   
   // Chat States
   const [messages, setMessages] = useState<Record<string, Message[]>>({
@@ -20,7 +22,7 @@ export function AIDockWidget() {
     groq: [{ id: '2', role: 'agent', content: 'Consulta rápida pronta. Para usar conhecimento interno, inclua o trecho do playbook na mensagem.' }],
     roleplay: [{ id: '3', role: 'agent', content: 'Pronto para simular uma call difícil. Qual seu pitch?' }],
     objections: [{ id: '4', role: 'agent', content: 'Qual objeção você encontrou? ("Tá caro", "Não tenho tempo", etc)' }],
-    qualification: [{ id: '5', role: 'agent', content: 'Cole o resumo da conversa e extrairei os dados BANT.' }],
+    qualification: [{ id: '5', role: 'agent', content: 'Informe o segmento ou empresa que você vai ligar e gerarei as melhores perguntas BANT/SPIN.' }],
     playbook: [{ id: '6', role: 'agent', content: 'Qual filtro ou processo de playbook você deseja aplicar?' }],
   });
   
@@ -107,12 +109,20 @@ export function AIDockWidget() {
       {/* Janela de Chat Ativa */}
       <AnimatePresence>
         {activeTool && activeToolData && (
+          
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className="fixed bottom-24 right-6 w-96 h-[500px] max-h-[70vh] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 flex flex-col z-50 overflow-hidden"
           >
+            {activeTool === 'roleplay' && roleplayMode === 'voice' ? (
+                <VoiceRoleplay 
+                    onClose={() => setActiveTool(null)} 
+                    onSwitchToText={() => setRoleplayMode('text')} 
+                />
+            ) : (
+                <>
             {/* Header */}
             <div className={`${activeToolData.color} p-4 flex items-center justify-between`}>
               <div className="flex items-center gap-3 text-white">
@@ -124,9 +134,16 @@ export function AIDockWidget() {
                   <p className="text-xs text-white/80">IA Engine Activo</p>
                 </div>
               </div>
-              <button onClick={() => setActiveTool(null)} className="text-white/80 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              
+              <div className="flex items-center gap-3">
+                {activeTool === 'roleplay' && roleplayMode === 'text' && (
+                    <button onClick={() => setRoleplayMode('voice')} className="text-[10px] uppercase font-bold text-white/80 hover:text-white transition-colors">Modo Voz</button>
+                )}
+                <button onClick={() => setActiveTool(null)} className="text-white/80 hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                </button>
+              </div>
+
             </div>
 
             {/* Area de Mensagens */}
@@ -175,6 +192,8 @@ export function AIDockWidget() {
                 </button>
               </form>
             </div>
+            </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -28,26 +28,27 @@ export function ClockCalendarWidget() {
   ];
 
   return (
-    <div className="p-6 rounded-card-lg border border-atlas-orange/15 bg-white shadow-[0_20px_60px_rgba(255,86,24,0.12)] relative overflow-hidden text-slate-900 font-sans">
-      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange to-orange-300" />
-      <div className="absolute top-0 right-0 w-48 h-48 bg-atlas-orange/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="p-6 rounded-card-lg border border-slate-200/50 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.05)] relative overflow-hidden text-slate-900 font-sans">
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange via-purple-500 to-totaltrack-blue" />
+      <div className="absolute top-0 right-0 w-48 h-48 bg-totaltrack-blue/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-atlas-orange/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-atlas-orange/10 mb-4">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-atlas-orange to-atlas-yellow flex items-center justify-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_rgba(255,86,24,0.4)]">
+      <div className="flex items-center gap-3 pb-4 border-b border-slate-100 mb-4">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-atlas-orange to-totaltrack-blue flex items-center justify-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_rgba(0,0,0,0.1)]">
           <Clock className="w-5 h-5 animate-pulse" />
         </div>
         <p className="text-xs text-slate-500 capitalize font-semibold">{dayName}, {fullDate}</p>
       </div>
 
       {/* Relógio Ao Vivo */}
-      <div className="p-6 rounded-card bg-gradient-to-r from-orange-50 via-white to-orange-50 border border-atlas-orange/15 relative overflow-hidden text-center sm:text-left">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-atlas-orange block mb-1 flex items-center justify-center sm:justify-start gap-1">
-          <Sparkles className="w-3 h-3 text-atlas-orange animate-spin-slow" /> Fuso Horário Oficial (Horário de Brasília)
+      <div className="p-6 rounded-card bg-gradient-to-r from-orange-50 via-white to-sky-50 border border-slate-100 relative overflow-hidden text-center sm:text-left">
+        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 block mb-1 flex items-center justify-center sm:justify-start gap-1">
+          <Sparkles className="w-3 h-3 text-totaltrack-blue animate-spin-slow" /> Fuso Horário Oficial (Horário de Brasília)
         </span>
         <div className="flex items-baseline justify-center sm:justify-start gap-1 font-mono">
           <span className="text-5xl font-black text-slate-900 tracking-tight">{hours}:{minutes}</span>
-          <span className="text-xl font-bold text-atlas-orange">:{seconds}</span>
+          <span className="text-xl font-bold text-totaltrack-blue">:{seconds}</span>
         </div>
       </div>
 
@@ -57,7 +58,7 @@ export function ClockCalendarWidget() {
           <span className="flex items-center gap-1.5 text-sm font-black text-slate-900">
             <CalendarIcon className="w-4 h-4 text-atlas-orange" /> {currentMonthName} {time.getFullYear()}
           </span>
-          <span className="text-[10px] text-atlas-orange bg-atlas-orange/10 px-2 py-0.5 rounded border border-atlas-orange/20">
+          <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
             Clique num dia para ver detalhes
           </span>
         </div>
@@ -81,15 +82,15 @@ export function ClockCalendarWidget() {
                 aria-pressed={isSelected}
                 className={`py-2 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer ${
                   isToday
-                    ? 'bg-gradient-to-br from-atlas-orange to-atlas-yellow text-white font-black shadow-lg shadow-atlas-orange/30 ring-2 ring-atlas-orange/30'
+                    ? 'bg-gradient-to-br from-atlas-orange to-totaltrack-blue text-white font-black shadow-lg'
                     : isSelected
-                    ? 'bg-white border-2 border-atlas-orange text-atlas-orange font-bold'
-                    : 'bg-orange-50 hover:bg-orange-100 text-slate-600'
+                    ? 'bg-white border-2 border-slate-300 text-slate-800 font-bold'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
                 }`}
               >
                 <span>{day}</span>
                 {hasEvent && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-atlas-orange absolute bottom-1 animate-pulse" />
+                  <span className={`w-1.5 h-1.5 rounded-full absolute bottom-1 animate-pulse ${day % 2 === 0 ? 'bg-totaltrack-blue' : 'bg-atlas-orange'}`} />
                 )}
               </button>
             );
@@ -107,10 +108,10 @@ export function ClockCalendarWidget() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             {scheduledEvents.filter((e) => e.day === selectedDate).map((evt, idx) => (
-              <div key={idx} className="p-3.5 rounded-card bg-orange-50 border border-atlas-orange/15 space-y-1.5">
+              <div key={idx} className="p-3.5 rounded-card bg-slate-50 border border-slate-100 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-atlas-orange">{evt.time}</span>
-                  <span className="text-[9px] px-2 py-0.5 rounded bg-atlas-orange/15 text-atlas-orange font-bold border border-atlas-orange/30">
+                  <span className="font-extrabold text-slate-700">{evt.time}</span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold border ${idx % 2 === 0 ? 'bg-atlas-orange/10 text-atlas-orange border-atlas-orange/20' : 'bg-totaltrack-blue/10 text-totaltrack-blue border-totaltrack-blue/20'}`}>
                     {evt.badge}
                   </span>
                 </div>
