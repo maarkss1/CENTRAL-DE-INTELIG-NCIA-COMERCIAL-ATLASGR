@@ -19,6 +19,10 @@ const IntelligenceHub = lazy(() => import('./features/intelligence/components/In
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
+const VoiceRoleplay = lazy(() => import('./features/intelligence/components/VoiceRoleplay').then(m => ({ default: m.VoiceRoleplay })));
+const TopicTrainingAcademy = lazy(() => import('./features/intelligence/components/TopicTrainingAcademy').then(m => ({ default: m.TopicTrainingAcademy })));
+const BitrixGuideHub = lazy(() => import('./features/intelligence/components/BitrixGuideHub').then(m => ({ default: m.BitrixGuideHub })));
+const ReportsHub = lazy(() => import('./features/intelligence/components/ReportsHub').then(m => ({ default: m.ReportsHub })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 const GameWidget = lazy(() => import('./features/gamification/components/GameWidget').then(m => ({ default: m.GameWidget })));
@@ -56,6 +60,10 @@ function AppLayout() {
         {activeTab === 'contacts' && <ContactList />}
         {activeTab === 'activities' && <ActivityList />}
         {activeTab === 'chatbook' && <ChatbookHub />}
+        {activeTab === 'roleplay' && <div className="h-full w-full p-8"><div className="h-[700px] max-w-4xl mx-auto w-full"><VoiceRoleplay onClose={() => setActiveTab('dashboard')} onSwitchToText={() => {}} /></div></div>}
+        {activeTab === 'topic_training' && <TopicTrainingAcademy />}
+        {activeTab === 'bitrix' && <BitrixGuideHub />}
+        {activeTab === 'reports' && <ReportsHub />}
         {activeTab === 'integrations' && <Integrations />}
         {activeTab === 'knowledge' && (
           <div className="flex-1 overflow-y-auto bg-white p-8">

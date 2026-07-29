@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Sidebar } from './Sidebar';
 import { Header, TabType } from './Header';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
@@ -70,10 +71,10 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
                 )}
             </div>
 
-            <div className="relative z-10 flex flex-col h-full w-full">
-                {activeTab !== 'dashboard' && (
-                    <Header activeTab={activeTab} onTabChange={onTabChange} />
-                )}
+            <div className="relative z-10 flex h-full w-full">
+                {/* Removemos o Header global antigo, injetamos a Sidebar contínua */}
+                <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
+                <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-transparent">
                 <AnimatePresence mode="wait">
                     <motion.div
@@ -91,6 +92,7 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
             <Toaster />
             <VoiceCommandWidget />
             <AtlasChatbotTrigger />
+            </div>
             </div>
         </div>
     );

@@ -1,135 +1,118 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React from 'react';
+import { 
+    Home, LayoutTemplate, Search, Target, Users, Building2, 
+    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight
+} from 'lucide-react';
+import { useBrand } from '../../contexts/BrandContext';
 import { Logo } from '../Logo';
-import { NAV_ITEMS, type TabType } from './nav';
-import { IconChevronsLeft } from '../icons';
-import { cn } from '../../lib/utils';
+import { TotalTrackLogo } from '../TotalTrackLogo';
+import { TabType } from './Header';
 
 interface SidebarProps {
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
-  mobileOpen: boolean;
-  onCloseMobile: () => void;
+    activeTab: string;
+    onTabChange: (tab: string) => void;
 }
 
-const COLLAPSE_KEY = 'atlasgr:sidebar-collapsed';
+export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+    const { activeBrand, setActiveBrand } = useBrand();
+    const isAtlas = activeBrand === 'atlasgr';
 
-function NavList({
-  activeTab,
-  onTabChange,
-  collapsed,
-  onNavigate,
-}: {
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
-  collapsed: boolean;
-  onNavigate: () => void;
-}) {
-  return (
-    <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-      {NAV_ITEMS.map((item) => {
-        const isActive = activeTab === item.tab;
-        return (
-          <button
-            key={item.tab}
-            type="button"
-            aria-current={isActive ? 'page' : undefined}
-            title={collapsed ? item.label : undefined}
-            onClick={() => {
-              onTabChange(item.tab);
-              onNavigate();
-            }}
-            className={cn(
-              'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors duration-200 cursor-pointer',
-              isActive ? 'text-atlas-orange' : 'text-slate-500 hover:text-atlas-dark hover:bg-black/[0.035]',
-              collapsed && 'justify-center px-0'
-            )}
-          >
-            {isActive && (
-              <motion.span
-                layoutId="sidebar-active-pill"
-                className="absolute inset-0 rounded-xl bg-atlas-orange/10 ring-1 ring-atlas-orange/20"
-                transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              />
-            )}
-            <item.icon className="relative z-10 h-5 w-5 shrink-0" strokeWidth={isActive ? 2 : 1.75} />
-            {!collapsed && <span className="relative z-10 truncate">{item.label}</span>}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
+    const coreTools = [
+        { id: 'dashboard', label: 'Painel Central', icon: <Home size={20} /> },
+        { id: 'prospect', label: 'Prospecção', icon: <Search size={20} /> },
+        { id: 'crm', label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
+        { id: 'contacts', label: 'Decisores', icon: <Users size={20} /> },
+        { id: 'companies', label: 'Empresas', icon: <Building2 size={20} /> },
+        { id: 'activities', label: 'Agenda', icon: <Activity size={20} /> },
+    ];
 
-export function Sidebar({ activeTab, onTabChange, mobileOpen, onCloseMobile }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.localStorage.getItem(COLLAPSE_KEY) === '1';
-  });
+    const aiTools = [
+        { id: 'roleplay', label: 'Dojo de Vendas', icon: <Bot size={20} /> },
+        { id: 'intelligence', label: 'Hub de IA', icon: <Zap size={20} /> },
+        { id: 'topic_training', label: 'Academy', icon: <BookOpen size={20} /> },
+        { id: 'bitrix', label: 'Bitrix24', icon: <Layers size={20} /> },
+        { id: 'reports', label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
+    ];
 
-  useEffect(() => {
-    window.localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
-  }, [collapsed]);
+    return (
+        <aside className={`w-64 h-full flex flex-col transition-colors border-r ${
+            isAtlas ? 'bg-white border-orange-100' : 'bg-slate-900 border-white/10'
+        }`}>
+            {/* Context Switcher */}
+            <div className={`p-4 border-b ${isAtlas ? 'border-orange-100' : 'border-white/10'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                    {isAtlas ? <Logo className="h-8 text-slate-900" /> : <TotalTrackLogo className="h-8 text-white" />}
+                </div>
+                
+                <div className="relative group cursor-pointer" onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}>
+                    <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                        isAtlas ? 'bg-orange-50 border-orange-200 hover:bg-orange-100' : 'bg-blue-900/30 border-blue-800 hover:bg-blue-900/50'
+                    }`}>
+                        <div className="flex flex-col">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isAtlas ? 'text-orange-600' : 'text-blue-400'}`}>
+                                Operação Atual
+                            </span>
+                            <span className={`text-sm font-black ${isAtlas ? 'text-slate-900' : 'text-white'}`}>
+                                {isAtlas ? 'AtlasGR' : 'TotalTrac'}
+                            </span>
+                        </div>
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${isAtlas ? 'bg-white shadow-sm text-slate-400' : 'bg-slate-800 text-slate-400'}`}>
+                            <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-  return (
-    <>
-      {/* Sidebar de área de trabalho — persistente e recolhível */}
-      <motion.aside
-        animate={{ width: collapsed ? 76 : 252 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        className="relative z-20 hidden h-full shrink-0 flex-col overflow-hidden border-r border-black/5 glass-panel-strong elevation-1 md:flex"
-      >
-        <div className={cn('flex items-center gap-3 px-5 pb-4 pt-6', collapsed && 'justify-center px-0')}>
-          <Logo variant={collapsed ? 'symbol' : 'default'} className={collapsed ? 'h-8 w-8' : 'h-8'} />
-        </div>
+            <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar">
+                
+                {/* Core Navigation */}
+                <div className="space-y-1">
+                    <p className={`px-3 mb-2 text-[10px] font-black uppercase tracking-widest ${isAtlas ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Core Modules
+                    </p>
+                    {coreTools.map(tool => {
+                        const isActive = activeTab === tool.id;
+                        return (
+                            <button
+                                key={tool.id}
+                                onClick={() => onTabChange(tool.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                    isActive 
+                                        ? (isAtlas ? 'bg-orange-500 text-white shadow-md' : 'bg-blue-600 text-white shadow-md')
+                                        : (isAtlas ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' : 'text-slate-400 hover:bg-white/5 hover:text-white')
+                                }`}
+                            >
+                                <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
+                                {tool.label}
+                            </button>
+                        );
+                    })}
+                </div>
 
-        <NavList activeTab={activeTab} onTabChange={onTabChange} collapsed={collapsed} onNavigate={() => {}} />
-
-        <div className="border-t border-black/5 px-3 pb-5 pt-3">
-          <button
-            type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            className={cn(
-              'flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400 transition-colors hover:bg-black/[0.035] hover:text-atlas-dark',
-              collapsed && 'justify-center px-0'
-            )}
-            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            <IconChevronsLeft className={cn('h-4 w-4 transition-transform duration-300', collapsed && 'rotate-180')} />
-            {!collapsed && <span>Recolher</span>}
-          </button>
-        </div>
-      </motion.aside>
-
-      {/* Gaveta mobile */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div
-              key="sidebar-overlay"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onCloseMobile}
-              className="fixed inset-0 z-30 bg-atlas-dark/40 backdrop-blur-sm md:hidden"
-              aria-hidden="true"
-            />
-            <motion.aside
-              key="sidebar-drawer"
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 340, damping: 34 }}
-              className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col glass-panel-strong elevation-4 md:hidden"
-            >
-              <div className="flex items-center gap-3 px-5 pb-4 pt-6">
-                <Logo variant="default" className="h-8" />
-              </div>
-              <NavList activeTab={activeTab} onTabChange={onTabChange} collapsed={false} onNavigate={onCloseMobile} />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-    </>
-  );
+                {/* AI Tools */}
+                <div className="space-y-1">
+                    <p className={`px-3 mb-2 text-[10px] font-black uppercase tracking-widest ${isAtlas ? 'text-slate-400' : 'text-slate-500'}`}>
+                        Inteligência
+                    </p>
+                    {aiTools.map(tool => {
+                        const isActive = activeTab === tool.id;
+                        return (
+                            <button
+                                key={tool.id}
+                                onClick={() => onTabChange(tool.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                    isActive 
+                                        ? (isAtlas ? 'bg-orange-500 text-white shadow-md' : 'bg-blue-600 text-white shadow-md')
+                                        : (isAtlas ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' : 'text-slate-400 hover:bg-white/5 hover:text-white')
+                                }`}
+                            >
+                                <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
+                                {tool.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </aside>
+    );
 }
