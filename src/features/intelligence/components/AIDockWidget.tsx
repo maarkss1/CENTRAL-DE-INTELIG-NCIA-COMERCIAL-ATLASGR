@@ -11,6 +11,15 @@ interface Message {
   content: string;
 }
 
+
+const QUICK_ACTIONS: Record<string, string[]> = {
+  copilot: ["Gerar e-mail frio para Diretoria", "Sugerir cadência de follow-up", "Criar pitch elevator de 30s"],
+  groq: ["Análise de concorrentes locais", "Resuma os dados do cliente", "Melhorar tom de voz do e-mail"],
+  objections: ["Tá muito caro", "Já temos contrato com fornecedor", "A matriz não deixa trocar", "Não temos tempo para implantação"],
+  qualification: ["Gerar script BANT completo", "Gerar perguntas SPIN", "Quais as dores clássicas desse segmento?"],
+  playbook: ["Regras de ICP de Logística", "O que a GR aprova/reprova?", "Níveis de maturidade do cliente"]
+};
+
 export function AIDockWidget() {
   const [activeTool, setActiveTool] = useState<AITool>(null);
   const [isDockExpanded, setIsDockExpanded] = useState(false);
@@ -37,14 +46,11 @@ export function AIDockWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTool]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeTool || !inputs[activeTool].trim() || isLoading) return;
+  const sendMessage = async (text: string) => {
+    if (!activeTool || !text.trim() || isLoading) return;
 
-    const userText = inputs[activeTool];
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: userText };
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text };
     
-    // Atualiza estado local
     setMessages(prev => ({
         ...prev,
         [activeTool]: [...(prev[activeTool] || []), userMsg]
@@ -54,7 +60,6 @@ export function AIDockWidget() {
     setIsLoading(true);
 
     try {
-        // Mapeia ferramenta para endpoint
         let endpoint = '/api/agent/chat';
         if (activeTool === 'groq') endpoint = '/api/agent/groq';
         if (activeTool === 'roleplay') endpoint = '/api/agent/roleplay';
@@ -65,7 +70,7 @@ export function AIDockWidget() {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-                message: userText,
+                message: text,
                 tool: activeTool,
                 history: (messages[activeTool] || []).slice(-10).map((message) => ({
                     role: message.role === 'agent' ? 'assistant' : 'user',
@@ -90,6 +95,13 @@ export function AIDockWidget() {
         }));
     } finally {
         setIsLoading(false);
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeTool && inputs[activeTool]) {
+       await sendMessage(inputs[activeTool]);
     }
   };
 
@@ -148,14 +160,30 @@ export function AIDockWidget() {
 
             {/* Area de Mensagens */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages[activeTool]?.map((msg) => (
-                <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : `${activeToolData.color} bg-opacity-20 text-white`}`}>
-                    {msg.role === 'user' ? <User className="w-4 h-4" /> : activeToolData.icon}
-                  </div>
-                  <div className={`p-3 rounded-2xl max-w-[75%] text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
-                    {msg.content}
-                  </div>
+              {messages[activeTool]?.map((msg, idx) => (
+                <div key={msg.id} className="flex flex-col gap-2">
+                    <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : `${activeToolData.color} bg-opacity-20 text-white`}`}>
+                        {msg.role === 'user' ? <User className="w-4 h-4" /> : activeToolData.icon}
+                      </div>
+                      <div className={`p-3 rounded-2xl max-w-[75%] text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-gray-200 rounded-tl-none'}`}>
+                        {msg.content}
+                      </div>
+                    </div>
+                    {/* Render Quick Actions */}
+                    {idx === 0 && messages[activeTool].length === 1 && QUICK_ACTIONS[activeTool] && (
+                        <div className="flex flex-wrap gap-1.5 mt-2 ml-11">
+                            {QUICK_ACTIONS[activeTool].map((action, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => sendMessage(action)}
+                                    className={`text-[10px] font-semibold border ${activeToolData.color.replace('bg-', 'border-').replace('500', '400')} ${activeToolData.color.replace('bg-', 'text-').replace('500', '400')} bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-full transition-colors text-left`}
+                                >
+                                    {action}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
               ))}
               {isLoading && (
