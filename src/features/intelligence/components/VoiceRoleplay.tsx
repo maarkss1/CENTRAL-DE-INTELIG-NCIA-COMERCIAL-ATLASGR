@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Settings2, Loader2, PlaySquare, StopCircle } from 'lucide-react';
+import { Mic, MicOff, Settings2, Loader2, PlaySquare, StopCircle, X } from 'lucide-react';
 import { getAiModel } from '../../../lib/ai/gateway';
 
 export function VoiceRoleplay({ 
