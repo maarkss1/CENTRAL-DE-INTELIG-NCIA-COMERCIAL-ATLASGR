@@ -1,4 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
+import { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
 import { enrichCompany } from './enrichment.service';
 import { fetchApolloCandidates, searchDecisionMakersAdvanced } from './apollo.service';
@@ -302,7 +303,7 @@ export async function promoteToCrm(input: PromoteInput) {
             where: {
                 companyId: company.id,
                 organizationId: input.organizationId,
-                status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] as any },
+                status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] },
             },
             include: { company: true, contact: true, timeline: true },
         });
@@ -354,7 +355,7 @@ export async function promoteToCrm(input: PromoteInput) {
 
     const lead = await prisma.lead.create({
         data: {
-            status: toPrismaLeadStatus('Novo Lead') as any,
+            status: toPrismaLeadStatus('Novo Lead') as unknown as Prisma.LeadCreateInput['status'],
             source: input.source,
             channel: 'Prospecção',
             temperature: fit?.temperature || 'Morno',

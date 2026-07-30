@@ -345,7 +345,7 @@ class ${className}:
     def process(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not payload:
             raise ValueError("payload não pode ser vazio")
-        # TODO: chamar o provedor escolhido e validar a saída antes de executar ações.
+        # PLACEHOLDER: Conecte o SDK do provedor (ex: OpenAI, Gemini) e valide a saída.
         return {"status": "REVIEW_REQUIRED", "agent": self.name, "input": payload}
 
 if __name__ == "__main__":

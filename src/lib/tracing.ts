@@ -1,6 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { logger } from './logger.js';
 
 export const sdk = new NodeSDK({
     traceExporter: new OTLPTraceExporter(), // Uses OTEL_EXPORTER_OTLP_ENDPOINT from env
@@ -10,12 +11,12 @@ export const sdk = new NodeSDK({
 // Start SDK before any other modules load
 export function initTracing() {
     sdk.start();
-    console.log('OpenTelemetry initialized');
+    logger.info('OpenTelemetry initialized');
     
     process.on('SIGTERM', () => {
         sdk.shutdown()
-            .then(() => console.log('Tracing terminated'))
-            .catch((error) => console.log('Error terminating tracing', error))
+            .then(() => logger.info('Tracing terminated'))
+            .catch((error) => logger.error({ err: error }, 'Error terminating tracing'))
             .finally(() => process.exit(0));
     });
 }

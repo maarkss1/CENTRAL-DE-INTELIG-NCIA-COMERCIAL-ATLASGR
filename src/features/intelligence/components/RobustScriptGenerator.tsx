@@ -139,7 +139,7 @@ class RobustRunner:
             try:
                 logger.info(f"Tentativa {attempt}/{self.max_retries} processando dados...")
                 
-                # TODO: Substitua pelo seu código de negócio principal
+                # PLACEHOLDER: Implemente a regra de negócio principal aqui.
                 if not payload:
                     raise ValueError("Payload de entrada vazio.")
                 

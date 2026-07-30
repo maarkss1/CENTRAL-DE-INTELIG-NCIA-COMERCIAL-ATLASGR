@@ -1,6 +1,7 @@
 import { Lead, LeadRepository } from '../domain/Lead';
 import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
+import type { LeadStatus } from '../../../lib/zod';
 import {
     toPrismaLeadStatus,
     fromPrismaLeadStatus,
@@ -36,7 +37,7 @@ export class PrismaLeadRepository implements LeadRepository {
     async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50): Promise<{ data: Lead[], meta: unknown }> {
         const where: Prisma.LeadWhereInput = { organizationId };
         if (status) {
-            where.status = toPrismaLeadStatus(status as any) as unknown as any;
+            where.status = toPrismaLeadStatus(status as LeadStatus) as unknown as Prisma.LeadWhereInput['status'];
         }
 
         const skip = (page - 1) * limit;
@@ -76,7 +77,7 @@ export class PrismaLeadRepository implements LeadRepository {
         const lead = await prisma.lead.create({
             data: {
                 ...data,
-                status: toPrismaLeadStatus(data.status as any) as unknown as any,
+                status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadCreateInput['status'],
                 organizationId,
                 company: undefined,
                 contact: undefined,
@@ -102,7 +103,7 @@ export class PrismaLeadRepository implements LeadRepository {
             where: { id },
             data: {
                 ...data,
-                ...(data.status ? { status: toPrismaLeadStatus(data.status as any) as unknown as any } : {}),
+                ...(data.status ? { status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'] } : {}),
                 organizationId: undefined,
                 company: undefined,
                 contact: undefined,
@@ -127,7 +128,7 @@ export class PrismaLeadRepository implements LeadRepository {
         const lead = await prisma.lead.update({
             where: { id },
             data: {
-                status: toPrismaLeadStatus(newStatus as any) as unknown as any,
+                status: toPrismaLeadStatus(newStatus as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'],
                 timeline: {
                     create: {
                         type: 'movement',

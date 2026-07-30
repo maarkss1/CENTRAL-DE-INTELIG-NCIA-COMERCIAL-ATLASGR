@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import { logger } from '../logger.js';
 
 export interface ApolloEnrichmentData {
     revenue?: string;
@@ -6,6 +7,22 @@ export interface ApolloEnrichmentData {
     technologies?: string[];
     description?: string;
     industry?: string;
+}
+
+interface ApolloTechnology {
+    name: string;
+}
+
+interface ApolloOrganization {
+    estimated_num_employees?: number;
+    current_technologies?: ApolloTechnology[];
+    short_description?: string;
+    description?: string;
+    industry?: string;
+}
+
+interface ApolloApiResponse {
+    organization?: ApolloOrganization;
 }
 
 export class ApolloService {
@@ -22,7 +39,7 @@ export class ApolloService {
      */
     async enrichCompany(domain: string, companyName: string): Promise<ApolloEnrichmentData> {
         if (!this.apiKey || process.env.NODE_ENV !== 'production') {
-            console.log(`[Apollo Mock] Enriquecendo ${companyName} (${domain})...`);
+            logger.debug({ domain, companyName }, '[Apollo Mock] Enriquecendo empresa...');
             // Simula delay de rede
             await new Promise(resolve => setTimeout(resolve, 1500));
             
@@ -36,7 +53,7 @@ export class ApolloService {
         }
 
         try {
-            console.log(`[Apollo Real] Buscando dados de ${domain}...`);
+            logger.debug({ domain }, '[Apollo Real] Buscando dados...');
             const response = await fetch(`${this.baseUrl}/organizations/enrich?domain=${domain}`, {
                 method: 'GET',
                 headers: {
@@ -47,11 +64,11 @@ export class ApolloService {
             });
 
             if (!response.ok) {
-                console.error(`Apollo API Error: ${response.statusText}`);
+                logger.error({ statusText: response.statusText }, 'Apollo API Error');
                 return {};
             }
 
-            const data = await response.json() as any;
+            const data = await response.json() as ApolloApiResponse;
             const org = data.organization;
 
             if (!org) return {};
@@ -59,12 +76,12 @@ export class ApolloService {
             return {
                 revenue: org.estimated_num_employees ? this.estimateRevenue(org.estimated_num_employees) : undefined,
                 headcount: org.estimated_num_employees,
-                technologies: org.current_technologies?.map((t: any) => t.name) || [],
+                technologies: org.current_technologies?.map((t) => t.name) || [],
                 description: org.short_description || org.description,
                 industry: org.industry
             };
         } catch (error) {
-            console.error('Erro na integração com Apollo:', error);
+            logger.error({ err: error }, 'Erro na integração com Apollo');
             return {};
         }
     }

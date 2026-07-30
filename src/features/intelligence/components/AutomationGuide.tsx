@@ -174,7 +174,8 @@ def run_automation_pipeline(event_payload: dict):
         "notes": ai_qualification["summary"]
     }
     
-    # TODO: Fazer chamada HTTP POST real para o destino
+    # PLACEHOLDER: Implemente a chamada HTTP POST para o destino configurado.\r
+    # Exemplo: requests.post(destination_url, json=destination_payload, timeout=10)
     print("Mapeamento concluído com sucesso:")
     print(json.dumps(destination_payload, indent=2))
     return True

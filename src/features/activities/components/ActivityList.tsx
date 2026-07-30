@@ -107,13 +107,13 @@ export function ActivityList() {
     setIsSaving(true);
     try {
       await createActivity({
-        type: form.type as any,
+        type: form.type as import('../../../lib/zod').ActivityType,
         date: form.date,
         time: form.time || null,
         owner: form.owner,
         observations: form.observations || null,
-        leadId: form.leadId || ('' as any),
-        status: 'pending' as any,
+        leadId: form.leadId || undefined,
+        status: 'Pendente' as import('../../../lib/zod').ActivityStatus,
       });
       setIsFormOpen(false);
       setForm({ type: 'Ligação', date: new Date().toISOString().split('T')[0], time: '', owner: '', observations: '', leadId: '' });

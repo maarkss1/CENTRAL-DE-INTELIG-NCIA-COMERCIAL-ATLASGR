@@ -195,8 +195,8 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
 
 // Graceful shutdown handling
 process.on('beforeExit', async () => {
-  console.log('Shutting down Prisma client and database connection pool...');
+  logger.info('Shutting down Prisma client and database connection pool...');
   await prisma.$disconnect();
   await pool.end();
-  console.log('Shutdown complete.');
+  logger.info('Shutdown complete.');
 });

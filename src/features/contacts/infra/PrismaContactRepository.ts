@@ -46,7 +46,7 @@ export class PrismaContactRepository implements ContactRepository {
     }
 
     async update(organizationId: string, id: string, data: Partial<Contact> & { birthDate?: string | Date }): Promise<Contact> {
-        const updateData: any = { ...data };
+        const updateData: Prisma.ContactUpdateInput = { ...data } as Prisma.ContactUpdateInput;
         if (data.birthDate) updateData.birthDate = new Date(data.birthDate);
 
         const existing = await prisma.contact.findFirst({ where: { id, organizationId } });

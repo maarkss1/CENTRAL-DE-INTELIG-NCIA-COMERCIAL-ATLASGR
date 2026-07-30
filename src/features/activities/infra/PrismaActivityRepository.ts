@@ -59,8 +59,8 @@ export class PrismaActivityRepository implements ActivityRepository {
             prisma.activity.create({
                 data: {
                     ...data,
-                    type: toPrismaActivityType(data.type) as unknown as any,
-                    status: toPrismaActivityStatus(data.status) as unknown as any,
+                    type: toPrismaActivityType(data.type) as unknown as Prisma.ActivityCreateInput['type'],
+                    status: toPrismaActivityStatus(data.status) as unknown as Prisma.ActivityCreateInput['status'],
                     organizationId,
                     date: new Date(data.date),
                     lead: undefined
@@ -84,8 +84,8 @@ export class PrismaActivityRepository implements ActivityRepository {
 
         const updateData: Prisma.ActivityUpdateInput = { ...data } as Prisma.ActivityUpdateInput;
         if (data.date) updateData.date = new Date(data.date);
-        if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown as any;
-        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown as any;
+        if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown as Prisma.ActivityUpdateInput['type'];
+        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown as Prisma.ActivityUpdateInput['status'];
 
         const activity = await prisma.activity.update({
             where: { id },
