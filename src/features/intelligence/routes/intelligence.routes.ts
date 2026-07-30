@@ -1,5 +1,29 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import {
+    summarizeLead,
+    generateEmailDraft,
+    predictConversionScore,
+    generateMeetingAgenda,
+    draftFollowUp,
+    scoreLeadQuality,
+    suggestNextAction,
+    generateObjectionHandling,
+    analyzeCompetitors,
+    generateElevatorPitch,
+    identifyPainPoints,
+    createColdCallScript,
+    summarizeMeetingNotes,
+    generateLinkedInMessage,
+    evaluateDealRisk,
+    analyzeSentiment,
+    extractKeywords,
+    categorizeLead,
+    translateText,
+    extractActionItems
+} from '../../../lib/ai/features.js';
+
+
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 import { aiService } from '../services/ai.service.js';
@@ -135,12 +159,12 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction): P
     }
 });
 
-// Rotas para aIPendingActions
+// Rotas para AIPendingActions
 router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingActions = await db.aIPendingAction.findMany({
+        const pendingActions = await db.AIPendingAction.findMany({
             where: {
                 approved: false,
                 organizationId: authRequest.user.organizationId,
@@ -159,7 +183,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
         const { id } = req.params;
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.aIPendingAction.findFirst({
+        const pendingAction = await db.AIPendingAction.findFirst({
             where: { id, organizationId: authRequest.user.organizationId, approved: false },
         });
         if (!pendingAction) {
@@ -167,7 +191,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
             return;
         }
         
-        const action = await db.aIPendingAction.update({
+        const action = await db.AIPendingAction.update({
             where: { id },
             data: { approved: true }
         });
@@ -185,7 +209,7 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.aIPendingAction.findFirst({
+        const pendingAction = await db.AIPendingAction.findFirst({
             where: {
                 id: req.params.id,
                 organizationId: authRequest.user.organizationId,
@@ -196,7 +220,7 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
         }
-        await db.aIPendingAction.delete({ where: { id: pendingAction.id } });
+        await db.AIPendingAction.delete({ where: { id: pendingAction.id } });
         res.status(204).send();
     } catch (error) {
         logger.error({ err: error }, 'Error discarding pending AI action');
@@ -289,6 +313,35 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
         res.json({ result: response.content });
     } catch (error) {
         logger.error({ err: error }, 'Error generating report interpretation');
+        next(error);
+    }
+});
+
+
+// AI Toolkit Endpoints (Expose the 20 functionalities to frontend via single proxy or discrete endpoints)
+router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { functionName, args } = req.body as { functionName: string; args: unknown[] };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const aiFunctions: Record<string, (...args: any[]) => Promise<unknown>> = {
+            summarizeLead, generateEmailDraft, predictConversionScore, generateMeetingAgenda,
+            draftFollowUp, scoreLeadQuality, suggestNextAction, generateObjectionHandling,
+            analyzeCompetitors, generateElevatorPitch, identifyPainPoints, createColdCallScript,
+            summarizeMeetingNotes, generateLinkedInMessage, evaluateDealRisk, analyzeSentiment,
+            extractKeywords, categorizeLead, translateText, extractActionItems
+        };
+
+        if (!aiFunctions[functionName]) {
+            res.status(400).json({ error: 'Function not found in AI Toolkit' });
+            return;
+        }
+
+        // Execute the function
+        const result = await aiFunctions[functionName](...args);
+        res.json({ success: true, result });
+    } catch (error) {
+        logger.error({ err: error }, 'Error executing AI Toolkit function');
         next(error);
     }
 });
