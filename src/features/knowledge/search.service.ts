@@ -1,3 +1,4 @@
+import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
 import { meili } from '../../lib/search/index';
 
@@ -18,7 +19,7 @@ export class SearchService {
             const meiliRes = await meili.index('leads').search(query, { limit: 5 });
             keywordResults = meiliRes.hits;
         } catch (e) {
-            console.error('Meili search failed', e);
+            logger.error('Meili search failed', e);
         }
 
         return {

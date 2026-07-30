@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -63,7 +64,7 @@ export class CnpjWsAdapter implements IDataProvider {
         });
 
         if (!res.ok) {
-            console.error(`[CnpjWsAdapter] Error fetching CNPJ ${cnpj}: ${res.status}`);
+            logger.error(`[CnpjWsAdapter] Error fetching CNPJ ${cnpj}: ${res.status}`);
             return {};
         }
 
@@ -120,7 +121,7 @@ export class CnpjWsAdapter implements IDataProvider {
             }
         };
     } catch (error: unknown) {
-        console.error(`[CnpjWsAdapter] Request failed for CNPJ ${cnpj}:`, error);
+        logger.error(`[CnpjWsAdapter] Request failed for CNPJ ${cnpj}:`, error);
         return {};
     }
   }

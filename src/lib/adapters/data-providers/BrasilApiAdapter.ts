@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -69,7 +70,7 @@ export class BrasilApiAdapter implements IDataProvider {
     try {
         const res = await this.fetchWithRetry(`${BRASIL_API_BASE}/cnpj/v1/${cnpj}`, { headers: BRASIL_API_HEADERS });
         if (!res.ok) {
-            console.error(`[BrasilApiAdapter] Error fetching CNPJ ${cnpj}: ${res.status}`);
+            logger.error(`[BrasilApiAdapter] Error fetching CNPJ ${cnpj}: ${res.status}`);
             return {};
         }
 
@@ -128,7 +129,7 @@ export class BrasilApiAdapter implements IDataProvider {
             }
         };
     } catch (error: unknown) {
-        console.error(`[BrasilApiAdapter] Request failed for CNPJ ${cnpj}:`, error);
+        logger.error(`[BrasilApiAdapter] Request failed for CNPJ ${cnpj}:`, error);
         return {};
     }
   }

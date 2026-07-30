@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IEnrichedLead } from '../../../types/prospecting';
 
 export class Bitrix24Adapter {
@@ -28,7 +29,7 @@ export class Bitrix24Adapter {
 
       return dealId;
     } catch (error) {
-      console.error("[Bitrix24Adapter] Falha ao exportar Lead:", error);
+      logger.error("[Bitrix24Adapter] Falha ao exportar Lead:", error);
       throw error;
     }
   }

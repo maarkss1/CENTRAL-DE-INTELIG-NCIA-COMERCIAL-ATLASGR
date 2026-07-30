@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import type { PlaceCandidate, PlaceSearchResult } from './places.service';
 import { fetchWithTimeout } from '../../../lib/http.js';
 
@@ -22,7 +23,7 @@ async function fetchNominatim(query: string, count: number): Promise<unknown[]> 
     }, 10_000);
 
     if (!res.ok) {
-        console.error('Nominatim error:', await res.text());
+        logger.error('Nominatim error:', await res.text());
         return [];
     }
 
@@ -61,7 +62,7 @@ export async function searchNominatimCandidates(query: string, count: number): P
             } satisfies PlaceCandidate;
         });
     } catch (error) {
-        console.error('Error searching Nominatim candidates:', error);
+        logger.error('Error searching Nominatim candidates:', error);
         return [];
     }
 }
@@ -91,7 +92,7 @@ export async function searchNominatimPlace(
             websiteUri: tags.website || tags['contact:website'],
         };
     } catch (error) {
-        console.error('Error searching Nominatim place:', error);
+        logger.error('Error searching Nominatim place:', error);
         return null;
     }
 }

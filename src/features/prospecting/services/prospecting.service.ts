@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { prisma } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
@@ -346,7 +347,7 @@ export async function promoteToCrm(input: PromoteInput) {
                 fleetSizeHint: input.size || undefined,
             });
         } catch (error) {
-            console.error('Auto-enrichment failed during promote:', error);
+            logger.error('Auto-enrichment failed during promote:', error);
         }
     }
 

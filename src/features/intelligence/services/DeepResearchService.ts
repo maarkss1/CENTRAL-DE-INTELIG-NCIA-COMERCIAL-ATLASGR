@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { IDataProvider } from '../../../lib/adapters/data-providers/IDataProvider';
 import { IEnrichedLead } from '../../../types/prospecting';
@@ -46,7 +47,7 @@ async function inferMissingInsights(lead: Partial<IEnrichedLead>): Promise<Infer
       technologies: Array.isArray(parsed.technologies) ? parsed.technologies : [],
     };
   } catch (err) {
-    console.error('[DeepResearch] Falha ao inferir insights via IA:', err);
+    logger.error('[DeepResearch] Falha ao inferir insights via IA:', err);
     return { description: '', technologies: [] };
   }
 }
@@ -78,7 +79,7 @@ export class DeepResearchService {
           sources: [...(enrichedLead.sources || []), ...providerSources]
         };
       } catch (err) {
-        console.error(`[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`, err);
+        logger.error(`[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`, err);
       }
     }
 

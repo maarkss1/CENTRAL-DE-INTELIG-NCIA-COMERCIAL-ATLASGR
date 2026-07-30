@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -54,7 +55,7 @@ export class GooglePlacesAdapter implements IDataProvider {
       };
 
     } catch (error: unknown) {
-       console.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
+       logger.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
        return {};
     }
   }

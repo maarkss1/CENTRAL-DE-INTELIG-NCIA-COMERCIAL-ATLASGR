@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IEnrichmentResult } from '../../../types/enrichment';
 import { IDataProvider } from '../../../lib/adapters/data-providers/IDataProvider';
 import { BrasilApiAdapter } from '../../../lib/adapters/data-providers/BrasilApiAdapter';
@@ -63,7 +64,7 @@ export class MergeEngineService {
               Boolean(result.company?.cnpj);
          }
       } catch (error) {
-         console.error(`[MergeEngine] Error calling adapter ${adapter.providerName}:`, error);
+         logger.error(`[MergeEngine] Error calling adapter ${adapter.providerName}:`, error);
       }
     }
 

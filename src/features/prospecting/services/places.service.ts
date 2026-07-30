@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
 
@@ -34,7 +35,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
         }, 12_000);
 
         if (!res.ok) {
-            console.error('Google Places (discovery) error:', await res.text());
+            logger.error('Google Places (discovery) error:', await res.text());
             return [];
         }
 
@@ -60,7 +61,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
             } satisfies PlaceCandidate;
         });
     } catch (error) {
-        console.error('Error searching Google Places candidates:', error);
+        logger.error('Error searching Google Places candidates:', error);
         return [];
     }
 }
@@ -102,7 +103,7 @@ export async function searchGooglePlace(
         }, 12_000);
 
         if (!res.ok) {
-            console.error('Google Places API error:', await res.text());
+            logger.error('Google Places API error:', await res.text());
             return null;
         }
 
@@ -127,7 +128,7 @@ export async function searchGooglePlace(
             businessHours: p.regularOpeningHours
         };
     } catch (error) {
-        console.error('Error fetching Google Place:', error);
+        logger.error('Error fetching Google Place:', error);
         return null;
     }
 }

@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -75,7 +76,7 @@ export class ApolloAdapter implements IDataProvider {
        };
 
     } catch (error: unknown) {
-       console.error(`[ApolloAdapter] Request failed for domain ${domain}:`, error);
+       logger.error(`[ApolloAdapter] Request failed for domain ${domain}:`, error);
        return {};
     }
   }

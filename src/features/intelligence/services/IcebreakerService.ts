@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 
@@ -75,7 +76,7 @@ Se a identidade da empresa estiver ambígua ou os recortes forem genéricos, neg
 
             return icebreaker;
         } catch (error) {
-            console.error('[IcebreakerService] Falha ao gerar quebra-gelo:', error);
+            logger.error('[IcebreakerService] Falha ao gerar quebra-gelo:', error);
             return '';
         }
     }
