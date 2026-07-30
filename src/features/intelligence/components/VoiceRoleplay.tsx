@@ -15,8 +15,22 @@ export function VoiceRoleplay({
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     
+    interface SpeechRecognitionEvent {
+        resultIndex: number;
+        results: { [key: number]: { [key: number]: { transcript: string } } };
+    }
+    interface ISpeechRecognition {
+        continuous: boolean;
+        interimResults: boolean;
+        lang: string;
+        onresult: (event: SpeechRecognitionEvent) => void;
+        onend: () => void;
+        start: () => void;
+        stop: () => void;
+    }
+
     // Web Speech API refs
-    const recognitionRef = useRef<any>(null);
+    const recognitionRef = useRef<ISpeechRecognition | null>(null);
     const synthRef = useRef<SpeechSynthesis | null>(null);
 
     // Audio Visualizer states
@@ -25,14 +39,15 @@ export function VoiceRoleplay({
     useEffect(() => {
         if (typeof window !== 'undefined') {
             synthRef.current = window.speechSynthesis;
-            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+            const w = window as unknown as { SpeechRecognition?: new () => ISpeechRecognition, webkitSpeechRecognition?: new () => ISpeechRecognition };
+            const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
             if (SpeechRecognition) {
                 recognitionRef.current = new SpeechRecognition();
                 recognitionRef.current.continuous = false;
                 recognitionRef.current.interimResults = true;
                 recognitionRef.current.lang = 'pt-BR';
 
-                recognitionRef.current.onresult = (event: any) => {
+                recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
                     const current = event.resultIndex;
                     const result = event.results[current][0].transcript;
                     setTranscript(result);
@@ -51,11 +66,12 @@ export function VoiceRoleplay({
             if (synthRef.current) synthRef.current.cancel();
             if (recognitionRef.current) recognitionRef.current.stop();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening]);
 
     // Simulate audio visualizer when speaking or listening
     useEffect(() => {
-        let interval: any;
+        let interval: NodeJS.Timeout;
         if (isListening || isSpeaking) {
             interval = setInterval(() => {
                 setAudioData(Array.from({ length: 15 }, () => Math.floor(Math.random() * 40) + 10));
@@ -110,7 +126,7 @@ export function VoiceRoleplay({
             } else {
                 setAiResponse('Desculpe, ocorreu um erro de conexão.');
             }
-        } catch (error) {
+        } catch (_error) {
             setAiResponse('Falha na comunicação com a IA.');
         } finally {
             setIsProcessing(false);

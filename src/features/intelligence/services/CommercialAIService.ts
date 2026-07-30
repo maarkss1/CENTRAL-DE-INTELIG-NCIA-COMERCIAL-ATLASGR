@@ -66,12 +66,12 @@ export class CommercialAIService {
   /**
    * Cria Matriz BANT, GPCT e outras estruturas de qualificação
    */
-  async generateQualifications(lead: IEnrichedLead): Promise<Record<string, any>> {
+  async generateQualifications(lead: IEnrichedLead): Promise<Record<string, unknown>> {
     const fallback = {
       bant: { budget: 'Não identificado', authority: 'Não identificado', need: 'Não identificado', timeframe: 'Não identificado' },
       gpct: { goals: 'Não identificado', plans: 'Não identificado', challenges: 'Não identificado', timeline: 'Não identificado' },
     };
-    return askJson<Record<string, any>>(
+    return askJson<Record<string, unknown>>(
       'Você preenche matrizes de qualificação de vendas B2B (BANT e GPCT) para um lead de logística, com base ESTRITAMENTE nos dados fornecidos. Quando um campo não puder ser inferido com segurança pelos dados, use exatamente "Não identificado" em vez de inventar. Responda SOMENTE com JSON válido, sem markdown, no formato exato: {"bant": {"budget": string, "authority": string, "need": string, "timeframe": string}, "gpct": {"goals": string, "plans": string, "challenges": string, "timeline": string}}.',
       `Dados do lead:\n${describeLead(lead)}`,
       'commercial-ai:qualification',
@@ -82,8 +82,8 @@ export class CommercialAIService {
   /**
    * Gera objeções prováveis com respostas em múltiplos frameworks
    */
-  async generateObjectionsMatrix(lead: IEnrichedLead): Promise<Record<string, any>[]> {
-    const result = await askJson<{ objections: Record<string, any>[] }>(
+  async generateObjectionsMatrix(lead: IEnrichedLead): Promise<Record<string, unknown>[]> {
+    const result = await askJson<{ objections: Record<string, unknown>[] }>(
       'Você monta uma matriz de objeções de vendas B2B para logística/gestão de risco operacional, com a objeção mais provável para ESTE lead, a psicologia por trás dela e 3 respostas (consultiva, desafiadora/challenger, SPIN). Responda SOMENTE com JSON válido, sem markdown, no formato exato: {"objections": [{"objection": string, "psychology": string, "responseConsultative": string, "responseChallenger": string, "responseSpin": string}]}, com 3 a 5 itens.',
       `Dados do lead:\n${describeLead(lead)}`,
       'commercial-ai:objections',
