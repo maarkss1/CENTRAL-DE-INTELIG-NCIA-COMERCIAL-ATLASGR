@@ -8,12 +8,10 @@ ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/prospector"
 RUN apt-get update && apt-get install -y openssl python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci
-
-COPY prisma ./prisma/
-RUN npx prisma generate
+RUN npm ci --ignore-scripts
 
 COPY . .
+RUN npx prisma generate
 RUN npm run build
 
 # Stage 2: Production
