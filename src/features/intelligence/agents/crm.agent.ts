@@ -54,7 +54,7 @@ export class CRMAgent {
         const lastMessage = messages[messages.length - 1];
 
         // Persistindo histórico
-        await this.updateMemory(sid, messages.map((m: { role: string; content: string }) => ({
+        await this.updateMemory(sid, messages.map((m: any) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         })));
@@ -65,7 +65,7 @@ export class CRMAgent {
         };
     }
 
-    private async updateMemory(sessionId: string, messages: { role: string; content: string }[]) {
+    private async updateMemory(sessionId: string, messages: any[]) {
         try {
             const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
             if (existing) {
