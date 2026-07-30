@@ -96,7 +96,9 @@ export const auth = betterAuth({
                         select: { email: true },
                     });
 
-                    if (!isAuthorizedLoginEmail(user?.email)) {
+                    // Se o usuário já existe e o email não é autorizado, bloqueia.
+                    // Se o usuário não existe no DB ainda (pode estar na transação de signup), permite.
+                    if (user && !isAuthorizedLoginEmail(user.email)) {
                         throw new APIError("FORBIDDEN", {
                             message: ACCESS_DENIED_MESSAGE,
                         });
