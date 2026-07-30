@@ -28,7 +28,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const isPending = false;
 
-  let currentUser: UserSession | null = {
+  const currentUser: UserSession | null = {
       id: 'admin',
       name: 'Administrador',
       email: 'admin@prospector.com',
