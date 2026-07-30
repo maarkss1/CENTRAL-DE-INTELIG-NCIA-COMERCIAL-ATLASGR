@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { authClient } from '../../../lib/auth-client';
 
 interface GoogleLoginModalProps {
   isOpen: boolean;
@@ -23,30 +24,25 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
     }
   }, [isOpen]);
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     setStep('loading');
 
-    // Simulate Google OAuth delay
-    setTimeout(() => {
-      setStep('success');
-      
-      // Simulate successful login after animation
-      setTimeout(() => {
-        const mockGoogleUser = {
-          id: `google-user-${Date.now()}`,
-          name: 'Usuário Google',
-          email: 'usuario@gmail.com',
-          password: 'google-oauth',
-          role: 'Executivo Comercial B2B',
-          brand: selectedBrand || 'atlasgr',
-          avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
-        } as any;
+    if (selectedBrand) {
+      localStorage.setItem('selectedBrand', selectedBrand);
+    }
 
-        loginAsPreset(mockGoogleUser);
-        navigate('/app');
-      }, 1000);
-    }, 2000);
+    try {
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: '/app'
+      });
+      // The page will redirect to Google, so we just wait
+    } catch (err) {
+      console.error(err);
+      setStep('button');
+      setIsLoading(false);
+    }
   };
 
   if (!isOpen) return null;

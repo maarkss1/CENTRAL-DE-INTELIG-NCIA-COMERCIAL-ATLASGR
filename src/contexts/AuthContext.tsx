@@ -27,18 +27,20 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const isPending = false;
+  const { data: session, isPending } = authClient.useSession();
+  
+  const savedBrand = localStorage.getItem('selectedBrand') as 'atlasgr' | 'totaltrac' | null;
 
-  const currentUser: UserSession | null = {
-      id: 'admin',
-      name: 'Administrador',
-      email: 'admin@prospector.com',
-      role: 'admin',
-      roleTitle: 'Administrador Master',
-      brand: 'atlasgr', // Default
+  const currentUser: UserSession | null = session?.user ? {
+      id: session.user.id,
+      name: session.user.name || 'Usuário',
+      email: session.user.email || '',
+      role: (session.user as any).role || 'user',
+      roleTitle: (session.user as any).role === 'admin' ? 'Administrador Master' : 'Executivo Comercial B2B',
+      brand: savedBrand || 'atlasgr', // Use the one selected before Google Login
       permissions: ['all'],
       avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
-  };
+  } : null;
 
   const loginAsPreset = () => {
     // Deprecated with real auth

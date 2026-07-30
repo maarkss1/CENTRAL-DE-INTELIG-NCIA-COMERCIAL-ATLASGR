@@ -62,8 +62,7 @@ export function SelectionScreen() {
                 <img src="https://www.atlasgr.com.br/wp-content/uploads/2021/03/atlas.svg" alt="AtlasGR" className="w-full h-full object-contain drop-shadow-2xl" />
               </div>
 
-              <h2 className="text-3xl font-black text-white mb-3">AtlasGR</h2>
-              <p className="text-gray-400 mb-8 leading-relaxed">
+              <p className="text-sm text-gray-400 mb-8 leading-relaxed max-w-[250px] flex-grow">
                 Acelere a aquisição de clientes B2B com enriquecimento em tempo real e inteligência artificial avançada.
               </p>
 
@@ -89,8 +88,7 @@ export function SelectionScreen() {
                 <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain drop-shadow-2xl" />
               </div>
 
-              <h2 className="text-3xl font-black text-white mb-3">Total Track</h2>
-              <p className="text-gray-400 mb-8 leading-relaxed">
+              <p className="text-sm text-gray-400 mb-8 leading-relaxed max-w-[250px] flex-grow">
                 Gestão completa de frotas e ativos com precisão. O ecossistema logístico otimizado.
               </p>
 
@@ -108,6 +106,30 @@ export function SelectionScreen() {
         onClose={() => setIsModalOpen(false)} 
         selectedBrand={selectedBrand} 
       />
+
+      {/* Signature */}
+      <div className="relative w-full text-center z-20 pointer-events-none flex justify-center mt-12 pb-6">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.05, 1],
+            boxShadow: [
+              "0px 0px 15px rgba(255,86,24,0.6)",
+              "0px 0px 25px rgba(0,136,204,0.8)",
+              "0px 0px 15px rgba(255,86,24,0.6)"
+            ]
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-atlas-orange/20 to-blue-500/20 border border-white/30 backdrop-blur-xl"
+        >
+          <p className="text-xs md:text-sm font-black uppercase tracking-[0.2em] animate-pulse">
+            <span className="text-white">🚀 Criado pelo coordenador comercial</span>
+            <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-yellow via-atlas-orange to-red-500 text-base md:text-lg drop-shadow-[0_0_10px_rgba(255,86,24,0.8)]">
+              ⭐ MARCELO DO NASCIMENTO ⭐
+            </span>
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }

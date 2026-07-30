@@ -93,9 +93,26 @@ export function WelcomeScreen() {
           <p className="mt-6 text-lg md:text-xl text-gray-400 font-medium max-w-2xl mx-auto leading-relaxed">
             Onde dados se transformam em receita e os melhores leads B2B qualificados encontram o seu negócio de forma automatizada.
           </p>
-          <p className="mt-8 text-xs font-bold text-gray-500 uppercase tracking-widest text-glow">
-            Criado pelo coordenador comercial Marcelo do Nascimento
-          </p>
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.05, 1],
+              boxShadow: [
+                "0px 0px 15px rgba(255,86,24,0.6)",
+                "0px 0px 25px rgba(0,136,204,0.8)",
+                "0px 0px 15px rgba(255,86,24,0.6)"
+              ]
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="mt-10 mx-auto max-w-fit px-6 py-3 rounded-2xl bg-gradient-to-r from-atlas-orange/20 to-blue-500/20 border border-white/30 backdrop-blur-xl"
+          >
+            <p className="text-sm md:text-base font-black uppercase tracking-[0.2em] animate-pulse">
+              <span className="text-white">🚀 Criado pelo coordenador comercial</span>
+              <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-yellow via-atlas-orange to-red-500 text-lg md:text-xl drop-shadow-[0_0_10px_rgba(255,86,24,0.8)]">
+                ⭐ MARCELO DO NASCIMENTO ⭐
+              </span>
+            </p>
+          </motion.div>
         </motion.div>
 
         {/* Start Button */}
