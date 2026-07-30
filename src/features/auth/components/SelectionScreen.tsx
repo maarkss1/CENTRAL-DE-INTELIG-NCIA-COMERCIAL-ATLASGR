@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
-import { GoogleLoginModal } from './GoogleLoginModal';
 
 export function SelectionScreen() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<'atlasgr' | 'totaltrac' | null>(null);
 
   const handleSelect = (brand: 'atlasgr' | 'totaltrac') => {
-    setSelectedBrand(brand);
-    setIsModalOpen(true);
+    localStorage.setItem('selectedBrand', brand);
+    window.location.href = '/app';
   };
 
   return (
@@ -101,11 +99,6 @@ export function SelectionScreen() {
         </div>
       </div>
 
-      <GoogleLoginModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        selectedBrand={selectedBrand} 
-      />
 
       {/* Signature */}
       <div className="relative w-full text-center z-20 pointer-events-none flex justify-center mt-12 pb-6">

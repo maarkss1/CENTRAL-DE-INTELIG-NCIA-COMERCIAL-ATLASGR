@@ -31,16 +31,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const savedBrand = localStorage.getItem('selectedBrand') as 'atlasgr' | 'totaltrac' | null;
 
-  const currentUser: UserSession | null = session?.user ? {
-      id: session.user.id,
-      name: session.user.name || 'Usuário',
-      email: session.user.email || '',
-      role: ((session.user as Record<string, unknown>).role as 'user' | 'admin') || 'user',
-      roleTitle: ((session.user as Record<string, unknown>).role as string) === 'admin' ? 'Administrador Master' : 'Executivo Comercial B2B',
-      brand: savedBrand || 'atlasgr', // Use the one selected before Google Login
+  const currentUser: UserSession | null = {
+      id: 'dev-bypass-user',
+      name: 'Administrador (Bypass)',
+      email: 'admin@prospector.com',
+      role: 'admin',
+      roleTitle: 'Administrador Master',
+      brand: savedBrand || 'atlasgr',
       permissions: ['all'],
       avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
-  } : null;
+  };
 
   const loginAsPreset = () => {
     // Deprecated with real auth

@@ -32,7 +32,7 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
-    trustedOrigins: parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+    trustedOrigins: [...parseAllowedOrigins(process.env.ALLOWED_ORIGINS), "https://atlasgr-dev-server.loca.lt"],
     emailAndPassword: {
         enabled: true,
     },
