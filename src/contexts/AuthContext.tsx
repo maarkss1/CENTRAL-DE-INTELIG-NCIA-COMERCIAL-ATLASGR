@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       id: session.user.id,
       name: session.user.name || 'Usuário',
       email: session.user.email || '',
-      role: ((session.user as Record<string, unknown>).role as 'user' | 'admin') || 'user',
+      role: ((session.user as Record<string, unknown>).role as string) || 'user',
       roleTitle: ((session.user as Record<string, unknown>).role as string) === 'admin' ? 'Administrador Master' : 'Executivo Comercial B2B',
       brand: savedBrand || 'atlasgr', // Use the one selected before Google Login
       permissions: ['all'],
