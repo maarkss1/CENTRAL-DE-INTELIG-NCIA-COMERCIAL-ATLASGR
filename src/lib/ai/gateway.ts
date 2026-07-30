@@ -247,6 +247,7 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
 
             // O fallback direto mantém o desenvolvimento funcional quando o Docker/LiteLLM
             // estiver desligado. Em produção, o proxy continua sendo a primeira opção.
+            let groqError: unknown;
             if (!response && process.env.GROQ_API_KEY) {
                 const groqModel = GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
                 try {
@@ -260,22 +261,40 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
                         fallbackTimeoutMs,
                         false,
                     );
-                } catch (groqError) {
-                    const proxyMessage = sanitizeProviderMessage(
-                        litellmError instanceof Error ? litellmError.message : litellmError,
+                } catch (error) {
+                    groqError = error;
+                }
+            }
+
+            let openaiError: unknown;
+            if (!response && process.env.OPENAI_API_KEY) {
+                try {
+                    response = await requestChatCompletion(
+                        'https://api.openai.com/v1/chat/completions',
+                        process.env.OPENAI_API_KEY,
+                        'gpt-4o-mini', // Fallback universal para operações de alta disponibilidade
+                        requestMessages,
+                        temperature,
+                        agentContext,
+                        fallbackTimeoutMs,
+                        false,
                     );
-                    const groqMessage = sanitizeProviderMessage(
-                        groqError instanceof Error ? groqError.message : groqError,
-                    );
-                    throw new Error(`Os motores de IA estão indisponíveis. LiteLLM: ${proxyMessage}. Groq: ${groqMessage}`);
+                } catch (error) {
+                    openaiError = error;
                 }
             }
 
             if (!response) {
-                const message = sanitizeProviderMessage(
+                const proxyMessage = sanitizeProviderMessage(
                     litellmError instanceof Error ? litellmError.message : litellmError,
                 );
-                throw new Error(`Falha ao chamar o LiteLLM Gateway (modelo ${resolvedModel}): ${message}`);
+                const groqMessage = sanitizeProviderMessage(
+                    groqError instanceof Error ? groqError.message : groqError,
+                );
+                const openaiMessage = sanitizeProviderMessage(
+                    openaiError instanceof Error ? openaiError.message : openaiError,
+                );
+                throw new Error(`Os motores de IA estão indisponíveis. LiteLLM: ${proxyMessage}. Groq: ${groqMessage}. OpenAI: ${openaiMessage}`);
             }
 
             const usage = response.usage;
