@@ -11,18 +11,21 @@ import { AIConfigCenter } from '../../dashboard/components/AIConfigCenter';
 import { Card, CardTitle, CardDescription } from '../../../components/ui/Card';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 
-export type IntelligenceTab = 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
+import { SwarmDashboard } from './SwarmDashboard';
+
+export type IntelligenceTab = 'swarm' | 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
 
 interface IntelligenceHubProps {
     initialTab?: IntelligenceTab;
 }
 
-export function IntelligenceHub({ initialTab = 'methodologies' }: IntelligenceHubProps) {
+export function IntelligenceHub({ initialTab = 'swarm' }: IntelligenceHubProps) {
     const activeTab = initialTab;
     const accent = useBrandAccent();
 
     return (
         <div className="space-y-6">
+            {activeTab === 'swarm' && <SwarmDashboard />}
             {activeTab === 'methodologies' && <SalesMethodologyStudio />}
             {activeTab === 'ai_config' && <AIConfigCenter />}
             {activeTab === 'superagent' && <SuperagentCreator />}

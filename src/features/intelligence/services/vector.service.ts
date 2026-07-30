@@ -35,6 +35,8 @@ export class VectorService {
             `;
             
             logger.info({ contentLength: content.length }, 'Document ingested into vector store successfully');
+            
+            logger.info({ contentLength: content.length }, 'Document ingested into vector store successfully');
         } catch (error) {
             logger.error({ err: error, contentLength: content.length }, 'Failed to ingest document into vector store');
             throw error;
@@ -42,9 +44,7 @@ export class VectorService {
     }
 
     /**
-     * Searches for semantically similar chunks in the database.
-     * Uses L2 distance (<->) or Cosine distance (<=>). 
-     * We'll use Cosine distance as it's standard for text-embeddings.
+     * Busca Híbrida: Combina Busca Semântica (pgvector) com Busca Lexical (Full-Text Search BM25-like).
      */
     async searchSimilar(
         query: string,
@@ -53,25 +53,47 @@ export class VectorService {
         threshold: number = 0.5,
     ): Promise<SemanticSearchResult[]> {
         if (!organizationId) {
-            logger.warn('Busca semântica ignorada por ausência de organizationId');
+            logger.warn('Busca híbrida ignorada por ausência de organizationId');
             return [];
         }
         try {
             const queryEmbedding = await generateEmbedding(query);
             const vectorString = `[${queryEmbedding.join(',')}]`;
 
-            // Query using pgvector cosine distance `<=>` operator. 
-            // Note: pgvector distance is 0 for identical vectors, 1 for orthogonal, 2 for opposite.
-            // A threshold of 0.5 means fairly similar.
+            // Query Híbrida: Busca Vetorial (pgvector) + Full Text Search
+            // Os resultados vetoriais ganham bônus se também contiverem as palavras-chave (FTS).
+            // Convertendo a query string para tsquery básico substituindo espaços por &
+            const tsQueryString = query.replace(/[^\w\s]/g, '').trim().split(/\s+/).join(' & ');
+
             const results = await prisma.$queryRaw<SemanticSearchResult[]>`
+                WITH semantic_search AS (
+                    SELECT 
+                        id, 
+                        content, 
+                        metadata, 
+                        (embedding <=> ${vectorString}::vector) as semantic_distance
+                    FROM "KnowledgeChunk"
+                    WHERE metadata->>'organizationId' = ${organizationId}
+                      AND (embedding <=> ${vectorString}::vector) < ${threshold}
+                    ORDER BY semantic_distance ASC
+                    LIMIT ${limit * 2}
+                ),
+                lexical_search AS (
+                    SELECT 
+                        id,
+                        ts_rank_cd(to_tsvector('portuguese', content), to_tsquery('portuguese', ${tsQueryString})) as rank
+                    FROM "KnowledgeChunk"
+                    WHERE metadata->>'organizationId' = ${organizationId}
+                      AND to_tsvector('portuguese', content) @@ to_tsquery('portuguese', ${tsQueryString})
+                )
                 SELECT 
-                    id, 
-                    content, 
-                    metadata, 
-                    (embedding <=> ${vectorString}::vector) as distance
-                FROM "KnowledgeChunk"
-                WHERE metadata->>'organizationId' = ${organizationId}
-                  AND (embedding <=> ${vectorString}::vector) < ${threshold}
+                    s.id, 
+                    s.content, 
+                    s.metadata, 
+                    -- Cálculo de Score Híbrido: Combina a distância semântica com o bônus léxico
+                    (s.semantic_distance - COALESCE(l.rank, 0) * 0.1) as distance
+                FROM semantic_search s
+                LEFT JOIN lexical_search l ON s.id = l.id
                 ORDER BY distance ASC
                 LIMIT ${limit}
             `;
@@ -83,7 +105,7 @@ export class VectorService {
                 distance: row.distance
             }));
         } catch (error) {
-            logger.error({ err: error, query }, 'Failed to perform semantic search');
+            logger.error({ err: error, query }, 'Failed to perform hybrid semantic search');
             return [];
         }
     }

@@ -37,13 +37,14 @@ const fallbackGroqLlm = new ChatOpenAI({
     }
 });
 
-// Encadeamento inteligente: Tenta primário, se falhar, vai pro fallback
-const llm = primaryLlm.withFallbacks([fallbackGroqLlm]);
-
 // As ferramentas que o SDR Autônomo tem acesso
 const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];
 const toolNode = new ToolNode(tools);
-const modelWithTools = llm.bindTools(tools);
+
+// Encadeamento inteligente: Tenta primário com ferramentas, se falhar, vai pro fallback com ferramentas
+const modelWithTools = primaryLlm.bindTools(tools).withFallbacks([
+    fallbackGroqLlm.bindTools(tools)
+]);
 
 // Definição da lógica do Agente
 async function callModel(state: typeof MessagesAnnotation.State) {
