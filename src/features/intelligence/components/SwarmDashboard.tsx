@@ -25,10 +25,10 @@ export function SwarmDashboard() {
 
         try {
             // Chamada Real ao Backend LangGraph
-            const response = await api.post('/api/agent/swarm/mission', { mission });
+            const response = await api.post<{ messages: string[] }>('/api/agent/swarm/mission', { mission });
             
-            if (response.data && response.data.messages) {
-                const apiMessages: string[] = response.data.messages;
+            if (response && response.messages) {
+                const apiMessages: string[] = response.messages;
                 
                 const steps = apiMessages.map((msgStr, index) => {
                     let agent = 'supervisor';

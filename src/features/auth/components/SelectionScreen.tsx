@@ -58,9 +58,8 @@ export function SelectionScreen() {
             <div className="absolute inset-0 bg-gradient-to-br from-atlas-orange to-amber-500 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="relative h-full glass-panel p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/60 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden transition-all duration-500 group-hover:border-atlas-orange/50 group-hover:bg-slate-900/80">
               
-              <div className="w-24 h-24 mb-8 bg-slate-900 rounded-3xl flex items-center justify-center shadow-2xl shadow-atlas-orange/30 border border-white/20 transform group-hover:rotate-12 transition-transform duration-500 overflow-hidden p-2">
-                <img src="/atlasgr-logo.png" alt="AtlasGR" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.style.display = 'block'; }} />
-                <Globe className="w-12 h-12 text-atlas-orange hidden" />
+              <div className="w-48 h-24 mb-6 flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                <img src="https://www.atlasgr.com.br/wp-content/uploads/2021/03/atlas.svg" alt="AtlasGR" className="w-full h-full object-contain drop-shadow-2xl" />
               </div>
 
               <h2 className="text-3xl font-black text-white mb-3">AtlasGR</h2>
@@ -86,8 +85,8 @@ export function SelectionScreen() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
             <div className="relative h-full glass-panel p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/60 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden transition-all duration-500 group-hover:border-blue-500/50 group-hover:bg-slate-900/80">
               
-              <div className="w-24 h-24 mb-8 bg-white rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/30 border border-white/20 transform group-hover:-rotate-12 transition-transform duration-500 overflow-hidden p-2">
-                <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain" />
+              <div className="w-48 h-24 mb-6 flex items-center justify-center transform group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
+                <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain drop-shadow-2xl" />
               </div>
 
               <h2 className="text-3xl font-black text-white mb-3">Total Track</h2>

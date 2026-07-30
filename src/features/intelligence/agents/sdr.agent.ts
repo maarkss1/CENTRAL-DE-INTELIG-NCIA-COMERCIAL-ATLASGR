@@ -131,13 +131,12 @@ export class SDRAgent {
 
     private async updateMemory(sessionId: string, messages: any[]) {
         try {
-            // Verifica se existe primeiro
-            const existing = await prisma.agentMemory.findUnique({
+            const existing = await prisma.agentMemory.findFirst({
                 where: { sessionId }
             });
             if (existing) {
                 await prisma.agentMemory.update({
-                    where: { sessionId },
+                    where: { id: existing.id },
                     data: {
                         messages: messages as unknown as Prisma.InputJsonValue,
                     }

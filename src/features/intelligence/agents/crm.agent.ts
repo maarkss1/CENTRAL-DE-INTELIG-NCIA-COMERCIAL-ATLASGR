@@ -67,10 +67,10 @@ export class CRMAgent {
 
     private async updateMemory(sessionId: string, messages: any[]) {
         try {
-            const existing = await prisma.agentMemory.findUnique({ where: { sessionId } });
+            const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
             if (existing) {
                 await prisma.agentMemory.update({
-                    where: { sessionId },
+                    where: { id: existing.id },
                     data: { messages: messages as unknown as Prisma.InputJsonValue }
                 });
             } else {

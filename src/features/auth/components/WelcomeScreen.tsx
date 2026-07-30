@@ -32,17 +32,11 @@ export function WelcomeScreen() {
         src="https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=ambient-piano-and-strings-10711.mp3" 
       />
 
-      {/* Animated Background Elements */}
-      <motion.div
-        animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-atlas-orange/15 rounded-full blur-[150px] pointer-events-none"
-      />
-      <motion.div
-        animate={{ scale: [1, 1.3, 1], rotate: [0, -90, 0] }}
-        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-        className="absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none"
-      />
+      {/* Background Ambience - Split Gradients */}
+      <div className="absolute inset-0 flex pointer-events-none z-0">
+        <div className="w-1/2 h-full bg-gradient-to-r from-atlas-orange/30 via-atlas-orange/10 to-transparent blur-[120px]"></div>
+        <div className="w-1/2 h-full bg-gradient-to-l from-blue-500/30 via-blue-900/10 to-transparent blur-[120px]"></div>
+      </div>
       
       {/* Sound Toggle */}
       <button 
@@ -62,11 +56,10 @@ export function WelcomeScreen() {
           className="flex items-center gap-6 mb-12"
         >
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center shadow-xl shadow-atlas-orange/20 mb-3 border border-white/10 backdrop-blur-xl overflow-hidden p-2">
-              <img src="/atlasgr-logo.png" alt="AtlasGR" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.style.display = 'block'; }} />
-              <Globe className="w-10 h-10 text-atlas-orange hidden" />
+            <div className="w-48 h-20 mb-4 flex items-center justify-center">
+              <img src="https://www.atlasgr.com.br/wp-content/uploads/2021/03/atlas.svg" alt="AtlasGR" className="w-full h-full object-contain" />
             </div>
-            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
               AtlasGR
             </span>
           </div>
@@ -74,10 +67,10 @@ export function WelcomeScreen() {
           <div className="h-12 w-px bg-white/20 mx-4"></div>
 
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20 mb-3 border border-white/10 backdrop-blur-xl overflow-hidden p-2">
+            <div className="w-48 h-20 mb-4 flex items-center justify-center">
               <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain" />
             </div>
-            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
               Total Track
             </span>
           </div>
@@ -99,6 +92,9 @@ export function WelcomeScreen() {
           </h1>
           <p className="mt-6 text-lg md:text-xl text-gray-400 font-medium max-w-2xl mx-auto leading-relaxed">
             Onde dados se transformam em receita e os melhores leads B2B qualificados encontram o seu negócio de forma automatizada.
+          </p>
+          <p className="mt-8 text-xs font-bold text-gray-500 uppercase tracking-widest text-glow">
+            Criado pelo coordenador comercial Marcelo do Nascimento
           </p>
         </motion.div>
 
@@ -125,6 +121,41 @@ export function WelcomeScreen() {
         </motion.div>
 
       </div>
+
+      {/* Footer Socials & Contacts */}
+      <div className="absolute bottom-6 w-full px-8 flex justify-between items-center z-50 text-gray-400 text-sm">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+          <a href="https://api.whatsapp.com/send?phone=5516981818458" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors">
+            <i className="fab fa-whatsapp text-lg"></i> <span> Suporte: (16) 98181-8458</span>
+          </a>
+          <a href="tel:1621323790" className="flex items-center gap-2 hover:text-white transition-colors">
+            <i className="fas fa-phone-alt text-lg"></i> <span>Comercial: (16) 2132-3790</span>
+          </a>
+        </div>
+        <ul className="flex gap-4">
+          <li>
+            <a href="https://www.facebook.com/atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              <i className="fab fa-facebook-f text-lg" aria-hidden="true"></i>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.instagram.com/atlasgroficial/" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              <i className="fab fa-instagram text-lg" aria-hidden="true"></i>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.linkedin.com/company/atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              <i className="fab fa-linkedin-in text-lg" aria-hidden="true"></i>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.youtube.com/@atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              <i className="fab fa-youtube text-lg" aria-hidden="true"></i>
+            </a>
+          </li>
+        </ul>
+      </div>
+
     </div>
   );
 }

@@ -123,8 +123,8 @@ router.post('/swarm/mission', async (req, res, next) => {
         if (!mission) throw new Error('A missão é obrigatória.');
         const swarm = new SwarmOrchestrator();
         const result = await swarm.executeMission(mission, sessionId);
-        // Retorna a última mensagem ou todo o contexto
-        res.json({ success: true, messages: result.map(m => m.content) });
+        // Retorna a última mensagem ou todo o contexto no formato esperado pelo api.ts (data envelope)
+        res.json({ success: true, data: { messages: result.map(m => m.content) } });
     } catch (err) {
         next(err);
     }
