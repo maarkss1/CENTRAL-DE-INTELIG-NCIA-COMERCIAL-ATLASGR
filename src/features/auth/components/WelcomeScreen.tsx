@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Globe, Target, Volume2, VolumeX, ArrowRight, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, ArrowRight, Sparkles } from 'lucide-react';
 
 export function WelcomeScreen() {
   const navigate = useNavigate();

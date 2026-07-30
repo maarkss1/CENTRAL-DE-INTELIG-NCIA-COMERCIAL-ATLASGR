@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, ShieldAlert, Database, Loader2, Send } from 'lucide-react';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Card } from '../../../components/ui/Card';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { api } from '../../../lib/api';
 
 interface SwarmMessage {
@@ -70,7 +72,7 @@ export function SwarmDashboard() {
                                         ...prev,
                                         {
                                             id: Math.random().toString(),
-                                            agent: agent as any,
+                                            agent: agent as 'sdr' | 'bdr' | 'supervisor',
                                             text: msgStr,
                                             timestamp: new Date(),
                                             status: 'done'

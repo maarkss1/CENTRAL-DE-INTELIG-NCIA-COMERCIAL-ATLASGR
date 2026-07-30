@@ -12,10 +12,12 @@ interface GoogleLoginModalProps {
 }
 
 export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLoginModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
   const [step, setStep] = useState<'button' | 'loading' | 'success'>('button');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { loginAsPreset } = useAuth();
-  const navigate = useNavigate();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) {

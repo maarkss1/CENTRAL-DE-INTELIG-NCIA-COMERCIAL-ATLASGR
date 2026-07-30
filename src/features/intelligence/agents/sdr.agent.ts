@@ -72,8 +72,8 @@ function shouldContinue(state: typeof MessagesAnnotation.State) {
     // Se não for BaseMessage ou não tiver tool_calls, finalizamos.
     if (
         !lastMessage || 
-        typeof (lastMessage as any).tool_calls === 'undefined' ||
-        (lastMessage as any).tool_calls.length === 0
+        typeof (lastMessage as Record<string, unknown>).tool_calls === 'undefined' ||
+        (lastMessage as Record<string, unknown>).tool_calls.length === 0
     ) {
         return "END";
     }
@@ -117,7 +117,7 @@ export class SDRAgent {
         const messages = finalState.messages as BaseMessage[];
         
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
-        await this.updateMemory(sid, messages.map((m: any) => ({
+        await this.updateMemory(sid, messages.map((m: { role: string; content: string }) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
             toolCalls: m.tool_calls ? JSON.stringify(m.tool_calls) : undefined,
@@ -129,7 +129,7 @@ export class SDRAgent {
         return { success: true, sessionId: sid, detailedLog: detailedContent };
     }
 
-    private async updateMemory(sessionId: string, messages: any[]) {
+    private async updateMemory(sessionId: string, messages: { role: string; content: string }[]) {
         try {
             const existing = await prisma.agentMemory.findFirst({
                 where: { sessionId }
