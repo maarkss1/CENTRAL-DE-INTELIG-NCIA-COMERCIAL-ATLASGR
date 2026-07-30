@@ -125,7 +125,7 @@ router.post('/swarm/mission', async (req, res, next) => {
         const result = await swarm.executeMission(mission, sessionId);
         // Retorna a última mensagem ou todo o contexto no formato esperado pelo api.ts (data envelope)
         res.json({ success: true, data: { messages: result.map(m => m.content) } });
-    } catch (err) {
+    } catch (err: unknown) {
         next(err);
     }
 });
@@ -147,7 +147,7 @@ router.post('/swarm/stream', async (req, res, next) => {
 
         res.write('event: end\ndata: {}\n\n');
         res.end();
-    } catch (err) {
+    } catch (err: unknown) {
         if (!res.headersSent) {
             next(err);
         } else {
@@ -164,7 +164,7 @@ router.post('/swarm/learn', async (req, res, next) => {
         const learningAgent = new LearningAgent();
         const guidelines = await learningAgent.reflectAndLearn(userId, organizationId);
         res.json({ success: true, learnedGuidelines: guidelines || 'Sem ações recentes suficientes para aprender.' });
-    } catch (err) {
+    } catch (err: unknown) {
         next(err);
     }
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Globe, Target, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { GoogleLoginModal } from './GoogleLoginModal';
 
 export function SelectionScreen() {

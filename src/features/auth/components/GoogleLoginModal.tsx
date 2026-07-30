@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+
 import { authClient } from '../../../lib/auth-client';
 
 interface GoogleLoginModalProps {
@@ -12,10 +11,10 @@ interface GoogleLoginModalProps {
 }
 
 export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLoginModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
   const [step, setStep] = useState<'button' | 'loading' | 'success'>('button');
-  const { loginAsPreset } = useAuth();
-  const navigate = useNavigate();
+
+
 
   useEffect(() => {
     if (isOpen) {

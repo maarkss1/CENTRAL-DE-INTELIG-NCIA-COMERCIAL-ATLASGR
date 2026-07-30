@@ -135,7 +135,7 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction): P
     }
 });
 
-// Rotas para AIPendingActions
+// Rotas para aIPendingActions
 router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authRequest = req as AuthRequest;
