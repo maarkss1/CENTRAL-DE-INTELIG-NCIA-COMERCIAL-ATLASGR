@@ -7,11 +7,11 @@ import * as THREE from 'three';
 const BOUNDS = 10;
 const SPEED = 0.2;
 
-function Player({ position, onCollect }: { position: [number, number, number], onCollect: () => void }) {
+function Player({ position, onCollect: _onCollect }: { position: [number, number, number], onCollect: () => void }) {
   const ref = useRef<THREE.Mesh>(null);
   
   // Movimento Básico (Mover a nave/cubo com WASD ou Setas)
-  useFrame((state, delta) => {
+  useFrame((state, _delta) => {
     if (!ref.current) return;
     
     // Simplificando o controle de input (em um cenário real, usaríamos um hook para teclas)
@@ -61,7 +61,7 @@ export function SpaceGame({ onScore, isPlaying }: { onScore: (points: number) =>
   const [leads, setLeads] = useState<{ id: string, pos: [number, number, number] }[]>([]);
 
   // Lógica de spawn simplificada
-  useFrame((state) => {
+  useFrame((_state) => {
     if (!isPlaying) return;
     
     // Spawnar novos leads aleatoriamente

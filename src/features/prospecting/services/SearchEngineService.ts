@@ -20,7 +20,7 @@ export class SearchEngineService {
     );
 
     const results = await Promise.all(searchPromises);
-    const flatResults = results.flat() as unknown as Partial<IEnrichedLead>[];
+    const flatResults = results.flat().filter(Boolean) as Partial<IEnrichedLead>[];
     
     // Regra: Nunca retornar dados duplicados.
     // Consolidação baseada em CNPJ ou Nome (similaridade)

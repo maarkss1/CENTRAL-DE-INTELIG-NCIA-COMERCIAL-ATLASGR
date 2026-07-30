@@ -35,6 +35,7 @@ describe('Observability Middleware', () => {
             spanContext: () => ({ traceId: 'test-trace', spanId: 'test-span' }),
             setAttribute: vi.fn()
         };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         vi.mocked(trace.getSpan).mockReturnValue(mockSpan as any);
 
         observabilityMiddleware(req, res, next);
@@ -44,6 +45,7 @@ describe('Observability Middleware', () => {
         expect(mockSpan.setAttribute).toHaveBeenCalledWith('http.request_id', expect.any(String));
         expect(mockSpan.setAttribute).toHaveBeenCalledWith('user.id', 'u1');
         expect(mockSpan.setAttribute).toHaveBeenCalledWith('tenant.id', 't1');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         expect((req as any).observability.traceId).toBe('test-trace');
         expect(next).toHaveBeenCalled();
     });

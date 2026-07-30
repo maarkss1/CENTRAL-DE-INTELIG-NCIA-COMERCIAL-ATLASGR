@@ -438,6 +438,7 @@ export async function enrichOrganizationWithContacts(
         const data = await res.json();
         const people = data.people || data.contacts || [];
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const contacts: ApolloContact[] = people.map((p: any) => ({
             name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sem Nome',
             title: p.title || null,
@@ -529,6 +530,7 @@ export async function searchDecisionMakersAdvanced(
         const people = data.people || data.contacts || [];
 
         const contacts: DecisionMaker[] = await Promise.all(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             people.map(async (p: any): Promise<DecisionMaker> => {
                 let email = p.email || p.email_url || null;
                 let emailSource: DecisionMaker['emailSource'] = email ? 'apollo' : undefined;

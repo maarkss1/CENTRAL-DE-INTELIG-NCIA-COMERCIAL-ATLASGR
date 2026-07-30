@@ -41,7 +41,7 @@ export function createEnrichWorker() {
                         try {
                             const url = new URL(company.website.startsWith('http') ? company.website : `https://${company.website}`);
                             domain = url.hostname.replace('www.', '');
-                        } catch (_e) {
+                        } catch {
                             domain = company.website;
                         }
                     }

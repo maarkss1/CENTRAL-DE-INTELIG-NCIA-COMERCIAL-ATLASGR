@@ -73,7 +73,7 @@ export class BrasilApiAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as Record<string, any>;
+        const raw = await res.json() as Record<string, unknown>;
         const employeeEstimate = PORTE_TO_EMPLOYEE_ESTIMATE[raw.codigo_porte] ?? PORTE_TO_EMPLOYEE_ESTIMATE[5];
 
         const addressParts = [raw.logradouro, raw.numero, raw.complemento, raw.bairro].filter(Boolean);

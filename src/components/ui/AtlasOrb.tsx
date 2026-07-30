@@ -6,6 +6,7 @@ import { useBrandAccent } from '../../hooks/useBrandAccent';
 
 function OrbCore() {
   const { isAtlas } = useBrandAccent();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const materialRef = useRef<any>(null);
 
   const color = isAtlas ? '#FF5618' : '#0088CC';

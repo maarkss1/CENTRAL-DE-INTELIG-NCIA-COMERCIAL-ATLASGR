@@ -56,7 +56,8 @@ export const updateLeadQualificationTool = tool(
                 where: { id: leadId },
                 data: {
                     score,
-                    status: toPrismaLeadStatus(status as import('../../../lib/zod').LeadStatus) as unknown as import('@prisma/client').Prisma.LeadUpdateInput['status'],
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    status: toPrismaLeadStatus(status as import('../../../lib/zod').LeadStatus) as any,
                     qualification: {
                         score,
                         summary,

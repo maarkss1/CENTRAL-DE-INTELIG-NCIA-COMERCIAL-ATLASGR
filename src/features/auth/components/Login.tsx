@@ -29,7 +29,7 @@ export function Login() {
                 setError(res.error.message || 'Erro no login de dev');
                 setIsLoading(false);
             }
-        } catch (err: any) {
+        } catch {
             setError('Falha no login de desenvolvimento.');
             setIsLoading(false);
         }

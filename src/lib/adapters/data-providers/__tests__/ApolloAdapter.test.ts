@@ -21,6 +21,7 @@ describe('ApolloAdapter', () => {
     });
 
     it('deve formatar os dados de organizacao e decisores retornando midias e scores', async () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (apolloService.enrichOrganizationByDomain as any).mockResolvedValue({
             organization: {
                 name: 'Apollo Test',
@@ -30,6 +31,7 @@ describe('ApolloAdapter', () => {
             }
         });
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (apolloService.enrichOrganizationWithContacts as any).mockResolvedValue({
             contacts: [
                 { name: 'CTO Test', title: 'CTO', email: 'cto@apollo.io' }

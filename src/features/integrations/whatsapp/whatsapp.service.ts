@@ -32,6 +32,7 @@ export async function initWhatsApp() {
         printQRInTerminal: false,
         browser: Browsers.macOS('Desktop'),
         syncFullHistory: false,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         logger: pino({ level: 'silent' }) as any
     });
 
@@ -67,7 +68,7 @@ export async function initWhatsApp() {
     });
 
     // Escuta novas mensagens (Opcional, para salvar no CRM no futuro)
-    sock?.ev.on('messages.upsert', async (m) => {
+    sock?.ev.on('messages.upsert', async (_m) => {
         // console.log(JSON.stringify(m, undefined, 2))
     });
 }

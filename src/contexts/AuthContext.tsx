@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, ReactNode } from 'react';
 import { UserPreset } from '../features/auth/constants/userPresets';
 import { authClient } from '../lib/auth-client';

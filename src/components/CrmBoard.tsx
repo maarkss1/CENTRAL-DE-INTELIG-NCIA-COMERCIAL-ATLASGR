@@ -72,6 +72,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleDragStart = useCallback((event: any) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
@@ -80,6 +81,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleDragEnd = useCallback(async (event: any) => {
         const { active, over } = event;
         setActiveLead(null);

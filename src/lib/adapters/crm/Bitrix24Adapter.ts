@@ -39,7 +39,8 @@ export class Bitrix24Adapter {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fields: {
-          TITLE: lead.socialReason || lead.fantasyName || 'Empresa Prospectada',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          TITLE: (lead as any).legalName || lead.socialReason || lead.fantasyName || 'Empresa Prospectada',
           COMPANY_TYPE: 'CUSTOMER',
           INDUSTRY: lead.cnaeMain,
           EMPLOYEES: lead.employeesCount,
@@ -56,6 +57,7 @@ export class Bitrix24Adapter {
     return data.result;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async createContact(dm: any, companyId: string): Promise<string> {
     const response = await fetch(`${this.webhookUrl}crm.contact.add.json`, {
       method: 'POST',

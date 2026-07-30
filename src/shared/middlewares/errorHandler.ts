@@ -24,6 +24,7 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (err: Error & { statusCode?: number; details?: unknown }, _req: Request, res: Response, _next: NextFunction): void => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logger.error({ err, status: (err as any).statusCode }, 'Global error handler');
 
     if (err instanceof ZodError) {

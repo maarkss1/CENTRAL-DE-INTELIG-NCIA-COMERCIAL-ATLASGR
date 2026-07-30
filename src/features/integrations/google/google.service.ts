@@ -3,7 +3,7 @@ export async function getGoogleAuthUrl() {
     return 'https://accounts.google.com/o/oauth2/v2/auth?placeholder=true';
 }
 
-export async function processGoogleCallback(code: string) {
+export async function processGoogleCallback(_code: string) {
     // Placeholder to exchange code for tokens
     // Received auth code
     return { success: true, tokens: { access_token: 'mock_token' } };

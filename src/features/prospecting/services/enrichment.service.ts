@@ -436,7 +436,7 @@ interface CompanyUpdateData {
     website?: string;
     googleRating?: number;
     googleReviewsCount?: number;
-    businessHours?: any;
+    businessHours?: unknown;
     observations?: string;
     linkedin?: string;
     twitter?: string;

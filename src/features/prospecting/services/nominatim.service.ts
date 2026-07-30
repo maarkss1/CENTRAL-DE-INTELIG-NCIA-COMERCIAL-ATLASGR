@@ -7,7 +7,7 @@ const NOMINATIM_HEADERS = {
     Accept: 'application/json',
 };
 
-async function fetchNominatim(query: string, count: number): Promise<any[]> {
+async function fetchNominatim(query: string, count: number): Promise<unknown[]> {
     const params = new URLSearchParams({
         q: query,
         format: 'json',
@@ -36,6 +36,7 @@ export async function searchNominatimCandidates(query: string, count: number): P
     try {
         const data = await fetchNominatim(query, count);
         
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return data.map((p: any) => {
             const addr = p.address || {};
             const city = addr.city || addr.town || addr.village;

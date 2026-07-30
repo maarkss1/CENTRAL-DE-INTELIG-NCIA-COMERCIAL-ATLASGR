@@ -7,7 +7,7 @@ interface Prompt {
     id: string;
     name: string;
     category: string;
-    variables: Record<string, any>;
+    variables: Record<string, unknown>;
 }
 
 export function PromptStudio() {
@@ -27,10 +27,12 @@ export function PromptStudio() {
 
     useEffect(() => {
         loadPrompts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadPrompts = async () => {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const res: any = await api.get('/api/prompts');
             setPrompts(res.data.data);
             

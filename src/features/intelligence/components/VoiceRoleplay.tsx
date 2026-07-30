@@ -126,7 +126,7 @@ export function VoiceRoleplay({
             } else {
                 setAiResponse('Desculpe, ocorreu um erro de conexão.');
             }
-        } catch (_error) {
+        } catch {
             setAiResponse('Falha na comunicação com a IA.');
         } finally {
             setIsProcessing(false);

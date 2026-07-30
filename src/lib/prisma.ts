@@ -89,7 +89,7 @@ export const prisma = basePrisma.$extends({
               const a = args as Record<string, unknown>;
               const modelDelegate = (basePrisma as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
               beforeState = await executeWithRls((modelDelegate.findUnique as (args: unknown) => Promise<unknown>)({ where: a.where })) as Record<string, unknown> | null;
-           } catch (_e) {
+           } catch {
               // Ignore if we can't find it or where is complex
            }
         }

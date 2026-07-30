@@ -18,6 +18,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     useSensor(KeyboardSensor)
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDragStart = (event: any) => {
     const { active } = event;
     const dealId = active.id;
@@ -31,6 +32,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     setActiveDeal(null);

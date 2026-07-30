@@ -74,7 +74,9 @@ export async function findPeopleViaDomainSearch(
         const emails = data?.data?.emails || [];
 
         const contacts: HunterPersonContact[] = emails
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .filter((e: any) => e.first_name || e.last_name)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((e: any) => ({
                 name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Sem Nome',
                 title: e.position || null,

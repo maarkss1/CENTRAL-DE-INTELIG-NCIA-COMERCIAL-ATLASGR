@@ -1,4 +1,5 @@
 export class Container {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private dependencies = new Map<string, any>();
 
     register<T>(name: string, dependency: T): void {
