@@ -24,7 +24,7 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (err: Error & { statusCode?: number; details?: unknown }, _req: Request, res: Response, _next: NextFunction): void => {
-    logger.error({ err, status: (err as any).statusCode }, 'Global error handler');
+    logger.error({ err, status: (err as unknown).statusCode }, 'Global error handler');
 
     if (err instanceof ZodError) {
         res.status(400).json({

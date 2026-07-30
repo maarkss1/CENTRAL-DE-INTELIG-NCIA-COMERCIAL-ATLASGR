@@ -1,5 +1,5 @@
 export class Container {
-    private dependencies = new Map<string, any>();
+    private dependencies = new Map<string, unknown>();
 
     register<T>(name: string, dependency: T): void {
         this.dependencies.set(name, dependency);

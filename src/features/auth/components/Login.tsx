@@ -15,7 +15,7 @@ export function Login() {
                 provider,
                 callbackURL: '/app',
             });
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError(`Falha ao fazer login com ${provider}. Tente novamente.`);
             setIsLoading(false);
         }
@@ -42,7 +42,7 @@ export function Login() {
                 setError(res.error.message || 'Erro no login de dev');
                 setIsLoading(false);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             setError('Falha no login de desenvolvimento.');
             setIsLoading(false);
         }

@@ -30,7 +30,7 @@ export const observabilityMiddleware = (req: Request, res: Response, next: NextF
     }
 
     // Attach contextual info to req for deeper logging if needed
-    (req as any).observability = {
+    (req as unknown).observability = {
         requestId,
         correlationId,
         traceId,

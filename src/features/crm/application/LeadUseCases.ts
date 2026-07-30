@@ -38,8 +38,8 @@ export class LeadUseCases {
         if (!lead.companyId) throw new Error('Lead sem empresa vinculada — não é possível enriquecer');
 
         const result = await enrichCompany(lead.companyId, {
-            segmentKeywords: (lead.company as any)?.segment ? [(lead.company as any).segment] : undefined,
-            fleetSizeHint: (lead.company as any)?.size || undefined,
+            segmentKeywords: (lead.company as unknown)?.segment ? [(lead.company as unknown).segment] : undefined,
+            fleetSizeHint: (lead.company as unknown)?.size || undefined,
         });
 
         // Note: Timeline events should ideally be emitted as domain events.
@@ -91,7 +91,7 @@ export class LeadUseCases {
             return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         };
 
-        const rows = leads.map((l: any) => {
+        const rows = leads.map((l: unknown) => {
             const company = l.company;
             const contact = l.contact;
             const qual = (l.qualification || {}) as Record<string, string | undefined>;
@@ -165,22 +165,22 @@ export class LeadUseCases {
             const l = await this.leadRepository.findById!(organizationId, leadId);
             if (!l) throw new Error('Lead não encontrado');
             
-            const iEnriched: any = {
-                socialReason: (l.company as any)?.legalName || l.source || '',
-                fantasyName: (l.company as any)?.tradeName || l.source || '',
-                cnaeMain: (l.company as any)?.cnae || '',
-                employeesCount: (l.company as any)?.size || '',
+            const iEnriched: unknown = {
+                socialReason: (l.company as unknown)?.legalName || l.source || '',
+                fantasyName: (l.company as unknown)?.tradeName || l.source || '',
+                cnaeMain: (l.company as unknown)?.cnae || '',
+                employeesCount: (l.company as unknown)?.size || '',
                 estimatedRevenue: '',
-                commercialPhone: (l.company as any)?.phones?.[0] || (l.contact as any)?.phone || '',
-                generalEmail: (l.contact as any)?.email || '',
-                website: (l.company as any)?.website || '',
-                description: (l.company as any)?.observations || '',
+                commercialPhone: (l.company as unknown)?.phones?.[0] || (l.contact as unknown)?.phone || '',
+                generalEmail: (l.contact as unknown)?.email || '',
+                website: (l.company as unknown)?.website || '',
+                description: (l.company as unknown)?.observations || '',
                 decisionMakers: l.contact ? [{
-                    name: (l.contact as any).name,
-                    role: (l.contact as any).role,
-                    phone: (l.contact as any).phone,
-                    whatsapp: (l.contact as any).whatsapp,
-                    corporateEmail: (l.contact as any).email,
+                    name: (l.contact as unknown).name,
+                    role: (l.contact as unknown).role,
+                    phone: (l.contact as unknown).phone,
+                    whatsapp: (l.contact as unknown).whatsapp,
+                    corporateEmail: (l.contact as unknown).email,
                 }] : [],
                 intelligence: {
                     fitScore: l.score || 0,

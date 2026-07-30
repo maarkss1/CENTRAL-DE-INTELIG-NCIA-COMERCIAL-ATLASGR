@@ -22,7 +22,7 @@ export class MergeEngineService {
   async enrich(query: { cnpj?: string; name?: string; domain?: string; location?: string }): Promise<IEnrichmentResult> {
     const startTime = Date.now();
     let mergedResult = this.createEmptyResult();
-    let cnpjsConsultados: string[] = [];
+    const cnpjsConsultados: string[] = [];
 
     if (query.cnpj) {
        cnpjsConsultados.push(sanitizeCnpj(query.cnpj));

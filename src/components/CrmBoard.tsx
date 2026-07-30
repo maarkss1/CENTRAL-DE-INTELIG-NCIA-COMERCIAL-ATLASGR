@@ -72,7 +72,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
-    const handleDragStart = useCallback((event: any) => {
+    const handleDragStart = useCallback((event: unknown) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
@@ -80,7 +80,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
-    const handleDragEnd = useCallback(async (event: any) => {
+    const handleDragEnd = useCallback(async (event: unknown) => {
         const { active, over } = event;
         setActiveLead(null);
 

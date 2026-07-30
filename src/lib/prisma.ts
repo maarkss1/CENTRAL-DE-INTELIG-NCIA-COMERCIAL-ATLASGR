@@ -37,7 +37,7 @@ export const prisma = basePrisma.$extends({
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
-        const bypassRls = (store as any)?.bypassRls || false;
+        const bypassRls = (store as unknown)?.bypassRls || false;
         
         const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
         const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];
@@ -45,17 +45,17 @@ export const prisma = basePrisma.$extends({
 
         if (tenantId && tenantModels.includes(model as string)) {
           if (operation === 'create' || operation === 'createMany') {
-             if ((args as any).data) {
-                if (Array.isArray((args as any).data)) {
-                  (args as any).data = (args as any).data.map((d: any) => ({ ...d, organizationId: tenantId }));
+             if ((args as unknown).data) {
+                if (Array.isArray((args as unknown).data)) {
+                  (args as unknown).data = (args as unknown).data.map((d: unknown) => ({ ...d, organizationId: tenantId }));
                 } else {
-                  (args as any).data = { ...(args as any).data, organizationId: tenantId };
+                  (args as unknown).data = { ...(args as unknown).data, organizationId: tenantId };
                 }
              }
           }
           if (operation === 'upsert') {
-             if ((args as any).create) {
-                (args as any).create = { ...(args as any).create, organizationId: tenantId };
+             if ((args as unknown).create) {
+                (args as unknown).create = { ...(args as unknown).create, organizationId: tenantId };
              }
           }
         }
@@ -63,11 +63,11 @@ export const prisma = basePrisma.$extends({
         // --- 2. Soft Delete (Read Filtering) ---
         if (isAuditable) {
           if (['findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy'].includes(operation)) {
-             (args as any).where = { ...(args as any).where, deletedAt: null };
+             (args as unknown).where = { ...(args as unknown).where, deletedAt: null };
           }
         }
 
-        const executeWithRls = async (prismaPromise: any) => {
+        const executeWithRls = async (prismaPromise: unknown) => {
           if (!tenantId && !bypassRls) return await prismaPromise;
           const [, res] = await basePrisma.$transaction([
             basePrisma.$executeRawUnsafe(
@@ -81,22 +81,22 @@ export const prisma = basePrisma.$extends({
         };
 
         // --- 3. Audit Log - Capture Before State ---
-        let beforeState: any = null;
+        let beforeState: unknown = null;
         if (isAuditable && (operation === 'update' || operation === 'delete')) {
            try {
-              beforeState = await executeWithRls((basePrisma as any)[model as string].findUnique({ where: (args as any).where }));
+              beforeState = await executeWithRls((basePrisma as unknown)[model as string].findUnique({ where: (args as unknown).where }));
            } catch (e) {
               // Ignore if we can't find it or where is complex
            }
         }
 
         // --- 4. Execute Query (Intercepting Delete) ---
-        let result: any;
+        let result: unknown;
         let affectedIds: string[] = [];
 
         if (isAuditable && operation === 'delete') {
-            result = await executeWithRls((basePrisma as any)[model as string].update({
-                where: (args as any).where,
+            result = await executeWithRls((basePrisma as unknown)[model as string].update({
+                where: (args as unknown).where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
             }));
             if (result && result.id) {
@@ -104,14 +104,14 @@ export const prisma = basePrisma.$extends({
             }
         } else if (isAuditable && operation === 'deleteMany') {
             // Need to fetch IDs first to cascade
-            const recordsToSoftDelete = await executeWithRls((basePrisma as any)[model as string].findMany({
-                where: (args as any).where,
+            const recordsToSoftDelete = await executeWithRls((basePrisma as unknown)[model as string].findMany({
+                where: (args as unknown).where,
                 select: { id: true }
             }));
-            affectedIds = recordsToSoftDelete.map((r: any) => r.id);
+            affectedIds = recordsToSoftDelete.map((r: unknown) => r.id);
 
-            result = await executeWithRls((basePrisma as any)[model as string].updateMany({
-                where: (args as any).where,
+            result = await executeWithRls((basePrisma as unknown)[model as string].updateMany({
+                where: (args as unknown).where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
             }));
         } else {
@@ -154,7 +154,7 @@ export const prisma = basePrisma.$extends({
 
         // --- 5. Audit Log & Search Queue ---
         if (isAuditable && ['create', 'update', 'delete'].includes(operation) && result) {
-             const action = operation.toUpperCase() as any;
+             const action = operation.toUpperCase() as unknown;
              const entityId = result.id;
              AuditService.log({
                  action,

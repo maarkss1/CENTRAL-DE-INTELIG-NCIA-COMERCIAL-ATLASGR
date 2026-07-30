@@ -7,7 +7,7 @@ interface Prompt {
     id: string;
     name: string;
     category: string;
-    variables: Record<string, any>;
+    variables: Record<string, unknown>;
 }
 
 export function PromptStudio() {
@@ -31,7 +31,7 @@ export function PromptStudio() {
 
     const loadPrompts = async () => {
         try {
-            const res: any = await api.get('/api/prompts');
+            const res: unknown = await api.get('/api/prompts');
             setPrompts(res.data.data);
             
             const current = res.data.data.find((p: Prompt) => p.category === selectedCategory);

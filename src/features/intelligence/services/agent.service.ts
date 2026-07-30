@@ -27,7 +27,7 @@ export abstract class AgentService {
             data: {
                 sessionId: this.sessionId,
                 agentType: this.agentType,
-                messages: messages as any
+                messages: messages as unknown
             }
         });
     }
@@ -42,7 +42,7 @@ export abstract class AgentService {
             const result = await model.invoke(messages.map(m => ({
                 _getType: () => m.role,
                 content: m.content
-            })) as any);
+            })) as unknown);
             await logAiUsage({
                 model: result.response_metadata.model,
                 usage: result.response_metadata.tokenUsage,

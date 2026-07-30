@@ -18,7 +18,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     useSensor(KeyboardSensor)
   );
 
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: unknown) => {
     const { active } = event;
     const dealId = active.id;
     // Find the deal across all columns
@@ -31,7 +31,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     }
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: unknown) => {
     const { active, over } = event;
     setActiveDeal(null);
 

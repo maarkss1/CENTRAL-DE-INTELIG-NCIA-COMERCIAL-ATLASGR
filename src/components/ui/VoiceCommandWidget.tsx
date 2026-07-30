@@ -8,21 +8,21 @@ export function VoiceCommandWidget() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<unknown>(null);
   const { setActiveBrand } = useBrand();
 
   useEffect(() => {
     // Inicializa Web Speech API se suportado pelo navegador
-    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI = (window as unknown).SpeechRecognition || (window as unknown).webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const rec = new SpeechRecognitionAPI();
       rec.continuous = false;
       rec.interimResults = true;
       rec.lang = 'pt-BR';
 
-      rec.onresult = (event: any) => {
+      rec.onresult = (event: unknown) => {
         const currentText = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
+          .map((result: unknown) => result[0].transcript)
           .join('');
         
         setTranscript(currentText);

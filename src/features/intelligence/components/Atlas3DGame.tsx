@@ -38,7 +38,7 @@ function CargoBox({ onClick }: { onClick: () => void }) {
     }
   });
 
-  const handleClick = (e: any) => {
+  const handleClick = (e: unknown) => {
     e.stopPropagation();
     setClicked(true);
     onClick();

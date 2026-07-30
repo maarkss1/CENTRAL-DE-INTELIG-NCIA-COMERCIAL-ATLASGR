@@ -74,8 +74,8 @@ export async function findPeopleViaDomainSearch(
         const emails = data?.data?.emails || [];
 
         const contacts: HunterPersonContact[] = emails
-            .filter((e: any) => e.first_name || e.last_name)
-            .map((e: any) => ({
+            .filter((e: unknown) => e.first_name || e.last_name)
+            .map((e: unknown) => ({
                 name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Sem Nome',
                 title: e.position || null,
                 email: e.value || null,

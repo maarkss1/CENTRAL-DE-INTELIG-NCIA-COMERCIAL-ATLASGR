@@ -51,7 +51,7 @@ export class ApolloService {
                 return {};
             }
 
-            const data = await response.json() as any;
+            const data = await response.json() as unknown;
             const org = data.organization;
 
             if (!org) return {};
@@ -59,7 +59,7 @@ export class ApolloService {
             return {
                 revenue: org.estimated_num_employees ? this.estimateRevenue(org.estimated_num_employees) : undefined,
                 headcount: org.estimated_num_employees,
-                technologies: org.current_technologies?.map((t: any) => t.name) || [],
+                technologies: org.current_technologies?.map((t: unknown) => t.name) || [],
                 description: org.short_description || org.description,
                 industry: org.industry
             };

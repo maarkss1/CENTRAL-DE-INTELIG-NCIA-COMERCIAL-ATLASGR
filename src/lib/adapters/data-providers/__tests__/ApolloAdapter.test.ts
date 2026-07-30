@@ -21,7 +21,7 @@ describe('ApolloAdapter', () => {
     });
 
     it('deve formatar os dados de organizacao e decisores retornando midias e scores', async () => {
-        (apolloService.enrichOrganizationByDomain as any).mockResolvedValue({
+        (apolloService.enrichOrganizationByDomain as unknown).mockResolvedValue({
             organization: {
                 name: 'Apollo Test',
                 estimated_num_employees: 150,
@@ -30,7 +30,7 @@ describe('ApolloAdapter', () => {
             }
         });
 
-        (apolloService.enrichOrganizationWithContacts as any).mockResolvedValue({
+        (apolloService.enrichOrganizationWithContacts as unknown).mockResolvedValue({
             contacts: [
                 { name: 'CTO Test', title: 'CTO', email: 'cto@apollo.io' }
             ]

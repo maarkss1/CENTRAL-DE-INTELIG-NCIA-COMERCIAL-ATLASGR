@@ -56,7 +56,7 @@ export class Bitrix24Adapter {
     return data.result;
   }
 
-  private async createContact(dm: any, companyId: string): Promise<string> {
+  private async createContact(dm: unknown, companyId: string): Promise<string> {
     const response = await fetch(`${this.webhookUrl}crm.contact.add.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

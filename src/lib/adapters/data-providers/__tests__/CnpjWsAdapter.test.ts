@@ -49,7 +49,7 @@ describe('CnpjWsAdapter', () => {
             ok: true,
             status: 200,
             json: async () => mockResponse
-        } as any);
+        } as unknown);
 
         const result = await adapter.enrich({ cnpj: '12.345.678/0001-95' });
 

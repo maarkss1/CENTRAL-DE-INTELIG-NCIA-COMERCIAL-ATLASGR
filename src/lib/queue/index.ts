@@ -48,7 +48,7 @@ export const createLeadsWorker = () => {
                 where: { id: leadId },
                 data: {
                     score: score ?? undefined,
-                    temperature: temperature as any,
+                    temperature: temperature as unknown,
                     timeline: {
                         create: {
                             type: 'generic',
@@ -61,7 +61,7 @@ export const createLeadsWorker = () => {
             logger.info({ leadId, status: qualificationResult.status, score }, "Lead Qualified Successfully");
 
             return { success: true, processedAt: new Date().toISOString(), result: qualificationResult };
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error({ err: error }, 'Error during lead qualification');
             throw error;
         }

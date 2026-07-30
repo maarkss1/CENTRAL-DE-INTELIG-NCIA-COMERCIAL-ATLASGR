@@ -36,7 +36,7 @@ export class PrismaLeadRepository implements LeadRepository {
     async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50): Promise<{ data: Lead[], meta: unknown }> {
         const where: Prisma.LeadWhereInput = { organizationId };
         if (status) {
-            where.status = toPrismaLeadStatus(status as any) as unknown as any;
+            where.status = toPrismaLeadStatus(status as unknown) as unknown as unknown;
         }
 
         const skip = (page - 1) * limit;
@@ -76,7 +76,7 @@ export class PrismaLeadRepository implements LeadRepository {
         const lead = await prisma.lead.create({
             data: {
                 ...data,
-                status: toPrismaLeadStatus(data.status as any) as unknown as any,
+                status: toPrismaLeadStatus(data.status as unknown) as unknown as unknown,
                 organizationId,
                 company: undefined,
                 contact: undefined,
@@ -102,7 +102,7 @@ export class PrismaLeadRepository implements LeadRepository {
             where: { id },
             data: {
                 ...data,
-                ...(data.status ? { status: toPrismaLeadStatus(data.status as any) as unknown as any } : {}),
+                ...(data.status ? { status: toPrismaLeadStatus(data.status as unknown) as unknown as unknown } : {}),
                 organizationId: undefined,
                 company: undefined,
                 contact: undefined,
@@ -127,7 +127,7 @@ export class PrismaLeadRepository implements LeadRepository {
         const lead = await prisma.lead.update({
             where: { id },
             data: {
-                status: toPrismaLeadStatus(newStatus as any) as unknown as any,
+                status: toPrismaLeadStatus(newStatus as unknown) as unknown as unknown,
                 timeline: {
                     create: {
                         type: 'movement',

@@ -13,7 +13,7 @@ export class SearchService {
 
         // 2. Keyword search via Meilisearch
         // Note: in a real implementation we would search a "documents" index.
-        let keywordResults: any[] = [];
+        let keywordResults: unknown[] = [];
         try {
             const meiliRes = await meili.index('leads').search(query, { limit: 5 });
             keywordResults = meiliRes.hits;

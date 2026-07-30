@@ -438,7 +438,7 @@ export async function enrichOrganizationWithContacts(
         const data = await res.json();
         const people = data.people || data.contacts || [];
 
-        const contacts: ApolloContact[] = people.map((p: any) => ({
+        const contacts: ApolloContact[] = people.map((p: unknown) => ({
             name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sem Nome',
             title: p.title || null,
             email: p.email || p.email_url || null,
@@ -529,7 +529,7 @@ export async function searchDecisionMakersAdvanced(
         const people = data.people || data.contacts || [];
 
         const contacts: DecisionMaker[] = await Promise.all(
-            people.map(async (p: any): Promise<DecisionMaker> => {
+            people.map(async (p: unknown): Promise<DecisionMaker> => {
                 let email = p.email || p.email_url || null;
                 let emailSource: DecisionMaker['emailSource'] = email ? 'apollo' : undefined;
                 

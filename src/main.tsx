@@ -17,7 +17,7 @@ let audioCtx: AudioContext | null = null;
 
 const playClickSound = () => {
   if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as unknown).webkitAudioContext;
     if (AudioContextClass) audioCtx = new AudioContextClass();
   }
   

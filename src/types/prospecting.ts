@@ -73,12 +73,12 @@ export interface IEnrichedLead {
     painPoints?: string[];
     valueProposition?: string;
   };
-  swotAnalysis?: Record<string, any>;
-  bantMatrix?: Record<string, any>;
-  gpctMatrix?: Record<string, any>;
-  qualifications?: Record<string, any>;
-  objectionsMatrix?: Record<string, any>[];
-  cadenceScripts?: Record<string, any>;
+  swotAnalysis?: Record<string, unknown>;
+  bantMatrix?: Record<string, unknown>;
+  gpctMatrix?: Record<string, unknown>;
+  qualifications?: Record<string, unknown>;
+  objectionsMatrix?: Record<string, unknown>[];
+  cadenceScripts?: Record<string, unknown>;
   
   status: 'NEW' | 'ENRICHING' | 'READY' | 'EXPORTED';
   bitrixId?: string;

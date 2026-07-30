@@ -59,8 +59,8 @@ export class ActivityService {
         const activity = await prisma.activity.create({
             data: {
                 ...validated,
-                type: toPrismaActivityType(validated.type) as any,
-                status: toPrismaActivityStatus(validated.status) as any,
+                type: toPrismaActivityType(validated.type) as unknown,
+                status: toPrismaActivityStatus(validated.status) as unknown,
                 organizationId,
                 date: new Date(validated.date)
             }
@@ -81,8 +81,8 @@ export class ActivityService {
 
         const updateData: Prisma.ActivityUpdateInput = { ...data } as Prisma.ActivityUpdateInput;
         if (data.date) updateData.date = new Date(data.date);
-        if (data.type) updateData.type = toPrismaActivityType(data.type) as any;
-        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as any;
+        if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown;
+        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown;
 
         const activity = await prisma.activity.update({
             where: { id },

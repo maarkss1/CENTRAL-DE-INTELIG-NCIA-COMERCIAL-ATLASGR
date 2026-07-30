@@ -67,7 +67,7 @@ export class CnpjWsAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as any;
+        const raw = await res.json() as unknown;
 
         const mainActivity = raw.estabelecimento?.atividade_principal;
         const address = raw.estabelecimento;

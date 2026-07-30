@@ -46,7 +46,7 @@ Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar 
         const sid = sessionId || `session-${leadId}-${Date.now()}`;
         
         // Salvar a trilha de pensamento e memória no banco para auditoria
-        await this.updateMemory(sid, result.messages.map((m: any) => ({
+        await this.updateMemory(sid, result.messages.map((m: unknown) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
             tool_calls: m.tool_calls || undefined
@@ -55,7 +55,7 @@ Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar 
         return { success: true, sessionId: sid };
     }
 
-    private async updateMemory(sessionId: string, messages: any) {
+    private async updateMemory(sessionId: string, messages: unknown) {
         await prisma.agentMemory.create({
             data: {
                 sessionId,

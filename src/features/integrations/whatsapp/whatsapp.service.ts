@@ -32,7 +32,7 @@ export async function initWhatsApp() {
         printQRInTerminal: false,
         browser: Browsers.macOS('Desktop'),
         syncFullHistory: false,
-        logger: pino({ level: 'silent' }) as any
+        logger: pino({ level: 'silent' }) as unknown
     });
 
     sock.ev.on('creds.update', saveCreds);

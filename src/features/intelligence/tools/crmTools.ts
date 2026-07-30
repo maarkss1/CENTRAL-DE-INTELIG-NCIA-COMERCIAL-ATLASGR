@@ -55,7 +55,7 @@ export const updateLeadQualificationTool = tool(
                 where: { id: leadId },
                 data: {
                     score,
-                    status: status as any,
+                    status: status as unknown,
                     qualification: {
                         score,
                         summary,

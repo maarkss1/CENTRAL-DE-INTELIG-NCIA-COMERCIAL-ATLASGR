@@ -36,7 +36,7 @@ export function createEnrichWorker() {
                     const company = lead.company;
                     
                     // Extrair domínio (mock simple para teste)
-                    let domain = (company as any).domain;
+                    let domain = (company as unknown).domain;
                     if (!domain && company.website) {
                         try {
                             const url = new URL(company.website.startsWith('http') ? company.website : `https://${company.website}`);

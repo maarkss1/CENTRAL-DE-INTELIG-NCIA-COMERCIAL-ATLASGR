@@ -13,7 +13,7 @@ export interface AuthUser {
 
 export interface AuthRequest extends Request {
     user: AuthUser;
-    db?: any; // Prisma Client isolado por Tenant
+    db?: unknown; // Prisma Client isolado por Tenant
 }
 
 import { requestContext } from '../../lib/async-context.js';
@@ -24,7 +24,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
             headers: fromNodeHeaders(req.headers)
         });
 
-        let user: any;
+        let user: unknown;
         if (!session || !session.user) {
             if (env.NODE_ENV !== 'development' || !env.ALLOW_DEV_AUTH_BYPASS) {
                 res.status(401).json({ success: false, error: 'Autenticação necessária.' });

@@ -5,7 +5,7 @@ import { logger } from '../../../lib/logger.js';
 export interface SearchResult {
     id: string;
     content: string;
-    metadata: any;
+    metadata: unknown;
     similarity: number;
 }
 

@@ -5,7 +5,7 @@ import { logger } from '../../../lib/logger.js';
 export interface SemanticSearchResult {
     id: string;
     content: string;
-    metadata: any;
+    metadata: unknown;
     distance: number;
 }
 
@@ -14,7 +14,7 @@ export class VectorService {
      * Ingests a new document/chunk into the vector database.
      * Generates the embedding and saves it to KnowledgeChunk.
      */
-    async ingestDocument(content: string, metadata: any = {}): Promise<void> {
+    async ingestDocument(content: string, metadata: unknown = {}): Promise<void> {
         try {
             const embedding = await generateEmbedding(content);
             
@@ -47,7 +47,7 @@ export class VectorService {
             // Query using pgvector cosine distance `<=>` operator. 
             // Note: pgvector distance is 0 for identical vectors, 1 for orthogonal, 2 for opposite.
             // A threshold of 0.5 means fairly similar.
-            const results = await prisma.$queryRaw<any[]>`
+            const results = await prisma.$queryRaw<unknown[]>`
                 SELECT 
                     id, 
                     content, 

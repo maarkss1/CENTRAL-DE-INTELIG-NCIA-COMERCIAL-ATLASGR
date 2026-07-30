@@ -41,10 +41,10 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
         const data = await res.json();
         const places = data.places || [];
 
-        return places.map((p: any) => {
+        return places.map((p: unknown) => {
             const components = p.addressComponents || [];
-            const city = components.find((c: any) => c.types?.includes('administrative_area_level_2'))?.longText;
-            const state = components.find((c: any) => c.types?.includes('administrative_area_level_1'))?.shortText;
+            const city = components.find((c: unknown) => c.types?.includes('administrative_area_level_2'))?.longText;
+            const state = components.find((c: unknown) => c.types?.includes('administrative_area_level_1'))?.shortText;
             return {
                 tradeName: p.displayName?.text || 'Empresa sem nome',
                 address: p.formattedAddress,
@@ -70,7 +70,7 @@ export interface PlaceSearchResult {
     userRatingCount?: number;
     nationalPhoneNumber?: string;
     websiteUri?: string;
-    businessHours?: any;
+    businessHours?: unknown;
     error?: string;
 }
 

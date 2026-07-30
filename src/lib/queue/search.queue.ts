@@ -42,7 +42,7 @@ export const createSearchWorker = () => {
             }
 
             return { success: true, processedAt: new Date().toISOString() };
-        } catch (error: any) {
+        } catch (error: unknown) {
             logger.error({ err: error }, 'Error during search indexing');
             throw error;
         }
