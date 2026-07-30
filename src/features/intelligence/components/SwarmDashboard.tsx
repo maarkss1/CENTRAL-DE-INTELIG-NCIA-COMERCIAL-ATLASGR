@@ -24,44 +24,70 @@ export function SwarmDashboard() {
         setMessages([]);
 
         try {
-            // Chamada Real ao Backend LangGraph
-            const response = await api.post<{ messages: string[] }>('/api/agent/swarm/mission', { mission });
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/agent/swarm/stream', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ mission })
+            });
             
-            if (response && response.messages) {
-                const apiMessages: string[] = response.messages;
-                
-                const steps = apiMessages.map((msgStr, index) => {
-                    let agent = 'supervisor';
-                    if (msgStr.includes('[SDR Result]')) agent = 'sdr';
-                    else if (msgStr.includes('[BDR Result]')) agent = 'bdr';
-                    else if (msgStr.includes('[CRM Result]')) agent = 'crm';
-                    
-                    return { agent, text: msgStr, delay: (index + 1) * 2000 };
-                });
-
-                steps.forEach((step, index) => {
-                    setTimeout(() => {
-                        setMessages(prev => {
-                            const newMsg: SwarmMessage = {
-                                id: Math.random().toString(),
-                                agent: step.agent as any,
-                                text: step.text,
-                                timestamp: new Date(),
-                                status: 'done'
-                            };
-                            return [...prev, newMsg];
-                        });
-
-                        if (index === steps.length - 1) {
-                            setIsExecuting(false);
-                        }
-                    }, step.delay);
-                });
-            } else {
-                setIsExecuting(false);
+            if (!response.ok) {
+                throw new Error('Falha ao iniciar streaming');
             }
+            
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Stream não suportado');
+            
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+            
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                if (value) {
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.substring(6).trim();
+                            if (dataStr === '{}' || !dataStr) continue;
+                            
+                            try {
+                                const msgStr = JSON.parse(dataStr);
+                                if (typeof msgStr === 'string') {
+                                    let agent = 'supervisor';
+                                    if (msgStr.includes('[SDR Result]')) agent = 'sdr';
+                                    else if (msgStr.includes('[BDR Result]')) agent = 'bdr';
+                                    else if (msgStr.includes('[CRM Result]')) agent = 'crm';
+                                    
+                                    setMessages(prev => [
+                                        ...prev,
+                                        {
+                                            id: Math.random().toString(),
+                                            agent: agent as any,
+                                            text: msgStr,
+                                            timestamp: new Date(),
+                                            status: 'done'
+                                        }
+                                    ]);
+                                }
+                            } catch (e) {
+                                console.error('Erro ao fazer parse SSE data', e);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            setIsExecuting(false);
         } catch (error) {
-            console.error('Falha ao executar Enxame:', error);
+            console.error('Falha ao executar Enxame via Stream:', error);
             setIsExecuting(false);
         }
     };

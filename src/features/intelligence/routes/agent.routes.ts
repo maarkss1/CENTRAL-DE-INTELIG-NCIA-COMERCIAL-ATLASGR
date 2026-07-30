@@ -130,6 +130,33 @@ router.post('/swarm/mission', async (req, res, next) => {
     }
 });
 
+router.post('/swarm/stream', async (req, res, next) => {
+    try {
+        const { mission, sessionId } = req.body;
+        if (!mission) throw new Error('A missão é obrigatória.');
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const swarm = new SwarmOrchestrator();
+        
+        await swarm.executeMissionStream(mission, sessionId, (chunk) => {
+            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        });
+
+        res.write('event: end\ndata: {}\n\n');
+        res.end();
+    } catch (err) {
+        if (!res.headersSent) {
+            next(err);
+        } else {
+            res.write(`event: error\ndata: ${JSON.stringify(err.message)}\n\n`);
+            res.end();
+        }
+    }
+});
+
 router.post('/swarm/learn', async (req, res, next) => {
     try {
         const { userId, organizationId } = req.body;

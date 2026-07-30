@@ -95,4 +95,30 @@ export class SwarmOrchestrator {
             throw error;
         }
     }
+
+    async executeMissionStream(mission: string, sessionId: string, onChunk: (content: string) => void) {
+        const sid = sessionId || `swarm-mission-${Date.now()}`;
+        const config = { configurable: { thread_id: sid } };
+
+        try {
+            const stream = await swarmApp.stream(
+                { messages: [new HumanMessage(mission)] },
+                config
+            );
+            
+            for await (const chunk of stream) {
+                const nodeName = Object.keys(chunk)[0];
+                if (nodeName && chunk[nodeName] && chunk[nodeName].messages) {
+                    const msgs = chunk[nodeName].messages;
+                    if (msgs && msgs.length > 0) {
+                        const lastMsg = msgs[msgs.length - 1];
+                        onChunk(lastMsg.content as string);
+                    }
+                }
+            }
+        } catch (error) {
+            logger.error({ err: error, sessionId: sid }, 'Swarm stream execution failed');
+            throw error;
+        }
+    }
 }
