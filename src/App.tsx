@@ -27,6 +27,8 @@ const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHu
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
+const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
+const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
 
 function PageFallback() {
   return (
@@ -90,7 +92,10 @@ export default function App() {
           <ClickSpark />
           <Suspense fallback={<PageFallback />}>
             <Routes>
-              <Route path="/login" element={<Navigate to="/app" replace />} />
+              <Route path="/" element={<Navigate to="/welcome" replace />} />
+              <Route path="/welcome" element={<WelcomeScreen />} />
+              <Route path="/select-brand" element={<SelectionScreen />} />
+              <Route path="/login" element={<Navigate to="/welcome" replace />} />
               <Route
                 path="/app/*"
                 element={
@@ -101,7 +106,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="*" element={<Navigate to="/app" replace />} />
+              <Route path="*" element={<Navigate to="/welcome" replace />} />
             </Routes>
           </Suspense>
         </AuthProvider>

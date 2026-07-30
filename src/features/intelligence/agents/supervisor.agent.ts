@@ -32,21 +32,21 @@ async function sdrNode(state: typeof MessagesAnnotation.State) {
     // Assuming the last message is the instruction
     const lastMsg = state.messages[state.messages.length - 1];
     const result = await agent.run(lastMsg.content as string, 'swarm-sdr'); // Hardcoded session for swarm context
-    return { messages: [{ role: 'assistant', content: `[SDR Result] Sucesso: ${result.success}` }] };
+    return { messages: [{ role: 'assistant', content: `[SDR Result]\n${result.detailedLog}` }] };
 }
 
 async function bdrNode(state: typeof MessagesAnnotation.State) {
     const agent = new BDRAgent();
     const lastMsg = state.messages[state.messages.length - 1];
     const result = await agent.run(lastMsg.content as string, 'swarm-bdr');
-    return { messages: [{ role: 'assistant', content: `[BDR Result] Qualificação: ${result.qualification}` }] };
+    return { messages: [{ role: 'assistant', content: `[BDR Result]\n${result.qualification}` }] };
 }
 
 async function crmNode(state: typeof MessagesAnnotation.State) {
     const agent = new CRMAgent();
     const lastMsg = state.messages[state.messages.length - 1];
     const result = await agent.run(lastMsg.content as string, 'swarm-crm');
-    return { messages: [{ role: 'assistant', content: `[CRM Result] Ação: ${result.action}` }] };
+    return { messages: [{ role: 'assistant', content: `[CRM Result]\n${result.action}` }] };
 }
 
 function routerCondition(state: typeof MessagesAnnotation.State) {

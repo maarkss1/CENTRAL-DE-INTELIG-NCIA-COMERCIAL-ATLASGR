@@ -123,7 +123,10 @@ export class SDRAgent {
             toolCalls: m.tool_calls ? JSON.stringify(m.tool_calls) : undefined,
         })));
 
-        return { success: true, sessionId: sid };
+        const lastMessage = messages[messages.length - 1];
+        const detailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
+
+        return { success: true, sessionId: sid, detailedLog: detailedContent };
     }
 
     private async updateMemory(sessionId: string, messages: any[]) {

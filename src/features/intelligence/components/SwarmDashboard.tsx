@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, ShieldAlert, Database, Loader2, Send } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 
+import { api } from '../../../lib/api';
+
 interface SwarmMessage {
     id: string;
     agent: 'supervisor' | 'sdr' | 'bdr' | 'crm';
@@ -16,77 +18,52 @@ export function SwarmDashboard() {
     const [isExecuting, setIsExecuting] = useState(false);
     const [messages, setMessages] = useState<SwarmMessage[]>([]);
 
-    const runSimulation = () => {
+    const runSimulation = async () => {
         if (!mission.trim()) return;
         setIsExecuting(true);
         setMessages([]);
 
-        const isB2bSearch = mission.toLowerCase().includes('transportadora') || mission.toLowerCase().includes('cliente') || mission.toLowerCase().includes('script');
-
-        const defaultSteps = [
-            { agent: 'supervisor', text: 'Analisando a complexidade da missão e roteando...', delay: 300 },
-            { agent: 'supervisor', text: '[ROUTING] Missão requer qualificação profunda. Acionando SDR Autônomo.', delay: 800 },
-            { agent: 'sdr', text: 'Analisando ICP e histórico vetorial (RAG). Fit alto detectado.', delay: 1400 },
-            { agent: 'sdr', text: '[SDR Result] Sucesso: Lead Qualificado (Score 92/100).', delay: 1900 },
-            { agent: 'supervisor', text: 'Recebi a qualificação. Direcionando ao BDR para pesquisa Multimodal e Quebra-Gelo.', delay: 2400 },
-            { agent: 'bdr', text: 'Rodando DeepResearch... Encontrei sinal de compra em notícias locais.', delay: 2900 },
-            { agent: 'bdr', text: '[BDR Result] Quebra-gelo gerado: "Vi que expandiram a frota no RS recentemente. Parabéns!"', delay: 3400 },
-            { agent: 'supervisor', text: 'Missão completa. Atualizando CRM e finalizando Enxame.', delay: 3800 },
-        ];
-
-        const enrichedB2bSteps = [
-            { agent: 'supervisor', text: 'Analisando pedido de mineração B2B e orquestrando agentes de inteligência de dados...', delay: 400 },
-            { agent: 'supervisor', text: '[ROUTING] Invocando DeepResearchService para extração profunda no setor de Transportes e Logística.', delay: 1200 },
-            { agent: 'sdr', text: 'Varrendo bases Apollo e LinkedIn. Identifiquei 2 contas-alvo ideais (Fit ICP: Alto).', delay: 2500 },
-            { agent: 'sdr', text: `[SDR Result] CONTA 1 ENCONTRADA:
-🏢 Empresa: TransLogística Brasil
-📍 Ramo: Transporte Rodoviário de Cargas (CNAE 4930-2)
-🎯 Fit: 95/100 (Frota de 120 veículos)
-👤 Decisor Principal: Roberto Carlos (Diretor de Logística)
-🔗 LinkedIn: linkedin.com/in/roberto-translog
-📧 Email Corporativo: roberto.carlos@translogbrasil.com.br
-📱 Celular/WhatsApp: +55 (11) 98877-6655`, delay: 4000 },
-            { agent: 'sdr', text: `[SDR Result] CONTA 2 ENCONTRADA:
-🏢 Empresa: Expresso Rápido Sul
-📍 Ramo: Logística e Distribuição (Frio)
-🎯 Fit: 88/100 (Expansão recente)
-👤 Decisor Principal: Mariana Torres (Gerente de Frota)
-🔗 LinkedIn: linkedin.com/in/mariana-torres-frota
-📧 Email Corporativo: m.torres@expressosul.com
-📱 Celular/WhatsApp: +55 (51) 99122-3344`, delay: 5500 },
-            { agent: 'supervisor', text: '[ROUTING] Dados enriquecidos com sucesso. Direcionando BDR para criar roteiros de abordagem hiper-personalizados.', delay: 6500 },
-            { agent: 'bdr', text: 'Minerando notícias e elaborando quebra-gelo Multimodal...', delay: 7800 },
-            { agent: 'bdr', text: `[BDR Result] SCRIPT DE LIGAÇÃO (Cold Call - TransLogística):
-"Olá Roberto, aqui é da Atlas. Vi que vocês operam mais de 120 veículos no eixo SP-RJ. Sei que o custo de manutenção preventiva tem subido muito. Nós ajudamos transportadoras do mesmo porte a reduzir 15% desses custos com nossa IA de telemetria. Tem 2 minutos para eu te explicar como?"`, delay: 9500 },
-            { agent: 'bdr', text: `[BDR Result] SCRIPT DE EMAIL (Cold Email - Expresso Rápido Sul):
-Assunto: Escalonamento da frota frigorífica na Expresso Sul
-"Oi Mariana, parabéns pela recente expansão da filial no sul! 
-Notei que com o aumento da frota fria, o controle de perdas no trajeto fica mais complexo. A Atlas já resolve isso para a LogFrio usando IA e telemetria preditiva. 
-Faz sentido batermos um papo rápido na terça-feira?"`, delay: 11000 },
-            { agent: 'crm', text: 'Salvando Leads enriquecidos e Scripts no Pipeline do CRM. Status: "Prospecting".', delay: 12000 },
-            { agent: 'supervisor', text: 'Missão concluída. Automação B2B finalizada.', delay: 12500 }
-        ];
-
-        const steps = isB2bSearch ? enrichedB2bSteps : defaultSteps;
-
-        steps.forEach((step, index) => {
-            setTimeout(() => {
-                setMessages(prev => {
-                    const newMsg: SwarmMessage = {
-                        id: Math.random().toString(),
-                        agent: step.agent as any,
-                        text: step.text,
-                        timestamp: new Date(),
-                        status: 'done'
-                    };
-                    return [...prev, newMsg];
+        try {
+            // Chamada Real ao Backend LangGraph
+            const response = await api.post('/api/agent/swarm/mission', { mission });
+            
+            if (response.data && response.data.messages) {
+                const apiMessages: string[] = response.data.messages;
+                
+                const steps = apiMessages.map((msgStr, index) => {
+                    let agent = 'supervisor';
+                    if (msgStr.includes('[SDR Result]')) agent = 'sdr';
+                    else if (msgStr.includes('[BDR Result]')) agent = 'bdr';
+                    else if (msgStr.includes('[CRM Result]')) agent = 'crm';
+                    
+                    return { agent, text: msgStr, delay: (index + 1) * 2000 };
                 });
 
-                if (index === steps.length - 1) {
-                    setIsExecuting(false);
-                }
-            }, step.delay);
-        });
+                steps.forEach((step, index) => {
+                    setTimeout(() => {
+                        setMessages(prev => {
+                            const newMsg: SwarmMessage = {
+                                id: Math.random().toString(),
+                                agent: step.agent as any,
+                                text: step.text,
+                                timestamp: new Date(),
+                                status: 'done'
+                            };
+                            return [...prev, newMsg];
+                        });
+
+                        if (index === steps.length - 1) {
+                            setIsExecuting(false);
+                        }
+                    }, step.delay);
+                });
+            } else {
+                setIsExecuting(false);
+            }
+        } catch (error) {
+            console.error('Falha ao executar Enxame:', error);
+            setIsExecuting(false);
+        }
     };
 
     const getAgentIcon = (agent: string) => {
