@@ -3,6 +3,8 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/prospector"
+
 # Install dependencies needed for node-gyp, bcrypt, Prisma, etc.
 RUN apk add --no-cache python3 make g++ openssl
 
