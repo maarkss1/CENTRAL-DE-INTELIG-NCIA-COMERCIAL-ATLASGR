@@ -62,8 +62,9 @@ export function WelcomeScreen() {
           className="flex items-center gap-6 mb-12"
         >
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-atlas-orange via-amber-500 to-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-atlas-orange/20 mb-3 border border-white/10 backdrop-blur-xl">
-              <Globe className="w-10 h-10 text-white" />
+            <div className="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center shadow-xl shadow-atlas-orange/20 mb-3 border border-white/10 backdrop-blur-xl overflow-hidden p-2">
+              <img src="/atlasgr-logo.png" alt="AtlasGR" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling!.style.display = 'block'; }} />
+              <Globe className="w-10 h-10 text-atlas-orange hidden" />
             </div>
             <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
               AtlasGR
@@ -73,8 +74,8 @@ export function WelcomeScreen() {
           <div className="h-12 w-px bg-white/20 mx-4"></div>
 
           <div className="flex flex-col items-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-sky-400 rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20 mb-3 border border-white/10 backdrop-blur-xl">
-              <Target className="w-10 h-10 text-white" />
+            <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-blue-500/20 mb-3 border border-white/10 backdrop-blur-xl overflow-hidden p-2">
+              <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain" />
             </div>
             <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
               Total Track
@@ -90,10 +91,10 @@ export function WelcomeScreen() {
           className="mb-14 relative"
         >
           <div className="absolute -inset-1 bg-gradient-to-r from-atlas-orange via-indigo-500 to-blue-500 rounded-3xl blur-2xl opacity-20"></div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight tracking-tight relative z-10">
-            A sua mais nova <br className="hidden md:block" />
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight relative z-10">
+            A sua nova <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-amber-400">
-              inteligência artificial
+              inteligência comercial
             </span>.
           </h1>
           <p className="mt-6 text-lg md:text-xl text-gray-400 font-medium max-w-2xl mx-auto leading-relaxed">
