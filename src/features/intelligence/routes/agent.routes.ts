@@ -113,4 +113,33 @@ router.post('/groq', validateRequest(conversationRequestSchema), conversationHan
 router.post('/roleplay', validateRequest(conversationRequestSchema), conversationHandler('roleplay'));
 router.post('/qualification', validateRequest(conversationRequestSchema), conversationHandler('qualification'));
 
+// --- SWARM & CONTINUOUS LEARNING ENDPOINTS ---
+import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
+import { LearningAgent } from '../agents/learning.agent.js';
+
+router.post('/swarm/mission', async (req, res, next) => {
+    try {
+        const { mission, sessionId } = req.body;
+        if (!mission) throw new Error('A missão é obrigatória.');
+        const swarm = new SwarmOrchestrator();
+        const result = await swarm.executeMission(mission, sessionId);
+        // Retorna a última mensagem ou todo o contexto
+        res.json({ success: true, messages: result.map(m => m.content) });
+    } catch (err) {
+        next(err);
+    }
+});
+
+router.post('/swarm/learn', async (req, res, next) => {
+    try {
+        const { userId, organizationId } = req.body;
+        if (!userId || !organizationId) throw new Error('userId e organizationId são obrigatórios.');
+        const learningAgent = new LearningAgent();
+        const guidelines = await learningAgent.reflectAndLearn(userId, organizationId);
+        res.json({ success: true, learnedGuidelines: guidelines || 'Sem ações recentes suficientes para aprender.' });
+    } catch (err) {
+        next(err);
+    }
+});
+
 export const agentRoutes = router;
