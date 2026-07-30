@@ -10,142 +10,213 @@ const callModel = async (systemPrompt: string, userPrompt: string, model: string
     return result.content;
 };
 
+// Helper for strict JSON outputs
+const callModelJson = async <T>(systemPrompt: string, userPrompt: string, model: string = 'gemini-flash'): Promise<T> => {
+    const aiModel = getAiModel(model);
+    const result = await aiModel.invoke([
+        new SystemMessage(`${systemPrompt}\n\nRespond strictly in JSON format without markdown blocks or code formatting.`),
+        new HumanMessage(userPrompt),
+    ]);
+
+    let content = result.content.trim();
+    // In case the model still outputs markdown json block
+    if (content.startsWith('```json')) {
+        content = content.replace(/^```json/, '').replace(/```$/, '').trim();
+    } else if (content.startsWith('```')) {
+        content = content.replace(/^```/, '').replace(/```$/, '').trim();
+    }
+
+    try {
+        return JSON.parse(content) as T;
+    } catch {
+        throw new Error(`Failed to parse AI JSON response: ${content}`);
+    }
+};
+
+// --- Interfaces ---
+export interface SentimentResult {
+    sentiment: 'Positivo' | 'Negativo' | 'Neutro';
+    confidence: number;
+}
+
+export interface KeywordResult {
+    keywords: string[];
+}
+
+export interface CategorizationResult {
+    industry: string;
+    segment: string;
+    reasoning: string;
+}
+
+export interface ActionItemsResult {
+    actionItems: Array<{ task: string; owner?: string; deadline?: string }>;
+}
+
+export interface TranslationResult {
+    translatedText: string;
+}
+
+// --- Heavy/Reasoning Tasks (gemini-pro) ---
+
 export const summarizeLead = async (leadData: string) => {
     return callModel(
-        'Você é um assistente de CRM de logística B2B especializado em resumir perfis de leads.',
-        `Resuma as seguintes informações do lead, focando em oportunidades de negócios e logística:\n${leadData}`
+        'Você é um assistente da AtlasGR especializado em resumir perfis de leads no mercado B2B.',
+        `Resuma as seguintes informações do lead de forma estratégica, focando em oportunidades de negócios e logística corporativa:\n${leadData}`,
+        'gemini-pro'
     );
 };
 
 export const generateEmailDraft = async (context: string, goal: string) => {
     return callModel(
-        'Você é um assistente de CRM de logística B2B especializado em escrever e-mails profissionais.',
-        `Escreva um rascunho de e-mail profissional com base neste contexto:\nContexto: ${context}\nObjetivo: ${goal}`
-    );
-};
-
-export const analyzeSentiment = async (text: string) => {
-    return callModel(
-        'Você é um assistente de CRM B2B. Analise o sentimento do texto a seguir.',
-        `Qual o sentimento (Positivo, Negativo, Neutro) deste texto?\nTexto: ${text}`
-    );
-};
-
-export const extractKeywords = async (text: string) => {
-    return callModel(
-        'Você é um assistente de CRM B2B. Extraia as palavras-chave mais relevantes.',
-        `Extraia as palavras-chave principais do texto abaixo, separadas por vírgula:\nTexto: ${text}`
-    );
-};
-
-export const categorizeLead = async (leadDescription: string) => {
-    return callModel(
-        'Você é um assistente de CRM especializado em logística B2B.',
-        `Com base nesta descrição, em qual indústria/segmento este lead se enquadra melhor?\nDescrição: ${leadDescription}`
+        'Você é um SDR experiente da AtlasGR, especializado em escrever e-mails frios e follow-ups persuasivos B2B.',
+        `Escreva um e-mail profissional com foco em alta taxa de resposta.\nContexto: ${context}\nObjetivo: ${goal}`,
+        'gemini-pro'
     );
 };
 
 export const predictConversionScore = async (leadData: string) => {
     return callModel(
-        'Você é um analista de dados de CRM experiente em logística B2B.',
-        `Avalie os dados deste lead e forneça uma estimativa de probabilidade de conversão de 0 a 100, junto com uma breve justificativa.\nDados: ${leadData}`
+        'Você é um Analista de RevOps avançado da AtlasGR.',
+        `Avalie os dados qualitativos deste lead B2B e forneça uma estimativa de probabilidade de conversão (0 a 100%). Justifique criticamente apontando sinais vitais de compra.\nDados: ${leadData}`,
+        'gemini-pro'
     );
 };
 
 export const generateMeetingAgenda = async (topic: string, duration: string) => {
     return callModel(
-        'Você é um assistente de vendas de logística B2B.',
-        `Gere uma pauta estruturada para uma reunião com os seguintes detalhes:\nTópico: ${topic}\nDuração: ${duration}`
+        'Você é um Consultor de Vendas Enterprise da AtlasGR.',
+        `Gere uma pauta (agenda) estruturada, orientada a fechamento e discovery, para uma reunião B2B com os seguintes detalhes:\nTópico: ${topic}\nDuração: ${duration}`,
+        'gemini-pro'
     );
 };
 
 export const draftFollowUp = async (previousInteraction: string) => {
     return callModel(
-        'Você é um especialista em vendas B2B focado em follow-up eficaz.',
-        `Crie uma mensagem de follow-up concisa baseada na interação anterior:\nInteração Anterior: ${previousInteraction}`
+        'Você é um especialista em vendas B2B focado em cadências de follow-up que geram engajamento.',
+        `Crie uma mensagem de follow-up engajadora (sem soar insistente demais) baseada na interação anterior:\nInteração Anterior: ${previousInteraction}`,
+        'gemini-pro'
     );
 };
 
 export const scoreLeadQuality = async (leadData: string) => {
     return callModel(
-        'Você é um especialista em qualificação de leads B2B (logística).',
-        `Classifique a qualidade do lead (Fria, Morna, Quente) e explique por que, com base nos dados:\n${leadData}`
-    );
-};
-
-export const translateText = async (text: string, targetLanguage: string) => {
-    return callModel(
-        `Você é um tradutor fluente em ${targetLanguage}.`,
-        `Traduza o seguinte texto para ${targetLanguage}:\n${text}`
+        'Você é um Diretor de Vendas B2B responsável por qualificação rigorosa (BANT/SPIN).',
+        `Classifique a maturidade do lead (Fria, Morna, Quente) detalhando objetivamente por que essa classificação foi dada com base nos dados:\n${leadData}`,
+        'gemini-pro'
     );
 };
 
 export const suggestNextAction = async (leadStatus: string, recentHistory: string) => {
     return callModel(
-        'Você é um consultor de vendas de logística B2B.',
-        `Sugira a melhor próxima ação para este lead:\nStatus: ${leadStatus}\nHistórico Recente: ${recentHistory}`
+        'Você é um mentor de Inside Sales B2B.',
+        `Com base no status do lead e no histórico recente de touchpoints, sugira a próxima ação tática mais provável de gerar avanço no funil:\nStatus: ${leadStatus}\nHistórico: ${recentHistory}`,
+        'gemini-pro'
     );
 };
 
 export const generateObjectionHandling = async (objection: string) => {
     return callModel(
-        'Você é um negociador experiente em vendas B2B (logística).',
-        `Forneça argumentos fortes e respostas para lidar com esta objeção do cliente:\nObjeção: ${objection}`
+        'Você é um treinador de objeções de vendas complexas (logística/tecnologia B2B).',
+        `O prospect levantou a seguinte objeção. Forneça 3 estratégias de contorno (Reframe, Pivot, Case Study) para superá-la:\nObjeção: ${objection}`,
+        'gemini-pro'
     );
 };
 
 export const analyzeCompetitors = async (companyDescription: string) => {
     return callModel(
-        'Você é um analista de inteligência de mercado no setor de logística.',
-        `Liste possíveis concorrentes diretos ou alternativas de mercado baseados na descrição da empresa:\n${companyDescription}`
+        'Você é um Inteligência de Mercado B2B (Competitive Intelligence).',
+        `A partir da descrição desta empresa, deduz e liste quem seriam seus 5 prováveis concorrentes diretos no mercado (seja global ou LATAM):\n${companyDescription}`,
+        'gemini-pro'
     );
 };
 
 export const generateElevatorPitch = async (productDetails: string) => {
     return callModel(
-        'Você é um executivo de vendas de alto desempenho em logística.',
-        `Crie um 'elevator pitch' convincente de 30 segundos para o seguinte produto/serviço:\n${productDetails}`
+        'Você é um Copywriter de Vendas Enterprise.',
+        `Crie um 'elevator pitch' magnético de no máximo 30 segundos (em formato de texto) destacando o ROI para este produto/serviço:\n${productDetails}`,
+        'gemini-pro'
     );
 };
 
 export const identifyPainPoints = async (customerFeedback: string) => {
     return callModel(
-        'Você é um especialista em experiência do cliente de logística.',
-        `Identifique as principais dores (pain points) relatadas neste feedback do cliente:\n${customerFeedback}`
+        'Você é um especialista em CS (Customer Success) e Discovery de vendas B2B.',
+        `Mapeie e liste de forma acionável as dores primárias (pain points) explícitas e implícitas contidas neste feedback/ata de reunião:\n${customerFeedback}`,
+        'gemini-pro'
     );
 };
 
 export const createColdCallScript = async (targetAudience: string, valueProposition: string) => {
     return callModel(
-        'Você é um SDR de logística B2B.',
-        `Crie um script de cold call curto e eficaz para o seguinte público, enfatizando o valor:\nPúblico: ${targetAudience}\nProposta de Valor: ${valueProposition}`
+        'Você é um SDR Outbound de alta conversão.',
+        `Crie um script de Cold Call B2B (abertura, quebra-gelo, pitch de 15s e call-to-action) voltado para este cenário:\nPúblico-alvo: ${targetAudience}\nProposta de Valor: ${valueProposition}`,
+        'gemini-pro'
     );
 };
 
 export const summarizeMeetingNotes = async (transcript: string) => {
     return callModel(
-        'Você é um assistente executivo.',
-        `Crie um resumo claro e conciso desta transcrição de reunião:\n${transcript}`
+        'Você é um BDR focado em documentação de CRM.',
+        `Transforme a transcrição desta reunião de vendas B2B em um resumo executivo com os principais tópicos discutidos:\n${transcript}`,
+        'gemini-pro'
     );
 };
 
 export const generateLinkedInMessage = async (prospectProfile: string, purpose: string) => {
     return callModel(
-        'Você é um especialista em social selling B2B.',
-        `Escreva uma mensagem de conexão no LinkedIn (máx. 300 caracteres) com base no perfil e objetivo:\nPerfil: ${prospectProfile}\nObjetivo: ${purpose}`
-    );
-};
-
-export const extractActionItems = async (transcript: string) => {
-    return callModel(
-        'Você é um gerente de projetos focado em execução.',
-        `Extraia uma lista de itens de ação (action items) com responsáveis, se mencionado, a partir desta transcrição:\n${transcript}`
+        'Você é um estrategista de Social Selling no LinkedIn.',
+        `Escreva uma mensagem de conexão hyper-personalizada (limite 300 caracteres) focada em conversão silenciosa:\nPerfil: ${prospectProfile}\nObjetivo: ${purpose}`,
+        'gemini-pro'
     );
 };
 
 export const evaluateDealRisk = async (dealDetails: string) => {
     return callModel(
-        'Você é um diretor de vendas responsável por gerenciar pipeline B2B.',
-        `Avalie o nível de risco (Baixo, Médio, Alto) deste negócio e aponte os fatores críticos:\n${dealDetails}`
+        'Você é um Gerente de Pipeline de Vendas B2B (Deal Desk).',
+        `Analise os sinais presentes nesta negociação, determine o Risco (Baixo, Médio, Alto) e aponte os buracos que o vendedor deixou abertos:\n${dealDetails}`,
+        'gemini-pro'
+    );
+};
+
+// --- Fast Extraction / JSON Tasks (gemini-flash) ---
+
+export const analyzeSentiment = async (text: string): Promise<SentimentResult> => {
+    return callModelJson<SentimentResult>(
+        'Você é um sistema de análise de sentimentos NLP. Output no formato JSON: { "sentiment": "Positivo" | "Negativo" | "Neutro", "confidence": number }.',
+        `Analise o texto: "${text}"`,
+        'gemini-flash'
+    );
+};
+
+export const extractKeywords = async (text: string): Promise<KeywordResult> => {
+    return callModelJson<KeywordResult>(
+        'Você é um extrator de Named Entity Recognition. Extraia palavras-chave e tópicos comerciais B2B do texto. Output no formato JSON: { "keywords": ["string"] }.',
+        `Texto: "${text}"`,
+        'gemini-flash'
+    );
+};
+
+export const categorizeLead = async (leadDescription: string): Promise<CategorizationResult> => {
+    return callModelJson<CategorizationResult>(
+        'Você é um classificador de verticais de mercado B2B. Output no formato JSON: { "industry": "string", "segment": "string", "reasoning": "string" }.',
+        `Descrição da empresa: "${leadDescription}"`,
+        'gemini-flash'
+    );
+};
+
+export const translateText = async (text: string, targetLanguage: string): Promise<TranslationResult> => {
+    return callModelJson<TranslationResult>(
+        `Você é um tradutor API preciso. Output no formato JSON: { "translatedText": "string" }. Traduza para ${targetLanguage}.`,
+        `Texto original: "${text}"`,
+        'gemini-flash'
+    );
+};
+
+export const extractActionItems = async (transcript: string): Promise<ActionItemsResult> => {
+    return callModelJson<ActionItemsResult>(
+        'Você é um extrator de Next Steps (Action Items). Output no formato JSON: { "actionItems": [{ "task": "string", "owner": "string opcional", "deadline": "string opcional" }] }.',
+        `Transcrição ou Ata: "${transcript}"`,
+        'gemini-flash'
     );
 };

@@ -135,12 +135,12 @@ router.get('/search', async (req: Request, res: Response, next: NextFunction): P
     }
 });
 
-// Rotas para AIPendingActions
+// Rotas para aIPendingActions
 router.get('/pending', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingActions = await db.AIPendingAction.findMany({
+        const pendingActions = await db.aIPendingAction.findMany({
             where: {
                 approved: false,
                 organizationId: authRequest.user.organizationId,
@@ -159,7 +159,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
         const { id } = req.params;
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.AIPendingAction.findFirst({
+        const pendingAction = await db.aIPendingAction.findFirst({
             where: { id, organizationId: authRequest.user.organizationId, approved: false },
         });
         if (!pendingAction) {
@@ -167,7 +167,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
             return;
         }
         
-        const action = await db.AIPendingAction.update({
+        const action = await db.aIPendingAction.update({
             where: { id },
             data: { approved: true }
         });
@@ -185,7 +185,7 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.AIPendingAction.findFirst({
+        const pendingAction = await db.aIPendingAction.findFirst({
             where: {
                 id: req.params.id,
                 organizationId: authRequest.user.organizationId,
@@ -196,7 +196,7 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
         }
-        await db.AIPendingAction.delete({ where: { id: pendingAction.id } });
+        await db.aIPendingAction.delete({ where: { id: pendingAction.id } });
         res.status(204).send();
     } catch (error) {
         logger.error({ err: error }, 'Error discarding pending AI action');
