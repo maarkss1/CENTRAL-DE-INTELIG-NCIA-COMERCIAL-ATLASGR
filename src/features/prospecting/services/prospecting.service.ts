@@ -390,20 +390,21 @@ export async function promoteToCrm(input: PromoteInput) {
             enrichment: enrichmentResult,
         };
     } catch {
-        // In-memory fallback when DB is offline
+        // In-memory fallback when DB is offline — todos os dados abaixo são placeholder
+        // de demonstração. O CNPJ nunca é inventado: fica null até o usuário enriquecer.
         const mockCompany = {
             id: `comp-${Date.now()}`,
             legalName: input.legalName || input.tradeName,
             tradeName: input.tradeName,
-            cnpj: input.cnpj || '12.345.678/0001-99',
+            cnpj: null, // Não inventamos CNPJ — campo null até enriquecimento real
             segment: input.segment || 'Transporte & Logística',
             size: input.size || 'Média',
             city,
             state,
-            phones: input.phone ? [input.phone] : ['(11) 3000-0000'],
-            emails: ['contato@empresa.com.br'],
+            phones: input.phone ? [input.phone] : [],
+            emails: [],
             status: 'Ativo' as const,
-            tags: ['Prospecção'],
+            tags: ['Prospecção', 'Offline-Demo'],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };

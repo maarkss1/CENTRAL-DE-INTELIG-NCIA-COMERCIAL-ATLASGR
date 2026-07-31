@@ -409,6 +409,18 @@ export interface ApolloContact {
     linkedin_url: string | null;
 }
 
+/** Shape do objeto pessoa retornado pela Apollo People Search / People Match API. */
+interface ApolloPersonRaw {
+    first_name?: string;
+    last_name?: string;
+    title?: string;
+    email?: string;
+    email_url?: string;
+    phone_numbers?: Array<{ raw_number?: string }>;
+    sanitized_phone?: string;
+    linkedin_url?: string;
+}
+
 /** Detecta o erro específico de plano/escopo insuficiente que a Apollo devolve para People Search. */
 function parsePlanRestriction(status: number, rawBody: string): boolean {
     if (status !== 403) return false;
@@ -461,10 +473,9 @@ export async function enrichOrganizationWithContacts(
         }
 
         const data = await res.json();
-        const people = data.people || data.contacts || [];
+        const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const contacts: ApolloContact[] = people.map((p: any) => ({
+        const contacts: ApolloContact[] = people.map((p) => ({
             name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sem Nome',
             title: p.title || null,
             email: p.email || p.email_url || null,
@@ -552,11 +563,10 @@ export async function searchDecisionMakersAdvanced(
         }
 
         const data = await res.json();
-        const people = data.people || data.contacts || [];
+        const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
         const contacts: DecisionMaker[] = await Promise.all(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            people.map(async (p: any): Promise<DecisionMaker> => {
+            people.map(async (p): Promise<DecisionMaker> => {
                 let email = p.email || p.email_url || null;
                 let emailSource: DecisionMaker['emailSource'] = email ? 'apollo' : undefined;
                 

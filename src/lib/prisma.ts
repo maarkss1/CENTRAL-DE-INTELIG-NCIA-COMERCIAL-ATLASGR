@@ -17,9 +17,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
 });
 
-// Error handling for idle clients
+// Error handling for idle clients — usa logger estruturado (não console.error) para aparecer no Pino/Datadog.
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+  logger.error({ err }, 'Unexpected error on idle database client');
 });
 
 const adapter = new PrismaPg(pool);

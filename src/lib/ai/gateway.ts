@@ -479,6 +479,7 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
         return embedding as number[];
     });
 };
+
 export interface AiUsageLogInput {
     model: string;
     usage: AiTokenUsage;
