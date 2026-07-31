@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
 export function SelectionScreen() {
-  const [selectedBrand, setSelectedBrand] = useState<'atlasgr' | 'totaltrac' | null>(null);
 
   const handleSelect = (brand: 'atlasgr' | 'totaltrac') => {
     localStorage.setItem('selectedBrand', brand);

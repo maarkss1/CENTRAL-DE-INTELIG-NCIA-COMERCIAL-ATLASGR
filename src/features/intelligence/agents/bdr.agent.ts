@@ -1,9 +1,9 @@
-import { BaseMessage, StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { BaseMessage, SystemMessage, HumanMessage, BaseMessage } from '@langchain/core/messages';
-import { BaseMessage, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { BaseMessage, prisma } from '../../../lib/prisma.js';
+import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
+import { BaseMessage, SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
-import { BaseMessage, logger } from '../../../lib/logger.js';
+import { logger } from '../../../lib/logger.js';
 
 /**
  * BDR (Business Development Rep) autônomo: Qualifica o fit outbound e rascunha a linha de abordagem.
@@ -54,7 +54,7 @@ export class BDRAgent {
         const lastMessage = messages[messages.length - 1];
 
         // Persistindo histórico
-        await this.updateMemory(sid, messages.map((m: BaseMessage) => ({
+        await this.updateMemory(sid, messages.map((m: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         })));

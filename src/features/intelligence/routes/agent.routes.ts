@@ -151,7 +151,7 @@ router.post('/swarm/stream', async (req, res, next) => {
         if (!res.headersSent) {
             next(err);
         } else {
-            res.write(`event: error\ndata: ${JSON.stringify(err.message)}\n\n`);
+            res.write(`event: error\ndata: ${JSON.stringify((err as Error).message)}\n\n`);
             res.end();
         }
     }

@@ -29,7 +29,7 @@ export class Bitrix24Adapter {
 
       return dealId;
     } catch (error) {
-      logger.error("[Bitrix24Adapter] Falha ao exportar Lead:", error);
+      logger.error({ err: error }, "[Bitrix24Adapter] Falha ao exportar Lead:");
       throw error;
     }
   }
