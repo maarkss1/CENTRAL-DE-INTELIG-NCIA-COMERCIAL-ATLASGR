@@ -55,7 +55,7 @@ export function SelectionScreen() {
             <div className="relative h-full glass-panel p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/60 backdrop-blur-xl flex flex-col items-center text-center overflow-hidden transition-all duration-500 group-hover:border-atlas-orange/50 group-hover:bg-slate-900/80">
               
               <div className="w-48 h-24 mb-6 flex items-center justify-center transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                <img src="https://www.atlasgr.com.br/wp-content/uploads/2021/03/atlas.svg" alt="AtlasGR" className="w-full h-full object-contain drop-shadow-2xl" />
+                <img src="/atlas-logo.svg" alt="AtlasGR" className="w-full h-full object-contain drop-shadow-2xl" />
               </div>
 
               <p className="text-sm text-gray-400 mb-8 leading-relaxed max-w-[250px] flex-grow">

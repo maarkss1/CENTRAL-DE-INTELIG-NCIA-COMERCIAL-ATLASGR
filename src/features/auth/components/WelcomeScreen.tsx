@@ -57,7 +57,7 @@ export function WelcomeScreen() {
         >
           <div className="flex flex-col items-center">
             <div className="w-48 h-20 mb-4 flex items-center justify-center">
-              <img src="https://www.atlasgr.com.br/wp-content/uploads/2021/03/atlas.svg" alt="AtlasGR" className="w-full h-full object-contain" />
+              <img src="/atlas-logo.svg" alt="AtlasGR" className="w-full h-full object-contain" />
             </div>
             <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
               AtlasGR
