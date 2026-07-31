@@ -15,7 +15,7 @@ interface GoogleLoginModalProps {
 export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLoginModalProps) {
   const [, setIsLoading] = useState(false);
   const [step, setStep] = useState<'button' | 'loading' | 'success'>('button');
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 
 
   useEffect(() => {
