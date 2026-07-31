@@ -54,6 +54,29 @@ export class ActivityService {
         return activities.map(serializeActivity);
     }
 
+    /**
+     * Atividades num intervalo fechado-aberto [from, to). O calendário carrega o mês inteiro de
+     * uma vez — buscar dia a dia seriam ~35 requisições para montar uma grade.
+     *
+     * As datas chegam como ISO do frontend; `to` é exclusivo para o chamador poder passar o
+     * primeiro instante do dia seguinte sem se preocupar com milissegundos de borda.
+     */
+    async findRange(organizationId: string, fromStr: string, toStr: string) {
+        const from = new Date(fromStr);
+        const to = new Date(toStr);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new Error('Intervalo de datas inválido.');
+        }
+        if (from >= to) throw new Error('A data inicial deve ser anterior à final.');
+
+        const activities = await prisma.activity.findMany({
+            where: { organizationId, date: { gte: from, lt: to } },
+            include: { lead: { include: { company: true, contact: true } } },
+            orderBy: { date: 'asc' },
+        });
+        return activities.map(serializeActivity);
+    }
+
     async create(organizationId: string, data: z.infer<typeof activitySchema>) {
         const validated = activitySchema.parse(data);
         const activity = await prisma.activity.create({
