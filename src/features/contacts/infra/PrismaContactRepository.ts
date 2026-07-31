@@ -40,7 +40,8 @@ export class PrismaContactRepository implements ContactRepository {
             filtered = DEMO_CONTACTS.filter(c => c.name.toLowerCase().includes(q) || (c.email && c.email.toLowerCase().includes(q)));
         }
         return {
-            data: filtered,
+            // Dados de demo (src/types) tipam `role` como string|null|undefined; domínio exige string|null.
+            data: filtered as unknown as Contact[],
             meta: { total: filtered.length, page, limit, totalPages: 1 }
         };
     }
@@ -55,7 +56,7 @@ export class PrismaContactRepository implements ContactRepository {
         } catch {
             // Fallback
         }
-        return DEMO_CONTACTS.find(c => c.id === id) || DEMO_CONTACTS[0] || null;
+        return (DEMO_CONTACTS.find(c => c.id === id) || DEMO_CONTACTS[0] || null) as unknown as Contact | null;
     }
 
     async create(organizationId: string, data: Partial<Contact> & { birthDate?: string | Date }): Promise<Contact> {

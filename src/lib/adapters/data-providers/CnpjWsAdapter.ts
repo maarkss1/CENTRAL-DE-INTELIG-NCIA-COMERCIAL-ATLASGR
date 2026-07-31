@@ -4,6 +4,39 @@ import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
 import { sanitizeCnpj, isValidCnpj, formatCnpj } from '../../../features/prospecting/services/cnpj.util';
 
+interface CnpjWsAtividade {
+    id?: string;
+    descricao?: string;
+}
+
+interface CnpjWsEstabelecimento {
+    atividade_principal?: CnpjWsAtividade;
+    tipo_logradouro?: string;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    ddd1?: string;
+    telefone1?: string;
+    ddd2?: string;
+    telefone2?: string;
+    nome_fantasia?: string;
+    situacao_cadastral?: string;
+    data_inicio_atividade?: string;
+    cidade?: { nome?: string };
+    estado?: { sigla?: string };
+    cep?: string;
+    email?: string;
+}
+
+interface CnpjWsResponse {
+    razao_social?: string;
+    natureza_juridica?: { descricao?: string };
+    capital_social?: string;
+    porte?: { descricao?: string };
+    estabelecimento?: CnpjWsEstabelecimento;
+}
+
 export class CnpjWsAdapter implements IDataProvider {
   providerName = 'CNPJ.ws';
 
@@ -31,7 +64,7 @@ export class CnpjWsAdapter implements IDataProvider {
       throw lastError;
   }
 
-  private formatPhone(ddd: string, numero: string): string | null {
+  private formatPhone(ddd?: string, numero?: string): string | null {
       if (!ddd || !numero) return null;
       const digits = (ddd + numero).replace(/\D/g, '');
       if (digits.length < 10) return null;
@@ -68,7 +101,7 @@ export class CnpjWsAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as Record<string, unknown>;
+        const raw = await res.json() as CnpjWsResponse;
 
         const mainActivity = raw.estabelecimento?.atividade_principal;
         const address = raw.estabelecimento;
@@ -121,7 +154,7 @@ export class CnpjWsAdapter implements IDataProvider {
             }
         };
     } catch (error: unknown) {
-        logger.error(`[CnpjWsAdapter] Request failed for CNPJ ${cnpj}:`, error);
+        logger.error({ err: error, cnpj }, '[CnpjWsAdapter] Request failed');
         return {};
     }
   }

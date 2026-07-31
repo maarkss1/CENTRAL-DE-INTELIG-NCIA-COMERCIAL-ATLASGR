@@ -35,7 +35,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
         }, 12_000);
 
         if (!res.ok) {
-            logger.error('Google Places (discovery) error:', await res.text());
+            logger.error({ status: res.status, body: await res.text() }, 'Google Places (discovery) error');
             return [];
         }
 
@@ -61,7 +61,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
             } satisfies PlaceCandidate;
         });
     } catch (error) {
-        logger.error('Error searching Google Places candidates:', error);
+        logger.error({ err: error, query }, 'Error searching Google Places candidates');
         return [];
     }
 }
@@ -103,7 +103,7 @@ export async function searchGooglePlace(
         }, 12_000);
 
         if (!res.ok) {
-            logger.error('Google Places API error:', await res.text());
+            logger.error({ status: res.status, body: await res.text() }, 'Google Places API error');
             return null;
         }
 
@@ -128,7 +128,7 @@ export async function searchGooglePlace(
             businessHours: p.regularOpeningHours
         };
     } catch (error) {
-        logger.error('Error fetching Google Place:', error);
+        logger.error({ err: error, companyName, locationStr }, 'Error fetching Google Place');
         return null;
     }
 }

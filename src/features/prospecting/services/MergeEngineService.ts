@@ -64,7 +64,7 @@ export class MergeEngineService {
               Boolean(result.company?.cnpj);
          }
       } catch (error) {
-         logger.error(`[MergeEngine] Error calling adapter ${adapter.providerName}:`, error);
+         logger.error({ err: error, provider: adapter.providerName }, '[MergeEngine] Error calling adapter');
       }
     }
 

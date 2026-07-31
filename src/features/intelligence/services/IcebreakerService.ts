@@ -61,7 +61,7 @@ Se não tiver contexto forte, responda APENAS com a palavra VAZIO.`;
 
             return icebreaker;
         } catch (error) {
-            logger.error('[IcebreakerService] Falha ao gerar quebra-gelo via Playwright:', error);
+            logger.error({ err: error, companyName }, 'Falha ao gerar quebra-gelo via Playwright');
             return '';
         } finally {
             if (browser) await browser.close();

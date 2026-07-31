@@ -1,11 +1,16 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { BaseMessage, SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
+
+interface SerializedMessage {
+    role: string;
+    content: string;
+}
 
 /**
  * Agente de CRM: Resume o risco de deals e recomenda próximas ações.
@@ -34,7 +39,11 @@ export class CRMAgent {
                     latencyMs: Date.now() - startTime,
                 });
 
-                return { messages: [response] };
+                // O gateway.ts próprio devolve um objeto simples ({content, response_metadata}), não
+                // uma instância de mensagem do LangChain — o reducer do MessagesAnnotation só aceita
+                // human/AI/system/developer/tool. Sem este wrap, a próxima rodada do grafo falha com
+                // "Unable to coerce message from array".
+                return { messages: [new AIMessage(response.content)] };
             })
             .addEdge('__start__', 'updateStatus')
             .addEdge('updateStatus', '__end__');
@@ -60,8 +69,8 @@ export class CRMAgent {
         const lastMessage = messages[messages.length - 1];
 
         // Persistindo histórico
-        await this.updateMemory(sid, messages.map((m: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-            role: m._getType(),
+        await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => ({
+            role: m.type,
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         })));
 
@@ -78,7 +87,7 @@ export class CRMAgent {
         return getLearningProfile(tenantId, userId);
     }
 
-    private async updateMemory(sessionId: string, messages: BaseMessage[]) {
+    private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
         try {
             const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
             if (existing) {

@@ -19,7 +19,7 @@ export class SearchService {
             const meiliRes = await meili.index('leads').search(query, { limit: 5 });
             keywordResults = meiliRes.hits;
         } catch (e) {
-            logger.error('Meili search failed', e);
+            logger.error({ err: e, query }, 'Meili search failed');
         }
 
         return {

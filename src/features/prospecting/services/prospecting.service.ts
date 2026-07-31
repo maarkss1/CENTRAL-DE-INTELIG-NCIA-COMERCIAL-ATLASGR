@@ -353,7 +353,7 @@ export async function promoteToCrm(input: PromoteInput) {
                     preFetchedDecisionMakers: input.decisionMakers?.length ? input.decisionMakers : undefined,
                 });
             } catch (error) {
-                logger.error('Auto-enrichment failed during promote:', error);
+                logger.error({ err: error }, 'Auto-enrichment failed during promote');
             }
         }
 

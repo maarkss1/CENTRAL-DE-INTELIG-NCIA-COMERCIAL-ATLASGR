@@ -16,6 +16,7 @@ vi.mock('../../logger.js', () => ({
 }));
 
 import {
+    __resetCircuitBreakerForTests,
     generateEmbedding,
     getAiModel,
     toChatCompletionMessages,
@@ -39,6 +40,7 @@ describe('AI gateway', () => {
         process.env.LITELLM_URL = 'http://litellm.test/v1/';
         process.env.LITELLM_KEY = 'test-litellm-key';
         delete process.env.GROQ_API_KEY;
+        __resetCircuitBreakerForTests();
     });
 
     afterEach(() => {
@@ -135,5 +137,57 @@ describe('AI gateway', () => {
 
         await expect(generateEmbedding('  conteúdo útil  ')).resolves.toEqual([0.1, 0.2, 0.3]);
         await expect(generateEmbedding('   ')).rejects.toThrow('não pode ser vazio');
+    });
+
+    it('reexecuta a mesma perna após uma falha 5xx transitória antes de desistir', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ error: 'Internal' }, 500))
+            .mockResolvedValueOnce(jsonResponse({
+                model: 'gemini-pro',
+                choices: [{ message: { content: 'recuperou na segunda tentativa' } }],
+            }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await getAiModel('gemini-pro', 0, 'unit:retry').invoke([new HumanMessage('Pedido')]);
+
+        expect(result.content).toBe('recuperou na segunda tentativa');
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls[0][0]).toBe('http://litellm.test/v1/chat/completions');
+        expect(fetchMock.mock.calls[1][0]).toBe('http://litellm.test/v1/chat/completions');
+    });
+
+    it('não reexecuta em erro 4xx — cai direto para o próximo provedor', async () => {
+        process.env.GROQ_API_KEY = 'gsk_test_key_for_unit_tests';
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ error: 'Requisição inválida' }, 400))
+            .mockResolvedValueOnce(jsonResponse({
+                model: 'llama-3.3-70b-versatile',
+                choices: [{ message: { content: 'fallback ativo' } }],
+            }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        const result = await getAiModel('gemini-pro', 0, 'unit:no-retry-4xx').invoke([new HumanMessage('Pedido')]);
+
+        expect(result.content).toBe('fallback ativo');
+        // Só 2 chamadas no total: 1 tentativa no LiteLLM (sem retry por ser 4xx) + 1 no Groq.
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(fetchMock.mock.calls[1][0]).toBe('https://api.groq.com/openai/v1/chat/completions');
+    });
+
+    it('abre o circuit breaker após falhas consecutivas e para de contatar o provedor', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: 'Requisição inválida' }, 400));
+        vi.stubGlobal('fetch', fetchMock);
+
+        for (let i = 0; i < 3; i++) {
+            await expect(getAiModel('gemini-pro', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
+                .rejects.toThrow();
+        }
+        const callsBeforeBreakerOpen = fetchMock.mock.calls.length;
+        expect(callsBeforeBreakerOpen).toBe(3);
+
+        await expect(getAiModel('gemini-pro', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
+            .rejects.toThrow('temporariamente desativado');
+        // O circuit breaker impediu uma 4ª chamada de rede ao provedor já sabidamente fora do ar.
+        expect(fetchMock).toHaveBeenCalledTimes(callsBeforeBreakerOpen);
     });
 });

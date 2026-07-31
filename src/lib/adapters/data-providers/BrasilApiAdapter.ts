@@ -17,6 +17,35 @@ const PORTE_TO_EMPLOYEE_ESTIMATE: Record<number, { label: string; count: number 
     5: { label: '50-500+ (estimado)', count: 120 },
 };
 
+interface BrasilApiSocio {
+    nome_socio: string;
+    qualificacao_socio: string;
+}
+
+interface BrasilApiCnpjResponse {
+    codigo_porte?: number;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    ddd_telefone_1?: string;
+    ddd_telefone_2?: string;
+    razao_social?: string;
+    nome_fantasia?: string;
+    descricao_situacao_cadastral?: string;
+    natureza_juridica?: string;
+    capital_social?: number;
+    data_inicio_atividade?: string;
+    cnae_fiscal?: number;
+    cnae_fiscal_descricao?: string;
+    porte?: string;
+    qsa?: BrasilApiSocio[];
+    municipio?: string;
+    uf?: string;
+    cep?: string;
+    email?: string;
+}
+
 export class BrasilApiAdapter implements IDataProvider {
   providerName = 'BrasilAPI';
 
@@ -44,7 +73,7 @@ export class BrasilApiAdapter implements IDataProvider {
       throw lastError;
   }
 
-  private formatPhone(ddd_telefone: string): string | null {
+  private formatPhone(ddd_telefone?: string): string | null {
       const digits = (ddd_telefone || '').replace(/\D/g, '');
       if (digits.length < 10) return null;
       const ddd = digits.slice(0, 2);
@@ -74,8 +103,8 @@ export class BrasilApiAdapter implements IDataProvider {
             return {};
         }
 
-        const raw = await res.json() as Record<string, unknown>;
-        const employeeEstimate = PORTE_TO_EMPLOYEE_ESTIMATE[raw.codigo_porte] ?? PORTE_TO_EMPLOYEE_ESTIMATE[5];
+        const raw = await res.json() as BrasilApiCnpjResponse;
+        const employeeEstimate = PORTE_TO_EMPLOYEE_ESTIMATE[raw.codigo_porte ?? 5] ?? PORTE_TO_EMPLOYEE_ESTIMATE[5];
 
         const addressParts = [raw.logradouro, raw.numero, raw.complemento, raw.bairro].filter(Boolean);
         const phones = [this.formatPhone(raw.ddd_telefone_1), this.formatPhone(raw.ddd_telefone_2)].filter(
@@ -95,7 +124,7 @@ export class BrasilApiAdapter implements IDataProvider {
                 cnaeDescription: raw.cnae_fiscal_descricao,
                 size: raw.porte,
                 employeeCountEstimate: employeeEstimate.count,
-                qsa: (raw.qsa || []).map((partner: { nome_socio: string; qualificacao_socio: string }) => ({
+                qsa: (raw.qsa || []).map((partner) => ({
                     nome: partner.nome_socio,
                     qualificacao: partner.qualificacao_socio,
                 })),
@@ -129,7 +158,7 @@ export class BrasilApiAdapter implements IDataProvider {
             }
         };
     } catch (error: unknown) {
-        logger.error(`[BrasilApiAdapter] Request failed for CNPJ ${cnpj}:`, error);
+        logger.error({ err: error, cnpj }, '[BrasilApiAdapter] Request failed');
         return {};
     }
   }

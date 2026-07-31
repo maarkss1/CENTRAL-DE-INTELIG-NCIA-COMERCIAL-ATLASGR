@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { fromNodeHeaders } from 'better-auth/node';
 import { env } from '../../config/env.js';
 import { isAuthorizedLoginEmail } from '../../config/access-policy.js';
+import type { getTenantPrisma } from '../../lib/tenant-prisma.js';
 
 export interface AuthUser {
     id: string;
@@ -14,7 +15,10 @@ export interface AuthUser {
 
 export interface AuthRequest extends Request {
     user: AuthUser;
-    db?: unknown; // Prisma Client isolado por Tenant
+    // Prisma Client isolado por Tenant (ver getTenantPrisma) — tipado como `unknown` antes fazia
+    // `authRequest.db || prisma` cair no truque de narrowing do TS pra "{}", quebrando o acesso a
+    // qualquer model (ex.: prisma.aIPendingAction) em quem usa esse fallback.
+    db?: ReturnType<typeof getTenantPrisma>;
 }
 
 import { requestContext } from '../../lib/async-context.js';

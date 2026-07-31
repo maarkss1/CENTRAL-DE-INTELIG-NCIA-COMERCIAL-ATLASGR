@@ -1,4 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
+import type { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj, formatCnpj, discoverCnpjByName } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
@@ -446,7 +447,9 @@ interface CompanyUpdateData {
     website?: string;
     googleRating?: number;
     googleReviewsCount?: number;
-    businessHours?: unknown;
+    // Tipado como o JSON de entrada do Prisma (e não `unknown`) porque este objeto é repassado
+    // direto pro `company.update` — deixar `unknown` aqui quebra a inferência do `data`.
+    businessHours?: Prisma.InputJsonValue;
     observations?: string;
     linkedin?: string;
     twitter?: string;
@@ -575,7 +578,9 @@ async function runEnrichment(
     if (place) {
         if (place.rating != null) updateData.googleRating = place.rating;
         if (place.userRatingCount != null) updateData.googleReviewsCount = place.userRatingCount;
-        if (place.businessHours != null) updateData.businessHours = place.businessHours;
+        // `PlaceSearchResult.businessHours` é `unknown` (payload livre do Google Places); o cast é
+        // seguro porque só chegamos aqui quando o valor não é null/undefined.
+        if (place.businessHours != null) updateData.businessHours = place.businessHours as Prisma.InputJsonValue;
         
         if (place.websiteUri && !domainGuess.verified) {
             updateData.website = place.websiteUri;
