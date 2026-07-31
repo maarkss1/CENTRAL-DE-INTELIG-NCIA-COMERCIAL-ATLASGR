@@ -40,8 +40,25 @@ CREATE INDEX "Document_organizationId_createdAt_idx" ON "Document"("organization
 -- 5. Índice vetorial para a busca semântica.
 -- IVFFlat com cosine: o `vector_cosine_ops` casa com o operador `<=>` usado no SearchService.
 -- `lists = 100` é o padrão recomendado do pgvector para tabelas até ~1M linhas.
-CREATE INDEX "DocumentChunk_vector_idx" ON "DocumentChunk"
-    USING ivfflat ("vector" vector_cosine_ops) WITH (lists = 100);
+--
+-- Condicional de propósito: nem todo Postgres em que esta migration roda tem a extensão pgvector
+-- (o docker-compose usa a imagem pgvector, mas ambientes locais frequentemente têm um Postgres
+-- comum). Sem a extensão, a coluna "vector" é TEXT e o índice não faz sentido — a aplicação detecta
+-- isso em runtime (ver vector-support.ts) e opera só com busca por palavra-chave.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
+       AND EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_name = 'DocumentChunk' AND column_name = 'vector' AND udt_name = 'vector'
+       )
+    THEN
+        CREATE INDEX "DocumentChunk_vector_idx" ON "DocumentChunk"
+            USING ivfflat ("vector" vector_cosine_ops) WITH (lists = 100);
+    ELSE
+        RAISE NOTICE 'pgvector ausente: indice vetorial nao criado; a busca semantica fica desativada.';
+    END IF;
+END $$;
 
 -- 6. RLS, no mesmo padrão das demais tabelas com tenant (ver 20260722020322_enable_rls).
 ALTER TABLE "Document" ENABLE ROW LEVEL SECURITY;

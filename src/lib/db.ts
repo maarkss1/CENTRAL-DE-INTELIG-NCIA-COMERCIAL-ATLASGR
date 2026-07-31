@@ -164,9 +164,13 @@ export const analyticsDB = {
     totalLeads: number;
     totalActivities: number;
     pendingActivities: number;
+    overdueActivities: number;
     closedThisMonth: number;
-    pipelineValue: number;
+    lostThisMonth: number;
+    /** `null` porque o modelo Lead não tem campo de valor monetário — a UI exibe "—". */
+    pipelineValue: number | null;
     conversionRate: number;
+    averageScore: number | null;
   }>('/api/analytics/overview'),
 };
 

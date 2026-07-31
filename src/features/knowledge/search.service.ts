@@ -2,6 +2,7 @@ import { prisma } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
 import { generateEmbedding } from '../../lib/ai/gateway.js';
 import { toVectorLiteral } from './ingestion.service.js';
+import { hasVectorSupport } from './vector-support.js';
 
 /** Constante de suavização do Reciprocal Rank Fusion. 60 é o valor do paper original (Cormack et al.). */
 const RRF_K = 60;
@@ -78,6 +79,9 @@ export class SearchService {
      * chamador consiga distinguir "não achei nada" de "a busca semântica está fora do ar".
      */
     private async semanticSearch(organizationId: string, query: string): Promise<RawRow[] | null> {
+        // Banco sem pgvector: nem gera o embedding, que custa uma chamada paga para nada.
+        if (!(await hasVectorSupport())) return null;
+
         let embedding: number[];
         try {
             embedding = await generateEmbedding(query);

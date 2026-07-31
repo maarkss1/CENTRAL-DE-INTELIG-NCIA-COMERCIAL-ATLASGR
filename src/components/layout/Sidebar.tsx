@@ -1,7 +1,7 @@
 
 import { 
     Home, LayoutTemplate, Search, Users, Building2, 
-    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database
+    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { Logo } from '../Logo';
@@ -24,6 +24,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'contacts' as TabType, label: 'Decisores', icon: <Users size={20} /> },
         { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
+        { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
     ];
 
     const aiTools = [

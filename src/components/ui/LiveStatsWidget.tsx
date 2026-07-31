@@ -17,9 +17,13 @@ interface Stats {
   totalLeads: number;
   totalActivities: number;
   pendingActivities: number;
+  overdueActivities: number;
   closedThisMonth: number;
-  pipelineValue: number;
+  lostThisMonth: number;
+  /** `null` porque o modelo Lead não tem campo de valor monetário — a UI exibe "—". */
+  pipelineValue: number | null;
   conversionRate: number;
+  averageScore: number | null;
 }
 
 export function LiveStatsWidget() {
@@ -41,9 +45,12 @@ export function LiveStatsWidget() {
         totalLeads: 0,
         totalActivities: 0,
         pendingActivities: 0,
+        overdueActivities: 0,
         closedThisMonth: 0,
-        pipelineValue: 0,
+        lostThisMonth: 0,
+        pipelineValue: null,
         conversionRate: 0,
+        averageScore: null,
       });
       setConnected(false);
     } finally {
@@ -160,7 +167,7 @@ export function LiveStatsWidget() {
             <div className="text-center">
               <p className="text-xs text-slate-500 font-medium">Valor no Pipeline</p>
               <p className="text-lg font-black text-totaltrack-blue">
-                {stats.pipelineValue > 0
+                {stats.pipelineValue != null && stats.pipelineValue > 0
                   ? `R$ ${(stats.pipelineValue / 1000).toFixed(0)}k`
                   : 'R$ —'}
               </p>

@@ -3,6 +3,7 @@ import { prisma } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
 import { generateEmbedding } from '../../lib/ai/gateway.js';
 import { chunkText } from './chunking.js';
+import { hasVectorSupport } from './vector-support.js';
 
 /** Quantos embeddings pedimos em paralelo ao provedor. Acima disso o LiteLLM começa a dar 429. */
 const EMBEDDING_CONCURRENCY = 4;
@@ -97,34 +98,48 @@ export class IngestionService {
             },
         });
 
+        // Num banco sem pgvector não adianta nem pedir os embeddings: não há onde gravá-los.
+        const vectorReady = await hasVectorSupport();
+
         // O título entra junto de cada trecho no texto embedado (mas não no conteúdo gravado):
         // dá contexto ao vetor sem poluir o texto que será exibido como resultado da busca.
-        const embeddings = await mapWithConcurrency(chunks, EMBEDDING_CONCURRENCY, async (chunk) => {
-            try {
-                return await generateEmbedding(`${normalizedTitle}\n\n${chunk}`);
-            } catch (err) {
-                logger.error({ err, documentId: document.id }, 'Falha ao gerar embedding do trecho');
-                return null;
-            }
-        });
+        const embeddings = vectorReady
+            ? await mapWithConcurrency(chunks, EMBEDDING_CONCURRENCY, async (chunk) => {
+                try {
+                    return await generateEmbedding(`${normalizedTitle}\n\n${chunk}`);
+                } catch (err) {
+                    logger.error({ err, documentId: document.id }, 'Falha ao gerar embedding do trecho');
+                    return null;
+                }
+            })
+            : chunks.map(() => null);
 
         let embeddingFailures = 0;
         for (let i = 0; i < chunks.length; i++) {
             const embedding = embeddings[i];
-            if (!embedding) embeddingFailures++;
+            if (vectorReady && !embedding) embeddingFailures++;
 
             // `Unsupported("vector")` não é expressável no client tipado do Prisma, então a coluna
             // vector só pode ser escrita por SQL cru. Os valores seguem parametrizados.
-            await prisma.$executeRaw`
-                INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
-                VALUES (
-                    gen_random_uuid()::text,
-                    ${document.id},
-                    ${chunks[i]},
-                    ${i},
-                    ${embedding ? toVectorLiteral(embedding) : null}::vector
-                )
-            `;
+            if (vectorReady) {
+                await prisma.$executeRaw`
+                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
+                    VALUES (
+                        gen_random_uuid()::text,
+                        ${document.id},
+                        ${chunks[i]},
+                        ${i},
+                        ${embedding ? toVectorLiteral(embedding) : null}::vector
+                    )
+                `;
+            } else {
+                // Sem a extensão, o cast `::vector` é um erro de sintaxe no Postgres: grava-se só o
+                // texto, que continua pesquisável por palavra-chave.
+                await prisma.$executeRaw`
+                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
+                    VALUES (gen_random_uuid()::text, ${document.id}, ${chunks[i]}, ${i})
+                `;
+            }
         }
 
         const updated = await prisma.document.update({
@@ -187,6 +202,12 @@ export class IngestionService {
     async reembedDocument(organizationId: string, documentId: string): Promise<{ repaired: number; remaining: number }> {
         const document = await this.get(organizationId, documentId);
         if (!document) throw new Error('Documento não encontrado.');
+
+        if (!(await hasVectorSupport())) {
+            throw new Error(
+                'Este banco não tem a extensão pgvector ativa, então não há busca semântica para reparar.',
+            );
+        }
 
         const pending = await prisma.$queryRaw<Array<{ id: string; content: string }>>`
             SELECT "id", "content" FROM "DocumentChunk"
