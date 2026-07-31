@@ -22,7 +22,7 @@ const createPromptSchema = z.object({
     body: z.object({
         name: z.string(),
         category: z.string(),
-        variables: z.record(z.unknown()).optional(),
+        variables: z.record(z.string(), z.unknown()).optional(),
     }),
 });
 promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, next) => {
@@ -53,7 +53,7 @@ const updatePromptSchema = z.object({
         id: z.string(),
     }),
     body: z.object({
-        variables: z.record(z.unknown()),
+        variables: z.record(z.string(), z.unknown()),
     }),
 });
 promptRoutes.put('/:id', validateRequest(updatePromptSchema), async (req, res, next) => {

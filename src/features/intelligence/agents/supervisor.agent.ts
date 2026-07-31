@@ -108,8 +108,9 @@ export class SwarmOrchestrator {
             
             for await (const chunk of stream) {
                 const nodeName = Object.keys(chunk)[0];
-                if (nodeName && chunk[nodeName] && chunk[nodeName].messages) {
-                    const msgs = chunk[nodeName].messages;
+                const nodeData = chunk[nodeName as keyof typeof chunk];
+                if (nodeName && nodeData && nodeData.messages) {
+                    const msgs = nodeData.messages;
                     if (msgs && msgs.length > 0) {
                         const lastMsg = msgs[msgs.length - 1];
                         onChunk(lastMsg.content as string);

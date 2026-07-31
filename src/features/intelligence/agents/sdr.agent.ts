@@ -1,12 +1,12 @@
-import { BaseMessage, StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { BaseMessage, ChatOpenAI } from '@langchain/openai';
-import { BaseMessage, prisma } from '../../../lib/prisma.js';
-import { BaseMessage, getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
-import { BaseMessage, searchPlaybookTool } from '../tools/playbookTool.js';
-import { BaseMessage, HumanMessage, SystemMessage, BaseMessage } from '@langchain/core/messages';
-import { BaseMessage, ToolNode } from '@langchain/langgraph/prebuilt';
+import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
+import { ChatOpenAI } from '@langchain/openai';
+import { prisma } from '../../../lib/prisma.js';
+import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
+import { searchPlaybookTool } from '../tools/playbookTool.js';
+import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { Prisma } from '@prisma/client';
-import { BaseMessage, logger } from '../../../lib/logger.js';
+import { logger } from '../../../lib/logger.js';
 
 const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
 const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
@@ -73,7 +73,7 @@ function shouldContinue(state: typeof MessagesAnnotation.State) {
     if (
         !lastMessage || 
         typeof (lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls === 'undefined' ||
-        (lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls.length === 0
+        ((lastMessage as BaseMessage & { tool_calls?: unknown[] }).tool_calls?.length ?? 0) === 0
     ) {
         return "END";
     }

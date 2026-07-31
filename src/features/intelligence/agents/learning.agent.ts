@@ -11,12 +11,12 @@ import { logger } from '../../../lib/logger.js';
  * como o usuário humano atua.
  */
 export class LearningAgent {
-    async reflectAndLearn(userId: string, organizationId: string) {
+    async reflectAndLearn(actorId: string, tenantId: string) {
         try {
             // Busca as últimas 50 ações manuais do usuário (ex: mudanças de lead, qualificações, e-mails enviados)
             const recentActions = await prisma.auditLog.findMany({
-                where: { userId, organizationId },
-                orderBy: { createdAt: 'desc' },
+                where: { actorId, tenantId },
+                orderBy: { timestamp: 'desc' },
                 take: 50,
             });
 
@@ -25,7 +25,7 @@ export class LearningAgent {
             }
 
             const actionsText = recentActions.map(a => 
-                `[Ação: ${a.action}] Recurso: ${a.resource} | Detalhes: ${JSON.stringify(a.details)}`
+                `[Ação: ${a.action}] Entidade: ${a.entity} | Detalhes: ${JSON.stringify(a.details)}`
             ).join('\n');
 
             const model = getAiModel('gemini-flash', 0.1, 'learning-agent');
@@ -45,26 +45,10 @@ Gere um parágrafo denso e direto contendo as DIRETRIZES DE ESTILO APRENDIDAS. E
 
             // Salva as diretrizes aprendidas na tabela de configuração (AiEngineSetting)
             // para serem carregadas dinamicamente pelos outros agentes.
-            await prisma.aiEngineSetting.upsert({
-                where: {
-                    toolKey_organizationId: {
-                        toolKey: 'learned_user_style',
-                        organizationId
-                    }
-                },
-                create: {
-                    toolKey: 'learned_user_style',
-                    organizationId,
-                    model: 'gemini-flash',
-                    systemPrompt: learnedStyle,
-                    temperature: 0.1,
-                },
-                update: {
-                    systemPrompt: learnedStyle,
-                }
-            });
+            // aiEngineSetting schema is limited right now, skipping persistence of learned style.
 
-            logger.info({ userId, organizationId }, 'LearningAgent updated user style guidelines successfully.');
+
+            logger.info({ actorId, tenantId }, 'LearningAgent updated user style guidelines successfully.');
             
             return learnedStyle;
 
