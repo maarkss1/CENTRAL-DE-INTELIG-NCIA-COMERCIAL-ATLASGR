@@ -4,6 +4,8 @@ import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
+import { getTenantId, getUserId } from '../../../lib/async-context.js';
+import { getLearningProfile } from './learning.agent.js';
 
 /**
  * BDR (Business Development Rep) autônomo: Qualifica o fit outbound e rascunha a linha de abordagem.
@@ -18,8 +20,10 @@ export class BDRAgent {
                 const model = getAiModel('gemini-flash', 0.4, 'bdr-agent');
                 const startTime = Date.now();
 
+                const learnedStyle = await this.loadLearnedStyle();
                 const systemPrompt = new SystemMessage(
                     'Você é um BDR sênior da Atlas (SaaS de gestão de risco/torre de controle para logística B2B no Brasil). Dado um resumo bruto de lead outbound, avalie o fit em uma frase objetiva e sugira a melhor linha de abertura para o primeiro contato. Baseie-se SOMENTE no que foi informado — nunca invente dados da empresa. Responda em texto corrido, direto, sem markdown, no formato: "Fit: <avaliação em 1 frase>. Abertura sugerida: <1 frase de abertura>".'
+                    + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}` : '')
                 );
 
                 const response = await model.invoke([systemPrompt, ...state.messages]);
@@ -47,7 +51,9 @@ export class BDRAgent {
             );
         } catch (error) {
             logger.error({ err: error, sessionId: sid }, 'BDR Agent run failed');
-            return { qualification: `Qualified: ${inputData}` };
+            // Nunca fabricar uma qualificação falsa: quem chama precisa saber que a IA não respondeu.
+            const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente BDR.';
+            return { qualification: undefined, error: message, sessionId: sid };
         }
 
         const messages = finalState.messages as BaseMessage[];
@@ -63,6 +69,13 @@ export class BDRAgent {
             qualification: lastMessage.content as string,
             sessionId: sid
         };
+    }
+
+    private async loadLearnedStyle(): Promise<string | null> {
+        const tenantId = getTenantId();
+        const userId = getUserId();
+        if (!tenantId || !userId) return null;
+        return getLearningProfile(tenantId, userId);
     }
 
     private async updateMemory(sessionId: string, messages: BaseMessage[]) {

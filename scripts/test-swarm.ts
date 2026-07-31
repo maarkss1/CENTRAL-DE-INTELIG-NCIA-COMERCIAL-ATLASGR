@@ -29,15 +29,16 @@ Eles têm frota de 50 caminhões e faturamento alto, mas não sei como abordá-l
             const content = m.content;
             
             // Highlight the routing and sub-agent results
-            if (content.includes('[ROUTING]')) {
+            if (content.startsWith('Encaminhando para') || content.startsWith('Missão avaliada') || content.startsWith('Encerrando o roteamento')) {
                 console.log(`\n👑 SUPERVISOR DECIDIU:`);
                 console.log(`   ${content}`);
-            } else if (content.includes('[SDR Result]') || content.includes('[BDR Result]') || content.includes('[CRM Result]')) {
-                console.log(`\n🤖 AGENTE ESPECIALISTA RETORNOU:`);
+            } else if (i === messages.length - 1) {
+                console.log(`\n🏁 SÍNTESE FINAL:`);
                 console.log(`   ${content}`);
             } else {
                 if (i === 0) return; // Skip user message
-                console.log(`\n💬 Mensagem [${role}]:\n   ${content}`);
+                console.log(`\n🤖 AGENTE ESPECIALISTA RETORNOU [${role}]:`);
+                console.log(`   ${content}`);
             }
         });
 

@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   User, Building, Mail, Phone, Plus, Search, Edit, Trash2,
-  Sparkles, Loader2, AlertCircle, ChevronLeft, ChevronRight, Linkedin, WifiOff
+  Sparkles, Loader2, AlertCircle, ChevronLeft, ChevronRight, Linkedin, WifiOff, MessageCircle
 } from 'lucide-react';
 import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
 import { useContacts } from '../../../hooks/useDatabase';
 import { contactsDB } from '../../../lib/db';
+import { getWhatsAppLink } from '../../prospecting/utils/contact-links';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
@@ -199,6 +200,18 @@ export function ContactList() {
                               <Phone className="w-3 h-3 text-sky-500 shrink-0" />
                               <span className="font-medium">{contact.phone}</span>
                             </div>
+                          )}
+                          {(contact.whatsapp || contact.phone) && getWhatsAppLink(contact.whatsapp || contact.phone) && (
+                            <a
+                              href={getWhatsAppLink(contact.whatsapp || contact.phone)}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Número coletado — a existência de WhatsApp não foi verificada"
+                              className="flex items-center gap-1.5 text-[11px] text-emerald-600 hover:underline"
+                            >
+                              <MessageCircle className="w-3 h-3 shrink-0" />
+                              <span className="font-medium">WhatsApp</span>
+                            </a>
                           )}
                           {contact.linkedin && (
                             <div className="flex items-center gap-1.5 text-[11px] text-gray-600">

@@ -2,7 +2,7 @@ import { AgentService } from '../services/agent.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { vectorService } from '../services/vector.service.js';
 
-export class SDRAgent extends AgentService {
+export class SDROutboundDraftAgent extends AgentService {
     protected agentType = 'SDR_OUTBOUND';
 
     protected getSystemPrompt(): string {

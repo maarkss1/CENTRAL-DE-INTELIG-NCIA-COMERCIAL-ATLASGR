@@ -1,4 +1,4 @@
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage, withRetry } from '../../../lib/ai/gateway.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
@@ -289,10 +289,16 @@ export class AIService {
             : TOOL_CONFIG[toolId];
         const model = getAiModel(modelAlias, temperature, toolId);
         const startTime = Date.now();
-        const response = await model.invoke([
-            new SystemMessage(systemPrompt),
-            new HumanMessage(userPrompt),
-        ]);
+        let response;
+        try {
+            response = await withRetry(() => model.invoke([
+                new SystemMessage(systemPrompt),
+                new HumanMessage(userPrompt),
+            ]));
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(`Não foi possível gerar o conteúdo agora (ferramenta: ${toolId}). ${detail}`);
+        }
         const latencyMs = Date.now() - startTime;
 
         await logAiUsage({

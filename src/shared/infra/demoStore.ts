@@ -453,7 +453,7 @@ export const DEMO_LEADS: Lead[] = [
       solucaoAtlas: 'Combinação',
       nivelAutoridade: 'Decisor',
       interessePercebido: 'Alto',
-      horizonteDecisao: 'Concluído',
+      horizonteDecisao: 'Imediato',
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

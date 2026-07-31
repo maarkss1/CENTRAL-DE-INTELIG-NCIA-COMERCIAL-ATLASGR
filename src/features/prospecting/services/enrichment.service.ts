@@ -413,6 +413,16 @@ export interface EnrichCompanyOptions {
     cnpj?: string;
     segmentKeywords?: string[];
     fleetSizeHint?: string;
+    /** Decisores já buscados na tela de descoberta (Apollo/Hunter) — quando presentes, evitam uma
+     * nova chamada às APIs pagas para os mesmos dados que o usuário já viu antes de promover o lead. */
+    preFetchedDecisionMakers?: Array<{
+        name: string;
+        title: string | null;
+        email: string | null;
+        emailSource?: 'apollo' | 'hunter';
+        phone: string | null;
+        linkedinUrl: string | null;
+    }>;
 }
 
 interface CompanyUpdateData {
@@ -622,7 +632,47 @@ async function runEnrichment(
     // plano da chave Apollo não inclui People Search (ver apollo.service.ts).
     let apolloContacts: Array<{ name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }> = [];
     let contactsSource: 'apollo' | 'hunter' | null = null;
-    if (domainGuess.verified && domainGuess.domain) {
+    if (options.preFetchedDecisionMakers?.length) {
+        // Já buscamos os decisores na tela de descoberta (Radar) — reaproveita em vez de gastar
+        // créditos Apollo/Hunter de novo com o mesmo domínio.
+        apolloContacts = options.preFetchedDecisionMakers.map((dm) => ({
+            name: dm.name,
+            title: dm.title,
+            email: dm.email,
+            phone: dm.phone,
+            linkedin_url: dm.linkedinUrl,
+        }));
+        contactsSource = options.preFetchedDecisionMakers.some((dm) => dm.emailSource === 'hunter') ? 'hunter' : 'apollo';
+        enrichmentSourceLabel += ' + Decisores pré-buscados na descoberta';
+
+        await prisma.enrichmentLog.create({
+            data: {
+                companyId,
+                source: 'Discovery-PreFetched',
+                field: 'contatos-decisores',
+                status: 'success',
+                rawData: JSON.parse(JSON.stringify(apolloContacts)),
+            }
+        });
+
+        for (const c of apolloContacts) {
+            if (!c.name || c.name === 'Sem Nome') continue;
+            await prisma.contact.create({
+                data: {
+                    name: c.name,
+                    role: c.title,
+                    email: c.email,
+                    phone: c.phone,
+                    whatsapp: guessWhatsappFromPhone(c.phone),
+                    linkedin: c.linkedin_url,
+                    source: 'Apollo',
+                    emailStatus: c.email ? 'guessed' : null,
+                    companyId,
+                    organizationId: company.organizationId
+                }
+            });
+        }
+    } else if (domainGuess.verified && domainGuess.domain) {
         const apolloRes = await enrichOrganizationWithContacts(domainGuess.domain);
         if (apolloRes.contacts.length > 0) {
             apolloContacts = apolloRes.contacts;

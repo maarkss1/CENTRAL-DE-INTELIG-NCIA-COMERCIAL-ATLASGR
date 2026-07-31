@@ -3,6 +3,7 @@ import { buildLocationLabel } from './prospecting.service';
 import { findEmailViaHunter, findPeopleViaDomainSearch } from './hunter.service';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
+import { validContactEmails } from '../utils/contact-links';
 
 const APOLLO_SEARCH_URL = 'https://api.apollo.io/v1/organizations/search';
 const APOLLO_ORG_ENRICH_URL = 'https://api.apollo.io/v1/organizations/enrich';
@@ -244,8 +245,15 @@ export async function fetchApolloCandidates(
             website: org.primary_domain ? `https://${org.primary_domain}` : org.website_url || null,
         }));
 
-        // Removemos a busca automática de decisores para permitir que seja feita em uma etapa posterior (on demand)
-        // await enrichCandidatesWithDecisionMakers(candidates, organizations);
+        // Busca decisores (LinkedIn, e-mail, telefone) já na descoberta para os primeiros
+        // MAX_DECISION_MAKER_LOOKUPS candidatos com domínio conhecido — o vendedor não precisa
+        // clicar em nada para ver os dados prontos na tela de resultados.
+        await enrichCandidatesWithDecisionMakers(candidates, organizations);
+        for (const candidate of candidates) {
+            if (candidate.decisionMakers?.length) {
+                candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
+            }
+        }
 
         return { candidates };
     } catch (error) {

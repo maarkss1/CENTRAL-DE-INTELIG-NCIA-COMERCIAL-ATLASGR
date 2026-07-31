@@ -113,7 +113,14 @@ export function ProspectingHub() {
             setSelectedCandidates(new Set(filteredCandidates.map(c => c.i)));
         }
     };
-    // toggleSelect unused
+    const toggleSelect = (idx: number) => {
+        setSelectedCandidates((prev) => {
+            const next = new Set(prev);
+            if (next.has(idx)) next.delete(idx);
+            else next.add(idx);
+            return next;
+        });
+    };
     const bulkSave = async () => {
         if (selectedCandidates.size === 0 || isSavingBatch) return;
         setIsSavingBatch(true);
@@ -134,6 +141,7 @@ export function ProspectingHub() {
                         linkedin: candidate.linkedinUrl,
                         phone: candidate.phone,
                         website: candidate.website,
+                        decisionMakers: candidate.decisionMakers,
                     });
                     setPromoted(prev => ({ ...prev, [key]: result }));
                 }
@@ -166,6 +174,7 @@ export function ProspectingHub() {
                         linkedin: candidate.linkedinUrl,
                         phone: candidate.phone,
                         website: candidate.website,
+                        decisionMakers: candidate.decisionMakers,
                     });
                     setPromoted(prev => ({ ...prev, [key]: result }));
                 }
@@ -221,6 +230,7 @@ export function ProspectingHub() {
                         linkedin: candidate.linkedinUrl,
                         phone: candidate.phone,
                         website: candidate.website,
+                        decisionMakers: candidate.decisionMakers,
                     });
                     setPromoted(prev => ({ ...prev, [key]: result }));
                 }
@@ -484,47 +494,65 @@ export function ProspectingHub() {
 
 
                             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
-                                {dropdownFields.map(({ key, label, options }) => (
-                                    <div key={key}>
-                                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">{label}</label>
-                                        <select
-                                            className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
-                                            value={criteria[key]}
-                                            onChange={(e) => setCriteria({ ...criteria, [key]: e.target.value })}
-                                        >
-                                            {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                    </div>
-                                ))}
+                                <div>
+                                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Segmento (ICP)</label>
+                                    <input
+                                        type="text"
+                                        list="segmento-suggestions"
+                                        placeholder="Ex: Transportadora / Frotista, Logística..."
+                                        className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white placeholder-gray-500"
+                                        value={criteria.segmento || ''}
+                                        onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
+                                    />
+                                    <datalist id="segmento-suggestions">
+                                        {activeSegments.map((opt) => <option key={opt} value={opt} />)}
+                                    </datalist>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
                                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Estado</label>
-                                        <select
-                                            className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
+                                        <input
+                                            type="text"
+                                            list="estado-suggestions"
+                                            placeholder="Ex: São Paulo, SP, Sul..."
+                                            className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white placeholder-gray-500"
                                             value={criteria.estado || ''}
                                             onChange={(e) => {
                                                 const estado = e.target.value;
-                                                setCriteria({ ...criteria, estado, localizacao: estado, cidade: undefined });
+                                                setCriteria({
+                                                    ...criteria,
+                                                    estado,
+                                                    localizacao: criteria.cidade ? `${criteria.cidade}, ${estado}` : estado || criteria.localizacao
+                                                });
                                             }}
-                                        >
-                                            <option value="">Selecione o Estado</option>
-                                            {ESTADO_OPTIONS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-                                        </select>
+                                        />
+                                        <datalist id="estado-suggestions">
+                                            {ESTADO_OPTIONS.map((uf) => <option key={uf} value={uf} />)}
+                                        </datalist>
                                     </div>
                                     <div>
                                         <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Cidade (opcional)</label>
-                                        <select
+                                        <input
+                                            type="text"
+                                            list="cidade-suggestions"
+                                            placeholder="Ex: Campinas, Santos..."
+                                            className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white placeholder-gray-500"
                                             value={criteria.cidade || ''}
                                             onChange={(e) => {
                                                 const cidade = e.target.value;
-                                                setCriteria({ ...criteria, cidade, localizacao: cidade ? `${cidade}, ${criteria.estado}` : criteria.estado || '' });
+                                                setCriteria({
+                                                    ...criteria,
+                                                    cidade,
+                                                    localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
+                                                });
                                             }}
-                                            disabled={!criteria.estado || cities.length === 0}
-                                            className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white disabled:opacity-50"
-                                        >
-                                            <option value="">Todas as Cidades</option>
-                                            {cities.map((city) => <option key={city} value={city}>{city}</option>)}
-                                        </select>
+                                        />
+                                        {cities.length > 0 && (
+                                            <datalist id="cidade-suggestions">
+                                                {cities.map((city) => <option key={city} value={city} />)}
+                                            </datalist>
+                                        )}
                                     </div>
                                 </div>
 
@@ -546,13 +574,15 @@ export function ProspectingHub() {
 
                                 <div>
                                     <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-gray-400">Quantidade de Leads</label>
-                                    <select
-                                        className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white"
-                                        value={criteria.quantidade}
-                                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) })}
-                                    >
-                                        {QUANTIDADE_OPTIONS.map((n) => <option key={n} value={n}>{n} leads</option>)}
-                                    </select>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={500}
+                                        placeholder="Ex: 10, 25, 50..."
+                                        className="w-full p-3 bg-slate-950/60 rounded-xl border border-white/10 outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-white placeholder-gray-500"
+                                        value={criteria.quantidade ?? 10}
+                                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) || 10 })}
+                                    />
                                 </div>
 
                                 <button
@@ -809,7 +839,9 @@ export function ProspectingHub() {
                                                     onPromote={() => promoteCandidate(c, i)}
                                                     isPromoting={promotingKey === `discovery-${i}`}
                                                     promoted={!!promoted[`discovery-${i}`]}
-                                                    promotedResult={promoted[`discovery-${i} isSelected={selectedCandidates.has(i)} onToggleSelect={() => toggleSelect(i)}`]}
+                                                    promotedResult={promoted[`discovery-${i}`]}
+                                                    isSelected={selectedCandidates.has(i)}
+                                                    onToggleSelect={() => toggleSelect(i)}
                                                 />
                                             </motion.div>
                                         ))}
@@ -933,6 +965,8 @@ interface DecisionMakerSearchProps {
     companyEmails?: Array<string | null | undefined> | null;
     companyPhones?: Array<string | null | undefined> | null;
     appearance?: 'dark' | 'light';
+    /** Quantidade de decisores já encontrados automaticamente na descoberta — ajusta o texto do botão para deixar claro que isto é uma busca adicional, não a única forma de ver decisores. */
+    alreadyFoundCount?: number;
 }
 
 export function DecisionMakerSearch({
@@ -943,6 +977,7 @@ export function DecisionMakerSearch({
     companyEmails,
     companyPhones,
     appearance = 'dark',
+    alreadyFoundCount,
 }: DecisionMakerSearchProps) {
     const { activeBrand, brandInfo } = useBrand();
     const light = appearance === 'light';
@@ -1069,7 +1104,7 @@ export function DecisionMakerSearch({
                             : 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25'
                     }`}
                 >
-                    <Search size={14} /> Buscar Decisores Nesta Empresa
+                    <Search size={14} /> {alreadyFoundCount ? 'Buscar mais decisores (outros filtros)' : 'Buscar Decisores Nesta Empresa'}
                 </button>
             </div>
         );
@@ -1468,7 +1503,34 @@ function CandidateCard({
                             <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-gray-400" /> {formatUsd(candidate.annualRevenue)}/ano</span>
                         )}
                         {candidate.phone && (
-                            <span className="flex items-center gap-1.5"><Phone size={14} className="text-gray-400" /> {candidate.phone}</span>
+                            getTelephoneLink(candidate.phone) ? (
+                                <a href={getTelephoneLink(candidate.phone)} className="flex items-center gap-1.5 hover:text-white hover:underline">
+                                    <Phone size={14} className="text-gray-400" /> {candidate.phone}
+                                </a>
+                            ) : (
+                                <span className="flex items-center gap-1.5"><Phone size={14} className="text-gray-400" /> {candidate.phone}</span>
+                            )
+                        )}
+                        {getWhatsAppLink(candidate.phone) && (
+                            <a
+                                href={getWhatsAppLink(candidate.phone)}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Número coletado — a existência de WhatsApp não foi verificada"
+                                className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
+                            >
+                                <MessageCircle size={14} /> WhatsApp
+                            </a>
+                        )}
+                        {candidate.website && (
+                            <a
+                                href={candidate.website.startsWith('http') ? candidate.website : `https://${candidate.website}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1.5 text-sky-400 hover:underline"
+                            >
+                                <Globe size={14} /> Site
+                            </a>
                         )}
                         {candidate.linkedinUrl && (
                             <a href={candidate.linkedinUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:underline">
@@ -1476,6 +1538,16 @@ function CandidateCard({
                             </a>
                         )}
                     </div>
+
+                    {validContactEmails(candidate.emails).length > 0 && (
+                        <div className="flex flex-wrap gap-3 text-xs font-semibold text-success mb-2">
+                            {validContactEmails(candidate.emails).map((email) => (
+                                <a key={email} href={`mailto:${email}`} className="flex items-center gap-1.5 hover:underline">
+                                    <Mail size={14} /> {email}
+                                </a>
+                            ))}
+                        </div>
+                    )}
 
                     {candidate.technologies && candidate.technologies.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1491,6 +1563,57 @@ function CandidateCard({
                         <p className="text-xs text-gray-400 italic mb-2">"{candidate.rationale}"</p>
                     )}
 
+                    {!enrichment && candidate.decisionMakers && candidate.decisionMakers.length > 0 && (
+                        <div className="mt-2 mb-3">
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 flex items-center gap-1">
+                                <Users size={12} /> Decisores já encontrados (Apollo/Hunter) — prontos para uso
+                            </p>
+                            <div className="flex flex-col gap-2">
+                                {candidate.decisionMakers.map((dm, idx) => {
+                                    const linkedIn = getDecisionMakerLinkedInLink({
+                                        name: dm.name,
+                                        title: dm.title,
+                                        companyName: candidate.tradeName,
+                                        linkedinUrl: dm.linkedinUrl,
+                                    });
+                                    const tel = getTelephoneLink(dm.phone);
+                                    const whatsapp = getWhatsAppLink(dm.phone);
+                                    return (
+                                        <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-gray-300 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                            <strong className="text-white text-sm">{dm.name}</strong>
+                                            {dm.title && <span className="text-gray-400 bg-white/10 px-2 py-0.5 rounded-md">{dm.title}</span>}
+                                            {dm.email && (
+                                                <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success hover:underline">
+                                                    <Mail size={12} /> {dm.email}
+                                                    {dm.emailSource === 'hunter' && <span className="text-[9px] bg-neon-purple/20 text-neon-purple px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
+                                                </a>
+                                            )}
+                                            {tel && (
+                                                <a href={tel} className="flex items-center gap-1 text-gray-300 hover:text-white hover:underline">
+                                                    <Phone size={12} /> {dm.phone}
+                                                </a>
+                                            )}
+                                            {whatsapp && (
+                                                <a
+                                                    href={whatsapp}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    title="Número coletado — a existência de WhatsApp não foi verificada"
+                                                    className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 hover:underline"
+                                                >
+                                                    <MessageCircle size={12} /> WhatsApp
+                                                </a>
+                                            )}
+                                            <a href={linkedIn.href} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline">
+                                                <Linkedin size={12} /> {linkedIn.isDirectProfile ? 'Abrir perfil' : 'Buscar no LinkedIn'}
+                                            </a>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     <DecisionMakerSearch
                         companyName={candidate.tradeName}
                         website={candidate.website}
@@ -1498,6 +1621,7 @@ function CandidateCard({
                         companyCnpj={candidate.cnpjGuess}
                         companyEmails={candidate.emails}
                         companyPhones={candidate.phone ? [candidate.phone] : []}
+                        alreadyFoundCount={candidate.decisionMakers?.length}
                     />
 
                     {enrichment?.company.observations && (

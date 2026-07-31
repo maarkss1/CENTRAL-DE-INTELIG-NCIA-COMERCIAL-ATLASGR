@@ -23,6 +23,15 @@ model_list:
   - model_name: openrouter-mixtral
     litellm_params:
       model: openrouter/mistralai/mixtral-8x7b-instruct
+  - model_name: qwen-coder
+    litellm_params:
+      model: openrouter/qwen/qwen-2.5-coder-32b-instruct
+      api_key: "os.environ/OPENROUTER_API_KEY"
+  - model_name: deepseek-coder
+    litellm_params:
+      model: openrouter/deepseek/deepseek-coder
+      api_key: "os.environ/OPENROUTER_API_KEY"
+
 
 litellm_settings:
   drop_params: true

@@ -236,6 +236,8 @@ export interface PromoteInput {
     phone?: string | null;
     /** Domínio/site já conhecido (Apollo primary_domain ou Google Places) — evita heurística de adivinhação no enriquecimento. */
     website?: string | null;
+    /** Decisores já buscados na tela de descoberta — evita gastar créditos Apollo/Hunter de novo no promote. */
+    decisionMakers?: DecisionMaker[];
 }
 
 function splitLocation(location?: string | null): { city?: string; state?: string } {
@@ -348,6 +350,7 @@ export async function promoteToCrm(input: PromoteInput) {
                     cnpj: company.cnpj || undefined,
                     segmentKeywords: input.segment ? [input.segment] : undefined,
                     fleetSizeHint: input.size || undefined,
+                    preFetchedDecisionMakers: input.decisionMakers?.length ? input.decisionMakers : undefined,
                 });
             } catch (error) {
                 logger.error('Auto-enrichment failed during promote:', error);

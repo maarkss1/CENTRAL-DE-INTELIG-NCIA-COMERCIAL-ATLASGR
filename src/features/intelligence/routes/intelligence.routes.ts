@@ -103,7 +103,7 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
     }
 });
 
-import { SDRAgent } from '../agents/sdr.agent.js';
+import { SDRQualificationAgent } from '../agents/sdr.agent.js';
 
 router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -116,7 +116,7 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
 
         // Para evitar timeout da requisição HTTP, rodamos o agente assíncronamente sem esperar
         // (Numa infra real, isso também iria pro BullMQ)
-        const agent = new SDRAgent();
+        const agent = new SDRQualificationAgent();
         agent.run(leadId, sessionId).catch(err => {
             logger.error({ err, leadId }, 'SDR Agent background execution failed');
         });
@@ -244,8 +244,8 @@ const putAiSettingsSchema = z.object({
     settings: z.array(
         z.object({
             toolKey: z.string().min(1),
-            provider: z.literal('Groq'),
-            model: z.enum(['gemini-pro', 'gemini-flash']),
+            provider: z.string().min(1),
+            model: z.enum(['gemini-pro', 'gemini-flash', 'qwen-coder', 'deepseek-coder']),
             temperature: z.number().min(0).max(2),
         }),
     ),
@@ -319,26 +319,46 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
 
 
 // AI Toolkit Endpoints (Expose the 20 functionalities to frontend via single proxy or discrete endpoints)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const aiToolkitFunctions: Record<string, (...args: any[]) => Promise<unknown>> = {
+    summarizeLead, generateEmailDraft, predictConversionScore, generateMeetingAgenda,
+    draftFollowUp, scoreLeadQuality, suggestNextAction, generateObjectionHandling,
+    analyzeCompetitors, generateElevatorPitch, identifyPainPoints, createColdCallScript,
+    summarizeMeetingNotes, generateLinkedInMessage, evaluateDealRisk, analyzeSentiment,
+    extractKeywords, categorizeLead, translateText, extractActionItems
+};
+
+// Todas as funções do toolkit recebem apenas argumentos de texto — o número abaixo é a aridade
+// real de cada uma (ver src/lib/ai/features.ts), usado para validar a chamada antes do dispatch.
+const AI_TOOLKIT_ARITY: Record<string, number> = {
+    summarizeLead: 1, generateEmailDraft: 2, predictConversionScore: 1, generateMeetingAgenda: 2,
+    draftFollowUp: 1, scoreLeadQuality: 1, suggestNextAction: 2, generateObjectionHandling: 1,
+    analyzeCompetitors: 1, generateElevatorPitch: 1, identifyPainPoints: 1, createColdCallScript: 2,
+    summarizeMeetingNotes: 1, generateLinkedInMessage: 2, evaluateDealRisk: 1, analyzeSentiment: 1,
+    extractKeywords: 1, categorizeLead: 1, translateText: 2, extractActionItems: 1,
+};
+
 router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { functionName, args } = req.body as { functionName: string; args: unknown[] };
+        const { functionName, args } = req.body as { functionName?: unknown; args?: unknown };
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const aiFunctions: Record<string, (...args: any[]) => Promise<unknown>> = {
-            summarizeLead, generateEmailDraft, predictConversionScore, generateMeetingAgenda,
-            draftFollowUp, scoreLeadQuality, suggestNextAction, generateObjectionHandling,
-            analyzeCompetitors, generateElevatorPitch, identifyPainPoints, createColdCallScript,
-            summarizeMeetingNotes, generateLinkedInMessage, evaluateDealRisk, analyzeSentiment,
-            extractKeywords, categorizeLead, translateText, extractActionItems
-        };
-
-        if (!aiFunctions[functionName]) {
+        if (typeof functionName !== 'string' || !aiToolkitFunctions[functionName]) {
             res.status(400).json({ error: 'Function not found in AI Toolkit' });
             return;
         }
 
-        // Execute the function
-        const result = await aiFunctions[functionName](...args);
+        const expectedArity = AI_TOOLKIT_ARITY[functionName];
+        const isValidArgs = Array.isArray(args)
+            && args.length === expectedArity
+            && args.every((arg) => typeof arg === 'string' && arg.trim().length > 0);
+        if (!isValidArgs) {
+            res.status(400).json({
+                error: `A função "${functionName}" espera ${expectedArity} argumento(s) de texto não vazio.`,
+            });
+            return;
+        }
+
+        const result = await aiToolkitFunctions[functionName](...(args as string[]));
         res.json({ success: true, result });
     } catch (error) {
         logger.error({ err: error }, 'Error executing AI Toolkit function');

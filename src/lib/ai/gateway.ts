@@ -11,6 +11,8 @@ const MODEL_ALIASES: Record<string, string> = {
     'gemini-2.5-pro': 'gemini-pro',
     'gemini-pro-latest': 'gemini-pro',
     'gemini-flash-latest': 'gemini-flash',
+    'qwen-2.5-coder': 'qwen-coder',
+    'deepseek-coder-v2': 'deepseek-coder',
 };
 
 const GROQ_MODEL_ALIASES: Record<string, string> = {
@@ -26,6 +28,18 @@ const DEFAULT_FALLBACK_TIMEOUT_MS = 60_000;
 const MAX_MESSAGES_PER_REQUEST = 100;
 const MAX_TOTAL_MESSAGE_CHARS = 200_000;
 const MAX_EMBEDDING_INPUT_CHARS = 100_000;
+
+// Retry só compensa para falhas que podem ser passageiras (timeout, sobrecarga do provedor).
+// Uma falha de rede/conexão (provedor fora do ar) não some com uma segunda tentativa imediata —
+// nesse caso é melhor cair pro próximo provedor da cadeia o quanto antes.
+const MAX_ATTEMPTS_PER_LEG = 2;
+const RETRY_BASE_DELAY_MS = 300;
+
+// Circuit breaker leve em memória: depois de falhas consecutivas, um provedor fica "aberto"
+// (pulado sem nova tentativa de rede) por um período de resfriamento, evitando pagar o timeout
+// inteiro em cada chamada enquanto ele está sabidamente indisponível.
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_COOLDOWN_MS = 30_000;
 
 type ChatCompletionRole = 'system' | 'user' | 'assistant';
 
@@ -161,6 +175,83 @@ export function toChatCompletionMessages(messages: BaseMessage[]): ChatCompletio
     return converted;
 }
 
+function isRetryableAiError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') return true;
+    if (/HTTP (429|5\d{2}):/.test(error.message)) return true;
+    if (error.name === 'TypeError' && /fetch|network/i.test(error.message)) return true;
+    return false;
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Reexecuta `fn` uma vez após uma falha claramente transitória (timeout, HTTP 429/5xx, erro de
+ * rede) antes de desistir. Erros de validação/autenticação (4xx) não são reexecutados — repetir
+ * uma chave inválida ou um payload malformado só adiciona latência sem chance de sucesso.
+ * Usado pelo próprio gateway (cada camada de provedor) e reaproveitado por outros serviços de IA
+ * (ex.: geração de conteúdo em ai.service.ts) para não precisarem reimplementar a mesma lógica.
+ */
+export async function withRetry<T>(fn: () => Promise<T>, retries: number = 1, backoffMs: number = 400): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (attempt === retries || !isRetryableAiError(error)) throw error;
+            await sleep(backoffMs * (attempt + 1));
+        }
+    }
+    throw lastError;
+}
+
+interface CircuitState {
+    failures: number;
+    openUntil: number;
+}
+
+const circuitState = new Map<string, CircuitState>();
+
+function isCircuitOpen(provider: string): boolean {
+    const state = circuitState.get(provider);
+    return !!state && Date.now() < state.openUntil;
+}
+
+function recordCircuitSuccess(provider: string): void {
+    circuitState.delete(provider);
+}
+
+function recordCircuitFailure(provider: string): void {
+    const state = circuitState.get(provider) ?? { failures: 0, openUntil: 0 };
+    state.failures += 1;
+    if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+        state.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+    }
+    circuitState.set(provider, state);
+}
+
+/**
+ * Combina o circuit breaker com `withRetry`: se o provedor já acumulou falhas consecutivas
+ * recentes, nem tenta de novo (evita pagar o timeout inteiro em cada chamada enquanto ele está
+ * sabidamente fora do ar) — só volta a tentar depois do resfriamento.
+ */
+async function callProvider<T>(provider: string, fn: () => Promise<T>): Promise<T> {
+    if (isCircuitOpen(provider)) {
+        throw new Error(`Provedor "${provider}" temporariamente desativado após falhas recentes (nova tentativa em breve).`);
+    }
+    try {
+        const result = await withRetry(fn, MAX_ATTEMPTS_PER_LEG - 1, RETRY_BASE_DELAY_MS);
+        recordCircuitSuccess(provider);
+        return result;
+    } catch (error) {
+        recordCircuitFailure(provider);
+        throw error;
+    }
+}
+
 async function requestChatCompletion(
     url: string,
     apiKey: string,
@@ -231,7 +322,7 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
             let litellmError: unknown;
 
             try {
-                response = await requestChatCompletion(
+                response = await callProvider('litellm', () => requestChatCompletion(
                     `${litellmBaseUrl}/v1/chat/completions`,
                     litellmKey,
                     resolvedModel,
@@ -240,7 +331,7 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
                     agentContext,
                     gatewayTimeoutMs,
                     true,
-                );
+                ));
             } catch (error) {
                 litellmError = error;
             }
@@ -251,16 +342,16 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
             if (!response && process.env.GROQ_API_KEY) {
                 const groqModel = GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
                 try {
-                    response = await requestChatCompletion(
+                    response = await callProvider('groq', () => requestChatCompletion(
                         'https://api.groq.com/openai/v1/chat/completions',
-                        process.env.GROQ_API_KEY,
+                        process.env.GROQ_API_KEY!,
                         groqModel,
                         requestMessages,
                         temperature,
                         agentContext,
                         fallbackTimeoutMs,
                         false,
-                    );
+                    ));
                 } catch (error) {
                     groqError = error;
                 }
@@ -269,16 +360,16 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
             let openaiError: unknown;
             if (!response && process.env.OPENAI_API_KEY) {
                 try {
-                    response = await requestChatCompletion(
+                    response = await callProvider('openai', () => requestChatCompletion(
                         'https://api.openai.com/v1/chat/completions',
-                        process.env.OPENAI_API_KEY,
+                        process.env.OPENAI_API_KEY!,
                         'gpt-4o-mini', // Fallback universal para operações de alta disponibilidade
                         requestMessages,
                         temperature,
                         agentContext,
                         fallbackTimeoutMs,
                         false,
-                    );
+                    ));
                 } catch (error) {
                     openaiError = error;
                 }
@@ -321,6 +412,8 @@ const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number
     'gemini-flash': { input: 0.05, output: 0.08 },
     'gemini-flash-latest': { input: 0.075, output: 0.3 },
     'gemini-pro-latest': { input: 1.25, output: 5.0 },
+    'qwen-coder': { input: 0.20, output: 0.60 },
+    'deepseek-coder': { input: 0.14, output: 0.28 },
 };
 
 export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
@@ -343,34 +436,39 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
         throw new Error(`O texto do embedding excede ${MAX_EMBEDDING_INPUT_CHARS} caracteres.`);
     }
 
-    const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${LITELLM_KEY}`
-        },
-        body: JSON.stringify({
-            model: 'gemini/text-embedding-004',
-            input: normalizedText
-        }),
-        signal: AbortSignal.timeout(readBoundedInteger(
-            process.env.AI_EMBEDDING_TIMEOUT_MS,
-            DEFAULT_GATEWAY_TIMEOUT_MS,
-            5_000,
-            120_000,
-        )),
+    // Assim como no chat, aplicamos retry + circuit breaker: não há provedor alternativo de
+    // embeddings configurado hoje, então quando falha aqui a mensagem precisa deixar claro que
+    // não é só "erro passageiro" — é a única rota de embeddings do app.
+    return callProvider('embedding', async () => {
+        const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${LITELLM_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gemini/text-embedding-004',
+                input: normalizedText
+            }),
+            signal: AbortSignal.timeout(readBoundedInteger(
+                process.env.AI_EMBEDDING_TIMEOUT_MS,
+                DEFAULT_GATEWAY_TIMEOUT_MS,
+                5_000,
+                120_000,
+            )),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Falha ao gerar embedding (HTTP ${response.status}): ${await readProviderError(response)}`);
+        }
+
+        const data = await response.json() as { data?: Array<{ embedding?: unknown }> };
+        const embedding = data.data?.[0]?.embedding;
+        if (!Array.isArray(embedding) || embedding.length === 0 || !embedding.every(Number.isFinite)) {
+            throw new Error('O provedor retornou um embedding inválido.');
+        }
+        return embedding as number[];
     });
-
-    if (!response.ok) {
-        throw new Error(`Falha ao gerar embedding (HTTP ${response.status}): ${await readProviderError(response)}`);
-    }
-
-    const data = await response.json() as { data?: Array<{ embedding?: unknown }> };
-    const embedding = data.data?.[0]?.embedding;
-    if (!Array.isArray(embedding) || embedding.length === 0 || !embedding.every(Number.isFinite)) {
-        throw new Error('O provedor retornou um embedding inválido.');
-    }
-    return embedding as number[];
 };
 export interface AiUsageLogInput {
     model: string;

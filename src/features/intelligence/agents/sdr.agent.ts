@@ -95,7 +95,7 @@ const workflow = new StateGraph(MessagesAnnotation)
 const memory = new MemorySaver();
 const app = workflow.compile({ checkpointer: memory });
 
-export class SDRAgent {
+export class SDRQualificationAgent {
     async run(leadId: string, sessionId?: string) {
         const sid = sessionId || `session-${leadId}-${Date.now()}`;
         

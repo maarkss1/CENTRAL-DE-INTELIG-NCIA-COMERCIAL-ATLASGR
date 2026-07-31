@@ -117,10 +117,14 @@ router.post('/qualification', validateRequest(conversationRequestSchema), conver
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
 import { LearningAgent } from '../agents/learning.agent.js';
 
-router.post('/swarm/mission', async (req, res, next) => {
+const swarmMissionSchema = z.object({
+    mission: z.string().trim().min(1, 'A missão é obrigatória.').max(4_000),
+    sessionId: z.string().trim().min(1).max(200).optional(),
+});
+
+router.post('/swarm/mission', validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
-        const { mission, sessionId } = req.body;
-        if (!mission) throw new Error('A missão é obrigatória.');
+        const { mission, sessionId } = req.body as z.infer<typeof swarmMissionSchema>;
         const swarm = new SwarmOrchestrator();
         const result = await swarm.executeMission(mission, sessionId);
         // Retorna a última mensagem ou todo o contexto no formato esperado pelo api.ts (data envelope)
@@ -130,19 +134,20 @@ router.post('/swarm/mission', async (req, res, next) => {
     }
 });
 
-router.post('/swarm/stream', async (req, res, next) => {
+router.post('/swarm/stream', validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
-        const { mission, sessionId } = req.body;
-        if (!mission) throw new Error('A missão é obrigatória.');
+        const { mission, sessionId } = req.body as z.infer<typeof swarmMissionSchema>;
+        const sid = sessionId || `swarm-mission-${Date.now()}`;
 
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders?.();
 
         const swarm = new SwarmOrchestrator();
-        
-        await swarm.executeMissionStream(mission, sessionId, (chunk) => {
-            res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+
+        await swarm.executeMissionStream(mission, sid, (event) => {
+            res.write(`data: ${JSON.stringify(event)}\n\n`);
         });
 
         res.write('event: end\ndata: {}\n\n');

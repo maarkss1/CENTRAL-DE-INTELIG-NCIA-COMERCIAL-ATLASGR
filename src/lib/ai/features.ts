@@ -1,4 +1,5 @@
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { getAiModel } from './gateway.js';
 
 const callModel = async (systemPrompt: string, userPrompt: string, model: string = 'gemini-pro') => {
@@ -10,32 +11,82 @@ const callModel = async (systemPrompt: string, userPrompt: string, model: string
     return result.content;
 };
 
-const callModelJson = async <T>(systemPrompt: string, userPrompt: string, model: string = 'gemini-flash'): Promise<T> => {
+function extractJsonContent(raw: string): string {
+    const content = raw.trim();
+    if (content.startsWith('```json')) return content.replace(/^```json/, '').replace(/```$/, '').trim();
+    if (content.startsWith('```')) return content.replace(/^```/, '').replace(/```$/, '').trim();
+    return content;
+}
+
+type ParseResult<T> = { success: true; data: T } | { success: false; error: string };
+
+function parseAndValidate<T>(raw: string, schema: z.ZodType<T>): ParseResult<T> {
+    let parsedJson: unknown;
+    try {
+        parsedJson = JSON.parse(extractJsonContent(raw));
+    } catch {
+        return { success: false, error: `Resposta não é um JSON válido: ${raw.slice(0, 300)}` };
+    }
+    const result = schema.safeParse(parsedJson);
+    if (!result.success) {
+        return { success: false, error: `JSON não corresponde ao formato esperado: ${result.error.message}` };
+    }
+    return { success: true, data: result.data };
+}
+
+/**
+ * Chama o modelo pedindo JSON estrito e valida o resultado contra um schema Zod. Uma resposta
+ * malformada (JSON inválido ou fora do formato esperado) não derruba a ferramenta de imediato:
+ * fazemos UMA tentativa de reparo devolvendo o erro ao modelo antes de desistir.
+ */
+const callModelJson = async <T>(
+    systemPrompt: string,
+    userPrompt: string,
+    schema: z.ZodType<T>,
+    model: string = 'gemini-flash',
+): Promise<T> => {
     const aiModel = getAiModel(model);
-    const result = await aiModel.invoke([
-        new SystemMessage(`${systemPrompt}\n\nRespond strictly in JSON format without markdown blocks or code formatting.`),
+    const jsonSystemPrompt = `${systemPrompt}\n\nRespond strictly in JSON format without markdown blocks or code formatting.`;
+
+    const first = await aiModel.invoke([
+        new SystemMessage(jsonSystemPrompt),
         new HumanMessage(userPrompt),
     ]);
+    const firstAttempt = parseAndValidate(first.content, schema);
+    if (firstAttempt.success) return firstAttempt.data;
 
-    let content = result.content.trim();
-    if (content.startsWith('```json')) {
-        content = content.replace(/^```json/, '').replace(/```$/, '').trim();
-    } else if (content.startsWith('```')) {
-        content = content.replace(/^```/, '').replace(/```$/, '').trim();
-    }
+    const repaired = await aiModel.invoke([
+        new SystemMessage(jsonSystemPrompt),
+        new HumanMessage(userPrompt),
+        new AIMessage(first.content),
+        new HumanMessage(`Sua resposta anterior não é um JSON válido nesse formato (${firstAttempt.error}). Responda de novo, SOMENTE com o JSON corrigido, sem markdown.`),
+    ]);
+    const secondAttempt = parseAndValidate(repaired.content, schema);
+    if (secondAttempt.success) return secondAttempt.data;
 
-    try {
-        return JSON.parse(content) as T;
-    } catch {
-        throw new Error(`Failed to parse AI JSON response: ${content}`);
-    }
+    throw new Error(`Failed to parse AI JSON response after repair attempt: ${repaired.content}`);
 };
 
-export interface SentimentResult { sentiment: 'Positivo' | 'Negativo' | 'Neutro'; confidence: number; }
-export interface KeywordResult { keywords: string[]; }
-export interface CategorizationResult { industry: string; segment: string; reasoning: string; }
-export interface ActionItemsResult { actionItems: Array<{ task: string; owner?: string; deadline?: string }>; }
-export interface TranslationResult { translatedText: string; }
+const SentimentSchema = z.object({
+    sentiment: z.enum(['Positivo', 'Negativo', 'Neutro']),
+    confidence: z.number(),
+});
+const KeywordSchema = z.object({ keywords: z.array(z.string()) });
+const CategorizationSchema = z.object({ industry: z.string(), segment: z.string(), reasoning: z.string() });
+const TranslationSchema = z.object({ translatedText: z.string() });
+const ActionItemsSchema = z.object({
+    actionItems: z.array(z.object({
+        task: z.string(),
+        owner: z.string().optional(),
+        deadline: z.string().optional(),
+    })),
+});
+
+export type SentimentResult = z.infer<typeof SentimentSchema>;
+export type KeywordResult = z.infer<typeof KeywordSchema>;
+export type CategorizationResult = z.infer<typeof CategorizationSchema>;
+export type ActionItemsResult = z.infer<typeof ActionItemsSchema>;
+export type TranslationResult = z.infer<typeof TranslationSchema>;
 
 export const summarizeLead = async (leadData: string) => callModel('Você é um assistente da AtlasGR especializado em resumir perfis de leads no mercado B2B.', `Resuma as seguintes informações do lead de forma estratégica, focando em oportunidades de negócios e logística corporativa:\n${leadData}`, 'gemini-pro');
 export const generateEmailDraft = async (context: string, goal: string) => callModel('Você é um SDR experiente da AtlasGR, especializado em escrever e-mails frios e follow-ups persuasivos B2B.', `Escreva um e-mail profissional com foco em alta taxa de resposta.\nContexto: ${context}\nObjetivo: ${goal}`, 'gemini-pro');
@@ -53,8 +104,8 @@ export const summarizeMeetingNotes = async (transcript: string) => callModel('Vo
 export const generateLinkedInMessage = async (prospectProfile: string, purpose: string) => callModel('Você é um estrategista de Social Selling no LinkedIn.', `Escreva uma mensagem de conexão hyper-personalizada (limite 300 caracteres) focada em conversão silenciosa:\nPerfil: ${prospectProfile}\nObjetivo: ${purpose}`, 'gemini-pro');
 export const evaluateDealRisk = async (dealDetails: string) => callModel('Você é um Gerente de Pipeline de Vendas B2B (Deal Desk).', `Analise os sinais presentes nesta negociação, determine o Risco (Baixo, Médio, Alto) e aponte os buracos que o vendedor deixou abertos:\n${dealDetails}`, 'gemini-pro');
 
-export const analyzeSentiment = async (text: string): Promise<SentimentResult> => callModelJson<SentimentResult>('Você é um sistema de análise de sentimentos NLP. Output no formato JSON: { "sentiment": "Positivo" | "Negativo" | "Neutro", "confidence": number }.', `Analise o texto: "${text}"`, 'gemini-flash');
-export const extractKeywords = async (text: string): Promise<KeywordResult> => callModelJson<KeywordResult>('Você é um extrator de Named Entity Recognition. Extraia palavras-chave e tópicos comerciais B2B do texto. Output no formato JSON: { "keywords": ["string"] }.', `Texto: "${text}"`, 'gemini-flash');
-export const categorizeLead = async (leadDescription: string): Promise<CategorizationResult> => callModelJson<CategorizationResult>('Você é um classificador de verticais de mercado B2B. Output no formato JSON: { "industry": "string", "segment": "string", "reasoning": "string" }.', `Descrição da empresa: "${leadDescription}"`, 'gemini-flash');
-export const translateText = async (text: string, targetLanguage: string): Promise<TranslationResult> => callModelJson<TranslationResult>(`Você é um tradutor API preciso. Output no formato JSON: { "translatedText": "string" }. Traduza para ${targetLanguage}.`, `Texto original: "${text}"`, 'gemini-flash');
-export const extractActionItems = async (transcript: string): Promise<ActionItemsResult> => callModelJson<ActionItemsResult>('Você é um extrator de Next Steps (Action Items). Output no formato JSON: { "actionItems": [{ "task": "string", "owner": "string opcional", "deadline": "string opcional" }] }.', `Transcrição ou Ata: "${transcript}"`, 'gemini-flash');
+export const analyzeSentiment = async (text: string): Promise<SentimentResult> => callModelJson<SentimentResult>('Você é um sistema de análise de sentimentos NLP. Output no formato JSON: { "sentiment": "Positivo" | "Negativo" | "Neutro", "confidence": number }.', `Analise o texto: "${text}"`, SentimentSchema, 'gemini-flash');
+export const extractKeywords = async (text: string): Promise<KeywordResult> => callModelJson<KeywordResult>('Você é um extrator de Named Entity Recognition. Extraia palavras-chave e tópicos comerciais B2B do texto. Output no formato JSON: { "keywords": ["string"] }.', `Texto: "${text}"`, KeywordSchema, 'gemini-flash');
+export const categorizeLead = async (leadDescription: string): Promise<CategorizationResult> => callModelJson<CategorizationResult>('Você é um classificador de verticais de mercado B2B. Output no formato JSON: { "industry": "string", "segment": "string", "reasoning": "string" }.', `Descrição da empresa: "${leadDescription}"`, CategorizationSchema, 'gemini-flash');
+export const translateText = async (text: string, targetLanguage: string): Promise<TranslationResult> => callModelJson<TranslationResult>(`Você é um tradutor API preciso. Output no formato JSON: { "translatedText": "string" }. Traduza para ${targetLanguage}.`, `Texto original: "${text}"`, TranslationSchema, 'gemini-flash');
+export const extractActionItems = async (transcript: string): Promise<ActionItemsResult> => callModelJson<ActionItemsResult>('Você é um extrator de Next Steps (Action Items). Output no formato JSON: { "actionItems": [{ "task": "string", "owner": "string opcional", "deadline": "string opcional" }] }.', `Transcrição ou Ata: "${transcript}"`, ActionItemsSchema, 'gemini-flash');
