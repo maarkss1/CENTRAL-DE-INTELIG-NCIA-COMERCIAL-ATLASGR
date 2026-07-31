@@ -160,6 +160,86 @@ export class IngestionService {
         };
     }
 
+    /**
+     * Atualiza título e/ou conteúdo de um documento.
+     *
+     * Quando o conteúdo muda, os trechos antigos são apagados e o documento é refatiado e
+     * revetorizado — manter chunks de um texto que não existe mais faria a busca devolver
+     * passagens que o usuário já corrigiu.
+     */
+    async updateDocument(
+        organizationId: string,
+        documentId: string,
+        patch: { title?: string; content?: string },
+    ): Promise<IngestResult> {
+        const document = await this.get(organizationId, documentId);
+        if (!document) throw new Error('Documento não encontrado.');
+
+        const title = patch.title?.trim() || document.title;
+        const contentChanged = patch.content != null && patch.content !== document.content;
+        const content = contentChanged ? patch.content! : document.content;
+
+        if (!content.trim()) throw new Error('O conteúdo do documento não pode ficar vazio.');
+
+        if (!contentChanged) {
+            // Só o título mudou: não há por que gastar embeddings de novo.
+            const updated = await prisma.document.update({
+                where: { id: documentId },
+                data: { title },
+            });
+            return { id: updated.id, title: updated.title, chunkCount: updated.chunkCount, embeddingFailures: 0 };
+        }
+
+        const allChunks = chunkText(content);
+        if (allChunks.length === 0) throw new Error('Não foi possível extrair texto deste conteúdo.');
+        const chunks = allChunks.slice(0, MAX_CHUNKS_PER_DOCUMENT);
+
+        const vectorReady = await hasVectorSupport();
+        const embeddings = vectorReady
+            ? await mapWithConcurrency(chunks, EMBEDDING_CONCURRENCY, async (chunk) => {
+                try {
+                    return await generateEmbedding(`${title}\n\n${chunk}`);
+                } catch (err) {
+                    logger.error({ err, documentId }, 'Falha ao gerar embedding na reindexação');
+                    return null;
+                }
+            })
+            : chunks.map(() => null);
+
+        // Só apaga os trechos antigos depois de ter os novos embeddings em mãos: se o provedor
+        // estivesse fora, o documento ficaria sem nenhum trecho pesquisável.
+        await prisma.$executeRaw`DELETE FROM "DocumentChunk" WHERE "documentId" = ${documentId}`;
+
+        let embeddingFailures = 0;
+        for (let i = 0; i < chunks.length; i++) {
+            const embedding = embeddings[i];
+            if (vectorReady && !embedding) embeddingFailures++;
+
+            if (vectorReady) {
+                await prisma.$executeRaw`
+                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
+                    VALUES (
+                        gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i},
+                        ${embedding ? toVectorLiteral(embedding) : null}::vector
+                    )
+                `;
+            } else {
+                await prisma.$executeRaw`
+                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
+                    VALUES (gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i})
+                `;
+            }
+        }
+
+        const updated = await prisma.document.update({
+            where: { id: documentId },
+            data: { title, content, chunkCount: chunks.length },
+        });
+
+        logger.info({ documentId, chunks: chunks.length }, 'Documento reindexado');
+        return { id: updated.id, title: updated.title, chunkCount: chunks.length, embeddingFailures };
+    }
+
     /** Lista os documentos do tenant, sem trazer o conteúdo inteiro (a listagem só usa metadados). */
     async list(organizationId: string) {
         return prisma.document.findMany({

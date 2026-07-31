@@ -1,7 +1,7 @@
 
 import { 
     Home, LayoutTemplate, Search, Users, Building2, 
-    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays
+    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { Logo } from '../Logo';
@@ -26,6 +26,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
         { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
         { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
+        { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
     ];
 
     const aiTools = [
@@ -35,6 +36,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
         { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
         { id: 'knowledge' as TabType, label: 'Base de Conhecimento', icon: <Database size={20} /> },
+        { id: 'editor' as TabType, label: 'Editor de Documentos', icon: <FileText size={20} /> },
+        { id: 'automations' as TabType, label: 'Automações', icon: <Cpu size={20} /> },
+        { id: 'usage' as TabType, label: 'Consumo de IA', icon: <Wallet size={20} /> },
     ];
 
     return (

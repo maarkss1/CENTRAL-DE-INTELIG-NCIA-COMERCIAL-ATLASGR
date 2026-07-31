@@ -1,6 +1,7 @@
 import type { BaseMessage } from '@langchain/core/messages';
 import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
+import { requestContext } from '../async-context.js';
 
 // Nome lógico mantido por compatibilidade com os serviços existentes.
 export const GEMINI_MODEL = 'gemini-pro';
@@ -486,6 +487,10 @@ export const logAiUsage = async (input: AiUsageLogInput): Promise<void> => {
                 cost: estimateCostUsd(input.model, input.usage),
                 latencyMs: input.latencyMs,
                 promptId: input.promptId,
+                // Tirado do contexto da requisição em vez de exigir que cada chamador repasse o
+                // tenant. Fica nulo em execuções fora de requisição (scripts, workers), e a tela
+                // de Consumo trata esses registros como não atribuídos em vez de somá-los a alguém.
+                organizationId: requestContext.getStore()?.tenantId ?? null,
             },
         });
     } catch (error) {

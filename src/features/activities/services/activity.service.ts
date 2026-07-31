@@ -10,6 +10,7 @@ import {
     fromPrismaLeadStatus,
     fromPrismaCompanyStatus,
 } from '../../../lib/enumMap';
+import { automationEngine } from '../../automations/automation.engine';
 
 function serializeActivity<
     T extends {
@@ -120,6 +121,22 @@ export class ActivityService {
                     leadId: currentActivity.leadId
                 }
             });
+
+            // Gatilho de automação. Sem await: automação é efeito colateral e não pode atrasar nem
+            // derrubar a conclusão da atividade em si.
+            if (data.status === 'Concluída') {
+                void automationEngine.handle({
+                    organizationId,
+                    trigger: 'Atividade concluída',
+                    entity: 'Activity',
+                    entityId: id,
+                    data: {
+                        type: fromPrismaActivityType(currentActivity.type),
+                        owner: currentActivity.owner,
+                        leadId: currentActivity.leadId,
+                    },
+                }).catch(() => {});
+            }
         }
         return serializeActivity(activity);
     }

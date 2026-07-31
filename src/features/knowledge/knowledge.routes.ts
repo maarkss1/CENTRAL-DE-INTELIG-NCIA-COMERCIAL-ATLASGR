@@ -169,6 +169,28 @@ router.post('/search', validateRequest(searchSchema), async (req: Request, res: 
     }
 });
 
+const updateSchema = z.object({
+    title: z.string().trim().min(1).max(200).optional(),
+    content: z.string().trim().min(1).max(MAX_CONTENT_CHARS).optional(),
+}).refine((v) => v.title !== undefined || v.content !== undefined, {
+    message: 'Informe ao menos título ou conteúdo.',
+});
+
+/** PUT /api/knowledge/:id — edita o documento e reindexa se o conteúdo mudou. */
+router.put('/:id', validateRequest(updateSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await ingestionService.updateDocument(organizationId, req.params.id, req.body);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        if ((error as Error).message === 'Documento não encontrado.') {
+            res.status(404).json({ success: false, error: (error as Error).message });
+            return;
+        }
+        next(error);
+    }
+});
+
 /** POST /api/knowledge/:id/reembed — regera vetores que faltaram na ingestão. */
 router.post('/:id/reembed', async (req: Request, res: Response, next: NextFunction) => {
     try {

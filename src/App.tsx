@@ -28,6 +28,10 @@ const Integrations = lazy(() => import('./features/integrations/components/Integ
 const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
 const Analytics = lazy(() => import('./features/analytics/components/Analytics').then(m => ({ default: m.Analytics })));
 const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
+const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
+const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
+const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
+const DocumentEditor = lazy(() => import('./features/document-editor/components/Editor').then(m => ({ default: m.Editor })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
@@ -72,6 +76,10 @@ function AppLayout() {
         {activeTab === 'knowledge' && <KnowledgeBase />}
         {activeTab === 'analytics' && <Analytics />}
         {activeTab === 'calendar' && <Calendar />}
+        {activeTab === 'notifications' && <Notifications />}
+        {activeTab === 'automations' && <Automations />}
+        {activeTab === 'usage' && <Usage />}
+        {activeTab === 'editor' && <DocumentEditor />}
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}
