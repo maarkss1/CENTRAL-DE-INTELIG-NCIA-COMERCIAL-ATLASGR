@@ -94,7 +94,7 @@ export function LoginScreen() {
         <div className="lg:col-span-6 glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/80 shadow-2xl relative">
           <div className="flex flex-col items-center mb-6">
             <div className="w-16 h-16 bg-gradient-to-br from-atlas-orange via-amber-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 text-white shadow-lg shadow-atlas-orange/20">
-              <AtlasLogo className="w-9 h-9" />
+              <AtlasLogo className="w-9 h-9" color="#FFFFFF" />
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">AtlasGR & TotalTrac</h1>
             <p className="text-gray-400 text-xs mt-1 font-medium text-center">Plataforma Unificada de Inteligência Comercial B2B</p>

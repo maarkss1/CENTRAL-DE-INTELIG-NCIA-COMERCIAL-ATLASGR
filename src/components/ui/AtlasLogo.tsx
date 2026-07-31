@@ -1,3 +1,12 @@
-export function AtlasLogo(_props: { className?: string, color?: string }) {
-    return null;
+export function AtlasLogo({ className = "w-8 h-8", color }: { className?: string; color?: string }) {
+    const fillColor = color || "#FF5618";
+    return (
+        <svg viewBox="0 0 252 175" className={className} xmlns="http://www.w3.org/2000/svg">
+            <g fill={fillColor}>
+                <polygon points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56" />
+                <polygon points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94" />
+            </g>
+        </svg>
+    );
 }
+

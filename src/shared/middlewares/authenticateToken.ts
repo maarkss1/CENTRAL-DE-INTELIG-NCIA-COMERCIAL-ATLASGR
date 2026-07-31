@@ -33,19 +33,19 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
                 return;
             }
             const { prisma } = await import('../../lib/prisma.js');
-            let org = await prisma.organization.findFirst();
+            let org = await prisma.organization.findFirst().catch(() => null);
             if (!org) {
                 org = await prisma.organization.create({
                     data: {
                         name: 'Atlas Default Org'
                     }
-                });
+                }).catch(() => null);
             }
             user = {
                 id: 'dev-bypass-user',
                 email: 'admin@prospector.com',
                 role: 'ADMIN',
-                organizationId: org.id
+                organizationId: org?.id || 'dev-default-org'
             };
             isDevelopmentBypass = true;
         } else {
