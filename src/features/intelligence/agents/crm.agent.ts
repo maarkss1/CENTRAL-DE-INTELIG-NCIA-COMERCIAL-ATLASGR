@@ -54,7 +54,7 @@ export class CRMAgent {
         const lastMessage = messages[messages.length - 1];
 
         // Persistindo histórico
-        await this.updateMemory(sid, messages.map((m: BaseMessage) => ({
+        await this.updateMemory(sid, messages.map((m: any) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
         })));

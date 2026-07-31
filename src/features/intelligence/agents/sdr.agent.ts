@@ -117,7 +117,7 @@ export class SDRAgent {
         const messages = finalState.messages as BaseMessage[];
         
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
-        await this.updateMemory(sid, messages.map((m: BaseMessage) => ({
+        await this.updateMemory(sid, messages.map((m: any) => ({
             role: m._getType(),
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
             toolCalls: m.tool_calls ? JSON.stringify(m.tool_calls) : undefined,
