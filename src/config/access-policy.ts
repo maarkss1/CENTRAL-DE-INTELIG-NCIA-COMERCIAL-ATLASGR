@@ -4,13 +4,40 @@ export const AUTHORIZED_LOGIN_EMAILS = [
   'admin@prospector.com',
 ] as const;
 
+export const AUTHORIZED_LOGIN_DOMAINS = [
+  'atlasgr.com.br',
+  'atlasgr.com',
+  'totaltrac.com.br',
+  'totaltrack.com.br',
+] as const;
+
 export function normalizeLoginEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
 export function isAuthorizedLoginEmail(email: string | null | undefined): boolean {
-  // Para fins de desenvolvimento/teste local, vamos permitir qualquer e-mail.
-  // Em produção, você pode voltar a usar o filtro:
-  // return typeof email === 'string' && AUTHORIZED_LOGIN_EMAILS.some((authorizedEmail) => normalizeLoginEmail(email) === authorizedEmail);
-  return typeof email === 'string' && AUTHORIZED_LOGIN_EMAILS.some((authorizedEmail) => normalizeLoginEmail(email) === authorizedEmail);
+  if (!email || typeof email !== 'string') return false;
+  const normalized = normalizeLoginEmail(email);
+
+  // Verifica se o e-mail exato está na lista de e-mails autorizados
+  if (AUTHORIZED_LOGIN_EMAILS.some((authorizedEmail) => normalized === authorizedEmail)) {
+    return true;
+  }
+
+  // Verifica se o domínio do e-mail é de um dos domínios corporativos da AtlasGR ou TotalTrac
+  const domain = normalized.split('@')[1];
+  if (domain && AUTHORIZED_LOGIN_DOMAINS.some((allowedDomain) => domain === allowedDomain)) {
+    return true;
+  }
+
+  return false;
 }
+
+export function getBrandFromEmail(email: string): 'atlasgr' | 'totaltrac' {
+  const normalized = normalizeLoginEmail(email);
+  if (normalized.includes('totaltrac') || normalized.includes('totaltrack')) {
+    return 'totaltrac';
+  }
+  return 'atlasgr';
+}
+

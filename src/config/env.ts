@@ -11,6 +11,8 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional(),
   BETTER_AUTH_URL: z.string().optional(),
   BETTER_AUTH_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),
   MEILI_HOST: z.string().optional(),
   PROSPECTING_PROVIDER_MODE: z.enum(['free', 'hybrid']).default('free'),

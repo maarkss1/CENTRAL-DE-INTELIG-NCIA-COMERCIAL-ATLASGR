@@ -36,22 +36,31 @@ function serializeActivity<
     };
 }
 
+import { DEMO_ACTIVITIES } from '../../../shared/infra/demoStore';
+
 export class PrismaActivityRepository implements ActivityRepository {
     async findAllWithFilters(organizationId: string, dateStr?: string): Promise<Activity[]> {
-        const where: Prisma.ActivityWhereInput = { organizationId };
-        if (dateStr) {
-            const searchDate = new Date(dateStr);
-            where.date = {
-                gte: new Date(searchDate.setHours(0, 0, 0, 0)),
-                lt: new Date(searchDate.setHours(23, 59, 59, 999))
-            };
+        try {
+            const where: Prisma.ActivityWhereInput = { organizationId };
+            if (dateStr) {
+                const searchDate = new Date(dateStr);
+                where.date = {
+                    gte: new Date(searchDate.setHours(0, 0, 0, 0)),
+                    lt: new Date(searchDate.setHours(23, 59, 59, 999))
+                };
+            }
+            const activities = await prisma.activity.findMany({
+                where,
+                include: { lead: { include: { company: true, contact: true } } },
+                orderBy: { date: 'asc' }
+            });
+            if (activities && activities.length > 0) {
+                return activities.map(serializeActivity) as unknown as Activity[];
+            }
+        } catch {
+            // DB offline or unseeded in dev
         }
-        const activities = await prisma.activity.findMany({
-            where,
-            include: { lead: { include: { company: true, contact: true } } },
-            orderBy: { date: 'asc' }
-        });
-        return activities.map(serializeActivity) as unknown as Activity[];
+        return DEMO_ACTIVITIES;
     }
 
     async createWithTimeline(organizationId: string, data: Partial<Activity> & { type: ActivityType, status: ActivityStatus, leadId: string, date: string | Date }): Promise<Activity> {

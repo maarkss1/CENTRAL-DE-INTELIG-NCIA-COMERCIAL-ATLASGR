@@ -87,8 +87,8 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
             <h2 className="text-2xl font-semibold text-slate-900 mb-2">
               Fazer login
             </h2>
-            <p className="text-slate-600 mb-8">
-              Use sua Conta do Google para acessar a plataforma
+            <p className="text-slate-600 mb-8 text-xs">
+              Use sua Conta do Google corporativa (@atlasgr.com.br ou @totaltrac.com.br) para acessar a plataforma
             </p>
 
             <div className="w-full">

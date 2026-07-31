@@ -209,7 +209,7 @@ async function startServer() {
     const searchWorker = createSearchWorker();
     const companyWorker = createCompanyWorker();
     const enrichmentWorker = createEnrichmentWorker();
-    await initMeiliIndexes();
+    await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {

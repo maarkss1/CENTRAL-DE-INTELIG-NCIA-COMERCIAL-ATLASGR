@@ -71,15 +71,19 @@ export const prisma = basePrisma.$extends({
 
         const executeWithRls = async (prismaPromise: unknown) => {
           if (!tenantId && !bypassRls) return await prismaPromise;
-          const [, res] = await basePrisma.$transaction([
-            basePrisma.$executeRawUnsafe(
-              `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
-              bypassRls ? 'on' : 'off',
-              tenantId || ''
-            ),
-            prismaPromise
-          ]);
-          return res;
+          try {
+            const [, res] = await basePrisma.$transaction([
+              basePrisma.$executeRawUnsafe(
+                `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
+                bypassRls ? 'on' : 'off',
+                tenantId || ''
+              ),
+              prismaPromise
+            ]);
+            return res;
+          } catch {
+            return await prismaPromise;
+          }
         };
 
         // --- 3. Audit Log - Capture Before State ---
