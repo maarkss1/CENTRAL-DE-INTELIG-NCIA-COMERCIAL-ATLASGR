@@ -7,6 +7,9 @@ import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messag
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
+import { getTenantId, getUserId } from '../../../lib/async-context.js';
+import { getLearningProfile } from './learning.agent.js';
+import { logAiUsage } from '../../../lib/ai/gateway.js';
 
 const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
 const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
@@ -46,8 +49,22 @@ const modelWithTools = primaryLlm.bindTools(tools).withFallbacks([
     fallbackGroqLlm.bindTools(tools)
 ]);
 
+interface SerializedMessage {
+    role: string;
+    content: string;
+    toolCalls?: string;
+}
+
+async function loadLearnedStyle(): Promise<string | null> {
+    const tenantId = getTenantId();
+    const userId = getUserId();
+    if (!tenantId || !userId) return null;
+    return getLearningProfile(tenantId, userId);
+}
+
 // Definição da lógica do Agente
 async function callModel(state: typeof MessagesAnnotation.State) {
+    const learnedStyle = await loadLearnedStyle();
     const systemPrompt = new SystemMessage(
         `Você é a IA principal de Pré-Vendas (SDR Autônomo) da Atlas, arquitetada para qualificação cirúrgica de leads B2B.
 Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍSTICO COMPLETA baseada no ICP.
@@ -55,13 +72,33 @@ Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍST
 DIRETRIZES DE EXECUÇÃO:
 1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context'. Se o contexto faltar, chame a ferramenta de pesquisa de playbook para buscar o 'ICP da Atlas'.
 2. RACIOCÍNIO FRIO: Analise o Fit Score (0 a 100) baseando-se ESTRITAMENTE em porte (frota, faturamento), situação cadastral e aderência ao segmento logístico.
-3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'. 
+3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'.
    - A nota deve refletir a realidade crua dos dados.
    - O status deve ser 'Primeiro_Contato' apenas para leads com nota > 75, caso contrário 'Qualificacao' ou 'Descartado'.
 Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'.`
+        + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}` : '')
     );
 
+    const startTime = Date.now();
     const response = await modelWithTools.invoke([systemPrompt, ...state.messages]);
+
+    // Este agente fala direto com LiteLLM/Groq via LangChain (bindTools exige isso — o gateway.ts
+    // não transporta tool calls), então precisa logar o uso manualmente para não ficar invisível
+    // no AILog como os demais agentes.
+    if (response.usage_metadata) {
+        await logAiUsage({
+            model: response.response_metadata?.model_name
+                || (response.response_metadata?.model as string | undefined)
+                || 'gemini-flash',
+            usage: {
+                totalTokens: response.usage_metadata.total_tokens,
+                promptTokens: response.usage_metadata.input_tokens,
+                completionTokens: response.usage_metadata.output_tokens,
+            },
+            latencyMs: Date.now() - startTime,
+        });
+    }
+
     return { messages: [response] };
 }
 
@@ -117,11 +154,14 @@ export class SDRQualificationAgent {
         const messages = finalState.messages as BaseMessage[];
         
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
-        await this.updateMemory(sid, messages.map((m: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-            role: m._getType(),
-            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-            toolCalls: m.tool_calls ? JSON.stringify(m.tool_calls) : undefined,
-        })));
+        await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => {
+            const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
+            return {
+                role: m.type,
+                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+                toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
+            };
+        }));
 
         const lastMessage = messages[messages.length - 1];
         const detailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
@@ -129,7 +169,7 @@ export class SDRQualificationAgent {
         return { success: true, sessionId: sid, detailedLog: detailedContent };
     }
 
-    private async updateMemory(sessionId: string, messages: BaseMessage[]) {
+    private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
         try {
             const existing = await prisma.agentMemory.findFirst({
                 where: { sessionId }

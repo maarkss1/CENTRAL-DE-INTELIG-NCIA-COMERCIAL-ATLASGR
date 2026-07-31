@@ -1,5 +1,6 @@
 import { StateGraph, Annotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { z } from 'zod';
 import { getAiModel } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdr.agent.js';
 import { BDRAgent } from './bdr.agent.js';
@@ -86,21 +87,24 @@ function toAiMessage(event: SwarmEvent): AIMessage {
     return new AIMessage({ content: event.content, additional_kwargs: { swarmEvent: event } });
 }
 
-function extractJsonBlock(text: string): Record<string, unknown> | null {
+function extractJsonBlock(text: string): unknown {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return null;
     try {
-        return JSON.parse(match[0]) as Record<string, unknown>;
+        return JSON.parse(match[0]);
     } catch {
         return null;
     }
 }
 
-interface SupervisorDecision {
-    action: SwarmRoute;
-    instruction: string;
-    reasoning: string;
-}
+// Exportado só para teste unitário direto da validação de forma da decisão do supervisor.
+export const supervisorDecisionSchema = z.object({
+    action: z.enum(['sdr', 'bdr', 'crm', 'finish']),
+    instruction: z.string().default(''),
+    reasoning: z.string().default(''),
+});
+
+type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
 
 function fallbackDecision(completed: SwarmAgentKey[]): SupervisorDecision {
     const order: SwarmAgentKey[] = ['sdr', 'bdr', 'crm'];
@@ -160,17 +164,8 @@ Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSO
             new SystemMessage(systemPrompt),
             new HumanMessage('Qual é o próximo passo?'),
         ]);
-        const parsed = extractJsonBlock(response.content);
-        const action = parsed?.action as SwarmRoute | undefined;
-        if (action === 'sdr' || action === 'bdr' || action === 'crm' || action === 'finish') {
-            decision = {
-                action,
-                instruction: typeof parsed?.instruction === 'string' ? parsed.instruction : '',
-                reasoning: typeof parsed?.reasoning === 'string' ? parsed.reasoning : '',
-            };
-        } else {
-            decision = fallbackDecision(state.completed);
-        }
+        const parsed = supervisorDecisionSchema.safeParse(extractJsonBlock(response.content));
+        decision = parsed.success ? parsed.data : fallbackDecision(state.completed);
     } catch (error) {
         logger.error({ err: error }, 'Swarm supervisor routing failed, using fallback heuristic');
         decision = fallbackDecision(state.completed);
