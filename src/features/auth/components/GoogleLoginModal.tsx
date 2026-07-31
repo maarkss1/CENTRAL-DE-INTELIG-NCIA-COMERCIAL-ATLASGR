@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { useAuth } from '../../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { authClient } from '../../../lib/auth-client';
 
 interface GoogleLoginModalProps {

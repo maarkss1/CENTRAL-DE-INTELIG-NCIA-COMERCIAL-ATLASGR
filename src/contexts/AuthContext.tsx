@@ -27,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { data: session, isPending } = authClient.useSession();
+  const { isPending } = authClient.useSession();
   
   const savedBrand = localStorage.getItem('selectedBrand') as 'atlasgr' | 'totaltrac' | null;
 

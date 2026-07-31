@@ -88,7 +88,7 @@ async function inferMissingInsights(lead: Partial<IEnrichedLead>, visionInsight:
       description: typeof parsed.description === 'string' ? parsed.description : '',
       technologies: Array.isArray(parsed.technologies) ? parsed.technologies : [],
     };
-  } catch (err: unknown) {
+  } catch {
     return { description: '', technologies: [] };
   }
 }
@@ -109,7 +109,7 @@ export class DeepResearchService {
         const result = await provider.enrich(enrichedLead);
         enrichedLead = { ...enrichedLead, ...result };
       } catch (err: unknown) {
-        logger.error(`[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`, err);
+        logger.error({ err }, `[DeepResearch] Erro ao enriquecer via ${provider.providerName}:`);
       }
     }
 
