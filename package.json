@@ -25,6 +25,8 @@
     "coverage": "npm run coverage:unit && npm run coverage:integration",
     "coverage:unit": "vitest run -c vitest.unit.config.ts --coverage",
     "coverage:integration": "vitest run -c vitest.integration.config.ts --coverage",
+    "setup:db": "tsx scripts/setup-vector-db.ts",
+    "setup:db:check": "tsx scripts/setup-vector-db.ts --check",
     "verify:integrations": "tsx scripts/verify-integrations.ts",
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
     "docs": "typedoc"
