@@ -305,6 +305,7 @@ model Organization {
   leads            Lead[]
   prospects        Prospect[]
   activities       Activity[]
+  documents        Document[]
   aiPendingActions AIPendingAction[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -385,13 +386,25 @@ model Prompt {
 }
 
 model Document {
-  id        String          @id @default(cuid())
-  title     String
-  metadata  Json?
-  content   String
-  chunks    DocumentChunk[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  title          String
+  metadata       Json?
+  content        String
+  chunks         DocumentChunk[]
+  // Base de Conhecimento é por tenant: sem esta coluna qualquer organização leria os
+  // documentos das outras (a RLS depende dela para filtrar).
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Origem do conteúdo, para a UI diferenciar upload de arquivo e texto colado.
+  sourceType     String          @default("text")
+  sourceName     String?
+  // Contagem materializada: evita um COUNT por documento na listagem.
+  chunkCount     Int             @default(0)
+  createdBy      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, createdAt])
 }
 
 model DocumentChunk {
@@ -399,6 +412,8 @@ model DocumentChunk {
   documentId String
   document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
   content    String
+  // Posição do trecho dentro do documento, para citar a origem no resultado da busca.
+  chunkIndex Int                         @default(0)
   vector     Unsupported("vector(768)")?
 
   @@index([documentId])

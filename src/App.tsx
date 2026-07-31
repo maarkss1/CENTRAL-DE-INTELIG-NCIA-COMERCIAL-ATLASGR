@@ -25,6 +25,7 @@ const BitrixGuideHub = lazy(() => import('./features/intelligence/components/Bit
 const ReportsHub = lazy(() => import('./features/intelligence/components/ReportsHub').then(m => ({ default: m.ReportsHub })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
+const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
@@ -66,13 +67,7 @@ function AppLayout() {
         {activeTab === 'bitrix' && <BitrixGuideHub />}
         {activeTab === 'reports' && <ReportsHub />}
         {activeTab === 'integrations' && <Integrations />}
-        {activeTab === 'knowledge' && (
-          <div className="flex-1 overflow-y-auto bg-white p-8">
-             <div className="max-w-6xl mx-auto space-y-6">
-                
-             </div>
-          </div>
-        )}
+        {activeTab === 'knowledge' && <KnowledgeBase />}
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}

@@ -28,6 +28,7 @@ import { analyticsRoutes } from './src/features/analytics/routes/analytics.route
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
+import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -111,6 +112,9 @@ async function startServer() {
         message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
     });
     app.use('/api/intelligence', aiLimiter);
+    // A Base de Conhecimento gera embeddings a cada ingestão e a cada busca, então cai no mesmo
+    // limite das rotas de IA — é o mesmo provedor e a mesma cota.
+    app.use('/api/knowledge', aiLimiter);
 
     app.use(express.json({ limit: '10mb' }));
 
@@ -170,6 +174,7 @@ async function startServer() {
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+    app.use('/api/knowledge', authenticateToken, requireTenant, knowledgeRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/agent', authenticateToken, requireTenant, agentRoutes);

@@ -1,7 +1,7 @@
 
 import { 
     Home, LayoutTemplate, Search, Users, Building2, 
-    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight
+    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { Logo } from '../Logo';
@@ -32,6 +32,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
         { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
         { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
+        { id: 'knowledge' as TabType, label: 'Base de Conhecimento', icon: <Database size={20} /> },
     ];
 
     return (
