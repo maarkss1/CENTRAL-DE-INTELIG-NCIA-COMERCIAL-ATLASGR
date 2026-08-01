@@ -42,11 +42,6 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
 
     const kpis = [
         {
-            label: 'Pipeline Aberto',
-            value: stats ? stats.pipelineValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : '—',
-            icon: <TrendingUp className="w-5 h-5" />,
-        },
-        {
             label: 'Leads Qualificados',
             value: stats ? stats.totalLeads.toLocaleString('pt-BR') : '—',
             icon: <Radar className="w-5 h-5" />,
@@ -55,6 +50,11 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
             label: 'Taxa de Conversão',
             value: stats ? `${stats.conversionRate.toFixed(1)}%` : '—',
             icon: <Handshake className="w-5 h-5" />,
+        },
+        {
+            label: 'Atividades Pendentes',
+            value: stats ? stats.pendingActivities.toLocaleString('pt-BR') : '—',
+            icon: <TrendingUp className="w-5 h-5" />,
         },
         {
             label: 'Fechados no Mês',

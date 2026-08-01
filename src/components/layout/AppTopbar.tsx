@@ -1,6 +1,7 @@
 import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, Bot, BookOpen,
     Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell, Sun, Moon,
+    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database,
 } from 'lucide-react';
 import { TabType } from './Header';
 import { useLiveClock } from '../../hooks/useLiveClock';
@@ -23,7 +24,13 @@ const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     chatbook: { label: 'Chatbook', icon: MessageSquare },
     prompts: { label: 'Commercial OS', icon: Wand2 },
     integrations: { label: 'Integrações', icon: Globe },
-    knowledge: { label: 'Academy & Fun', icon: BookOpen },
+    knowledge: { label: 'Base de Conhecimento', icon: Database },
+    analytics: { label: 'Analytics', icon: BarChart3 },
+    calendar: { label: 'Calendário', icon: CalendarDays },
+    notifications: { label: 'Notificações', icon: Bell },
+    automations: { label: 'Automações', icon: Cpu },
+    usage: { label: 'Consumo de IA', icon: Wallet },
+    editor: { label: 'Editor de Documentos', icon: FileText },
 };
 
 interface AppTopbarProps {
