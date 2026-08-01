@@ -437,10 +437,11 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
         throw new Error(`O texto do embedding excede ${MAX_EMBEDDING_INPUT_CHARS} caracteres.`);
     }
 
-    // Assim como no chat, aplicamos retry + circuit breaker: não há provedor alternativo de
-    // embeddings configurado hoje, então quando falha aqui a mensagem precisa deixar claro que
-    // não é só "erro passageiro" — é a única rota de embeddings do app.
-    return callProvider('embedding', async () => {
+    // Retry + circuit breaker, como no chat. Se o LiteLLM estiver fora, caímos direto no Google
+    // (ver `embedFallbackDireto`): em desenvolvimento é comum o proxy não estar de pé, e sem esse
+    // caminho a Base de Conhecimento inteira fica sem busca semântica por causa de um proxy.
+    try {
+        return await callProvider('embedding', async () => {
         const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
             method: 'POST',
             headers: {
@@ -469,8 +470,36 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
             throw new Error('O provedor retornou um embedding inválido.');
         }
         return embedding as number[];
-    });
+        });
+    } catch (erroProxy) {
+        const direto = await embedFallbackDireto(normalizedText);
+        if (direto) return direto;
+        throw erroProxy;
+    }
 };
+
+/**
+ * Caminho alternativo de embeddings: chama a API do Google diretamente, sem passar pelo LiteLLM.
+ *
+ * Existe porque o proxy é a única rota configurada e, sem ele de pé, todo o RAG para. Devolve
+ * `null` (em vez de lançar) quando não há chave ou a chamada falha, para o chamador poder relançar
+ * o erro original do proxy — que é o mais informativo sobre a causa raiz.
+ */
+async function embedFallbackDireto(texto: string): Promise<number[] | null> {
+    if (!process.env.GEMINI_API_KEY) return null;
+    try {
+        const { generateEmbedding: embedDireto } = await import('./embeddings.js');
+        const vetor = await embedDireto(texto);
+        if (Array.isArray(vetor) && vetor.length > 0 && vetor.every(Number.isFinite)) {
+            logger.warn('LiteLLM indisponível para embeddings; usando a API do Google diretamente.');
+            return vetor;
+        }
+        return null;
+    } catch (err) {
+        logger.error({ err }, 'Fallback direto de embeddings também falhou');
+        return null;
+    }
+}
 export interface AiUsageLogInput {
     model: string;
     usage: AiTokenUsage;
