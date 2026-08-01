@@ -12,15 +12,30 @@ import { ClickSpark } from './components/ui/ClickSpark';
 
 // Lazy loaded feature modules
 const SinglePageDashboard = lazy(() => import('./features/dashboard/components/SinglePageDashboard').then((m) => ({ default: m.SinglePageDashboard })));
-const Login = lazy(() => import('./features/auth/components/Login').then((m) => ({ default: m.Login })));
+// Login feature is not directly used here as route redirects
 const ProspectingHub = lazy(() => import('./features/prospecting/components/ProspectingHub').then(m => ({ default: m.ProspectingHub })));
 const CrmBoard = lazy(() => import('./components/CrmBoard').then(m => ({ default: m.CrmBoard })));
 const IntelligenceHub = lazy(() => import('./features/intelligence/components/IntelligenceHub').then(m => ({ default: m.IntelligenceHub })));
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
+const VoiceRoleplay = lazy(() => import('./features/intelligence/components/VoiceRoleplay').then(m => ({ default: m.VoiceRoleplay })));
+const TopicTrainingAcademy = lazy(() => import('./features/intelligence/components/TopicTrainingAcademy').then(m => ({ default: m.TopicTrainingAcademy })));
+const BitrixGuideHub = lazy(() => import('./features/intelligence/components/BitrixGuideHub').then(m => ({ default: m.BitrixGuideHub })));
+const ReportsHub = lazy(() => import('./features/intelligence/components/ReportsHub').then(m => ({ default: m.ReportsHub })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
+const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
+const Analytics = lazy(() => import('./features/analytics/components/Analytics').then(m => ({ default: m.Analytics })));
+const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
+const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
+const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
+const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
+const DocumentEditor = lazy(() => import('./features/document-editor/components/Editor').then(m => ({ default: m.Editor })));
+const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
+const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
+const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
+const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
 
 function PageFallback() {
   return (
@@ -53,7 +68,24 @@ function AppLayout() {
         {activeTab === 'contacts' && <ContactList />}
         {activeTab === 'activities' && <ActivityList />}
         {activeTab === 'chatbook' && <ChatbookHub />}
+        {activeTab === 'roleplay' && <div className="h-full w-full p-8"><div className="h-[700px] max-w-4xl mx-auto w-full"><VoiceRoleplay onClose={() => setActiveTab('dashboard')} onSwitchToText={() => {}} /></div></div>}
+        {activeTab === 'topic_training' && <TopicTrainingAcademy />}
+        {activeTab === 'bitrix' && <BitrixGuideHub />}
+        {activeTab === 'reports' && <ReportsHub />}
         {activeTab === 'integrations' && <Integrations />}
+        {activeTab === 'knowledge' && <KnowledgeBase />}
+        {activeTab === 'analytics' && <Analytics />}
+        {activeTab === 'calendar' && <Calendar />}
+        {activeTab === 'notifications' && <Notifications />}
+        {activeTab === 'automations' && <Automations />}
+        {activeTab === 'usage' && <Usage />}
+        {activeTab === 'editor' && <DocumentEditor />}
+      </Suspense>
+
+      {/* Gamification and Navigation Global Layers */}
+      <Suspense fallback={null}>
+        <OnboardingTour />
+        <AIDockWidget />
       </Suspense>
     </MainLayout>
   );
@@ -67,7 +99,10 @@ export default function App() {
           <ClickSpark />
           <Suspense fallback={<PageFallback />}>
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/welcome" replace />} />
+              <Route path="/welcome" element={<WelcomeScreen />} />
+              <Route path="/select-brand" element={<SelectionScreen />} />
+              <Route path="/login" element={<Navigate to="/welcome" replace />} />
               <Route
                 path="/app/*"
                 element={
@@ -78,7 +113,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route path="*" element={<Navigate to="/app" replace />} />
+              <Route path="*" element={<Navigate to="/welcome" replace />} />
             </Routes>
           </Suspense>
         </AuthProvider>

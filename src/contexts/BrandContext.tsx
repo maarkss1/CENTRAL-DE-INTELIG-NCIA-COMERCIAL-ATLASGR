@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type Brand = 'atlasgr' | 'totaltrac';
 
@@ -21,8 +22,8 @@ export const BRAND_CONFIGS: Record<Brand, BrandInfo> = {
         operatingSystemName: 'Revenue OS',
         slogan: 'Inteligência & Aceleração Comercial B2B',
         description: 'Gestão de risco de carga, scoring inteligente e motor de prospecção preditiva.',
-        primaryColor: '#f97316', // atlas-orange
-        accentColor: 'from-amber-500 to-orange-600',
+        primaryColor: '#FF5618',
+        accentColor: '#FF6B10',
         badgeBg: 'bg-orange-100 text-orange-800 border-orange-200',
         badgeText: 'AtlasGR',
     },
@@ -32,8 +33,8 @@ export const BRAND_CONFIGS: Record<Brand, BrandInfo> = {
         operatingSystemName: 'Fleet OS',
         slogan: 'Conectar para Cuidar',
         description: 'Telemetria CAN, videotelemetria com IA, controle de jornada, iscas RF e imobilizadores.',
-        primaryColor: '#0284c7', // sky-600 / blue
-        accentColor: 'from-blue-600 to-cyan-500',
+        primaryColor: '#0088CC',
+        accentColor: '#0284c7',
         badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
         badgeText: 'TotalTrac',
     }
@@ -49,9 +50,15 @@ const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 export function BrandProvider({ children }: { children: ReactNode }) {
     const [activeBrand, setActiveBrand] = useState<Brand>('atlasgr');
+    const brandInfo = BRAND_CONFIGS[activeBrand];
+
+    useEffect(() => {
+        document.documentElement.style.setProperty('--brand-primary', brandInfo.primaryColor);
+        document.documentElement.style.setProperty('--brand-accent', brandInfo.accentColor);
+    }, [activeBrand, brandInfo]);
 
     return (
-        <BrandContext.Provider value={{ activeBrand, setActiveBrand, brandInfo: BRAND_CONFIGS[activeBrand] }}>
+        <BrandContext.Provider value={{ activeBrand, setActiveBrand, brandInfo }}>
             {children}
         </BrandContext.Provider>
     );

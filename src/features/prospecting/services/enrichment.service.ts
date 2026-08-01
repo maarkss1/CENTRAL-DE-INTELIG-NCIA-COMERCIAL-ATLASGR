@@ -1,4 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
+import type { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj, formatCnpj, discoverCnpjByName } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
@@ -413,6 +414,16 @@ export interface EnrichCompanyOptions {
     cnpj?: string;
     segmentKeywords?: string[];
     fleetSizeHint?: string;
+    /** Decisores já buscados na tela de descoberta (Apollo/Hunter) — quando presentes, evitam uma
+     * nova chamada às APIs pagas para os mesmos dados que o usuário já viu antes de promover o lead. */
+    preFetchedDecisionMakers?: Array<{
+        name: string;
+        title: string | null;
+        email: string | null;
+        emailSource?: 'apollo' | 'hunter';
+        phone: string | null;
+        linkedinUrl: string | null;
+    }>;
 }
 
 interface CompanyUpdateData {
@@ -436,7 +447,9 @@ interface CompanyUpdateData {
     website?: string;
     googleRating?: number;
     googleReviewsCount?: number;
-    businessHours?: unknown;
+    // Tipado como o JSON de entrada do Prisma (e não `unknown`) porque este objeto é repassado
+    // direto pro `company.update` — deixar `unknown` aqui quebra a inferência do `data`.
+    businessHours?: Prisma.InputJsonValue;
     observations?: string;
     linkedin?: string;
     twitter?: string;
@@ -565,7 +578,9 @@ async function runEnrichment(
     if (place) {
         if (place.rating != null) updateData.googleRating = place.rating;
         if (place.userRatingCount != null) updateData.googleReviewsCount = place.userRatingCount;
-        if (place.businessHours != null) updateData.businessHours = place.businessHours;
+        // `PlaceSearchResult.businessHours` é `unknown` (payload livre do Google Places); o cast é
+        // seguro porque só chegamos aqui quando o valor não é null/undefined.
+        if (place.businessHours != null) updateData.businessHours = place.businessHours as Prisma.InputJsonValue;
         
         if (place.websiteUri && !domainGuess.verified) {
             updateData.website = place.websiteUri;
@@ -622,7 +637,47 @@ async function runEnrichment(
     // plano da chave Apollo não inclui People Search (ver apollo.service.ts).
     let apolloContacts: Array<{ name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }> = [];
     let contactsSource: 'apollo' | 'hunter' | null = null;
-    if (domainGuess.verified && domainGuess.domain) {
+    if (options.preFetchedDecisionMakers?.length) {
+        // Já buscamos os decisores na tela de descoberta (Radar) — reaproveita em vez de gastar
+        // créditos Apollo/Hunter de novo com o mesmo domínio.
+        apolloContacts = options.preFetchedDecisionMakers.map((dm) => ({
+            name: dm.name,
+            title: dm.title,
+            email: dm.email,
+            phone: dm.phone,
+            linkedin_url: dm.linkedinUrl,
+        }));
+        contactsSource = options.preFetchedDecisionMakers.some((dm) => dm.emailSource === 'hunter') ? 'hunter' : 'apollo';
+        enrichmentSourceLabel += ' + Decisores pré-buscados na descoberta';
+
+        await prisma.enrichmentLog.create({
+            data: {
+                companyId,
+                source: 'Discovery-PreFetched',
+                field: 'contatos-decisores',
+                status: 'success',
+                rawData: JSON.parse(JSON.stringify(apolloContacts)),
+            }
+        });
+
+        for (const c of apolloContacts) {
+            if (!c.name || c.name === 'Sem Nome') continue;
+            await prisma.contact.create({
+                data: {
+                    name: c.name,
+                    role: c.title,
+                    email: c.email,
+                    phone: c.phone,
+                    whatsapp: guessWhatsappFromPhone(c.phone),
+                    linkedin: c.linkedin_url,
+                    source: 'Apollo',
+                    emailStatus: c.email ? 'guessed' : null,
+                    companyId,
+                    organizationId: company.organizationId
+                }
+            });
+        }
+    } else if (domainGuess.verified && domainGuess.domain) {
         const apolloRes = await enrichOrganizationWithContacts(domainGuess.domain);
         if (apolloRes.contacts.length > 0) {
             apolloContacts = apolloRes.contacts;

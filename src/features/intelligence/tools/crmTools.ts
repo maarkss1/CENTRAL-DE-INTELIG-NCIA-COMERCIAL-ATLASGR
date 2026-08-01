@@ -1,6 +1,7 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma.js';
+import { toPrismaLeadStatus } from '../../../lib/enumMap';
 
 /**
  * Ferramenta para o agente buscar o contexto completo de um Lead (empresa, contato, interações)
@@ -55,7 +56,8 @@ export const updateLeadQualificationTool = tool(
                 where: { id: leadId },
                 data: {
                     score,
-                    status: status as unknown,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    status: toPrismaLeadStatus(status as import('../../../lib/zod').LeadStatus) as any,
                     qualification: {
                         score,
                         summary,

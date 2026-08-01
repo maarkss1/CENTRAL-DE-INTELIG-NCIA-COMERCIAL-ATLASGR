@@ -1,4 +1,4 @@
-import { HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
@@ -258,7 +258,13 @@ async function invokeText(
 ): Promise<string> {
     const model = getAiModel(modelAlias, temperature, context);
     const startedAt = Date.now();
-    const response = await model.invoke([new HumanMessage(prompt)]);
+    const userPrompt = prompt.startsWith(SYSTEM_RULES)
+        ? prompt.slice(SYSTEM_RULES.length).trimStart()
+        : prompt;
+    const response = await model.invoke([
+        new SystemMessage(SYSTEM_RULES),
+        new HumanMessage(userPrompt),
+    ]);
     await logAiUsage({
         model: response.response_metadata.model,
         usage: response.response_metadata.tokenUsage,
@@ -339,7 +345,7 @@ class ${className}:
     def process(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not payload:
             raise ValueError("payload não pode ser vazio")
-        # TODO: chamar o provedor escolhido e validar a saída antes de executar ações.
+        # PLACEHOLDER: Conecte o SDK do provedor (ex: OpenAI, Gemini) e valide a saída.
         return {"status": "REVIEW_REQUIRED", "agent": self.name, "input": payload}
 
 if __name__ == "__main__":

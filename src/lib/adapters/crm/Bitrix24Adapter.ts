@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IEnrichedLead } from '../../../types/prospecting';
 
 export class Bitrix24Adapter {
@@ -28,7 +29,7 @@ export class Bitrix24Adapter {
 
       return dealId;
     } catch (error) {
-      console.error("[Bitrix24Adapter] Falha ao exportar Lead:", error);
+      logger.error({ err: error }, "[Bitrix24Adapter] Falha ao exportar Lead:");
       throw error;
     }
   }
@@ -39,7 +40,8 @@ export class Bitrix24Adapter {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         fields: {
-          TITLE: lead.socialReason || lead.fantasyName || 'Empresa Prospectada',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          TITLE: (lead as any).legalName || lead.socialReason || lead.fantasyName || 'Empresa Prospectada',
           COMPANY_TYPE: 'CUSTOMER',
           INDUSTRY: lead.cnaeMain,
           EMPLOYEES: lead.employeesCount,
@@ -56,7 +58,8 @@ export class Bitrix24Adapter {
     return data.result;
   }
 
-  private async createContact(dm: unknown, companyId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async createContact(dm: any, companyId: string): Promise<string> {
     const response = await fetch(`${this.webhookUrl}crm.contact.add.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

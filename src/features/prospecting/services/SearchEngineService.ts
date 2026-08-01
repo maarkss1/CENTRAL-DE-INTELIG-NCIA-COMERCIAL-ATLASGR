@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from '../../../lib/adapters/data-providers/IDataProvider';
 import { IEnrichedLead, IProspectingFilter } from '../../../types/prospecting';
 
@@ -14,13 +15,13 @@ export class SearchEngineService {
   async prospect(filters: IProspectingFilter): Promise<Partial<IEnrichedLead>[]> {
     const searchPromises = this.providers.map((provider) =>
       provider.search(filters).catch((err) => {
-        console.error(`[SearchEngine] Erro no provedor ${provider.providerName}:`, err);
+        logger.error(`[SearchEngine] Erro no provedor ${provider.providerName}:`, err);
         return [];
       })
     );
 
     const results = await Promise.all(searchPromises);
-    const flatResults = results.flat() as unknown;
+    const flatResults = results.flat().filter(Boolean) as Partial<IEnrichedLead>[];
     
     // Regra: Nunca retornar dados duplicados.
     // Consolidação baseada em CNPJ ou Nome (similaridade)

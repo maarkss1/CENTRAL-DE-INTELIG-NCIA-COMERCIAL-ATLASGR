@@ -39,9 +39,12 @@ npm run dev
 
 ## Variáveis de Ambiente
 Crie um arquivo `.env` na raiz do projeto com base no `.env.example`.
-Variáveis requeridas:
-- `GEMINI_API_KEY`: Chave de API para as funções de IA.
-- `DATABASE_URL`: URL do banco PostgreSQL (Para o Prisma).
+Variáveis principais:
+- `DATABASE_URL`: URL do banco PostgreSQL (Prisma).
+- `GROQ_API_KEY`: contingência direta dos motores de texto quando o LiteLLM estiver indisponível.
+- `LITELLM_URL` e `LITELLM_KEY`: gateway principal para roteamento dos modelos.
+- `GEMINI_API_KEY`: opcional, usada pelo caminho legado de embeddings Gemini.
+- `AI_GATEWAY_TIMEOUT_MS`, `AI_FALLBACK_TIMEOUT_MS` e `AI_EMBEDDING_TIMEOUT_MS`: limites configuráveis das solicitações de IA.
 
 ## Scripts Disponíveis
 - `npm run dev`: Inicia o servidor backend (que injeta o Vite para HMR/middleware).

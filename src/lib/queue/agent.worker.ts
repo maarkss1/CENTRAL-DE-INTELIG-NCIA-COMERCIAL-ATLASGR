@@ -1,7 +1,7 @@
 import { Worker, Job, Queue } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
-import { SDRAgent } from '../../features/intelligence/agents/sdr-agent.js';
+import { SDROutboundDraftAgent } from '../../features/intelligence/agents/sdr-agent.js';
 
 export const AGENT_QUEUE_NAME = 'intelligence-agents';
 export const agentQueue = new Queue(AGENT_QUEUE_NAME, { connection });
@@ -23,7 +23,7 @@ export function createAgentWorker() {
 
             try {
                 if (job.data.agentType === 'SDR_OUTBOUND') {
-                    const agent = new SDRAgent(`session_${job.data.payload.leadId}`);
+                    const agent = new SDROutboundDraftAgent(`session_${job.data.payload.leadId}`);
                     await agent.draftEmailForLead(job.data.payload.leadId, job.data.payload.tenantId);
                 }
             } catch (error) {

@@ -1,0 +1,460 @@
+import { useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Zap, ShieldAlert, Database, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { useBrandAccent } from '../../../hooks/useBrandAccent';
+
+type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'crm';
+type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
+
+interface SwarmEvent {
+    type: SwarmEventType;
+    agent: SwarmAgent;
+    content: string;
+    step: number;
+    reasoning?: string;
+    nextAgent?: 'sdr' | 'bdr' | 'crm';
+}
+
+interface SwarmMessage {
+    id: string;
+    agent: SwarmAgent;
+    text: string;
+    timestamp: Date;
+    status: 'thinking' | 'done' | 'error';
+    kind: 'routing' | 'result' | 'final';
+    step: number;
+}
+
+const MISSION_SUGGESTIONS = [
+    'Acabei de importar um lead da empresa "TransLogística Express" (frota de 50 caminhões, faturamento alto). Qualifique o risco, avalie o fit outbound e sugira a próxima ação.',
+    'Analise os negócios em risco no funil desta semana e recomende os próximos passos para cada um.',
+    'Preciso de uma linha de abordagem fria para um lead do segmento logístico que ainda não respondeu.',
+];
+
+function createId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function SwarmDashboard() {
+    const accent = useBrandAccent();
+    const [mission, setMission] = useState('');
+    const [isExecuting, setIsExecuting] = useState(false);
+    const [messages, setMessages] = useState<SwarmMessage[]>([]);
+    const [activeStep, setActiveStep] = useState(0);
+    const [engagedAgents, setEngagedAgents] = useState<Set<SwarmAgent>>(new Set());
+    const [startedAt, setStartedAt] = useState<number | null>(null);
+    const [elapsedMs, setElapsedMs] = useState(0);
+
+    const abortRef = useRef<AbortController | null>(null);
+    const scrollRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }, [messages]);
+
+    useEffect(() => {
+        if (!isExecuting || !startedAt) return;
+        const interval = window.setInterval(() => setElapsedMs(Date.now() - startedAt), 200);
+        return () => window.clearInterval(interval);
+    }, [isExecuting, startedAt]);
+
+    const stopMission = () => {
+        abortRef.current?.abort();
+    };
+
+    const runSimulation = async (overrideMission?: string) => {
+        const missionText = (overrideMission ?? mission).trim();
+        if (!missionText) return;
+
+        setIsExecuting(true);
+        setMessages([]);
+        setActiveStep(0);
+        setEngagedAgents(new Set());
+        setStartedAt(Date.now());
+        setElapsedMs(0);
+
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/agent/swarm/stream', {
+                method: 'POST',
+                credentials: 'include',
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ mission: missionText })
+            });
+
+            if (!response.ok) {
+                throw new Error('Falha ao iniciar streaming');
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) throw new Error('Stream não suportado');
+
+            const decoder = new TextDecoder('utf-8');
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                if (value) {
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const dataStr = line.substring(6).trim();
+                        if (dataStr === '{}' || !dataStr) continue;
+
+                        try {
+                            const event = JSON.parse(dataStr) as SwarmEvent;
+                            applyEvent(event);
+                        } catch (e) {
+                            console.error('Erro ao fazer parse SSE data', e);
+                        }
+                    }
+                }
+            }
+
+            setIsExecuting(false);
+        } catch (error) {
+            if ((error as Error).name === 'AbortError') {
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: createId(),
+                        agent: 'supervisor',
+                        text: 'Missão cancelada pelo usuário.',
+                        timestamp: new Date(),
+                        status: 'error',
+                        kind: 'routing',
+                        step: activeStep,
+                    }
+                ]);
+            } else {
+                console.error('Falha ao executar Enxame via Stream:', error);
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: createId(),
+                        agent: 'supervisor',
+                        text: 'O Swarm não conseguiu se comunicar com os agentes. Tente novamente em instantes.',
+                        timestamp: new Date(),
+                        status: 'error',
+                        kind: 'routing',
+                        step: activeStep,
+                    }
+                ]);
+            }
+            setIsExecuting(false);
+        } finally {
+            abortRef.current = null;
+        }
+    };
+
+    const applyEvent = (event: SwarmEvent) => {
+        setActiveStep(event.step);
+
+        if (event.type === 'routing') {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: createId(),
+                    agent: 'supervisor',
+                    text: event.content,
+                    timestamp: new Date(),
+                    status: 'done',
+                    kind: 'routing',
+                    step: event.step,
+                }
+            ]);
+
+            if (event.nextAgent) {
+                const target = event.nextAgent;
+                setEngagedAgents(prev => new Set(prev).add(target));
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: `thinking-${target}-${event.step}`,
+                        agent: target,
+                        text: '',
+                        timestamp: new Date(),
+                        status: 'thinking',
+                        kind: 'result',
+                        step: event.step,
+                    }
+                ]);
+            }
+            return;
+        }
+
+        if (event.type === 'agent_result' || event.type === 'agent_error') {
+            const thinkingId = `thinking-${event.agent}-${event.step}`;
+            setMessages(prev => {
+                const idx = prev.findIndex(m => m.id === thinkingId);
+                const updated: SwarmMessage = {
+                    id: thinkingId,
+                    agent: event.agent,
+                    text: event.content,
+                    timestamp: new Date(),
+                    status: event.type === 'agent_error' ? 'error' : 'done',
+                    kind: 'result',
+                    step: event.step,
+                };
+                if (idx === -1) return [...prev, updated];
+                const next = [...prev];
+                next[idx] = updated;
+                return next;
+            });
+            return;
+        }
+
+        if (event.type === 'final') {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: createId(),
+                    agent: 'supervisor',
+                    text: event.content,
+                    timestamp: new Date(),
+                    status: 'done',
+                    kind: 'final',
+                    step: event.step,
+                }
+            ]);
+        }
+    };
+
+    const getAgentIcon = (agent: string) => {
+        switch (agent) {
+            case 'supervisor': return <ShieldAlert size={18} className={accent.text} />;
+            case 'sdr': return <Bot size={18} className="text-[#00C2FF]" />;
+            case 'bdr': return <Zap size={18} className="text-[#00FF9D]" />;
+            case 'crm': return <Database size={18} className="text-[#B554FF]" />;
+            default: return <Bot size={18} />;
+        }
+    };
+
+    const getAgentName = (agent: string) => {
+        switch (agent) {
+            case 'supervisor': return 'Supervisor (Orquestrador)';
+            case 'sdr': return 'SDR Autônomo';
+            case 'bdr': return 'BDR (Outbound)';
+            case 'crm': return 'Gestor de CRM';
+            default: return 'Agente';
+        }
+    };
+
+    const getAgentBg = (agent: string, status: SwarmMessage['status']) => {
+        if (status === 'error') return 'bg-danger/10 border-danger/30 text-danger';
+        switch (agent) {
+            case 'supervisor': return `${accent.bgSofter} ${accent.borderSoft} ${accent.textSoft}`;
+            case 'sdr': return 'bg-[#00C2FF]/[0.08] border-[#00C2FF]/20 text-[#00C2FF]';
+            case 'bdr': return 'bg-[#00FF9D]/[0.08] border-[#00FF9D]/20 text-[#00FF9D]';
+            case 'crm': return 'bg-[#B554FF]/[0.08] border-[#B554FF]/20 text-[#B554FF]';
+            default: return 'bg-white/5 border-white/10 text-white';
+        }
+    };
+
+    const pipelineAgents: { key: SwarmAgent; label: string }[] = [
+        { key: 'sdr', label: 'SDR' },
+        { key: 'bdr', label: 'BDR' },
+        { key: 'crm', label: 'CRM' },
+    ];
+
+    return (
+        <div className="flex flex-col h-[750px] bg-[#0A0A0A] rounded-3xl border border-white/10 overflow-hidden shadow-2xl relative">
+            {/* Efeitos Glow Premium de Fundo */}
+            <div className={`absolute top-[-10%] left-[-10%] w-[50%] h-[50%] ${accent.blobA} rounded-full blur-[120px] pointer-events-none`} />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#00C2FF]/10 rounded-full blur-[120px] pointer-events-none" />
+
+            {/* Cabeçalho */}
+            <div className="px-8 py-6 border-b border-white/10 bg-white/[0.02] backdrop-blur-xl flex items-center justify-between z-10 gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${accent.gradient} flex items-center justify-center text-white shadow-lg ${accent.glow}`}>
+                        <Zap size={24} fill="currentColor" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl text-white font-black tracking-tight">Swarm Orchestrator</h2>
+                        <p className="text-gray-400 text-sm mt-0.5 font-medium">Rede Neural de Multi-Agentes</p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                    {isExecuting && (
+                        <div className="hidden md:flex items-center gap-2 mr-2">
+                            {pipelineAgents.map((p) => (
+                                <div
+                                    key={p.key}
+                                    className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                        engagedAgents.has(p.key)
+                                            ? getAgentBg(p.key, 'done')
+                                            : 'bg-white/5 border-white/10 text-gray-500'
+                                    }`}
+                                >
+                                    {p.label}
+                                </div>
+                            ))}
+                            <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest ml-1">
+                                {(elapsedMs / 1000).toFixed(1)}s
+                            </span>
+                        </div>
+                    )}
+                    <span className="flex h-3 w-3 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
+                    </span>
+                    <span className="text-xs font-bold text-success uppercase tracking-widest">Enxame Online</span>
+                </div>
+            </div>
+
+            {/* Área de Mensagens (Chat) */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar z-10">
+                {messages.length === 0 && !isExecuting && (
+                    <div className="h-full flex flex-col items-center justify-center text-center opacity-90">
+                        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 border border-white/10">
+                            <Bot size={32} className="text-gray-400" />
+                        </div>
+                        <h3 className="text-white text-lg font-bold mb-2">Aguardando Missão</h3>
+                        <p className="text-gray-400 text-sm max-w-sm mb-6">Descreva o que os agentes devem fazer e eles se organizarão automaticamente para executar.</p>
+
+                        <div className="flex flex-col gap-2 max-w-lg w-full">
+                            {MISSION_SUGGESTIONS.map((suggestion) => (
+                                <button
+                                    key={suggestion}
+                                    onClick={() => setMission(suggestion)}
+                                    className={`text-left text-xs text-gray-300 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 ${accent.hoverBorder} hover:bg-white/[0.06] transition-colors`}
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <AnimatePresence initial={false}>
+                    {messages.map((msg) => {
+                        if (msg.kind === 'routing') {
+                            return (
+                                <motion.div
+                                    key={msg.id}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-500 ml-2"
+                                >
+                                    <ShieldAlert size={12} className={accent.text} />
+                                    <span className={msg.status === 'error' ? 'text-danger' : ''}>{msg.text}</span>
+                                </motion.div>
+                            );
+                        }
+
+                        if (msg.kind === 'final') {
+                            return (
+                                <motion.div
+                                    key={msg.id}
+                                    initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    className="mr-0"
+                                >
+                                    <div className={`p-6 rounded-2xl border-2 backdrop-blur-xl shadow-lg ${accent.borderSoft} bg-gradient-to-br from-white/[0.06] to-white/[0.01]`}>
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <CheckCircle2 size={18} className={accent.text} />
+                                            <span className="font-black text-sm tracking-wide text-white uppercase">Síntese Final do Enxame</span>
+                                        </div>
+                                        <p className="text-white/95 text-[15px] leading-relaxed font-medium whitespace-pre-wrap">
+                                            {msg.text}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            );
+                        }
+
+                        return (
+                            <motion.div
+                                key={msg.id}
+                                initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                className={`flex gap-4 ${msg.agent === 'supervisor' ? 'ml-0 mr-12' : 'ml-12 mr-0'}`}
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-black/60 flex items-center justify-center shrink-0 border border-white/10 shadow-xl backdrop-blur-md">
+                                    {msg.status === 'thinking'
+                                        ? <Loader2 size={18} className="animate-spin text-gray-400" />
+                                        : msg.status === 'error'
+                                            ? <AlertTriangle size={18} className="text-danger" />
+                                            : getAgentIcon(msg.agent)}
+                                </div>
+                                <div className={`p-5 rounded-2xl border backdrop-blur-xl shadow-lg flex-1 ${getAgentBg(msg.agent, msg.status)}`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="font-bold text-sm tracking-wide">{getAgentName(msg.agent)}</span>
+                                        <span className="text-white/40 text-[10px] uppercase font-black tracking-widest">{msg.timestamp.toLocaleTimeString()}</span>
+                                    </div>
+                                    {msg.status === 'thinking' ? (
+                                        <div className="flex items-center gap-2 text-white/50 text-sm font-medium">
+                                            <Loader2 size={14} className="animate-spin" /> Processando...
+                                        </div>
+                                    ) : (
+                                        <p className="text-white/90 text-[15px] leading-relaxed font-medium whitespace-pre-wrap">
+                                            {msg.text}
+                                        </p>
+                                    )}
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </AnimatePresence>
+            </div>
+
+            {/* Input Footer */}
+            <div className="p-6 bg-black/80 border-t border-white/10 backdrop-blur-2xl relative z-50">
+                <div className="relative max-w-4xl mx-auto">
+                    <input
+                        type="text"
+                        value={mission}
+                        onChange={(e) => setMission(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !isExecuting && mission.trim()) runSimulation();
+                        }}
+                        placeholder="O que você deseja que o Swarm faça? (Clique aqui para digitar)"
+                        className={`w-full bg-white/10 border border-white/20 rounded-2xl pl-6 pr-20 py-5 text-white text-[16px] font-medium focus:outline-none focus:ring-1 focus:bg-white/15 transition-all placeholder:text-gray-400 shadow-inner relative z-50 pointer-events-auto ${accent.isAtlas ? 'focus:border-atlas-orange focus:ring-atlas-orange/50' : 'focus:border-totaltrack-blue focus:ring-totaltrack-blue/50'}`}
+                        disabled={isExecuting}
+                        autoFocus
+                    />
+                    {isExecuting ? (
+                        <button
+                            onClick={stopMission}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-danger/90 hover:bg-danger hover:scale-105 rounded-xl flex items-center justify-center text-white transition-all shadow-lg z-50 pointer-events-auto"
+                            title="Cancelar missão"
+                        >
+                            <Square size={16} fill="currentColor" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => runSimulation()}
+                            disabled={!mission.trim()}
+                            className={`absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-r ${accent.gradient} hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed rounded-xl flex items-center justify-center text-white transition-all shadow-lg z-50 pointer-events-auto`}
+                        >
+                            <Send size={20} className="ml-1" />
+                        </button>
+                    )}
+                </div>
+                <p className="text-center text-gray-500 text-xs mt-4 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5">
+                    {isExecuting ? (
+                        <>
+                            <Sparkles size={12} className={accent.text} />
+                            Enxame em ação · etapa {activeStep}
+                        </>
+                    ) : (
+                        <>Pressione <kbd className="font-mono bg-white/10 px-1.5 py-0.5 rounded text-gray-300 mx-1 border border-white/10">Enter</kbd> para enviar a missão</>
+                    )}
+                </p>
+            </div>
+        </div>
+    );
+}

@@ -1,6 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, ReactNode } from 'react';
 import { UserPreset } from '../features/auth/constants/userPresets';
-import { useBrand } from './BrandContext';
+import { authClient } from '../lib/auth-client';
 
 export interface UserSession {
   id: string;
@@ -20,69 +21,38 @@ interface AuthContextType {
   logout: () => void;
   canAccessAdminPanel: () => boolean;
   canAccessBrand: (brand: 'atlasgr' | 'totaltrac') => boolean;
+  isPending: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { setActiveBrand } = useBrand();
+  const { isPending } = authClient.useSession();
+  
+  const savedBrand = localStorage.getItem('selectedBrand') as 'atlasgr' | 'totaltrac' | null;
 
-  const defaultAdmin: UserSession = {
-    id: 'user-1',
-    name: 'Marcelo Nascimento',
-    email: 'marcelo.nascimento@atlasgr.com.br',
-    role: 'admin',
-    roleTitle: 'Administrador Master (Acesso Total)',
-    brand: 'atlasgr',
-    permissions: ['all', 'admin_panel', 'user_management', 'global_metrics', 'prompt_studio'],
-    avatarBg: 'bg-gradient-to-r from-orange-500 to-amber-500'
+  const currentUser: UserSession | null = {
+      id: 'dev-bypass-user',
+      name: 'Administrador (Bypass)',
+      email: 'admin@prospector.com',
+      role: 'admin',
+      roleTitle: 'Administrador Master',
+      brand: savedBrand || 'atlasgr',
+      permissions: ['all'],
+      avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500'
   };
 
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
-    const saved = localStorage.getItem('atlas_user_session');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return defaultAdmin;
-      }
-    }
-    return defaultAdmin;
-  });
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('atlas_user_session', JSON.stringify(currentUser));
-    }
-  }, [currentUser]);
-
-  const loginAsPreset = (preset: UserPreset) => {
-    const isAdmin = preset.email.toLowerCase() === 'marcelo.nascimento@atlasgr.com.br';
-    const session: UserSession = {
-      id: preset.id,
-      name: preset.name,
-      email: preset.email,
-      role: isAdmin ? 'admin' : 'user',
-      roleTitle: isAdmin ? 'Administrador Master (Acesso Total)' : `Executivo de Vendas (${preset.role})`,
-      brand: preset.brand,
-      permissions: ['all', 'atlasgr', 'totaltrac', 'prospector', 'crm', 'intelligence', 'chatbook'],
-      avatarBg: preset.avatarBg
-    };
-
-    setCurrentUser(session);
-    setActiveBrand(preset.brand);
+  const loginAsPreset = () => {
+    // Deprecated with real auth
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('atlas_user_session');
+  const logout = async () => {
+    await authClient.signOut();
+    window.location.href = '/login';
   };
 
   const isAdmin = currentUser?.role === 'admin';
-
   const canAccessAdminPanel = () => true;
-
-  // LIBERADO 100%: Todos os usuários podem acessar AtlasGR e TotalTrac!
   const canAccessBrand = () => true;
 
   return (
@@ -93,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginAsPreset,
         logout,
         canAccessAdminPanel,
-        canAccessBrand
+        canAccessBrand,
+        isPending
       }}
     >
       {children}

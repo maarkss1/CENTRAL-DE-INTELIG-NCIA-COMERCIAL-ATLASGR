@@ -9,6 +9,8 @@ import { api } from '../../../lib/api';
 const MODEL_OPTIONS = [
   { value: 'gemini-flash', label: 'Llama 3.1 8B · rápido', provider: 'Groq' },
   { value: 'gemini-pro', label: 'Llama 3.3 70B · qualidade', provider: 'Groq' },
+  { value: 'qwen-coder', label: 'Qwen 2.5 Coder 32B · especialista API/Código', provider: 'OpenRouter' },
+  { value: 'deepseek-coder', label: 'DeepSeek Coder V2 · arquitetura & lógica', provider: 'OpenRouter' },
 ] as const;
 
 const PROVIDER_BY_MODEL: Record<string, string> = Object.fromEntries(

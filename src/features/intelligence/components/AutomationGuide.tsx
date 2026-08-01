@@ -174,7 +174,8 @@ def run_automation_pipeline(event_payload: dict):
         "notes": ai_qualification["summary"]
     }
     
-    # TODO: Fazer chamada HTTP POST real para o destino
+    # PLACEHOLDER: Implemente a chamada HTTP POST para o destino configurado.\r
+    # Exemplo: requests.post(destination_url, json=destination_payload, timeout=10)
     print("Mapeamento concluído com sucesso:")
     print(json.dumps(destination_payload, indent=2))
     return True
@@ -264,7 +265,7 @@ if __name__ == "__main__":
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[#0B101D] rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden border border-white/10"
+                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
             >
                 {/* Ambient glow */}
                 <div className={`absolute top-0 right-0 w-[500px] h-[500px] ${accent.blobA} rounded-full blur-[100px] pointer-events-none -mt-40 -mr-40`}></div>
@@ -478,7 +479,7 @@ if __name__ == "__main__":
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-[#0B101D] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+                        className="bg-white border border-gray-200 text-slate-900 rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden"
                     >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-white/10 pb-4">
                             <div className={`flex items-center gap-3 ${accent.text} text-xs font-mono uppercase tracking-widest`}>

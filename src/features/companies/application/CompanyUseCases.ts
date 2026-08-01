@@ -17,7 +17,8 @@ export class CompanyUseCases {
 
     async createCompany(organizationId: string, data: z.infer<typeof companySchema>) {
         const validated = companySchema.parse(data);
-        const company = await this.companyRepository.create!(organizationId, validated as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const company = await this.companyRepository.create!(organizationId, validated as any);
         
         // Dispatch para a fila de enriquecimento
         await enrichmentQueue.add('enrich-company', {
@@ -30,7 +31,8 @@ export class CompanyUseCases {
     }
 
     async updateCompany(organizationId: string, id: string, data: Partial<z.infer<typeof companySchema>>) {
-        return this.companyRepository.update!(organizationId, id, data as unknown);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return this.companyRepository.update!(organizationId, id, data as any);
     }
 
     async deleteCompany(organizationId: string, id: string) {

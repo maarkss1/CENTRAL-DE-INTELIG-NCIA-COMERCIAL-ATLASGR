@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -6,7 +7,7 @@ import { searchGooglePlace } from '../../../features/prospecting/services/places
 export class GooglePlacesAdapter implements IDataProvider {
   providerName = 'Google Places';
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -35,6 +36,11 @@ export class GooglePlacesAdapter implements IDataProvider {
         social: {
           website: place.websiteUri
         },
+        company: {
+          googleRating: place.rating,
+          googleReviewsCount: place.userRatingCount,
+          businessHours: place.businessHours,
+        },
         enrichment: {
           sources: [{ sourceName: this.providerName, extractedAt: new Date().toISOString() }],
           confidence: {
@@ -45,16 +51,11 @@ export class GooglePlacesAdapter implements IDataProvider {
           },
           timestamp: new Date().toISOString(),
           executionTime: Date.now() - startTime
-        },
-        // Usamos um campo customizado no company para guardar o rating e reviews se necessário fora da IEnrichmentResult stricta
-        company: {
-           // rating: place.rating,
-           // reviewsCount: place.userRatingCount
         }
       };
 
-    } catch (error) {
-       console.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
+    } catch (error: unknown) {
+       logger.error({ err: error, name: query.name }, '[GooglePlacesAdapter] Request failed');
        return {};
     }
   }

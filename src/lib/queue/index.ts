@@ -48,7 +48,8 @@ export const createLeadsWorker = () => {
                 where: { id: leadId },
                 data: {
                     score: score ?? undefined,
-                    temperature: temperature as unknown,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    temperature: temperature as any,
                     timeline: {
                         create: {
                             type: 'generic',

@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IDataProvider } from './IDataProvider';
 import { IProspectingFilter } from '../../../types/prospecting';
 import { IEnrichmentResult } from '../../../types/enrichment';
@@ -6,7 +7,7 @@ import { enrichOrganizationByDomain, enrichOrganizationWithContacts } from '../.
 export class ApolloAdapter implements IDataProvider {
   providerName = 'Apollo.io';
 
-  async search(filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
+  async search(_filters: IProspectingFilter): Promise<Partial<IEnrichmentResult>[]> {
     return [];
   }
 
@@ -45,6 +46,10 @@ export class ApolloAdapter implements IDataProvider {
            company: org ? {
                tradeName: org.name,
                employeeCountEstimate: org.estimated_num_employees,
+               technologies: org.technology_names?.slice(0, 20),
+               keywords: org.keywords?.slice(0, 20),
+               logoUrl: org.logo_url,
+               apolloOrgId: org.id,
            } : undefined,
            social: org ? {
                linkedin: org.linkedin_url,
@@ -70,8 +75,8 @@ export class ApolloAdapter implements IDataProvider {
            }
        };
 
-    } catch (error) {
-       console.error(`[ApolloAdapter] Request failed for domain ${domain}:`, error);
+    } catch (error: unknown) {
+       logger.error({ err: error, domain }, '[ApolloAdapter] Request failed');
        return {};
     }
   }

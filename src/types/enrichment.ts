@@ -15,6 +15,7 @@ export interface IEnrichmentMetadata {
   confidence: IEnrichmentConfidence;
   timestamp: string;
   executionTime: number;
+  cacheHit?: boolean;
 }
 
 export interface IEnrichedCompanyData {
@@ -29,6 +30,14 @@ export interface IEnrichedCompanyData {
   cnaeDescription?: string;
   size?: string;
   employeeCountEstimate?: number;
+  qsa?: Array<{ nome: string; qualificacao: string }>;
+  googleRating?: number;
+  googleReviewsCount?: number;
+  businessHours?: unknown;
+  technologies?: string[];
+  keywords?: string[];
+  logoUrl?: string;
+  apolloOrgId?: string;
 }
 
 export interface IEnrichedAddressData {

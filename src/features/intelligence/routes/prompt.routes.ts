@@ -22,13 +22,13 @@ const createPromptSchema = z.object({
     body: z.object({
         name: z.string(),
         category: z.string(),
-        variables: z.any().optional(),
+        variables: z.record(z.string(), z.unknown()).optional(),
     }),
 });
 promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, next) => {
     try {
         const { name, category, variables } = req.body;
-        const tenantId = (req as unknown).tenantId || 'system';
+        const tenantId = (req as unknown as { tenantId?: string }).tenantId || 'system';
 
         const prompt = await prisma.prompt.create({
             data: {
@@ -53,7 +53,7 @@ const updatePromptSchema = z.object({
         id: z.string(),
     }),
     body: z.object({
-        variables: z.any(),
+        variables: z.record(z.string(), z.unknown()),
     }),
 });
 promptRoutes.put('/:id', validateRequest(updatePromptSchema), async (req, res, next) => {

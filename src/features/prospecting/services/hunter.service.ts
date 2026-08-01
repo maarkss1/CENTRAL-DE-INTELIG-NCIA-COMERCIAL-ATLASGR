@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
 
@@ -38,7 +39,7 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
         const data = await res.json();
         return { email: data?.data?.email || null, score: data?.data?.score };
     } catch (error) {
-        console.error('Error querying Hunter.io:', error);
+        logger.error({ err: error, domain }, 'Error querying Hunter.io');
         return { email: null };
     }
 }
@@ -74,8 +75,10 @@ export async function findPeopleViaDomainSearch(
         const emails = data?.data?.emails || [];
 
         const contacts: HunterPersonContact[] = emails
-            .filter((e: unknown) => e.first_name || e.last_name)
-            .map((e: unknown) => ({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .filter((e: any) => e.first_name || e.last_name)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((e: any) => ({
                 name: `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Sem Nome',
                 title: e.position || null,
                 email: e.value || null,
@@ -85,7 +88,7 @@ export async function findPeopleViaDomainSearch(
 
         return { contacts };
     } catch (error) {
-        console.error('Error querying Hunter.io Domain Search:', error);
+        logger.error({ err: error, domain }, 'Error querying Hunter.io Domain Search');
         return { contacts: [], error: error instanceof Error ? error.message : 'Falha ao consultar Hunter.io Domain Search' };
     }
 }

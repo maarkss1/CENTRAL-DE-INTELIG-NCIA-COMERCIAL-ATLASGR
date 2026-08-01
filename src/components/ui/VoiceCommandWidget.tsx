@@ -8,21 +8,25 @@ export function VoiceCommandWidget() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
-  const [recognition, setRecognition] = useState<unknown>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [recognition, setRecognition] = useState<any>(null);
   const { setActiveBrand } = useBrand();
 
   useEffect(() => {
     // Inicializa Web Speech API se suportado pelo navegador
-    const SpeechRecognitionAPI = (window as unknown).SpeechRecognition || (window as unknown).webkitSpeechRecognition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const rec = new SpeechRecognitionAPI();
       rec.continuous = false;
       rec.interimResults = true;
       rec.lang = 'pt-BR';
 
-      rec.onresult = (event: unknown) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      rec.onresult = (event: any) => {
         const currentText = Array.from(event.results)
-          .map((result: unknown) => result[0].transcript)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((result: any) => result[0].transcript)
           .join('');
         
         setTranscript(currentText);
@@ -71,6 +75,7 @@ export function VoiceCommandWidget() {
 
       setRecognition(rec);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setActiveBrand]);
 
   const toggleListening = () => {

@@ -4,6 +4,33 @@ import { leadSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';
 
+/** Shape of the company relation when Lead is fetched with `include: { company: true }` */
+interface LeadCompanyRelation {
+    legalName?: string | null;
+    tradeName?: string | null;
+    cnae?: string | null;
+    size?: string | null;
+    segment?: string | null;
+    phones?: string[] | null;
+    website?: string | null;
+    observations?: string | null;
+    address?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
+    linkedin?: string | null;
+}
+
+/** Shape of the contact relation when Lead is fetched with `include: { contact: true }` */
+interface LeadContactRelation {
+    name?: string | null;
+    role?: string | null;
+    phone?: string | null;
+    whatsapp?: string | null;
+    email?: string | null;
+    linkedin?: string | null;
+}
+
 export class LeadUseCases {
     constructor(private leadRepository: LeadRepository) {}
 
@@ -37,9 +64,10 @@ export class LeadUseCases {
         if (!lead) throw new Error('Lead not found');
         if (!lead.companyId) throw new Error('Lead sem empresa vinculada — não é possível enriquecer');
 
+        const company = lead.company as LeadCompanyRelation | undefined;
         const result = await enrichCompany(lead.companyId, {
-            segmentKeywords: (lead.company as unknown)?.segment ? [(lead.company as unknown).segment] : undefined,
-            fleetSizeHint: (lead.company as unknown)?.size || undefined,
+            segmentKeywords: company?.segment ? [company.segment] : undefined,
+            fleetSizeHint: company?.size || undefined,
         });
 
         // Note: Timeline events should ideally be emitted as domain events.
@@ -91,9 +119,9 @@ export class LeadUseCases {
             return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
         };
 
-        const rows = leads.map((l: unknown) => {
-            const company = l.company;
-            const contact = l.contact;
+        const rows = leads.map((l) => {
+            const company = l.company as LeadCompanyRelation | undefined;
+            const contact = l.contact as LeadContactRelation | undefined;
             const qual = (l.qualification || {}) as Record<string, string | undefined>;
             const [firstName, ...restName] = (contact?.name || '').trim().split(/\s+/);
             const lastName = restName.join(' ');
@@ -165,32 +193,34 @@ export class LeadUseCases {
             const l = await this.leadRepository.findById!(organizationId, leadId);
             if (!l) throw new Error('Lead não encontrado');
             
-            const iEnriched: unknown = {
-                socialReason: (l.company as unknown)?.legalName || l.source || '',
-                fantasyName: (l.company as unknown)?.tradeName || l.source || '',
-                cnaeMain: (l.company as unknown)?.cnae || '',
-                employeesCount: (l.company as unknown)?.size || '',
+            const company = l.company as LeadCompanyRelation | undefined;
+            const contact = l.contact as LeadContactRelation | undefined;
+            const iEnriched = {
+                socialReason: company?.legalName || l.source || '',
+                fantasyName: company?.tradeName || l.source || '',
+                cnaeMain: company?.cnae || '',
+                employeesCount: company?.size || '',
                 estimatedRevenue: '',
-                commercialPhone: (l.company as unknown)?.phones?.[0] || (l.contact as unknown)?.phone || '',
-                generalEmail: (l.contact as unknown)?.email || '',
-                website: (l.company as unknown)?.website || '',
-                description: (l.company as unknown)?.observations || '',
-                decisionMakers: l.contact ? [{
-                    name: (l.contact as unknown).name,
-                    role: (l.contact as unknown).role,
-                    phone: (l.contact as unknown).phone,
-                    whatsapp: (l.contact as unknown).whatsapp,
-                    corporateEmail: (l.contact as unknown).email,
+                commercialPhone: company?.phones?.[0] || contact?.phone || '',
+                generalEmail: contact?.email || '',
+                website: company?.website || '',
+                description: company?.observations || '',
+                decisionMakers: contact ? [{
+                    name: contact.name,
+                    role: contact.role,
+                    phone: contact.phone,
+                    whatsapp: contact.whatsapp,
+                    corporateEmail: contact.email,
                 }] : [],
                 intelligence: {
                     fitScore: l.score || 0,
                     fitReason: 'Lead prospectado no AtlasGR',
-                    painPoints: [],
+                    painPoints: [] as string[],
                     valueProposition: ''
                 }
             };
             
-            const dealId = await adapter.exportLead(iEnriched);
+            const dealId = await adapter.exportLead(iEnriched as unknown as import('../../../types/prospecting').IEnrichedLead);
             return { dealId };
         } else {
             // Bulk export mock for now

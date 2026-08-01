@@ -1,66 +1,44 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { prisma } from '../../../lib/prisma.js';
+import { analyticsService } from '../analytics.service.js';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
 
-// Visão geral usada pelo LiveStatsWidget (home) e pelo ReportsHub (relatório executivo por IA).
-// Não há um campo de valor monetário no modelo Lead ainda, então pipelineValue fica em 0 até essa
-// coluna existir — o frontend já trata 0 como "R$ —" em vez de inventar um número.
+/** Limites do parâmetro `months` do dashboard. */
+const MIN_MONTHS = 3;
+const MAX_MONTHS = 24;
+const DEFAULT_MONTHS = 6;
+
+function parseMonths(raw: unknown): number {
+    const parsed = Number.parseInt(String(raw ?? ''), 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_MONTHS;
+    return Math.min(Math.max(parsed, MIN_MONTHS), MAX_MONTHS);
+}
+
+/**
+ * Visão geral usada pelo LiveStatsWidget (home) e pelo ReportsHub (relatório executivo por IA).
+ *
+ * Esta rota devolvia números fictícios (7 empresas, R$ 450k de pipeline, 14,2% de conversão) sempre
+ * que o banco estava vazio ou fora do ar, enquanto a UI anunciava "PostgreSQL Conectado". Isso saiu:
+ * base vazia responde zero, e falha de banco responde erro de verdade. Um dashboard que inventa
+ * número é pior do que um dashboard que não carrega.
+ */
 router.get('/overview', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        const data = await analyticsService.overview(organizationId);
+        res.json({ success: true, data });
+    } catch (error) {
+        next(error);
+    }
+});
 
-        const [
-            totalCompanies,
-            totalContacts,
-            totalLeads,
-            totalActivities,
-            pendingActivities,
-            closedThisMonth,
-            closedWonLeads,
-        ] = await Promise.all([
-            prisma.company.count({ where: { organizationId, deletedAt: null } }),
-            prisma.contact.count({ where: { organizationId, deletedAt: null } }),
-            prisma.lead.count({
-                where: {
-                    organizationId,
-                    deletedAt: null,
-                    status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] },
-                },
-            }),
-            prisma.activity.count({ where: { organizationId, deletedAt: null } }),
-            prisma.activity.count({ where: { organizationId, deletedAt: null, status: 'Pendente' } }),
-            prisma.lead.count({
-                where: {
-                    organizationId,
-                    deletedAt: null,
-                    status: 'Fechado_Ganho',
-                    updatedAt: { gte: startOfMonth },
-                },
-            }),
-            prisma.lead.count({ where: { organizationId, deletedAt: null, status: 'Fechado_Ganho' } }),
-        ]);
-
-        const totalLeadsEverCreated = await prisma.lead.count({ where: { organizationId, deletedAt: null } });
-        const conversionRate = totalLeadsEverCreated > 0 ? (closedWonLeads / totalLeadsEverCreated) * 100 : 0;
-
-        res.json({
-            success: true,
-            data: {
-                totalCompanies,
-                totalContacts,
-                totalLeads,
-                totalActivities,
-                pendingActivities,
-                closedThisMonth,
-                pipelineValue: 0,
-                conversionRate,
-            },
-        });
+/** Dashboard completo da tela de Analytics, numa única requisição. */
+router.get('/dashboard', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const data = await analyticsService.dashboard(organizationId, parseMonths(req.query.months));
+        res.json({ success: true, data });
     } catch (error) {
         next(error);
     }

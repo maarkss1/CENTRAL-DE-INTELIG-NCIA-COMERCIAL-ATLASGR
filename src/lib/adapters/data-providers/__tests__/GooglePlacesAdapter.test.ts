@@ -20,7 +20,8 @@ describe('GooglePlacesAdapter', () => {
     });
 
     it('deve chamar searchGooglePlace com os dados preenchidos', async () => {
-        (placesService.searchGooglePlace as unknown).mockResolvedValue({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (placesService.searchGooglePlace as any).mockResolvedValue({
             id: 'ChIJ123',
             displayName: 'Place Teste',
             formattedAddress: 'Rua das Flores 123',
@@ -39,7 +40,8 @@ describe('GooglePlacesAdapter', () => {
     });
 
     it('deve falhar graciosamente se searchGooglePlace der erro', async () => {
-        (placesService.searchGooglePlace as unknown).mockRejectedValue(new Error('Network Error'));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (placesService.searchGooglePlace as any).mockRejectedValue(new Error('Network Error'));
         const result = await adapter.enrich({ name: 'Erro Teste' });
         expect(result).toEqual({});
     });

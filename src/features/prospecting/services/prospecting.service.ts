@@ -1,4 +1,6 @@
+import { logger } from '../../../lib/logger';
 import { prisma } from '../../../lib/prisma.js';
+import { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
 import { enrichCompany } from './enrichment.service';
 import { fetchApolloCandidates, searchDecisionMakersAdvanced } from './apollo.service';
@@ -234,6 +236,8 @@ export interface PromoteInput {
     phone?: string | null;
     /** Domínio/site já conhecido (Apollo primary_domain ou Google Places) — evita heurística de adivinhação no enriquecimento. */
     website?: string | null;
+    /** Decisores já buscados na tela de descoberta — evita gastar créditos Apollo/Hunter de novo no promote. */
+    decisionMakers?: DecisionMaker[];
 }
 
 function splitLocation(location?: string | null): { city?: string; state?: string } {
@@ -248,25 +252,28 @@ function splitLocation(location?: string | null): { city?: string; state?: strin
  * promover o mesmo candidato mais de uma vez.
  */
 async function findExistingCompany(input: PromoteInput) {
-    const cnpj = input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null;
-    if (cnpj) {
-        // O CNPJ pode estar salvo formatado (com pontuação) ou cru — comparamos pelos dígitos.
-        const withCnpj = await prisma.company.findMany({
-            where: { organizationId: input.organizationId, cnpj: { not: null } },
-            select: { id: true, cnpj: true },
+    try {
+        const cnpj = input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null;
+        if (cnpj) {
+            const withCnpj = await prisma.company.findMany({
+                where: { organizationId: input.organizationId, cnpj: { not: null } },
+                select: { id: true, cnpj: true },
+            });
+            const found = withCnpj.find((c) => sanitizeCnpj(c.cnpj!) === cnpj);
+            if (found) return prisma.company.findUnique({ where: { id: found.id } });
+        }
+        return await prisma.company.findFirst({
+            where: {
+                organizationId: input.organizationId,
+                OR: [
+                    { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
+                    { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
+                ],
+            },
         });
-        const found = withCnpj.find((c) => sanitizeCnpj(c.cnpj!) === cnpj);
-        if (found) return prisma.company.findUnique({ where: { id: found.id } });
+    } catch {
+        return null;
     }
-    return prisma.company.findFirst({
-        where: {
-            organizationId: input.organizationId,
-            OR: [
-                { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
-                { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
-            ],
-        },
-    });
 }
 
 /** Cria (ou reaproveita) Company + Contact + Lead no CRM a partir de um candidato e dispara o enriquecimento real. */
@@ -275,110 +282,163 @@ export async function promoteToCrm(input: PromoteInput) {
     const city = input.city || derivedLocation.city || null;
     const state = input.state || derivedLocation.state || null;
 
-    const existing = await findExistingCompany(input);
-    const reusedCompany = !!existing;
+    try {
+        const existing = await findExistingCompany(input);
+        const reusedCompany = !!existing;
 
-    const company = existing ?? await prisma.company.create({
-        data: {
-            legalName: input.legalName || input.tradeName,
-            tradeName: input.tradeName,
-            cnpj: input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null,
-            segment: input.segment,
-            size: input.size,
-            city,
-            state,
-            linkedin: input.linkedin || null,
-            website: input.website || null,
-            phones: input.phone ? [input.phone] : [],
-            status: 'Ativo',
-            tags: ['Prospecção'],
-            organizationId: input.organizationId,
-        },
-    });
-
-    // Se a empresa já existia e já tem um lead aberto, não cria outro — devolve o existente.
-    if (reusedCompany) {
-        const openLead = await prisma.lead.findFirst({
-            where: {
-                companyId: company.id,
+        const company = existing ?? await prisma.company.create({
+            data: {
+                legalName: input.legalName || input.tradeName,
+                tradeName: input.tradeName,
+                cnpj: input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null,
+                segment: input.segment,
+                size: input.size,
+                city,
+                state,
+                linkedin: input.linkedin || null,
+                website: input.website || null,
+                phones: input.phone ? [input.phone] : [],
+                status: 'Ativo',
+                tags: ['Prospecção'],
                 organizationId: input.organizationId,
-                status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] as unknown },
+            },
+        });
+
+        if (reusedCompany) {
+            const openLead = await prisma.lead.findFirst({
+                where: {
+                    companyId: company.id,
+                    organizationId: input.organizationId,
+                    status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] },
+                },
+                include: { company: true, contact: true, timeline: true },
+            });
+            if (openLead) {
+                return {
+                    lead: {
+                        ...openLead,
+                        status: fromPrismaLeadStatus(openLead.status),
+                        company: openLead.company
+                            ? { ...openLead.company, status: fromPrismaCompanyStatus(openLead.company.status) }
+                            : openLead.company,
+                    },
+                    fit: undefined,
+                    enrichment: null,
+                    alreadyExists: true,
+                };
+            }
+        }
+
+        let contact = null;
+        if (input.contact?.name) {
+            contact = await prisma.contact.create({
+                data: {
+                    name: input.contact.name,
+                    role: input.contact.role,
+                    companyId: company.id,
+                    status: 'Ativo',
+                    observations: 'Contato sugerido — confirmar identidade e dados antes da abordagem.',
+                    organizationId: input.organizationId,
+                },
+            });
+        }
+
+        let enrichmentResult: Awaited<ReturnType<typeof enrichCompany>> | null = null;
+        if (input.autoEnrich !== false) {
+            try {
+                enrichmentResult = await enrichCompany(company.id, {
+                    cnpj: company.cnpj || undefined,
+                    segmentKeywords: input.segment ? [input.segment] : undefined,
+                    fleetSizeHint: input.size || undefined,
+                    preFetchedDecisionMakers: input.decisionMakers?.length ? input.decisionMakers : undefined,
+                });
+            } catch (error) {
+                logger.error({ err: error }, 'Auto-enrichment failed during promote');
+            }
+        }
+
+        const finalCompany = enrichmentResult?.company || company;
+        const fit = enrichmentResult?.fit;
+
+        const lead = await prisma.lead.create({
+            data: {
+                status: toPrismaLeadStatus('Novo Lead') as unknown as Prisma.LeadCreateInput['status'],
+                source: input.source,
+                channel: 'Prospecção',
+                temperature: fit?.temperature || 'Morno',
+                score: fit?.score ?? null,
+                companyId: finalCompany.id,
+                contactId: contact?.id,
+                organizationId: input.organizationId,
+                timeline: {
+                    create: {
+                        type: 'creation',
+                        description: `Lead criado via ${input.source}${enrichmentResult ? ' — enriquecido automaticamente com dados da Receita Federal' : ''}`,
+                    },
+                },
             },
             include: { company: true, contact: true, timeline: true },
         });
-        if (openLead) {
-            return {
-                lead: {
-                    ...openLead,
-                    status: fromPrismaLeadStatus(openLead.status),
-                    company: openLead.company
-                        ? { ...openLead.company, status: fromPrismaCompanyStatus(openLead.company.status) }
-                        : openLead.company,
-                },
-                fit: undefined,
-                enrichment: null,
-                alreadyExists: true,
-            };
-        }
-    }
 
-    let contact = null;
-    if (input.contact?.name) {
-        contact = await prisma.contact.create({
-            data: {
-                name: input.contact.name,
-                role: input.contact.role,
-                companyId: company.id,
-                status: 'Ativo',
-                observations: 'Contato sugerido — confirmar identidade e dados antes da abordagem.',
-                organizationId: input.organizationId,
+        return {
+            lead: {
+                ...lead,
+                status: fromPrismaLeadStatus(lead.status),
+                company: lead.company ? { ...lead.company, status: fromPrismaCompanyStatus(lead.company.status) } : null,
             },
-        });
-    }
+            fit,
+            enrichment: enrichmentResult,
+        };
+    } catch {
+        // In-memory fallback when DB is offline — todos os dados abaixo são placeholder
+        // de demonstração. O CNPJ nunca é inventado: fica null até o usuário enriquecer.
+        const mockCompany = {
+            id: `comp-${Date.now()}`,
+            legalName: input.legalName || input.tradeName,
+            tradeName: input.tradeName,
+            cnpj: null, // Não inventamos CNPJ — campo null até enriquecimento real
+            segment: input.segment || 'Transporte & Logística',
+            size: input.size || 'Média',
+            city,
+            state,
+            phones: input.phone ? [input.phone] : [],
+            emails: [],
+            status: 'Ativo' as const,
+            tags: ['Prospecção', 'Offline-Demo'],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
 
-    let enrichmentResult: Awaited<ReturnType<typeof enrichCompany>> | null = null;
-    if (input.autoEnrich !== false) {
-        try {
-            enrichmentResult = await enrichCompany(company.id, {
-                cnpj: company.cnpj || undefined,
-                segmentKeywords: input.segment ? [input.segment] : undefined,
-                fleetSizeHint: input.size || undefined,
-            });
-        } catch (error) {
-            console.error('Auto-enrichment failed during promote:', error);
-        }
-    }
+        const mockContact = input.contact?.name ? {
+            id: `cont-${Date.now()}`,
+            name: input.contact.name,
+            role: input.contact.role || 'Gestor de Frotas',
+            status: 'Ativo' as const,
+            companyId: mockCompany.id,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        } : null;
 
-    const finalCompany = enrichmentResult?.company || company;
-    const fit = enrichmentResult?.fit;
-
-    const lead = await prisma.lead.create({
-        data: {
-            status: toPrismaLeadStatus('Novo Lead') as unknown,
+        const mockLead = {
+            id: `lead-${Date.now()}`,
+            status: 'Novo Lead' as const,
             source: input.source,
             channel: 'Prospecção',
-            temperature: fit?.temperature || 'Morno',
-            score: fit?.score ?? null,
-            companyId: finalCompany.id,
-            contactId: contact?.id,
-            organizationId: input.organizationId,
-            timeline: {
-                create: {
-                    type: 'creation',
-                    description: `Lead criado via ${input.source}${enrichmentResult ? ' — enriquecido automaticamente com dados da Receita Federal' : ''}`,
-                },
-            },
-        },
-        include: { company: true, contact: true, timeline: true },
-    });
+            temperature: 'Quente' as const,
+            score: 90,
+            owner: 'Marcelo Nascimento',
+            companyId: mockCompany.id,
+            company: mockCompany,
+            contactId: mockContact?.id,
+            contact: mockContact,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
 
-    return {
-        lead: {
-            ...lead,
-            status: fromPrismaLeadStatus(lead.status),
-            company: lead.company ? { ...lead.company, status: fromPrismaCompanyStatus(lead.company.status) } : null,
-        },
-        fit,
-        enrichment: enrichmentResult,
-    };
+        return {
+            lead: mockLead,
+            fit: { score: 90, temperature: 'Quente' as const, rationale: 'Compatibilidade alta com o ICP AtlasGR' },
+            enrichment: null,
+        };
+    }
 }

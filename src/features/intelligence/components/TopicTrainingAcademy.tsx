@@ -3,7 +3,6 @@ import { BookOpen, Sparkles, Award, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
-import { Atlas3DGame } from './Atlas3DGame';
 
 export function TopicTrainingAcademy() {
   const { brandInfo } = useBrand();
@@ -84,20 +83,13 @@ export function TopicTrainingAcademy() {
         </div>
       )}
 
-      {/* Gamification 3D - Dicas de Ouro B2B */}
-      {!trainingModule && !isGenerating && (
-         <div className="mt-8 animate-in fade-in zoom-in duration-500">
-            <Atlas3DGame />
-         </div>
-      )}
-
+      {/* Loader visual durante geração (sem o jogo 3D) */}
       {isGenerating && (
          <div className="mt-8 animate-in fade-in duration-500 relative">
-            <Atlas3DGame />
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center rounded-[3rem]">
-                <Loader2 className="w-10 h-10 text-white animate-spin mb-4" />
-                <h3 className="text-white font-black text-xl">Processando dados com Inteligência Artificial...</h3>
-                <p className="text-gray-300 text-sm mt-2">Dica: Interaja com a caixa enquanto espera!</p>
+            <div className="bg-black/80 backdrop-blur-md rounded-[3rem] p-16 flex flex-col items-center justify-center border border-white/10 shadow-inner">
+                <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-4" />
+                <h3 className="text-white font-black text-xl tracking-tight">Processando dados com Inteligência Artificial...</h3>
+                <p className="text-gray-400 text-sm mt-2 font-medium">Isso pode levar alguns segundos dependendo da complexidade do tema.</p>
             </div>
          </div>
       )}

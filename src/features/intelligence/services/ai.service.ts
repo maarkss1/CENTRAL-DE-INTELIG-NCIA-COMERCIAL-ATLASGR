@@ -1,5 +1,5 @@
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { HumanMessage } from '@langchain/core/messages';
+import { getAiModel, logAiUsage, withRetry } from '../../../lib/ai/gateway.js';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
 import { redactSensitiveData } from './guardrails.service.js';
@@ -56,7 +56,7 @@ MATRIZ REAL DE OBJEÇÕES DA ATLAS (use as 3 mais prováveis para ESTE lead — 
 `.trim();
 
 const ATLAS_COMPETITORS_REFERENCE = `
-CONCORRENTES DIRETOS DA ATLAS (pontos fracos reais + gancho de abordagem do playbook comercial):
+MATERIAL INTERNO DE POSICIONAMENTO COMPETITIVO (trate os possíveis gaps como hipóteses a validar, não como fatos públicos):
 - RasterGR: forte em atendimento tradicional, fraco em tecnologia integrada — menos foco em orquestração de dados. Gancho: "Muitos clientes relatam dificuldade de consolidar dados em um único lugar. Como vocês conseguem visibilidade integrada hoje?"
 - Buonny: marca tradicional com +30 anos e grande base, mas pode ser percebida como tradicional em tecnologia, atendimento em fila, foco forte em GR isolado sem visão operacional consolidada. Gancho: "Muitos clientes dizem que conseguem cadastro e monitoramento, mas falta visão consolidada de performance e compliance numa só solução."
 - BRK Tecnologia: portfólio amplo (GR + logística + prevenção) mas complexo de implementar em operações médias, pode soar pouco específico. Gancho: "BRK tem solução ampla, mas clientes relatam dificuldade de extrair BI acionável rápido."
@@ -66,13 +66,13 @@ CONCORRENTES DIRETOS DA ATLAS (pontos fracos reais + gancho de abordagem do play
 Posicionamento da Atlas contra todos eles: orquestração real de dados (não GR isolado), implantação rápida via Atlas Profile como porta de entrada, modelo consultivo orientado a ROI mensurável — não "mais um monitoramento".
 `.trim();
 
-const SYSTEM_PREAMBLE = `Você é uma inteligência artificial analítica de alto nível, atuando como Arquiteto de Soluções e Estrategista de Vendas B2B Enterprise da Atlas (SaaS de inteligência logística).
-Sua missão é gerar saídas ABSOLUTAMENTE PRECISAS, CIENTÍFICAS E ACIONÁVEIS, voltadas para conversão e redução de risco logístico.
+const SYSTEM_PREAMBLE = `Você é uma inteligência artificial analítica, atuando como Arquiteto de Soluções e Estrategista de Vendas B2B Enterprise da Atlas (SaaS de inteligência logística).
+Sua missão é gerar saídas precisas, rastreáveis aos dados fornecidos e acionáveis, voltadas para conversão e redução de risco logístico.
 DIRETRIZES CRÍTICAS:
 1. PRECISÃO IMPLACÁVEL: Zero jargões vazios ("sinergia", "estado da arte"). Fale em dor real: SLA estourando, custo de ociosidade, dependência de WhatsApp, pressão da seguradora.
 2. ANÁLISE CIRÚRGICA: Absorva os dados do lead e ataque o ponto mais vulnerável. Se for transportadora, foque em eficiência de frota e repasse. Se for embarcador, foque em visibilidade e auditoria.
 3. CONTEXTO É LEI: Ancore a resposta NOS DADOS FORNECIDOS (nome, região, tecnologias). NUNCA alucine fatos (números ou nomes não fornecidos).
-4. SAÍDA DIRETA: Responda EXATAMENTE o que foi pedido, em Markdown elegante. SEM introduções ("Aqui está..."). Tom de autoridade absoluta, seguro e consultivo.`;
+4. SAÍDA DIRETA: Responda EXATAMENTE o que foi pedido, em Markdown elegante. SEM introduções ("Aqui está..."). Use tom seguro e consultivo, mas deixe incertezas e lacunas explícitas.`;
 
 const TOTALTRAC_SYSTEM_PREAMBLE = `Você é uma inteligência artificial analítica de alto nível, atuando como Arquiteto de Soluções e Estrategista de Vendas B2B Enterprise da TotalTrac.
 A TotalTrac atua com telemetria CAN, videotelemetria com IA, controle de jornada, iscas RF e imobilizadores.
@@ -121,9 +121,9 @@ Formate a resposta nos 6 blocos numerados acima, cada um pronto para ser falado 
 ${ATLAS_OBJECTIONS_REFERENCE}
 Formate cada uma como "OBJEÇÃO → IMPLICAÇÃO → PERGUNTA DE CONTORNO".`,
 
-    followup: `Crie um e-mail de follow-up pós-reunião de demonstração para este lead. Reforce em 2-3 bullets os benefícios discutidos (controle em tempo real, redução de sinistros, visibilidade de frota), inclua um resumo de 1 frase do que foi combinado na reunião (genérico se não houver detalhe específico) e proponha um próximo passo com data sugerida.`,
+    followup: `Crie um e-mail de follow-up pós-reunião de demonstração para este lead. Reforce em 2-3 bullets apenas os benefícios e combinados explicitamente presentes no contexto. Se o contexto não trouxer detalhes da reunião, use placeholders claros para revisão do vendedor em vez de inventar. Proponha um próximo passo com data a confirmar.`,
 
-    profile: `Faça uma análise de abordagem para o decisor deste lead usando a metodologia DiSC como base: (1) qual perfil comportamental é mais provável dado o cargo/segmento, (2) o que esse perfil valoriza numa conversa comercial, (3) como ajustar tom de voz e ritmo, (4) um erro comum a evitar com esse perfil.`,
+    profile: `Crie uma hipótese de abordagem para o decisor usando princípios de comunicação do DiSC, sem diagnosticar nem atribuir um perfil comportamental com base apenas em cargo ou segmento. Indique: (1) sinais que o vendedor deve observar, (2) duas adaptações de tom possíveis condicionadas a esses sinais, (3) perguntas para confirmar preferência de comunicação e (4) um erro comum a evitar.`,
 
     risk: `Liste os 3 maiores riscos que podem fazer a Atlas perder esta negociação no final do funil, considerando os dados reais do lead abaixo (situação cadastral, porte, região, temperatura). Para cada risco, dê uma ação preventiva concreta a tomar ainda nesta semana.`,
 
@@ -131,11 +131,11 @@ Formate cada uma como "OBJEÇÃO → IMPLICAÇÃO → PERGUNTA DE CONTORNO".`,
 
     voicemail: `Crie um script de recado de caixa postal (voicemail) para quando o decisor não atender a ligação. Deve durar entre 20-30 segundos falado (aproximadamente 60-80 palavras), dizer quem liga e por quê em uma frase, deixar um motivo específico de retorno (não "gostaria de conversar"), e terminar com telefone/e-mail para retorno.`,
 
-    roi_pitch: `Monte um "pitch de números" que traduza o risco logístico deste lead em impacto financeiro estimado, para usar como gancho consultivo. Baseie-se no que está descrito no contexto do lead (porte, região, segmento) e em benchmarks públicos conhecidos do setor de transporte de cargas no Brasil (ex: índices de roubo de carga mais altos em SP e RJ). Deixe explícito que é uma ESTIMATIVA ILUSTRATIVA para abrir a conversa, não um número auditado — nunca apresente como dado certificado. Termine sugerindo perguntar ao lead o número real dele para comparar.`,
+    roi_pitch: `Monte um roteiro para quantificar o impacto financeiro do risco logístico deste lead. Use números somente quando estiverem explicitamente no contexto. Quando faltarem dados, apresente uma fórmula com variáveis nomeadas (por exemplo: ocorrências/mês × custo médio por ocorrência) e as perguntas necessárias para preenchê-la; não forneça benchmarks de memória. Deixe claro o que é dado, cálculo ou lacuna e termine pedindo os números reais do lead.`,
 
-    competitor_battlecard: `O lead mencionou ou usa um concorrente da Atlas (nome informado abaixo, em "Concorrente mencionado"). Use a base real de concorrentes da Atlas para montar um contorno: (1) reconheça o ponto forte real do concorrente sem desmerecer, (2) aponte a fraqueza real dele de forma factual, (3) use o gancho de abordagem já validado pelo playbook (adapte a redação, mantenha a essência), (4) feche com uma pergunta que abre espaço pra Atlas se diferenciar. Base de concorrentes:
+    competitor_battlecard: `O lead mencionou ou usa um concorrente da Atlas (nome informado abaixo, em "Concorrente mencionado"). Use o material interno apenas para formular hipóteses de descoberta: (1) reconheça sem desmerecer o fornecedor atual, (2) transforme qualquer possível gap em pergunta neutra, sem afirmá-lo como fato, (3) conecte a resposta esperada ao posicionamento da Atlas e (4) feche com uma pergunta que permita ao lead confirmar ou refutar a hipótese. Material interno:
 ${ATLAS_COMPETITORS_REFERENCE}
-Se o concorrente informado não estiver na lista acima, monte o contorno usando o mesmo padrão de raciocínio (reconhecer força real, expor gap operacional, perguntar sobre orquestração de dados/tratativa/ROI) sem inventar fatos específicos sobre uma empresa que você não conhece.`,
+Se o concorrente informado não estiver na lista, não atribua forças ou fraquezas específicas: investigue orquestração de dados, tratativa, SLA e mensuração de retorno com perguntas abertas.`,
 
     cadence_sequence: `Crie uma sequência completa de cadência de prospecção outbound de 5 dias (Steps) para este lead, alternando entre E-mail, LinkedIn e Call.
 Estrutura exigida:
@@ -248,39 +248,39 @@ export class AIService {
         const toolId = tool as ContentTool;
 
         const isTotalTrac = extra?.brandId === 'totaltrac';
-        let basePreamble = isTotalTrac ? TOTALTRAC_SYSTEM_PREAMBLE : SYSTEM_PREAMBLE;
-        if (extra?.tone) {
-            basePreamble += `\nESTILO DE COMUNICAÇÃO (TOM DE VOZ EXIGIDO): ${extra.tone}`;
-        }
-        if (extra?.objective) {
-            basePreamble += `\nOBJETIVO DESTA PEÇA: ${extra.objective}. Ajuste o CTA e a profundidade a esse estágio.`;
-        }
+        const basePreamble = isTotalTrac ? TOTALTRAC_SYSTEM_PREAMBLE : SYSTEM_PREAMBLE;
+        const userSections: string[] = [];
+        if (extra?.tone) userSections.push(`Tom solicitado pelo usuário: ${extra.tone}`);
+        if (extra?.objective) userSections.push(`Objetivo informado pelo usuário: ${extra.objective}`);
 
         const toolPrompt = isTotalTrac
             ? TOTALTRAC_TOOL_OVERRIDES[toolId] || TOOL_PROMPTS[toolId]
             : TOOL_PROMPTS[toolId];
-        let promptStr = `${basePreamble}\n\n${toolPrompt}`;
+        let systemPrompt = `${basePreamble}\n\n${toolPrompt}`;
 
         if (toolId === 'competitor_battlecard') {
             if (!extra?.competitor?.trim()) {
                 throw new Error('Missing competitor');
             }
-            promptStr += `\n\nConcorrente mencionado: ${extra.competitor.trim()}`;
+            userSections.push(`Concorrente mencionado pelo usuário: ${extra.competitor.trim()}`);
         }
 
         // Prompt customizado salvo no banco (se existir) tem prioridade sobre o padrão da ferramenta.
         const dbPrompt = await prisma.prompt.findFirst({ where: { category: tool } });
         if (dbPrompt?.variables) {
-            promptStr += `\n\nInstruções adicionais definidas pelo time: ${JSON.stringify(dbPrompt.variables)}`;
+            systemPrompt += `\n\nInstruções adicionais definidas pelo time: ${JSON.stringify(dbPrompt.variables)}`;
         }
 
         const context = await buildLeadContext(leadId, extra?.organizationId);
-        promptStr += context.text;
         if (context.text) {
-            promptStr += GROUNDING_INSTRUCTION;
+            systemPrompt += GROUNDING_INSTRUCTION;
+            userSections.push(context.text);
         } else if (extra?.personaFallback) {
-            promptStr += `\n\nContexto manual disponível: persona alvo = ${extra.personaFallback}. Como não há lead selecionado, não invente empresa, região, porte ou tecnologia.`;
+            userSections.push(`Contexto manual disponível: persona alvo = ${extra.personaFallback}. Não há lead selecionado; não invente empresa, região, porte ou tecnologia.`);
+        } else {
+            userSections.push('Nenhum lead foi selecionado para esta solicitação.');
         }
+        const userPrompt = userSections.join('\n\n');
 
         // Configuração editável via AIConfigCenter tem prioridade sobre o padrão hardcoded da ferramenta.
         const customSetting = await prisma.aiEngineSetting.findUnique({ where: { toolKey: toolId } });
@@ -289,7 +289,16 @@ export class AIService {
             : TOOL_CONFIG[toolId];
         const model = getAiModel(modelAlias, temperature, toolId);
         const startTime = Date.now();
-        const response = await model.invoke([new HumanMessage(promptStr)]);
+        let response;
+        try {
+            response = await withRetry(() => model.invoke([
+                new SystemMessage(systemPrompt),
+                new HumanMessage(userPrompt),
+            ]));
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(`Não foi possível gerar o conteúdo agora (ferramenta: ${toolId}). ${detail}`);
+        }
         const latencyMs = Date.now() - startTime;
 
         await logAiUsage({

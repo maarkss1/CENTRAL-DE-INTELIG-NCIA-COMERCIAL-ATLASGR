@@ -10,9 +10,11 @@ const pool = new Pool({
 
 async function seed() {
     const users = [
-        { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', password: '***REMOVED***' },
-        { name: 'João Reis', email: 'joao.reis@atlasgr.com.br', password: '***REMOVED***' },
-        { name: 'Murilo Marques', email: 'murilo.marques@atlasgr.com', password: '***REMOVED***' },
+        { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', password: '***REMOVED***', role: 'admin' },
+        { name: 'João Reis', email: 'joao.reis@atlasgr.com.br', password: '***REMOVED***', role: 'user' },
+        { name: 'Comercial', email: 'comercial@atlas.com.br', password: '***REMOVED***', role: 'user' },
+        { name: 'Ronan', email: 'ronan@totaltrac.com.br', password: '***REMOVED***', role: 'user' },
+        { name: 'Kauê Oliveira', email: 'kaue.oliveira@totaltrack.com.br', password: '***REMOVED***', role: 'user' },
     ];
 
     for (const u of users) {
@@ -25,8 +27,9 @@ async function seed() {
             // Check if user exists
             const res = await pool.query('SELECT id FROM "user" WHERE email = $1', [u.email]);
             if (res.rows.length > 0) {
-                console.log(`User ${u.email} already exists, updating password...`);
+                console.log(`User ${u.email} already exists, updating password and role...`);
                 await pool.query('UPDATE account SET password = $1 WHERE "userId" = $2 AND "providerId" = $3', [hashedPassword, res.rows[0].id, 'credential']);
+                await pool.query('UPDATE "user" SET role = $1 WHERE id = $2', [u.role, res.rows[0].id]);
                 continue;
             }
 
@@ -35,7 +38,7 @@ async function seed() {
 
             // Create user
             await pool.query('INSERT INTO "user" (id, name, email, role, "organizationId", "emailVerified", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, NOW())', 
-                [userId, u.name, u.email, 'VISUALIZADOR', orgId, true]);
+                [userId, u.name, u.email, u.role, orgId, true]);
 
             // Create account
             await pool.query('INSERT INTO account (id, "accountId", "providerId", "userId", password, "updatedAt") VALUES ($1, $2, $3, $4, $5, NOW())',

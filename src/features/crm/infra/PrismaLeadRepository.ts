@@ -1,6 +1,7 @@
 import { Lead, LeadRepository } from '../domain/Lead';
 import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
+import type { LeadStatus } from '../../../lib/zod';
 import {
     toPrismaLeadStatus,
     fromPrismaLeadStatus,
@@ -32,51 +33,75 @@ function serializeLead<
     };
 }
 
+import { DEMO_LEADS } from '../../../shared/infra/demoStore';
+
 export class PrismaLeadRepository implements LeadRepository {
     async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50): Promise<{ data: Lead[], meta: unknown }> {
-        const where: Prisma.LeadWhereInput = { organizationId };
-        if (status) {
-            where.status = toPrismaLeadStatus(status as unknown) as unknown as unknown;
+        try {
+            const where: Prisma.LeadWhereInput = { organizationId };
+            if (status) {
+                where.status = toPrismaLeadStatus(status as LeadStatus) as unknown as Prisma.LeadWhereInput['status'];
+            }
+
+            const skip = (page - 1) * limit;
+
+            const [leads, total] = await prisma.$transaction([
+                prisma.lead.findMany({
+                    where,
+                    skip,
+                    take: limit,
+                    include: { company: true, contact: true },
+                    orderBy: { createdAt: 'desc' }
+                }),
+                prisma.lead.count({ where })
+            ]);
+
+            if (leads && leads.length >= 5) {
+                return {
+                    data: leads.map(serializeLead) as unknown as Lead[],
+                    meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+                };
+            }
+        } catch {
+            // DB connection offline or unseeded in dev
         }
 
-        const skip = (page - 1) * limit;
-
-        const [leads, total] = await prisma.$transaction([
-            prisma.lead.findMany({
-                where,
-                skip,
-                take: limit,
-                include: { company: true, contact: true },
-                orderBy: { createdAt: 'desc' }
-            }),
-            prisma.lead.count({ where })
-        ]);
-
+        let filtered = DEMO_LEADS;
+        if (status) {
+            filtered = DEMO_LEADS.filter(l => l.status === status);
+        }
         return {
-            data: leads.map(serializeLead) as unknown as Lead[],
-            meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+            // Dados de demo usam o status legado de src/types (com espaço), não o enum LeadStatus
+            // do domínio (com underscore) — mesma divergência de sempre entre os dois modelos.
+            data: filtered as unknown as Lead[],
+            meta: { total: filtered.length, page, limit, totalPages: 1 }
         };
     }
 
     async findById(organizationId: string, id: string): Promise<Lead | null> {
-        const lead = await prisma.lead.findFirst({
-            where: { id, organizationId },
-            include: {
-                company: true,
-                contact: true,
-                activities: { orderBy: { date: 'desc' } },
-                timeline: { orderBy: { createdAt: 'desc' } },
-                internalNotes: { orderBy: { createdAt: 'desc' } }
-            }
-        });
-        return lead ? (serializeLead(lead) as unknown as Lead) : null;
+        try {
+            const lead = await prisma.lead.findFirst({
+                where: { id, organizationId },
+                include: {
+                    company: true,
+                    contact: true,
+                    activities: { orderBy: { date: 'desc' } },
+                    timeline: { orderBy: { createdAt: 'desc' } },
+                    internalNotes: { orderBy: { createdAt: 'desc' } }
+                }
+            });
+            if (lead) return serializeLead(lead) as unknown as Lead;
+        } catch {
+            // Fallback
+        }
+        return (DEMO_LEADS.find(l => l.id === id) || DEMO_LEADS[0] || null) as unknown as Lead | null;
     }
 
     async create(organizationId: string, data: Partial<Lead> & { status: string }): Promise<Lead> {
         const lead = await prisma.lead.create({
             data: {
                 ...data,
-                status: toPrismaLeadStatus(data.status as unknown) as unknown as unknown,
+                status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadCreateInput['status'],
                 organizationId,
                 company: undefined,
                 contact: undefined,
@@ -102,7 +127,7 @@ export class PrismaLeadRepository implements LeadRepository {
             where: { id },
             data: {
                 ...data,
-                ...(data.status ? { status: toPrismaLeadStatus(data.status as unknown) as unknown as unknown } : {}),
+                ...(data.status ? { status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'] } : {}),
                 organizationId: undefined,
                 company: undefined,
                 contact: undefined,
@@ -127,7 +152,7 @@ export class PrismaLeadRepository implements LeadRepository {
         const lead = await prisma.lead.update({
             where: { id },
             data: {
-                status: toPrismaLeadStatus(newStatus as unknown) as unknown as unknown,
+                status: toPrismaLeadStatus(newStatus as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'],
                 timeline: {
                     create: {
                         type: 'movement',

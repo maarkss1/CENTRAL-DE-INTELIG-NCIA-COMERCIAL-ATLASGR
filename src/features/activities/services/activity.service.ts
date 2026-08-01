@@ -10,6 +10,7 @@ import {
     fromPrismaLeadStatus,
     fromPrismaCompanyStatus,
 } from '../../../lib/enumMap';
+import { automationEngine } from '../../automations/automation.engine';
 
 function serializeActivity<
     T extends {
@@ -54,13 +55,36 @@ export class ActivityService {
         return activities.map(serializeActivity);
     }
 
+    /**
+     * Atividades num intervalo fechado-aberto [from, to). O calendário carrega o mês inteiro de
+     * uma vez — buscar dia a dia seriam ~35 requisições para montar uma grade.
+     *
+     * As datas chegam como ISO do frontend; `to` é exclusivo para o chamador poder passar o
+     * primeiro instante do dia seguinte sem se preocupar com milissegundos de borda.
+     */
+    async findRange(organizationId: string, fromStr: string, toStr: string) {
+        const from = new Date(fromStr);
+        const to = new Date(toStr);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+            throw new Error('Intervalo de datas inválido.');
+        }
+        if (from >= to) throw new Error('A data inicial deve ser anterior à final.');
+
+        const activities = await prisma.activity.findMany({
+            where: { organizationId, date: { gte: from, lt: to } },
+            include: { lead: { include: { company: true, contact: true } } },
+            orderBy: { date: 'asc' },
+        });
+        return activities.map(serializeActivity);
+    }
+
     async create(organizationId: string, data: z.infer<typeof activitySchema>) {
         const validated = activitySchema.parse(data);
         const activity = await prisma.activity.create({
             data: {
                 ...validated,
-                type: toPrismaActivityType(validated.type) as unknown,
-                status: toPrismaActivityStatus(validated.status) as unknown,
+                type: toPrismaActivityType(validated.type) as unknown as Prisma.ActivityCreateInput['type'],
+                status: toPrismaActivityStatus(validated.status) as unknown as Prisma.ActivityCreateInput['status'],
                 organizationId,
                 date: new Date(validated.date)
             }
@@ -81,8 +105,8 @@ export class ActivityService {
 
         const updateData: Prisma.ActivityUpdateInput = { ...data } as Prisma.ActivityUpdateInput;
         if (data.date) updateData.date = new Date(data.date);
-        if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown;
-        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown;
+        if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown as Prisma.ActivityUpdateInput['type'];
+        if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown as Prisma.ActivityUpdateInput['status'];
 
         const activity = await prisma.activity.update({
             where: { id },
@@ -97,6 +121,22 @@ export class ActivityService {
                     leadId: currentActivity.leadId
                 }
             });
+
+            // Gatilho de automação. Sem await: automação é efeito colateral e não pode atrasar nem
+            // derrubar a conclusão da atividade em si.
+            if (data.status === 'Concluída') {
+                void automationEngine.handle({
+                    organizationId,
+                    trigger: 'Atividade concluída',
+                    entity: 'Activity',
+                    entityId: id,
+                    data: {
+                        type: fromPrismaActivityType(currentActivity.type),
+                        owner: currentActivity.owner,
+                        leadId: currentActivity.leadId,
+                    },
+                }).catch(() => {});
+            }
         }
         return serializeActivity(activity);
     }

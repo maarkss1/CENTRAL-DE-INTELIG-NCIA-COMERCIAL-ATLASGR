@@ -300,7 +300,7 @@ $status | ConvertTo-Json -Depth 3
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-[#0A0D14] rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden border border-white/10"
+                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
             >
                 {/* Background ambient lighting */}
                 <div className={`absolute top-0 right-0 w-[600px] h-[600px] ${accent.blobA} rounded-full blur-[150px] pointer-events-none -mt-40 -mr-40`}></div>

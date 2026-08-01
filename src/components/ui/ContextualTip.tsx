@@ -12,7 +12,7 @@ interface ContextualTipProps {
 }
 
 export const ContextualTip: React.FC<ContextualTipProps> = ({
-    id,
+    id: _id,
     title,
     description,
     badgeText = '💡 Dica da IA Atlas',

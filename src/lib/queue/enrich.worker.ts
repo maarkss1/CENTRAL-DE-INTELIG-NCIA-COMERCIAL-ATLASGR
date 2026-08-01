@@ -36,12 +36,12 @@ export function createEnrichWorker() {
                     const company = lead.company;
                     
                     // Extrair domínio (mock simple para teste)
-                    let domain = (company as unknown).domain;
+                    let domain = (company as Record<string, unknown>).domain as string | undefined;
                     if (!domain && company.website) {
                         try {
                             const url = new URL(company.website.startsWith('http') ? company.website : `https://${company.website}`);
                             domain = url.hostname.replace('www.', '');
-                        } catch (e) {
+                        } catch {
                             domain = company.website;
                         }
                     }
@@ -67,7 +67,7 @@ export function createEnrichWorker() {
                         logger.info(`Empresa ${company.tradeName} enriquecida com sucesso!`);
                     }
                 });
-            } catch (error) {
+            } catch (error: unknown) {
                 logger.error({ err: error, jobId: job.id }, 'Falha no job de enriquecimento');
                 throw error;
             }

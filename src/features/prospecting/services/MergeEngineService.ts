@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { IEnrichmentResult } from '../../../types/enrichment';
 import { IDataProvider } from '../../../lib/adapters/data-providers/IDataProvider';
 import { BrasilApiAdapter } from '../../../lib/adapters/data-providers/BrasilApiAdapter';
@@ -5,13 +6,21 @@ import { CnpjWsAdapter } from '../../../lib/adapters/data-providers/CnpjWsAdapte
 import { GooglePlacesAdapter } from '../../../lib/adapters/data-providers/GooglePlacesAdapter';
 import { ApolloAdapter } from '../../../lib/adapters/data-providers/ApolloAdapter';
 import { sanitizeCnpj } from './cnpj.util';
+import { normalizeCompanyDomain } from '../utils/domain';
+
+export type EnrichmentQuery = {
+  cnpj?: string;
+  name?: string;
+  domain?: string;
+  location?: string;
+};
 
 export class MergeEngineService {
-  private adapters: IDataProvider[];
+  private readonly adapters: IDataProvider[];
 
-  constructor() {
+  constructor(adapters?: IDataProvider[]) {
     // Cascata de provedores: Oficial -> Fallback -> Alternativo -> Contatos
-    this.adapters = [
+    this.adapters = adapters ?? [
       new BrasilApiAdapter(),
       new CnpjWsAdapter(),
       new GooglePlacesAdapter(),
@@ -19,36 +28,43 @@ export class MergeEngineService {
     ];
   }
 
-  async enrich(query: { cnpj?: string; name?: string; domain?: string; location?: string }): Promise<IEnrichmentResult> {
+  async enrich(query: EnrichmentQuery): Promise<IEnrichmentResult> {
     const startTime = Date.now();
     let mergedResult = this.createEmptyResult();
-    const cnpjsConsultados: string[] = [];
-
-    if (query.cnpj) {
-       cnpjsConsultados.push(sanitizeCnpj(query.cnpj));
-    }
+    const normalizedQuery = {
+      ...query,
+      cnpj: query.cnpj ? sanitizeCnpj(query.cnpj) : undefined,
+      domain: normalizeCompanyDomain(query.domain),
+    };
+    let officialCompanyFound = false;
 
     for (const adapter of this.adapters) {
+      if (adapter.providerName === 'CNPJ.ws' && officialCompanyFound) {
+        continue;
+      }
+
       try {
-         // Otimização: Se for Google/Apollo, passamos o nome descoberto se query.name estiver vazio
-         const adapterQuery = { ...query };
-         if (!adapterQuery.name && mergedResult.company.tradeName) {
-             adapterQuery.name = mergedResult.company.tradeName;
-         }
+        // Propaga dados encontrados pelos provedores anteriores para os próximos da cascata.
+        const adapterQuery = { ...normalizedQuery };
+        if (!adapterQuery.name && mergedResult.company.tradeName) {
+          adapterQuery.name = mergedResult.company.tradeName;
+        }
+        if (!adapterQuery.domain && mergedResult.social.website) {
+          adapterQuery.domain = normalizeCompanyDomain(mergedResult.social.website);
+        }
 
-         const result = await adapter.enrich(adapterQuery);
+        const result = await adapter.enrich(adapterQuery);
 
-         if (Object.keys(result).length > 0) {
-            mergedResult = this.mergeResults(mergedResult, result as IEnrichmentResult);
+        if (result.enrichment) {
+          mergedResult = this.mergeResults(mergedResult, result);
 
-            // Logica de Fallback CNPJ: Se o BrasilApiAdapter trouxe dados da empresa, pulamos o CnpjWs
-            if (adapter.providerName === 'BrasilAPI' && mergedResult.company.cnpj) {
-                // Remove o CnpjWsAdapter da cascata desta execucao pois já temos os dados oficiais
-                this.adapters = this.adapters.filter(a => a.providerName !== 'CNPJ.ws');
-            }
-         }
+          // Lógica de Fallback CNPJ: Se o BrasilApiAdapter trouxe dados da empresa, pulamos o CnpjWs
+          officialCompanyFound =
+            adapter.providerName === 'BrasilAPI' &&
+            Boolean(result.company?.cnpj);
+        }
       } catch (error) {
-         console.error(`[MergeEngine] Error calling adapter ${adapter.providerName}:`, error);
+        logger.error({ err: error, provider: adapter.providerName }, '[MergeEngine] Error calling adapter');
       }
     }
 
@@ -73,8 +89,23 @@ export class MergeEngineService {
     };
   }
 
-  private mergeResults(current: IEnrichmentResult, incoming: IEnrichmentResult): IEnrichmentResult {
-    const next = { ...current };
+  private mergeResults(current: IEnrichmentResult, incoming: Partial<IEnrichmentResult>): IEnrichmentResult {
+    const next: IEnrichmentResult = {
+      ...current,
+      company: { ...current.company },
+      address: { ...current.address },
+      contacts: {
+        phones: [...current.contacts.phones],
+        emails: [...current.contacts.emails],
+        decisionMakers: [...current.contacts.decisionMakers],
+      },
+      social: { ...current.social },
+      enrichment: {
+        ...current.enrichment,
+        confidence: { ...current.enrichment.confidence },
+        sources: [...current.enrichment.sources],
+      },
+    };
 
     if (!incoming.enrichment) return next;
 
@@ -102,8 +133,18 @@ export class MergeEngineService {
             next.contacts.emails = Array.from(new Set([...next.contacts.emails, ...incoming.contacts.emails]));
         }
         if (incoming.contacts.decisionMakers?.length) {
-            // Em tese seria um dedup por email ou linkedin
-            next.contacts.decisionMakers = [...next.contacts.decisionMakers, ...incoming.contacts.decisionMakers];
+            const contacts = [...next.contacts.decisionMakers, ...incoming.contacts.decisionMakers];
+            const seen = new Set<string>();
+            next.contacts.decisionMakers = contacts.filter((contact) => {
+              const identity = [
+                contact.email?.trim().toLowerCase(),
+                contact.linkedin?.trim().toLowerCase(),
+                contact.name.trim().toLowerCase(),
+              ].filter(Boolean).join('|');
+              if (seen.has(identity)) return false;
+              seen.add(identity);
+              return true;
+            });
         }
         if (incomingConfidence.contacts > currentConfidence.contacts) {
             currentConfidence.contacts = incomingConfidence.contacts;

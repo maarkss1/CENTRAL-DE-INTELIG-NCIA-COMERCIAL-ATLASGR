@@ -9,6 +9,7 @@ import { toast } from '../../../lib/toast';
 import { PIC_OPTIONS } from '../../prospecting/constants/icp-options';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
+import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 
 const STATUS_EMOJI: Record<string, string> = {
     'Novo Lead': '🆕', 'Qualificação': '🔎', 'Primeiro Contato': '☎️', 'Diagnóstico': '🩺',
@@ -255,6 +256,19 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 </div>
                             </section>
                         )}
+
+                        <section>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">👥 Decisores</h3>
+                            <DecisionMakerSearch
+                                companyName={company?.tradeName || company?.legalName || 'Empresa do lead'}
+                                website={company?.website}
+                                rationale={company?.observations}
+                                companyCnpj={company?.cnpj}
+                                companyEmails={company?.emails}
+                                companyPhones={company?.phones}
+                                appearance="light"
+                            />
+                        </section>
 
                         {/* Contato */}
                         {lead.contact && (

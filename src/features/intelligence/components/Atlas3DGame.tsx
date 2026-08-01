@@ -38,7 +38,8 @@ function CargoBox({ onClick }: { onClick: () => void }) {
     }
   });
 
-  const handleClick = (e: unknown) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleClick = (e: any) => {
     e.stopPropagation();
     setClicked(true);
     onClick();

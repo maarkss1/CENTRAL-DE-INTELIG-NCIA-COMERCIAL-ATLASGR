@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
 
@@ -34,17 +35,20 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
         }, 12_000);
 
         if (!res.ok) {
-            console.error('Google Places (discovery) error:', await res.text());
+            logger.error({ status: res.status, body: await res.text() }, 'Google Places (discovery) error');
             return [];
         }
 
         const data = await res.json();
         const places = data.places || [];
 
-        return places.map((p: unknown) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return places.map((p: any) => {
             const components = p.addressComponents || [];
-            const city = components.find((c: unknown) => c.types?.includes('administrative_area_level_2'))?.longText;
-            const state = components.find((c: unknown) => c.types?.includes('administrative_area_level_1'))?.shortText;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const city = components.find((c: any) => c.types?.includes('administrative_area_level_2'))?.longText;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const state = components.find((c: any) => c.types?.includes('administrative_area_level_1'))?.shortText;
             return {
                 tradeName: p.displayName?.text || 'Empresa sem nome',
                 address: p.formattedAddress,
@@ -57,7 +61,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
             } satisfies PlaceCandidate;
         });
     } catch (error) {
-        console.error('Error searching Google Places candidates:', error);
+        logger.error({ err: error, query }, 'Error searching Google Places candidates');
         return [];
     }
 }
@@ -99,7 +103,7 @@ export async function searchGooglePlace(
         }, 12_000);
 
         if (!res.ok) {
-            console.error('Google Places API error:', await res.text());
+            logger.error({ status: res.status, body: await res.text() }, 'Google Places API error');
             return null;
         }
 
@@ -124,7 +128,7 @@ export async function searchGooglePlace(
             businessHours: p.regularOpeningHours
         };
     } catch (error) {
-        console.error('Error fetching Google Place:', error);
+        logger.error({ err: error, companyName, locationStr }, 'Error fetching Google Place');
         return null;
     }
 }

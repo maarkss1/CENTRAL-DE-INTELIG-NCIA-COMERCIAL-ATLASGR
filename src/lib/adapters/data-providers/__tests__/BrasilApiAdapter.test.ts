@@ -52,7 +52,7 @@ describe('BrasilApiAdapter', () => {
             ok: true,
             status: 200,
             json: async () => mockResponse
-        } as unknown);
+        } as unknown as Response);
 
         // Usar um CNPJ matematicamente valido pra passar pela validação (12345678000195 tem os digitos verificadores corretos para 123456780001)
         const result = await adapter.enrich({ cnpj: '12.345.678/0001-95' });

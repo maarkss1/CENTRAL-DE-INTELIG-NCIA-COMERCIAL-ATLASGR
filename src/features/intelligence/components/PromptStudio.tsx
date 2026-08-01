@@ -27,15 +27,17 @@ export function PromptStudio() {
 
     useEffect(() => {
         loadPrompts();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadPrompts = async () => {
         try {
-            const res: unknown = await api.get('/api/prompts');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const res: any = await api.get('/api/prompts');
             setPrompts(res.data.data);
             
             const current = res.data.data.find((p: Prompt) => p.category === selectedCategory);
-            if (current?.variables?.tone) setTone(current.variables.tone);
+            if (current?.variables?.tone) setTone(current.variables.tone as string);
         } catch (error) {
             console.error('Failed to load prompts', error);
         } finally {
@@ -46,7 +48,7 @@ export function PromptStudio() {
     const handleCategoryChange = (cat: string) => {
         setSelectedCategory(cat);
         const current = prompts.find(p => p.category === cat);
-        setTone(current?.variables?.tone || '');
+        setTone((current?.variables?.tone as string) || '');
     };
 
     const handleSave = async () => {

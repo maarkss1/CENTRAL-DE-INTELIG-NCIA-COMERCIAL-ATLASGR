@@ -1,44 +1,37 @@
-import { StateGraph, Annotation, START, END } from '@langchain/langgraph';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-
-const GraphState = Annotation.Root({
-    input: Annotation<string>(),
-    action: Annotation<string>(),
-});
+import { BaseAgent } from './base.agent.js';
 
 /**
- * Agente de CRM: dado um resumo do estado atual de um deal, resume o risco e recomenda a próxima
- * ação de status — mesmo padrão de nó único + LLM usado em `graphs/leadQualification.ts`.
+ * Agente de CRM: Resume o risco de deals e recomenda próximas ações.
+ * Mantém contexto entre interações através do MemorySaver via BaseAgent.
  */
-export class CRMAgent {
-    async run(inputData: string) {
-        const graph = new StateGraph(GraphState)
-            .addNode('updateStatus', async (state) => {
-                const model = getAiModel('gemini-flash', 0.3, 'crm-agent');
-                const startTime = Date.now();
+export class CRMAgent extends BaseAgent {
+    protected agentType = 'CRM';
+    protected modelName = 'gemini-flash';
+    protected temperature = 0.3;
 
-                const response = await model.invoke([
-                    new SystemMessage(
-                        'Você é um assistente de CRM da Atlas (SaaS B2B de logística). Dado um resumo do estado atual de um deal/negociação, avalie o risco de perda em uma frase e recomende a próxima ação concreta de status/tratativa. Baseie-se SOMENTE no que foi informado. Responda em texto corrido, direto, sem markdown, no formato: "Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>".',
-                    ),
-                    new HumanMessage(`Estado do deal: ${state.input}`),
-                ]);
+    protected buildSystemPrompt(learnedStyle: string | null): string {
+        const base =
+            'Você é um assistente de CRM da Atlas (SaaS B2B de logística). ' +
+            'Dado um resumo do estado atual de um deal/negociação, avalie o risco de perda em uma frase ' +
+            'e recomende a próxima ação concreta de status/tratativa. Baseie-se SOMENTE no que foi informado. ' +
+            'Responda em texto corrido, direto, sem markdown, no formato: ' +
+            '"Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>".';
 
-                await logAiUsage({
-                    model: response.response_metadata.model,
-                    usage: response.response_metadata.tokenUsage,
-                    latencyMs: Date.now() - startTime,
-                });
+        return learnedStyle
+            ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}`
+            : base;
+    }
 
-                return { action: response.content.trim() || `Status updated for: ${state.input}` };
-            })
-            .addEdge(START, 'updateStatus')
-            .addEdge('updateStatus', END);
+    protected buildHumanMessage(input: string): string {
+        return `Estado do deal: ${input}`;
+    }
 
-        const compiled = graph.compile();
-        const result = await compiled.invoke({ input: inputData });
-
-        return result;
+    async run(inputData: string, sessionId?: string) {
+        const result = await super.run(inputData, sessionId);
+        return {
+            action: result.output as string | undefined,
+            error: result.error,
+            sessionId: result.sessionId,
+        };
     }
 }

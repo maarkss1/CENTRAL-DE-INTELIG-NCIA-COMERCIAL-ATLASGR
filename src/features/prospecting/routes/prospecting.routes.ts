@@ -3,6 +3,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { discoverCandidates, promoteToCrm, discoverDecisionMakers } from '../services/prospecting.service.js';
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
+import { normalizeCompanyDomain } from '../utils/domain.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
@@ -67,11 +68,12 @@ router.post('/promote', async (req: Request, res: Response, next: NextFunction):
 router.post('/decision-makers', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { domain, criteria } = req.body as { domain?: string; criteria?: Record<string, unknown> };
-        if (!domain || typeof domain !== 'string') {
-            res.status(400).json({ success: false, error: 'O domínio da empresa é obrigatório' });
+        const normalizedDomain = typeof domain === 'string' ? normalizeCompanyDomain(domain) : '';
+        if (!normalizedDomain) {
+            res.status(400).json({ success: false, error: 'Informe um domínio válido da empresa' });
             return;
         }
-        const result = await discoverDecisionMakers(domain, criteria ?? {});
+        const result = await discoverDecisionMakers(normalizedDomain, criteria ?? {});
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

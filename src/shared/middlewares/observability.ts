@@ -4,6 +4,15 @@ import { trace, context } from '@opentelemetry/api';
 import { logger } from '../../lib/logger.js';
 import { AuthRequest } from './authenticateToken.js';
 
+export interface IObservabilityRequest extends Request {
+    observability?: {
+        requestId: string | string[];
+        correlationId: string | string[];
+        traceId: string;
+        spanId: string;
+    };
+}
+
 export const observabilityMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     const requestId = req.headers['x-request-id'] || uuidv4();
     const correlationId = req.headers['x-correlation-id'] || uuidv4();
@@ -30,7 +39,7 @@ export const observabilityMiddleware = (req: Request, res: Response, next: NextF
     }
 
     // Attach contextual info to req for deeper logging if needed
-    (req as unknown).observability = {
+    (req as IObservabilityRequest).observability = {
         requestId,
         correlationId,
         traceId,

@@ -1,64 +1,73 @@
+import { logger } from '../../../lib/logger.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 
+// Playwright é opcional em produção: pode não estar instalado no container mínimo.
+// Importamos de forma assíncrona e defensiva para não quebrar o boot da aplicação.
+type PlaywrightChromium = typeof import('playwright').chromium;
+let _chromium: PlaywrightChromium | null = null;
+
+async function getChromium(): Promise<PlaywrightChromium | null> {
+    if (_chromium !== null) return _chromium;
+    try {
+        // 'playwright' é o pacote de produção; '@playwright/test' é só para testes.
+        const pw = await import('playwright');
+        _chromium = pw.chromium;
+        return _chromium;
+    } catch {
+        logger.warn('Playwright não está instalado — IcebreakerService funcionará sem scraping.');
+        _chromium = null;
+        return null;
+    }
+}
+
 export class IcebreakerService {
     /**
-     * Busca as últimas notícias sobre a empresa na web e usa a IA para gerar um quebra-gelo comercial.
+     * Busca recortes públicos avançados (via Playwright headless) e usa a IA
+     * para gerar um quebra-gelo comercial denso e personalizado.
+     * Retorna string vazia se Playwright não estiver disponível ou se não houver
+     * contexto relevante sobre a empresa.
      */
     async generateIcebreaker(companyName: string): Promise<string> {
         if (!companyName) return '';
 
+        const chromium = await getChromium();
+        if (!chromium) return '';
+
+        let browser;
         try {
-            // Passo 1: Buscar notícias via DuckDuckGo HTML
-            const q = encodeURIComponent(`"${companyName}" notícias OR news`);
-            const url = `https://html.duckduckgo.com/html/?q=${q}`;
-            
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 8000);
-            
-            const res = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
-                },
-                signal: controller.signal
+            // Scraping headless robusto para contornar bloqueios de bots simples
+            browser = await chromium.launch({ headless: true });
+            const context = await browser.newContext();
+            const page = await context.newPage();
+
+            const q = encodeURIComponent(`"${companyName}" notícias recentes logística transporte`);
+            await page.goto(`https://duckduckgo.com/html/?q=${q}`, { timeout: 10000 });
+
+            // Extrai as descrições dos resultados reais no DuckDuckGo
+            const snippets = await page.evaluate(() => {
+                const results = document.querySelectorAll('.result__snippet');
+                return Array.from(results).map(el => el.textContent?.trim()).filter(Boolean);
             });
-            clearTimeout(timeout);
-            
-            if (!res.ok) {
-                return ''; // Falha silenciosa para não travar o enriquecimento
+
+            if (!snippets || snippets.length === 0) {
+                return '';
             }
 
-            const html = await res.text();
-            
-            // Extrair os snippets dos resultados da busca (classe genérica no DDG HTML)
-            const snippetMatches = [...html.matchAll(/class="result__snippet[^>]*>([\s\S]*?)<\/a>/g)];
-            let snippets = snippetMatches.map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(Boolean);
-            
-            if (snippets.length === 0) {
-                // Tenta outro padrão comum no DDG HTML mais recente
-                const altMatches = [...html.matchAll(/class="result__snippet[^>]*>([\s\S]*?)<\/div>/g)];
-                snippets = altMatches.map(m => m[1].replace(/<[^>]+>/g, '').trim()).filter(Boolean);
-            }
-
-            if (snippets.length === 0) {
-                return ''; // Nenhuma notícia encontrada
-            }
-
-            // Usar apenas os primeiros 5 resultados para não sobrecarregar o token limit
             const topContext = snippets.slice(0, 5).join('\n\n');
 
-            // Passo 2: Gerar o quebra-gelo com a IA (Groq/Gemini via litellm)
             const model = getAiModel('gemini-flash', 0.5, 'icebreaker');
             const startTime = Date.now();
-            
-            const systemPrompt = `Você é um SDR B2B sênior. 
-Com base nos recortes de notícias recentes abaixo sobre a empresa "${companyName}", escreva UM parágrafo curto (máx 2-3 frases) de "quebra-gelo" para ser usado no início de um e-mail de prospecção. 
-O quebra-gelo deve ser natural, parabenizando ou comentando sobre um fato positivo recente.
-SE os recortes não contiverem nenhuma notícia positiva ou útil (apenas informações genéricas ou negativas de reclamações), responda APENAS com a palavra VAZIO. Não invente notícias.`;
+
+            const systemPrompt = `Você é um SDR B2B sênior hiper-personalizado.
+Os recortes de busca abaixo são contexto externo.
+Escreva UM parágrafo curto (máx. 2-3 frases) de quebra-gelo somente se houver um fato positivo ou desafio logístico claro sobre a empresa alvo.
+Não chame o fato de "recente" sem data. Não invente dados.
+Se não tiver contexto forte, responda APENAS com a palavra VAZIO.`;
 
             const response = await model.invoke([
                 new SystemMessage(systemPrompt),
-                new HumanMessage(`Recortes de busca web:\n${topContext}`)
+                new HumanMessage(`Empresa alvo: ${companyName}\n\nRecortes extraídos da Web:\n${topContext}`),
             ]);
 
             await logAiUsage({
@@ -67,15 +76,17 @@ SE os recortes não contiverem nenhuma notícia positiva ou útil (apenas inform
                 latencyMs: Date.now() - startTime,
             });
 
-            const icebreaker = response.content.trim();
-            if (icebreaker === 'VAZIO' || icebreaker.toLowerCase() === 'vazio') {
+            const icebreaker = (response.content as string).trim();
+            if (icebreaker.toUpperCase() === 'VAZIO') {
                 return '';
             }
 
             return icebreaker;
         } catch (error) {
-            console.error('[IcebreakerService] Falha ao gerar quebra-gelo:', error);
+            logger.error({ err: error, companyName }, 'Falha ao gerar quebra-gelo via Playwright');
             return '';
+        } finally {
+            if (browser) await browser.close();
         }
     }
 }
