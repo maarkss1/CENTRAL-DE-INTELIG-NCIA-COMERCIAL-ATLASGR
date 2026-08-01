@@ -106,7 +106,7 @@ export class IngestionService {
         const embeddings = vectorReady
             ? await mapWithConcurrency(chunks, EMBEDDING_CONCURRENCY, async (chunk) => {
                 try {
-                    return await generateEmbedding(`${normalizedTitle}\n\n${chunk}`);
+                    return await generateEmbedding(`${normalizedTitle}\n\n${chunk}`, 'passage');
                 } catch (err) {
                     logger.error({ err, documentId: document.id }, 'Falha ao gerar embedding do trecho');
                     return null;
@@ -198,7 +198,7 @@ export class IngestionService {
         const embeddings = vectorReady
             ? await mapWithConcurrency(chunks, EMBEDDING_CONCURRENCY, async (chunk) => {
                 try {
-                    return await generateEmbedding(`${title}\n\n${chunk}`);
+                    return await generateEmbedding(`${title}\n\n${chunk}`, 'passage');
                 } catch (err) {
                     logger.error({ err, documentId }, 'Falha ao gerar embedding na reindexação');
                     return null;
@@ -298,7 +298,7 @@ export class IngestionService {
         let repaired = 0;
         await mapWithConcurrency(pending, EMBEDDING_CONCURRENCY, async (chunk) => {
             try {
-                const embedding = await generateEmbedding(`${document.title}\n\n${chunk.content}`);
+                const embedding = await generateEmbedding(`${document.title}\n\n${chunk.content}`, 'passage');
                 await prisma.$executeRaw`
                     UPDATE "DocumentChunk"
                     SET "vector" = ${toVectorLiteral(embedding)}::vector

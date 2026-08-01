@@ -426,7 +426,17 @@ export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
  * Gera um embedding (array de floats) para o texto fornecido.
  * Usado para a Memória Vetorial (RAG) do Agente SDR via pgvector.
  */
-export const generateEmbedding = async (text: string): Promise<number[]> => {
+export const generateEmbedding = async (
+    text: string,
+    kind: 'query' | 'passage' = 'passage',
+): Promise<number[]> => {
+    // Provedor padrão é o modelo local: não depende de chave, de cota nem de serviço externo no ar.
+    // `EMBEDDINGS_PROVIDER=gateway` volta ao caminho antigo (LiteLLM → Google) quando desejado.
+    if ((process.env.EMBEDDINGS_PROVIDER || 'local') === 'local') {
+        const { embedLocal } = await import('./local-embeddings.js');
+        return embedLocal(text, kind);
+    }
+
     // Usamos a API do Gemini via fetch. O URL litellm suporta `/v1/embeddings` se configurado,
     // Mas para simplificar vamos direto no provider se o LITELLM_URL não for um proxy de embedding
     const LITELLM_URL = normalizeApiBaseUrl(process.env.LITELLM_URL || 'http://localhost:4000');

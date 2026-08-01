@@ -84,7 +84,9 @@ export class SearchService {
 
         let embedding: number[];
         try {
-            embedding = await generateEmbedding(query);
+            // 'query' e não 'passage': o modelo e5 distingue os dois papéis e a recuperação piora
+            // sensivelmente se a consulta for embedada como se fosse um documento.
+            embedding = await generateEmbedding(query, 'query');
         } catch (err) {
             logger.warn({ err }, 'Busca semântica indisponível; usando apenas palavra-chave');
             return null;
