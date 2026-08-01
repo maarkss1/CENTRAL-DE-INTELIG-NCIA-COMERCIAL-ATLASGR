@@ -120,13 +120,17 @@ import { LearningAgent } from '../agents/learning.agent.js';
 const swarmMissionSchema = z.object({
     mission: z.string().trim().min(1, 'A missão é obrigatória.').max(4_000),
     sessionId: z.string().trim().min(1).max(200).optional(),
+    // Opcional: quando presente, permite ao Agente SDR do enxame buscar o contexto real do lead no
+    // CRM em vez de tentar (e sempre falhar) usar o texto da missão como se fosse um ID — ver
+    // sdrNode em supervisor.agent.ts (IA-003).
+    leadId: z.string().trim().min(1).max(200).optional(),
 });
 
 router.post('/swarm/mission', validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
-        const { mission, sessionId } = req.body as z.infer<typeof swarmMissionSchema>;
+        const { mission, sessionId, leadId } = req.body as z.infer<typeof swarmMissionSchema>;
         const swarm = new SwarmOrchestrator();
-        const result = await swarm.executeMission(mission, sessionId);
+        const result = await swarm.executeMission(mission, sessionId, leadId);
         // Retorna a última mensagem ou todo o contexto no formato esperado pelo api.ts (data envelope)
         res.json({ success: true, data: { messages: result.map(m => m.content) } });
     } catch (err) {
@@ -136,7 +140,7 @@ router.post('/swarm/mission', validateRequest(swarmMissionSchema), async (req, r
 
 router.post('/swarm/stream', validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
-        const { mission, sessionId } = req.body as z.infer<typeof swarmMissionSchema>;
+        const { mission, sessionId, leadId } = req.body as z.infer<typeof swarmMissionSchema>;
         const sid = sessionId || `swarm-mission-${Date.now()}`;
 
         res.setHeader('Content-Type', 'text/event-stream');
@@ -148,7 +152,7 @@ router.post('/swarm/stream', validateRequest(swarmMissionSchema), async (req, re
 
         await swarm.executeMissionStream(mission, sid, (event) => {
             res.write(`data: ${JSON.stringify(event)}\n\n`);
-        });
+        }, leadId);
 
         res.write('event: end\ndata: {}\n\n');
         res.end();

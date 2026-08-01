@@ -52,6 +52,13 @@ const SwarmState = Annotation.Root({
         reducer: (left, right) => right ?? left,
         default: () => '',
     }),
+    // ID real de Lead do CRM, opcional — ver sdrNode: sem isto, SDRQualificationAgent.run() recebia
+    // o texto livre da missão/instrução no lugar de um ID de lead de verdade e a ferramenta de
+    // contexto sempre falhava com "lead não encontrado" (IA-003).
+    leadId: Annotation<string>({
+        reducer: (left, right) => right ?? left,
+        default: () => '',
+    }),
     next: Annotation<SwarmRoute>({
         reducer: (left, right) => right ?? left,
         default: () => 'sdr',
@@ -192,10 +199,21 @@ Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSO
 
 // Adapters que executam os sub-agentes com a instrução lapidada pelo supervisor (não mais o texto cru do roteamento).
 async function sdrNode(state: SwarmStateType) {
-    const instruction = state.instruction || state.mission;
+    // SDRQualificationAgent.run() espera um ID real de Lead do CRM (usa a ferramenta get_lead_context,
+    // que faz um lookup exato por id) — nunca texto livre. Antes desta correção, este node passava
+    // state.instruction (a instrução em português lapidada pelo supervisor) no lugar do leadId, e a
+    // qualificação sempre falhava com "Lead não encontrado no CRM" (IA-003).
+    if (!state.leadId) {
+        const content = 'Não foi possível qualificar: nenhum lead foi informado para esta missão. Informe o ID do lead relacionado para que o Agente SDR busque o contexto real no CRM.';
+        return {
+            completed: ['sdr'] as SwarmAgentKey[],
+            results: { sdr: content },
+            messages: [toAiMessage(buildEvent('agent_error', 'sdr', content, state.step))],
+        };
+    }
     try {
         const agent = new SDRQualificationAgent();
-        const result = await agent.run(instruction, `swarm-sdr-${state.step}`);
+        const result = await agent.run(state.leadId, `swarm-sdr-${state.step}`);
         const content = ('detailedLog' in result && result.detailedLog) ? result.detailedLog : 'Análise concluída sem detalhamento textual.';
         return {
             completed: ['sdr'] as SwarmAgentKey[],
@@ -319,12 +337,12 @@ const memory = new MemorySaver();
 const swarmApp = workflow.compile({ checkpointer: memory });
 
 export class SwarmOrchestrator {
-    async executeMission(mission: string, sessionId?: string) {
+    async executeMission(mission: string, sessionId?: string, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
         const config = { configurable: { thread_id: sid }, recursionLimit: 25 };
 
         try {
-            const finalState = await swarmApp.invoke({ messages: [new HumanMessage(mission)], mission }, config);
+            const finalState = await swarmApp.invoke({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
             return finalState.messages as BaseMessage[];
         } catch (error) {
             logger.error({ err: error, sessionId: sid }, 'Swarm execution failed');
@@ -332,12 +350,12 @@ export class SwarmOrchestrator {
         }
     }
 
-    async executeMissionStream(mission: string, sessionId: string, onChunk: (event: SwarmEvent) => void) {
+    async executeMissionStream(mission: string, sessionId: string, onChunk: (event: SwarmEvent) => void, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
         const config = { configurable: { thread_id: sid }, recursionLimit: 25 };
 
         try {
-            const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission }, config);
+            const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
 
             for await (const chunk of stream) {
                 const nodeName = Object.keys(chunk)[0];

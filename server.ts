@@ -162,15 +162,19 @@ async function startServer() {
     app.use(express.json({ limit: '10mb' }));
 
     // ── Metrics ────────────────────────────────────────────────────────────
-    client.collectDefaultMetrics();
-    app.get('/metrics', async (_req, res) => {
-        try {
-            res.set('Content-Type', client.register.contentType);
-            res.end(await client.register.metrics());
-        } catch (ex) {
-            res.status(500).end(ex);
-        }
-    });
+    // OBS-001: EXPOSE_METRICS existia em env.ts mas nunca era lida aqui — /metrics ficava sempre
+    // montado publicamente (sem autenticação), independentemente da flag.
+    if (env.EXPOSE_METRICS) {
+        client.collectDefaultMetrics();
+        app.get('/metrics', async (_req, res) => {
+            try {
+                res.set('Content-Type', client.register.contentType);
+                res.end(await client.register.metrics());
+            } catch (ex) {
+                res.status(500).end(ex);
+            }
+        });
+    }
 
     // ── Health Checks ──────────────────────────────────────────────────────
     app.get('/health/live', (_req, res) => {
@@ -257,17 +261,21 @@ async function startServer() {
     setupDI();
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
-    const searchWorker = createSearchWorker();
     const companyWorker = createCompanyWorker();
     const enrichmentWorker = createEnrichmentWorker();
-    await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
+    // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
+    // inicialização do Meilisearch sempre rodavam, independentemente da flag.
+    const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
+    if (env.ENABLE_SEARCH) {
+        await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
+    }
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
         await leadsWorker.close();
         await agentWorker.close();
-        await searchWorker.close();
+        await searchWorker?.close();
         await companyWorker.close();
         await enrichmentWorker.close();
         await prisma.$disconnect();

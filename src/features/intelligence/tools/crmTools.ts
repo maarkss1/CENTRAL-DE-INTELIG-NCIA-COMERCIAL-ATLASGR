@@ -2,14 +2,23 @@ import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma.js';
 import { toPrismaLeadStatus } from '../../../lib/enumMap';
+import { getTenantId } from '../../../lib/async-context.js';
 
 /**
  * Ferramenta para o agente buscar o contexto completo de um Lead (empresa, contato, interações)
  */
 export const getLeadContextTool = tool(
     async ({ leadId }: { leadId: string }) => {
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId },
+        // Sem isto, qualquer tenant que soubesse (ou adivinhasse) um ID de Lead conseguia ler dados
+        // de outra organização através deste tool — o agente SDR roda dentro do contexto da
+        // requisição que o disparou, então getTenantId() aqui é o tenant de quem pediu a qualificação.
+        const organizationId = getTenantId();
+        if (!organizationId) {
+            return "Erro: contexto de organização ausente — não é possível buscar o lead com segurança.";
+        }
+
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, organizationId },
             include: { company: true, contact: true }
         });
 
@@ -51,9 +60,16 @@ export const getLeadContextTool = tool(
  */
 export const updateLeadQualificationTool = tool(
     async ({ leadId, score, summary, status }: { leadId: string, score: number, summary: string, status: string }) => {
+        const organizationId = getTenantId();
+        if (!organizationId) {
+            return 'Erro ao atualizar qualificação: contexto de organização ausente.';
+        }
         try {
-            await prisma.lead.update({
-                where: { id: leadId },
+            // updateMany (não update) porque o where precisa filtrar por organizationId além do id —
+            // sem isso, o agente de um tenant conseguia sobrescrever score/status do lead de outro
+            // tenant só sabendo o ID (o mesmo tipo de IDOR corrigido em get_lead_context acima).
+            const { count } = await prisma.lead.updateMany({
+                where: { id: leadId, organizationId },
                 data: {
                     score,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,6 +81,9 @@ export const updateLeadQualificationTool = tool(
                     }
                 }
             });
+            if (count === 0) {
+                return `Erro: Lead ${leadId} não encontrado no CRM.`;
+            }
             return `Lead ${leadId} qualificado com sucesso com nota ${score}. Status atualizado para ${status}.`;
         } catch (error) {
             return `Erro ao atualizar qualificação: ${error instanceof Error ? error.message : String(error)}`;

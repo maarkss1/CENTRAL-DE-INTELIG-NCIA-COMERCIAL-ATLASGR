@@ -38,6 +38,9 @@ function createId() {
 export function SwarmDashboard() {
     const accent = useBrandAccent();
     const [mission, setMission] = useState('');
+    // Opcional: sem isto, o Agente SDR do enxame não tem como buscar o lead real no CRM e a
+    // qualificação sempre falha (ver sdrNode em supervisor.agent.ts — IA-003).
+    const [leadId, setLeadId] = useState('');
     const [isExecuting, setIsExecuting] = useState(false);
     const [messages, setMessages] = useState<SwarmMessage[]>([]);
     const [activeStep, setActiveStep] = useState(0);
@@ -86,7 +89,7 @@ export function SwarmDashboard() {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ mission: missionText })
+                body: JSON.stringify({ mission: missionText, leadId: leadId.trim() || undefined })
             });
 
             if (!response.ok) {
@@ -413,6 +416,16 @@ export function SwarmDashboard() {
 
             {/* Input Footer */}
             <div className="p-6 bg-black/80 border-t border-white/10 backdrop-blur-2xl relative z-50">
+                <div className="relative max-w-4xl mx-auto mb-3">
+                    <input
+                        type="text"
+                        value={leadId}
+                        onChange={(e) => setLeadId(e.target.value)}
+                        placeholder="Lead ID (opcional) — necessário para o Agente SDR qualificar um lead real do CRM"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white/80 text-[13px] font-medium focus:outline-none focus:ring-1 focus:bg-white/10 transition-all placeholder:text-gray-500 pointer-events-auto"
+                        disabled={isExecuting}
+                    />
+                </div>
                 <div className="relative max-w-4xl mx-auto">
                     <input
                         type="text"

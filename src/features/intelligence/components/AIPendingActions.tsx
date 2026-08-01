@@ -34,10 +34,20 @@ export function AIPendingActions() {
         fetchActions();
     }, []);
 
-    const handleApprove = async (id: string) => {
+    /**
+     * "Aprovar" nunca enviou nada de verdade — não existe infraestrutura de envio de e-mail no
+     * projeto (IA-005). Em vez de fingir uma automação que não existe, abre o rascunho no cliente de
+     * e-mail do próprio usuário (via mailto:) pra ele mandar de fato, e só então marca como aprovado.
+     */
+    const handleApprove = async (action: PendingAction) => {
         try {
-            await api.post(`/api/intelligence/pending/${id}/approve`);
-            setActions(prev => prev.filter(a => a.id !== id));
+            const to = encodeURIComponent(action.payload.to || '');
+            const subject = encodeURIComponent(action.payload.subject || '');
+            const body = encodeURIComponent(action.payload.body || '');
+            window.open(`mailto:${to}?subject=${subject}&body=${body}`, '_blank');
+
+            await api.post(`/api/intelligence/pending/${action.id}/approve`);
+            setActions(prev => prev.filter(a => a.id !== action.id));
         } catch (error) {
             console.error('Error approving', error);
         }
@@ -107,11 +117,12 @@ export function AIPendingActions() {
 
                         <div className="border-t border-gray-100 p-3 bg-gray-50 flex gap-2">
                             <button
-                                onClick={() => handleApprove(action.id)}
+                                onClick={() => handleApprove(action)}
                                 className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                                title="Abre este rascunho no seu cliente de e-mail para você enviar"
                             >
                                 <Check className="w-4 h-4 mr-1.5" />
-                                Aprovar rascunho
+                                Aprovar e abrir e-mail
                             </button>
                             <button
                                 onClick={() => handleDiscard(action.id)}
