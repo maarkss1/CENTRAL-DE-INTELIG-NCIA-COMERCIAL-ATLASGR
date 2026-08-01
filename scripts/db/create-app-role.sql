@@ -11,20 +11,20 @@
 --
 -- Idempotente: seguro rodar de novo (ex.: apos criar uma extensao nova) sem quebrar nada.
 
-DO $$
-DECLARE
-    v_password text := :'app_password';
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'prospector_app') THEN
-        EXECUTE format(
-            'CREATE ROLE prospector_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD %L',
-            v_password
-        );
-    ELSE
-        EXECUTE format('ALTER ROLE prospector_app WITH PASSWORD %L', v_password);
-    END IF;
-END
-$$;
+-- Cria (ou atualiza a senha d)o papel de aplicacao. NAO usa DO $$ ... $$ aqui de proposito: a
+-- interpolacao de variavel do psql (:'app_password') e puramente lexica e NAO acontece dentro de
+-- blocos dollar-quoted — testado ao vivo (psql do proprio pgvector/pgvector:pg15) e confirmado:
+-- com :'app_password' dentro de um DO $$ ... $$, o texto chega literal no servidor e vira erro de
+-- sintaxe. \gexec mantem a interpolacao num SELECT de nivel superior, onde ela funciona de verdade.
+SELECT format(
+    'CREATE ROLE prospector_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION PASSWORD %L',
+    :'app_password'
+)
+WHERE NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'prospector_app')
+UNION ALL
+SELECT format('ALTER ROLE prospector_app WITH PASSWORD %L', :'app_password')
+WHERE EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'prospector_app')
+\gexec
 
 -- CREATE EXTENSION exige superusuario; roda aqui (com a conexao ainda autenticada como
 -- superusuario de bootstrap) pra garantir que exista antes de qualquer coisa depender dela.
