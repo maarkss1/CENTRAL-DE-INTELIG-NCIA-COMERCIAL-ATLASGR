@@ -30,11 +30,30 @@ $$;
 -- superusuario de bootstrap) pra garantir que exista antes de qualquer coisa depender dela.
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Transfere a posse de tudo que o superusuario de bootstrap possui neste banco (tabelas,
--- sequences, etc.) para o papel de aplicacao. Sem isso, prospector_app so teria os GRANTs
--- explicitos abaixo, mas continuaria isento de RLS onde a policy usa FORCE — FORCE ROW LEVEL
--- SECURITY so restringe quem e o DONO do objeto, nao quem so tem GRANT.
-REASSIGN OWNED BY CURRENT_USER TO prospector_app;
+-- Transfere a posse do schema e das tabelas/sequences existentes pro papel de aplicacao. Sem
+-- isso, prospector_app so teria os GRANTs explicitos abaixo, mas continuaria isento de RLS onde
+-- a policy usa FORCE — FORCE ROW LEVEL SECURITY so restringe quem e o DONO do objeto, nao quem
+-- so tem GRANT.
+--
+-- Nao usa REASSIGN OWNED BY CURRENT_USER aqui de proposito: alem de tabelas/sequences, o
+-- superusuario de bootstrap tambem e dono de objetos exigidos pelo sistema (ex.: a extensao
+-- plpgsql, instalada automaticamente em todo banco novo), e o Postgres recusa reatribuir esses
+-- objetos (erro 2BP01 "required by the database system") — o que faria o REASSIGN falhar sempre,
+-- mesmo num banco vazio. Escopar em pg_tables/pg_sequences evita esse problema.
+ALTER SCHEMA public OWNER TO prospector_app;
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER TABLE public.%I OWNER TO prospector_app', r.tablename);
+    END LOOP;
+    FOR r IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER SEQUENCE public.%I OWNER TO prospector_app', r.sequencename);
+    END LOOP;
+END
+$$;
 
 GRANT ALL PRIVILEGES ON SCHEMA public TO prospector_app;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO prospector_app;
