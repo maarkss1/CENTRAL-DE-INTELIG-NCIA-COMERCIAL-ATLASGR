@@ -171,8 +171,9 @@ export class SDRQualificationAgent {
 
     private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
         try {
+            const organizationId = getTenantId();
             const existing = await prisma.agentMemory.findFirst({
-                where: { sessionId }
+                where: { sessionId, organizationId }
             });
             if (existing) {
                 await prisma.agentMemory.update({
@@ -186,6 +187,7 @@ export class SDRQualificationAgent {
                     data: {
                         sessionId,
                         agentType: 'SDR',
+                        organizationId,
                         messages: messages as unknown as Prisma.InputJsonValue,
                     }
                 });

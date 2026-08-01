@@ -24,14 +24,16 @@ export class VectorService {
             }
             const embedding = await generateEmbedding(content);
             const metadataJson = JSON.stringify(metadata);
-            
+
             // Format for pgvector: '[0.1, 0.2, ...]'
             const vectorString = `[${embedding.join(',')}]`;
 
-            // We must use $executeRaw to insert into Unsupported("vector") column
+            // We must use $executeRaw to insert into Unsupported("vector") column.
+            // organizationId grava na coluna real (indexada, com FK) além de metadata — a coluna é
+            // o que searchSimilar/RLS usam para filtrar; metadata fica só por compatibilidade.
             await prisma.$executeRaw`
-                INSERT INTO "KnowledgeChunk" (id, content, metadata, embedding, "createdAt", "updatedAt")
-                VALUES (gen_random_uuid()::text, ${content}, ${metadataJson}::jsonb, ${vectorString}::vector, now(), now())
+                INSERT INTO "KnowledgeChunk" (id, content, metadata, embedding, "organizationId", "createdAt", "updatedAt")
+                VALUES (gen_random_uuid()::text, ${content}, ${metadataJson}::jsonb, ${vectorString}::vector, ${organizationId}, now(), now())
             `;
             
             logger.info({ contentLength: content.length }, 'Document ingested into vector store successfully');
@@ -67,23 +69,23 @@ export class VectorService {
 
             const results = await prisma.$queryRaw<SemanticSearchResult[]>`
                 WITH semantic_search AS (
-                    SELECT 
-                        id, 
-                        content, 
-                        metadata, 
+                    SELECT
+                        id,
+                        content,
+                        metadata,
                         (embedding <=> ${vectorString}::vector) as semantic_distance
                     FROM "KnowledgeChunk"
-                    WHERE metadata->>'organizationId' = ${organizationId}
+                    WHERE "organizationId" = ${organizationId}
                       AND (embedding <=> ${vectorString}::vector) < ${threshold}
                     ORDER BY semantic_distance ASC
                     LIMIT ${limit * 2}
                 ),
                 lexical_search AS (
-                    SELECT 
+                    SELECT
                         id,
                         ts_rank_cd(to_tsvector('portuguese', content), to_tsquery('portuguese', ${tsQueryString})) as rank
                     FROM "KnowledgeChunk"
-                    WHERE metadata->>'organizationId' = ${organizationId}
+                    WHERE "organizationId" = ${organizationId}
                       AND to_tsvector('portuguese', content) @@ to_tsquery('portuguese', ${tsQueryString})
                 )
                 SELECT 

@@ -2,13 +2,16 @@ import { Router } from 'express';
 import { prisma } from '../../../lib/prisma.js';
 import { z } from 'zod';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 export const promptRoutes = Router();
 
-// Listar todos os prompts
+// Listar os prompts do tenant autenticado
 promptRoutes.get('/', async (req, res, next) => {
     try {
+        const { organizationId } = (req as AuthRequest).user;
         const prompts = await prisma.prompt.findMany({
+            where: { organizationId },
             orderBy: { category: 'asc' },
         });
         res.json({ success: true, data: prompts });
@@ -28,14 +31,17 @@ const createPromptSchema = z.object({
 promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, next) => {
     try {
         const { name, category, variables } = req.body;
-        const tenantId = (req as unknown as { tenantId?: string }).tenantId || 'system';
+        // Bug anterior: lia `req.tenantId`, que authenticateToken nunca seta (o middleware expõe
+        // `req.user.organizationId`) — todo prompt criado por qualquer tenant caía em owner='system'.
+        const { organizationId } = (req as AuthRequest).user;
 
         const prompt = await prisma.prompt.create({
             data: {
                 name,
                 category,
                 version: '1.0',
-                owner: tenantId,
+                owner: organizationId,
+                organizationId,
                 variables: variables || {},
                 history: [],
                 approved: true
@@ -60,11 +66,20 @@ promptRoutes.put('/:id', validateRequest(updatePromptSchema), async (req, res, n
     try {
         const { id } = req.params;
         const { variables } = req.body;
+        const { organizationId } = (req as AuthRequest).user;
 
-        const prompt = await prisma.prompt.update({
-            where: { id },
+        // Bug anterior: dava update por id sem checar dono — qualquer tenant autenticado podia
+        // editar o prompt de outro (IDOR). `updateMany` com organizationId no where garante que só
+        // afeta a linha se ela pertencer ao tenant do request.
+        const { count } = await prisma.prompt.updateMany({
+            where: { id, organizationId },
             data: { variables },
         });
+        if (count === 0) {
+            res.status(404).json({ success: false, error: 'Prompt não encontrado.' });
+            return;
+        }
+        const prompt = await prisma.prompt.findFirst({ where: { id, organizationId } });
         res.json({ success: true, data: prompt });
     } catch (err) {
         next(err);

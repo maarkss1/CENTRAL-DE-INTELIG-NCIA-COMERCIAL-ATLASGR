@@ -266,7 +266,11 @@ export class AIService {
         }
 
         // Prompt customizado salvo no banco (se existir) tem prioridade sobre o padrão da ferramenta.
-        const dbPrompt = await prisma.prompt.findFirst({ where: { category: tool } });
+        // Sem organizationId no where, isto buscaria (e aplicaria) o override de QUALQUER tenant —
+        // vazamento de configuração cross-tenant. Sem organizationId conhecido, pula o override.
+        const dbPrompt = extra?.organizationId
+            ? await prisma.prompt.findFirst({ where: { category: tool, organizationId: extra.organizationId } })
+            : null;
         if (dbPrompt?.variables) {
             systemPrompt += `\n\nInstruções adicionais definidas pelo time: ${JSON.stringify(dbPrompt.variables)}`;
         }

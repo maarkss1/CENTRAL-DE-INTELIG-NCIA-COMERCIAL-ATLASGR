@@ -310,6 +310,9 @@ model Organization {
   automations      Automation[]
   aiLogs           AILog[]
   aiPendingActions AIPendingAction[]
+  knowledgeChunks  KnowledgeChunk[]
+  prompts          Prompt[]
+  agentMemories    AgentMemory[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -317,13 +320,21 @@ model Organization {
 model KnowledgeChunk {
   id        String                      @id @default(cuid())
   content   String                      @db.Text
-  // Metadados para filtrar por tenant, lead, etc.
+  // Metadados para filtrar por tenant, lead, etc. Mantido por compatibilidade; o isolamento real
+  // de tenant passou a usar a coluna organizationId abaixo (RLS depende de uma coluna, não de JSON).
   metadata  Json?
   // Embedding gerado pelo modelo text-embedding (ex: Gemini/OpenAI), com 768 dimensões.
   embedding Unsupported("vector(768)")?
 
+  // Nullable porque linhas legadas (inseridas antes desta coluna existir) não têm como ser
+  // atribuídas com segurança a um tenant — ficam órfãs e, por design, invisíveis sob RLS.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
 }
 
 model Session {
@@ -384,8 +395,16 @@ model Prompt {
   variables Json
   history   Json
   approved  Boolean  @default(false)
+
+  // Nullable pelo mesmo motivo de KnowledgeChunk.organizationId: linhas legadas sem tenant
+  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizationId, category])
 }
 
 model Document {
@@ -429,7 +448,13 @@ model AgentMemory {
   messages  Json
   createdAt DateTime @default(now())
 
+  // Nullable pelo mesmo motivo de KnowledgeChunk.organizationId: linhas legadas sem tenant
+  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@index([sessionId])
+  @@index([organizationId])
 }
 
 model AILog {

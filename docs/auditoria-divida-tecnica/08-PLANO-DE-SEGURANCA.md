@@ -22,6 +22,30 @@ Metodologia: OWASP Top 10 / classes CWE. Nenhuma exploração destrutiva foi rea
 
 ---
 
+## Achados novos (2026-08-01, descobertos durante DB-001/DB-002 — fora do escopo original desta auditoria, registrados e não corrigidos nesta sessão salvo indicação contrária)
+
+### N1 — CRÍTICO — RLS não protege nada em produção: a aplicação sempre conecta como superusuário do Postgres
+- **Evidência:** `k8s/postgres-statefulset.yaml` e `docker-compose.yml` só configuram `POSTGRES_USER`/`POSTGRES_PASSWORD` — o mecanismo de bootstrap do Postgres torna esse usuário **superusuário**, e não existe em nenhum lugar do repositório a criação de um papel de aplicação restrito (`NOSUPERUSER`) com `GRANT` explícito. `DATABASE_URL` em todo ambiente (local, docker-compose, k8s) aponta para esse mesmo papel.
+- **Por que isso importa:** o Postgres documenta explicitamente que RLS (mesmo com `FORCE ROW LEVEL SECURITY`) **nunca** se aplica a um superusuário. Confirmado empiricamente nesta sessão: com o papel `postgres` (superusuário), uma leitura sem nenhum `app.current_tenant_id` setado retornou linhas de qualquer tenant; com um papel de teste criado como `NOSUPERUSER`, o isolamento funcionou exatamente como as políticas descrevem.
+- **Impacto real:** **todas** as políticas RLS já criadas neste projeto — as de `Company`/`Contact`/`Lead`/`Activity`/`User`/`Organization` (migration `20260722020322_enable_rls`), `Document`/`DocumentChunk` (`20260731170000`), `Automation`/`Notification`/`AILog` (`20260731200000`), e as novas de `KnowledgeChunk`/`Prompt`/`AgentMemory`/`Prospect`/`AIPendingAction` desta sessão — hoje não oferecem nenhuma proteção real. O item L5 deste documento ("o padrão de isolamento de tenant no domínio central é sólido") descrevia corretamente o filtro **de aplicação** (`getTenantPrisma`, `organizationId` explícito nas queries), que é o que de fato protege hoje — a camada de RLS no banco é, na prática, decorativa até este achado ser corrigido.
+- **Correção necessária (não executada — decisão do usuário, mexe em infraestrutura de todos os ambientes):** criar um papel de aplicação `NOSUPERUSER` com `GRANT` nas tabelas/sequências necessárias, migrar `DATABASE_URL`/secrets (docker-compose, k8s `prospector-secrets`, `.env` local) para esse papel, e validar que a aplicação continua funcionando sem privilégios de superusuário (ex.: `CREATE EXTENSION vector` deixa de funcionar automaticamente — precisa rodar uma vez como superusuário na criação do banco).
+
+### N2 — BAIXO — Política RLS de `AILog` esconde registros "não atribuídos" de todos os tenants, não só de quem não tem contexto
+- **Evidência:** a política de `AILog` (migration `20260731200000`) é `USING (current_setting('app.current_tenant_id') = "organizationId" OR bypass_rls = 'on')`, sem `OR "organizationId" IS NULL`. `src/features/billing/usage.service.ts:78` conta explicitamente `organizationId: null` como métrica "chamadas não atribuídas" exibida a **qualquer** tenant autenticado na tela de Consumo.
+- **Impacto:** quando N1 for corrigido (RLS passar a valer de verdade), essa contagem sempre retornará 0, silenciosamente, para todo mundo.
+- **Correção sugerida (não executada):** nova migration com `ALTER POLICY` adicionando `OR "organizationId" IS NULL` à política de `AILog`.
+
+### N3 — BAIXO — `prompt.routes.ts` (POST/PUT) está com uma schema-shape incompatível com `validateRequest`, pré-existente
+- **Evidência:** `validateRequest` (`src/shared/middlewares/validateRequest.ts:7`) faz `req.body = await schema.parseAsync(req.body)`, mas `createPromptSchema`/`updatePromptSchema` em `prompt.routes.ts` são `z.object({ body: z.object({...}) })` — esperam um `req.body.body` aninhado que nenhum cliente normal envia. Confirmado ao vivo: um POST com `{name, category, variables}` (o formato que `PromptStudio.tsx` de fato envia) recebe 400 "expected object, received undefined". Outras rotas do projeto (ex. `companySchema` em `src/lib/zod.ts`) usam schema plano, sem esse wrapper — é uma anomalia isolada deste arquivo, não do padrão geral.
+- **Impacto:** os endpoints de criar/editar prompt customizado nunca funcionaram para um cliente HTTP normal; isso é anterior a esta sessão (não foi introduzido pela correção de DB-001/IDOR feita agora, que está correta na camada de dados — validada diretamente via Prisma, contornando esse bug de validação).
+- **Correção sugerida (não executada):** trocar o schema para plano (`z.object({ name, category, variables })`) igual às demais rotas, ou trocar `validateRequest` para validar `{ body, query, params }` — decisão de qual convenção manter é do time.
+
+### N4 — INFORMATIVO — `PromptStudio.tsx` é um componente órfão, nunca importado por nenhuma rota/tela
+- **Evidência:** `grep` por `PromptStudio` no `src/` só encontra a própria definição do componente. Não há import em nenhum outro arquivo.
+- **Impacto:** nenhum (código morto, sem superfície de risco), mas explica por que N3 nunca foi notado — a única UI que chamaria essas rotas nunca é renderizada.
+
+---
+
 ## CRÍTICO
 
 ### SEC-001 — Autenticação backdoor hardcoded
@@ -120,7 +144,7 @@ Metodologia: OWASP Top 10 / classes CWE. Nenhuma exploração destrutiva foi rea
 - **L2.** `jsonwebtoken` é dependência direta sem nenhum uso real em `src/` — superfície de supply-chain desnecessária, seguro remover após dupla checagem.
 - **L3.** Segredos em manifests k8s/Helm/ArgoCD são referenciados corretamente via `secretRef`/valores comentados — nenhum segredo real commitado nesses arquivos.
 - **L4.** CORS em desenvolvimento reflete qualquer origem com `credentials: true` — aceitável por ser gated a `NODE_ENV !== 'production'`, mas herda a fragilidade de SEC-007.
-- **L5. (positivo)** O padrão de isolamento de tenant no domínio central (`getTenantPrisma`, injeção de `organizationId` derivado do usuário autenticado) é sólido — nenhum IDOR foi encontrado nos controllers de Company/Contact/Lead amostrados. Deve ser preservado como padrão de referência ao estender `DB-001`/`DB-002`.
+- **L5. (positivo, com ressalva adicionada em 2026-08-01 — ver achado N1)** O padrão de isolamento de tenant no domínio central (`getTenantPrisma`, injeção de `organizationId` derivado do usuário autenticado) é sólido — nenhum IDOR foi encontrado nos controllers de Company/Contact/Lead amostrados. Deve ser preservado como padrão de referência ao estender `DB-001`/`DB-002`. **Esse filtro de aplicação é hoje a única proteção real de tenant que funciona de fato** — a camada de RLS no Postgres, que complementaria como defesa em profundidade, está neutralizada em todos os ambientes porque a aplicação sempre conecta como superusuário (ver N1).
 - **Risco já aceito e documentado formalmente:** vulnerabilidade conhecida do `better-auth` (`docs/ADR/ADR-001-BetterAuth-Vulnerability.md`, `docs/RiskRegister/RISK-001-BetterAuth.md`) — não tratado como achado novo, apenas referenciado; monitorar release estável 1.7.x.
 
 ---

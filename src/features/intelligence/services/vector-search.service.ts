@@ -23,10 +23,10 @@ export class VectorSearchService {
             const vectorString = `[${vector.join(',')}]`;
 
             await prisma.$executeRaw`
-                UPDATE "KnowledgeChunk" 
+                UPDATE "KnowledgeChunk"
                 SET embedding = ${vectorString}::vector
                 WHERE id = ${chunkId}
-                  AND metadata->>'organizationId' = ${organizationId}
+                  AND "organizationId" = ${organizationId}
             `;
             return true;
         } catch (error) {
@@ -48,14 +48,14 @@ export class VectorSearchService {
 
             // <=> é o operador do pgvector para distância de Cosseno (menor é mais próximo)
             const results = await prisma.$queryRaw<SearchResult[]>`
-                SELECT 
-                    id, 
-                    content, 
-                    metadata, 
+                SELECT
+                    id,
+                    content,
+                    metadata,
                     1 - (embedding <=> ${vectorString}::vector) as similarity
                 FROM "KnowledgeChunk"
                 WHERE embedding IS NOT NULL
-                  AND metadata->>'organizationId' = ${organizationId}
+                  AND "organizationId" = ${organizationId}
                 ORDER BY embedding <=> ${vectorString}::vector
                 LIMIT ${limit}
             `;

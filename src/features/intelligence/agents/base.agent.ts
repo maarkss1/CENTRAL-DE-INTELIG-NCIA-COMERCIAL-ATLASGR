@@ -106,7 +106,8 @@ export abstract class BaseAgent {
 
     protected async updateMemory(sessionId: string, messages: SerializedMessage[]): Promise<void> {
         try {
-            const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
+            const organizationId = getTenantId();
+            const existing = await prisma.agentMemory.findFirst({ where: { sessionId, organizationId } });
             if (existing) {
                 await prisma.agentMemory.update({
                     where: { id: existing.id },
@@ -117,6 +118,7 @@ export abstract class BaseAgent {
                     data: {
                         sessionId,
                         agentType: this.agentType,
+                        organizationId,
                         messages: messages as unknown as Prisma.InputJsonValue,
                     },
                 });

@@ -23,7 +23,11 @@ interface LearningProfilePayload {
 export async function getLearningProfile(tenantId: string, actorId: string): Promise<string | null> {
     try {
         const memory = await prisma.agentMemory.findFirst({
-            where: { sessionId: learningProfileSessionId(tenantId, actorId), agentType: 'LEARNING_PROFILE' },
+            where: {
+                sessionId: learningProfileSessionId(tenantId, actorId),
+                agentType: 'LEARNING_PROFILE',
+                organizationId: tenantId,
+            },
             orderBy: { createdAt: 'desc' },
         });
         const payload = memory?.messages as unknown as LearningProfilePayload | undefined;
@@ -92,7 +96,7 @@ Gere um parágrafo denso e direto contendo as DIRETRIZES DE ESTILO APRENDIDAS. E
         const sessionId = learningProfileSessionId(tenantId, actorId);
         const payload: LearningProfilePayload = { guidelines, updatedAt: new Date().toISOString() };
         try {
-            const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
+            const existing = await prisma.agentMemory.findFirst({ where: { sessionId, organizationId: tenantId } });
             if (existing) {
                 await prisma.agentMemory.update({
                     where: { id: existing.id },
@@ -103,6 +107,7 @@ Gere um parágrafo denso e direto contendo as DIRETRIZES DE ESTILO APRENDIDAS. E
                     data: {
                         sessionId,
                         agentType: 'LEARNING_PROFILE',
+                        organizationId: tenantId,
                         messages: payload as unknown as Prisma.InputJsonValue,
                     },
                 });
