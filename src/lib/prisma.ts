@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Pool } from 'pg';
-import { AuditService } from './audit/audit.service.js';
+import { AuditService, type AuditAction } from './audit/audit.service.js';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 import { searchQueue } from './queue/search.queue.js';
@@ -17,9 +17,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
 });
 
-// Error handling for idle clients
+// Error handling for idle clients — usa logger estruturado (não console.error) para aparecer no Pino/Datadog.
 pool.on('error', (err) => {
-  console.error('Unexpected error on idle client', err);
+  logger.error({ err }, 'Unexpected error on idle database client');
 });
 
 const adapter = new PrismaPg(pool);
@@ -69,7 +69,7 @@ export const prisma = basePrisma.$extends({
           }
         }
 
-        const executeWithRls = async (prismaPromise: unknown) => {
+        const executeWithRls = async (prismaPromise: Prisma.PrismaPromise<unknown>) => {
           if (!tenantId && !bypassRls) return await prismaPromise;
           try {
             const [, res] = await basePrisma.$transaction([
@@ -92,7 +92,7 @@ export const prisma = basePrisma.$extends({
            try {
               const a = args as Record<string, unknown>;
               const modelDelegate = (basePrisma as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
-              beforeState = await executeWithRls((modelDelegate.findUnique as (args: unknown) => Promise<unknown>)({ where: a.where })) as Record<string, unknown> | null;
+              beforeState = await executeWithRls((modelDelegate.findUnique as (args: unknown) => Prisma.PrismaPromise<unknown>)({ where: a.where })) as Record<string, unknown> | null;
            } catch {
               // Ignore if we can't find it or where is complex
            }
@@ -106,26 +106,26 @@ export const prisma = basePrisma.$extends({
 
         if (isAuditable && operation === 'delete') {
             const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
-            result = await executeWithRls((modelDelegate.update as (args: unknown) => Promise<unknown>)({
+            result = await executeWithRls((modelDelegate.update as (args: unknown) => Prisma.PrismaPromise<unknown>)({
                 where: a.where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
-            }));
+            })) as Record<string, unknown>;
             if (result && result.id) {
-               affectedIds.push(result.id);
+               affectedIds.push(result.id as string);
             }
         } else if (isAuditable && operation === 'deleteMany') {
             const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
             // Need to fetch IDs first to cascade
-            const recordsToSoftDelete = await executeWithRls((modelDelegate.findMany as (args: unknown) => Promise<unknown>)({
+            const recordsToSoftDelete = await executeWithRls((modelDelegate.findMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
                 where: a.where,
                 select: { id: true }
             })) as Record<string, unknown>[];
             affectedIds = recordsToSoftDelete.map((r) => r.id as string);
 
-            result = await executeWithRls((modelDelegate.updateMany as (args: unknown) => Promise<unknown>)({
+            result = await executeWithRls((modelDelegate.updateMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
                 where: a.where,
                 data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
-            }));
+            })) as Record<string, unknown>;
         } else {
             result = await executeWithRls(query(args)) as Record<string, unknown>;
         }
@@ -166,15 +166,16 @@ export const prisma = basePrisma.$extends({
 
         // --- 5. Audit Log & Search Queue ---
         if (isAuditable && ['create', 'update', 'delete'].includes(operation) && result) {
-             const action = operation.toUpperCase();
-             const entityId = result.id;
+             // Cast seguro: o `.includes` acima já garante operation ∈ {create,update,delete}.
+             const action = operation.toUpperCase() as AuditAction;
+             const entityId = result.id as string | undefined;
              AuditService.log({
                  action,
                  entity: model as string,
-                 entityId: entityId,
-                 actorId: userId,
-                 tenantId: tenantId || result.organizationId,
-                 beforeState: beforeState,
+                 entityId,
+                 actorId: userId as string | undefined,
+                 tenantId: (tenantId || result.organizationId) as string | undefined,
+                 beforeState: beforeState ?? undefined,
                  afterState: operation === 'delete' ? undefined : result
              }).catch(err => logger.error(err, 'AuditLog failed'));
              

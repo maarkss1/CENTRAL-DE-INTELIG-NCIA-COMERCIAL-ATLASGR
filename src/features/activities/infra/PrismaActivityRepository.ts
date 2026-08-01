@@ -60,7 +60,8 @@ export class PrismaActivityRepository implements ActivityRepository {
         } catch {
             // DB offline or unseeded in dev
         }
-        return DEMO_ACTIVITIES;
+        // Dados de demo (src/types) tipam `date` como string; domínio exige Date.
+        return DEMO_ACTIVITIES as unknown as Activity[];
     }
 
     async createWithTimeline(organizationId: string, data: Partial<Activity> & { type: ActivityType, status: ActivityStatus, leadId: string, date: string | Date }): Promise<Activity> {

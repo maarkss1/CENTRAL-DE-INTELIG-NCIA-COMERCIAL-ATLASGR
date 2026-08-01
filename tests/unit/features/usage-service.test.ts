@@ -68,9 +68,14 @@ describe('UsageService.summary', () => {
     });
 
     it('joga cada chamada no balde do seu dia', async () => {
+        // Ancorado no início de hoje, e não em "N horas atrás": logo após a meia-noite, "2 horas
+        // atrás" cai em ontem e o teste falharia por causa do relógio, não do código.
+        const inicioDeHoje = new Date();
+        inicioDeHoje.setHours(0, 0, 0, 0);
+
         log.findMany.mockResolvedValue([
-            { createdAt: horasAtras(1), tokens: 10, cost: 0.001, latencyMs: 100 },
-            { createdAt: horasAtras(2), tokens: 20, cost: 0.002, latencyMs: 100 },
+            { createdAt: new Date(inicioDeHoje), tokens: 10, cost: 0.001, latencyMs: 100 },
+            { createdAt: new Date(inicioDeHoje), tokens: 20, cost: 0.002, latencyMs: 100 },
         ]);
 
         const r = await usageService.summary(ORG, 30);

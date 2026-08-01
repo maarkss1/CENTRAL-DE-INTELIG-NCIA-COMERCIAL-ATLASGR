@@ -1,102 +1,37 @@
-import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { BaseMessage, SystemMessage, HumanMessage } from '@langchain/core/messages';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { prisma } from '../../../lib/prisma.js';
-import type { Prisma } from '@prisma/client';
-import { logger } from '../../../lib/logger.js';
-import { getTenantId, getUserId } from '../../../lib/async-context.js';
-import { getLearningProfile } from './learning.agent.js';
+import { BaseAgent } from './base.agent.js';
 
 /**
  * Agente de CRM: Resume o risco de deals e recomenda próximas ações.
- * Refatorado para manter contexto entre interações através do MemorySaver.
+ * Mantém contexto entre interações através do MemorySaver via BaseAgent.
  */
-export class CRMAgent {
+export class CRMAgent extends BaseAgent {
+    protected agentType = 'CRM';
+    protected modelName = 'gemini-flash';
+    protected temperature = 0.3;
+
+    protected buildSystemPrompt(learnedStyle: string | null): string {
+        const base =
+            'Você é um assistente de CRM da Atlas (SaaS B2B de logística). ' +
+            'Dado um resumo do estado atual de um deal/negociação, avalie o risco de perda em uma frase ' +
+            'e recomende a próxima ação concreta de status/tratativa. Baseie-se SOMENTE no que foi informado. ' +
+            'Responda em texto corrido, direto, sem markdown, no formato: ' +
+            '"Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>".';
+
+        return learnedStyle
+            ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}`
+            : base;
+    }
+
+    protected buildHumanMessage(input: string): string {
+        return `Estado do deal: ${input}`;
+    }
+
     async run(inputData: string, sessionId?: string) {
-        const sid = sessionId || `session-crm-${Date.now()}`;
-
-        const graph = new StateGraph(MessagesAnnotation)
-            .addNode('updateStatus', async (state) => {
-                const model = getAiModel('gemini-flash', 0.3, 'crm-agent');
-                const startTime = Date.now();
-
-                const learnedStyle = await this.loadLearnedStyle();
-                const systemPrompt = new SystemMessage(
-                    'Você é um assistente de CRM da Atlas (SaaS B2B de logística). Dado um resumo do estado atual de um deal/negociação, avalie o risco de perda em uma frase e recomende a próxima ação concreta de status/tratativa. Baseie-se SOMENTE no que foi informado. Responda em texto corrido, direto, sem markdown, no formato: "Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>".'
-                    + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}` : '')
-                );
-
-                const response = await model.invoke([systemPrompt, ...state.messages]);
-
-                await logAiUsage({
-                    model: response.response_metadata.model,
-                    usage: response.response_metadata.tokenUsage,
-                    latencyMs: Date.now() - startTime,
-                });
-
-                return { messages: [response] };
-            })
-            .addEdge('__start__', 'updateStatus')
-            .addEdge('updateStatus', '__end__');
-
-        const memory = new MemorySaver();
-        const compiled = graph.compile({ checkpointer: memory });
-        const config = { configurable: { thread_id: sid } };
-
-        let finalState;
-        try {
-            finalState = await compiled.invoke(
-                { messages: [new HumanMessage(`Estado do deal: ${inputData}`)] },
-                config
-            );
-        } catch (error) {
-            logger.error({ err: error, sessionId: sid }, 'CRM Agent run failed');
-            // Nunca fabricar uma ação falsa: quem chama precisa saber que a IA não respondeu.
-            const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente de CRM.';
-            return { action: undefined, error: message, sessionId: sid };
-        }
-
-        const messages = finalState.messages as BaseMessage[];
-        const lastMessage = messages[messages.length - 1];
-
-        // Persistindo histórico
-        await this.updateMemory(sid, messages.map((m: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-            role: m._getType(),
-            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        })));
-
-        return { 
-            action: lastMessage.content as string,
-            sessionId: sid
+        const result = await super.run(inputData, sessionId);
+        return {
+            action: result.output as string | undefined,
+            error: result.error,
+            sessionId: result.sessionId,
         };
-    }
-
-    private async loadLearnedStyle(): Promise<string | null> {
-        const tenantId = getTenantId();
-        const userId = getUserId();
-        if (!tenantId || !userId) return null;
-        return getLearningProfile(tenantId, userId);
-    }
-
-    private async updateMemory(sessionId: string, messages: BaseMessage[]) {
-        try {
-            const existing = await prisma.agentMemory.findFirst({ where: { sessionId } });
-            if (existing) {
-                await prisma.agentMemory.update({
-                    where: { id: existing.id },
-                    data: { messages: messages as unknown as Prisma.InputJsonValue }
-                });
-            } else {
-                await prisma.agentMemory.create({
-                    data: {
-                        sessionId,
-                        agentType: 'CRM',
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    }
-                });
-            }
-        } catch (err) {
-            logger.error({ err, sessionId }, 'Failed to update agent memory');
-        }
     }
 }

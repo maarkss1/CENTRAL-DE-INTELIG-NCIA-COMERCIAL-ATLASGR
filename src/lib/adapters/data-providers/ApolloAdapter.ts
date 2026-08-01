@@ -76,7 +76,7 @@ export class ApolloAdapter implements IDataProvider {
        };
 
     } catch (error: unknown) {
-       logger.error(`[ApolloAdapter] Request failed for domain ${domain}:`, error);
+       logger.error({ err: error, domain }, '[ApolloAdapter] Request failed');
        return {};
     }
   }

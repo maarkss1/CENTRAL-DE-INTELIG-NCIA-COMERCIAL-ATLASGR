@@ -178,7 +178,10 @@ export function toChatCompletionMessages(messages: BaseMessage[]): ChatCompletio
 
 function isRetryableAiError(error: unknown): boolean {
     if (!(error instanceof Error)) return false;
-    if (error.name === 'AbortError' || error.name === 'TimeoutError') return true;
+    // Timeout/abort NÃO é reexecutado aqui: por definição já esperamos o tempo máximo configurado
+    // (até 120s) para chegar a esse erro, então repetir dobraria a espera do usuário/agente sem
+    // ganho real — o gateway já cai para a próxima camada de provedor nesse caso. Só vale a pena
+    // reexecutar erros que falham RÁPIDO (resposta HTTP com status de erro, ou recusa de conexão).
     if (/HTTP (429|5\d{2}):/.test(error.message)) return true;
     if (error.name === 'TypeError' && /fetch|network/i.test(error.message)) return true;
     return false;
@@ -189,9 +192,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Reexecuta `fn` uma vez após uma falha claramente transitória (timeout, HTTP 429/5xx, erro de
- * rede) antes de desistir. Erros de validação/autenticação (4xx) não são reexecutados — repetir
- * uma chave inválida ou um payload malformado só adiciona latência sem chance de sucesso.
+ * Reexecuta `fn` uma vez após uma falha claramente transitória e rápida (HTTP 429/5xx, recusa de
+ * conexão) antes de desistir. Timeout não é reexecutado (já esperamos o tempo máximo configurado
+ * pra chegar lá) e erros de validação/autenticação (4xx) também não — repetir uma chave inválida
+ * ou um payload malformado só adiciona latência sem chance de sucesso.
  * Usado pelo próprio gateway (cada camada de provedor) e reaproveitado por outros serviços de IA
  * (ex.: geração de conteúdo em ai.service.ts) para não precisarem reimplementar a mesma lógica.
  */
@@ -215,6 +219,11 @@ interface CircuitState {
 }
 
 const circuitState = new Map<string, CircuitState>();
+
+/** Só para testes: limpa o estado do circuit breaker entre casos para evitar interferência. */
+export function __resetCircuitBreakerForTests(): void {
+    circuitState.clear();
+}
 
 function isCircuitOpen(provider: string): boolean {
     const state = circuitState.get(provider);

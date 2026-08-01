@@ -8,7 +8,25 @@ const NOMINATIM_HEADERS = {
     Accept: 'application/json',
 };
 
-async function fetchNominatim(query: string, count: number): Promise<unknown[]> {
+interface NominatimAddress {
+    city?: string;
+    town?: string;
+    village?: string;
+    state?: string;
+}
+
+interface NominatimPlace {
+    address?: NominatimAddress;
+    extratags?: Record<string, string>;
+    namedetails?: { name?: string };
+    name?: string;
+    display_name?: string;
+    osm_type?: string;
+    osm_id?: number;
+    place_id?: number;
+}
+
+async function fetchNominatim(query: string, count: number): Promise<NominatimPlace[]> {
     const params = new URLSearchParams({
         q: query,
         format: 'json',
@@ -23,7 +41,7 @@ async function fetchNominatim(query: string, count: number): Promise<unknown[]> 
     }, 10_000);
 
     if (!res.ok) {
-        logger.error('Nominatim error:', await res.text());
+        logger.error({ status: res.status, body: await res.text() }, 'Nominatim error');
         return [];
     }
 
@@ -36,9 +54,8 @@ export async function searchNominatimCandidates(query: string, count: number): P
 
     try {
         const data = await fetchNominatim(query, count);
-        
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return data.map((p: any) => {
+
+        return data.map((p) => {
             const addr = p.address || {};
             const city = addr.city || addr.town || addr.village;
             const state = addr.state;
@@ -62,7 +79,7 @@ export async function searchNominatimCandidates(query: string, count: number): P
             } satisfies PlaceCandidate;
         });
     } catch (error) {
-        logger.error('Error searching Nominatim candidates:', error);
+        logger.error({ err: error, query }, 'Error searching Nominatim candidates');
         return [];
     }
 }
@@ -92,7 +109,7 @@ export async function searchNominatimPlace(
             websiteUri: tags.website || tags['contact:website'],
         };
     } catch (error) {
-        logger.error('Error searching Nominatim place:', error);
+        logger.error({ err: error, companyName, locationStr }, 'Error searching Nominatim place');
         return null;
     }
 }

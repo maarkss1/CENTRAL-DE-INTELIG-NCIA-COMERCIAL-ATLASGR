@@ -71,7 +71,9 @@ export class PrismaLeadRepository implements LeadRepository {
             filtered = DEMO_LEADS.filter(l => l.status === status);
         }
         return {
-            data: filtered,
+            // Dados de demo usam o status legado de src/types (com espaço), não o enum LeadStatus
+            // do domínio (com underscore) — mesma divergência de sempre entre os dois modelos.
+            data: filtered as unknown as Lead[],
             meta: { total: filtered.length, page, limit, totalPages: 1 }
         };
     }
@@ -92,7 +94,7 @@ export class PrismaLeadRepository implements LeadRepository {
         } catch {
             // Fallback
         }
-        return DEMO_LEADS.find(l => l.id === id) || DEMO_LEADS[0] || null;
+        return (DEMO_LEADS.find(l => l.id === id) || DEMO_LEADS[0] || null) as unknown as Lead | null;
     }
 
     async create(organizationId: string, data: Partial<Lead> & { status: string }): Promise<Lead> {

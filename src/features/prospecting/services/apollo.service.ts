@@ -4,6 +4,7 @@ import { findEmailViaHunter, findPeopleViaDomainSearch } from './hunter.service'
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
 import { validContactEmails } from '../utils/contact-links';
+import { logger } from '../../../lib/logger';
 
 const APOLLO_SEARCH_URL = 'https://api.apollo.io/v1/organizations/search';
 const APOLLO_ORG_ENRICH_URL = 'https://api.apollo.io/v1/organizations/enrich';
@@ -11,7 +12,13 @@ const APOLLO_PEOPLE_SEARCH_URL = 'https://api.apollo.io/v1/mixed_people/api_sear
 const APOLLO_PEOPLE_MATCH_URL = 'https://api.apollo.io/v1/people/match';
 
 // limitamos aos N primeiros candidatos de cada busca para não estourar cota das APIs.
-const MAX_DECISION_MAKER_LOOKUPS = 5;
+const MAX_DECISION_MAKER_LOOKUPS = 3;
+
+// O frontend aborta a chamada de /discover em VITE_API_TIMEOUT_MS (padrão 15s — ver src/lib/api.ts).
+// A busca automática de decisores roda em paralelo com esse orçamento: se não terminar a tempo,
+// devolvemos os candidatos sem decisores (que continuam disponíveis via "Buscar Decisores") em vez
+// de travar a resposta inteira até o timeout de 15s da própria Apollo/Hunter por domínio.
+const DECISION_MAKER_PREFETCH_BUDGET_MS = 8_000;
 
 /**
  * Chaves de plano que a Apollo devolve quando a API key não tem escopo para um endpoint
@@ -247,8 +254,18 @@ export async function fetchApolloCandidates(
 
         // Busca decisores (LinkedIn, e-mail, telefone) já na descoberta para os primeiros
         // MAX_DECISION_MAKER_LOOKUPS candidatos com domínio conhecido — o vendedor não precisa
-        // clicar em nada para ver os dados prontos na tela de resultados.
-        await enrichCandidatesWithDecisionMakers(candidates, organizations);
+        // clicar em nada para ver os dados prontos na tela de resultados. Isso NUNCA deve derrubar
+        // a busca principal: nem por erro (candidatos já vieram da Apollo com sucesso) nem por
+        // demora (respeita um orçamento de tempo próprio, menor que o timeout do frontend).
+        try {
+            await Promise.race([
+                enrichCandidatesWithDecisionMakers(candidates, organizations),
+                new Promise<void>((resolve) => setTimeout(resolve, DECISION_MAKER_PREFETCH_BUDGET_MS)),
+            ]);
+        } catch (decisionMakerError) {
+            // Log e segue — os candidatos (já obtidos com sucesso) continuam válidos sem decisores.
+            logger.error({ err: decisionMakerError }, 'Falha ao pré-buscar decisores na descoberta');
+        }
         for (const candidate of candidates) {
             if (candidate.decisionMakers?.length) {
                 candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
@@ -392,6 +409,18 @@ export interface ApolloContact {
     linkedin_url: string | null;
 }
 
+/** Shape do objeto pessoa retornado pela Apollo People Search / People Match API. */
+interface ApolloPersonRaw {
+    first_name?: string;
+    last_name?: string;
+    title?: string;
+    email?: string;
+    email_url?: string;
+    phone_numbers?: Array<{ raw_number?: string }>;
+    sanitized_phone?: string;
+    linkedin_url?: string;
+}
+
 /** Detecta o erro específico de plano/escopo insuficiente que a Apollo devolve para People Search. */
 function parsePlanRestriction(status: number, rawBody: string): boolean {
     if (status !== 403) return false;
@@ -444,10 +473,9 @@ export async function enrichOrganizationWithContacts(
         }
 
         const data = await res.json();
-        const people = data.people || data.contacts || [];
+        const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const contacts: ApolloContact[] = people.map((p: any) => ({
+        const contacts: ApolloContact[] = people.map((p) => ({
             name: `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sem Nome',
             title: p.title || null,
             email: p.email || p.email_url || null,
@@ -535,11 +563,10 @@ export async function searchDecisionMakersAdvanced(
         }
 
         const data = await res.json();
-        const people = data.people || data.contacts || [];
+        const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
         const contacts: DecisionMaker[] = await Promise.all(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            people.map(async (p: any): Promise<DecisionMaker> => {
+            people.map(async (p): Promise<DecisionMaker> => {
                 let email = p.email || p.email_url || null;
                 let emailSource: DecisionMaker['emailSource'] = email ? 'apollo' : undefined;
                 

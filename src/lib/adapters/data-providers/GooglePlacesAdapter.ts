@@ -55,7 +55,7 @@ export class GooglePlacesAdapter implements IDataProvider {
       };
 
     } catch (error: unknown) {
-       logger.error(`[GooglePlacesAdapter] Request failed for ${query.name}:`, error);
+       logger.error({ err: error, name: query.name }, '[GooglePlacesAdapter] Request failed');
        return {};
     }
   }

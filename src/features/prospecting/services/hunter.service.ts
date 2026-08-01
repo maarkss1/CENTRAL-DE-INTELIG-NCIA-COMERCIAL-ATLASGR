@@ -39,7 +39,7 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
         const data = await res.json();
         return { email: data?.data?.email || null, score: data?.data?.score };
     } catch (error) {
-        logger.error('Error querying Hunter.io:', error);
+        logger.error({ err: error, domain }, 'Error querying Hunter.io');
         return { email: null };
     }
 }
@@ -88,7 +88,7 @@ export async function findPeopleViaDomainSearch(
 
         return { contacts };
     } catch (error) {
-        logger.error('Error querying Hunter.io Domain Search:', error);
+        logger.error({ err: error, domain }, 'Error querying Hunter.io Domain Search');
         return { contacts: [], error: error instanceof Error ? error.message : 'Falha ao consultar Hunter.io Domain Search' };
     }
 }

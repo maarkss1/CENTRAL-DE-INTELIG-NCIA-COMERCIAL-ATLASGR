@@ -43,7 +43,8 @@ export class PrismaCompanyRepository implements CompanyRepository {
             );
         }
         return {
-            data: filtered,
+            // Dados de demo (src/types) não têm os campos de enriquecimento mais novos do domínio.
+            data: filtered as unknown as Company[],
             meta: { total: filtered.length, page, limit, totalPages: 1 }
         };
     }
@@ -58,7 +59,7 @@ export class PrismaCompanyRepository implements CompanyRepository {
         } catch {
             // Fallback
         }
-        return DEMO_COMPANIES.find(c => c.id === id) || DEMO_COMPANIES[0] || null;
+        return (DEMO_COMPANIES.find(c => c.id === id) || DEMO_COMPANIES[0] || null) as unknown as Company | null;
     }
 
     async create(organizationId: string, data: Partial<Company>): Promise<Company> {

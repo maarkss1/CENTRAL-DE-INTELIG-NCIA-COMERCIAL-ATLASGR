@@ -28,10 +28,6 @@ import {
 
 type HubTab = 'cnpj' | 'discovery';
 
-const dropdownFields: Array<{ key: 'segmento'; label: string; options: string[] }> = [
-    { key: 'segmento', label: 'Segmento (ICP)', options: SEGMENTO_OPTIONS },
-];
-
 const ufMap: Record<string, string> = {
     'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA', 'Ceará': 'CE', 'Distrito Federal': 'DF',
     'Espírito Santo': 'ES', 'Goiás': 'GO', 'Maranhão': 'MA', 'Mato Grosso': 'MT', 'Mato Grosso do Sul': 'MS',

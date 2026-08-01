@@ -44,27 +44,27 @@ export class MergeEngineService {
       }
 
       try {
-         // Propaga dados encontrados pelos provedores anteriores para os próximos da cascata.
-         const adapterQuery = { ...normalizedQuery };
-         if (!adapterQuery.name && mergedResult.company.tradeName) {
-             adapterQuery.name = mergedResult.company.tradeName;
-         }
-         if (!adapterQuery.domain && mergedResult.social.website) {
-             adapterQuery.domain = normalizeCompanyDomain(mergedResult.social.website);
-         }
+        // Propaga dados encontrados pelos provedores anteriores para os próximos da cascata.
+        const adapterQuery = { ...normalizedQuery };
+        if (!adapterQuery.name && mergedResult.company.tradeName) {
+          adapterQuery.name = mergedResult.company.tradeName;
+        }
+        if (!adapterQuery.domain && mergedResult.social.website) {
+          adapterQuery.domain = normalizeCompanyDomain(mergedResult.social.website);
+        }
 
-         const result = await adapter.enrich(adapterQuery);
+        const result = await adapter.enrich(adapterQuery);
 
-         if (result.enrichment) {
-            mergedResult = this.mergeResults(mergedResult, result);
+        if (result.enrichment) {
+          mergedResult = this.mergeResults(mergedResult, result);
 
-            // Logica de Fallback CNPJ: Se o BrasilApiAdapter trouxe dados da empresa, pulamos o CnpjWs
-            officialCompanyFound =
-              adapter.providerName === 'BrasilAPI' &&
-              Boolean(result.company?.cnpj);
-         }
+          // Lógica de Fallback CNPJ: Se o BrasilApiAdapter trouxe dados da empresa, pulamos o CnpjWs
+          officialCompanyFound =
+            adapter.providerName === 'BrasilAPI' &&
+            Boolean(result.company?.cnpj);
+        }
       } catch (error) {
-         logger.error(`[MergeEngine] Error calling adapter ${adapter.providerName}:`, error);
+        logger.error({ err: error, provider: adapter.providerName }, '[MergeEngine] Error calling adapter');
       }
     }
 
