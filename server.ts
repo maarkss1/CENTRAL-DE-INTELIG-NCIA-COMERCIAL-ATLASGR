@@ -64,8 +64,28 @@ async function startServer() {
 
     // ── Segurança ──────────────────────────────────────────────────────────
     // Helmet adiciona cabeçalhos HTTP de segurança (X-Frame-Options, HSTS, etc.)
+    // CSP customizada (em vez do default implícito do Helmet) cobrindo os recursos
+    // externos conhecidos da aplicação: Google Fonts, Font Awesome (cdnjs), áudio
+    // ambiente do Welcome Screen (Pixabay) e o redirecionamento de login social do
+    // Google via better-auth. Script-src permanece estrito ('self' apenas) — é o
+    // vetor que a CSP existe para mitigar; style-src mantém 'unsafe-inline' porque
+    // React aplica estilos inline via atributo `style` de forma extensiva no app.
     app.use(helmet({
-        contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
+        contentSecurityPolicy: env.NODE_ENV === 'production' ? {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdnjs.cloudflare.com'],
+                fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com', 'data:'],
+                imgSrc: ["'self'", 'data:', 'https:'],
+                mediaSrc: ["'self'", 'https://cdn.pixabay.com'],
+                connectSrc: ["'self'"],
+                frameSrc: ["'self'", 'https://accounts.google.com'],
+                formAction: ["'self'", 'https://accounts.google.com'],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+            },
+        } : false,
     }));
 
     // CORS — permite qualquer origem em ambiente de desenvolvimento
@@ -86,10 +106,10 @@ async function startServer() {
     // Compressão gzip/brotli — reduz tamanho de resposta até 70%
     app.use(compression());
 
-    // Rate Limiting — 500 req/15min por IP nas rotas /api
+    // Rate Limiting — API_RATE_LIMIT_MAX req/15min por IP nas rotas /api
     const apiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 500,
+        max: env.API_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
         store: env.NODE_ENV === 'production' ? new RedisStore({
@@ -111,6 +131,25 @@ async function startServer() {
         message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
     });
     app.use('/api/intelligence', aiLimiter);
+    // As rotas de agentes (Swarm/SDR) também disparam chamadas de LLM e ficavam de
+    // fora de qualquer limitador dedicado de IA, cobertas só pelo apiLimiter genérico.
+    app.use('/api/agent', aiLimiter);
+
+    // Rate Limiting dedicado e mais restritivo para autenticação — login/cadastro
+    // não devem compartilhar a cota genérica de 600 req/15min usada pelo resto da
+    // API, que é folgada demais para conter tentativas de força bruta/credential
+    // stuffing contra contas específicas.
+    const authLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 20,
+        standardHeaders: true,
+        legacyHeaders: false,
+        store: env.NODE_ENV === 'production' ? new RedisStore({
+            sendCommand: sendRateLimitCommand,
+        }) : undefined,
+        message: { success: false, error: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
+    });
+    app.use('/api/auth', authLimiter);
 
     app.use(express.json({ limit: '10mb' }));
 

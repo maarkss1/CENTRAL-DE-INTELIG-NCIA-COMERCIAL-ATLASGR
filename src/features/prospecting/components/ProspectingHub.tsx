@@ -1610,6 +1610,13 @@ function CandidateCard({
                         </div>
                     )}
 
+                    {!enrichment && candidate.decisionMakers?.length === 0 && (
+                        <p className="text-[11px] text-gray-500 mb-3">
+                            Nenhum decisor encontrado automaticamente para este domínio — seu plano Apollo pode não incluir People Search
+                            {' '}e não há chave Hunter.io configurada. Você ainda pode tentar uma busca manual abaixo.
+                        </p>
+                    )}
+
                     <DecisionMakerSearch
                         companyName={candidate.tradeName}
                         website={candidate.website}

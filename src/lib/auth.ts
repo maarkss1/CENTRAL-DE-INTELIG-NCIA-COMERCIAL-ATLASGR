@@ -38,6 +38,20 @@ export const auth = betterAuth({
     },
     socialProviders,
     plugins: [],
+    // Hardening explícito em vez de depender apenas dos defaults da biblioteca
+    // (que variam de comportamento conforme NODE_ENV — ver ADR sobre bypass de dev).
+    session: {
+        expiresIn: 60 * 60 * 24 * 7, // 7 dias
+        updateAge: 60 * 60 * 24, // renova a sessão a cada 24h de uso
+    },
+    advanced: {
+        useSecureCookies: process.env.NODE_ENV === "production",
+        defaultCookieAttributes: {
+            httpOnly: true,
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "production",
+        },
+    },
     user: {
         additionalFields: {
             role: {

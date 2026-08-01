@@ -2,7 +2,7 @@ import { getAiModel, logAiUsage, withRetry } from '../../../lib/ai/gateway.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
-import { redactSensitiveData } from './guardrails.service.js';
+import { redactSensitiveData, minimizePii, rehydratePii, type PiiToken } from './guardrails.service.js';
 
 export type ContentTool =
     | 'script_call'
@@ -272,9 +272,16 @@ export class AIService {
         }
 
         const context = await buildLeadContext(leadId, extra?.organizationId);
+        // Minimiza PII (hoje: nome do contato) antes de enviar o contexto ao provedor de IA
+        // externo. O nome real só é restaurado na resposta final (ver `rehydratePii` abaixo),
+        // preservando personalização de ferramentas como e-mail/WhatsApp sem expor o dado
+        // durante a geração pelo modelo.
+        let piiTokens: PiiToken[] = [];
         if (context.text) {
             systemPrompt += GROUNDING_INSTRUCTION;
-            userSections.push(context.text);
+            const minimized = minimizePii(context.text, [{ token: '[NOME_DO_CONTATO]', value: context.contactName }]);
+            userSections.push(minimized.text);
+            piiTokens = minimized.applied;
         } else if (extra?.personaFallback) {
             userSections.push(`Contexto manual disponível: persona alvo = ${extra.personaFallback}. Não há lead selecionado; não invente empresa, região, porte ou tecnologia.`);
         } else {
@@ -308,7 +315,8 @@ export class AIService {
             promptId: dbPrompt?.id,
         });
 
-        return redactSensitiveData(response.content).text;
+        const redacted = redactSensitiveData(response.content).text;
+        return piiTokens.length > 0 ? rehydratePii(redacted, piiTokens) : redacted;
     }
 
     async qualifyLead(leadId: string, companyInfo: string) {

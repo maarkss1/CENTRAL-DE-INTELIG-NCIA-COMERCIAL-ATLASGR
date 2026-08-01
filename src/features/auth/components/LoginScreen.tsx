@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowRight, ShieldCheck, Key, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AtlasLogo } from '../../../components/ui/AtlasLogo';
-import { PRESET_USERS, UserPreset } from '../constants/userPresets';
 import { useBrand } from '../../../contexts/BrandContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import { authClient } from '../../../lib/auth-client';
-import { isAuthorizedLoginEmail, getBrandFromEmail } from '../../../config/access-policy';
+import { isAuthorizedLoginEmail, getBrandFromEmail, AUTHORIZED_LOGIN_DOMAINS } from '../../../config/access-policy';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -18,13 +16,6 @@ export function LoginScreen() {
   const [name, setName] = useState('');
   const navigate = useNavigate();
   const { setActiveBrand } = useBrand();
-  const { loginAsPreset } = useAuth();
-
-  const handleSelectPreset = (user: UserPreset) => {
-    setEmail(user.email);
-    setPassword(user.password);
-    setActiveBrand(user.brand);
-  };
 
   const handleGoogleLogin = async () => {
     setIsSubmitting(true);
@@ -46,53 +37,27 @@ export function LoginScreen() {
     setIsSubmitting(true);
     setError('');
 
-    // Validação Local Imediata para os Usuários Previamente Autorizados
-    const matchedPreset = PRESET_USERS.find(
-      (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password
-    );
-
-    if (matchedPreset) {
-      setActiveBrand(matchedPreset.brand);
-      loginAsPreset(matchedPreset);
+    if (!isAuthorizedLoginEmail(email)) {
+      setError('Acesso restrito. Utilize um e-mail corporativo autorizado da AtlasGR (@atlasgr.com.br) ou TotalTrac (@totaltrac.com.br).');
       setIsSubmitting(false);
-      navigate('/app');
       return;
     }
 
-    // Se o usuário digitou e-mail de empresa cadastrada
-    const matchedByEmail = PRESET_USERS.find(
-      (u) => u.email.toLowerCase() === email.trim().toLowerCase()
-    );
+    setActiveBrand(getBrandFromEmail(email));
 
-    if (matchedByEmail) {
-      setActiveBrand(matchedByEmail.brand);
-      loginAsPreset(matchedByEmail);
+    // A validação de credenciais é feita inteiramente pelo servidor (better-auth);
+    // o cliente nunca decide, por conta própria, se um login é válido.
+    const result = isSignUp
+      ? await authClient.signUp.email({ email, password, name: name || email.split('@')[0], callbackURL: '/app' })
+      : await authClient.signIn.email({ email, password, callbackURL: '/app' });
+
+    if (result.error) {
+      setError(result.error.message || 'Não foi possível autenticar. Verifique suas credenciais.');
       setIsSubmitting(false);
-      navigate('/app');
       return;
     }
 
-    // Qualquer novo acesso de e-mail corporativo autorizados (atlasgr ou totaltrac)
-    if (isAuthorizedLoginEmail(email)) {
-      const brand = getBrandFromEmail(email);
-      const customPreset: UserPreset = {
-        id: `user-custom-${Date.now()}`,
-        name: name || email.split('@')[0],
-        email: email,
-        password: password,
-        role: brand === 'totaltrac' ? 'Gerente de Frotas & Operações' : 'Executivo Comercial B2B',
-        brand: brand,
-        avatarBg: brand === 'totaltrac' ? 'bg-gradient-to-r from-sky-500 to-blue-600' : 'bg-gradient-to-r from-orange-500 to-amber-500'
-      };
-      setActiveBrand(brand);
-      loginAsPreset(customPreset);
-      setIsSubmitting(false);
-      navigate('/app');
-      return;
-    }
-
-    setError('Acesso restrito. Utilize um e-mail corporativo autorizado da AtlasGR (@atlasgr.com.br) ou TotalTrac (@totaltrac.com.br).');
-    setIsSubmitting(false);
+    navigate('/app');
   };
 
   return (
@@ -222,58 +187,26 @@ export function LoginScreen() {
           </div>
         </div>
 
-        {/* Painel Direito: Acesso Rápido - Usuários Credenciados Solicitados */}
+        {/* Painel Direito: Informações de Acesso */}
         <div className="lg:col-span-6 space-y-4">
           <div className="glass-panel p-6 rounded-[2.5rem] border border-white/10 bg-slate-900/60 backdrop-blur-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-extrabold text-white text-sm">Contas Pré-Autorizadas</h3>
-              </div>
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Clique para Preencher
-              </span>
+            <div className="flex items-center gap-2 pb-3 border-b border-white/10 mb-4">
+              <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <h3 className="font-extrabold text-white text-sm">Acesso Corporativo</h3>
             </div>
 
             <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-              Selecione qualquer uma das contas corporativas abaixo para preencher as credenciais e acessar a primeira tela:
+              O acesso é restrito a contas de e-mail corporativas verificadas pelo servidor. Use sua conta Google
+              corporativa ou seu e-mail e senha cadastrados junto aos domínios autorizados abaixo:
             </p>
 
-            <div className="space-y-3">
-              {PRESET_USERS.map((user) => (
+            <div className="space-y-2">
+              {AUTHORIZED_LOGIN_DOMAINS.map((domain) => (
                 <div
-                  key={user.id}
-                  onClick={() => handleSelectPreset(user)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                    email === user.email
-                      ? 'bg-atlas-orange/20 border-atlas-orange text-white shadow-lg shadow-atlas-orange/10'
-                      : 'bg-slate-800/60 border-white/5 hover:bg-slate-800 hover:border-white/20 text-gray-300'
-                  }`}
+                  key={domain}
+                  className="p-3 rounded-2xl border border-white/5 bg-slate-800/60 text-gray-300 text-xs font-semibold"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl ${user.avatarBg} flex items-center justify-center font-bold text-white text-xs shadow-md`}>
-                      {user.name.charAt(0)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-white text-xs">{user.name}</h4>
-                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-extrabold ${user.brand === 'atlasgr' ? 'bg-orange-500/20 text-orange-300' : 'bg-sky-500/20 text-sky-300'}`}>
-                          {user.brand.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-gray-400 font-medium">{user.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-gray-400 block flex items-center gap-1 justify-end">
-                      <Key className="w-3 h-3 text-amber-400" /> {user.password}
-                    </span>
-                    <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-1 justify-end">
-                      {email === user.email ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : null}
-                      {email === user.email ? 'Selecionado' : 'Usar Credencial'}
-                    </span>
-                  </div>
+                  @{domain}
                 </div>
               ))}
             </div>
@@ -281,7 +214,7 @@ export function LoginScreen() {
 
           <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
             <p className="text-[11px] text-gray-400 font-medium">
-              🔒 Autenticação Obrigatória: Faça login para acessar os Cards e o Relógio/Calendário na Primeira Tela.
+              🔒 Autenticação obrigatória e validada pelo servidor. Nenhuma credencial é aceita sem verificação real.
             </p>
           </div>
         </div>

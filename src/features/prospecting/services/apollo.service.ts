@@ -372,7 +372,12 @@ export async function enrichCandidatesWithDecisionMakers(candidates: ProspectCan
         withDomain.map(async ({ org, idx }) => {
             const domain = org.primary_domain!;
             const { contacts } = await enrichOrganizationWithContacts(domain, 3);
-            if (contacts.length === 0) return;
+            if (contacts.length === 0) {
+                // Array vazio (em vez de undefined) sinaliza pro frontend "buscamos e não achamos
+                // ninguém" — diferente de "nunca tentamos" (candidato sem domínio conhecido).
+                candidates[idx].decisionMakers = [];
+                return;
+            }
 
             const decisionMakers: DecisionMaker[] = await Promise.all(
                 contacts.map(async (c): Promise<DecisionMaker> => {
