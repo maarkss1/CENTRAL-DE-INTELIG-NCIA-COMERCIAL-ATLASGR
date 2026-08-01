@@ -1,6 +1,7 @@
 import type { BaseMessage } from '@langchain/core/messages';
 import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
+import { requestContext } from '../async-context.js';
 
 // Nome lógico mantido por compatibilidade com os serviços existentes.
 export const GEMINI_MODEL = 'gemini-pro';
@@ -434,7 +435,17 @@ export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
  * Gera um embedding (array de floats) para o texto fornecido.
  * Usado para a Memória Vetorial (RAG) do Agente SDR via pgvector.
  */
-export const generateEmbedding = async (text: string): Promise<number[]> => {
+export const generateEmbedding = async (
+    text: string,
+    kind: 'query' | 'passage' = 'passage',
+): Promise<number[]> => {
+    // Provedor padrão é o modelo local: não depende de chave, de cota nem de serviço externo no ar.
+    // `EMBEDDINGS_PROVIDER=gateway` volta ao caminho antigo (LiteLLM → Google) quando desejado.
+    if ((process.env.EMBEDDINGS_PROVIDER || 'local') === 'local') {
+        const { embedLocal } = await import('./local-embeddings.js');
+        return embedLocal(text, kind);
+    }
+
     // Usamos a API do Gemini via fetch. O URL litellm suporta `/v1/embeddings` se configurado,
     // Mas para simplificar vamos direto no provider se o LITELLM_URL não for um proxy de embedding
     const LITELLM_URL = normalizeApiBaseUrl(process.env.LITELLM_URL || 'http://localhost:4000');
@@ -445,10 +456,11 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
         throw new Error(`O texto do embedding excede ${MAX_EMBEDDING_INPUT_CHARS} caracteres.`);
     }
 
-    // Assim como no chat, aplicamos retry + circuit breaker: não há provedor alternativo de
-    // embeddings configurado hoje, então quando falha aqui a mensagem precisa deixar claro que
-    // não é só "erro passageiro" — é a única rota de embeddings do app.
-    return callProvider('embedding', async () => {
+    // Retry + circuit breaker, como no chat. Se o LiteLLM estiver fora, caímos direto no Google
+    // (ver `embedFallbackDireto`): em desenvolvimento é comum o proxy não estar de pé, e sem esse
+    // caminho a Base de Conhecimento inteira fica sem busca semântica por causa de um proxy.
+    try {
+        return await callProvider('embedding', async () => {
         const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
             method: 'POST',
             headers: {
@@ -477,9 +489,36 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
             throw new Error('O provedor retornou um embedding inválido.');
         }
         return embedding as number[];
-    });
+        });
+    } catch (erroProxy) {
+        const direto = await embedFallbackDireto(normalizedText);
+        if (direto) return direto;
+        throw erroProxy;
+    }
 };
 
+/**
+ * Caminho alternativo de embeddings: chama a API do Google diretamente, sem passar pelo LiteLLM.
+ *
+ * Existe porque o proxy é a única rota configurada e, sem ele de pé, todo o RAG para. Devolve
+ * `null` (em vez de lançar) quando não há chave ou a chamada falha, para o chamador poder relançar
+ * o erro original do proxy — que é o mais informativo sobre a causa raiz.
+ */
+async function embedFallbackDireto(texto: string): Promise<number[] | null> {
+    if (!process.env.GEMINI_API_KEY) return null;
+    try {
+        const { generateEmbedding: embedDireto } = await import('./embeddings.js');
+        const vetor = await embedDireto(texto);
+        if (Array.isArray(vetor) && vetor.length > 0 && vetor.every(Number.isFinite)) {
+            logger.warn('LiteLLM indisponível para embeddings; usando a API do Google diretamente.');
+            return vetor;
+        }
+        return null;
+    } catch (err) {
+        logger.error({ err }, 'Fallback direto de embeddings também falhou');
+        return null;
+    }
+}
 export interface AiUsageLogInput {
     model: string;
     usage: AiTokenUsage;
@@ -496,6 +535,10 @@ export const logAiUsage = async (input: AiUsageLogInput): Promise<void> => {
                 cost: estimateCostUsd(input.model, input.usage),
                 latencyMs: input.latencyMs,
                 promptId: input.promptId,
+                // Tirado do contexto da requisição em vez de exigir que cada chamador repasse o
+                // tenant. Fica nulo em execuções fora de requisição (scripts, workers), e a tela
+                // de Consumo trata esses registros como não atribuídos em vez de somá-los a alguém.
+                organizationId: requestContext.getStore()?.tenantId ?? null,
             },
         });
     } catch (error) {

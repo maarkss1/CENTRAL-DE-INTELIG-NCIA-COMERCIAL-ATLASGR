@@ -25,6 +25,13 @@ const BitrixGuideHub = lazy(() => import('./features/intelligence/components/Bit
 const ReportsHub = lazy(() => import('./features/intelligence/components/ReportsHub').then(m => ({ default: m.ReportsHub })));
 const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHub').then(m => ({ default: m.ChatbookHub })));
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
+const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
+const Analytics = lazy(() => import('./features/analytics/components/Analytics').then(m => ({ default: m.Analytics })));
+const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
+const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
+const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
+const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
+const DocumentEditor = lazy(() => import('./features/document-editor/components/Editor').then(m => ({ default: m.Editor })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
@@ -66,13 +73,13 @@ function AppLayout() {
         {activeTab === 'bitrix' && <BitrixGuideHub />}
         {activeTab === 'reports' && <ReportsHub />}
         {activeTab === 'integrations' && <Integrations />}
-        {activeTab === 'knowledge' && (
-          <div className="flex-1 overflow-y-auto bg-white p-8">
-             <div className="max-w-6xl mx-auto space-y-6">
-                
-             </div>
-          </div>
-        )}
+        {activeTab === 'knowledge' && <KnowledgeBase />}
+        {activeTab === 'analytics' && <Analytics />}
+        {activeTab === 'calendar' && <Calendar />}
+        {activeTab === 'notifications' && <Notifications />}
+        {activeTab === 'automations' && <Automations />}
+        {activeTab === 'usage' && <Usage />}
+        {activeTab === 'editor' && <DocumentEditor />}
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}

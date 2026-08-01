@@ -305,6 +305,10 @@ model Organization {
   leads            Lead[]
   prospects        Prospect[]
   activities       Activity[]
+  documents        Document[]
+  notifications    Notification[]
+  automations      Automation[]
+  aiLogs           AILog[]
   aiPendingActions AIPendingAction[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -385,13 +389,25 @@ model Prompt {
 }
 
 model Document {
-  id        String          @id @default(cuid())
-  title     String
-  metadata  Json?
-  content   String
-  chunks    DocumentChunk[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id             String          @id @default(cuid())
+  title          String
+  metadata       Json?
+  content        String
+  chunks         DocumentChunk[]
+  // Base de Conhecimento é por tenant: sem esta coluna qualquer organização leria os
+  // documentos das outras (a RLS depende dela para filtrar).
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Origem do conteúdo, para a UI diferenciar upload de arquivo e texto colado.
+  sourceType     String          @default("text")
+  sourceName     String?
+  // Contagem materializada: evita um COUNT por documento na listagem.
+  chunkCount     Int             @default(0)
+  createdBy      String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId, createdAt])
 }
 
 model DocumentChunk {
@@ -399,6 +415,8 @@ model DocumentChunk {
   documentId String
   document   Document                    @relation(fields: [documentId], references: [id], onDelete: Cascade)
   content    String
+  // Posição do trecho dentro do documento, para citar a origem no resultado da busca.
+  chunkIndex Int                         @default(0)
   vector     Unsupported("vector(768)")?
 
   @@index([documentId])
@@ -421,7 +439,84 @@ model AILog {
   latencyMs Int
   model     String
   promptId  String?
+  // Sem esta coluna não dá para dizer quanto CADA organização consumiu — é o que a tela de
+  // Consumo precisa. Opcional porque os registros anteriores a ela não têm como ser atribuídos.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+/// Severidade da notificação — define o ícone e a cor de status na interface.
+enum NotificationKind {
+  Info
+  Sucesso
+  Alerta
+  Erro
+}
+
+model Notification {
+  id       String           @id @default(cuid())
+  title    String
+  body     String?
+  kind     NotificationKind @default(Info)
+  /// Entidade de origem, para a notificação poder levar o usuário ao lead/atividade que a gerou.
+  entity   String?
+  entityId String?
+  readAt   DateTime?
+  /// Destinatário específico; `null` significa "toda a organização".
+  userId   String?
+
+  /// Quando foi criada por uma automação, guarda qual — permite explicar a origem na interface.
+  automationId String?
+  automation   Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, readAt, createdAt])
+}
+
+/// Evento que dispara uma automação.
+enum AutomationTrigger {
+  Lead_Criado          @map("Lead criado")
+  Lead_Mudou_Status    @map("Lead mudou de status")
+  Atividade_Concluida  @map("Atividade concluída")
+}
+
+/// O que a automação faz quando dispara.
+enum AutomationAction {
+  Notificar_Equipe @map("Notificar equipe")
+  Criar_Atividade  @map("Criar atividade")
+}
+
+model Automation {
+  id      String  @id @default(cuid())
+  name    String
+  enabled Boolean @default(true)
+
+  trigger AutomationTrigger
+  /// Filtro opcional do gatilho (ex: `{ "status": "Proposta" }`). Vazio = dispara sempre.
+  conditions Json?
+
+  action AutomationAction
+  /// Parâmetros da ação (ex: título da notificação, tipo/prazo da atividade a criar).
+  actionConfig Json
+
+  /// Telemetria de execução, para a tela mostrar se a regra está realmente rodando.
+  lastRunAt DateTime?
+  runCount  Int       @default(0)
+
+  notifications Notification[]
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, enabled])
 }
 
 model AIGovernancePolicy {

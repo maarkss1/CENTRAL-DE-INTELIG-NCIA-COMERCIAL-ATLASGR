@@ -10,7 +10,14 @@ const router = Router();
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
-        const activities = await activityService.findAll(orgId, req.query.date as string | undefined);
+        const { from, to, date } = req.query as Record<string, string | undefined>;
+
+        // `from`/`to` alimentam a grade do Calendário (um mês por requisição); `date` continua
+        // servindo a lista de Agenda, que filtra um dia só.
+        const activities = from && to
+            ? await activityService.findRange(orgId, from, to)
+            : await activityService.findAll(orgId, date);
+
         res.json({ success: true, data: activities });
     } catch (error) {
         next(error);

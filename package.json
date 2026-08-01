@@ -25,6 +25,8 @@
     "coverage": "npm run coverage:unit && npm run coverage:integration",
     "coverage:unit": "vitest run -c vitest.unit.config.ts --coverage",
     "coverage:integration": "vitest run -c vitest.integration.config.ts --coverage",
+    "setup:db": "tsx scripts/setup-vector-db.ts",
+    "setup:db:check": "tsx scripts/setup-vector-db.ts --check",
     "verify:integrations": "tsx scripts/verify-integrations.ts",
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
     "docs": "typedoc"
@@ -53,6 +55,7 @@
     "@react-three/fiber": "^9.6.1",
     "@tailwindcss/vite": "^4.1.14",
     "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "@xenova/transformers": "^2.17.2",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.6.23",
     "bullmq": "^5.80.8",

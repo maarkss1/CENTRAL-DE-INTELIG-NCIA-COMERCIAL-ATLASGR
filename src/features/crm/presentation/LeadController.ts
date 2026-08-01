@@ -1,8 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { LeadUseCases } from '../application/LeadUseCases';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
+import { automationEngine } from '../../automations/automation.engine';
 
 const UTF8_BOM = String.fromCharCode(0xfeff);
+
+/**
+ * Dispara as automações sem bloquear a resposta.
+ *
+ * O motor já engole os próprios erros; o `.catch` aqui é a última rede para que uma rejeição
+ * inesperada não vire um unhandled rejection e derrube o processo.
+ */
+function fireAutomations(event: Parameters<typeof automationEngine.handle>[0]): void {
+    void automationEngine.handle(event).catch(() => {});
+}
 
 export class LeadController {
     constructor(private leadUseCases: LeadUseCases) {}
@@ -37,6 +48,13 @@ export class LeadController {
         try {
             const { organizationId: orgId } = (req as AuthRequest).user;
             const lead = await this.leadUseCases.createLead(orgId, req.body);
+            fireAutomations({
+                organizationId: orgId,
+                trigger: 'Lead criado',
+                entity: 'Lead',
+                entityId: (lead as { id: string }).id,
+                data: { ...(lead as unknown as Record<string, unknown>) },
+            });
             res.status(201).json({ success: true, data: lead });
         } catch (error) {
             next(error);
@@ -48,11 +66,25 @@ export class LeadController {
             const { organizationId: orgId } = (req as AuthRequest).user;
             const leadId = req.params.id;
             let lead;
+            let statusMudou = false;
             if (req.body.status && Object.keys(req.body).length === 1) {
                 lead = await this.leadUseCases.updateLeadStatus(orgId, leadId, req.body.status);
+                statusMudou = true;
             } else {
                 lead = await this.leadUseCases.updateLead(orgId, leadId, req.body);
+                statusMudou = req.body.status != null;
             }
+
+            if (statusMudou) {
+                fireAutomations({
+                    organizationId: orgId,
+                    trigger: 'Lead mudou de status',
+                    entity: 'Lead',
+                    entityId: leadId,
+                    data: { ...(lead as unknown as Record<string, unknown>) },
+                });
+            }
+
             res.json({ success: true, data: lead });
         } catch (error) {
             next(error);

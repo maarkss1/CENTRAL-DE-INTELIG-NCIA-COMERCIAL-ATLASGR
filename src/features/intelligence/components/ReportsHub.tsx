@@ -106,7 +106,9 @@ export function ReportsHub() {
               <div><span className="text-gray-400 block">Leads Ativos</span><span className="font-black text-white">{metrics.totalLeads}</span></div>
               <div><span className="text-gray-400 block">Atividades</span><span className="font-black text-white">{metrics.totalActivities}</span></div>
               <div><span className="text-gray-400 block">Fechados no Mês</span><span className="font-black text-success">{metrics.closedThisMonth}</span></div>
-              <div><span className="text-gray-400 block">Valor em Pipeline</span><span className="font-black text-atlas-orange">R$ {metrics.pipelineValue.toLocaleString('pt-BR')}</span></div>
+              {/* Não existe campo de valor no modelo Lead: exibimos "—" em vez de "R$ 0", que
+                  seria lido como "pipeline zerado" e não como "métrica indisponível". */}
+              <div><span className="text-gray-400 block">Valor em Pipeline</span><span className="font-black text-atlas-orange">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
               <div><span className="text-gray-400 block">Conversão</span><span className="font-black text-info">{metrics.conversionRate.toFixed(1)}%</span></div>
               <div><span className="text-gray-400 block">Pendentes</span><span className="font-black text-danger">{metrics.pendingActivities}</span></div>
             </div>

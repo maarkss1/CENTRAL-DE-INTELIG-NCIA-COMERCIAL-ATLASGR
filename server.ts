@@ -28,6 +28,10 @@ import { analyticsRoutes } from './src/features/analytics/routes/analytics.route
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
+import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
+import { notificationRoutes } from './src/features/notifications/notification.routes.js';
+import { automationRoutes } from './src/features/automations/automation.routes.js';
+import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -135,6 +139,10 @@ async function startServer() {
     // fora de qualquer limitador dedicado de IA, cobertas só pelo apiLimiter genérico.
     app.use('/api/agent', aiLimiter);
 
+    // A Base de Conhecimento gera embeddings a cada ingestão e a cada busca, então cai no mesmo
+    // limite das rotas de IA — é o mesmo provedor e a mesma cota.
+    app.use('/api/knowledge', aiLimiter);
+
     // Rate Limiting dedicado e mais restritivo para autenticação — login/cadastro
     // não devem compartilhar a cota genérica de 600 req/15min usada pelo resto da
     // API, que é folgada demais para conter tentativas de força bruta/credential
@@ -209,6 +217,10 @@ async function startServer() {
     app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+    app.use('/api/knowledge', authenticateToken, requireTenant, knowledgeRoutes);
+    app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
+    app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
+    app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/agent', authenticateToken, requireTenant, agentRoutes);

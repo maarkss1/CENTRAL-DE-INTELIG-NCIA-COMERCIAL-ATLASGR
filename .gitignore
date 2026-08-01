@@ -10,3 +10,6 @@ coverage/
 /src/generated/prisma
 playwright-report/
 test-results/
+
+# Modelos de embeddings baixados em runtime (~400 MB)
+.cache/

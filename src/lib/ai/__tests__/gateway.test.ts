@@ -130,13 +130,43 @@ describe('AI gateway', () => {
             .rejects.toThrow('resposta vazia');
     });
 
-    it('valida a resposta de embeddings', async () => {
-        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
-            data: [{ embedding: [0.1, 0.2, 0.3] }],
-        })));
+    it('valida a resposta de embeddings do provedor remoto', async () => {
+        // O padrão passou a ser o modelo local (sem chave, sem rede). Este teste cobre o caminho
+        // remoto, que continua disponível via EMBEDDINGS_PROVIDER=gateway.
+        const anterior = process.env.EMBEDDINGS_PROVIDER;
+        process.env.EMBEDDINGS_PROVIDER = 'gateway';
+        try {
+            vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+                data: [{ embedding: [0.1, 0.2, 0.3] }],
+            })));
 
-        await expect(generateEmbedding('  conteúdo útil  ')).resolves.toEqual([0.1, 0.2, 0.3]);
-        await expect(generateEmbedding('   ')).rejects.toThrow('não pode ser vazio');
+            await expect(generateEmbedding('  conteúdo útil  ')).resolves.toEqual([0.1, 0.2, 0.3]);
+            await expect(generateEmbedding('   ')).rejects.toThrow('não pode ser vazio');
+        } finally {
+            if (anterior === undefined) delete process.env.EMBEDDINGS_PROVIDER;
+            else process.env.EMBEDDINGS_PROVIDER = anterior;
+        }
+    });
+
+    it('usa o modelo local por padrão, sem tocar na rede', async () => {
+        const anterior = process.env.EMBEDDINGS_PROVIDER;
+        delete process.env.EMBEDDINGS_PROVIDER;
+
+        const fetchSpy = vi.fn();
+        vi.stubGlobal('fetch', fetchSpy);
+
+        try {
+            // Não carregamos o modelo de verdade aqui (são ~400 MB): basta garantir que a rota
+            // padrão delega ao módulo local em vez de chamar o proxy.
+            const local = await import('../local-embeddings.js');
+            const spy = vi.spyOn(local, 'embedLocal').mockResolvedValue(new Array(768).fill(0.01));
+
+            await expect(generateEmbedding('texto qualquer')).resolves.toHaveLength(768);
+            expect(spy).toHaveBeenCalledWith('texto qualquer', 'passage');
+            expect(fetchSpy).not.toHaveBeenCalled();
+        } finally {
+            if (anterior !== undefined) process.env.EMBEDDINGS_PROVIDER = anterior;
+        }
     });
 
     it('reexecuta a mesma perna após uma falha 5xx transitória antes de desistir', async () => {
