@@ -91,14 +91,14 @@ export function LiveStatsWidget() {
       transition={{ delay: 0.2 }}
       className="w-full"
     >
-      <div className="p-6 rounded-card-lg border border-slate-200/50 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.05)] relative overflow-hidden text-slate-900 font-sans">
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange via-purple-500 to-totaltrack-blue" />
-        
+      <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
+        <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand to-brand-2" />
+
         {/* Header Row */}
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
-            <h3 className="text-sm font-black text-slate-900">Visão Geral da Plataforma</h3>
-            <p className="text-[11px] text-slate-500 font-medium">Dados em tempo real do banco de dados PostgreSQL</p>
+            <h3 className="text-sm font-black text-ink">Visão Geral da Plataforma</h3>
+            <p className="text-[11px] text-ink-2 font-medium">Dados em tempo real do banco de dados PostgreSQL</p>
           </div>
 
           {/* Database Connection Badge */}
@@ -135,16 +135,16 @@ export function LiveStatsWidget() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 * idx }}
-              className="p-4 rounded-card border border-slate-100 bg-slate-50 flex items-center gap-3"
+              className="p-4 rounded-card border border-line bg-surface-2 flex items-center gap-3"
             >
-              <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm shrink-0">
+              <div className="p-2 rounded-xl bg-surface border border-line shadow-sm shrink-0">
                 {s.icon}
               </div>
               <div>
                 <p className={`text-xl font-black ${s.color}`}>
                   {loading ? '—' : s.value.toLocaleString('pt-BR')}
                 </p>
-                <p className="text-[11px] text-slate-500 font-semibold">{s.label}</p>
+                <p className="text-[11px] text-ink-2 font-semibold">{s.label}</p>
               </div>
             </motion.div>
           ))}
@@ -152,13 +152,13 @@ export function LiveStatsWidget() {
 
         {/* Pipeline Metrics Row */}
         {stats && !loading && (
-          <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-3 gap-4">
+          <div className="mt-4 pt-4 border-t border-line grid grid-cols-3 gap-4">
             <div className="text-center">
-              <p className="text-xs text-slate-500 font-medium">Fechados este Mês</p>
-              <p className="text-lg font-black text-success">{stats.closedThisMonth}</p>
+              <p className="text-xs text-ink-2 font-medium">Fechados este Mês</p>
+              <p className="text-lg font-black text-ok">{stats.closedThisMonth}</p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-slate-500 font-medium">Valor no Pipeline</p>
+              <p className="text-xs text-ink-2 font-medium">Valor no Pipeline</p>
               <p className="text-lg font-black text-totaltrack-blue">
                 {stats.pipelineValue > 0
                   ? `R$ ${(stats.pipelineValue / 1000).toFixed(0)}k`
@@ -166,8 +166,8 @@ export function LiveStatsWidget() {
               </p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-slate-500 font-medium">Taxa de Conversão</p>
-              <p className="text-lg font-black text-atlas-orange">
+              <p className="text-xs text-ink-2 font-medium">Taxa de Conversão</p>
+              <p className="text-lg font-black text-brand">
                 {stats.conversionRate > 0 ? `${stats.conversionRate.toFixed(1)}%` : '—'}
               </p>
             </div>

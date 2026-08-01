@@ -161,14 +161,37 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+:root {
+  --bg: #FBF9F7;
+  --surface: #FFFFFF;
+  --surface-2: #F5F1EE;
+  --ink: #1A1513;
+  --ink-2: #7A716C;
+  --line: rgba(0, 0, 0, .09);
+  --brand: #FF5618;
+  --brand-2: #FF8008;
+  --warn: #FFC500;
+  --ok: #0F9D64;
+  --info-token: #0088CC;
+  --soft: rgba(255, 86, 24, .08);
+  --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
+}
+
+.dark {
+  --bg: #0D0A09;
+  --surface: #171211;
+  --surface-2: #1F1917;
+  --ink: #F7F3F1;
+  --ink-2: #A2968F;
+  --line: rgba(255, 255, 255, .10);
+  --soft: rgba(255, 86, 24, .15);
+  --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .6), 0 14px 34px -18px rgba(0, 0, 0, .9);
+}
+
 @theme {
   --font-sans: "Montserrat", "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Montserrat", "Outfit", sans-serif;
-  
-  --color-atlas-orange: #FF5618;
-  --color-atlas-orange-medium: #FF6B10;
-  --color-atlas-light-orange: #FF8008;
-  --color-atlas-yellow: #FFC500;
+
   --color-atlas-orange: #FF5618;
   --color-atlas-orange-medium: #FF6B10;
   --color-atlas-light-orange: #FF8008;
@@ -187,6 +210,20 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-info: #3b82f6;
+
+  /* Warm neutral design system (Atlas Commercial OS) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-warn: var(--warn);
+  --color-ok: var(--ok);
+  --color-soft: var(--soft);
+  --shadow-card: var(--shadow-card-value);
 
   --radius-card: 1.25rem;
   --radius-card-lg: 1.75rem;
@@ -225,14 +262,14 @@
   body {
     overflow-x: hidden;
     font-family: var(--font-sans);
-    background-color: var(--bg-base);
-    color: #1f2937;
+    background-color: var(--bg);
+    color: var(--ink);
   }
-  
+
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.03em;
-    color: #111827;
+    color: var(--ink);
   }
   
   h1 { font-size: 3.5rem; line-height: 1.1; font-weight: 700; }
@@ -249,18 +286,17 @@
 
   /* Clean Light Glassmorphism utilities */
   .glass-panel {
-    background: rgba(255, 255, 255, 0.85);
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(229, 231, 235, 0.8);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
   }
-  
+
   .glass-card {
-    background: #ffffff;
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(229, 231, 235, 1);
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-card);
   }
 
   .text-glow {
@@ -269,18 +305,18 @@
 
   /* Custom Rounded Light Scrollbar */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(203, 213, 225, 0.8);
+    background: var(--line);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 1);
+    background: var(--ink-2);
   }
 }
 

@@ -28,44 +28,44 @@ export function ClockCalendarWidget() {
   ];
 
   return (
-    <div className="p-6 rounded-card-lg border border-slate-200/50 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.05)] relative overflow-hidden text-slate-900 font-sans">
-      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-atlas-orange via-purple-500 to-totaltrack-blue" />
-      <div className="absolute top-0 right-0 w-48 h-48 bg-totaltrack-blue/5 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-atlas-orange/5 rounded-full blur-3xl pointer-events-none" />
+    <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
+      <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand to-brand-2" />
+      <div className="absolute top-0 right-0 w-48 h-48 bg-brand-2/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center gap-3 pb-4 border-b border-slate-100 mb-4">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-atlas-orange to-totaltrack-blue flex items-center justify-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_14px_rgba(0,0,0,0.1)]">
+      <div className="flex items-center gap-3 pb-4 border-b border-line mb-4">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-card">
           <Clock className="w-5 h-5 animate-pulse" />
         </div>
-        <p className="text-xs text-slate-500 capitalize font-semibold">{dayName}, {fullDate}</p>
+        <p className="text-xs text-ink-2 capitalize font-semibold">{dayName}, {fullDate}</p>
       </div>
 
       {/* Relógio Ao Vivo */}
-      <div className="p-6 rounded-card bg-gradient-to-r from-orange-50 via-white to-sky-50 border border-slate-100 relative overflow-hidden text-center sm:text-left">
-        <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500 block mb-1 flex items-center justify-center sm:justify-start gap-1">
-          <Sparkles className="w-3 h-3 text-totaltrack-blue animate-spin-slow" /> Fuso Horário Oficial (Horário de Brasília)
+      <div className="p-6 rounded-card bg-surface-2 border border-line relative overflow-hidden text-center sm:text-left">
+        <span className="text-[10px] font-extrabold uppercase tracking-widest text-ink-2 block mb-1 flex items-center justify-center sm:justify-start gap-1">
+          <Sparkles className="w-3 h-3 text-brand animate-spin-slow" /> Fuso Horário Oficial (Horário de Brasília)
         </span>
         <div className="flex items-baseline justify-center sm:justify-start gap-1 font-mono">
-          <span className="text-5xl font-black text-slate-900 tracking-tight">{hours}:{minutes}</span>
-          <span className="text-xl font-bold text-totaltrack-blue">:{seconds}</span>
+          <span className="text-5xl font-black text-ink tracking-tight">{hours}:{minutes}</span>
+          <span className="text-xl font-bold text-brand">:{seconds}</span>
         </div>
       </div>
 
       {/* Calendário Mensal Compacto */}
       <div className="mt-6 space-y-3">
         <div className="flex items-center justify-between text-xs font-bold capitalize">
-          <span className="flex items-center gap-1.5 text-sm font-black text-slate-900">
-            <CalendarIcon className="w-4 h-4 text-atlas-orange" /> {currentMonthName} {time.getFullYear()}
+          <span className="flex items-center gap-1.5 text-sm font-black text-ink">
+            <CalendarIcon className="w-4 h-4 text-brand" /> {currentMonthName} {time.getFullYear()}
           </span>
-          <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          <span className="text-[10px] text-ink-2 bg-surface-2 px-2 py-0.5 rounded border border-line">
             Clique num dia para ver detalhes
           </span>
         </div>
 
         <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-bold">
           {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-            <div key={d} className="py-1 text-slate-400 text-[10px] uppercase tracking-wider">{d}</div>
+            <div key={d} className="py-1 text-ink-2 text-[10px] uppercase tracking-wider">{d}</div>
           ))}
 
           {Array.from({ length: new Date(time.getFullYear(), time.getMonth() + 1, 0).getDate() }, (_, i) => i + 1).map((day) => {
@@ -82,15 +82,15 @@ export function ClockCalendarWidget() {
                 aria-pressed={isSelected}
                 className={`py-2 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer ${
                   isToday
-                    ? 'bg-gradient-to-br from-atlas-orange to-totaltrack-blue text-white font-black shadow-lg'
+                    ? 'bg-gradient-to-br from-brand to-brand-2 text-white font-black shadow-lg'
                     : isSelected
-                    ? 'bg-white border-2 border-slate-300 text-slate-800 font-bold'
-                    : 'bg-slate-50 hover:bg-slate-100 text-slate-600'
+                    ? 'bg-surface border-2 border-brand/40 text-ink font-bold'
+                    : 'bg-surface-2 hover:bg-line text-ink-2'
                 }`}
               >
                 <span>{day}</span>
                 {hasEvent && (
-                  <span className={`w-1.5 h-1.5 rounded-full absolute bottom-1 animate-pulse ${day % 2 === 0 ? 'bg-totaltrack-blue' : 'bg-atlas-orange'}`} />
+                  <span className="w-1.5 h-1.5 rounded-full absolute bottom-1 animate-pulse bg-brand-2" />
                 )}
               </button>
             );
@@ -100,22 +100,22 @@ export function ClockCalendarWidget() {
 
       {/* Compromissos do Dia Selecionado */}
       <div className="mt-5 space-y-3">
-        <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-success" /> Compromissos do Dia {selectedDate}
+        <h4 className="font-bold text-ink text-xs uppercase tracking-wider flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-ok" /> Compromissos do Dia {selectedDate}
         </h4>
         {scheduledEvents.filter((e) => e.day === selectedDate).length === 0 ? (
-          <p className="text-xs text-slate-400 italic">Nenhum evento registrado para este dia.</p>
+          <p className="text-xs text-ink-2 italic">Nenhum evento registrado para este dia.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             {scheduledEvents.filter((e) => e.day === selectedDate).map((evt, idx) => (
-              <div key={idx} className="p-3.5 rounded-card bg-slate-50 border border-slate-100 space-y-1.5">
+              <div key={idx} className="p-3.5 rounded-card bg-surface-2 border border-line space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-700">{evt.time}</span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded font-bold border ${idx % 2 === 0 ? 'bg-atlas-orange/10 text-atlas-orange border-atlas-orange/20' : 'bg-totaltrack-blue/10 text-totaltrack-blue border-totaltrack-blue/20'}`}>
+                  <span className="font-extrabold text-ink-2">{evt.time}</span>
+                  <span className="text-[9px] px-2 py-0.5 rounded font-bold border bg-soft text-brand border-brand/20">
                     {evt.badge}
                   </span>
                 </div>
-                <p className="font-bold text-slate-900 leading-tight">{evt.title}</p>
+                <p className="font-bold text-ink leading-tight">{evt.title}</p>
               </div>
             ))}
           </div>

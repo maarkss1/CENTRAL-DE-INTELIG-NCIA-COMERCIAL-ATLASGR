@@ -35,28 +35,24 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     ];
 
     return (
-        <aside className={`w-64 h-full flex flex-col transition-colors border-r ${
-            isAtlas ? 'bg-white border-orange-100' : 'bg-slate-900 border-white/10'
-        }`}>
+        <aside className="w-64 h-full flex flex-col transition-colors bg-surface border-r border-line">
             {/* Context Switcher */}
-            <div className={`p-4 border-b ${isAtlas ? 'border-orange-100' : 'border-white/10'}`}>
+            <div className="p-4 border-b border-line">
                 <div className="flex items-center gap-2 mb-3">
-                    {isAtlas ? <Logo className="h-8 text-slate-900" /> : <TotalTrackLogo className="h-8 text-white" />}
+                    {isAtlas ? <Logo className="h-8 text-ink" /> : <TotalTrackLogo className="h-8 text-ink" />}
                 </div>
-                
+
                 <div className="relative group cursor-pointer" onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}>
-                    <div className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
-                        isAtlas ? 'bg-orange-50 border-orange-200 hover:bg-orange-100' : 'bg-blue-900/30 border-blue-800 hover:bg-blue-900/50'
-                    }`}>
+                    <div className="flex items-center justify-between p-2 rounded-xl border border-line bg-surface-2 hover:bg-brand/10 transition-all">
                         <div className="flex flex-col">
-                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isAtlas ? 'text-orange-600' : 'text-blue-400'}`}>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
                                 Operação Atual
                             </span>
-                            <span className={`text-sm font-black ${isAtlas ? 'text-slate-900' : 'text-white'}`}>
+                            <span className="text-sm font-black text-ink">
                                 {isAtlas ? 'AtlasGR' : 'TotalTrac'}
                             </span>
                         </div>
-                        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${isAtlas ? 'bg-white shadow-sm text-slate-400' : 'bg-slate-800 text-slate-400'}`}>
+                        <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface shadow-sm text-ink-2">
                             <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
                         </div>
                     </div>
@@ -64,10 +60,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar">
-                
+
                 {/* Core Navigation */}
                 <div className="space-y-1">
-                    <p className={`px-3 mb-2 text-[10px] font-black uppercase tracking-widest ${isAtlas ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
                         Core Modules
                     </p>
                     {coreTools.map(tool => {
@@ -77,9 +73,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                                 key={tool.id}
                                 onClick={() => onTabChange(tool.id)}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                                    isActive 
-                                        ? (isAtlas ? 'bg-orange-500 text-white shadow-md' : 'bg-blue-600 text-white shadow-md')
-                                        : (isAtlas ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' : 'text-slate-400 hover:bg-white/5 hover:text-white')
+                                    isActive
+                                        ? 'bg-brand text-white shadow-md'
+                                        : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
                                 <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
@@ -91,7 +87,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
                 {/* AI Tools */}
                 <div className="space-y-1">
-                    <p className={`px-3 mb-2 text-[10px] font-black uppercase tracking-widest ${isAtlas ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
                         Inteligência
                     </p>
                     {aiTools.map(tool => {
@@ -101,9 +97,9 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                                 key={tool.id}
                                 onClick={() => onTabChange(tool.id)}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                                    isActive 
-                                        ? (isAtlas ? 'bg-orange-500 text-white shadow-md' : 'bg-blue-600 text-white shadow-md')
-                                        : (isAtlas ? 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' : 'text-slate-400 hover:bg-white/5 hover:text-white')
+                                    isActive
+                                        ? 'bg-brand text-white shadow-md'
+                                        : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
                                 <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>

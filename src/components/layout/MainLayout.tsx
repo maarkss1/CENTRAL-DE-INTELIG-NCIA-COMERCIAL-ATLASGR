@@ -1,11 +1,11 @@
 import { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { AppTopbar } from './AppTopbar';
 import { TabType } from './Header';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 
 interface MainLayoutProps {
@@ -15,66 +15,22 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps) {
-    const { theme } = useTheme();
     const { isAtlas } = useBrandAccent();
 
     return (
-        <div className={`h-screen w-full flex flex-col bg-transparent ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'} font-sans overflow-hidden relative transition-colors duration-500`}>
-            
-            {/* BACKGROUND CONDICIONAL */}
-            <div className="absolute inset-0 flex z-0 overflow-hidden pointer-events-none">
-                {activeTab === 'dashboard' ? (
-                    // DUAL BACKGROUND (LARANJA E AZUL) PARA A PRIMEIRA PÁGINA
-                    <>
-                        <div 
-                            className="w-1/2 h-full relative overflow-hidden animate-[gradient-flow_8s_ease-in-out_infinite] transition-all duration-700"
-                            style={{
-                                background: theme === 'light'
-                                    ? 'linear-gradient(135deg, #ffffff 0%, #fff7ed 45%, #ffedd5 100%)'
-                                    : 'linear-gradient(135deg, #2a1107 0%, #ffab80 45%, #FF5618 100%)',
-                                backgroundSize: '200% 200%'
-                            }}
-                        >
-                            <div className={`absolute -top-24 -left-24 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse ${theme === 'light' ? 'bg-orange-300/25' : 'bg-[#FF5618]/30'}`} />
-                            <div className="absolute bottom-10 left-10 w-96 h-96 bg-atlas-yellow/15 rounded-full blur-3xl" />
-                        </div>
+        <div className="h-screen w-full flex flex-col bg-bg text-ink font-sans overflow-hidden relative transition-colors duration-500">
 
-                        <div 
-                            className="w-1/2 h-full relative overflow-hidden animate-[gradient-flow_8s_ease-in-out_infinite] transition-all duration-700"
-                            style={{
-                                background: theme === 'light'
-                                    ? 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 45%, #e0f2fe 100%)'
-                                    : 'linear-gradient(135deg, #071524 0%, #80d4ff 45%, #0088CC 100%)',
-                                backgroundSize: '200% 200%',
-                                animationDelay: '1s'
-                            }}
-                        >
-                            <div className={`absolute -top-24 -right-24 w-[500px] h-[500px] rounded-full blur-3xl animate-pulse ${theme === 'light' ? 'bg-sky-300/25' : 'bg-[#0088CC]/30'}`} />
-                            <div className="absolute bottom-10 right-10 w-96 h-96 bg-sky-400/15 rounded-full blur-3xl" />
-                        </div>
-                        {/* Divisor Central Suave em Glassmorphism */}
-                        <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-64 ${theme === 'light' ? 'bg-gradient-to-r from-orange-200/30 via-white/70 to-blue-200/30' : 'bg-gradient-to-r from-orange-400/20 via-white/40 to-blue-400/20'} backdrop-blur-md pointer-events-none`} />
-                    </>
-                ) : (
-                    // BACKGROUND UNIFICADO PARA AS DEMAIS PÁGINAS (RESPEITA A MARCA)
-                    <div 
-                        className="w-full h-full relative overflow-hidden transition-all duration-700 bg-white"
-                        style={{
-                            background: isAtlas
-                                ? 'linear-gradient(135deg, #ffffff 0%, #fff7ed 100%)'
-                                : 'linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%)',
-                        }}
-                    >
-                        <div className={`absolute top-0 right-0 w-[1000px] h-[1000px] rounded-full blur-[120px] animate-pulse ${isAtlas ? 'bg-orange-200/40' : 'bg-sky-200/40'}`} />
-                        <div className={`absolute bottom-0 left-0 w-[800px] h-[800px] rounded-full blur-[100px] ${isAtlas ? 'bg-orange-100/30' : 'bg-sky-100/30'}`} />
-                    </div>
-                )}
+            {/* BACKGROUND: superfície neutra e quente, com um brilho sutil da marca ativa */}
+            <div className="absolute inset-0 flex z-0 overflow-hidden pointer-events-none bg-bg">
+                <div className={`absolute -top-32 -right-32 w-[560px] h-[560px] rounded-full blur-[120px] opacity-40 ${isAtlas ? 'bg-atlas-orange/20' : 'bg-totaltrack-blue/20'}`} />
+                <div className={`absolute bottom-0 left-0 w-[420px] h-[420px] rounded-full blur-[110px] opacity-30 ${isAtlas ? 'bg-atlas-yellow/10' : 'bg-sky-300/10'}`} />
             </div>
 
             <div className="relative z-10 flex h-full w-full">
                 {/* Removemos o Header global antigo, injetamos a Sidebar contínua */}
                 <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
                 <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+                <AppTopbar activeTab={activeTab} />
                 <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-transparent">
                 <AnimatePresence mode="wait">
                     <motion.div
