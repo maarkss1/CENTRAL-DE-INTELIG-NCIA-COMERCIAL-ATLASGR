@@ -37,7 +37,10 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://prospector:prospector_test_pass@localhost:5434/prospectordb_test?schema=public
+      # Papel NOSUPERUSER — nunca o superusuário de bootstrap (prospector) — pra que os testes de
+      # integração de RLS (tests/integration/tenant-isolation-db001.test.ts e afins) rodem sob as
+      # mesmas condições de produção. Ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md.
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
@@ -54,6 +57,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Bootstrap papel NOSUPERUSER da aplicação
+        env:
+          PGPASSWORD: prospector_test_pass
+          APP_DB_PASSWORD: ci_app_test_pass
+        run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
 
       - name: Generate Prisma Client
         run: npx prisma generate

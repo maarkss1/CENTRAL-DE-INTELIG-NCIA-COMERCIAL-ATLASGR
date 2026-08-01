@@ -5,13 +5,24 @@ services:
     image: pgvector/pgvector:pg16
     container_name: atlas_postgres
     environment:
+      # Superusuario de bootstrap — usado só pela inicialização do container (criar a extension
+      # vector e o papel restrito abaixo). A aplicação NUNCA deve conectar como este usuário
+      # (ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md: RLS nunca se aplica a
+      # superusuário, então conectar como ele torna toda política RLS decorativa).
       POSTGRES_USER: prospector
       POSTGRES_PASSWORD: prospector_pass
       POSTGRES_DB: prospectordb
+      # Senha do papel NOSUPERUSER que a aplicação de fato usa (DATABASE_URL). Dev-only — troque
+      # em qualquer ambiente que não seja a sua máquina local.
+      APP_DB_PASSWORD: prospector_app_pass
     ports:
       - "5434:5432"
     volumes:
       - atlas_pgdata:/var/lib/postgresql/data
+      # Só roda na primeira inicialização de um volume novo (comportamento padrão da imagem
+      # oficial do Postgres). Volume já existente: rode scripts/db/bootstrap-app-role.sh manualmente.
+      - ./scripts/db/create-app-role.sql:/docker-entrypoint-initdb.d/create-app-role.sql.tpl:ro
+      - ./scripts/db/docker-init.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
     restart: unless-stopped
 
   redis:
