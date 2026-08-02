@@ -7,6 +7,7 @@ import { searchQueue } from './queue/search.queue.js';
 import { queuesEnabled } from './queue/redis.js';
 import { logger } from './logger.js';
 import { requestContext } from './async-context.js';
+import { env } from '../config/env.js';
 const connectionString = process.env.DATABASE_URL || "postgresql://dummy:dummy@localhost:5432/dummy";
 
 // Production-ready connection pool configuration
@@ -37,13 +38,18 @@ export const prisma = basePrisma.$extends({
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
-        // bypassRls só existe pra as rotas do Better Auth (login/signup/sessão, ver server.ts e
-        // authenticateToken.ts), que precisam localizar usuário/sessão/organização antes de haver
-        // um tenant conhecido. Restringe o efeito do bypass a esses models — mesmo que o contexto
-        // vaze pra uma query de outro model (ex.: um handler futuro do Better Auth que também
-        // toque Company/Lead), RLS continua valendo normalmente ali.
+        // bypassRls em produção só existe pra as rotas do Better Auth (login/signup/sessão, ver
+        // server.ts e authenticateToken.ts), que precisam localizar usuário/sessão/organização
+        // antes de haver um tenant conhecido. Em produção, restringe o efeito do bypass a esses
+        // models — mesmo que o contexto vaze pra uma query de outro model (ex.: um handler futuro
+        // do Better Auth que também toque Company/Lead), RLS continua valendo normalmente ali. Em
+        // dev/test não restringe: fixtures de teste de integração (ver tests/helpers/
+        // integration-setup.ts e tests/integration/tenant-isolation-db001.test.ts) legitimamente
+        // manipulam múltiplos tenants fora de qualquer request HTTP, e essa camada nunca é exposta
+        // a usuário real fora de produção.
+        const rawBypassRls = Boolean((store as Record<string, unknown>)?.bypassRls);
         const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification'];
-        const bypassRls = Boolean((store as Record<string, unknown>)?.bypassRls) && BYPASS_RLS_ALLOWED_MODELS.includes(model as string);
+        const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
         const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];
