@@ -37,8 +37,14 @@ export const prisma = basePrisma.$extends({
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
-        const bypassRls = (store as Record<string, unknown>)?.bypassRls || false;
-        
+        // bypassRls só existe pra as rotas do Better Auth (login/signup/sessão, ver server.ts e
+        // authenticateToken.ts), que precisam localizar usuário/sessão/organização antes de haver
+        // um tenant conhecido. Restringe o efeito do bypass a esses models — mesmo que o contexto
+        // vaze pra uma query de outro model (ex.: um handler futuro do Better Auth que também
+        // toque Company/Lead), RLS continua valendo normalmente ali.
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification'];
+        const bypassRls = Boolean((store as Record<string, unknown>)?.bypassRls) && BYPASS_RLS_ALLOWED_MODELS.includes(model as string);
+
         const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
         const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];
         const isAuditable = auditableModels.includes(model as string);
