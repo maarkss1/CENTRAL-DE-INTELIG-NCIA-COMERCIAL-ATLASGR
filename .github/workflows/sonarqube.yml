@@ -16,6 +16,12 @@ jobs:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability).
       # Copiamos pra env no nível do job pra poder condicionar o step de scan abaixo.
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # Sem isso, src/config/env.ts (importado por src/lib/prisma.ts, que quase todo teste unitário
+      # acaba puxando) falha a validação do zod por falta de NODE_ENV e chama process.exit(1) — o
+      # que derruba o processo do Vitest inteiro antes de qualquer teste rodar. production.yaml já
+      # seta isso pro job build-and-test; este workflow ficou de fora dessa correção.
+      NODE_ENV: test
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
     steps:
       - uses: actions/checkout@v4
         with:
