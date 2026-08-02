@@ -133,11 +133,18 @@ const memory = new MemorySaver();
 const app = workflow.compile({ checkpointer: memory });
 
 export class SDRQualificationAgent {
-    async run(leadId: string, sessionId?: string) {
+    async run(leadId: string, sessionId?: string, instruction?: string) {
         const sid = sessionId || `session-${leadId}-${Date.now()}`;
-        
+
+        // instruction: nuance lapidada pelo Supervisor do enxame para esta rodada específica
+        // (ex: "priorize checar situação cadastral") — antes desta correção era sempre descartada
+        // e o SDR só recebia o leadId, rodando sempre com o mesmo prompt genérico.
+        const humanContent = instruction
+            ? `Inicie a análise e qualificação do lead com o ID: ${leadId}\n\nInstrução específica do coordenador para esta rodada: ${instruction}`
+            : `Inicie a análise e qualificação do lead com o ID: ${leadId}`;
+
         const inputs = {
-            messages: [new HumanMessage(`Inicie a análise e qualificação do lead com o ID: ${leadId}`)]
+            messages: [new HumanMessage(humanContent)]
         };
 
         const config = { configurable: { thread_id: sid } };
