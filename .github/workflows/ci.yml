@@ -45,6 +45,11 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: ci-test-meili-key
+      PORT: 3000
+      # better-auth precisa disto pra assinar cookie de sessão; test:e2e sobe o servidor Express
+      # real (ver TEST-002/playwright.config.ts) e faz login de verdade contra ele.
+      BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOWED_ORIGINS: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
@@ -91,19 +96,37 @@ jobs:
       # fallback, então escrevemos aqui com os valores reais do job (ver TEST-003 em
       # docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md). scripts/test/prepare-integration-env.js
       # pula o docker-compose up no CI porque os service containers acima já ocupam essas portas.
-      - name: Criar .env.test para os testes de integração
+      - name: Criar .env.test para os testes de integração e E2E
         run: |
           cat > .env.test <<EOF
           NODE_ENV=$NODE_ENV
+          PORT=$PORT
           DATABASE_URL=$DATABASE_URL
           REDIS_URL=$REDIS_URL
           MEILI_HOST=$MEILI_HOST
           MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          ALLOWED_ORIGINS=$ALLOWED_ORIGINS
           EOF
 
       - name: Run Integration Tests
         run: npm run test:integration -- --coverage
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # TEST-002 (docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md): playwright.config.ts agora
+      # sobe o servidor Express real (start:e2e) em vez do `vite preview` estático — os specs fazem
+      # cadastro/login reais contra better-auth e CRUD real contra /api/leads.
+      - name: Run E2E Tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+        if: failure()
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
