@@ -14,6 +14,11 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
+# Remove devDependencies (typescript, eslint, vitest, prisma CLI, etc.) antes de copiar
+# node_modules pro estágio final — nada disso é necessário em runtime, só incha a imagem
+# de produção (DEVOPS-005 na auditoria de dívida técnica).
+RUN npm prune --omit=dev
+
 # Stage 2: Production
 FROM node:22-slim AS runner
 
