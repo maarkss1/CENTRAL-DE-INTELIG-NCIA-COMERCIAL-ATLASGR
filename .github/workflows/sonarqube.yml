@@ -11,6 +11,11 @@ jobs:
   sonarcloud:
     name: SonarQube
     runs-on: ubuntu-latest
+    env:
+      # if: não pode ler o contexto "secrets" diretamente (só env/vars/job/etc — ver
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability).
+      # Copiamos pra env no nível do job pra poder condicionar o step de scan abaixo.
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,9 +36,8 @@ jobs:
         run: npm run test:unit -- --coverage
 
       - name: SonarQube Scan
-        if: ${{ secrets.SONAR_TOKEN != '' }}
+        if: ${{ env.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
