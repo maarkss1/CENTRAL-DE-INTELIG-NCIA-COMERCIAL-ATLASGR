@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { AtlasLogo } from '../../../components/ui/AtlasLogo';
 import { useBrand } from '../../../contexts/BrandContext';
 import { authClient } from '../../../lib/auth-client';
 import { isAuthorizedLoginEmail, getBrandFromEmail, AUTHORIZED_LOGIN_DOMAINS } from '../../../config/access-policy';
@@ -79,8 +78,10 @@ export function LoginScreen() {
         {/* Painel Esquerdo: Formulário de Autenticação */}
         <div className="lg:col-span-6 glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/80 shadow-2xl relative">
           <div className="flex flex-col items-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-atlas-orange via-amber-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 text-white shadow-lg shadow-atlas-orange/20">
-              <AtlasLogo className="w-9 h-9" color="#FFFFFF" />
+            <div className="flex items-center gap-4 mb-4 bg-white rounded-2xl px-5 py-3 shadow-lg">
+              <img src="/atlas-logo.svg" alt="AtlasGR" className="h-9 w-auto object-contain" />
+              <div className="h-8 w-px bg-slate-200" />
+              <img src="/totaltrack-logo.png" alt="TotalTrac" className="h-9 w-auto object-contain" />
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">AtlasGR & TotalTrac</h1>
             <p className="text-gray-400 text-xs mt-1 font-medium text-center">Plataforma Unificada de Inteligência Comercial B2B</p>
