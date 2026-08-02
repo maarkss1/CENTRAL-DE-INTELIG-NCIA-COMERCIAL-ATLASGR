@@ -5,9 +5,10 @@ import { getAiModel } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdr.agent.js';
 import { BDRAgent } from './bdr.agent.js';
 import { CRMAgent } from './crm.agent.js';
+import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
 
-export type SwarmAgentKey = 'sdr' | 'bdr' | 'crm';
+export type SwarmAgentKey = 'sdr' | 'bdr' | 'crm' | 'ops';
 export type SwarmRoute = SwarmAgentKey | 'finish';
 export type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
 
@@ -36,6 +37,10 @@ const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string }> 
     crm: {
         label: 'Gestor de CRM',
         description: 'Resume o risco de perda de negócios/deals em andamento e recomenda a próxima ação concreta de tratativa.',
+    },
+    ops: {
+        label: 'Agente de Operações',
+        description: 'Executa ações concretas nas demais ferramentas do sistema: agenda tarefas de follow-up no CRM e notifica a equipe comercial. Use quando a missão pedir uma ação direta (agendar, alertar), não apenas uma análise.',
     },
 };
 
@@ -106,7 +111,7 @@ function extractJsonBlock(text: string): unknown {
 
 // Exportado só para teste unitário direto da validação de forma da decisão do supervisor.
 export const supervisorDecisionSchema = z.object({
-    action: z.enum(['sdr', 'bdr', 'crm', 'finish']),
+    action: z.enum(['sdr', 'bdr', 'crm', 'ops', 'finish']),
     instruction: z.string().default(''),
     reasoning: z.string().default(''),
 });
@@ -114,7 +119,7 @@ export const supervisorDecisionSchema = z.object({
 type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
 
 function fallbackDecision(completed: SwarmAgentKey[]): SupervisorDecision {
-    const order: SwarmAgentKey[] = ['sdr', 'bdr', 'crm'];
+    const order: SwarmAgentKey[] = ['sdr', 'bdr', 'crm', 'ops'];
     const pending = order.find((agent) => !completed.includes(agent));
     if (!pending) {
         return { action: 'finish', instruction: '', reasoning: 'Todos os especialistas relevantes já atuaram.' };
@@ -281,6 +286,31 @@ async function crmNode(state: SwarmStateType) {
     }
 }
 
+async function opsNode(state: SwarmStateType) {
+    const instruction = state.instruction || state.mission;
+    try {
+        const agent = new OpsAgent();
+        const result = await agent.run(instruction, `swarm-ops-${state.step}`, state.leadId || undefined);
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        const content = result.output || 'Ação concluída sem detalhamento textual.';
+        return {
+            completed: ['ops'] as SwarmAgentKey[],
+            results: { ops: content },
+            messages: [toAiMessage(buildEvent('agent_result', 'ops', content, state.step))],
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Falha desconhecida no Agente de Operações.';
+        logger.error({ err: error }, 'Swarm Ops node failed');
+        return {
+            completed: ['ops'] as SwarmAgentKey[],
+            results: { ops: `Erro: ${message}` },
+            messages: [toAiMessage(buildEvent('agent_error', 'ops', `O Agente de Operações encontrou um problema: ${message}`, state.step))],
+        };
+    }
+}
+
 async function finishNode(state: SwarmStateType) {
     const resultsSummary = (Object.entries(state.results) as [SwarmAgentKey, string][])
         .map(([agent, content]) => `${AGENT_INFO[agent].label}:\n${content}`)
@@ -320,17 +350,20 @@ const workflow = new StateGraph(SwarmState)
     .addNode('sdr', sdrNode)
     .addNode('bdr', bdrNode)
     .addNode('crm', crmNode)
+    .addNode('ops', opsNode)
     .addNode('finish', finishNode)
     .addEdge('__start__', 'supervisor')
     .addConditionalEdges('supervisor', routerCondition, {
         sdr: 'sdr',
         bdr: 'bdr',
         crm: 'crm',
+        ops: 'ops',
         finish: 'finish',
     })
     .addEdge('sdr', 'supervisor')
     .addEdge('bdr', 'supervisor')
     .addEdge('crm', 'supervisor')
+    .addEdge('ops', 'supervisor')
     .addEdge('finish', '__end__');
 
 const memory = new MemorySaver();

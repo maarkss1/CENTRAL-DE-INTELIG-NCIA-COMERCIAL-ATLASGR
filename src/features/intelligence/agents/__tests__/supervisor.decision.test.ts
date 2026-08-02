@@ -28,6 +28,19 @@ describe('supervisorDecisionSchema', () => {
         }
     });
 
+    it('aceita a ação ops (agente de operações)', () => {
+        const parsed = supervisorDecisionSchema.safeParse({
+            action: 'ops',
+            instruction: 'Agende um follow-up para o lead X amanhã às 10h.',
+            reasoning: 'A missão pede uma ação concreta, não apenas análise.',
+        });
+
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.action).toBe('ops');
+        }
+    });
+
     it('rejeita uma ação fora do enum esperado', () => {
         const parsed = supervisorDecisionSchema.safeParse({ action: 'chutar-para-fora' });
         expect(parsed.success).toBe(false);

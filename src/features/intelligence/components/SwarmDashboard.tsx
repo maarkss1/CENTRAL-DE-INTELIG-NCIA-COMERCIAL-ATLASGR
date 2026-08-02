@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Zap, ShieldAlert, Database, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { Bot, Zap, ShieldAlert, Database, Wrench, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 
-type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'crm';
+type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'crm' | 'ops';
 type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
 
 interface SwarmEvent {
@@ -12,7 +12,7 @@ interface SwarmEvent {
     content: string;
     step: number;
     reasoning?: string;
-    nextAgent?: 'sdr' | 'bdr' | 'crm';
+    nextAgent?: 'sdr' | 'bdr' | 'crm' | 'ops';
 }
 
 interface SwarmMessage {
@@ -241,6 +241,7 @@ export function SwarmDashboard() {
             case 'sdr': return <Bot size={18} className="text-[#00C2FF]" />;
             case 'bdr': return <Zap size={18} className="text-[#00FF9D]" />;
             case 'crm': return <Database size={18} className="text-[#B554FF]" />;
+            case 'ops': return <Wrench size={18} className="text-[#FFB020]" />;
             default: return <Bot size={18} />;
         }
     };
@@ -251,6 +252,7 @@ export function SwarmDashboard() {
             case 'sdr': return 'SDR Autônomo';
             case 'bdr': return 'BDR (Outbound)';
             case 'crm': return 'Gestor de CRM';
+            case 'ops': return 'Agente de Operações';
             default: return 'Agente';
         }
     };
@@ -262,6 +264,7 @@ export function SwarmDashboard() {
             case 'sdr': return 'bg-[#00C2FF]/[0.08] border-[#00C2FF]/20 text-[#00C2FF]';
             case 'bdr': return 'bg-[#00FF9D]/[0.08] border-[#00FF9D]/20 text-[#00FF9D]';
             case 'crm': return 'bg-[#B554FF]/[0.08] border-[#B554FF]/20 text-[#B554FF]';
+            case 'ops': return 'bg-[#FFB020]/[0.08] border-[#FFB020]/20 text-[#FFB020]';
             default: return 'bg-white/5 border-white/10 text-white';
         }
     };
@@ -270,6 +273,7 @@ export function SwarmDashboard() {
         { key: 'sdr', label: 'SDR' },
         { key: 'bdr', label: 'BDR' },
         { key: 'crm', label: 'CRM' },
+        { key: 'ops', label: 'OPS' },
     ];
 
     return (
