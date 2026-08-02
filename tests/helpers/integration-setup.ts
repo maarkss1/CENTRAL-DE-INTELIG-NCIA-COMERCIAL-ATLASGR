@@ -4,7 +4,7 @@ import path from 'path';
 // Load test environment variables before Prisma initializes
 config({ path: path.resolve(process.cwd(), '.env.test') });
 
-import { vi, beforeAll, afterAll, afterEach } from 'vitest';
+import { vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // Mock meilisearch completely so Prisma triggers won't fail
 vi.mock('../../src/lib/search/index.js', () => ({
@@ -18,31 +18,41 @@ vi.mock('../../src/lib/search/index.js', () => ({
 }));
 
 import { prisma } from '../../src/lib/prisma';
+import { requestContext } from '../../src/lib/async-context';
+
+const runWithBypassRls = async <T>(fn: () => Promise<T>): Promise<T> =>
+  requestContext.run({ bypassRls: true }, fn);
 
 // Real database cleanup for integration tests
 const cleanDatabase = async () => {
-  // Use a transaction or specific deletion order if needed
-  await prisma.timelineEvent.deleteMany();
-  await prisma.activity.deleteMany();
-  await prisma.note.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.contact.deleteMany();
-  await prisma.company.deleteMany();
+  await runWithBypassRls(async () => {
+    await prisma.timelineEvent.deleteMany();
+    await prisma.activity.deleteMany();
+    await prisma.note.deleteMany();
+    await prisma.lead.deleteMany();
+    await prisma.contact.deleteMany();
+    await prisma.company.deleteMany();
+  });
 };
 
 const seedDatabase = async () => {
-    // Add default test organization to resolve foreign key constraints
+  await runWithBypassRls(async () => {
     const exists = await prisma.organization.findUnique({ where: { id: 'test-org-id' } });
     if (!exists) {
-        await prisma.organization.create({
-            data: { id: 'test-org-id', name: 'Test Org' },
-        });
+      await prisma.organization.create({
+        data: { id: 'test-org-id', name: 'Test Org' },
+      });
     }
+  });
 };
 
 beforeAll(async () => {
   await seedDatabase();
   await cleanDatabase();
+});
+
+beforeEach(() => {
+  requestContext.enterWith({ bypassRls: true });
 });
 
 afterEach(async () => {
@@ -51,9 +61,11 @@ afterEach(async () => {
 
 afterAll(async () => {
   await cleanDatabase();
-  try {
+  await runWithBypassRls(async () => {
+    try {
       await prisma.user.deleteMany();
-  } catch(e) {}
-  await prisma.organization.deleteMany();
+    } catch (e) {}
+    await prisma.organization.deleteMany();
+  });
   await prisma.$disconnect();
 });
