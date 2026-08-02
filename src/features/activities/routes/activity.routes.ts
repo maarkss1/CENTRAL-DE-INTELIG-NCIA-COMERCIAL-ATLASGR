@@ -27,8 +27,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         const result = await activityService.findAll(
             orgId,
             date,
-            Number.isFinite(pageNum) && pageNum > 0 ? pageNum : undefined,
-            Number.isFinite(limitNum) && limitNum > 0 ? limitNum : undefined,
+            pageNum !== undefined && Number.isFinite(pageNum) && pageNum > 0 ? pageNum : undefined,
+            limitNum !== undefined && Number.isFinite(limitNum) && limitNum > 0 ? limitNum : undefined,
             {
                 leadId,
                 status: status as ActivityStatus | undefined,
