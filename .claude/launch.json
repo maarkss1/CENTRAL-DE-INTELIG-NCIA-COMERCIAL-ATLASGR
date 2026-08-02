@@ -3,11 +3,12 @@
   "configurations": [
     {
       "name": "prospector-dev",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "C:\\Users\\Mah\\AppData\\Local\\Microsoft\\WinGet\\Packages\\OpenJS.NodeJS.22_Microsoft.Winget.Source_8wekyb3d8bbwe\\node-v22.23.2-win-x64\\npm.cmd",
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "env": {
-        "DATABASE_URL": "postgresql://prospector:prospector_pass@localhost:5434/prospectordb?schema=public"
+        "DATABASE_URL": "postgresql://prospector:prospector_pass@localhost:5434/prospectordb?schema=public",
+        "PATH": "C:\\Users\\Mah\\AppData\\Local\\Microsoft\\WinGet\\Packages\\OpenJS.NodeJS.22_Microsoft.Winget.Source_8wekyb3d8bbwe\\node-v22.23.2-win-x64;C:\\Windows\\System32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0"
       }
     }
   ]
