@@ -118,8 +118,12 @@ export const supervisorDecisionSchema = z.object({
 
 type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
 
-function fallbackDecision(completed: SwarmAgentKey[]): SupervisorDecision {
-    const order: SwarmAgentKey[] = ['sdr', 'bdr', 'crm', 'ops'];
+// Exportado só para teste unitário direto do roteamento de contingência.
+export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean): SupervisorDecision {
+    // Sem leadId o especialista 'sdr' sempre falharia (depende de um lead real do CRM) — nem
+    // oferece ele como opção de contingência, senão o enxame queima uma rodada inteira só para
+    // descobrir isso (ver enforceLeadGuard, que cobre o mesmo caso quando é o LLM que erra).
+    const order: SwarmAgentKey[] = hasLeadId ? ['sdr', 'bdr', 'crm', 'ops'] : ['bdr', 'crm', 'ops'];
     const pending = order.find((agent) => !completed.includes(agent));
     if (!pending) {
         return { action: 'finish', instruction: '', reasoning: 'Todos os especialistas relevantes já atuaram.' };
@@ -128,6 +132,25 @@ function fallbackDecision(completed: SwarmAgentKey[]): SupervisorDecision {
         action: pending,
         instruction: 'Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.',
         reasoning: 'Roteamento sequencial de contingência (resposta do supervisor não pôde ser interpretada).',
+    };
+}
+
+// Trava determinística: nunca aciona o Agente SDR sem um leadId real, mesmo que o LLM do
+// supervisor "esqueça" a instrução do prompt e escolha 'sdr' de qualquer forma — sdrNode
+// dependeria de get_lead_context com um ID que não existe e queimaria uma rodada inteira do
+// enxame só para produzir o mesmo erro que dava pra prever aqui. Exportado para teste unitário.
+export function enforceLeadGuard(
+    decision: SupervisorDecision,
+    context: Pick<SwarmStateType, 'leadId' | 'completed'>,
+): SupervisorDecision {
+    if (decision.action !== 'sdr' || context.leadId) {
+        return decision;
+    }
+    const rerouted = fallbackDecision(context.completed, false);
+    const note = 'SDR não pode ser acionado: nenhum leadId foi informado para esta missão.';
+    return {
+        ...rerouted,
+        reasoning: rerouted.reasoning ? `${note} ${rerouted.reasoning}` : note,
     };
 }
 
@@ -151,14 +174,26 @@ async function supervisorNode(state: SwarmStateType) {
         .map(([agent, content]) => `- ${AGENT_INFO[agent].label}: ${content.slice(0, 400)}`)
         .join('\n') || 'Nenhum resultado produzido até agora.';
 
+    // Derivado de AGENT_INFO (não hardcoded) — um especialista novo adicionado ali aparece aqui
+    // automaticamente. Antes desta correção, o hint de formato JSON abaixo ficou defasado quando
+    // o agente 'ops' foi adicionado: o LLM nunca soube que 'ops' era uma ação válida.
+    const agentKeys = Object.keys(AGENT_INFO) as SwarmAgentKey[];
+    const actionEnumHint = [...agentKeys, 'finish'].map((action) => `"${action}"`).join(' | ');
+
+    const leadContextLine = state.leadId
+        ? `Lead ID disponível para esta missão: ${state.leadId} (o especialista 'sdr' pode usá-lo).`
+        : `Nenhum Lead ID foi informado para esta missão — NÃO escolha 'sdr' enquanto isso não mudar, pois ele depende de um lead real do CRM e sempre falharia sem um ID.`;
+
     const systemPrompt = `Você é o Supervisor de um Enxame (Swarm) de Agentes de Inteligência Comercial da Atlas.
-Você coordena 3 especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
+Você coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
 ${(Object.entries(AGENT_INFO) as [SwarmAgentKey, { label: string; description: string }][])
     .map(([key, info]) => `- '${key}' (${info.label}): ${info.description}`)
     .join('\n')}
 
 Missão original do usuário:
 """${state.mission}"""
+
+${leadContextLine}
 
 Especialistas já acionados nesta missão: ${completedList}.
 Resultados produzidos até agora:
@@ -167,7 +202,7 @@ ${resultsSummary}
 Decida o próximo passo. Não repita um especialista que já respondeu de forma satisfatória, a não ser que haja uma lacuna clara que só ele resolve.
 Se a missão já foi suficientemente atendida pelos especialistas já acionados, responda 'finish'.
 Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSON, no formato exato:
-{"action": "sdr" | "bdr" | "crm" | "finish", "instruction": "instrução objetiva e específica em português para o especialista escolhido (string vazia se action for finish)", "reasoning": "uma frase curta explicando a decisão"}`;
+{"action": ${actionEnumHint}, "instruction": "instrução objetiva e específica em português para o especialista escolhido (string vazia se action for finish)", "reasoning": "uma frase curta explicando a decisão"}`;
 
     let decision: SupervisorDecision;
     try {
@@ -177,11 +212,13 @@ Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSO
             new HumanMessage('Qual é o próximo passo?'),
         ]);
         const parsed = supervisorDecisionSchema.safeParse(extractJsonBlock(response.content));
-        decision = parsed.success ? parsed.data : fallbackDecision(state.completed);
+        decision = parsed.success ? parsed.data : fallbackDecision(state.completed, Boolean(state.leadId));
     } catch (error) {
         logger.error({ err: error }, 'Swarm supervisor routing failed, using fallback heuristic');
-        decision = fallbackDecision(state.completed);
+        decision = fallbackDecision(state.completed, Boolean(state.leadId));
     }
+    // Backstop determinístico: mesmo se o LLM ignorar a linha acima e escolher 'sdr' sem leadId.
+    decision = enforceLeadGuard(decision, state);
 
     const content = decision.action === 'finish'
         ? `Missão avaliada como concluída. ${decision.reasoning}`.trim()
@@ -218,7 +255,7 @@ async function sdrNode(state: SwarmStateType) {
     }
     try {
         const agent = new SDRQualificationAgent();
-        const result = await agent.run(state.leadId, `swarm-sdr-${state.step}`);
+        const result = await agent.run(state.leadId, `swarm-sdr-${state.step}`, state.instruction || undefined);
         const content = ('detailedLog' in result && result.detailedLog) ? result.detailedLog : 'Análise concluída sem detalhamento textual.';
         return {
             completed: ['sdr'] as SwarmAgentKey[],
