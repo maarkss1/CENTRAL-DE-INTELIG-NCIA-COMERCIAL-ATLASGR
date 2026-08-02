@@ -25,9 +25,12 @@ import { requestContext } from '../../lib/async-context.js';
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const session = await auth.api.getSession({
+        // getSession ainda não sabe a qual tenant este request pertence — é justamente o que essa
+        // consulta descobre, lendo session/user por token, não por organizationId. Roda com o mesmo
+        // bypass explícito usado nas rotas de auth (ver server.ts) para não ser bloqueada pelo RLS.
+        const session = await requestContext.run({ bypassRls: true }, () => auth.api.getSession({
             headers: fromNodeHeaders(req.headers)
-        });
+        }));
 
         let user: { id: string, email: string, role?: string, organizationId?: string };
         let isDevelopmentBypass = false;

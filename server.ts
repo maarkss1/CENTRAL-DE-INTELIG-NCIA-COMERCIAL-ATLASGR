@@ -13,6 +13,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './src/lib/auth.js';
+import { requestContext } from './src/lib/async-context.js';
 import { intelligenceRoutes } from './src/features/intelligence/routes/intelligence.routes.js';
 import { promptRoutes } from './src/features/intelligence/routes/prompt.routes.js';
 import { authenticateToken } from './src/shared/middlewares/authenticateToken.js';
@@ -192,7 +193,17 @@ async function startServer() {
     });
 
     // ── Auth (Better Auth) ─────────────────────────────────────────────────
-    app.all('/api/auth/*', toNodeHandler(auth));
+    // As tabelas user/session/account/verification têm tenant_isolation_policy via RLS
+    // (app.current_tenant_id = organizationId). Login e validação de sessão acontecem
+    // ANTES de descobrir o tenant do usuário — sem bypass explícito, a própria consulta
+    // que descobriria o tenant é bloqueada pelo RLS, e login por e-mail/senha nunca
+    // consegue ler o usuário (ver src/lib/prisma.ts::bypassRls, que já previa esse
+    // escape hatch mas nunca era setado em lugar nenhum). O isolamento de dados de
+    // negócio (companies, leads, etc.) continua real: essas rotas passam por
+    // authenticateToken, que só concede bypassRls=false + tenantId real da sessão.
+    app.all('/api/auth/*', (req, res) => {
+        requestContext.run({ bypassRls: true }, () => toNodeHandler(auth)(req, res));
+    });
 
     // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
     const serverAdapter = new ExpressAdapter();

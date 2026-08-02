@@ -4,6 +4,7 @@ interface RequestContext {
     tenantId?: string;
     userId?: string;
     role?: string;
+    bypassRls?: boolean;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
