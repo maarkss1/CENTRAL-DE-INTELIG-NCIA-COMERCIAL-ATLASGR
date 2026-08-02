@@ -18,6 +18,7 @@ vi.mock('../../src/lib/search/index.js', () => ({
 }));
 
 import { prisma } from '../../src/lib/prisma';
+import { requestContext } from '../../src/lib/async-context';
 
 // Real database cleanup for integration tests
 const cleanDatabase = async () => {
@@ -31,13 +32,18 @@ const cleanDatabase = async () => {
 };
 
 const seedDatabase = async () => {
-    // Add default test organization to resolve foreign key constraints
-    const exists = await prisma.organization.findUnique({ where: { id: 'test-org-id' } });
-    if (!exists) {
-        await prisma.organization.create({
-            data: { id: 'test-org-id', name: 'Test Org' },
-        });
-    }
+    // A policy de RLS de Organization exige app.current_tenant_id = id (ver
+    // 20260722020322_enable_rls/migration.sql) — sem contexto de tenant, o insert é
+    // bloqueado mesmo antes da organização existir. Como é a própria org sendo criada,
+    // usamos o id dela como tenantId do contexto (mesma condição que a policy checa).
+    await requestContext.run({ tenantId: 'test-org-id' }, async () => {
+        const exists = await prisma.organization.findUnique({ where: { id: 'test-org-id' } });
+        if (!exists) {
+            await prisma.organization.create({
+                data: { id: 'test-org-id', name: 'Test Org' },
+            });
+        }
+    });
 };
 
 beforeAll(async () => {
