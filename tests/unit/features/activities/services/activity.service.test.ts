@@ -8,13 +8,15 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       findUnique: vi.fn(),
       findFirst: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
     },
     timelineEvent: {
       create: vi.fn(),
-    }
+    },
+    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
   }
 }));
 
@@ -32,25 +34,50 @@ describe('ActivityService', () => {
     leadId: 'lead-1'
   };
 
-  it('should find all activities without date', async () => {
+  it('should find all activities without date, paginated', async () => {
     vi.mocked(prisma.activity.findMany).mockResolvedValue([mockActivity as never]);
+    vi.mocked(prisma.activity.count).mockResolvedValue(1);
     const result = await activityService.findAll('test-org-id');
     expect(prisma.activity.findMany).toHaveBeenCalledWith({
       where: { organizationId: 'test-org-id' },
       include: { lead: { include: { company: true, contact: true } } },
-      orderBy: { date: 'asc' }
+      orderBy: { date: 'asc' },
+      skip: 0,
+      take: 50
     });
-    expect(result).toEqual([mockActivity]);
+    expect(result).toEqual({ data: [mockActivity], meta: { total: 1, page: 1, limit: 50, totalPages: 1 } });
   });
 
   it('should find all activities with date filter', async () => {
     vi.mocked(prisma.activity.findMany).mockResolvedValue([mockActivity as never]);
+    vi.mocked(prisma.activity.count).mockResolvedValue(1);
     const dateStr = '2024-01-01T10:00:00Z';
     const result = await activityService.findAll('test-org-id', dateStr);
     expect(prisma.activity.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { date: expect.any(Object), organizationId: 'test-org-id' }
     }));
-    expect(result).toEqual([mockActivity]);
+    expect(result.data).toEqual([mockActivity]);
+  });
+
+  it('should paginate activities with a custom page and limit', async () => {
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([mockActivity as never]);
+    vi.mocked(prisma.activity.count).mockResolvedValue(120);
+    const result = await activityService.findAll('test-org-id', undefined, 2, 20);
+    expect(prisma.activity.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 20, take: 20 }));
+    expect(result.meta).toEqual({ total: 120, page: 2, limit: 20, totalPages: 6 });
+  });
+
+  it('should filter activities by leadId, status and type', async () => {
+    vi.mocked(prisma.activity.findMany).mockResolvedValue([mockActivity as never]);
+    vi.mocked(prisma.activity.count).mockResolvedValue(1);
+    await activityService.findAll('test-org-id', undefined, 1, 50, {
+      leadId: 'lead-1',
+      status: 'Pendente',
+      type: 'Ligação',
+    });
+    expect(prisma.activity.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ organizationId: 'test-org-id', leadId: 'lead-1' })
+    }));
   });
 
   it('should create an activity and a timeline event', async () => {

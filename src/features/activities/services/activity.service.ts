@@ -37,8 +37,20 @@ function serializeActivity<
     };
 }
 
+export interface ActivityListFilters {
+    leadId?: string;
+    status?: ActivityStatus;
+    type?: ActivityType;
+}
+
 export class ActivityService {
-    async findAll(organizationId: string, dateStr?: string) {
+    async findAll(
+        organizationId: string,
+        dateStr?: string,
+        page: number = 1,
+        limit: number = 50,
+        filters: ActivityListFilters = {}
+    ) {
         const where: Prisma.ActivityWhereInput = { organizationId };
         if (dateStr) {
             const searchDate = new Date(dateStr);
@@ -47,12 +59,27 @@ export class ActivityService {
                 lt: new Date(searchDate.setHours(23, 59, 59, 999))
             };
         }
-        const activities = await prisma.activity.findMany({
-            where,
-            include: { lead: { include: { company: true, contact: true } } },
-            orderBy: { date: 'asc' }
-        });
-        return activities.map(serializeActivity);
+        if (filters.leadId) where.leadId = filters.leadId;
+        if (filters.status) where.status = toPrismaActivityStatus(filters.status) as unknown as Prisma.ActivityWhereInput['status'];
+        if (filters.type) where.type = toPrismaActivityType(filters.type) as unknown as Prisma.ActivityWhereInput['type'];
+
+        const skip = (page - 1) * limit;
+
+        const [activities, total] = await prisma.$transaction([
+            prisma.activity.findMany({
+                where,
+                include: { lead: { include: { company: true, contact: true } } },
+                orderBy: { date: 'asc' },
+                skip,
+                take: limit
+            }),
+            prisma.activity.count({ where })
+        ]);
+
+        return {
+            data: activities.map(serializeActivity),
+            meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+        };
     }
 
     /**

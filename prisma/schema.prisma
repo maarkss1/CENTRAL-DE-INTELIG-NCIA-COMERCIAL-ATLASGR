@@ -169,6 +169,7 @@ model Contact {
   deleteReason String?
 
   @@index([organizationId])
+  @@index([email])
 }
 
 model Lead {
@@ -293,6 +294,7 @@ model User {
   sessions       Session[]
   accounts       Account[]
 
+  @@index([organizationId])
   @@map("user")
 }
 

@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
 import { prisma } from "./prisma.js";
+import { requestContext } from "./async-context.js";
 import { parseAllowedOrigins } from "../config/network.js";
 import { isAuthorizedLoginEmail, getBrandFromEmail } from "../config/access-policy.js";
 
@@ -79,8 +81,20 @@ export const auth = betterAuth({
                     if (!user.organizationId) {
                         const brand = getBrandFromEmail(user.email);
                         const brandTitle = brand === 'totaltrac' ? 'TotalTrac Operações' : 'AtlasGR Operações';
+                        // Este hook roda fora de qualquer requestContext (o signup ainda não tem sessão,
+                        // então authenticateToken nunca chega a rodar pra esta rota) — sem contexto de
+                        // tenant, o INSERT é bloqueado pela policy de RLS de Organization (e, logo em
+                        // seguida, de user), que exigem app.current_tenant_id = id/organizationId mesmo
+                        // pra criar a linha. Geramos o id aqui, antes do insert, e usamos ele mesmo como
+                        // tenantId do contexto (a organização "é dona de si mesma" nesse instante) — igual
+                        // ao padrão já usado em tests/helpers/integration-setup.ts pro seed de teste.
+                        // enterWith (em vez de run) de propósito: precisa continuar valendo depois que
+                        // este hook retornar, quando o adapter do better-auth insere a linha de `user`
+                        // com esse organizationId na sequência, dentro da mesma cadeia assíncrona.
+                        const orgId = randomUUID();
+                        requestContext.enterWith({ tenantId: orgId });
                         const org = await prisma.organization.create({
-                            data: { name: `${user.name || 'Novo Usuário'} - ${brandTitle}` }
+                            data: { id: orgId, name: `${user.name || 'Novo Usuário'} - ${brandTitle}` }
                         });
                         return {
                             data: {

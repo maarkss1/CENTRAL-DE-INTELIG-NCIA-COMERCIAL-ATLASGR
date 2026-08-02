@@ -1,12 +1,18 @@
 # Matriz de Conformidade B2B (Compliance Matrix)
 
+> **DOC-001 (auditoria de dívida técnica):** este documento é um retrato histórico e está
+> desatualizado desde então — em especial a seção 1 (IA e Automação), escrita antes da
+> introdução real de RAG/pgvector e da orquestração multi-agente (`SwarmOrchestrator`,
+> `supervisor.agent.ts`, `sdr.agent.ts` em `src/features/intelligence/`). Para o status atual e
+> verificado, ver `docs/auditoria-divida-tecnica/` (mais recente) em vez desta matriz.
+
 ## 1. IA e Automação (AI & Automation)
 | Componente | Status | Ferramenta Atual | Gargalos / Dívida Técnica | Próximo Passo Enterprise |
 | --- | --- | --- | --- | --- |
 | LLM Gateway | ✅ Parcial | LiteLLM (`src/lib/ai/gateway.ts`) | URL mockada local, sem resiliência configurada, apenas chave hardcoded | Implementar retry robusto e failover no gateway |
-| Agentes Múltiplos | ❌ Ausente | N/A | IA responde scripts hardcoded (`ai.service.ts`), LangGraph usado apenas para leadQualification, sem multi-agents (SDR, Closer, etc) | Adicionar CrewAI/LangGraph para orquestrar agentes SDR e BDR |
-| RAG & Vetorização | ❌ Ausente | N/A | Não há pgvector ou banco de embeddings | Adicionar pgvector e pipeline de ingestão de documentos B2B |
-| Tool Calling | ❌ Ausente | N/A | Apenas outputs de strings no modelo, sem `bind_tools` do Langchain | Atualizar `ai.service.ts` com agent tool calls (Web search, CRM) |
+| Agentes Múltiplos | ✅ Implementado (desde então) | LangGraph (`src/features/intelligence/agents/`: `supervisor.agent.ts`, `sdr.agent.ts`, `base.agent.ts`) | Ver `docs/auditoria-divida-tecnica/` para gargalos atuais (ex.: IA-006, PII sem minimização) | — |
+| RAG & Vetorização | ✅ Implementado (desde então) | pgvector (`KnowledgeChunk`/`DocumentChunk` em `prisma/schema.prisma`, isolado por tenant desde DB-001) | Ver `docs/auditoria-divida-tecnica/` para gargalos atuais | — |
+| Tool Calling | ⚠️ Não reverificado nesta atualização | N/A | Não confirmado neste ciclo de correção — validar antes de confiar nesta linha | — |
 
 ## 2. Dados e Buscas (Data & Search)
 | Componente | Status | Ferramenta Atual | Gargalos / Dívida Técnica | Próximo Passo Enterprise |
