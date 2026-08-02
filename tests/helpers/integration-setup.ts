@@ -41,9 +41,9 @@ const seedDatabase = async () => withRlsBypass(async () => {
     // Add default test organization to resolve foreign key constraints
     const exists = await prisma.organization.findUnique({ where: { id: 'test-org-id' } });
     if (!exists) {
-        await prisma.organization.create({
-            data: { id: 'test-org-id', name: 'Test Org' },
-        });
+      await prisma.organization.create({
+        data: { id: 'test-org-id', name: 'Test Org' },
+      });
     }
 });
 
@@ -71,8 +71,8 @@ afterAll(async () => {
   await cleanDatabase();
   await withRlsBypass(async () => {
     try {
-        await prisma.user.deleteMany();
-    } catch(e) {}
+      await prisma.user.deleteMany();
+    } catch (e) {}
     await prisma.organization.deleteMany();
   });
   await prisma.$disconnect();
