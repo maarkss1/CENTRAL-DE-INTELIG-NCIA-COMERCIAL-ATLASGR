@@ -13,7 +13,7 @@ import type { DecisionMakerCriteria } from '../services/apollo.service';
 import {
     SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, QUANTIDADE_OPTIONS, PORTE_OPTIONS, ESTADO_OPTIONS, TECNOLOGIA_OPTIONS,
     ATLAS_PERSONA_OPTIONS, TOTALTRAC_PERSONA_OPTIONS
-} from '../constants/icp-options';
+} from '../../../shared/constants/icp-options';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { GamificationWidget } from '../../../components/ui/GamificationWidget';
@@ -24,7 +24,7 @@ import {
     getWhatsAppLink,
     validContactEmails,
     validContactPhones,
-} from '../utils/contact-links';
+} from '../../../shared/utils/contact-links';
 
 type HubTab = 'cnpj' | 'discovery';
 

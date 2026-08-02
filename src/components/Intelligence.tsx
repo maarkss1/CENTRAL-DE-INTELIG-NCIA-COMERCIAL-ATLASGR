@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Lead } from '../types';
-import { PIC_OPTIONS } from '../features/prospecting/constants/icp-options';
+import { PIC_OPTIONS } from '../shared/constants/icp-options';
 import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
 import { useBrandAccent } from '../hooks/useBrandAccent';
 import { useBrand } from '../contexts/BrandContext';

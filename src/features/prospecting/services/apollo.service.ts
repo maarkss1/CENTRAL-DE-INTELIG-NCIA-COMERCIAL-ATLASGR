@@ -3,7 +3,7 @@ import { buildLocationLabel } from './prospecting.service';
 import { findEmailViaHunter, findPeopleViaDomainSearch } from './hunter.service';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithTimeout } from '../../../lib/http.js';
-import { validContactEmails } from '../utils/contact-links';
+import { validContactEmails } from '../../../shared/utils/contact-links';
 import { logger } from '../../../lib/logger';
 
 const APOLLO_SEARCH_URL = 'https://api.apollo.io/v1/organizations/search';

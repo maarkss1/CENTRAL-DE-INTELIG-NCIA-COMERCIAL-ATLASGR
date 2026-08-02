@@ -6,7 +6,7 @@ import {
 import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
-import { PIC_OPTIONS } from '../../prospecting/constants/icp-options';
+import { PIC_OPTIONS } from '../../../shared/constants/icp-options';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';

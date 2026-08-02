@@ -8,7 +8,7 @@ import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
 import { useContacts } from '../../../hooks/useDatabase';
 import { contactsDB } from '../../../lib/db';
-import { getWhatsAppLink } from '../../prospecting/utils/contact-links';
+import { getWhatsAppLink } from '../../../shared/utils/contact-links';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
