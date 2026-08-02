@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useBrand } from '../../../contexts/BrandContext';
+import { useBrand, BRAND_CONFIGS } from '../../../contexts/BrandContext';
 import { authClient } from '../../../lib/auth-client';
-import { isAuthorizedLoginEmail, getBrandFromEmail, AUTHORIZED_LOGIN_DOMAINS } from '../../../config/access-policy';
+import { isAuthorizedLoginEmail, getBrandFromEmail } from '../../../config/access-policy';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -14,16 +14,24 @@ export function LoginScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState('');
   const navigate = useNavigate();
-  const { setActiveBrand } = useBrand();
+  const { activeBrand, setActiveBrand, brandInfo } = useBrand();
 
   const handleGoogleLogin = async () => {
     setIsSubmitting(true);
     setError('');
     try {
-      await authClient.signIn.social({
+      // authClient.signIn.social resolve normalmente com { error } em falhas de API
+      // (provedor não configurado, domínio não autorizado etc.) — não lança exceção,
+      // então o resultado precisa ser checado explicitamente, como em handleAuth.
+      const result = await authClient.signIn.social({
         provider: 'google',
         callbackURL: '/app'
       });
+
+      if (result.error) {
+        setError(result.error.message || 'Falha ao autenticar com o Google. Certifique-se de utilizar uma conta corporativa (@atlasgr.com.br ou @totaltrac.com.br).');
+        setIsSubmitting(false);
+      }
     } catch (err) {
       console.error('Erro no Google Login:', err);
       setError('Falha ao autenticar com o Google. Certifique-se de utilizar uma conta corporativa (@atlasgr.com.br ou @totaltrac.com.br).');
@@ -73,18 +81,33 @@ export function LoginScreen() {
         className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"
       />
 
-      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-        
-        {/* Painel Esquerdo: Formulário de Autenticação */}
-        <div className="lg:col-span-6 glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/80 shadow-2xl relative">
+      <div className="w-full max-w-md relative z-10">
+
+        {/* Card de Autenticação */}
+        <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/80 shadow-2xl relative">
           <div className="flex flex-col items-center mb-6">
-            <div className="flex items-center gap-4 mb-4 bg-white rounded-2xl px-5 py-3 shadow-lg">
-              <img src="/atlas-logo.svg" alt="AtlasGR" className="h-9 w-auto object-contain" />
-              <div className="h-8 w-px bg-slate-200" />
-              <img src="/totaltrack-logo.png" alt="TotalTrac" className="h-9 w-auto object-contain" />
+            <div className="flex items-center gap-1 mb-6 bg-slate-800/60 border border-white/10 rounded-full p-1">
+              {(Object.keys(BRAND_CONFIGS) as Array<keyof typeof BRAND_CONFIGS>).map((brand) => (
+                <button
+                  key={brand}
+                  type="button"
+                  onClick={() => setActiveBrand(brand)}
+                  className={`px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    activeBrand === brand
+                      ? 'bg-white text-slate-900 shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {BRAND_CONFIGS[brand].name}
+                </button>
+              ))}
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">AtlasGR & TotalTrac</h1>
-            <p className="text-gray-400 text-xs mt-1 font-medium text-center">Plataforma Unificada de Inteligência Comercial B2B</p>
+            {activeBrand === 'atlasgr' ? (
+              <img src="/atlas-logo.svg" alt="AtlasGR" className="h-10 w-auto object-contain" />
+            ) : (
+              <img src="/totaltrack-logo.png" alt="TotalTrac" className="h-10 w-auto object-contain" />
+            )}
+            <p className="text-gray-400 text-xs mt-3 font-medium text-center">{brandInfo.slogan}</p>
           </div>
 
           <div className="space-y-4 mb-4">
@@ -185,38 +208,6 @@ export function LoginScreen() {
             >
               {isSignUp ? 'Já possui conta? Fazer Login' : 'Não possui conta? Registrar Novo Acesso'}
             </button>
-          </div>
-        </div>
-
-        {/* Painel Direito: Informações de Acesso */}
-        <div className="lg:col-span-6 space-y-4">
-          <div className="glass-panel p-6 rounded-[2.5rem] border border-white/10 bg-slate-900/60 backdrop-blur-xl">
-            <div className="flex items-center gap-2 pb-3 border-b border-white/10 mb-4">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h3 className="font-extrabold text-white text-sm">Acesso Corporativo</h3>
-            </div>
-
-            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-              O acesso é restrito a contas de e-mail corporativas verificadas pelo servidor. Use sua conta Google
-              corporativa ou seu e-mail e senha cadastrados junto aos domínios autorizados abaixo:
-            </p>
-
-            <div className="space-y-2">
-              {AUTHORIZED_LOGIN_DOMAINS.map((domain) => (
-                <div
-                  key={domain}
-                  className="p-3 rounded-2xl border border-white/5 bg-slate-800/60 text-gray-300 text-xs font-semibold"
-                >
-                  @{domain}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/5 text-center">
-            <p className="text-[11px] text-gray-400 font-medium">
-              🔒 Autenticação obrigatória e validada pelo servidor. Nenhuma credencial é aceita sem verificação real.
-            </p>
           </div>
         </div>
 
