@@ -72,7 +72,7 @@ describe('AI gateway', () => {
         }));
         vi.stubGlobal('fetch', fetchMock);
 
-        const result = await getAiModel('gemini-flash', 3, 'unit:test').invoke([
+        const result = await getAiModel('local-llama3-fast', 3, 'unit:test').invoke([
             new SystemMessage('Não invente dados.'),
             new HumanMessage('Analise este lead.'),
         ]);
@@ -105,7 +105,7 @@ describe('AI gateway', () => {
             }));
         vi.stubGlobal('fetch', fetchMock);
 
-        const result = await getAiModel('gemini-pro', 0.2, 'unit:fallback').invoke([
+        const result = await getAiModel('local-llama3', 0.2, 'unit:fallback').invoke([
             new SystemMessage('Regra'),
             new HumanMessage('Pedido'),
         ]);
@@ -173,12 +173,12 @@ describe('AI gateway', () => {
         const fetchMock = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ error: 'Internal' }, 500))
             .mockResolvedValueOnce(jsonResponse({
-                model: 'gemini-pro',
+                model: 'local-llama3',
                 choices: [{ message: { content: 'recuperou na segunda tentativa' } }],
             }));
         vi.stubGlobal('fetch', fetchMock);
 
-        const result = await getAiModel('gemini-pro', 0, 'unit:retry').invoke([new HumanMessage('Pedido')]);
+        const result = await getAiModel('local-llama3', 0, 'unit:retry').invoke([new HumanMessage('Pedido')]);
 
         expect(result.content).toBe('recuperou na segunda tentativa');
         expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -196,7 +196,7 @@ describe('AI gateway', () => {
             }));
         vi.stubGlobal('fetch', fetchMock);
 
-        const result = await getAiModel('gemini-pro', 0, 'unit:no-retry-4xx').invoke([new HumanMessage('Pedido')]);
+        const result = await getAiModel('local-llama3', 0, 'unit:no-retry-4xx').invoke([new HumanMessage('Pedido')]);
 
         expect(result.content).toBe('fallback ativo');
         // Só 2 chamadas no total: 1 tentativa no LiteLLM (sem retry por ser 4xx) + 1 no Groq.
@@ -209,13 +209,13 @@ describe('AI gateway', () => {
         vi.stubGlobal('fetch', fetchMock);
 
         for (let i = 0; i < 3; i++) {
-            await expect(getAiModel('gemini-pro', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
+            await expect(getAiModel('local-llama3', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
                 .rejects.toThrow();
         }
         const callsBeforeBreakerOpen = fetchMock.mock.calls.length;
         expect(callsBeforeBreakerOpen).toBe(3);
 
-        await expect(getAiModel('gemini-pro', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
+        await expect(getAiModel('local-llama3', 0, 'unit:breaker').invoke([new HumanMessage('Pedido')]))
             .rejects.toThrow('temporariamente desativado');
         // O circuit breaker impediu uma 4ª chamada de rede ao provedor já sabidamente fora do ar.
         expect(fetchMock).toHaveBeenCalledTimes(callsBeforeBreakerOpen);

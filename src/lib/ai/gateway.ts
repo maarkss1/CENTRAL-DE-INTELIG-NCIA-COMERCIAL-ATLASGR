@@ -3,22 +3,21 @@ import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 
-// Nome lógico mantido por compatibilidade com os serviços existentes.
-export const GEMINI_MODEL = 'gemini-pro';
+// Nome lógico mantido por compatibilidade com os serviços existentes. Renomeado de "gemini-pro"
+// (IA-001): esse nome sugeria o Gemini real do Google, mas o alias sempre resolveu, por padrão,
+// para um modelo Ollama local via litellm-config.yaml — nunca para o Gemini de verdade.
+export const LOCAL_MODEL = 'local-llama3';
 
 // O app usa nomes lógicos para não acoplar cada ferramenta a um provedor específico.
 // O LiteLLM resolve esses nomes conforme litellm-config.yaml.
 const MODEL_ALIASES: Record<string, string> = {
-    'gemini-2.5-pro': 'gemini-pro',
-    'gemini-pro-latest': 'gemini-pro',
-    'gemini-flash-latest': 'gemini-flash',
     'qwen-2.5-coder': 'qwen-coder',
     'deepseek-coder-v2': 'deepseek-coder',
 };
 
 const GROQ_MODEL_ALIASES: Record<string, string> = {
-    'gemini-pro': 'llama-3.3-70b-versatile',
-    'gemini-flash': 'llama-3.1-8b-instant',
+    'local-llama3': 'llama-3.3-70b-versatile',
+    'local-llama3-fast': 'llama-3.1-8b-instant',
     'gpt-4o': 'llama-3.3-70b-versatile',
     'gpt-4o-mini': 'llama-3.1-8b-instant',
     'claude-sonnet': 'llama-3.3-70b-versatile',
@@ -308,7 +307,7 @@ async function requestChatCompletion(
  * Retorna um "chat model" mínimo compatível com o padrão `.invoke([HumanMessage])` do LangChain,
  * usando o LiteLLM como rota principal e a API Groq diretamente como contingência local.
  */
-export const getAiModel = (modelName: string = 'gemini-pro', temperature: number = 0.7, agentContext: string = 'system'): AiChatModel => {
+export const getAiModel = (modelName: string = 'local-llama3', temperature: number = 0.7, agentContext: string = 'system'): AiChatModel => {
     const resolvedModel = MODEL_ALIASES[modelName] || modelName;
     const litellmBaseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL || 'http://localhost:4000');
     const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
@@ -418,16 +417,14 @@ export const getAiModel = (modelName: string = 'gemini-pro', temperature: number
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
     'llama-3.1-8b-instant': { input: 0.05, output: 0.08 },
     'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
-    'gemini-pro': { input: 0.59, output: 0.79 },
-    'gemini-flash': { input: 0.05, output: 0.08 },
-    'gemini-flash-latest': { input: 0.075, output: 0.3 },
-    'gemini-pro-latest': { input: 1.25, output: 5.0 },
+    'local-llama3': { input: 0.59, output: 0.79 },
+    'local-llama3-fast': { input: 0.05, output: 0.08 },
     'qwen-coder': { input: 0.20, output: 0.60 },
     'deepseek-coder': { input: 0.14, output: 0.28 },
 };
 
 export function estimateCostUsd(model: string, usage: AiTokenUsage): number {
-    const pricing = PRICING_PER_MILLION_TOKENS[model] ?? PRICING_PER_MILLION_TOKENS['gemini-flash'];
+    const pricing = PRICING_PER_MILLION_TOKENS[model] ?? PRICING_PER_MILLION_TOKENS['local-llama3-fast'];
     return (usage.promptTokens / 1_000_000) * pricing.input + (usage.completionTokens / 1_000_000) * pricing.output;
 }
 

@@ -6,7 +6,7 @@ import { BaseAgent } from './base.agent.js';
  */
 export class CRMAgent extends BaseAgent {
     protected agentType = 'CRM';
-    protected modelName = 'gemini-flash';
+    protected modelName = 'local-llama3-fast';
     protected temperature = 0.3;
 
     protected buildSystemPrompt(learnedStyle: string | null): string {

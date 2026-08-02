@@ -245,7 +245,7 @@ const putAiSettingsSchema = z.object({
         z.object({
             toolKey: z.string().min(1),
             provider: z.string().min(1),
-            model: z.enum(['gemini-pro', 'gemini-flash', 'qwen-coder', 'deepseek-coder']),
+            model: z.enum(['local-llama3', 'local-llama3-fast', 'qwen-coder', 'deepseek-coder']),
             temperature: z.number().min(0).max(2),
         }),
     ),
@@ -296,7 +296,7 @@ Escreva um relatório executivo curto em Markdown interpretando os dados forneci
 Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que não estão no JSON.`;
         const userPrompt = `Números atuais da plataforma (CRM, prospecção e pipeline):\n${JSON.stringify(metrics, null, 2)}`;
 
-        const model = getAiModel('gemini-flash', 0.4, 'report_interpretation');
+        const model = getAiModel('local-llama3-fast', 0.4, 'report_interpretation');
         const startTime = Date.now();
         const response = await model.invoke([
             new SystemMessage(systemPrompt),

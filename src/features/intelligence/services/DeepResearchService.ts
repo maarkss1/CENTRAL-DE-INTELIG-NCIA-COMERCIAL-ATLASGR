@@ -31,8 +31,8 @@ async function analyzeWebsiteVision(url: string): Promise<string> {
     const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 50 });
     const base64Image = screenshotBuffer.toString('base64');
     
-    // Invocando modelo multimodal (gemini-flash/pro suporta imagens via LangChain)
-    const model = getAiModel('gemini-flash', 0.2, 'deep-research-vision');
+    // Invocando modelo multimodal (local-llama3-fast/local-llama3 suporta imagens via LangChain)
+    const model = getAiModel('local-llama3-fast', 0.2, 'deep-research-vision');
     const startTime = Date.now();
 
     const response = await model.invoke([
@@ -74,7 +74,7 @@ async function inferMissingInsights(lead: Partial<IEnrichedLead>, visionInsight:
     return { description: '', technologies: [] };
   }
 
-  const model = getAiModel('gemini-flash', 0.2, 'deep-research:infer');
+  const model = getAiModel('local-llama3-fast', 0.2, 'deep-research:infer');
   try {
     const response = await model.invoke([
       new SystemMessage(

@@ -48,7 +48,7 @@ export const leadQualificationGraph = new StateGraph(LeadQualificationState)
         return { companyInfo };
     })
     .addNode('analyze', async (state) => {
-        const model = getAiModel('gemini-pro', 0.2, 'leadQualification');
+        const model = getAiModel('local-llama3', 0.2, 'leadQualification');
         const startTime = Date.now();
 
         const response = await model.invoke([

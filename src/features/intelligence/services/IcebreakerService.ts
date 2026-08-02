@@ -56,7 +56,7 @@ export class IcebreakerService {
 
             const topContext = snippets.slice(0, 5).join('\n\n');
 
-            const model = getAiModel('gemini-flash', 0.5, 'icebreaker');
+            const model = getAiModel('local-llama3-fast', 0.5, 'icebreaker');
             const startTime = Date.now();
 
             const systemPrompt = `Você é um SDR B2B sênior hiper-personalizado.

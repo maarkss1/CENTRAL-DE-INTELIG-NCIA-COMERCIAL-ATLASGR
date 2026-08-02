@@ -20,7 +20,7 @@ function describeLead(lead: IEnrichedLead): string {
 /** Chama o gateway pedindo uma resposta em JSON e faz o parse com um fallback seguro em caso de
  * falha (rede fora do ar, JSON malformado) — nunca deixa a UI comercial quebrar por causa da IA. */
 async function askJson<T>(systemPrompt: string, userPrompt: string, agentContext: string, fallback: T): Promise<T> {
-  const model = getAiModel('gemini-flash', 0.3, agentContext);
+  const model = getAiModel('local-llama3-fast', 0.3, agentContext);
   const startTime = Date.now();
   try {
     const response = await model.invoke([new SystemMessage(systemPrompt), new HumanMessage(userPrompt)]);

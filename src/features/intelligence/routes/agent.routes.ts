@@ -69,7 +69,7 @@ function resolveMode(pathMode: AssistantMode, requestedMode?: AssistantMode): As
 }
 
 async function generateReply(request: ConversationRequest, mode: AssistantMode) {
-    const model = getAiModel('gemini-flash', MODE_TEMPERATURES[mode], `agent:${mode}`);
+    const model = getAiModel('local-llama3-fast', MODE_TEMPERATURES[mode], `agent:${mode}`);
     const messages = [
         new SystemMessage(`${COMMON_RULES}\n\nModo atual:\n${MODE_PROMPTS[mode]}`),
         ...request.history.map((message) => (

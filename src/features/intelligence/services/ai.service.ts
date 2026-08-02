@@ -85,24 +85,27 @@ DIRETRIZES CRÍTICAS:
 /** Quando há contexto real do lead, força a IA a efetivamente USAR os dados em vez de ignorá-los. */
 const GROUNDING_INSTRUCTION = `\n\nIMPORTANTE: use pelo menos 2 dados concretos do contexto do lead acima (nome da empresa, cidade/região, segmento, tecnologia detectada, ou algo do resumo de enriquecimento) — o texto tem que ficar claramente sobre ESSA empresa, não algo genérico que serviria para qualquer lead.`;
 
-/** Modelo e temperatura por ferramenta: gemini-pro (mais raciocínio) para diagnóstico/estratégia,
- * onde precisão importa mais que velocidade; gemini-flash para scripts/mensagens mais diretos. Temperaturas
- * mais baixas em ferramentas analíticas (menos "criatividade", mais aderência aos dados reais); mais altas
- * em ferramentas de copywriting social, onde variação de tom é desejável. */
-const TOOL_CONFIG: Record<ContentTool, { model: 'gemini-pro' | 'gemini-flash'; temperature: number }> = {
-    script_call: { model: 'gemini-flash', temperature: 0.7 },
-    script_whatsapp: { model: 'gemini-flash', temperature: 0.85 },
-    script_email: { model: 'gemini-flash', temperature: 0.65 },
-    prompt: { model: 'gemini-pro', temperature: 0.5 },
-    objections: { model: 'gemini-pro', temperature: 0.45 },
-    followup: { model: 'gemini-flash', temperature: 0.6 },
-    profile: { model: 'gemini-pro', temperature: 0.5 },
-    risk: { model: 'gemini-pro', temperature: 0.4 },
-    linkedin_invite: { model: 'gemini-flash', temperature: 0.8 },
-    voicemail: { model: 'gemini-flash', temperature: 0.65 },
-    roi_pitch: { model: 'gemini-pro', temperature: 0.4 },
-    competitor_battlecard: { model: 'gemini-pro', temperature: 0.4 },
-    cadence_sequence: { model: 'gemini-pro', temperature: 0.6 },
+/** Modelo e temperatura por ferramenta: local-llama3 (mais raciocínio) para diagnóstico/estratégia,
+ * onde precisão importa mais que velocidade; local-llama3-fast para scripts/mensagens mais diretos.
+ * Ambos são aliases lógicos resolvidos pelo gateway/litellm-config.yaml — hoje rodam contra Ollama
+ * local por padrão (ver IA-001; nomes antigos "gemini-pro"/"gemini-flash" sugeriam falsamente o
+ * Gemini real do Google). Temperaturas mais baixas em ferramentas analíticas (menos "criatividade",
+ * mais aderência aos dados reais); mais altas em ferramentas de copywriting social, onde variação
+ * de tom é desejável. */
+const TOOL_CONFIG: Record<ContentTool, { model: 'local-llama3' | 'local-llama3-fast'; temperature: number }> = {
+    script_call: { model: 'local-llama3-fast', temperature: 0.7 },
+    script_whatsapp: { model: 'local-llama3-fast', temperature: 0.85 },
+    script_email: { model: 'local-llama3-fast', temperature: 0.65 },
+    prompt: { model: 'local-llama3', temperature: 0.5 },
+    objections: { model: 'local-llama3', temperature: 0.45 },
+    followup: { model: 'local-llama3-fast', temperature: 0.6 },
+    profile: { model: 'local-llama3', temperature: 0.5 },
+    risk: { model: 'local-llama3', temperature: 0.4 },
+    linkedin_invite: { model: 'local-llama3-fast', temperature: 0.8 },
+    voicemail: { model: 'local-llama3-fast', temperature: 0.65 },
+    roi_pitch: { model: 'local-llama3', temperature: 0.4 },
+    competitor_battlecard: { model: 'local-llama3', temperature: 0.4 },
+    cadence_sequence: { model: 'local-llama3', temperature: 0.6 },
 };
 
 /** Instruções específicas de cada ferramenta — o "molde" de cada tipo de conteúdo gerado. */

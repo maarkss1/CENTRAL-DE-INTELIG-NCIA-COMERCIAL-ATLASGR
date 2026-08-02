@@ -48,7 +48,7 @@ export abstract class AgentService {
     protected async callLLM(messages: AgentMessage[]): Promise<string> {
         logger.info({ agentType: this.agentType, messageCount: messages.length }, 'Calling LLM via LiteLLM...');
         
-        const model = getAiModel('gemini-pro', 0.7, this.agentType);
+        const model = getAiModel('local-llama3', 0.7, this.agentType);
         const startTime = Date.now();
 
         try {

@@ -206,7 +206,7 @@ Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSO
 
     let decision: SupervisorDecision;
     try {
-        const model = getAiModel('gemini-flash', 0, 'supervisor-agent');
+        const model = getAiModel('local-llama3-fast', 0, 'supervisor-agent');
         const response = await model.invoke([
             new SystemMessage(systemPrompt),
             new HumanMessage('Qual é o próximo passo?'),
@@ -360,7 +360,7 @@ async function finishNode(state: SwarmStateType) {
 
     let synthesis: string;
     try {
-        const model = getAiModel('gemini-flash', 0.2, 'supervisor-synthesis');
+        const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
         const response = await model.invoke([
             new SystemMessage(
                 'Você é o Supervisor do Enxame de Agentes da Atlas. Com base na missão do usuário e nos resultados retornados pelos especialistas, escreva uma resposta final única, direta e acionável em português do Brasil, sem markdown, resumindo o que foi feito e quais são os próximos passos recomendados. Baseie-se SOMENTE nas informações fornecidas; não invente dados novos.',

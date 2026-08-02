@@ -254,7 +254,7 @@ async function invokeText(
     prompt: string,
     context: string,
     temperature: number,
-    modelAlias: 'gemini-pro' | 'gemini-flash' = 'gemini-pro',
+    modelAlias: 'local-llama3' | 'local-llama3-fast' = 'local-llama3',
 ): Promise<string> {
     const model = getAiModel(modelAlias, temperature, context);
     const startedAt = Date.now();
@@ -294,7 +294,7 @@ RESPOSTA A CORRIGIR:
 ${first}`,
             `${context}:json-repair`,
             0,
-            'gemini-flash',
+            'local-llama3-fast',
         );
         return schema.parse(extractJson(repaired));
     }
@@ -543,7 +543,7 @@ Não há ferramenta de navegação web conectada nesta conversa. Nunca afirme te
 LinkedIn ou dados atuais. Quando a pergunta depender de informação externa ou recente, diga isso objetivamente
 e sugira qual dado ou fonte o usuário deve confirmar. Responda em Markdown conciso e orientado à próxima ação.`;
             return {
-                answer: await invokeText(prompt, 'studio:assistant', 0.35, 'gemini-flash'),
+                answer: await invokeText(prompt, 'studio:assistant', 0.35, 'local-llama3-fast'),
                 capability: request.inputs.mode === 'internal' ? 'internal_context' : 'general_knowledge',
                 webAccess: false,
             };

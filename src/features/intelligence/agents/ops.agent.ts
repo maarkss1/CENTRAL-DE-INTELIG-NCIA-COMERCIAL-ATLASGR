@@ -18,7 +18,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 // Mesmo esquema de load balancing/fallback do SDRQualificationAgent (ver sdr.agent.ts): primário
 // via LiteLLM, com fallback direto pra Groq se o proxy falhar.
 const primaryLlm = new ChatOpenAI({
-    modelName: 'gemini-flash',
+    modelName: 'local-llama3-fast',
     temperature: 0,
     openAIApiKey: LITELLM_KEY,
     maxRetries: 1,
@@ -76,7 +76,7 @@ Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um
         await logAiUsage({
             model: response.response_metadata?.model_name
                 || (response.response_metadata?.model as string | undefined)
-                || 'gemini-flash',
+                || 'local-llama3-fast',
             usage: {
                 totalTokens: response.usage_metadata.total_tokens,
                 promptTokens: response.usage_metadata.input_tokens,

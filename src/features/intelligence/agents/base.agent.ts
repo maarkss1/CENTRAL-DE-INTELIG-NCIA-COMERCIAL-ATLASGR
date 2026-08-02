@@ -26,12 +26,12 @@ export interface AgentRunResult {
  * - `agentType`: identificador persistido no AgentMemory (ex: 'BDR', 'CRM')
  * - `buildSystemPrompt(learnedStyle)`: texto do SystemMessage específico do agente
  * - `buildHumanMessage(input)`: HumanMessage de entrada para o grafo
- * - `modelName` (opcional): nome lógico do modelo no gateway (padrão: 'gemini-flash')
+ * - `modelName` (opcional): nome lógico do modelo no gateway (padrão: 'local-llama3-fast')
  * - `temperature` (opcional): temperatura de geração (padrão: 0.4)
  */
 export abstract class BaseAgent {
     protected abstract agentType: string;
-    protected modelName: string = 'gemini-flash';
+    protected modelName: string = 'local-llama3-fast';
     protected temperature: number = 0.4;
 
     protected abstract buildSystemPrompt(learnedStyle: string | null): string;

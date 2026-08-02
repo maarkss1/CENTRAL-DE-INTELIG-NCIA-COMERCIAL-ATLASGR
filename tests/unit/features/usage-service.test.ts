@@ -88,13 +88,13 @@ describe('UsageService.summary', () => {
 
     it('ordena os modelos do mais caro para o mais barato', async () => {
         log.groupBy.mockResolvedValue([
-            { model: 'gemini-flash', _sum: { tokens: 900, cost: 0.002 }, _avg: { latencyMs: 120 }, _count: { _all: 9 } },
-            { model: 'gemini-pro', _sum: { tokens: 500, cost: 0.05 }, _avg: { latencyMs: 800 }, _count: { _all: 3 } },
+            { model: 'local-llama3-fast', _sum: { tokens: 900, cost: 0.002 }, _avg: { latencyMs: 120 }, _count: { _all: 9 } },
+            { model: 'local-llama3', _sum: { tokens: 500, cost: 0.05 }, _avg: { latencyMs: 800 }, _count: { _all: 3 } },
         ]);
 
         const r = await usageService.summary(ORG, 30);
 
-        expect(r.byModel.map((m) => m.model)).toEqual(['gemini-pro', 'gemini-flash']);
+        expect(r.byModel.map((m) => m.model)).toEqual(['local-llama3', 'local-llama3-fast']);
         expect(r.byModel[0].cost).toBeCloseTo(0.05, 6);
         expect(r.byModel[0].avgLatencyMs).toBe(800);
         expect(r.byModel[0].calls).toBe(3);

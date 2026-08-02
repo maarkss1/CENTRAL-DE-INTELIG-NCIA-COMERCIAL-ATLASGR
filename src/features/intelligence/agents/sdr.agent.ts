@@ -16,9 +16,9 @@ const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 
 // --- NÓ DE LOAD BALANCING / FALLBACK ---
-// Modelo Primário: Gemini Flash via LiteLLM
+// Modelo Primário: local (Ollama llama3) via LiteLLM
 const primaryLlm = new ChatOpenAI({
-    modelName: 'gemini-flash',
+    modelName: 'local-llama3-fast',
     temperature: 0,
     openAIApiKey: LITELLM_KEY,
     maxRetries: 1,
@@ -89,7 +89,7 @@ Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar 
         await logAiUsage({
             model: response.response_metadata?.model_name
                 || (response.response_metadata?.model as string | undefined)
-                || 'gemini-flash',
+                || 'local-llama3-fast',
             usage: {
                 totalTokens: response.usage_metadata.total_tokens,
                 promptTokens: response.usage_metadata.input_tokens,

@@ -63,7 +63,7 @@ export class LearningAgent {
                 `[Ação: ${a.action}] Entidade: ${a.entity} | Detalhes: ${JSON.stringify(a.details)}`
             ).join('\n');
 
-            const model = getAiModel('gemini-flash', 0.1, 'learning-agent');
+            const model = getAiModel('local-llama3-fast', 0.1, 'learning-agent');
             const systemPrompt = new SystemMessage(
                 `Você é o Agente de Reflexão (Learning Agent) da Atlas.
 Sua missão é analisar o log de ações manuais de um usuário humano no CRM e deduzir o "Estilo de Qualificação e Vendas" dele.

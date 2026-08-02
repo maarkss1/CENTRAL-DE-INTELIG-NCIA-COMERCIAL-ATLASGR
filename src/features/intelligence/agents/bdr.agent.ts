@@ -6,7 +6,7 @@ import { BaseAgent } from './base.agent.js';
  */
 export class BDRAgent extends BaseAgent {
     protected agentType = 'BDR';
-    protected modelName = 'gemini-flash';
+    protected modelName = 'local-llama3-fast';
     protected temperature = 0.4;
 
     protected buildSystemPrompt(learnedStyle: string | null): string {
