@@ -35,7 +35,11 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
     const { data: stats, loading: statsLoading } = useAnalytics();
 
     const today = new Date().toISOString().split('T')[0];
-    const { activities: todayActivities, loading: agendaLoading } = useActivities({ from: today, to: today, limit: 20 });
+    // `to` é exclusivo em /api/activities (ver findRange em activity.service.ts) — passar a mesma
+    // data em from/to sempre falhava com 500 ("data inicial deve ser anterior à final"), então o
+    // widget "Agenda de hoje" nunca carregava nada. Amanhã aqui cobre o dia de hoje inteiro.
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const { activities: todayActivities, loading: agendaLoading } = useActivities({ from: today, to: tomorrow, limit: 20 });
     const sortedAgenda = [...todayActivities].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
     const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase();
