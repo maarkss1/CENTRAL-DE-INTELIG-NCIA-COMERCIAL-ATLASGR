@@ -74,21 +74,33 @@ export function CompanyList() {
     const handleBulkEnrich = async () => {
         if (selectedIds.size === 0) return;
         setIsBulkProcessing(true);
-        setTimeout(() => {
-            alert(`${selectedIds.size} empresas enviadas para enriquecimento em massa com IA!`);
+        const targets = companies.filter((c) => selectedIds.has(c.id));
+        let succeeded = 0;
+        let skipped = 0;
+        let failed = 0;
+        try {
+            for (const company of targets) {
+                if (!company.cnpj) {
+                    skipped += 1;
+                    continue;
+                }
+                try {
+                    await companiesDB.enrich(company.cnpj);
+                    succeeded += 1;
+                } catch (error) {
+                    console.error(`Error enriching company ${company.id}:`, error);
+                    failed += 1;
+                }
+            }
+            await refetch();
+            const parts = [`${succeeded} enriquecida${succeeded === 1 ? '' : 's'}`];
+            if (failed > 0) parts.push(`${failed} falhou/falharam`);
+            if (skipped > 0) parts.push(`${skipped} sem CNPJ (ignorada${skipped === 1 ? '' : 's'})`);
+            alert(parts.join(', ') + '.');
+        } finally {
             setIsBulkProcessing(false);
             setSelectedIds(new Set());
-        }, 1500);
-    };
-
-    const handleBulkProspect = async () => {
-        if (selectedIds.size === 0) return;
-        setIsBulkProcessing(true);
-        setTimeout(() => {
-            alert(`${selectedIds.size} empresas enviadas para a fila de prospecção!`);
-            setIsBulkProcessing(false);
-            setSelectedIds(new Set());
-        }, 1000);
+        }
     };
 
     if (viewMode === 'detail' && selectedCompany) {
@@ -502,21 +514,13 @@ export function CompanyList() {
                     </div>
                     <div className="w-px h-6 bg-gray-700"></div>
                     <div className="flex items-center gap-3">
-                        <button 
+                        <button
                             onClick={handleBulkEnrich}
                             disabled={isBulkProcessing}
                             className="flex items-center gap-2 px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 rounded-full text-xs font-bold transition-all"
                         >
                             {isBulkProcessing ? <Loader2 className="w-4 h-4 animate-spin text-purple-400" /> : <Sparkles className="w-4 h-4 text-purple-400" />}
                             Enriquecer com IA
-                        </button>
-                        <button 
-                            onClick={handleBulkProspect}
-                            disabled={isBulkProcessing}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 rounded-full text-xs font-bold transition-all"
-                        >
-                            {isBulkProcessing ? <Loader2 className="w-4 h-4 animate-spin text-blue-400" /> : <Search className="w-4 h-4 text-blue-400" />}
-                            Prospectar
                         </button>
                     </div>
                 </div>

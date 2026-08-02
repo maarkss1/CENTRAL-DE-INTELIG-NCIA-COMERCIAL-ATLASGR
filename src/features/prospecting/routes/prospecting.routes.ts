@@ -4,7 +4,10 @@ import { discoverCandidates, promoteToCrm, discoverDecisionMakers } from '../ser
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
+import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+
+const icebreakerService = new IcebreakerService();
 
 const router = Router();
 
@@ -75,6 +78,23 @@ router.post('/decision-makers', async (req: Request, res: Response, next: NextFu
         }
         const result = await discoverDecisionMakers(normalizedDomain, criteria ?? {});
         res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Gera um quebra-gelo comercial sob demanda a partir de recortes públicos reais da empresa.
+// ARCH-006 (auditoria de dívida técnica): substitui o placeholder de UI que só mostrava um
+// alert() sem chamar IA nenhuma.
+router.post('/icebreaker', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { companyName } = req.body as { companyName?: string };
+        if (!companyName || typeof companyName !== 'string') {
+            res.status(400).json({ success: false, error: 'companyName é obrigatório' });
+            return;
+        }
+        const icebreaker = await icebreakerService.generateIcebreaker(companyName);
+        res.json({ success: true, data: { icebreaker } });
     } catch (error) {
         next(error);
     }

@@ -988,6 +988,7 @@ export function DecisionMakerSearch({
     const [results, setResults] = useState<DecisionMaker[] | null>(null);
     const [selectedDecisionMaker, setSelectedDecisionMaker] = useState<DecisionMaker | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [icebreakers, setIcebreakers] = useState<Record<number, { loading: boolean; text?: string; error?: string }>>({});
     const detectedDomain = findCompanyDomain(website, rationale);
     const [domainInput, setDomainInput] = useState(detectedDomain);
     const normalizedCompanyEmails = validContactEmails(companyEmails);
@@ -1074,6 +1075,21 @@ export function DecisionMakerSearch({
             setError(getErrorMessage(err, 'Falha ao buscar decisores.'));
         } finally {
             setIsSearching(false);
+        }
+    };
+
+    const handleGenerateIcebreaker = async (idx: number) => {
+        setIcebreakers((prev) => ({ ...prev, [idx]: { loading: true } }));
+        try {
+            const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName });
+            setIcebreakers((prev) => ({
+                ...prev,
+                [idx]: res.icebreaker
+                    ? { loading: false, text: res.icebreaker }
+                    : { loading: false, error: 'Não encontramos contexto público suficiente para gerar um quebra-gelo agora.' },
+            }));
+        } catch (err) {
+            setIcebreakers((prev) => ({ ...prev, [idx]: { loading: false, error: getErrorMessage(err, 'Falha ao gerar quebra-gelo.') } }));
         }
     };
 
@@ -1436,19 +1452,23 @@ export function DecisionMakerSearch({
                                         </button>
 
                                         <div className="w-full flex items-center justify-between mt-2 pt-2 border-t border-white/10">
-                                            <div className="flex items-center gap-2">
-                                                <span className="bg-success/20 text-success border border-success/30 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                                    🔥 Fit de Persona: {Math.floor(Math.random() * 20) + 80}%
-                                                </span>
-                                            </div>
-                                            <button 
-                                                type="button" 
-                                                onClick={(e) => { e.preventDefault(); alert('Gerando Quebra-Gelo com IA para ' + dm.name + '...'); }} 
-                                                className="bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                            <button
+                                                type="button"
+                                                disabled={icebreakers[idx]?.loading}
+                                                onClick={(e) => { e.preventDefault(); handleGenerateIcebreaker(idx); }}
+                                                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-wait text-white text-[10px] font-bold px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
                                             >
-                                                🧊 Gerar Quebra-Gelo (IA)
+                                                {icebreakers[idx]?.loading ? 'Gerando...' : '🧊 Gerar Quebra-Gelo (IA)'}
                                             </button>
                                         </div>
+                                        {icebreakers[idx]?.text && (
+                                            <p className="w-full text-[11px] text-gray-300 bg-white/5 border border-white/10 rounded-lg px-3 py-2 mt-1">
+                                                💡 {icebreakers[idx].text}
+                                            </p>
+                                        )}
+                                        {icebreakers[idx]?.error && (
+                                            <p className="w-full text-[11px] text-amber-300 mt-1">{icebreakers[idx].error}</p>
+                                        )}
                                     </div>
 
                                 );
