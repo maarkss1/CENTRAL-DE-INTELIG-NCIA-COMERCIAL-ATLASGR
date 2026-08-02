@@ -1,8 +1,9 @@
-import { LeadRepository } from '../domain/Lead';
+import { Lead, LeadRepository } from '../domain/Lead';
 import { z } from 'zod';
 import { leadSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';
+import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 
 /** Shape of the company relation when Lead is fetched with `include: { company: true }` */
 interface LeadCompanyRelation {
@@ -31,36 +32,38 @@ interface LeadContactRelation {
     linkedin?: string | null;
 }
 
-export class LeadUseCases {
-    constructor(private leadRepository: LeadRepository) {}
+export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
+    constructor(leadRepository: LeadRepository) {
+        super(leadRepository);
+    }
 
     async findLeads(organizationId: string, status?: string, page: number = 1, limit: number = 50) {
-        return this.leadRepository.findAllWithFilters(organizationId, status, page, limit);
+        return this.findAll(organizationId, status, page, limit);
     }
 
     async findLeadById(organizationId: string, id: string) {
-        return this.leadRepository.findById!(organizationId, id);
+        return this.findById(organizationId, id);
     }
 
     async createLead(organizationId: string, data: z.infer<typeof leadSchema>) {
         const validated = leadSchema.parse(data);
-        return this.leadRepository.create!(organizationId, validated);
+        return this.create(organizationId, validated);
     }
 
     async updateLead(organizationId: string, id: string, data: Partial<z.infer<typeof leadSchema>>) {
-        return this.leadRepository.update!(organizationId, id, data);
+        return this.update(organizationId, id, data);
     }
 
     async updateLeadStatus(organizationId: string, id: string, newStatus: string) {
-        return this.leadRepository.updateStatus(organizationId, id, newStatus);
+        return this.repository.updateStatus(organizationId, id, newStatus);
     }
 
     async deleteLead(organizationId: string, id: string) {
-        return this.leadRepository.delete!(organizationId, id);
+        return this.delete(organizationId, id);
     }
 
     async enrichLead(organizationId: string, id: string) {
-        const lead = await this.leadRepository.findById!(organizationId, id);
+        const lead = await this.repository.findById!(organizationId, id);
         if (!lead) throw new Error('Lead not found');
         if (!lead.companyId) throw new Error('Lead sem empresa vinculada — não é possível enriquecer');
 
@@ -74,20 +77,20 @@ export class LeadUseCases {
         // We simulate the previous behavior by extending the repository update to accept timeline inputs if supported,
         // or for now, we just update the core attributes. The timeline update is managed by the Infrastructure repository method if we added it,
         // but since we want to remove Prisma from Application, we update via repository.
-        await this.leadRepository.update!(organizationId, id, {
+        await this.repository.update!(organizationId, id, {
             score: result.fit.score,
             temperature: result.fit.temperature,
             // Assuming the repository handles timelines or we emit an event.
         });
 
         // Since we removed prisma import, we rely on the repository to fetch the updated lead.
-        const finalLead = await this.leadRepository.findById!(organizationId, id);
+        const finalLead = await this.repository.findById!(organizationId, id);
 
         return { lead: finalLead, fit: result.fit, enrichment: result };
     }
 
     async exportLeadsCsv(organizationId: string): Promise<string> {
-        const leads = await this.leadRepository.findAllForExport(organizationId);
+        const leads = await this.repository.findAllForExport(organizationId);
 
         const headers = [
             'ID', 'Nome', 'Saudação', 'Primeiro nome', 'Sobrenome', 'Segundo nome', 'Nome completo',
@@ -190,7 +193,7 @@ export class LeadUseCases {
 
         // Se passar um lead específico, exporta só ele. Se não passar, exporta o mais recente ou os selecionados (simplificado para um aqui)
         if (leadId) {
-            const l = await this.leadRepository.findById!(organizationId, leadId);
+            const l = await this.repository.findById!(organizationId, leadId);
             if (!l) throw new Error('Lead não encontrado');
             
             const company = l.company as LeadCompanyRelation | undefined;
