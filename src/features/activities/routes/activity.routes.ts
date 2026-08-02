@@ -21,11 +21,14 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             return;
         }
 
+        const pageNum = page ? Number.parseInt(page, 10) : undefined;
+        const limitNum = limit ? Number.parseInt(limit, 10) : undefined;
+
         const result = await activityService.findAll(
             orgId,
             date,
-            page ? Number(page) : undefined,
-            limit ? Number(limit) : undefined,
+            Number.isFinite(pageNum) && pageNum > 0 ? pageNum : undefined,
+            Number.isFinite(limitNum) && limitNum > 0 ? limitNum : undefined,
             {
                 leadId,
                 status: status as ActivityStatus | undefined,
