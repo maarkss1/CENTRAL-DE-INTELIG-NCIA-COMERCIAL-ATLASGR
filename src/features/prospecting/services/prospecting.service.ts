@@ -255,11 +255,17 @@ async function findExistingCompany(input: PromoteInput) {
     try {
         const cnpj = input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null;
         if (cnpj) {
-            const withCnpj = await prisma.company.findMany({
-                where: { organizationId: input.organizationId, cnpj: { not: null } },
-                select: { id: true, cnpj: true },
-            });
-            const found = withCnpj.find((c) => sanitizeCnpj(c.cnpj!) === cnpj);
+            // CNPJs de Company nem sempre chegam ao banco no mesmo formato (alguns fluxos
+            // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
+            // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
+            // memória, o que não escalaria com a base de clientes.
+            const [found] = await prisma.$queryRaw<{ id: string }[]>`
+                SELECT id FROM "Company"
+                WHERE "organizationId" = ${input.organizationId}
+                  AND cnpj IS NOT NULL
+                  AND regexp_replace(cnpj, '\D', '', 'g') = ${cnpj}
+                LIMIT 1
+            `;
             if (found) return prisma.company.findUnique({ where: { id: found.id } });
         }
         return await prisma.company.findFirst({

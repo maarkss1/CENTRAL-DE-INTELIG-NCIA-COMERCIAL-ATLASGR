@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import {
     Search, Loader2, ShieldCheck, AlertTriangle, Building2, MapPin, Users,
     TrendingUp, Cpu, Database, Globe, CheckCircle2, Landmark, UserPlus, Sparkles,

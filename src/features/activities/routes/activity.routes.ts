@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 
 import { activityService } from '../services/activity.service.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
-import { activitySchema } from '../../../lib/zod.js';
+import { activitySchema, type ActivityStatus, type ActivityType } from '../../../lib/zod.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
@@ -10,15 +10,30 @@ const router = Router();
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
-        const { from, to, date } = req.query as Record<string, string | undefined>;
+        const { from, to, date, page, limit, leadId, status, type } = req.query as Record<string, string | undefined>;
 
-        // `from`/`to` alimentam a grade do Calendário (um mês por requisição); `date` continua
-        // servindo a lista de Agenda, que filtra um dia só.
-        const activities = from && to
-            ? await activityService.findRange(orgId, from, to)
-            : await activityService.findAll(orgId, date);
+        // `from`/`to` alimentam a grade do Calendário (um mês por requisição, sem paginação —
+        // volume já é limitado pela janela de datas); os demais parâmetros servem a lista de
+        // Agenda paginada.
+        if (from && to) {
+            const activities = await activityService.findRange(orgId, from, to);
+            res.json({ success: true, data: activities });
+            return;
+        }
 
-        res.json({ success: true, data: activities });
+        const result = await activityService.findAll(
+            orgId,
+            date,
+            page ? Number(page) : undefined,
+            limit ? Number(limit) : undefined,
+            {
+                leadId,
+                status: status as ActivityStatus | undefined,
+                type: type as ActivityType | undefined,
+            }
+        );
+
+        res.json({ success: true, data: result.data, meta: result.meta });
     } catch (error) {
         next(error);
     }
