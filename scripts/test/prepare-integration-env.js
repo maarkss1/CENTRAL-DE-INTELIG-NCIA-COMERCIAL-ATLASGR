@@ -2,7 +2,7 @@
 
 // Roda antes de npm run test:integration (via pretest:integration no package.json).
 //
-// Corrige dois problemas reais do setup anterior (ver TEST-003 em
+// Corrige problemas reais do setup anterior (ver TEST-003 em
 // docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md):
 //
 // 1. `docker-compose up -d` incondicional quebrava no CI: o próprio ci.yml já sobe postgres/redis
@@ -13,6 +13,13 @@
 //    variáveis certas) tanto localmente quanto no CI. No CI, o próprio workflow agora escreve
 //    .env.test com as credenciais reais do job antes deste script rodar; localmente, copiamos de
 //    .env.test.example na primeira execução.
+// 3. `.env.test.example` apontava para "prospectordb" — o MESMO banco que o dev usa. Testes de
+//    integração fazem create/delete de linhas de verdade; sem um banco isolado, rodar
+//    `test:integration` localmente misturaria (ou destruiria) dado de dev de verdade. O banco
+//    isolado ("prospectordb_test", mesmo nome que o CI usa) não existe por padrão no Postgres do
+//    docker-compose.yml (que só cria "prospectordb" na inicialização) — este script garante que
+//    ele exista, com a extensão vector e o papel `prospector_app` prontos, antes de qualquer coisa
+//    depender disso (mesmo script SQL que scripts/db/bootstrap-app-role.sh usa no CI).
 
 import { existsSync, copyFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +29,12 @@ import path from 'node:path';
 const isCI = process.env.CI === 'true' || process.env.CI === '1';
 const envTestPath = path.resolve(process.cwd(), '.env.test');
 const envTestExamplePath = path.resolve(process.cwd(), '.env.test.example');
+
+const POSTGRES_CONTAINER = 'atlas_postgres';
+const BOOTSTRAP_SUPERUSER = 'prospector';
+const BOOTSTRAP_DB = 'prospectordb';
+const TEST_DB_NAME = 'prospectordb_test';
+const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
 if (!isCI) {
   const result = spawnSync('docker-compose', ['up', '-d'], { stdio: 'inherit', shell: true });
@@ -41,6 +54,44 @@ if (!existsSync(envTestPath)) {
       'No CI isso deveria ter sido criado por um step do workflow antes deste script rodar.'
     );
     process.exit(1);
+  }
+}
+
+// Só local: no CI, o service container do Postgres já sobe com POSTGRES_DB=prospectordb_test
+// (ver .github/workflows/ci.yml), e um step dedicado do workflow já roda o mesmo bootstrap.
+if (!isCI) {
+  const exists = spawnSync('docker', [
+    'exec', POSTGRES_CONTAINER, 'psql', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB, '-tAc',
+    `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`,
+  ], { encoding: 'utf-8' });
+  if (exists.status !== 0) {
+    console.error(exists.stderr || 'Falha ao verificar se o banco de teste isolado já existe.');
+    process.exit(exists.status || 1);
+  }
+
+  if (exists.stdout.trim() !== '1') {
+    console.log(`Banco "${TEST_DB_NAME}" não existe — criando (isolado de "${BOOTSTRAP_DB}", nunca usado pelo dev).`);
+    const create = spawnSync('docker', [
+      'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB,
+      '-c', `CREATE DATABASE ${TEST_DB_NAME} OWNER ${BOOTSTRAP_SUPERUSER};`,
+    ], { stdio: 'inherit' });
+    if (create.status !== 0) {
+      console.error(`Falha ao criar o banco "${TEST_DB_NAME}".`);
+      process.exit(create.status || 1);
+    }
+  }
+
+  // Idempotente (ver create-app-role.sql): garante a extensão vector e o papel/ownership de
+  // prospector_app — sem isso, FORCE ROW LEVEL SECURITY não vale nada, porque o dono dos objetos
+  // ainda seria o superusuário de bootstrap, que RLS nunca restringe.
+  const bootstrap = spawnSync('docker', [
+    'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', TEST_DB_NAME,
+    '-v', `app_password=${APP_ROLE_PASSWORD}`,
+    '-f', '/docker-entrypoint-initdb.d/create-app-role.sql.tpl',
+  ], { stdio: 'inherit' });
+  if (bootstrap.status !== 0) {
+    console.error(`Falha ao preparar papel/extensão em "${TEST_DB_NAME}".`);
+    process.exit(bootstrap.status || 1);
   }
 }
 

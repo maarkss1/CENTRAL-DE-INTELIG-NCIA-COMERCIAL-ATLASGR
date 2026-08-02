@@ -8,7 +8,7 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "tsx server.ts",
+    "dev": "tsx watch server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview --port 4173",
@@ -18,7 +18,7 @@
     "lint": "eslint src",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "vitest run -c vitest.unit.config.ts --passWithNoTests",
-    "pretest:integration": "node scripts/test/prepare-integration-env.js && dotenv -e .env.test -- npx prisma db push --accept-data-loss",
+    "pretest:integration": "node scripts/test/prepare-integration-env.js && dotenv -e .env.test -- npx prisma migrate deploy",
     "test:integration": "vitest run -c vitest.integration.config.ts --passWithNoTests",
     "test:e2e": "playwright test",
     "test:watch": "vitest -c vitest.unit.config.ts",
