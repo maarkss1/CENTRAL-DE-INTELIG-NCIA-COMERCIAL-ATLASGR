@@ -316,6 +316,7 @@ model Organization {
   prompts          Prompt[]
   agentMemories    AgentMemory[]
   callSuppressions CallSuppression[]
+  coldCallRuns     ColdCallRun[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -577,6 +578,30 @@ model CallSuppression {
   /// registro do opt-out ser idempotente — o webhook pode reentregar o mesmo evento.
   @@unique([organizationId, phoneE164])
   @@index([organizationId])
+}
+
+/// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a
+/// campanha rodava 100% invisível — só `logger.info`, sem nenhuma tela para a operação ver o que
+/// o SDR de voz fez (quantos discou, quantos pulou e por quê).
+model ColdCallRun {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  scanned           Int
+  called            Int
+  skippedMaxAttempts Int @default(0)
+  skippedCooldown    Int @default(0)
+  skippedNoPhone     Int @default(0)
+  skippedSuppressed  Int @default(0)
+  skippedError       Int @default(0)
+  /// Preenchido quando a execução nem chegou a examinar leads (ex: fora da janela de discagem).
+  haltedBy String?
+
+  runAt DateTime @default(now())
+
+  @@index([organizationId, runAt])
 }
 
 model AIGovernancePolicy {

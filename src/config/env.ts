@@ -41,7 +41,28 @@ const envSchema = z.object({
   // URL pública desta aplicação — é o endereço que mandamos ao Birth Voices Hub para ele nos
   // devolver o resultado da chamada, então precisa ser alcançável de fora.
   PUBLIC_BASE_URL: z.string().url().optional(),
-});
+
+  // ── Prospecção fria (discagem automática) ────────────────────────────────
+  // Duas chaves independentes para ligar: o booleano E a lista de organizações. Discar para quem
+  // nunca pediu contato é a operação mais arriscada do sistema — habilitar por engano tem que ser
+  // difícil, então nenhuma das duas sozinha basta.
+  SDR_COLD_CALL_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Ids de organização separados por vírgula. Vazio = ninguém, mesmo com a flag acima ligada. */
+  SDR_COLD_CALL_ORGANIZATIONS: z.string().optional(),
+  // Janela de discagem no fuso do destinatário. O fim é exclusivo: 18 significa "até 17:59".
+  SDR_CALL_WINDOW_START: z.coerce.number().int().min(0).max(23).default(9),
+  SDR_CALL_WINDOW_END: z.coerce.number().int().min(1).max(24).default(18),
+  SDR_CALL_TIMEZONE: z.string().default('America/Sao_Paulo'),
+  SDR_MAX_CALLS_PER_RUN: z.coerce.number().int().positive().default(10),
+  SDR_MAX_ATTEMPTS_PER_LEAD: z.coerce.number().int().positive().default(3),
+  SDR_RETRY_COOLDOWN_HOURS: z.coerce.number().int().positive().default(48),
+})
+  // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
+  // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.
+  .refine((cfg) => cfg.SDR_CALL_WINDOW_START < cfg.SDR_CALL_WINDOW_END, {
+    message: 'SDR_CALL_WINDOW_START precisa ser menor que SDR_CALL_WINDOW_END',
+    path: ['SDR_CALL_WINDOW_START'],
+  });
 
 const _env = envSchema.safeParse(process.env);
 

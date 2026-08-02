@@ -52,6 +52,8 @@ import { leadsQueue } from './src/lib/queue/index.js';
 import { searchQueue } from './src/lib/queue/search.queue.js';
 import { agentQueue } from './src/lib/queue/agent.worker.js';
 import { companyQueue, createCompanyWorker } from './src/lib/queue/company.worker.js';
+import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
+import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
 
 const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
@@ -155,6 +157,11 @@ async function startServer() {
         max: 20,
         standardHeaders: true,
         legacyHeaders: false,
+        // get-session e o callback OAuth (GET) são checagens/redirecionamentos disparados
+        // automaticamente pelo better-auth a cada carregamento de página — não são o vetor
+        // de força bruta que este limiter existe para conter. Só POST (sign-in/sign-up/social)
+        // consome a cota.
+        skip: (req) => req.method === 'GET',
         store: env.NODE_ENV === 'production' ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
@@ -290,6 +297,15 @@ async function startServer() {
         await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
+    // Prospecção fria: só sobe se houver organização explicitamente autorizada (ver
+    // SDR_COLD_CALL_ENABLED e SDR_COLD_CALL_ORGANIZATIONS). Sem isso, nenhum worker é criado.
+    const coldCallWorker = enabledOrganizations().length > 0 ? createColdCallWorker() : null;
+    if (coldCallWorker) {
+        await scheduleColdCallCampaigns().catch((err) =>
+            logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
+        );
+    }
+
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
@@ -298,6 +314,7 @@ async function startServer() {
         await searchWorker?.close();
         await companyWorker.close();
         await enrichmentWorker.close();
+        await coldCallWorker?.close();
         await prisma.$disconnect();
         process.exit(0);
     };

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { prisma } from '../../../lib/prisma.js';
 import {
     callLead,
     BirthVoiceNotConfiguredError,
@@ -8,8 +9,34 @@ import {
     SuppressedNumberError,
 } from './birthVoice.service.js';
 import { listSuppressions, recordOptOut, normalizeSuppressionKey } from './callSuppression.service.js';
+import { enabledOrganizations, callWindowFromEnv, dialPolicyFromEnv } from './coldCall.service.js';
 
 const router = Router();
+
+// Status da campanha de prospecção fria: até aqui, a única forma de saber se ela existe e o que
+// fez era ler `.env` e grep no log — nenhuma tela mostrava nada disto.
+router.get('/cold-call/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const enabled = enabledOrganizations().includes(organizationId);
+        const recentRuns = await prisma.coldCallRun.findMany({
+            where: { organizationId },
+            orderBy: { runAt: 'desc' },
+            take: 20,
+        });
+        res.json({
+            success: true,
+            data: {
+                enabled,
+                window: callWindowFromEnv(),
+                policy: dialPolicyFromEnv(),
+                recentRuns,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Dispara uma ligação do SDR de voz para o lead informado.
 router.post('/call/:leadId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {

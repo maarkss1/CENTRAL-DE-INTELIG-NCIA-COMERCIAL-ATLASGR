@@ -9,6 +9,7 @@ import {
     automationsApi, describeAutomation, TRIGGERS, ACTIONS, LEAD_STATUSES,
     type Automation, type AutomationTrigger, type AutomationAction,
 } from '../automations.api';
+import { ColdCallStatusCard } from './ColdCallStatusCard';
 
 const inputClass =
     'w-full bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-atlas-orange transition-colors';
@@ -229,6 +230,8 @@ export function Automations() {
                         <Plus className="w-4 h-4 mr-2" /> Nova automação
                     </Button>
                 </div>
+
+                <ColdCallStatusCard />
 
                 {loading && (
                     <Card padding="lg" className="text-center text-gray-400 text-sm">
