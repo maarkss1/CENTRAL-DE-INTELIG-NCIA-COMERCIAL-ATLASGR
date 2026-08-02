@@ -1,16 +1,17 @@
 model_list:
   # Apelidos "gemini-pro"/"gemini-flash" mantidos de propósito — são os nomes lógicos usados em todo
   # o app (ai.service.ts, gateway.ts, ReportsHub) para "modelo de raciocínio" vs "modelo rápido".
-  # Repontados para Groq (tier gratuito, sem cartão) em vez de Gemini (a chave do projeto ficou sem
-  # crédito de prepagamento) — assim nenhum código de aplicação precisa mudar, só o roteamento aqui.
+  # Repontados para Ollama local (sem chave, sem custo, roda na própria máquina via
+  # host.docker.internal) em vez de Groq/Gemini — assim nenhum código de aplicação precisa mudar,
+  # só o roteamento aqui.
   - model_name: gemini-pro
     litellm_params:
-      model: groq/llama-3.3-70b-versatile
-      api_key: "os.environ/GROQ_API_KEY"
+      model: ollama/llama3
+      api_base: "http://host.docker.internal:11434"
   - model_name: gemini-flash
     litellm_params:
-      model: groq/llama-3.1-8b-instant
-      api_key: "os.environ/GROQ_API_KEY"
+      model: ollama/llama3
+      api_base: "http://host.docker.internal:11434"
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
@@ -20,6 +21,7 @@ model_list:
   - model_name: ollama-llama3
     litellm_params:
       model: ollama/llama3
+      api_base: "http://host.docker.internal:11434"
   - model_name: openrouter-mixtral
     litellm_params:
       model: openrouter/mistralai/mixtral-8x7b-instruct
