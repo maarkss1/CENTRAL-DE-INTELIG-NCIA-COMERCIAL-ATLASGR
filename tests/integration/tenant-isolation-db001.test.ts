@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { prisma } from '../../src/lib/prisma';
+import { requestContext } from '../../src/lib/async-context';
 
 // DB-001 / DB-002 (auditoria de dívida técnica, Fase 0, ciclo C0.2): confirma que consultas a
 // KnowledgeChunk, Prompt, AgentMemory e AIPendingAction filtradas por organizationId nunca
@@ -12,10 +13,12 @@ const ORG_B = 'test-org-id-b';
 
 describe('Isolamento de tenant — KnowledgeChunk, Prompt, AgentMemory, AIPendingAction', () => {
   beforeEach(async () => {
-    const exists = await prisma.organization.findUnique({ where: { id: ORG_B } });
-    if (!exists) {
-      await prisma.organization.create({ data: { id: ORG_B, name: 'Test Org B' } });
-    }
+    await requestContext.run({ bypassRls: true }, async () => {
+      const exists = await prisma.organization.findUnique({ where: { id: ORG_B } });
+      if (!exists) {
+        await prisma.organization.create({ data: { id: ORG_B, name: 'Test Org B' } });
+      }
+    });
   });
 
   afterEach(async () => {
@@ -23,11 +26,15 @@ describe('Isolamento de tenant — KnowledgeChunk, Prompt, AgentMemory, AIPendin
     await prisma.prompt.deleteMany({ where: { id: { in: ['prompt-a', 'prompt-b'] } } });
     await prisma.agentMemory.deleteMany({ where: { sessionId: { in: ['session-a', 'session-b'] } } });
     await prisma.aIPendingAction.deleteMany({ where: { id: { in: ['action-a', 'action-b'] } } });
-    await prisma.organization.deleteMany({ where: { id: ORG_B } });
+    await requestContext.run({ bypassRls: true }, async () => {
+      await prisma.organization.deleteMany({ where: { id: ORG_B } });
+    });
   });
 
   afterAll(async () => {
-    await prisma.organization.deleteMany({ where: { id: ORG_B } });
+    await requestContext.run({ bypassRls: true }, async () => {
+      await prisma.organization.deleteMany({ where: { id: ORG_B } });
+    });
   });
 
   it('KnowledgeChunk: busca por organizationId nunca retorna trecho de outro tenant', async () => {
