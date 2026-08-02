@@ -37,7 +37,7 @@ export const prisma = basePrisma.$extends({
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
-        const bypassRls = (store as Record<string, unknown>)?.bypassRls || false;
+        const bypassRls = store?.bypassRls || false;
         
         const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
         const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];

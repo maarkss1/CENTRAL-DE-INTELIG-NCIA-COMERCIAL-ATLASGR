@@ -95,6 +95,22 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
+      # vitest.integration.config.ts e o pretest:integration (dotenv -e .env.test) esperam este
+      # arquivo — sem ele, localmente cai pro .env.test.example versionado, mas no CI não há
+      # fallback, então escrevemos aqui com os valores reais do job (mesmo step usado em ci.yml).
+      # Sem isso, os testes de integração conectam com a senha de exemplo do .env.test.example
+      # em vez da senha real do papel prospector_app bootstrapado acima, e falham com
+      # "password authentication failed".
+      - name: Criar .env.test para os testes de integração
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          EOF
+
       - name: Run Integration Tests
         run: npm run test:integration
 
