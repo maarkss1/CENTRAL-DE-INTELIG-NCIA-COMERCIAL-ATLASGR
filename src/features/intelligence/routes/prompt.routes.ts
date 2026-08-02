@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { prisma } from '../../../lib/prisma.js';
 import { z } from 'zod';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { listPrompts, createPrompt, updatePromptVariables } from '../services/prompt.service.js';
 
 export const promptRoutes = Router();
 
@@ -10,10 +10,7 @@ export const promptRoutes = Router();
 promptRoutes.get('/', async (req, res, next) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        const prompts = await prisma.prompt.findMany({
-            where: { organizationId },
-            orderBy: { category: 'asc' },
-        });
+        const prompts = await listPrompts(organizationId);
         res.json({ success: true, data: prompts });
     } catch (err) {
         next(err);
@@ -35,18 +32,7 @@ promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, nex
         // `req.user.organizationId`) — todo prompt criado por qualquer tenant caía em owner='system'.
         const { organizationId } = (req as AuthRequest).user;
 
-        const prompt = await prisma.prompt.create({
-            data: {
-                name,
-                category,
-                version: '1.0',
-                owner: organizationId,
-                organizationId,
-                variables: variables || {},
-                history: [],
-                approved: true
-            },
-        });
+        const prompt = await createPrompt(organizationId, { name, category, variables });
         res.status(201).json({ success: true, data: prompt });
     } catch (err) {
         next(err);
@@ -69,17 +55,12 @@ promptRoutes.put('/:id', validateRequest(updatePromptSchema), async (req, res, n
         const { organizationId } = (req as AuthRequest).user;
 
         // Bug anterior: dava update por id sem checar dono — qualquer tenant autenticado podia
-        // editar o prompt de outro (IDOR). `updateMany` com organizationId no where garante que só
-        // afeta a linha se ela pertencer ao tenant do request.
-        const { count } = await prisma.prompt.updateMany({
-            where: { id, organizationId },
-            data: { variables },
-        });
-        if (count === 0) {
+        // editar o prompt de outro (IDOR). Ver updatePromptVariables (prompt.service.ts).
+        const prompt = await updatePromptVariables(organizationId, id, variables);
+        if (!prompt) {
             res.status(404).json({ success: false, error: 'Prompt não encontrado.' });
             return;
         }
-        const prompt = await prisma.prompt.findFirst({ where: { id, organizationId } });
         res.json({ success: true, data: prompt });
     } catch (err) {
         next(err);

@@ -31,6 +31,8 @@ import { leadsQueue } from '../../../lib/queue/index.js';
 import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
+import { listPendingActions, approvePendingAction, discardPendingAction } from '../services/pending-actions.service.js';
+import { listAiSettings, saveAiSettings } from '../services/ai-settings.service.js';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { studioGenerationSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
@@ -164,13 +166,7 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction): 
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingActions = await db.aIPendingAction.findMany({
-            where: {
-                approved: false,
-                organizationId: authRequest.user.organizationId,
-            },
-            orderBy: { id: 'desc' }
-        });
+        const pendingActions = await listPendingActions(db, authRequest.user.organizationId);
         res.json(pendingActions);
     } catch (error) {
         logger.error({ err: error }, 'Error fetching pending actions');
@@ -183,21 +179,14 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
         const { id } = req.params;
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.aIPendingAction.findFirst({
-            where: { id, organizationId: authRequest.user.organizationId, approved: false },
-        });
-        if (!pendingAction) {
+        const action = await approvePendingAction(db, authRequest.user.organizationId, id);
+        if (!action) {
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
         }
-        
-        const action = await db.aIPendingAction.update({
-            where: { id },
-            data: { approved: true }
-        });
-        
+
         logger.info({ actionId: id }, 'AI action approved for downstream execution');
-        
+
         res.json({ success: true, action });
     } catch (error) {
         logger.error({ err: error }, 'Error approving action');
@@ -209,18 +198,11 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const pendingAction = await db.aIPendingAction.findFirst({
-            where: {
-                id: req.params.id,
-                organizationId: authRequest.user.organizationId,
-                approved: false,
-            },
-        });
-        if (!pendingAction) {
+        const discarded = await discardPendingAction(db, authRequest.user.organizationId, req.params.id);
+        if (!discarded) {
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
         }
-        await db.aIPendingAction.delete({ where: { id: pendingAction.id } });
         res.status(204).send();
     } catch (error) {
         logger.error({ err: error }, 'Error discarding pending AI action');
@@ -232,7 +214,7 @@ router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunc
 // Sem registro para uma toolKey, `ai.service.ts` cai no TOOL_CONFIG hardcoded como padrão.
 router.get('/ai-settings', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const settings = await prisma.aiEngineSetting.findMany({ orderBy: { toolKey: 'asc' } });
+        const settings = await listAiSettings();
         res.json({ success: true, data: settings });
     } catch (error) {
         logger.error({ err: error }, 'Error fetching AI engine settings');
@@ -257,15 +239,7 @@ router.put('/ai-settings', validateRequest(putAiSettingsSchema), async (req: Req
             settings: { toolKey: string; provider: string; model: string; temperature: number }[];
         };
 
-        const saved = await prisma.$transaction(
-            settings.map((s) =>
-                prisma.aiEngineSetting.upsert({
-                    where: { toolKey: s.toolKey },
-                    update: { provider: s.provider, model: s.model, temperature: s.temperature },
-                    create: s,
-                }),
-            ),
-        );
+        const saved = await saveAiSettings(settings);
 
         res.json({ success: true, data: saved });
     } catch (error) {
