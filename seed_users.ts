@@ -31,7 +31,7 @@ const USERS: SeedUserDefinition[] = [
     { name: 'João Reis', email: 'joao.reis@atlasgr.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_JOAO' },
     { name: 'Comercial', email: 'comercial@atlas.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_COMERCIAL' },
     { name: 'Ronan', email: 'ronan@totaltrac.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_RONAN' },
-    { name: 'Kauê Oliveira', email: 'kaue.oliveira@totaltrack.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_KAUE' },
+    { name: 'Kauê Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_KAUE' },
 ];
 
 async function seed() {

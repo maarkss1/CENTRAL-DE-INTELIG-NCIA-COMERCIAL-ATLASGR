@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict';
 
 // Roda antes de npm run test:integration (via pretest:integration no package.json).
 //
@@ -15,10 +14,10 @@
 //    .env.test com as credenciais reais do job antes deste script rodar; localmente, copiamos de
 //    .env.test.example na primeira execução.
 
-const { existsSync, copyFileSync } = require('fs');
-const { spawnSync } = require('child_process');
-const net = require('net');
-const path = require('path');
+import { existsSync, copyFileSync } from 'fs';
+import { spawnSync } from 'child_process';
+import net from 'net';
+import path from 'path';
 
 const isCI = process.env.CI === 'true' || process.env.CI === '1';
 const envTestPath = path.resolve(process.cwd(), '.env.test');

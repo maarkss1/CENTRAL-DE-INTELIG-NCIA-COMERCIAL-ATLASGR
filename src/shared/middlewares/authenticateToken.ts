@@ -25,9 +25,15 @@ import { requestContext } from '../../lib/async-context.js';
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const session = await auth.api.getSession({
-            headers: fromNodeHeaders(req.headers)
-        });
+        // Assim como as rotas /api/auth/* (server.ts), esta busca de sessão roda antes de
+        // sabermos o tenant do usuário — getSession() precisa localizar Session/User por conta
+        // própria, e essas tabelas têm FORCE ROW LEVEL SECURITY. Sem o bypass aqui, toda requisição
+        // autenticada (não só login/signup) seria rejeitada como sessão inválida sob RLS.
+        const session = await requestContext.run({ bypassRls: true }, () =>
+            auth.api.getSession({
+                headers: fromNodeHeaders(req.headers)
+            })
+        );
 
         let user: { id: string, email: string, role?: string, organizationId?: string };
         let isDevelopmentBypass = false;

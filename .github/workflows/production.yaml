@@ -95,6 +95,21 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
+      # Sem este arquivo, scripts/test/prepare-integration-env.js (pretest:integration) cai pro
+      # .env.test.example versionado — cujas credenciais (prospector_app_pass) não batem com a
+      # senha que "Bootstrap papel NOSUPERUSER da aplicação" configurou neste job
+      # (ci_app_test_pass), e prospector_app fica com "password authentication failed" já na
+      # primeira query de teste. Mesmo passo do ci.yml.
+      - name: Criar .env.test para os testes de integração
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          EOF
+
       - name: Run Integration Tests
         run: npm run test:integration
 

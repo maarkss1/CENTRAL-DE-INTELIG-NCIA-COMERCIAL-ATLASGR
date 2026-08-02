@@ -15,12 +15,16 @@ describe('access policy', () => {
     expect(isAuthorizedLoginEmail(' MARCELO.NASCIMENTO@ATLASGR.COM.BR ')).toBe(true);
     expect(isAuthorizedLoginEmail('novo.usuario@atlasgr.com.br')).toBe(true);
     expect(isAuthorizedLoginEmail('operador@totaltrac.com.br')).toBe(true);
-    expect(isAuthorizedLoginEmail('suporte@totaltrack.com.br')).toBe(true);
   });
 
   it('rejects unauthorized external domains and missing identity', () => {
     expect(isAuthorizedLoginEmail('usuario@gmail.com')).toBe(false);
     expect(isAuthorizedLoginEmail('contato@empresaexterna.com')).toBe(false);
+    // Domínios parecidos mas incorretos (sem .br, ou com "k" extra) não são
+    // aceitos — os únicos domínios corporativos válidos são atlasgr.com.br
+    // e totaltrac.com.br.
+    expect(isAuthorizedLoginEmail('usuario@atlasgr.com')).toBe(false);
+    expect(isAuthorizedLoginEmail('suporte@totaltrack.com.br')).toBe(false);
     expect(isAuthorizedLoginEmail(null)).toBe(false);
     expect(isAuthorizedLoginEmail(undefined)).toBe(false);
   });

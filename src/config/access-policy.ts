@@ -5,9 +5,7 @@ export const AUTHORIZED_LOGIN_EMAILS = [
 
 export const AUTHORIZED_LOGIN_DOMAINS = [
   'atlasgr.com.br',
-  'atlasgr.com',
   'totaltrac.com.br',
-  'totaltrack.com.br',
 ] as const;
 
 export function normalizeLoginEmail(email: string): string {

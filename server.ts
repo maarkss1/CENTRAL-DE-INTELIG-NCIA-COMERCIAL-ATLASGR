@@ -16,6 +16,7 @@ import { auth } from './src/lib/auth.js';
 import { intelligenceRoutes } from './src/features/intelligence/routes/intelligence.routes.js';
 import { promptRoutes } from './src/features/intelligence/routes/prompt.routes.js';
 import { authenticateToken } from './src/shared/middlewares/authenticateToken.js';
+import { requestContext } from './src/lib/async-context.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { prisma } from './src/lib/prisma.js';
 import { companyRoutes } from './src/features/companies/routes/company.routes.js';
@@ -192,7 +193,15 @@ async function startServer() {
     });
 
     // ── Auth (Better Auth) ─────────────────────────────────────────────────
-    app.all('/api/auth/*', toNodeHandler(auth));
+    // Roda fora de authenticateToken (não há sessão/tenant ainda) mas as tabelas que o Better
+    // Auth usa internamente (Organization, user, session) têm FORCE ROW LEVEL SECURITY — sem
+    // este bypass explícito, login e signup ficam bloqueados pelas próprias policies de RLS
+    // (ver bypassRls em src/lib/async-context.ts). Rotas autenticadas continuam isoladas por
+    // tenant normalmente via authenticateToken, que define tenantId sem bypass.
+    const authHandler = toNodeHandler(auth);
+    app.all('/api/auth/*', (req, res) => {
+        requestContext.run({ bypassRls: true }, () => authHandler(req, res));
+    });
 
     // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
     const serverAdapter = new ExpressAdapter();
