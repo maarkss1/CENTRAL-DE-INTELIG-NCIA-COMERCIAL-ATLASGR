@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// vitest.unit.config.ts (usado por `npm run test:unit`, ao contrário do vitest.config.ts na raiz)
+// não registra os matchers do jest-dom globalmente — importa aqui pra não depender de config
+// compartilhada.
+import '@testing-library/jest-dom/vitest';
 
 const createMock = vi.fn();
 const updateMock = vi.fn();
