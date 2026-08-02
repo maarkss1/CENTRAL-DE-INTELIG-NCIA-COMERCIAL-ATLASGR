@@ -51,7 +51,6 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { leadsQueue } from './src/lib/queue/index.js';
 import { searchQueue } from './src/lib/queue/search.queue.js';
 import { agentQueue } from './src/lib/queue/agent.worker.js';
-import { companyQueue, createCompanyWorker } from './src/lib/queue/company.worker.js';
 import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
 import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
 
@@ -227,8 +226,7 @@ async function startServer() {
         queues: [
             new BullMQAdapter(leadsQueue),
             new BullMQAdapter(searchQueue),
-            new BullMQAdapter(agentQueue),
-            new BullMQAdapter(companyQueue)
+            new BullMQAdapter(agentQueue)
         ],
         serverAdapter: serverAdapter,
     });
@@ -288,7 +286,6 @@ async function startServer() {
     setupDI();
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
-    const companyWorker = createCompanyWorker();
     const enrichmentWorker = createEnrichmentWorker();
     // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
     // inicialização do Meilisearch sempre rodavam, independentemente da flag.
@@ -312,7 +309,6 @@ async function startServer() {
         await leadsWorker.close();
         await agentWorker.close();
         await searchWorker?.close();
-        await companyWorker.close();
         await enrichmentWorker.close();
         await coldCallWorker?.close();
         await prisma.$disconnect();
