@@ -20,4 +20,6 @@
 
 ## Relatórios
 
-Consulte o diretório [reports](reports/).
+Consulte o [índice de relatórios](reports/README.md) — registros históricos de sessões
+passadas, agrupados por tema. A fonte de verdade atual sobre dívida técnica é a
+[auditoria de dívida técnica](auditoria-divida-tecnica/).
