@@ -1,8 +1,12 @@
-import React from "react";
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { X } from 'lucide-react';
 import { Contact, Company } from '../../../types';
 import { Button } from '../../../components/ui/Button';
+import { contactSchema } from '../../../lib/zod';
+import { companiesDB, contactsDB } from '../../../lib/db';
 
 interface ContactFormProps {
     contact?: Contact | null;
@@ -12,56 +16,58 @@ interface ContactFormProps {
 
 const inputClass = "w-full px-4 py-2 bg-slate-950/60 border border-white/10 rounded-xl text-sm text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-atlas-orange/40 focus:border-atlas-orange outline-none transition-colors";
 const labelClass = "text-sm font-medium text-gray-400";
+const errorClass = "text-xs text-danger mt-1";
+
+// contactSchema.companyId é só `z.string()` (o backend recebe o id já resolvido por outros
+// fluxos, ex. promoção de candidato) — aqui o campo vem de um <select>, então precisa da
+// mesma obrigatoriedade que o formulário sempre teve via `required` do HTML.
+const contactFormSchema = contactSchema.extend({
+    companyId: z.string().min(1, 'Selecione uma empresa'),
+});
+
+type ContactFormInput = z.input<typeof contactFormSchema>;
+type ContactFormOutput = z.output<typeof contactFormSchema>;
+
+const emptyDefaults: ContactFormInput = {
+    name: '',
+    role: '',
+    email: '',
+    phone: '',
+    whatsapp: '',
+    companyId: '',
+    status: 'Ativo',
+};
 
 export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
     const [companies, setCompanies] = useState<Company[]>([]);
-    const [formData, setFormData] = useState<Partial<Contact>>({
-        name: '',
-        role: '',
-        email: '',
-        phone: '',
-        whatsapp: '',
-        companyId: '',
-        status: 'Ativo'
+    const {
+        register,
+        handleSubmit,
+        reset,
+        formState: { errors, isSubmitting },
+    } = useForm<ContactFormInput, unknown, ContactFormOutput>({
+        resolver: zodResolver(contactFormSchema),
+        defaultValues: emptyDefaults,
     });
-    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (contact) {
-            setFormData(contact);
-        }
-        const fetchCompanies = async () => {
-            try {
-                const res = await fetch('/api/companies');
-                if (res.ok) {
-                    const data = await res.json();
-                    setCompanies(data);
-                }
-            } catch (error) {
-                console.error('Error fetching companies for contact form:', error);
-            }
-        };
-        fetchCompanies();
-    }, [contact]);
+        reset(contact ? { ...emptyDefaults, ...contact } : emptyDefaults);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+        companiesDB.list({ limit: 200 })
+            .then((res) => setCompanies(res.data))
+            .catch((error) => console.error('Error fetching companies for contact form:', error));
+    }, [contact, reset]);
+
+    const onSubmit = async (data: ContactFormOutput) => {
         try {
-            const method = contact ? 'PUT' : 'POST';
-            const url = contact ? `/api/contacts/${contact.id}` : '/api/contacts';
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            if (res.ok) {
-                onSave();
+            if (contact) {
+                await contactsDB.update(contact.id, data);
+            } else {
+                await contactsDB.create(data);
             }
+            onSave();
         } catch (error) {
             console.error('Error saving contact:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -78,40 +84,46 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6">
-                    <form id="contact-form" onSubmit={handleSubmit} className="space-y-6">
+                    <form id="contact-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className={labelClass}>Nome *</label>
-                                <input required type="text" value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className={inputClass} />
+                                <label htmlFor="contact-name" className={labelClass}>Nome *</label>
+                                <input id="contact-name" type="text" {...register('name')} className={inputClass} />
+                                {errors.name && <p className={errorClass}>{errors.name.message}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className={labelClass}>Empresa *</label>
-                                <select required value={formData.companyId || ''} onChange={e => setFormData({...formData, companyId: e.target.value})} className={inputClass}>
+                                <label htmlFor="contact-companyId" className={labelClass}>Empresa *</label>
+                                <select id="contact-companyId" {...register('companyId')} className={inputClass}>
                                     <option value="" disabled>Selecione uma empresa</option>
                                     {companies.map(company => (
                                         <option key={company.id} value={company.id}>{company.tradeName || company.legalName}</option>
                                     ))}
                                 </select>
+                                {errors.companyId && <p className={errorClass}>{errors.companyId.message}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className={labelClass}>Cargo</label>
-                                <input type="text" value={formData.role || ''} onChange={e => setFormData({...formData, role: e.target.value})} className={inputClass} />
+                                <label htmlFor="contact-role" className={labelClass}>Cargo</label>
+                                <input id="contact-role" type="text" {...register('role')} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className={labelClass}>E-mail</label>
-                                <input type="email" value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className={inputClass} />
+                                <label htmlFor="contact-email" className={labelClass}>E-mail</label>
+                                {/* type="text" (não "email") de propósito: o input nativo bloquearia o submit
+                                antes até do handler do react-hook-form rodar, escondendo nossa própria
+                                mensagem de erro atrás do popover de validação nativo do navegador. */}
+                                <input id="contact-email" type="text" inputMode="email" {...register('email')} className={inputClass} />
+                                {errors.email && <p className={errorClass}>{errors.email.message}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className={labelClass}>Telefone</label>
-                                <input type="text" value={formData.phone || ''} onChange={e => setFormData({...formData, phone: e.target.value})} className={inputClass} />
+                                <label htmlFor="contact-phone" className={labelClass}>Telefone</label>
+                                <input id="contact-phone" type="text" {...register('phone')} className={inputClass} />
                             </div>
                             <div className="space-y-2">
-                                <label className={labelClass}>WhatsApp</label>
-                                <input type="text" value={formData.whatsapp || ''} onChange={e => setFormData({...formData, whatsapp: e.target.value})} className={inputClass} />
+                                <label htmlFor="contact-whatsapp" className={labelClass}>WhatsApp</label>
+                                <input id="contact-whatsapp" type="text" {...register('whatsapp')} className={inputClass} />
                             </div>
                             <div className="space-y-2 md:col-span-2">
-                                <label className={labelClass}>Observações</label>
-                                <textarea rows={3} value={formData.observations || ''} onChange={e => setFormData({...formData, observations: e.target.value})} className={`${inputClass} resize-none`} />
+                                <label htmlFor="contact-observations" className={labelClass}>Observações</label>
+                                <textarea id="contact-observations" rows={3} {...register('observations')} className={`${inputClass} resize-none`} />
                             </div>
                         </div>
                     </form>
@@ -121,8 +133,8 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
                     <Button type="button" variant="ghost" onClick={onClose} className="text-gray-300">
                         Cancelar
                     </Button>
-                    <Button type="submit" form="contact-form" disabled={loading}>
-                        {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />}
+                    <Button type="submit" form="contact-form" disabled={isSubmitting}>
+                        {isSubmitting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />}
                         {contact ? 'Salvar Alterações' : 'Criar Contato'}
                     </Button>
                 </div>
