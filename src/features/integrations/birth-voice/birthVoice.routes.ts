@@ -1,0 +1,89 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import {
+    callLead,
+    BirthVoiceNotConfiguredError,
+    NoPhoneNumberError,
+    SuppressedNumberError,
+} from './birthVoice.service.js';
+import { listSuppressions, recordOptOut, normalizeSuppressionKey } from './callSuppression.service.js';
+
+const router = Router();
+
+// Dispara uma ligação do SDR de voz para o lead informado.
+router.post('/call/:leadId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await callLead(organizationId, req.params.leadId);
+        res.status(202).json({ success: true, data: result });
+    } catch (error) {
+        if (error instanceof BirthVoiceNotConfiguredError) {
+            res.status(503).json({ success: false, error: error.message });
+            return;
+        }
+        if (error instanceof NoPhoneNumberError) {
+            res.status(422).json({ success: false, error: error.message });
+            return;
+        }
+        // 409 e não 422: o pedido está bem formado e o lead é discável — o que impede a ligação é o
+        // estado atual (opt-out registrado), e a distinção importa para a tela dizer o motivo certo.
+        if (error instanceof SuppressedNumberError) {
+            res.status(409).json({ success: false, error: error.message });
+            return;
+        }
+        next(error);
+    }
+});
+
+// Lista interna de bloqueio, para a operação conseguir auditar quem está fora da discagem e por quê.
+router.get('/suppressions', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const data = await listSuppressions(organizationId);
+        res.json({ success: true, data });
+    } catch (error) {
+        next(error);
+    }
+});
+
+const addSuppressionSchema = z.object({
+    phone: z.string().min(1, 'Informe o telefone a bloquear.'),
+    reason: z.string().max(500).optional(),
+    leadId: z.string().optional(),
+});
+
+// Bloqueio manual — pedido que chegou por outro canal (e-mail, WhatsApp, atendimento humano).
+router.post('/suppressions', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const parsed = addSuppressionSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, error: parsed.error.issues[0]?.message ?? 'Dados inválidos.' });
+            return;
+        }
+
+        // Recusa antes de gravar em vez de gravar um bloqueio que nunca vai casar com nada: o
+        // número é a chave, e uma chave que não normaliza é um bloqueio silenciosamente inútil.
+        if (!normalizeSuppressionKey(parsed.data.phone)) {
+            res.status(422).json({
+                success: false,
+                error: 'Telefone fora de um formato brasileiro discável — não é possível bloqueá-lo.',
+            });
+            return;
+        }
+
+        await recordOptOut({
+            organizationId,
+            phone: parsed.data.phone,
+            source: 'manual',
+            reason: parsed.data.reason ?? null,
+            leadId: parsed.data.leadId ?? null,
+        });
+        res.status(201).json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+export const birthVoiceRoutes = router;

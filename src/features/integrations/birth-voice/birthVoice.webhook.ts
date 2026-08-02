@@ -1,0 +1,154 @@
+import express, { Router, Request, Response } from 'express';
+import { env } from '../../../config/env.js';
+import { prisma } from '../../../lib/prisma.js';
+import { logger } from '../../../lib/logger.js';
+import { requestContext } from '../../../lib/async-context.js';
+import {
+    isValidSignature,
+    callMarker,
+    buildObservations,
+    detectOptOut,
+    pickCallablePhone,
+    type CallEndedData,
+} from './birthVoice.helpers.js';
+import { recordOptOut } from './callSuppression.service.js';
+
+type RecordOutcome = 'recorded' | 'duplicate' | 'lead-not-found';
+
+async function recordCallResult(organizationId: string, leadId: string, data: CallEndedData): Promise<RecordOutcome> {
+    // Roda com o tenant no contexto para a RLS enxergar a organização certa: este webhook não tem
+    // JWT (quem chama é o Birth Voices Hub, não um usuário logado), então nada preencheria isso.
+    return requestContext.run({ tenantId: organizationId }, async () => {
+        // Como a RLS já limita à organização do contexto, achar o lead aqui é o que prova que o
+        // organizationId que veio no payload é mesmo o dono deste lead.
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId },
+            include: { contact: true, company: true },
+        });
+        if (!lead) return 'lead-not-found';
+
+        // Antes da checagem de duplicidade e antes de qualquer escrita de atividade: o bloqueio é o
+        // efeito mais importante deste webhook, e é o único que não pode se perder se uma escrita
+        // posterior falhar. `recordOptOut` é idempotente, então a reentrega do evento não duplica.
+        const detection = detectOptOut(data);
+        if (detection.optOut) {
+            // O número efetivamente discado é a fonte certa: o cadastro do lead pode ter vários, e
+            // quem pediu para não ser incomodado foi quem atendeu neste. Só cai no cadastro quando
+            // o Hub não informa `to`.
+            const dialed = data.to ?? pickCallablePhone(lead.contact, lead.company);
+            await recordOptOut({
+                organizationId,
+                phone: dialed,
+                source: 'call-opt-out',
+                reason: detection.evidence
+                    ? `Pedido na ligação (${detection.source}): "${detection.evidence}"`
+                    : `Pedido na ligação (${detection.source}).`,
+                leadId,
+            });
+        }
+
+        const marker = callMarker(data.callSid || 'sem-id');
+        const existing = await prisma.activity.findFirst({
+            where: { leadId, observations: { contains: marker } },
+        });
+        if (existing) return 'duplicate';
+
+        await prisma.activity.create({
+            data: {
+                leadId,
+                type: 'Ligacao' as never,
+                status: 'Concluida' as never,
+                owner: lead.owner || 'SDR IA',
+                date: new Date(),
+                observations: buildObservations(data),
+            },
+        });
+
+        await prisma.timelineEvent.create({
+            data: {
+                type: 'activity',
+                description: `SDR de voz ligou para o lead — ${data.outcome || data.status || 'resultado desconhecido'}.`
+                    // O opt-out precisa aparecer no histórico que o SDR humano lê, não só na tabela
+                    // de bloqueio: é o que explica por que o lead parou de ser discado.
+                    + (detection.optOut ? ' O lead pediu para não receber mais ligações; número bloqueado.' : ''),
+                leadId,
+            },
+        });
+
+        await prisma.lead.update({ where: { id: leadId }, data: { lastInteraction: new Date() } });
+
+        return 'recorded';
+    });
+}
+
+async function handleWebhook(req: Request, res: Response): Promise<void> {
+    const secret = env.BIRTH_VOICES_WEBHOOK_SECRET;
+    if (!secret) {
+        // Fail-closed: sem segredo não há como distinguir o Hub de qualquer um que descubra esta
+        // URL, e aceitar o payload deixaria qualquer pessoa escrever atividades nos leads.
+        logger.error('Webhook do SDR de voz recebido, mas BIRTH_VOICES_WEBHOOK_SECRET não está configurado.');
+        res.status(503).json({ success: false, error: 'Webhook não configurado.' });
+        return;
+    }
+
+    const rawBody = req.body;
+    if (!Buffer.isBuffer(rawBody)) {
+        logger.error('Webhook do SDR de voz sem corpo bruto — a rota precisa ser montada antes do express.json().');
+        res.status(500).json({ success: false, error: 'Configuração de rota inválida.' });
+        return;
+    }
+
+    if (!isValidSignature(rawBody, req.header('x-birthvoices-signature'), secret)) {
+        logger.warn('Webhook do SDR de voz com assinatura inválida — descartado.');
+        res.status(401).json({ success: false, error: 'Assinatura inválida.' });
+        return;
+    }
+
+    let event: { type?: string; data?: CallEndedData };
+    try {
+        event = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+        res.status(400).json({ success: false, error: 'Corpo não é JSON válido.' });
+        return;
+    }
+
+    // Eventos que ainda não tratamos são aceitos de propósito: devolver erro faria o Hub reentregar
+    // cinco vezes e mandar para a fila de mortos algo que nunca vamos querer.
+    if (event.type !== 'agent.call.ended') {
+        res.status(200).json({ success: true, ignored: event.type ?? null });
+        return;
+    }
+
+    const data = event.data ?? {};
+    const context = (data.context ?? {}) as Record<string, unknown>;
+    const organizationId = typeof context.organizationId === 'string' ? context.organizationId : null;
+    const leadId = typeof context.leadId === 'string' ? context.leadId : null;
+
+    if (!organizationId || !leadId) {
+        // Ligação feita fora do Prospector (inbound, teste manual) — nada a registrar, e reentregar
+        // não mudaria isso.
+        res.status(200).json({ success: true, ignored: 'sem contexto de lead' });
+        return;
+    }
+
+    try {
+        const outcome = await recordCallResult(organizationId, leadId, data);
+        if (outcome === 'lead-not-found') {
+            logger.warn({ leadId, organizationId }, 'Webhook do SDR de voz para um lead inexistente nesta organização.');
+        }
+        res.status(200).json({ success: true, outcome });
+    } catch (error) {
+        // 5xx aqui é proposital: o Hub reentrega com backoff, e o marcador de idempotência garante
+        // que a reentrega não duplique a atividade caso a falha tenha sido depois da escrita.
+        logger.error({ err: error, leadId }, 'Falha ao registrar resultado da ligação do SDR de voz.');
+        res.status(500).json({ success: false, error: 'Falha ao registrar resultado.' });
+    }
+}
+
+const router = Router();
+
+// express.raw porque a assinatura HMAC é calculada sobre os bytes exatos do corpo. Esta rota é
+// montada antes do express.json() global em server.ts.
+router.post('/webhook', express.raw({ type: '*/*', limit: '1mb' }), handleWebhook);
+
+export const birthVoiceWebhookRoutes = router;

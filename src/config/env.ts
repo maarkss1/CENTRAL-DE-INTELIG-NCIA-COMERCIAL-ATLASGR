@@ -29,6 +29,18 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+
+  // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
+  // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
+  // responde 503), em vez de impedir a aplicação inteira de subir.
+  BIRTH_VOICES_URL: z.string().url().optional(),
+  BIRTH_VOICES_API_KEY: z.string().optional(),
+  BIRTH_VOICES_AGENT_ID: z.string().optional(),
+  // Segredo compartilhado que valida a assinatura HMAC dos webhooks de resultado da ligação.
+  BIRTH_VOICES_WEBHOOK_SECRET: z.string().optional(),
+  // URL pública desta aplicação — é o endereço que mandamos ao Birth Voices Hub para ele nos
+  // devolver o resultado da chamada, então precisa ser alcançável de fora.
+  PUBLIC_BASE_URL: z.string().url().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

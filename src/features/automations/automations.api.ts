@@ -1,7 +1,7 @@
 import { api } from '../../lib/api';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
-export type AutomationAction = 'Notificar equipe' | 'Criar atividade';
+export type AutomationAction = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 export interface Automation {
     id: string;
@@ -26,7 +26,7 @@ export interface AutomationDraft {
 }
 
 export const TRIGGERS: AutomationTrigger[] = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'];
-export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade'];
+export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'];
 
 /** Etapas do funil, para o filtro de condição do gatilho de status. */
 export const LEAD_STATUSES = [

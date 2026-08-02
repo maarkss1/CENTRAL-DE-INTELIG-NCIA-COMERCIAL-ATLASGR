@@ -16,6 +16,7 @@ import { auth } from './src/lib/auth.js';
 import { intelligenceRoutes } from './src/features/intelligence/routes/intelligence.routes.js';
 import { promptRoutes } from './src/features/intelligence/routes/prompt.routes.js';
 import { authenticateToken } from './src/shared/middlewares/authenticateToken.js';
+import { requestContext } from './src/lib/async-context.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { prisma } from './src/lib/prisma.js';
 import { companyRoutes } from './src/features/companies/routes/company.routes.js';
@@ -26,6 +27,8 @@ import { prospectingRoutes } from './src/features/prospecting/routes/prospecting
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
+import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthVoice.routes.js';
+import { birthVoiceWebhookRoutes } from './src/features/integrations/birth-voice/birthVoice.webhook.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
@@ -159,6 +162,11 @@ async function startServer() {
     });
     app.use('/api/auth', authLimiter);
 
+    // Montado ANTES do express.json(): a autenticidade deste webhook é provada por uma assinatura
+    // HMAC calculada sobre os bytes crus do corpo, que o parser global consumiria. Quem chama é o
+    // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
+    app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
+
     app.use(express.json({ limit: '10mb' }));
 
     // ── Metrics ────────────────────────────────────────────────────────────
@@ -237,6 +245,7 @@ async function startServer() {
     app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
+    app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/agent', authenticateToken, requireTenant, agentRoutes);
 

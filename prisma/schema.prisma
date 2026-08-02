@@ -315,6 +315,7 @@ model Organization {
   knowledgeChunks  KnowledgeChunk[]
   prompts          Prompt[]
   agentMemories    AgentMemory[]
+  callSuppressions CallSuppression[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -517,6 +518,7 @@ enum AutomationTrigger {
 enum AutomationAction {
   Notificar_Equipe @map("Notificar equipe")
   Criar_Atividade  @map("Criar atividade")
+  Ligar_SDR_Voz    @map("Ligar via SDR de Voz")
 }
 
 model Automation {
@@ -544,6 +546,37 @@ model Automation {
   updatedAt      DateTime     @updatedAt
 
   @@index([organizationId, enabled])
+}
+
+/// Lista interna de bloqueio de discagem: números para os quais o SDR de voz não pode ligar.
+///
+/// Existe porque o opt-out precisa valer no ato — quem pede "não me liguem mais" durante a ligação
+/// não pode receber a próxima tentativa da campanha. Guardar o número já em E.164 é o que faz o
+/// mesmo telefone cadastrado em formatos diferentes ("(11) 99999-8888", "011999998888") cair no
+/// mesmo bloqueio, em vez de escapar por diferença de pontuação.
+model CallSuppression {
+  id String @id @default(cuid())
+
+  /// Telefone normalizado em E.164 (`+5511999998888`) — é a chave real do bloqueio.
+  phoneE164 String
+  /// De onde veio o bloqueio: `call-opt-out` (pedido na própria ligação), `manual`, `import`.
+  source String
+  /// Texto livre para auditoria (ex: trecho da transcrição em que o lead pediu para não ligar).
+  reason String?
+
+  /// Lead em que o pedido aconteceu, quando houve um. Fica nulo em bloqueios importados de uma
+  /// lista externa, e SET NULL na exclusão: apagar o lead não pode reabilitar a discagem.
+  leadId String?
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// O bloqueio é por organização (cada tenant tem sua própria lista) e único por número, para o
+  /// registro do opt-out ser idempotente — o webhook pode reentregar o mesmo evento.
+  @@unique([organizationId, phoneE164])
+  @@index([organizationId])
 }
 
 model AIGovernancePolicy {

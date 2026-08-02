@@ -3,7 +3,7 @@ import { logger } from '../../lib/logger.js';
 import { notificationService, type NotificationKind } from '../notifications/notification.service.js';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
-export type AutomationActionType = 'Notificar equipe' | 'Criar atividade';
+export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 /**
  * Contexto do evento que disparou o motor. As chaves viram tanto critério de condição quanto
@@ -153,6 +153,30 @@ export class AutomationEngine {
                     ),
                 },
             });
+            return;
+        }
+
+        if (automation.action === 'Ligar via SDR de Voz') {
+            if (event.entity !== 'Lead') {
+                throw new Error('A ação "Ligar via SDR de Voz" só se aplica a eventos de lead.');
+            }
+            // Import tardio (mesmo padrão do Bitrix24Adapter em LeadUseCases): o serviço carrega
+            // configuração de ambiente e o cliente HTTP do Hub, que não fazem falta para nenhuma
+            // outra ação — e um deployment que não usa SDR de voz nunca chega a carregá-lo.
+            const { callLead, SuppressedNumberError } = await import('../integrations/birth-voice/birthVoice.service.js');
+            try {
+                await callLead(event.organizationId, event.entityId);
+            } catch (error) {
+                // Número com opt-out é a regra funcionando, não uma falha: registrar como erro
+                // encheria o log de alarme falso e faria a automação parecer quebrada toda vez que
+                // ela respeitasse um bloqueio. Qualquer outro erro (lead sem telefone, Hub fora do
+                // ar) continua subindo, para quem chama isolar por automação e registrar no log.
+                if (!(error instanceof SuppressedNumberError)) throw error;
+                logger.info(
+                    { automationId: automation.id, leadId: event.entityId },
+                    'Automação de SDR de voz não ligou: número na lista de bloqueio (opt-out).',
+                );
+            }
             return;
         }
 

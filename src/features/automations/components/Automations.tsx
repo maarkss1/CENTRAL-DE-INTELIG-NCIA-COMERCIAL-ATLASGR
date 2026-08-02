@@ -42,7 +42,11 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                 conditions: permiteCondicaoStatus && statusCondition ? { status: statusCondition } : null,
                 actionConfig: action === 'Notificar equipe'
                     ? { title: title.trim() || name.trim(), body: body.trim() || undefined, kind: 'Info' }
-                    : { dueInDays: Number(dueInDays) || 1, type: 'Follow_up' },
+                    // A ligação não tem parâmetro: o agente e o número saem da configuração do
+                    // ambiente e do cadastro do lead, não da regra.
+                    : action === 'Ligar via SDR de Voz'
+                        ? {}
+                        : { dueInDays: Number(dueInDays) || 1, type: 'Follow_up' },
             });
             toast.success('Automação criada.');
             onSaved();
@@ -127,6 +131,12 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                                 />
                             </div>
                         </>
+                    ) : action === 'Ligar via SDR de Voz' ? (
+                        <p className="text-xs text-gray-400 bg-white/5 rounded-lg p-3">
+                            O SDR de voz liga para o telefone do contato do lead (ou, na falta dele, o da
+                            empresa) e registra o resultado da chamada como atividade. Leads sem telefone
+                            discável são ignorados.
+                        </p>
                     ) : (
                         <div>
                             <label className={labelClass} htmlFor="auto-prazo">Criar follow-up em (dias)</label>

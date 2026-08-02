@@ -2,7 +2,7 @@ import { prisma } from '../../lib/prisma.js';
 import { z } from 'zod';
 
 export const AUTOMATION_TRIGGERS = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'] as const;
-export const AUTOMATION_ACTIONS = ['Notificar equipe', 'Criar atividade'] as const;
+export const AUTOMATION_ACTIONS = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'] as const;
 
 export const automationSchema = z.object({
     name: z.string().trim().min(1, 'Dê um nome à automação').max(120),
