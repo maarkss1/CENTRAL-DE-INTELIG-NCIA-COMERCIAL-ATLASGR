@@ -63,7 +63,9 @@ export class ActivityService {
         if (filters.status) where.status = toPrismaActivityStatus(filters.status) as unknown as Prisma.ActivityWhereInput['status'];
         if (filters.type) where.type = toPrismaActivityType(filters.type) as unknown as Prisma.ActivityWhereInput['type'];
 
-        const skip = (page - 1) * limit;
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 50;
+        const skip = (safePage - 1) * safeLimit;
 
         const [activities, total] = await prisma.$transaction([
             prisma.activity.findMany({
@@ -71,14 +73,14 @@ export class ActivityService {
                 include: { lead: { include: { company: true, contact: true } } },
                 orderBy: { date: 'asc' },
                 skip,
-                take: limit
+                take: safeLimit
             }),
             prisma.activity.count({ where })
         ]);
 
         return {
             data: activities.map(serializeActivity),
-            meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
+            meta: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) }
         };
     }
 
