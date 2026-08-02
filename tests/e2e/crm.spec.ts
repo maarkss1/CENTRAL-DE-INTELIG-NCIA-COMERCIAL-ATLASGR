@@ -7,6 +7,6 @@ test.describe('CRM Operations - End-to-End', () => {
   });
 
   test('should render the CRM dashboard', async ({ page }) => {
-    await expect(page).toHaveTitle(/Atlas | PROSPECTOR-ATLAS/);
+    await expect(page).toHaveTitle(/AtlasGR | Commercial Intelligence OS/);
   });
 });
