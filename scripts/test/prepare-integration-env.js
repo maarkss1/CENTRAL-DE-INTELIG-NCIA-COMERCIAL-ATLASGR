@@ -14,10 +14,10 @@
 //    .env.test com as credenciais reais do job antes deste script rodar; localmente, copiamos de
 //    .env.test.example na primeira execução.
 
-import { existsSync, copyFileSync } from 'fs';
-import { spawnSync } from 'child_process';
-import net from 'net';
-import path from 'path';
+import { existsSync, copyFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import net from 'node:net';
+import path from 'node:path';
 
 const isCI = process.env.CI === 'true' || process.env.CI === '1';
 const envTestPath = path.resolve(process.cwd(), '.env.test');

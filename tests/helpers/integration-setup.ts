@@ -72,7 +72,9 @@ afterAll(async () => {
   await withRlsBypass(async () => {
     try {
       await prisma.user.deleteMany();
-    } catch (e) {}
+    } catch (error) {
+      void error;
+    }
     await prisma.organization.deleteMany();
   });
   await prisma.$disconnect();
