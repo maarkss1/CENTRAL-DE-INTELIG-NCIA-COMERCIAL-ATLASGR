@@ -95,6 +95,16 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
+      - name: Criar .env.test para os testes de integração
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          EOF
+
       - name: Run Integration Tests
         run: npm run test:integration
 
