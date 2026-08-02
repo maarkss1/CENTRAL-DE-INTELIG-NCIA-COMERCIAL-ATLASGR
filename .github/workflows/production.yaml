@@ -95,6 +95,19 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
+      # vitest.integration.config.ts e o pretest:integration (dotenv -e .env.test) esperam este
+      # arquivo — sem ele, scripts/test/prepare-integration-env.js cai pro .env.test.example
+      # versionado, que aponta pra outro banco/credenciais (ver ci.yml para o mesmo step).
+      - name: Criar .env.test para os testes de integração
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          EOF
+
       - name: Run Integration Tests
         run: npm run test:integration
 
