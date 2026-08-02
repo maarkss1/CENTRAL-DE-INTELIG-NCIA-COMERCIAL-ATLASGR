@@ -6,6 +6,7 @@ import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { redactSensitiveData } from '../services/guardrails.service.js';
+import { synthesizeSpeech } from '../services/voicebox.service.js';
 
 const router = Router();
 
@@ -112,6 +113,22 @@ router.post('/chat', validateRequest(conversationRequestSchema), conversationHan
 router.post('/groq', validateRequest(conversationRequestSchema), conversationHandler('groq'));
 router.post('/roleplay', validateRequest(conversationRequestSchema), conversationHandler('roleplay'));
 router.post('/qualification', validateRequest(conversationRequestSchema), conversationHandler('qualification'));
+
+const ttsRequestSchema = z.object({
+    text: z.string().trim().min(1, 'Texto vazio').max(2_000),
+});
+
+router.post('/tts', validateRequest(ttsRequestSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { text } = req.body as z.infer<typeof ttsRequestSchema>;
+        const audio = await synthesizeSpeech(text);
+        res.setHeader('Content-Type', 'audio/wav');
+        res.send(audio);
+    } catch (error) {
+        logger.error({ err: error }, 'Voicebox TTS request failed');
+        next(error);
+    }
+});
 
 // --- SWARM & CONTINUOUS LEARNING ENDPOINTS ---
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';

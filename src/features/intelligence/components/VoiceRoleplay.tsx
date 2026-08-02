@@ -32,6 +32,7 @@ export function VoiceRoleplay({
     // Web Speech API refs
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
     const synthRef = useRef<SpeechSynthesis | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Audio Visualizer states
     const [audioData, setAudioData] = useState<number[]>(new Array(10).fill(10));
@@ -65,6 +66,7 @@ export function VoiceRoleplay({
         return () => {
             if (synthRef.current) synthRef.current.cancel();
             if (recognitionRef.current) recognitionRef.current.stop();
+            if (audioRef.current) audioRef.current.pause();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening]);
@@ -88,7 +90,8 @@ export function VoiceRoleplay({
             return;
         }
         if (synthRef.current) synthRef.current.cancel();
-        
+        if (audioRef.current) audioRef.current.pause();
+
         if (isListening) {
             recognitionRef.current.stop();
             setIsListening(false);
@@ -133,19 +136,42 @@ export function VoiceRoleplay({
         }
     };
 
-    const speak = (text: string) => {
+    const speakBrowser = (text: string) => {
         if (!synthRef.current) return;
         synthRef.current.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
         utterance.rate = 1.1; // Slightly faster for natural feel
         utterance.pitch = 0.9;
-        
+
         utterance.onstart = () => setIsSpeaking(true);
         utterance.onend = () => setIsSpeaking(false);
         utterance.onerror = () => setIsSpeaking(false);
-        
+
         synthRef.current.speak(utterance);
+    };
+
+    const speak = async (text: string) => {
+        try {
+            const res = await fetch('/api/agent/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+            if (!res.ok) throw new Error(`Voicebox TTS falhou (${res.status})`);
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onplay = () => setIsSpeaking(true);
+            audio.onended = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+            audio.onerror = () => { setIsSpeaking(false); URL.revokeObjectURL(url); };
+            await audio.play();
+        } catch (err) {
+            console.error('Voicebox indisponível, usando voz do navegador como fallback', err);
+            speakBrowser(text);
+        }
     };
 
     return (
@@ -226,7 +252,7 @@ export function VoiceRoleplay({
                         <Mic size={28} />
                     )}
                 </button>
-                <button onClick={() => { if(synthRef.current) synthRef.current.cancel(); setIsSpeaking(false); }} className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
+                <button onClick={() => { if(synthRef.current) synthRef.current.cancel(); if (audioRef.current) audioRef.current.pause(); setIsSpeaking(false); }} className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 transition-colors">
                     <X size={20} />
                 </button>
             </div>
