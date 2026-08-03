@@ -56,14 +56,27 @@ export const auth = betterAuth({
     },
     user: {
         additionalFields: {
+            // input: false — sem isso, qualquer usuário autenticado podia chamar
+            // authClient.updateUser({ role: 'ADMIN' }) e se auto-promover (o hook
+            // databaseHooks.user.update.before só valida o e-mail, nunca o role).
+            // Mudança de role passa a exigir uma ação administrativa fora do self-service
+            // do usuário (hoje, direto no banco; ver POST /api/auth-extra/change-password
+            // para o único outro campo administrado por fora do fluxo normal).
             role: {
                 type: "string",
-                defaultValue: "VISUALIZADOR"
+                defaultValue: "VISUALIZADOR",
+                input: false
             },
             organizationId: {
                 type: "string",
                 required: false,
                 input: false
+            },
+            // O próprio usuário PODE limpar essa flag (input: true, padrão) — é exatamente
+            // o que a tela de troca de senha obrigatória faz depois de uma troca bem-sucedida.
+            mustChangePassword: {
+                type: "boolean",
+                defaultValue: false
             }
         }
     },

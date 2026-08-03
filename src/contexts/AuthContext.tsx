@@ -13,6 +13,7 @@ export interface UserSession {
   brand: 'atlasgr' | 'totaltrac';
   permissions: Permission[];
   avatarBg: string;
+  mustChangePassword: boolean;
 }
 
 interface AuthContextType {
@@ -57,6 +58,7 @@ interface SessionUser {
   name?: string | null;
   email: string;
   role?: string;
+  mustChangePassword?: boolean;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -78,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           brand: savedBrand || getBrandFromEmail(sessionUser.email),
           permissions,
           avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+          mustChangePassword: !!sessionUser.mustChangePassword,
         };
       })()
     : null;
