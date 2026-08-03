@@ -2,9 +2,10 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare
+    PhoneCall, Target, Shield, MessageSquare, UserCog
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TabType } from './Header';
@@ -16,7 +17,12 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     const { activeBrand, setActiveBrand } = useBrand();
+    const { isAdmin } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
+
+    const adminTools = [
+        { id: 'team' as TabType, label: 'Equipe', icon: <UserCog size={20} /> },
+    ];
 
     const coreTools = [
         { id: 'dashboard' as TabType, label: 'Painel Central', icon: <Home size={20} /> },
@@ -126,6 +132,32 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                         );
                     })}
                 </div>
+
+                {/* Admin Tools — só pra quem tem papel administrativo */}
+                {isAdmin && (
+                    <div className="space-y-1">
+                        <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
+                            Administração
+                        </p>
+                        {adminTools.map(tool => {
+                            const isActive = activeTab === tool.id;
+                            return (
+                                <button
+                                    key={tool.id}
+                                    onClick={() => onTabChange(tool.id)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                        isActive
+                                            ? 'bg-brand text-white shadow-md'
+                                            : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+                                    }`}
+                                >
+                                    <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
+                                    {tool.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </aside>
     );

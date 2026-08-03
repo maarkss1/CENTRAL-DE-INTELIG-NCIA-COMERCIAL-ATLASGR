@@ -1,7 +1,7 @@
 import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
     Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell, Sun, Moon,
-    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield,
+    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog,
 } from 'lucide-react';
 import { TabType } from './Header';
 import { useLiveClock } from '../../hooks/useLiveClock';
@@ -33,6 +33,7 @@ const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     automations: { label: 'Automações', icon: Cpu },
     usage: { label: 'Consumo de IA', icon: Wallet },
     editor: { label: 'Editor de Documentos', icon: FileText },
+    team: { label: 'Equipe', icon: UserCog },
 };
 
 interface AppTopbarProps {

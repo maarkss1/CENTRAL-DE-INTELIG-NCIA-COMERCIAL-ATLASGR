@@ -34,6 +34,7 @@ const Notifications = lazy(() => import('./features/notifications/components/Not
 const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
 const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
 const DocumentEditor = lazy(() => import('./features/document-editor/components/Editor').then(m => ({ default: m.Editor })));
+const Team = lazy(() => import('./features/team/components/Team').then(m => ({ default: m.Team })));
 const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
@@ -84,6 +85,7 @@ function AppLayout() {
         {activeTab === 'automations' && <Automations />}
         {activeTab === 'usage' && <Usage />}
         {activeTab === 'editor' && <DocumentEditor />}
+        {activeTab === 'team' && <Team />}
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}

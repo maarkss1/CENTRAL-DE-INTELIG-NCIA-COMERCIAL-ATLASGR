@@ -31,6 +31,7 @@ import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthV
 import { birthVoiceWebhookRoutes } from './src/features/integrations/birth-voice/birthVoice.webhook.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { bitrixRoutes } from './src/features/integrations/bitrix/bitrix.routes.js';
+import { teamRoutes } from './src/features/team/routes/team.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
@@ -287,6 +288,7 @@ async function startServer() {
     app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
+    app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca

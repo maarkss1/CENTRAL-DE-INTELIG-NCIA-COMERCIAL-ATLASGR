@@ -2,7 +2,7 @@ import { Home, Moon, Sun } from 'lucide-react';
 import { Logo } from '../Logo';
 import { useTheme } from '../../contexts/ThemeContext';
 
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team';
 
 interface HeaderProps {
     activeTab: TabType;
