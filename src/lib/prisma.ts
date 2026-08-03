@@ -83,19 +83,22 @@ export const prisma = basePrisma.$extends({
 
         const executeWithRls = async (prismaPromise: Prisma.PrismaPromise<unknown>) => {
           if (!tenantId && !bypassRls) return await prismaPromise;
-          try {
-            const [, res] = await basePrisma.$transaction([
-              basePrisma.$executeRawUnsafe(
-                `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
-                bypassRls ? 'on' : 'off',
-                tenantId || ''
-              ),
-              prismaPromise
-            ]);
-            return res;
-          } catch {
-            return await prismaPromise;
-          }
+          // Sem try/catch de propósito: um `catch { return await prismaPromise }` aqui existia antes
+          // e mascarava o erro real de qualquer falha (ex.: violação de unique constraint) reexecutando
+          // a MESMA query fora da transação, sem nenhum app.current_tenant_id/bypass_rls setado —
+          // essa segunda tentativa então falhava de um jeito diferente e enganoso (parecia RLS
+          // "new row violates row-level security policy", quando o problema real era outro, ver
+          // TEST-002/e2e). Se a transação com contexto de tenant falha, o erro real deve subir —
+          // nunca cair pra uma tentativa sem proteção de tenant/RLS.
+          const [, res] = await basePrisma.$transaction([
+            basePrisma.$executeRawUnsafe(
+              `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
+              bypassRls ? 'on' : 'off',
+              tenantId || ''
+            ),
+            prismaPromise
+          ]);
+          return res;
         };
 
         // --- 3. Audit Log - Capture Before State ---
