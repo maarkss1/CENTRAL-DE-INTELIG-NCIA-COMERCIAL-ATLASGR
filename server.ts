@@ -6,7 +6,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import { rateLimiterConnection } from './src/lib/queue/redis.js';
 import path from 'path';
@@ -52,7 +52,10 @@ import { leadsQueue } from './src/lib/queue/index.js';
 import { searchQueue } from './src/lib/queue/search.queue.js';
 import { agentQueue } from './src/lib/queue/agent.worker.js';
 import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
+import { createWhatsAppSignalWorker } from './src/lib/queue/whatsappSignal.worker.js';
 import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
+import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
+import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -141,7 +144,10 @@ async function startServer() {
         max: env.AI_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        keyGenerator: (req) => (req as AuthRequest).user?.organizationId || req.ip || 'unknown',
+        // ipKeyGenerator normaliza/trunca IPv6 corretamente pro fallback (sem isso, express-rate-limit
+        // v8 recusa a config na subida: "Custom keyGenerator appears to use request IP without
+        // calling the ipKeyGenerator helper... could allow IPv6 users to bypass limits").
+        keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
         store: env.NODE_ENV === 'production' ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
@@ -314,6 +320,7 @@ async function startServer() {
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
     const enrichmentWorker = createEnrichmentWorker();
+    const whatsappSignalWorker = createWhatsAppSignalWorker();
     // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
     // inicialização do Meilisearch sempre rodavam, independentemente da flag.
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -330,6 +337,16 @@ async function startServer() {
         );
     }
 
+    // Enxame autônomo: mesmo desenho de opt-in explícito da prospecção fria (ver
+    // SWARM_SCHEDULER_ENABLED e SWARM_SCHEDULER_ORGANIZATIONS). Só propõe (AIPendingAction),
+    // nunca executa ação real sozinho.
+    const swarmSchedulerWorker = swarmSchedulerEnabledOrganizations().length > 0 ? createSwarmSchedulerWorker() : null;
+    if (swarmSchedulerWorker) {
+        await scheduleSwarmScheduler().catch((err) =>
+            logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
+        );
+    }
+
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
@@ -337,7 +354,9 @@ async function startServer() {
         await agentWorker.close();
         await searchWorker?.close();
         await enrichmentWorker.close();
+        await whatsappSignalWorker.close();
         await coldCallWorker?.close();
+        await swarmSchedulerWorker?.close();
         await prisma.$disconnect();
         process.exit(0);
     };
