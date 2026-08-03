@@ -1,15 +1,24 @@
-# Mapa de Navegação
+# Mapa de Navegação da Aplicação
 
-*   Login
-*   Dashboard Principal
-    *   Acesso Operação AtlasGR
-        *   Prospecção
-        *   CRM
-        *   Metodologias
-        *   Empresas
-        *   Contatos
-        *   Agenda
-        *   Roleplay & Objeções
-    *   Acesso Operação TotalTrac
-    *   Configurações (Perfil de Usuário)
-    *   IA e Comando de Voz (Widgets flutuantes)
+- **/login** (Tela de Acesso)
+- **/app** (Interface Principal Autenticada)
+  - Dashboard (Painel Central)
+  - Módulos Core
+    - Prospecção
+    - Pipeline CRM
+    - Decisores
+    - Empresas
+    - Agenda
+    - Analytics
+    - Calendário
+    - Notificações
+  - Inteligência
+    - Dojo de Vendas
+    - Hub de IA
+    - Academy
+    - Bitrix24
+    - Relatórios IA
+    - Base de Conhecimento
+    - Editor de Documentos
+    - Automações
+    - Consumo de IA
