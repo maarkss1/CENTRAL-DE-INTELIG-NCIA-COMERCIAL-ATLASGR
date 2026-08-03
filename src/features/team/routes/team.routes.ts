@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { listTeamMembers, createTeamMember, deleteTeamMember, TeamServiceError, ASSIGNABLE_ROLES } from '../services/team.service.js';
@@ -9,16 +9,16 @@ const router = Router();
 // operação de conta, não de dados comerciais do dia a dia.
 router.use(requireRole(['ADMIN']));
 
-router.get('/', async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const members = await listTeamMembers(req.user.organizationId);
+        const members = await listTeamMembers((req as AuthRequest).user.organizationId);
         res.json({ success: true, data: { members, assignableRoles: ASSIGNABLE_ROLES } });
     } catch (error) {
         next(error);
     }
 });
 
-router.post('/', async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { name, email, role } = req.body as { name?: string; email?: string; role?: string };
         if (!name || !email || !role) {
@@ -26,7 +26,7 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction): Pr
             return;
         }
         const { member, tempPassword } = await createTeamMember({
-            organizationId: req.user.organizationId,
+            organizationId: (req as AuthRequest).user.organizationId,
             name,
             email,
             role,
@@ -43,9 +43,10 @@ router.post('/', async (req: AuthRequest, res: Response, next: NextFunction): Pr
     }
 });
 
-router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        await deleteTeamMember(req.user.organizationId, req.params.id, req.user.id);
+        const authReq = req as AuthRequest;
+        await deleteTeamMember(authReq.user.organizationId, req.params.id, authReq.user.id);
         res.json({ success: true, message: 'Usuário removido.' });
     } catch (error) {
         if (error instanceof TeamServiceError) {
