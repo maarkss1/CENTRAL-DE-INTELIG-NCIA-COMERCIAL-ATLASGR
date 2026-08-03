@@ -1,25 +1,27 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, cleanup } from '@testing-library/react';
-
-const statusMock = vi.fn();
-
-vi.mock('@/features/automations/coldCallCampaign.api', () => ({
-    coldCallCampaignApi: { status: () => statusMock() },
-}));
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 import { ColdCallStatusCard } from '@/features/automations/components/ColdCallStatusCard';
+
+const STATUS_URL = '/api/integrations/birth-voice/cold-call/status';
 
 function render(ui: React.ReactElement) {
     return rtlRender(ui);
 }
 
-beforeEach(() => { vi.clearAllMocks(); });
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+function mockStatus(data: unknown) {
+    server.use(http.get(STATUS_URL, () => HttpResponse.json({ success: true, data })));
+}
+
+beforeEach(() => {});
+afterEach(() => { cleanup(); server.resetHandlers(); });
 
 describe('ColdCallStatusCard', () => {
     it('mostra a campanha como inativa quando a organização não está habilitada', async () => {
-        statusMock.mockResolvedValue({
+        mockStatus({
             enabled: false,
             window: { startHour: 9, endHour: 18, weekdaysOnly: true, timeZone: 'America/Sao_Paulo' },
             policy: { maxAttemptsPerLead: 3, retryCooldownHours: 48 },
@@ -34,7 +36,7 @@ describe('ColdCallStatusCard', () => {
     });
 
     it('mostra a janela de discagem e as execuções recentes quando ativa', async () => {
-        statusMock.mockResolvedValue({
+        mockStatus({
             enabled: true,
             window: { startHour: 9, endHour: 18, weekdaysOnly: true, timeZone: 'America/Sao_Paulo' },
             policy: { maxAttemptsPerLead: 3, retryCooldownHours: 48 },
@@ -75,7 +77,9 @@ describe('ColdCallStatusCard', () => {
     });
 
     it('mostra erro quando a API falha', async () => {
-        statusMock.mockRejectedValue(new Error('falha de rede'));
+        server.use(
+            http.get(STATUS_URL, () => HttpResponse.json({ success: false, error: 'falha de rede' }, { status: 500 })),
+        );
 
         render(<ColdCallStatusCard />);
 

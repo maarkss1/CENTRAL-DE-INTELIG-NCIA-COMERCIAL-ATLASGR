@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    setupFiles: ['./tests/mocks/setup.ts'],
     include: ['tests/unit/**/*.test.ts', 'src/**/__tests__/**/*.test.ts', 'tests/unit/**/*.test.tsx'],
     coverage: {
       provider: 'v8',

@@ -1,31 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
-const listMock = vi.fn();
-const markReadMock = vi.fn();
-const markAllReadMock = vi.fn();
-const removeMock = vi.fn();
-
-vi.mock('@/features/notifications/notifications.api', async () => {
-    const actual = await vi.importActual<typeof import('@/features/notifications/notifications.api')>(
-        '@/features/notifications/notifications.api',
-    );
-    return {
-        ...actual,
-        notificationsApi: {
-            list: (u: boolean) => listMock(u),
-            markRead: (id: string) => markReadMock(id),
-            markAllRead: () => markAllReadMock(),
-            remove: (id: string) => removeMock(id),
-        },
-    };
-});
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 import { Notifications } from '@/features/notifications/components/Notifications';
 import { relativeTime } from '@/features/notifications/notifications.api';
 import { BrandProvider } from '@/contexts/BrandContext';
+
+const LIST_URL = '/api/notifications';
 
 function render(ui: React.ReactElement) {
     return rtlRender(<BrandProvider>{ui}</BrandProvider>);
@@ -38,12 +22,24 @@ const naoLida = {
     automation: { id: 'a1', name: 'Aviso de Proposta' },
 };
 
+/** `unread=1` na query string quando o filtro "não lidas" está ativo, senão sem query. */
+let listCalls: boolean[];
+
+function mockList(data: { items: unknown[]; unread: number }) {
+    server.use(
+        http.get(LIST_URL, ({ request }) => {
+            listCalls.push(new URL(request.url).searchParams.get('unread') === '1');
+            return HttpResponse.json({ success: true, data });
+        }),
+    );
+}
+
 beforeEach(() => {
-    vi.clearAllMocks();
-    listMock.mockResolvedValue({ items: [], unread: 0 });
+    listCalls = [];
+    mockList({ items: [], unread: 0 });
 });
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); server.resetHandlers(); });
 
 describe('relativeTime', () => {
     const agora = new Date('2026-07-31T12:00:00');
@@ -74,7 +70,7 @@ describe('Notificações', () => {
     });
 
     it('lista a notificação com origem da automação', async () => {
-        listMock.mockResolvedValue({ items: [naoLida], unread: 1 });
+        mockList({ items: [naoLida], unread: 1 });
         render(<Notifications />);
 
         expect(await screen.findByText('Lead chegou em Proposta')).toBeTruthy();
@@ -84,38 +80,52 @@ describe('Notificações', () => {
     });
 
     it('marca como lida ao clicar e decrementa o contador', async () => {
-        listMock.mockResolvedValue({ items: [naoLida], unread: 1 });
-        markReadMock.mockResolvedValue({ id: 'n1' });
+        mockList({ items: [naoLida], unread: 1 });
+        let markReadCalledWith: string | undefined;
+        server.use(
+            http.post(`${LIST_URL}/:id/read`, ({ params }) => {
+                markReadCalledWith = String(params.id);
+                return HttpResponse.json({ success: true, data: { id: params.id } });
+            }),
+        );
         const user = userEvent.setup();
         render(<Notifications />);
 
         await user.click(await screen.findByText('Lead chegou em Proposta'));
-        await waitFor(() => expect(markReadMock).toHaveBeenCalledWith('n1'));
+        await waitFor(() => expect(markReadCalledWith).toBe('n1'));
         await waitFor(() => expect(screen.getByText('Tudo em dia')).toBeTruthy());
     });
 
     it('reverte o contador quando marcar como lida falha', async () => {
-        listMock.mockResolvedValue({ items: [naoLida], unread: 1 });
-        markReadMock.mockRejectedValue(new Error('sem conexão'));
+        mockList({ items: [naoLida], unread: 1 });
+        let markReadCalled = false;
+        server.use(
+            http.post(`${LIST_URL}/:id/read`, () => {
+                markReadCalled = true;
+                return HttpResponse.json({ success: false, error: 'sem conexão' }, { status: 500 });
+            }),
+        );
         const user = userEvent.setup();
         render(<Notifications />);
 
         await user.click(await screen.findByText('Lead chegou em Proposta'));
-        await waitFor(() => expect(markReadMock).toHaveBeenCalled());
+        await waitFor(() => expect(markReadCalled).toBe(true));
         await waitFor(() => expect(screen.getByText('1 não lida')).toBeTruthy());
     });
 
     it('alterna para o filtro de não lidas', async () => {
         const user = userEvent.setup();
         render(<Notifications />);
-        await waitFor(() => expect(listMock).toHaveBeenCalledWith(false));
+        await waitFor(() => expect(listCalls).toContain(false));
 
         await user.click(screen.getByRole('button', { name: 'Não lidas' }));
-        await waitFor(() => expect(listMock).toHaveBeenCalledWith(true));
+        await waitFor(() => expect(listCalls).toContain(true));
     });
 
     it('exibe erro recuperável', async () => {
-        listMock.mockRejectedValue(new Error('Banco indisponível'));
+        server.use(
+            http.get(LIST_URL, () => HttpResponse.json({ success: false, error: 'Banco indisponível' }, { status: 500 })),
+        );
         render(<Notifications />);
         expect(await screen.findByText('Banco indisponível')).toBeTruthy();
         expect(screen.getByRole('button', { name: /Tentar novamente/ })).toBeTruthy();

@@ -1,20 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
-const dashboardMock = vi.fn();
-
-vi.mock('@/features/analytics/analytics.api', async () => {
-    const actual = await vi.importActual<typeof import('@/features/analytics/analytics.api')>(
-        '@/features/analytics/analytics.api',
-    );
-    return { ...actual, analyticsApi: { dashboard: (m: number) => dashboardMock(m) } };
-});
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 import { Analytics } from '@/features/analytics/components/Analytics';
 import { formatMonthLabel } from '@/features/analytics/analytics.api';
 import { BrandProvider } from '@/contexts/BrandContext';
+
+const DASHBOARD_URL = '/api/analytics/dashboard';
 
 function render(ui: React.ReactElement) {
     return rtlRender(<BrandProvider>{ui}</BrandProvider>);
@@ -39,9 +34,27 @@ const dashboardCheio = {
     isEmpty: false,
 };
 
+/** Chamadas recebidas pelo endpoint do dashboard, com o `months` extraído da query string. */
+let dashboardCalls: number[];
+
+/** Registra o handler padrão: responde com `dashboardCheio` e grava o `months` pedido. */
+function mockDashboard(resolver: (months: number) => unknown | Promise<unknown>) {
+    server.use(
+        http.get(DASHBOARD_URL, ({ request }) => {
+            const months = Number(new URL(request.url).searchParams.get('months'));
+            dashboardCalls.push(months);
+            const result = resolver(months);
+            if (result instanceof Error) {
+                return HttpResponse.json({ success: false, error: result.message }, { status: 500 });
+            }
+            return HttpResponse.json({ success: true, data: result });
+        }),
+    );
+}
+
 beforeEach(() => {
-    vi.clearAllMocks();
-    dashboardMock.mockResolvedValue(dashboardCheio);
+    dashboardCalls = [];
+    mockDashboard(() => dashboardCheio);
     // Recharts mede o container; em jsdom o tamanho é 0 e os gráficos não desenham.
     // Fixamos um tamanho para o ResponsiveContainer renderizar.
     Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 800 });
@@ -50,7 +63,7 @@ beforeEach(() => {
 
 afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
+    server.resetHandlers();
 });
 
 describe('formatMonthLabel', () => {
@@ -66,7 +79,7 @@ describe('formatMonthLabel', () => {
 describe('Analytics', () => {
     it('carrega 6 meses por padrão', async () => {
         render(<Analytics />);
-        await waitFor(() => expect(dashboardMock).toHaveBeenCalledWith(6));
+        await waitFor(() => expect(dashboardCalls).toContain(6));
     });
 
     it('exibe os indicadores de topo vindos da API', async () => {
@@ -80,20 +93,20 @@ describe('Analytics', () => {
     it('recarrega ao trocar o período', async () => {
         const user = userEvent.setup();
         render(<Analytics />);
-        await waitFor(() => expect(dashboardMock).toHaveBeenCalledWith(6));
+        await waitFor(() => expect(dashboardCalls).toContain(6));
 
         await user.click(screen.getByRole('button', { name: '12m' }));
-        await waitFor(() => expect(dashboardMock).toHaveBeenCalledWith(12));
+        await waitFor(() => expect(dashboardCalls).toContain(12));
     });
 
     it('mostra estado vazio quando a organização não tem dados', async () => {
-        dashboardMock.mockResolvedValue({ ...dashboardCheio, isEmpty: true });
+        mockDashboard(() => ({ ...dashboardCheio, isEmpty: true }));
         render(<Analytics />);
         expect(await screen.findByText('Ainda não há dados para analisar')).toBeTruthy();
     });
 
     it('mostra erro recuperável quando a API falha', async () => {
-        dashboardMock.mockRejectedValue(new Error('Banco indisponível'));
+        mockDashboard(() => new Error('Banco indisponível'));
         render(<Analytics />);
         expect(await screen.findByText('Banco indisponível')).toBeTruthy();
         expect(screen.getByRole('button', { name: /Tentar novamente/ })).toBeTruthy();

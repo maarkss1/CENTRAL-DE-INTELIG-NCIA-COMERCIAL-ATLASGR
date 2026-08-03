@@ -1,64 +1,58 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { api } from '@/lib/api';
+import { server } from '../../mocks/server';
 
 describe('API Client', () => {
-    let originalFetch: typeof global.fetch;
-
-    beforeEach(() => {
-        originalFetch = global.fetch;
-        global.fetch = vi.fn();
-    });
-
     afterEach(() => {
-        global.fetch = originalFetch;
-        vi.clearAllMocks();
+        server.resetHandlers();
     });
 
     it('should successfully get data using api.get', async () => {
         const mockData = { id: 1, name: 'Test' };
-        vi.mocked(global.fetch).mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => mockData
-        } as Response);
+        let seenMethod: string | undefined;
+        server.use(
+            http.get('/api/test', ({ request }) => {
+                seenMethod = request.method;
+                return HttpResponse.json(mockData);
+            }),
+        );
 
         const result = await api.get('/api/test');
-        expect(global.fetch).toHaveBeenCalledWith('/api/test', expect.objectContaining({ method: 'GET' }));
+        expect(seenMethod).toBe('GET');
         expect(result).toEqual(mockData);
     });
 
     it('should successfully post data with success wrapper', async () => {
         const mockResponse = { success: true, data: { id: 1 } };
-        vi.mocked(global.fetch).mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => mockResponse
-        } as Response);
+        let seenMethod: string | undefined;
+        let seenBody: unknown;
+        server.use(
+            http.post('/api/test', async ({ request }) => {
+                seenMethod = request.method;
+                seenBody = await request.json();
+                return HttpResponse.json(mockResponse);
+            }),
+        );
 
         const result = await api.post('/api/test', { name: 'Test' });
-        expect(global.fetch).toHaveBeenCalledWith('/api/test', expect.objectContaining({
-            method: 'POST',
-            body: JSON.stringify({ name: 'Test' })
-        }));
+        expect(seenMethod).toBe('POST');
+        expect(seenBody).toEqual({ name: 'Test' });
         expect(result).toEqual({ id: 1 });
     });
 
     it('should throw error when response is not ok', async () => {
-        vi.mocked(global.fetch).mockResolvedValue({
-            ok: false,
-            status: 400,
-            json: async () => ({ error: 'Bad Request' })
-        } as Response);
+        server.use(
+            http.get('/api/test', () => HttpResponse.json({ error: 'Bad Request' }, { status: 400 })),
+        );
 
         await expect(api.get('/api/test')).rejects.toThrow('Bad Request');
     });
 
     it('should throw error when success wrapper returns false', async () => {
-        vi.mocked(global.fetch).mockResolvedValue({
-            ok: true,
-            status: 200,
-            json: async () => ({ success: false, error: 'Logic Error' })
-        } as Response);
+        server.use(
+            http.get('/api/test', () => HttpResponse.json({ success: false, error: 'Logic Error' })),
+        );
 
         await expect(api.get('/api/test')).rejects.toThrow('Logic Error');
     });

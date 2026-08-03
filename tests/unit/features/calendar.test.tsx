@@ -1,26 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
-const rangeMock = vi.fn();
-const updateMock = vi.fn();
-
-vi.mock('@/features/calendar/calendar.api', async () => {
-    const actual = await vi.importActual<typeof import('@/features/calendar/calendar.api')>(
-        '@/features/calendar/calendar.api',
-    );
-    return {
-        ...actual,
-        calendarApi: {
-            range: (f: Date, t: Date) => rangeMock(f, t),
-            update: (id: string, patch: unknown) => updateMock(id, patch),
-        },
-    };
-});
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 import { Calendar } from '@/features/calendar/components/Calendar';
 import { BrandProvider } from '@/contexts/BrandContext';
+
+const ACTIVITIES_URL = '/api/activities';
 
 function render(ui: React.ReactElement) {
     return rtlRender(<BrandProvider>{ui}</BrandProvider>);
@@ -44,22 +32,43 @@ function atividadeNesteMes(overrides: Record<string, unknown> = {}) {
     };
 }
 
+/** `[from, to]` de cada chamada a GET /api/activities, na ordem em que chegaram. */
+let rangeCalls: Array<[Date, Date]>;
+
+function mockRange(items: unknown[]) {
+    server.use(
+        http.get(ACTIVITIES_URL, ({ request }) => {
+            const url = new URL(request.url);
+            const from = new Date(url.searchParams.get('from')!);
+            const to = new Date(url.searchParams.get('to')!);
+            rangeCalls.push([from, to]);
+            return HttpResponse.json({ success: true, data: items });
+        }),
+    );
+}
+
+function mockRangeError(message: string) {
+    server.use(
+        http.get(ACTIVITIES_URL, () => HttpResponse.json({ success: false, error: message }, { status: 500 })),
+    );
+}
+
 beforeEach(() => {
-    vi.clearAllMocks();
-    rangeMock.mockResolvedValue([]);
+    rangeCalls = [];
+    mockRange([]);
 });
 
 afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
+    server.resetHandlers();
 });
 
 describe('Calendário', () => {
     it('carrega o intervalo de 42 dias da grade do mês', async () => {
         render(<Calendar />);
-        await waitFor(() => expect(rangeMock).toHaveBeenCalled());
+        await waitFor(() => expect(rangeCalls.length).toBeGreaterThan(0));
 
-        const [from, to] = rangeMock.mock.calls[0];
+        const [from, to] = rangeCalls[0];
         const dias = Math.round((to.getTime() - from.getTime()) / 86_400_000);
         expect(dias).toBe(42);
         // A grade sempre abre num domingo.
@@ -72,7 +81,7 @@ describe('Calendário', () => {
     });
 
     it('renderiza a atividade com horário, tipo e empresa', async () => {
-        rangeMock.mockResolvedValue([atividadeNesteMes()]);
+        mockRange([atividadeNesteMes()]);
         render(<Calendar />);
 
         expect(await screen.findByText('Transportes Vale')).toBeTruthy();
@@ -83,18 +92,18 @@ describe('Calendário', () => {
     it('navega entre meses e recarrega o período', async () => {
         const user = userEvent.setup();
         render(<Calendar />);
-        await waitFor(() => expect(rangeMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(rangeCalls.length).toBe(1));
 
-        const primeiroInicio = rangeMock.mock.calls[0][0] as Date;
+        const primeiroInicio = rangeCalls[0][0];
         await user.click(screen.getByLabelText('Próximo mês'));
 
-        await waitFor(() => expect(rangeMock).toHaveBeenCalledTimes(2));
-        const segundoInicio = rangeMock.mock.calls[1][0] as Date;
+        await waitFor(() => expect(rangeCalls.length).toBe(2));
+        const segundoInicio = rangeCalls[1][0];
         expect(segundoInicio.getTime()).toBeGreaterThan(primeiroInicio.getTime());
     });
 
     it('abre o detalhe ao clicar na atividade', async () => {
-        rangeMock.mockResolvedValue([atividadeNesteMes()]);
+        mockRange([atividadeNesteMes()]);
         const user = userEvent.setup();
         render(<Calendar />);
 
@@ -104,27 +113,39 @@ describe('Calendário', () => {
     });
 
     it('conclui a atividade e envia o novo status', async () => {
-        rangeMock.mockResolvedValue([atividadeNesteMes()]);
-        updateMock.mockResolvedValue({});
+        mockRange([atividadeNesteMes()]);
+        let updateCalledWith: { id: string; patch: unknown } | undefined;
+        server.use(
+            http.put(`${ACTIVITIES_URL}/:id`, async ({ params, request }) => {
+                updateCalledWith = { id: String(params.id), patch: await request.json() };
+                return HttpResponse.json({ success: true, data: {} });
+            }),
+        );
         const user = userEvent.setup();
         render(<Calendar />);
 
         await user.click(await screen.findByLabelText(/Reunião — Transportes Vale/));
         await user.click(screen.getByRole('button', { name: /Concluir/ }));
 
-        await waitFor(() => expect(updateMock).toHaveBeenCalledWith('act-1', { status: 'Concluída' }));
+        await waitFor(() => expect(updateCalledWith).toEqual({ id: 'act-1', patch: { status: 'Concluída' } }));
     });
 
     it('reverte o status na tela quando a API recusa', async () => {
-        rangeMock.mockResolvedValue([atividadeNesteMes()]);
-        updateMock.mockRejectedValue(new Error('sem permissão'));
+        mockRange([atividadeNesteMes()]);
+        let updateCalled = false;
+        server.use(
+            http.put(`${ACTIVITIES_URL}/:id`, () => {
+                updateCalled = true;
+                return HttpResponse.json({ success: false, error: 'sem permissão' }, { status: 500 });
+            }),
+        );
         const user = userEvent.setup();
         render(<Calendar />);
 
         await user.click(await screen.findByLabelText(/Reunião — Transportes Vale/));
         await user.click(screen.getByRole('button', { name: /Concluir/ }));
 
-        await waitFor(() => expect(updateMock).toHaveBeenCalled());
+        await waitFor(() => expect(updateCalled).toBe(true));
         // O detalhe volta a mostrar o status original — reverter só a grade deixaria o diálogo
         // afirmando um status que o servidor recusou.
         const status = screen.getByText('Status').closest('div')!;
@@ -134,7 +155,7 @@ describe('Calendário', () => {
     });
 
     it('exibe erro recuperável quando a listagem falha', async () => {
-        rangeMock.mockRejectedValue(new Error('Banco indisponível'));
+        mockRangeError('Banco indisponível');
         render(<Calendar />);
 
         expect(await screen.findByText('Banco indisponível')).toBeTruthy();

@@ -1,31 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-
-const listMock = vi.fn();
-const createMock = vi.fn();
-const updateMock = vi.fn();
-const removeMock = vi.fn();
-
-vi.mock('@/features/automations/automations.api', async () => {
-    const actual = await vi.importActual<typeof import('@/features/automations/automations.api')>(
-        '@/features/automations/automations.api',
-    );
-    return {
-        ...actual,
-        automationsApi: {
-            list: () => listMock(),
-            create: (d: unknown) => createMock(d),
-            update: (id: string, p: unknown) => updateMock(id, p),
-            remove: (id: string) => removeMock(id),
-        },
-    };
-});
+import { http, HttpResponse } from 'msw';
+import { server } from '../../mocks/server';
 
 import { Automations } from '@/features/automations/components/Automations';
 import { describeAutomation } from '@/features/automations/automations.api';
 import { BrandProvider } from '@/contexts/BrandContext';
+
+const AUTOMATIONS_URL = '/api/automations';
 
 function render(ui: React.ReactElement) {
     return rtlRender(<BrandProvider>{ui}</BrandProvider>);
@@ -44,12 +28,15 @@ const regra = {
     createdAt: new Date().toISOString(),
 };
 
+function mockList(items: unknown[]) {
+    server.use(http.get(AUTOMATIONS_URL, () => HttpResponse.json({ success: true, data: items })));
+}
+
 beforeEach(() => {
-    vi.clearAllMocks();
-    listMock.mockResolvedValue([]);
+    mockList([]);
 });
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); server.resetHandlers(); });
 
 describe('describeAutomation', () => {
     it('descreve gatilho, condição e ação numa frase', () => {
@@ -79,7 +66,7 @@ describe('Automações', () => {
     });
 
     it('lista a regra com a descrição e o contador de execuções', async () => {
-        listMock.mockResolvedValue([regra]);
+        mockList([regra]);
         render(<Automations />);
 
         expect(await screen.findByText('Avisar em Proposta')).toBeTruthy();
@@ -89,29 +76,47 @@ describe('Automações', () => {
     });
 
     it('pausa a regra pelo switch', async () => {
-        listMock.mockResolvedValue([regra]);
-        updateMock.mockResolvedValue({ ...regra, enabled: false });
+        mockList([regra]);
+        let updateCalledWith: { id: string; patch: unknown } | undefined;
+        server.use(
+            http.put(`${AUTOMATIONS_URL}/:id`, async ({ params, request }) => {
+                updateCalledWith = { id: String(params.id), patch: await request.json() };
+                return HttpResponse.json({ success: true, data: { ...regra, enabled: false } });
+            }),
+        );
         const user = userEvent.setup();
         render(<Automations />);
 
         await user.click(await screen.findByRole('switch', { name: /Pausar Avisar em Proposta/ }));
-        await waitFor(() => expect(updateMock).toHaveBeenCalledWith('a1', { enabled: false }));
+        await waitFor(() => expect(updateCalledWith).toEqual({ id: 'a1', patch: { enabled: false } }));
     });
 
     it('reverte o switch quando a API recusa', async () => {
-        listMock.mockResolvedValue([regra]);
-        updateMock.mockRejectedValue(new Error('falhou'));
+        mockList([regra]);
+        let updateCalled = false;
+        server.use(
+            http.put(`${AUTOMATIONS_URL}/:id`, () => {
+                updateCalled = true;
+                return HttpResponse.json({ success: false, error: 'falhou' }, { status: 500 });
+            }),
+        );
         const user = userEvent.setup();
         render(<Automations />);
 
         const sw = await screen.findByRole('switch', { name: /Pausar Avisar em Proposta/ });
         await user.click(sw);
-        await waitFor(() => expect(updateMock).toHaveBeenCalled());
+        await waitFor(() => expect(updateCalled).toBe(true));
         await waitFor(() => expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true'));
     });
 
     it('cria uma regra com condição de etapa', async () => {
-        createMock.mockResolvedValue(regra);
+        let createCalledWith: unknown;
+        server.use(
+            http.post(AUTOMATIONS_URL, async ({ request }) => {
+                createCalledWith = await request.json();
+                return HttpResponse.json({ success: true, data: regra });
+            }),
+        );
         const user = userEvent.setup();
         render(<Automations />);
 
@@ -120,8 +125,8 @@ describe('Automações', () => {
         await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
 
-        await waitFor(() => expect(createMock).toHaveBeenCalled());
-        const enviado = createMock.mock.calls[0][0];
+        await waitFor(() => expect(createCalledWith).toBeTruthy());
+        const enviado = createCalledWith as { name: string; conditions: unknown; trigger: string };
         expect(enviado.name).toBe('Avisar em Proposta');
         expect(enviado.conditions).toEqual({ status: 'Proposta' });
         expect(enviado.trigger).toBe('Lead mudou de status');
