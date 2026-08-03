@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { requestContext } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.service.js';
+import { cacheConnection } from '../../../lib/queue/redis.js';
 
 export const whatsappEvents = new EventEmitter();
 
@@ -37,6 +38,28 @@ function getSession(organizationId: string): TenantSession {
     return session;
 }
 
+// ARCH-005: o socket do Baileys (`sock`) é uma conexão com estado próprio (handshake, criptografia
+// de sessão, handlers) e não pode ser movido pra Redis — ele só existe de verdade na instância que
+// abriu a conexão. O que ERA um problema real de multi-instância é status/QR: hoje, se
+// `initWhatsApp` roda na Instância A mas a requisição de `getWhatsAppStatus` cai na Instância B
+// (load balancer round-robin), o Map() local da Instância B nunca teve essa organização e sempre
+// respondia "disconnected", mesmo com a sessão ativa em A. Espelhar status/QR no Redis a cada
+// mudança resolve isso: qualquer instância consegue responder o estado real.
+const WHATSAPP_STATUS_KEY_PREFIX = 'whatsapp:session-status';
+
+async function persistStatusToRedis(organizationId: string, session: TenantSession): Promise<void> {
+    try {
+        await cacheConnection.set(
+            `${WHATSAPP_STATUS_KEY_PREFIX}:${organizationId}`,
+            JSON.stringify({ status: session.status, qr: session.currentQr }),
+            'EX',
+            60 * 60 * 24, // TTL de 1 dia: se a instância dona cair sem atualizar o Redis, o status não fica "conectado" pra sempre.
+        );
+    } catch (err) {
+        logger.warn({ err, organizationId }, 'WhatsApp: falha ao espelhar status no Redis (seguindo só com estado local desta instância)');
+    }
+}
+
 function authFolderFor(organizationId: string): string {
     // Sanitiza o id antes de usá-lo como segmento de caminho.
     const safeId = organizationId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -51,6 +74,7 @@ export async function initWhatsApp(organizationId: string) {
     if (session.status === 'connected') return;
 
     session.status = 'connecting';
+    await persistStatusToRedis(organizationId, session);
     const authFolder = authFolderFor(organizationId);
     if (!fs.existsSync(authFolder)) {
         fs.mkdirSync(authFolder, { recursive: true });
@@ -75,6 +99,7 @@ export async function initWhatsApp(organizationId: string) {
 
         if (qr) {
             session.currentQr = await qrcode.toDataURL(qr);
+            await persistStatusToRedis(organizationId, session);
             whatsappEvents.emit('qr', { organizationId, qr: session.currentQr });
         }
 
@@ -82,6 +107,7 @@ export async function initWhatsApp(organizationId: string) {
             const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             session.status = 'disconnected';
             session.currentQr = null;
+            await persistStatusToRedis(organizationId, session);
             if (shouldReconnect && session.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 session.reconnectAttempts += 1;
                 const delay = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** (session.reconnectAttempts - 1), RECONNECT_MAX_DELAY_MS);
@@ -99,6 +125,7 @@ export async function initWhatsApp(organizationId: string) {
             session.status = 'connected';
             session.currentQr = null;
             session.reconnectAttempts = 0;
+            await persistStatusToRedis(organizationId, session);
             whatsappEvents.emit('status', { organizationId, status: session.status });
         }
     });
@@ -128,9 +155,20 @@ export async function initWhatsApp(organizationId: string) {
 }
 
 /**
- * Retorna o status atual da conexão e o QR Code (se houver) de um tenant
+ * Retorna o status atual da conexão e o QR Code (se houver) de um tenant. Lê do Redis primeiro —
+ * funciona mesmo quando quem inicializou a sessão (initWhatsApp, dono do socket real) foi outra
+ * instância; cai pro Map() local só se o Redis estiver indisponível ou nunca ter sido escrito.
  */
-export function getWhatsAppStatus(organizationId: string) {
+export async function getWhatsAppStatus(organizationId: string) {
+    try {
+        const raw = await cacheConnection.get(`${WHATSAPP_STATUS_KEY_PREFIX}:${organizationId}`);
+        if (raw) {
+            const parsed = JSON.parse(raw) as { status: TenantSession['status']; qr: string | null };
+            return { status: parsed.status, qr: parsed.qr };
+        }
+    } catch (err) {
+        logger.warn({ err, organizationId }, 'WhatsApp: falha ao ler status do Redis, usando estado local desta instância');
+    }
     const session = getSession(organizationId);
     return {
         status: session.status,
@@ -141,7 +179,7 @@ export function getWhatsAppStatus(organizationId: string) {
 /**
  * Desconecta o WhatsApp e apaga a sessão de um tenant
  */
-export function logoutWhatsApp(organizationId: string) {
+export async function logoutWhatsApp(organizationId: string) {
     const session = sessions.get(organizationId);
     if (session?.sock) {
         session.sock.logout();
@@ -149,6 +187,7 @@ export function logoutWhatsApp(organizationId: string) {
         session.status = 'disconnected';
         session.currentQr = null;
         session.reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // evita reconexão automática após logout explícito
+        await persistStatusToRedis(organizationId, session);
     }
 }
 

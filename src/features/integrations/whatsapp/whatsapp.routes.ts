@@ -55,17 +55,25 @@ router.post('/connect', async (req: Request, res: Response, next: NextFunction):
 });
 
 // Pega o status (conectado, desconectado, QR Code) do tenant autenticado
-router.get('/status', (req: Request, res: Response) => {
-    const { organizationId } = (req as AuthRequest).user;
-    const status = getWhatsAppStatus(organizationId);
-    res.json({ success: true, data: status });
+router.get('/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const status = await getWhatsAppStatus(organizationId);
+        res.json({ success: true, data: status });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // Desconecta a sessão do tenant autenticado
-router.post('/disconnect', (req: Request, res: Response) => {
-    const { organizationId } = (req as AuthRequest).user;
-    logoutWhatsApp(organizationId);
-    res.json({ success: true, message: 'WhatsApp disconnected.' });
+router.post('/disconnect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        await logoutWhatsApp(organizationId);
+        res.json({ success: true, message: 'WhatsApp disconnected.' });
+    } catch (error) {
+        next(error);
+    }
 });
 
 // Envia uma mensagem pela sessão do tenant autenticado
