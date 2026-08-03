@@ -1,12 +1,43 @@
 import { StateGraph, Annotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
-import { getAiModel } from '../../../lib/ai/gateway.js';
+import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdr.agent.js';
 import { BDRAgent } from './bdr.agent.js';
 import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
+
+const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
+const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+
+// Mesmo esquema de load balancing/fallback dos demais agentes do enxame (ver ops.agent.ts):
+// primário via LiteLLM, com fallback direto pra Groq se o proxy falhar. Usar ChatOpenAI "cru"
+// (em vez do wrapper AiChatModel do gateway) é o que habilita tool-calling/structured output —
+// o wrapper só devolve texto livre, e a decisão de roteamento precisa ser JSON confiável.
+const primarySupervisorLlm = new ChatOpenAI({
+    modelName: 'local-llama3-fast',
+    temperature: 0,
+    openAIApiKey: LITELLM_KEY,
+    maxRetries: 1,
+    timeout: 30_000,
+    configuration: {
+        baseURL: `${LITELLM_URL.replace(/\/+$/, '').replace(/\/v1$/i, '')}/v1`,
+    },
+});
+
+const fallbackGroqSupervisorLlm = new ChatOpenAI({
+    modelName: 'llama-3.1-8b-instant',
+    temperature: 0,
+    openAIApiKey: GROQ_API_KEY,
+    maxRetries: 1,
+    timeout: 30_000,
+    configuration: {
+        baseURL: 'https://api.groq.com/openai/v1',
+    },
+});
 
 export type SwarmAgentKey = 'sdr' | 'bdr' | 'crm' | 'ops';
 export type SwarmRoute = SwarmAgentKey | 'finish';
@@ -25,22 +56,26 @@ export interface SwarmEvent {
 // Limite de saltos entre especialistas antes de forçar a síntese final (evita loops infinitos).
 const MAX_STEPS = 4;
 
-const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string }> = {
+const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string; chooseWhen: string }> = {
     sdr: {
         label: 'SDR Autônomo',
-        description: 'Qualifica leads B2B (fit logístico, porte de frota/faturamento, situação cadastral) e atualiza o status de qualificação no CRM.',
+        description: 'Qualifica um lead JÁ CADASTRADO no CRM (fit logístico, porte de frota/faturamento, situação cadastral) e atualiza o status de qualificação.',
+        chooseWhen: 'A missão pede para qualificar/analisar um lead específico que já existe no CRM. Exige um Lead ID real — nunca escolha sem um.',
     },
     bdr: {
         label: 'BDR (Outbound)',
-        description: 'Avalia o fit outbound de um lead/empresa e sugere a melhor linha de abordagem ou e-mail frio para o primeiro contato.',
+        description: 'Avalia o fit outbound de um lead/empresa a partir de um resumo em texto (não precisa de cadastro no CRM) e sugere a linha de abordagem para o primeiro contato frio.',
+        chooseWhen: 'A missão é sobre um lead/empresa NOVO, ainda sem contato feito, ou pede uma sugestão de abertura/primeira mensagem de prospecção.',
     },
     crm: {
         label: 'Gestor de CRM',
-        description: 'Resume o risco de perda de negócios/deals em andamento e recomenda a próxima ação concreta de tratativa.',
+        description: 'Resume o risco de perda de negócios/deals JÁ EM ANDAMENTO e recomenda a próxima ação concreta de tratativa.',
+        chooseWhen: 'A missão é sobre uma negociação/deal que já está em andamento (não um lead novo) — risco de estagnação ou perda, próximos passos comerciais.',
     },
     ops: {
         label: 'Agente de Operações',
-        description: 'Executa ações concretas nas demais ferramentas do sistema: agenda tarefas de follow-up no CRM e notifica a equipe comercial. Use quando a missão pedir uma ação direta (agendar, alertar), não apenas uma análise.',
+        description: 'Executa ações concretas nas demais ferramentas do sistema: agenda tarefas de follow-up no CRM e notifica a equipe comercial.',
+        chooseWhen: 'A missão pede uma AÇÃO CONCRETA a ser executada agora (agendar, notificar, criar tarefa) — não escolha só para produzir mais uma análise ou opinião.',
     },
 };
 
@@ -99,27 +134,25 @@ function toAiMessage(event: SwarmEvent): AIMessage {
     return new AIMessage({ content: event.content, additional_kwargs: { swarmEvent: event } });
 }
 
-function extractJsonBlock(text: string): unknown {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-        return JSON.parse(match[0]);
-    } catch {
-        return null;
-    }
-}
-
 // Exportado só para teste unitário direto da validação de forma da decisão do supervisor.
 export const supervisorDecisionSchema = z.object({
-    action: z.enum(['sdr', 'bdr', 'crm', 'ops', 'finish']),
-    instruction: z.string().default(''),
-    reasoning: z.string().default(''),
+    action: z.enum(['sdr', 'bdr', 'crm', 'ops', 'finish']).describe(
+        'Qual especialista deve atuar a seguir, ou "finish" se a missão já foi suficientemente atendida.',
+    ),
+    instruction: z.string().default('').describe(
+        'Instrução objetiva e ESPECÍFICA em português para o especialista escolhido: diga exatamente o que analisar/fazer e com base em que dado da missão. String vazia se action for "finish".',
+    ),
+    reasoning: z.string().default('').describe('Uma frase curta explicando por que este especialista (e não outro) foi escolhido agora.'),
 });
 
 type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
 
-// Exportado só para teste unitário direto do roteamento de contingência.
-export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean): SupervisorDecision {
+// Exportado só para teste unitário direto do roteamento de contingência. Recebe a missão original
+// para usar como instrução de contingência — antes disto, todo fallback (parsing falhou, guard
+// interceptou) mandava um texto fixo e genérico pro especialista ("produza um resultado
+// objetivo"), descartando o pedido real do usuário justamente nos casos em que o roteamento por
+// IA não pôde ser confiado.
+export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean, mission: string = ''): SupervisorDecision {
     // Sem leadId o especialista 'sdr' sempre falharia (depende de um lead real do CRM) — nem
     // oferece ele como opção de contingência, senão o enxame queima uma rodada inteira só para
     // descobrir isso (ver enforceLeadGuard, que cobre o mesmo caso quando é o LLM que erra).
@@ -130,7 +163,7 @@ export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean)
     }
     return {
         action: pending,
-        instruction: 'Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.',
+        instruction: mission.trim() || 'Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.',
         reasoning: 'Roteamento sequencial de contingência (resposta do supervisor não pôde ser interpretada).',
     };
 }
@@ -141,12 +174,12 @@ export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean)
 // enxame só para produzir o mesmo erro que dava pra prever aqui. Exportado para teste unitário.
 export function enforceLeadGuard(
     decision: SupervisorDecision,
-    context: Pick<SwarmStateType, 'leadId' | 'completed'>,
+    context: Pick<SwarmStateType, 'leadId' | 'completed' | 'mission'>,
 ): SupervisorDecision {
     if (decision.action !== 'sdr' || context.leadId) {
         return decision;
     }
-    const rerouted = fallbackDecision(context.completed, false);
+    const rerouted = fallbackDecision(context.completed, false, context.mission);
     const note = 'SDR não pode ser acionado: nenhum leadId foi informado para esta missão.';
     return {
         ...rerouted,
@@ -175,10 +208,8 @@ async function supervisorNode(state: SwarmStateType) {
         .join('\n') || 'Nenhum resultado produzido até agora.';
 
     // Derivado de AGENT_INFO (não hardcoded) — um especialista novo adicionado ali aparece aqui
-    // automaticamente. Antes desta correção, o hint de formato JSON abaixo ficou defasado quando
-    // o agente 'ops' foi adicionado: o LLM nunca soube que 'ops' era uma ação válida.
+    // automaticamente.
     const agentKeys = Object.keys(AGENT_INFO) as SwarmAgentKey[];
-    const actionEnumHint = [...agentKeys, 'finish'].map((action) => `"${action}"`).join(' | ');
 
     const leadContextLine = state.leadId
         ? `Lead ID disponível para esta missão: ${state.leadId} (o especialista 'sdr' pode usá-lo).`
@@ -186,8 +217,8 @@ async function supervisorNode(state: SwarmStateType) {
 
     const systemPrompt = `Você é o Supervisor de um Enxame (Swarm) de Agentes de Inteligência Comercial da Atlas.
 Você coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
-${(Object.entries(AGENT_INFO) as [SwarmAgentKey, { label: string; description: string }][])
-    .map(([key, info]) => `- '${key}' (${info.label}): ${info.description}`)
+${(Object.entries(AGENT_INFO) as [SwarmAgentKey, { label: string; description: string; chooseWhen: string }][])
+    .map(([key, info]) => `- '${key}' (${info.label}): ${info.description}\n  Escolha quando: ${info.chooseWhen}`)
     .join('\n')}
 
 Missão original do usuário:
@@ -199,23 +230,55 @@ Especialistas já acionados nesta missão: ${completedList}.
 Resultados produzidos até agora:
 ${resultsSummary}
 
-Decida o próximo passo. Não repita um especialista que já respondeu de forma satisfatória, a não ser que haja uma lacuna clara que só ele resolve.
-Se a missão já foi suficientemente atendida pelos especialistas já acionados, responda 'finish'.
-Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora do JSON, no formato exato:
-{"action": ${actionEnumHint}, "instruction": "instrução objetiva e específica em português para o especialista escolhido (string vazia se action for finish)", "reasoning": "uma frase curta explicando a decisão"}`;
+Decida o próximo passo usando a ferramenta de decisão de roteamento. Escolha o especialista cujo critério "Escolha quando" bate com a missão — se mais de um parecer plausível, prefira o mais específico. Não repita um especialista que já respondeu de forma satisfatória, a não ser que haja uma lacuna clara que só ele resolve.
+A instrução que você escrever para o especialista deve citar o dado concreto da missão que ele precisa usar — nunca escreva uma instrução genérica como "analise os dados disponíveis".
+Se a missão já foi suficientemente atendida pelos especialistas já acionados, escolha 'finish'.`;
 
     let decision: SupervisorDecision;
+    const startTime = Date.now();
     try {
-        const model = getAiModel('local-llama3-fast', 0, 'supervisor-agent');
-        const response = await model.invoke([
+        // withStructuredOutput usa tool-calling nativo do provedor em vez de pedir JSON em texto
+        // livre e extrair na mão — antes, uma resposta do modelo com qualquer chave extra ou texto
+        // fora do JSON (comum em modelos pequenos como o llama-3.1-8b-instant usado aqui) quebrava
+        // o regex de extração e o roteamento sempre caía no fallback heurístico, mesmo quando o
+        // modelo tinha decidido corretamente.
+        const structuredModel = primarySupervisorLlm
+            .withStructuredOutput(supervisorDecisionSchema, { name: 'route_decision', includeRaw: true })
+            .withFallbacks([
+                fallbackGroqSupervisorLlm.withStructuredOutput(supervisorDecisionSchema, { name: 'route_decision', includeRaw: true }),
+            ]);
+
+        const result = await structuredModel.invoke([
             new SystemMessage(systemPrompt),
             new HumanMessage('Qual é o próximo passo?'),
         ]);
-        const parsed = supervisorDecisionSchema.safeParse(extractJsonBlock(response.content));
-        decision = parsed.success ? parsed.data : fallbackDecision(state.completed, Boolean(state.leadId));
+        const raw = result.raw as AIMessage;
+
+        const usage = raw?.usage_metadata;
+        if (usage) {
+            await logAiUsage({
+                model: (raw.response_metadata?.model_name as string | undefined)
+                    || (raw.response_metadata?.model as string | undefined)
+                    || 'local-llama3-fast',
+                usage: {
+                    totalTokens: usage.total_tokens,
+                    promptTokens: usage.input_tokens,
+                    completionTokens: usage.output_tokens,
+                },
+                latencyMs: Date.now() - startTime,
+            });
+        }
+
+        if (!result.parsed) {
+            throw new Error('Supervisor não retornou uma decisão estruturada válida.');
+        }
+        // Reaplica o schema: o tipo inferido do tool-calling trata os campos com .default() como
+        // opcionais (a volta por JSON Schema perde essa informação), então isto garante em runtime
+        // que instruction/reasoning nunca ficam undefined mesmo se o modelo omitir a chave.
+        decision = supervisorDecisionSchema.parse(result.parsed);
     } catch (error) {
         logger.error({ err: error }, 'Swarm supervisor routing failed, using fallback heuristic');
-        decision = fallbackDecision(state.completed, Boolean(state.leadId));
+        decision = fallbackDecision(state.completed, Boolean(state.leadId), state.mission);
     }
     // Backstop determinístico: mesmo se o LLM ignorar a linha acima e escolher 'sdr' sem leadId.
     decision = enforceLeadGuard(decision, state);

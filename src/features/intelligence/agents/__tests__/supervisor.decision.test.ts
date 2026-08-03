@@ -74,23 +74,43 @@ describe('fallbackDecision', () => {
         const decision = fallbackDecision(['sdr', 'bdr', 'crm', 'ops'], true);
         expect(decision.action).toBe('finish');
     });
+
+    it('quando há missão original, usa-a como instrução em vez de um texto genérico', () => {
+        const decision = fallbackDecision([], true, 'Qualifique o lead da Transportadora ABC.');
+        expect(decision.instruction).toBe('Qualifique o lead da Transportadora ABC.');
+    });
+
+    it('sem missão informada, cai no texto genérico', () => {
+        const decision = fallbackDecision([], true);
+        expect(decision.instruction).toBe('Analise a missão do usuário com os dados disponíveis e produza um resultado objetivo.');
+    });
 });
 
 describe('enforceLeadGuard', () => {
     it('reescreve a decisão sdr sem leadId para outro especialista pendente', () => {
         const decision = enforceLeadGuard(
             { action: 'sdr', instruction: 'Qualifique o lead.', reasoning: 'Parece um bom próximo passo.' },
-            { leadId: '', completed: [] },
+            { leadId: '', completed: [], mission: '' },
         );
 
         expect(decision.action).not.toBe('sdr');
         expect(decision.reasoning).toContain('SDR não pode ser acionado');
     });
 
+    it('reescreve mantendo a missão original como instrução do especialista redirecionado', () => {
+        const decision = enforceLeadGuard(
+            { action: 'sdr', instruction: 'Qualifique o lead.', reasoning: 'Parece um bom próximo passo.' },
+            { leadId: '', completed: [], mission: 'Avalie o fit da Transportadora ABC para outbound.' },
+        );
+
+        expect(decision.action).toBe('bdr');
+        expect(decision.instruction).toBe('Avalie o fit da Transportadora ABC para outbound.');
+    });
+
     it('finaliza a missão se sdr for a única opção restante e não houver leadId', () => {
         const decision = enforceLeadGuard(
             { action: 'sdr', instruction: '', reasoning: '' },
-            { leadId: '', completed: ['bdr', 'crm', 'ops'] },
+            { leadId: '', completed: ['bdr', 'crm', 'ops'], mission: '' },
         );
 
         expect(decision.action).toBe('finish');
@@ -100,7 +120,7 @@ describe('enforceLeadGuard', () => {
     it('não mexe na decisão sdr quando há leadId', () => {
         const decision = enforceLeadGuard(
             { action: 'sdr', instruction: 'Qualifique o lead.', reasoning: 'Missão pede qualificação.' },
-            { leadId: 'lead-123', completed: [] },
+            { leadId: 'lead-123', completed: [], mission: '' },
         );
 
         expect(decision).toEqual({ action: 'sdr', instruction: 'Qualifique o lead.', reasoning: 'Missão pede qualificação.' });
@@ -108,7 +128,7 @@ describe('enforceLeadGuard', () => {
 
     it('não mexe em decisões que não são sdr, mesmo sem leadId', () => {
         const original = { action: 'bdr' as const, instruction: 'Avalie o fit outbound.', reasoning: 'Faz sentido.' };
-        const decision = enforceLeadGuard(original, { leadId: '', completed: [] });
+        const decision = enforceLeadGuard(original, { leadId: '', completed: [], mission: '' });
 
         expect(decision).toEqual(original);
     });
