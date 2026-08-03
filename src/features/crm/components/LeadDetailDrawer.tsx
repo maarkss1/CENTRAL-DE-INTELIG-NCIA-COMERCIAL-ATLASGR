@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
-    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save,
+    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
 import { api } from '../../../lib/api';
@@ -42,6 +42,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualOpen, setQualOpen] = useState(false);
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
+    const [exportingBitrix, setExportingBitrix] = useState(false);
 
     const fetchLead = useCallback(async () => {
         try {
@@ -116,6 +117,18 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             toast.error(e instanceof Error ? e.message : 'Falha ao enriquecer o lead.');
         } finally {
             setEnriching(false);
+        }
+    };
+
+    const handleExportBitrix = async () => {
+        setExportingBitrix(true);
+        try {
+            await api.post('/api/leads/export/bitrix24', { leadId });
+            toast.success('Lead exportado para o Bitrix24.');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Falha ao exportar para o Bitrix24. Confira a conexão em Integrações.');
+        } finally {
+            setExportingBitrix(false);
         }
     };
 
@@ -428,9 +441,20 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
                         Excluir lead
                     </button>
-                    <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
-                        Fechar
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleExportBitrix}
+                            disabled={exportingBitrix}
+                            title="Exportar este lead para o Bitrix24 (requer conexão em Integrações)"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-surface-2 text-ink-2 hover:text-ink hover:bg-surface rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+                        >
+                            {exportingBitrix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                            Exportar p/ Bitrix24
+                        </button>
+                        <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
+                            Fechar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

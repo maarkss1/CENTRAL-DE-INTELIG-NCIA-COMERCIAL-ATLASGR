@@ -335,6 +335,7 @@ model Organization {
   whatsAppMessages WhatsAppMessage[]
   conversationSignals ConversationSignal[]
   googleWorkspaceConnection GoogleWorkspaceConnection?
+  bitrixConnection BitrixConnection?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -676,6 +677,25 @@ model GoogleWorkspaceConnection {
   refreshToken String   @db.Text
   scope        String
   expiresAt    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Conexão do Bitrix24 de uma organização — webhook de entrada gerado pelo próprio usuário no
+/// portal Bitrix24 dele (Aplicativos > Webhooks > Webhook de entrada, escopo "crm"). Antes disso
+/// a URL do webhook não era persistida em lugar nenhum: cada exportação exigia colar a URL de
+/// novo no corpo da requisição, e não havia nenhuma tela para configurá-la. Um registro por
+/// organização, igual ao padrão do GoogleWorkspaceConnection acima.
+model BitrixConnection {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// URL completa do webhook de entrada, incluindo o token (ex: https://SEUDOMINIO.bitrix24.com.br/rest/1/xxxxxxxx/).
+  /// Mesmo tratamento de segurança que o resto da base: nenhuma coluna tem criptografia de campo
+  /// própria (ver GoogleWorkspaceConnection.accessToken) — a proteção vem de RLS por tenant.
+  webhookUrl String @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

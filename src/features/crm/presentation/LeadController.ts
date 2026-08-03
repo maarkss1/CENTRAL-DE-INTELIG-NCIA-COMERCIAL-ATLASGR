@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { LeadUseCases } from '../application/LeadUseCases';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import { automationEngine } from '../../automations/automation.engine';
+import { getStoredBitrixWebhookUrl } from '../../integrations/bitrix/bitrix.service';
 
 const UTF8_BOM = String.fromCharCode(0xfeff);
 
@@ -127,10 +128,17 @@ export class LeadController {
     exportToBitrix24 = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId: orgId } = (req as AuthRequest).user;
-            const { webhookUrl, leadId } = req.body;
-            
+            const { leadId } = req.body;
+            let { webhookUrl } = req.body;
+
+            // Sem webhookUrl explícito no corpo, usa a conexão salva em Integrações (ver
+            // bitrix.service.ts) — antes disso era obrigatório colar a URL em toda exportação.
             if (!webhookUrl) {
-                res.status(400).json({ success: false, error: 'webhookUrl é obrigatório' });
+                webhookUrl = await getStoredBitrixWebhookUrl(orgId);
+            }
+
+            if (!webhookUrl) {
+                res.status(400).json({ success: false, error: 'Nenhum webhook do Bitrix24 configurado. Conecte em Integrações antes de exportar.' });
                 return;
             }
 
