@@ -2,6 +2,7 @@ import type { WAMessage } from '@whiskeysockets/baileys';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { toE164BR } from '../../../lib/phone.js';
+import { scheduleConversationAnalysis } from '../../../lib/queue/whatsappSignal.worker.js';
 
 /** Grupos (`@g.us`) e o próprio status (`status@broadcast`) não correspondem a um contato do CRM. */
 function isIndividualChat(remoteJid: string | null | undefined): boolean {
@@ -111,5 +112,7 @@ export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput)
             // O registro da mensagem já foi salvo — a falha aqui não pode apagar essa evidência.
             logger.error({ err: error, leadId: lead.id }, 'Falha ao registrar mensagem de WhatsApp no timeline do lead.');
         });
+
+        await scheduleConversationAnalysis(lead.id, input.organizationId);
     }
 }

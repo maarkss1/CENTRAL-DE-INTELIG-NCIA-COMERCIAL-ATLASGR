@@ -113,6 +113,18 @@ model Company {
   logoUrl      String?
   apolloOrgId  String?
 
+  // Menções recentes na imprensa (GDELT, gratuito/sem chave) — array de { title, url, domain, seenAt }
+  newsMentions Json?
+
+  // Look-alike scoring (pgvector) — embedding do perfil firmográfico (mesma técnica/dimensão do
+  // KnowledgeChunk), usado para medir semelhança com empresas que já fecharam negócio. Não é
+  // treinado — é distância de cosseno contra os "vizinhos" reais mais próximos (ver
+  // lookalike-scoring.service.ts). lookalikeTopMatches guarda os matches usados, pra ser auditável
+  // como o resto do enriquecimento em vez de um número sem explicação.
+  profileEmbedding    Unsupported("vector(768)")?
+  lookalikeScore      Float?
+  lookalikeTopMatches Json?
+
   contacts       Contact[]
   leads          Lead[]
   enrichmentLogs EnrichmentLog[]
@@ -131,7 +143,7 @@ model EnrichmentLog {
   id        String   @id @default(cuid())
   companyId String
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  source    String // BrasilAPI-CNPJ | BrasilAPI-CEP | AI-Estimate | Domain-Heuristic
+  source    String // BrasilAPI-CNPJ | BrasilAPI-CEP | AI-Estimate | Domain-Heuristic | GDELT-News | Email-Verification | Lookalike-PgVector
   field     String // o que foi enriquecido (ex: "dados-cadastrais", "endereco", "contatos-sugeridos")
   status    String // success | not_found | failed
   rawData   Json?
@@ -204,6 +216,7 @@ model Lead {
   timeline       TimelineEvent[]
   internalNotes  Note[]
   whatsAppMessages WhatsAppMessage[]
+  conversationSignals ConversationSignal[]
   organizationId String?
   organization   Organization?   @relation(fields: [organizationId], references: [id])
 
@@ -320,6 +333,7 @@ model Organization {
   callSuppressions CallSuppression[]
   coldCallRuns     ColdCallRun[]
   whatsAppMessages WhatsAppMessage[]
+  conversationSignals ConversationSignal[]
   googleWorkspaceConnection GoogleWorkspaceConnection?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -612,6 +626,40 @@ model WhatsAppMessage {
   @@unique([organizationId, waMessageId])
   @@index([organizationId, phoneE164])
   @@index([leadId])
+}
+
+/// Sinal de intenção extraído por IA de uma janela de mensagens de WhatsApp já persistidas em
+/// `WhatsAppMessage` — não duplica o conteúdo da conversa, só o resultado estruturado da leitura
+/// (ver `conversation-intelligence.service.ts`). Gerado por um worker assíncrono, nunca no caminho
+/// de recebimento da mensagem.
+model ConversationSignal {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  /// Quantas mensagens da janela foram lidas nesta análise — só para auditoria, não é exibido como fato de negócio.
+  messageCount Int
+
+  intent          String? // ex: "alta_intencao_compra" | "duvida_tecnica" | "objecao_preco" | "sem_interesse" | "neutro"
+  urgency         String? // "alta" | "media" | "baixa"
+  objections      String[]
+  budgetMentioned Boolean @default(false)
+  nextStep        String? @db.Text
+  summary         String? @db.Text
+  /// Confiança do próprio modelo na classificação (0-1), quando ele reporta — usado para não tratar
+  /// leituras incertas como se fossem fato.
+  confidence      Float?
+
+  /// JSON bruto devolvido pelo modelo — auditoria/depuração, o mesmo espírito do `rawData` em `EnrichmentLog`.
+  rawModelOutput Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, leadId, createdAt])
 }
 
 /// Conexão real de Google Workspace (Gmail + Calendar) de uma organização — antes disso,

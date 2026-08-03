@@ -22,6 +22,27 @@ router.get('/messages', async (req: Request, res: Response, next: NextFunction):
     }
 });
 
+// Sinais de intenção extraídos por IA das conversas de WhatsApp de um lead (ver
+// conversation-intelligence.service.ts) — mais recentes primeiro.
+router.get('/signals', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const leadId = typeof req.query.leadId === 'string' ? req.query.leadId : undefined;
+        if (!leadId) {
+            res.status(400).json({ success: false, error: 'leadId é obrigatório.' });
+            return;
+        }
+        const signals = await prisma.conversationSignal.findMany({
+            where: { organizationId, leadId },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+        });
+        res.json({ success: true, data: signals });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Inicia a sessão e gera QR Code (por tenant)
 router.post('/connect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

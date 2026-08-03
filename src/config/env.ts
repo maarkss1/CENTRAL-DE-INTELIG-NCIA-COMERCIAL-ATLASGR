@@ -60,6 +60,17 @@ const envSchema = z.object({
   SDR_MAX_ATTEMPTS_PER_LEAD: z.coerce.number().int().positive().default(3),
   SDR_RETRY_COOLDOWN_HOURS: z.coerce.number().int().positive().default(48),
 
+  // ── Enxame autônomo (24h, sem gatilho humano) ────────────────────────────
+  // Mesmo padrão de dois-fatores da prospecção fria acima: nem toda organização deve ganhar um
+  // agente rodando sozinho por padrão. E, diferente da discagem fria, o enxame autônomo nunca
+  // executa uma ação real por conta própria — ele só PROPÕE, gravando uma AIPendingAction que
+  // um humano precisa aprovar (ver swarmScheduler.service.ts e aiPendingAction.service.ts, que já
+  // trata qualquer `action` sem executor conhecido como "unsupported_action").
+  SWARM_SCHEDULER_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  /** Ids de organização separados por vírgula. Vazio = ninguém, mesmo com a flag acima ligada. */
+  SWARM_SCHEDULER_ORGANIZATIONS: z.string().optional(),
+  SWARM_SCHEDULER_MAX_LEADS_PER_RUN: z.coerce.number().int().positive().default(5),
+
   // ── Envio real de e-mail (executor de AIPendingAction) ───────────────────
   // Todas opcionais: sem SMTP_HOST, o mailer fica inerte — "aprovar" volta a só abrir o cliente
   // de e-mail do usuário (mailto:), em vez de falhar a aplicação inteira ao subir.

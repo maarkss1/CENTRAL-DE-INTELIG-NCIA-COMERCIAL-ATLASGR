@@ -1,0 +1,61 @@
+import { Queue, Worker, Job } from 'bullmq';
+import { connection } from './redis.js';
+import { logger } from '../logger.js';
+import { runSwarmScheduler, enabledOrganizations } from '../../features/intelligence/services/swarmScheduler.service.js';
+
+export const SWARM_SCHEDULER_QUEUE_NAME = 'swarm-scheduler';
+
+/** De quanto em quanto tempo o enxame reexamina o funil por conta própria. */
+const RUN_EVERY_MS = 15 * 60 * 1000;
+
+export const swarmSchedulerQueue = new Queue(SWARM_SCHEDULER_QUEUE_NAME, { connection });
+swarmSchedulerQueue.on('error', (err) => logger.warn({ message: err.message }, 'swarmSchedulerQueue offline'));
+
+interface SwarmSchedulerJobData {
+    organizationId: string;
+}
+
+export function createSwarmSchedulerWorker() {
+    const worker = new Worker<SwarmSchedulerJobData>(
+        SWARM_SCHEDULER_QUEUE_NAME,
+        async (job: Job<SwarmSchedulerJobData>) => runSwarmScheduler(job.data.organizationId),
+        // Concorrência 1: duas execuções simultâneas pra mesma organização proporiam recomendação
+        // duplicada pro mesmo lead antes de qualquer uma gravar a AIPendingAction que evita isso.
+        { connection, concurrency: 1 },
+    );
+
+    worker.on('failed', (job, err) => {
+        logger.error({ err, jobId: job?.id }, 'Execução do enxame autônomo falhou.');
+    });
+
+    return worker;
+}
+
+/**
+ * Agenda o enxame autônomo para cada organização autorizada.
+ *
+ * Idempotente: o jobId fixo por organização faz o BullMQ substituir o agendamento anterior em vez
+ * de acumular um novo a cada reinício do servidor — mesmo padrão de scheduleColdCallCampaigns.
+ */
+export async function scheduleSwarmScheduler(): Promise<number> {
+    const organizations = enabledOrganizations();
+    if (organizations.length === 0) return 0;
+
+    for (const organizationId of organizations) {
+        await swarmSchedulerQueue.add(
+            'run-swarm-scheduler',
+            { organizationId },
+            {
+                repeat: { every: RUN_EVERY_MS },
+                jobId: `swarm-scheduler-${organizationId}`,
+                removeOnComplete: true,
+                // A rodada reexecuta sozinha em minutos; reprocessar uma falha só produziria
+                // recomendações duplicadas pros mesmos leads.
+                attempts: 1,
+            },
+        );
+    }
+
+    logger.info({ organizations }, 'Enxame autônomo agendado.');
+    return organizations.length;
+}

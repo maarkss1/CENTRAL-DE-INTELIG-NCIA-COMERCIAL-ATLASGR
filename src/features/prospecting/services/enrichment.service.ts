@@ -6,6 +6,9 @@ import { searchGooglePlace } from './places.service';
 import { searchNominatimPlace } from './nominatim.service';
 import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from './apollo.service';
 import { fromPrismaCompanyStatus } from '../../../lib/enumMap';
+import { searchCompanyNews, type NewsMention } from './news.service';
+import { checkEmailDeliverability } from './email-verification.service';
+import { computeLookalikeScore } from './lookalike-scoring.service';
 
 // Trechos (lowercase) de nomes de ERP/TMS comuns no mercado logístico/transportador brasileiro —
 // usados para um pequeno bônus de fit score quando a Apollo detecta um deles na empresa (ver
@@ -240,6 +243,20 @@ export interface DomainGuess {
  * heurística padrão de SDR, não uma verificação real. Não inventamos um número novo: só
  * reaproveitamos o mesmo telefone já coletado (Apollo/Hunter) quando o formato indica celular.
  */
+/**
+ * Traduz a checagem de MX/disposable (`checkEmailDeliverability`) para o vocabulário já usado em
+ * `Contact.emailStatus` ("verified"/"guessed"). Apollo/Hunter não garantem que o e-mail devolvido
+ * realmente exista — hoje todo contato virava "guessed" sem checagem nenhuma; com MX real, um
+ * e-mail sem domínio de e-mail válido vira "invalid" em vez de entrar como se fosse confiável.
+ */
+async function resolveEmailStatus(email: string | null): Promise<string | null> {
+    if (!email) return null;
+    const result = await checkEmailDeliverability(email);
+    if (result.status === 'verified') return 'verified';
+    if (result.status === 'invalid') return 'invalid';
+    return 'guessed';
+}
+
 function guessWhatsappFromPhone(phone: string | null | undefined): string | null {
     if (!phone) return null;
     const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
@@ -458,6 +475,7 @@ interface CompanyUpdateData {
     keywords?: string[];
     logoUrl?: string;
     apolloOrgId?: string;
+    newsMentions?: Prisma.InputJsonValue;
 }
 
 /** Orquestra o enriquecimento completo de uma empresa já existente no CRM e grava o histórico. */
@@ -563,7 +581,16 @@ async function runEnrichment(
     // via HTTP) — para domínio não verificado, "adivinhar" um e-mail em cima de um domínio que talvez
     // nem exista é especulação demais para apresentar como dado da empresa.
     if (domainGuess.verified && domainGuess.emails.length && !(company.emails || []).length && !(updateData.emails?.length)) {
-        updateData.emails = domainGuess.emails;
+        // O domínio verificado (HTTP 2xx/3xx) não garante que ele aceite e-mail — checamos MX real
+        // antes de gravar os e-mails adivinhados (contato@, comercial@, atendimento@) como dado da
+        // empresa, senão empurramos endereço inexistente pra régua de outreach.
+        const deliverability = await Promise.all(domainGuess.emails.map(checkEmailDeliverability));
+        const deliverableEmails = domainGuess.emails.filter(
+            (_, i) => deliverability[i].status !== 'invalid'
+        );
+        if (deliverableEmails.length) {
+            updateData.emails = deliverableEmails;
+        }
     }
 
     // Google Places is optional. OpenStreetMap is the zero-cost fallback.
@@ -599,6 +626,23 @@ async function runEnrichment(
             }
         });
         enrichmentSourceLabel += googlePlace ? ' + Google' : ' + OpenStreetMap';
+    }
+
+    // GDELT — índice global de notícias, gratuito/sem chave. Sinal best-effort: nome de empresa
+    // pode gerar falso positivo em notícias de terceiros com nome parecido, por isso guardamos os
+    // artigos brutos (para o usuário julgar) em vez de usá-los em qualquer pontuação automática.
+    const newsMentions: NewsMention[] = await searchCompanyNews(companyName || '');
+    await prisma.enrichmentLog.create({
+        data: {
+            companyId,
+            source: 'GDELT-News',
+            field: 'noticias',
+            status: newsMentions.length > 0 ? 'success' : 'not_found',
+            rawData: newsMentions.length > 0 ? JSON.parse(JSON.stringify(newsMentions)) : undefined,
+        },
+    });
+    if (newsMentions.length > 0) {
+        updateData.newsMentions = newsMentions as unknown as Prisma.InputJsonValue;
     }
 
     // Apollo Organization Enrich — perfil firmográfico completo (tecnologias, keywords, redes
@@ -671,7 +715,7 @@ async function runEnrichment(
                     whatsapp: guessWhatsappFromPhone(c.phone),
                     linkedin: c.linkedin_url,
                     source: 'Apollo',
-                    emailStatus: c.email ? 'guessed' : null,
+                    emailStatus: await resolveEmailStatus(c.email),
                     companyId,
                     organizationId: company.organizationId
                 }
@@ -707,7 +751,7 @@ async function runEnrichment(
                         whatsapp: guessWhatsappFromPhone(c.phone),
                         linkedin: c.linkedin_url,
                         source: contactsSource === 'hunter' ? 'Hunter' : 'Apollo',
-                        emailStatus: c.email ? 'guessed' : null,
+                        emailStatus: await resolveEmailStatus(c.email),
                         companyId,
                         organizationId: company.organizationId
                     }
@@ -727,6 +771,22 @@ async function runEnrichment(
         state: updateData.state ?? company.state,
         fleetSizeHint: options.fleetSizeHint,
         technologies: updateData.technologies ?? company.technologies,
+    });
+
+    // Look-alike scoring (pgvector) — roda depois do fit score determinístico, nunca no lugar dele:
+    // é um sinal complementar ("parece com quem já comprou"), não substitui os critérios auditáveis
+    // acima. `null` quando o tenant ainda não tem histórico de vitórias suficiente (cold start).
+    const lookalike = company.organizationId
+        ? await computeLookalikeScore(companyId, company.organizationId)
+        : null;
+    await prisma.enrichmentLog.create({
+        data: {
+            companyId,
+            source: 'Lookalike-PgVector',
+            field: 'similaridade-com-ganhos',
+            status: lookalike ? 'success' : 'not_found',
+            rawData: lookalike ? JSON.parse(JSON.stringify(lookalike)) : undefined,
+        },
     });
 
     // Resumo determinístico do enriquecimento — montado a partir dos próprios dados coletados
@@ -749,6 +809,12 @@ async function runEnrichment(
         const sourceLabel = contactsSource === 'hunter' ? 'Hunter.io' : 'Apollo';
         summaryParts.push(`decisores identificados via ${sourceLabel}: ${apolloContacts.map((c) => `${c.name} (${c.title || 'cargo não informado'})`).join(', ')}`);
     }
+    if (newsMentions.length > 0) {
+        summaryParts.push(`${newsMentions.length} menção(ões) recentes na imprensa encontradas (GDELT): ${newsMentions.map((n) => n.title).join('; ')}`);
+    }
+    if (lookalike) {
+        summaryParts.push(`${lookalike.score}% de semelhança com empresas já ganhas (mais parecida: ${lookalike.matches[0]?.tradeName})`);
+    }
 
     const icebreakerService = new IcebreakerService();
     const icebreaker = await icebreakerService.generateIcebreaker(companyName || '');
@@ -770,5 +836,5 @@ async function runEnrichment(
         },
     });
 
-    return { company: { ...updated, status: fromPrismaCompanyStatus(updated.status) }, fit, domainGuess, apolloContacts };
+    return { company: { ...updated, status: fromPrismaCompanyStatus(updated.status) }, fit, lookalike, domainGuess, apolloContacts };
 }
