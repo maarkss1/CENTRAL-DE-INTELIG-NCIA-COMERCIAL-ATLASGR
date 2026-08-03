@@ -36,3 +36,18 @@ export interface Message {
     text: string;
     timestamp: string;
 }
+
+export interface Persona {
+    id: string;
+    label: string;
+    desc: string;
+}
+
+export interface AnalysisResult {
+    score: number;
+    qualificationsHit: string[];
+    objectionsHandled: string[];
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+}

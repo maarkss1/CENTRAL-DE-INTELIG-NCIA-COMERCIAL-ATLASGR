@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-    MessageSquare, Sparkles, Mic, MicOff, Send, RotateCcw,
-    CheckCircle2, AlertTriangle, Trophy, Bot, Phone, PhoneOff
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
-import type { SpeechRecognitionEventLike, SpeechRecognitionLike, Message } from './chatbook-hub/types';
+import type { AnalysisResult, SpeechRecognitionEventLike, SpeechRecognitionLike, Message } from './chatbook-hub/types';
 import { QUALIFICATION_CRITERIA, OBJECTIONS_DATA } from './chatbook-hub/playbookData';
 import { QualificationMatrix } from './chatbook-hub/QualificationMatrix';
 import { ObjectionsMatrix } from './chatbook-hub/ObjectionsMatrix';
+import { SimulationSetup } from './chatbook-hub/SimulationSetup';
+import { ActiveSimulationView } from './chatbook-hub/ActiveSimulationView';
+import { AnalysisReport } from './chatbook-hub/AnalysisReport';
 
 export function ChatbookHub() {
     const { activeBrand, brandInfo } = useBrand();
@@ -23,7 +23,7 @@ export function ChatbookHub() {
     const [inputMessage, setInputMessage] = useState('');
     const [isThinking, setIsThinking] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    
+
     // Tab navigation state
     const [activeTab, setActiveTab] = useState<'simulador' | 'qualificacao' | 'objecoes'>('simulador');
 
@@ -33,14 +33,7 @@ export function ChatbookHub() {
     const [botSpeaking, setBotSpeaking] = useState(false);
 
     // Score & Analysis results
-    const [analysisResult, setAnalysisResult] = useState<{
-        score: number;
-        qualificationsHit: string[];
-        objectionsHandled: string[];
-        feedback: string;
-        strengths: string[];
-        improvements: string[];
-    } | null>(null);
+    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [turnEvaluations, setTurnEvaluations] = useState<Array<{
         clarity: number;
         objectionHandling: number;
@@ -123,13 +116,13 @@ export function ChatbookHub() {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'pt-BR';
-            
+
             // Try to find a premium, natural, or Google voice for pt-BR
             const voices = window.speechSynthesis.getVoices();
             const ptVoices = voices.filter(v => v.lang.includes('pt-BR') || v.lang.includes('pt_BR'));
-            
-            const bestVoice = 
-                ptVoices.find(v => v.name.toLowerCase().includes('google')) || 
+
+            const bestVoice =
+                ptVoices.find(v => v.name.toLowerCase().includes('google')) ||
                 ptVoices.find(v => v.name.toLowerCase().includes('premium')) ||
                 ptVoices.find(v => v.name.toLowerCase().includes('online')) ||
                 ptVoices.find(v => v.name.toLowerCase().includes('microsoft')) ||
@@ -141,7 +134,7 @@ export function ChatbookHub() {
 
             utterance.rate = 1.1; // Slightly faster sounds less robotic
             utterance.pitch = 1.05; // Slight pitch tweak for a more conversational tone
-            
+
             utterance.onstart = () => setBotSpeaking(true);
             utterance.onend = () => setBotSpeaking(false);
             window.speechSynthesis.speak(utterance);
@@ -260,6 +253,14 @@ export function ChatbookHub() {
         }
     };
 
+    const endChat = () => {
+        setSimulationActive(false);
+        setMessages([]);
+        if ((simulationMode as string) === 'voice') {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+    };
+
     const finishSimulation = () => {
         setSimulationActive(false);
         setIsFinished(true);
@@ -292,7 +293,7 @@ export function ChatbookHub() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-[#fbfbfd] p-4 md:p-8 flex flex-col items-center relative overflow-hidden transition-colors duration-1000">
+        <div className="flex-1 overflow-y-auto bg-transparent p-4 md:p-8 flex flex-col items-center relative overflow-hidden transition-colors duration-1000">
             {/* Ambient Background Glows */}
             <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-orange-400/10 blur-[120px] pointer-events-none" />
             <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
@@ -300,26 +301,26 @@ export function ChatbookHub() {
             <div className="w-full max-w-6xl space-y-12 pb-24 relative z-10">
 
                 {/* Header Hub & Tabs - Glassmorphism */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/70 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 border border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex flex-col items-center justify-center text-center gap-8 relative overflow-hidden"
+                    className="bg-surface/70 backdrop-blur-2xl rounded-[3rem] p-8 md:p-12 border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex flex-col items-center justify-center text-center gap-8 relative overflow-hidden"
                 >
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent pointer-events-none" />
-                    
+                    <div className="absolute inset-0 bg-gradient-to-b from-surface/50 to-transparent pointer-events-none" />
+
                     <div className="relative z-10 flex flex-col items-center gap-5">
                         <div className="flex items-center gap-3">
                             <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm ${brandInfo.badgeBg} border-current/20`}>
                                 {brandInfo.badgeText}
                             </span>
-                            <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                            <span className="text-ink-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-surface-2 px-3 py-1.5 rounded-full">
                                 <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Commercial Playbook
                             </span>
                         </div>
-                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-ink tracking-tight">
                             Chatbook & <span className={`text-transparent bg-clip-text bg-gradient-to-r ${activeBrand === 'totaltrac' ? 'from-sky-500 to-blue-600' : 'from-orange-500 to-amber-600'}`}>Roleplay Simulator</span>
                         </h1>
-                        <p className="text-gray-500 text-base md:text-lg font-medium max-w-2xl">
+                        <p className="text-ink-2 text-base md:text-lg font-medium max-w-2xl">
                             Treinamento gamificado em tempo real, matrizes de qualificação SPIN e contorno estratégico de objeções para {brandInfo.name}.
                         </p>
                     </div>
@@ -340,7 +341,7 @@ export function ChatbookHub() {
                                     ? activeBrand === 'totaltrac'
                                         ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/25'
                                         : 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
-                                    : 'bg-white/80 text-gray-600 border border-gray-200 hover:bg-white hover:shadow-md'
+                                    : 'bg-surface/80 text-ink-2 border border-line hover:bg-surface hover:shadow-md'
                             }`}
                         >
                             {tab.label}
@@ -350,360 +351,49 @@ export function ChatbookHub() {
 
                 {/* ROLEPLAY SIMULATOR */}
                 {activeTab === 'simulador' && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                         className="space-y-8"
                     >
                         {!simulationActive && !isFinished && (
-                            <div className="bg-white/80 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 border border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.03)] space-y-10">
-                                <div className="text-center space-y-3">
-                                    <h2 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center justify-center gap-3 tracking-tight">
-                                        <Bot className={`w-8 h-8 ${activeBrand === 'totaltrac' ? 'text-sky-500' : 'text-atlas-orange'}`} /> Setup da Simulação
-                                    </h2>
-                                    <p className="text-gray-500 text-base font-medium max-w-xl mx-auto">
-                                        Escolha a persona do comprador e o nível de objeção. A IA simulará a conversa para testar suas habilidades.
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {currentPersonas.map((p) => (
-                                        <motion.div
-                                            whileHover={{ y: -5, scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            key={p.id}
-                                            onClick={() => setSelectedPersona(p.id)}
-                                            className={`p-6 md:p-8 rounded-[2rem] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden flex flex-col justify-between ${
-                                                selectedPersona === p.id
-                                                    ? activeBrand === 'totaltrac'
-                                                        ? 'border-sky-500 bg-sky-50/80 shadow-[0_10px_30px_rgba(2,132,199,0.15)]'
-                                                        : 'border-orange-500 bg-orange-50/80 shadow-[0_10px_30px_rgba(249,115,22,0.15)]'
-                                                    : 'border-gray-100 hover:border-gray-200 bg-white shadow-sm'
-                                            }`}
-                                        >
-                                            <div className="flex items-start justify-between mb-4">
-                                                <span className="font-black text-lg text-gray-900 leading-tight pr-4">{p.label}</span>
-                                                {selectedPersona === p.id && (
-                                                    <CheckCircle2 className={`w-6 h-6 shrink-0 ${activeBrand === 'totaltrac' ? 'text-sky-600' : 'text-atlas-orange'}`} />
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-gray-500 leading-relaxed font-medium">{p.desc}</p>
-                                        </motion.div>
-                                    ))}
-                                </div>
-
-                                <div className="flex flex-col lg:flex-row items-center justify-between gap-6 pt-6 border-t border-gray-100">
-                                    <div className="flex flex-col md:flex-row items-center gap-4 w-full lg:w-auto">
-                                        <span className="text-xs font-black uppercase tracking-widest text-gray-400">Dificuldade:</span>
-                                        <div className="flex bg-gray-100 p-1.5 rounded-[1.25rem] w-full md:w-auto">
-                                            {(['facil', 'medio', 'dificil'] as const).map((level) => (
-                                                <button
-                                                    key={level}
-                                                    onClick={() => setDifficulty(level)}
-                                                    className={`flex-1 md:flex-none px-6 py-2.5 rounded-xl text-xs font-black capitalize transition-all ${
-                                                        difficulty === level ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                                                    }`}
-                                                >
-                                                    {level}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-                                        <button
-                                            onClick={() => startSimulation('text')}
-                                            className={`w-full sm:w-auto px-8 py-4 rounded-[1.75rem] font-black text-white text-sm uppercase tracking-wider shadow-xl shadow-current/20 flex items-center justify-center gap-3 transition-transform hover:scale-105 ${
-                                                activeBrand === 'totaltrac'
-                                                    ? 'bg-sky-600 hover:bg-sky-700'
-                                                    : 'bg-atlas-orange hover:bg-orange-600'
-                                            }`}
-                                        >
-                                            <MessageSquare className="w-5 h-5 fill-current/20" /> Mensagem (Chat)
-                                        </button>
-                                        
-                                        <button
-                                            onClick={() => startSimulation('voice')}
-                                            className="w-full sm:w-auto px-8 py-4 rounded-[1.75rem] font-black text-gray-900 bg-white hover:bg-gray-50 border border-gray-200 text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-3 transition-transform hover:scale-105"
-                                        >
-                                            <Phone className="w-5 h-5" /> Ligar para Lead (Voz)
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                            <SimulationSetup
+                                activeBrand={activeBrand}
+                                currentPersonas={currentPersonas}
+                                selectedPersona={selectedPersona}
+                                setSelectedPersona={setSelectedPersona}
+                                difficulty={difficulty}
+                                setDifficulty={setDifficulty}
+                                onStart={startSimulation}
+                            />
                         )}
 
-                        {/* TELA DE SIMULAÇÃO ATIVA */}
                         {simulationActive && (
-                            <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className={`bg-white/80 backdrop-blur-xl rounded-[3rem] border border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col ${simulationMode === 'voice' ? 'h-[600px]' : 'h-[700px]'}`}>
-                                
-                                {/* MODO TEXTO: CHAT */}
-                                {simulationMode === 'text' && (
-                                    <>
-                                        {/* Topbar do Chat */}
-                                        <div className="px-8 py-6 bg-white/60 border-b border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center shadow-lg ${activeBrand === 'totaltrac' ? 'bg-sky-100 text-sky-600' : 'bg-orange-100 text-orange-600'}`}>
-                                                    <Bot className="w-7 h-7" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-black text-lg text-gray-900 tracking-tight">
-                                                        {currentPersonas.find(p => p.id === selectedPersona)?.label || 'Lead'}
-                                                    </h3>
-                                                    <p className="text-sm font-medium text-gray-500 flex items-center gap-2">
-                                                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                                        Online
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    setSimulationActive(false);
-                                                    setMessages([]);
-                                                    if ((simulationMode as string) === 'voice') {
-                                                        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                                                    }
-                                                }}
-                                                className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors text-sm uppercase tracking-wider"
-                                            >
-                                                Encerrar
-                                            </button>
-                                        </div>
-
-                                        {/* Mensagens */}
-                                        <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6 bg-gray-50/30">
-                                            <AnimatePresence>
-                                                {messages.map((m) => (
-                                                    <motion.div
-                                                        initial={{ opacity: 0, y: 10 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        key={m.id}
-                                                        className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                                                    >
-                                                        <div
-                                                            className={`max-w-2xl px-6 py-4 rounded-[2rem] text-base leading-relaxed font-medium ${
-                                                                m.sender === 'user'
-                                                                    ? activeBrand === 'totaltrac'
-                                                                        ? 'bg-sky-600 text-white rounded-br-md shadow-[0_10px_20px_rgba(2,132,199,0.2)]'
-                                                                        : 'bg-atlas-orange text-white rounded-br-md shadow-[0_10px_20px_rgba(249,115,22,0.2)]'
-                                                                    : 'bg-white text-gray-800 border border-gray-100 rounded-bl-md shadow-sm'
-                                                            }`}
-                                                        >
-                                                            <p>{m.text}</p>
-                                                            <span className={`block text-[10px] mt-3 font-black uppercase tracking-wider ${m.sender === 'user' ? 'text-white/60 text-right' : 'text-gray-400'}`}>
-                                                                {m.timestamp}
-                                                            </span>
-                                                        </div>
-                                                    </motion.div>
-                                                ))}
-                                            </AnimatePresence>
-
-                                            {isThinking && (
-                                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-                                                    <div className="bg-white border border-gray-100 px-6 py-4 rounded-[2rem] rounded-bl-md shadow-sm text-sm font-medium text-gray-500 flex items-center gap-3">
-                                                        <div className="flex gap-1">
-                                                            <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '0ms' }} />
-                                                            <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '150ms' }} />
-                                                            <span className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: '300ms' }} />
-                                                        </div>
-                                                        Cliente está digitando...
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                            <div ref={messagesEndRef} />
-                                        </div>
-
-                                        {/* Input bar */}
-                                        <div className="p-6 bg-white/80 backdrop-blur-md border-t border-gray-100 flex items-center gap-4">
-                                            <button
-                                                onClick={toggleListening}
-                                                className={`p-4 rounded-[1.5rem] transition-all shadow-sm ${
-                                                    isListening
-                                                        ? 'bg-rose-100 text-rose-600 animate-pulse scale-105'
-                                                        : 'bg-gray-50 hover:bg-gray-100 text-gray-600'
-                                                }`}
-                                                title="Falar via Microfone"
-                                            >
-                                                {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                                            </button>
-
-                                            <input
-                                                type="text"
-                                                value={inputMessage}
-                                                onChange={(e) => setInputMessage(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                                                placeholder="Digite seu argumento de vendas ou fale no microfone..."
-                                                className="flex-1 bg-gray-50 border border-gray-200 rounded-[1.75rem] px-6 py-4 text-base font-medium focus:outline-none focus:border-current focus:ring-4 focus:ring-current/10 transition-all placeholder:text-gray-400"
-                                                style={{ color: activeBrand === 'totaltrac' ? '#0284c7' : '#ea580c' }}
-                                            />
-
-                                            <button
-                                                onClick={handleSendMessage}
-                                                disabled={!inputMessage.trim() || isThinking}
-                                                className={`p-4 rounded-[1.5rem] text-white transition-all disabled:opacity-50 shadow-lg hover:scale-105 ${
-                                                    activeBrand === 'totaltrac' ? 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/25' : 'bg-atlas-orange hover:bg-orange-600 shadow-orange-600/25'
-                                                }`}
-                                            >
-                                                <Send className="w-6 h-6" />
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* MODO VOZ: LIGAÇÃO TELEFÔNICA */}
-                                {simulationMode === 'voice' && (
-                                    <div className="flex-1 flex flex-col relative bg-[#0b0f19] text-white overflow-hidden">
-                                        <div className={`absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] ${activeBrand === 'totaltrac' ? 'from-sky-500 via-[#0b0f19] to-[#0b0f19]' : 'from-orange-500 via-[#0b0f19] to-[#0b0f19]'}`} />
-                                        
-                                        <div className="flex-1 flex flex-col items-center justify-center relative z-10 space-y-12">
-                                            {/* Caller Info */}
-                                            <div className="text-center space-y-2">
-                                                <h3 className="text-3xl font-black tracking-tight">{currentPersonas.find(p => p.id === selectedPersona)?.label}</h3>
-                                                <p className="text-gray-400 font-medium font-mono text-lg">{formatDuration(callDuration)}</p>
-                                            </div>
-
-                                            {/* Avatar Pulsante */}
-                                            <div className="relative">
-                                                {/* Pulse animations when bot is speaking */}
-                                                {botSpeaking && (
-                                                    <>
-                                                        <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className={`absolute inset-0 rounded-full opacity-30 blur-md ${activeBrand === 'totaltrac' ? 'bg-sky-500' : 'bg-orange-500'}`} />
-                                                        <motion.div animate={{ scale: [1, 1.4, 1] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.2 }} className={`absolute inset-0 rounded-full opacity-10 blur-xl ${activeBrand === 'totaltrac' ? 'bg-sky-500' : 'bg-orange-500'}`} />
-                                                    </>
-                                                )}
-                                                
-                                                <div className="w-32 h-32 rounded-full bg-gray-800 border-4 border-gray-700 flex items-center justify-center relative z-10 shadow-2xl">
-                                                    <Bot className={`w-16 h-16 ${botSpeaking ? (activeBrand === 'totaltrac' ? 'text-sky-400' : 'text-orange-400') : 'text-gray-400'}`} />
-                                                </div>
-                                            </div>
-
-                                            {/* Transcrição (Subtitles) */}
-                                            <div className="h-24 px-8 w-full max-w-2xl flex flex-col items-center justify-center text-center">
-                                                {isThinking && <p className="text-gray-500 italic">Analisando sua resposta...</p>}
-                                                {botSpeaking && (
-                                                    <p className={`text-lg font-medium leading-relaxed ${activeBrand === 'totaltrac' ? 'text-sky-100' : 'text-orange-100'}`}>
-                                                        {messages.filter(m => m.sender === 'bot').pop()?.text}
-                                                    </p>
-                                                )}
-                                                {isListening && (
-                                                    <p className="text-lg font-medium leading-relaxed text-white">
-                                                        {inputMessage || "Ouvindo você..."}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Call Controls */}
-                                        <div className="p-8 pb-12 flex items-center justify-center gap-8 relative z-10 bg-gradient-to-t from-black/80 to-transparent">
-                                            {/* Microphone Toggle */}
-                                            <button
-                                                onClick={toggleListening}
-                                                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all ${
-                                                    isListening
-                                                        ? 'bg-white text-gray-900 shadow-[0_0_30px_rgba(255,255,255,0.3)]'
-                                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-gray-700'
-                                                }`}
-                                            >
-                                                {isListening ? <Mic className="w-8 h-8" /> : <MicOff className="w-8 h-8" />}
-                                            </button>
-
-                                            {/* Send Button (Only visible if there is input in voice mode) */}
-                                            <AnimatePresence>
-                                                {isListening && inputMessage.trim() && (
-                                                    <motion.button
-                                                        initial={{ scale: 0, opacity: 0 }}
-                                                        animate={{ scale: 1, opacity: 1 }}
-                                                        exit={{ scale: 0, opacity: 0 }}
-                                                        onClick={handleSendMessage}
-                                                        className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-xl ${activeBrand === 'totaltrac' ? 'bg-sky-600 hover:bg-sky-500' : 'bg-orange-600 hover:bg-orange-500'}`}
-                                                    >
-                                                        <Send className="w-8 h-8 ml-1" />
-                                                    </motion.button>
-                                                )}
-                                            </AnimatePresence>
-
-                                            {/* End Call */}
-                                            <button
-                                                onClick={finishSimulation}
-                                                className="w-20 h-20 rounded-full flex items-center justify-center bg-rose-600 text-white hover:bg-rose-500 transition-all shadow-[0_0_30px_rgba(225,29,72,0.4)]"
-                                            >
-                                                <PhoneOff className="w-8 h-8" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </motion.div>
+                            <ActiveSimulationView
+                                simulationMode={simulationMode}
+                                activeBrand={activeBrand}
+                                currentPersonas={currentPersonas}
+                                selectedPersona={selectedPersona}
+                                messages={messages}
+                                isThinking={isThinking}
+                                isListening={isListening}
+                                inputMessage={inputMessage}
+                                setInputMessage={setInputMessage}
+                                toggleListening={toggleListening}
+                                onSendMessage={handleSendMessage}
+                                onEndChat={endChat}
+                                callDuration={formatDuration(callDuration)}
+                                botSpeaking={botSpeaking}
+                                onEndCall={finishSimulation}
+                                messagesEndRef={messagesEndRef}
+                            />
                         )}
 
-                        {/* RELATÓRIO DE ANÁLISE PÓS-SIMULAÇÃO */}
                         {isFinished && analysisResult && (
-                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/90 backdrop-blur-2xl rounded-[3rem] p-10 border border-white/80 shadow-[0_30px_60px_rgba(0,0,0,0.08)] space-y-10 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-96 h-96 bg-amber-400/10 rounded-full blur-[80px] pointer-events-none" />
-                                
-                                <div className="flex flex-col md:flex-row items-center justify-between gap-8 bg-gray-900 text-white p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
-                                    
-                                    <div className="relative z-10 text-center md:text-left flex-1">
-                                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-black uppercase tracking-widest mb-4">
-                                            <Trophy className="w-4 h-4" /> Relatório pedagógico · Groq IA
-                                        </div>
-                                        <h2 className="text-4xl lg:text-5xl font-black mb-3 tracking-tight">Análise de Desempenho</h2>
-                                        <p className="text-gray-400 text-base md:text-lg font-medium leading-relaxed max-w-2xl">{analysisResult.feedback}</p>
-                                    </div>
-
-                                    <div className="relative z-10 flex flex-col items-center bg-white/10 backdrop-blur-xl px-12 py-8 rounded-[2rem] border border-white/20 shrink-0">
-                                        <span className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Pontuação estimada</span>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-amber-300 to-orange-500 tracking-tighter">{analysisResult.score}</span>
-                                        </div>
-                                        <div className="mt-4 px-4 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-bold uppercase tracking-widest">
-                                            Estimativa pedagógica
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
-                                    <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100 space-y-6">
-                                        <h3 className="font-black text-xl text-emerald-900 flex items-center gap-3 tracking-tight">
-                                            <div className="p-2 bg-emerald-100 rounded-xl"><CheckCircle2 className="w-6 h-6 text-emerald-600" /></div> Métricas estimadas pela IA
-                                        </h3>
-                                        <ul className="space-y-4">
-                                            {analysisResult.strengths.map((s, idx) => (
-                                                <li key={idx} className="flex items-start gap-3 text-base text-emerald-800 font-medium leading-relaxed">
-                                                    <span className="w-2 h-2 mt-2 rounded-full bg-emerald-500 shrink-0" /> {s}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-
-                                    <div className="bg-rose-50/50 p-8 rounded-[2rem] border border-rose-100 space-y-6">
-                                        <h3 className="font-black text-xl text-rose-900 flex items-center gap-3 tracking-tight">
-                                            <div className="p-2 bg-rose-100 rounded-xl"><AlertTriangle className="w-6 h-6 text-rose-600" /></div> Oportunidades de Melhoria
-                                        </h3>
-                                        <ul className="space-y-4">
-                                            {analysisResult.improvements.map((imp, idx) => (
-                                                <li key={idx} className="flex items-start gap-3 text-base text-rose-800 font-medium leading-relaxed">
-                                                    <span className="w-2 h-2 mt-2 rounded-full bg-rose-500 shrink-0" /> {imp}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-center pt-4 gap-4">
-                                    <button
-                                        onClick={() => startSimulation('text')}
-                                        className="px-10 py-5 bg-gray-900 hover:bg-black text-white rounded-[1.75rem] font-black text-sm uppercase tracking-wider flex items-center gap-3 transition-transform hover:scale-105 shadow-xl shadow-gray-900/20"
-                                    >
-                                        <RotateCcw className="w-5 h-5" /> Nova Simulação (Chat)
-                                    </button>
-                                    <button
-                                        onClick={() => startSimulation('voice')}
-                                        className="px-10 py-5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-900 rounded-[1.75rem] font-black text-sm uppercase tracking-wider flex items-center gap-3 transition-transform hover:scale-105 shadow-xl"
-                                    >
-                                        <Phone className="w-5 h-5" /> Nova Ligação
-                                    </button>
-                                </div>
-                            </motion.div>
+                            <AnalysisReport
+                                analysisResult={analysisResult}
+                                onRestartText={() => startSimulation('text')}
+                                onRestartVoice={() => startSimulation('voice')}
+                            />
                         )}
                     </motion.div>
                 )}
