@@ -1,7 +1,7 @@
 import {
-    Home, Search, LayoutTemplate, Users, Building2, Activity, Bot, BookOpen,
+    Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
     Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell, Sun, Moon,
-    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database,
+    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield,
 } from 'lucide-react';
 import { TabType } from './Header';
 import { useLiveClock } from '../../hooks/useLiveClock';
@@ -15,7 +15,9 @@ const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     contacts: { label: 'Decisores', icon: Users },
     companies: { label: 'Empresas', icon: Building2 },
     activities: { label: 'Agenda', icon: Activity },
-    roleplay: { label: 'Dojo de Vendas', icon: Bot },
+    roleplay: { label: 'Roleplay', icon: PhoneCall },
+    qualification_matrix: { label: 'Matriz de Qualificação', icon: Target },
+    objections_matrix: { label: 'Matriz de Objeções', icon: Shield },
     intelligence: { label: 'Hub de IA', icon: Zap },
     topic_training: { label: 'Academy', icon: BookOpen },
     bitrix: { label: 'Bitrix24', icon: Layers },

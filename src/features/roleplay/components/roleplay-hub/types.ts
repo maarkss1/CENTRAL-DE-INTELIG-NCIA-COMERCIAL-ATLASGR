@@ -20,7 +20,6 @@ export interface SpeechRecognitionConstructorLike {
     new(): SpeechRecognitionLike;
 }
 
-// TypeScript declaration for Web Speech API
 declare global {
     interface Window {
         webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
@@ -28,9 +27,7 @@ declare global {
     }
 }
 
-// Removed TabType as we only have Roleplay now
-
-export interface Message {
+export interface CallMessage {
     id: string;
     sender: 'bot' | 'user';
     text: string;
@@ -43,10 +40,8 @@ export interface Persona {
     desc: string;
 }
 
-export interface AnalysisResult {
+export interface CallAnalysisResult {
     score: number;
-    qualificationsHit: string[];
-    objectionsHandled: string[];
     feedback: string;
     strengths: string[];
     improvements: string[];

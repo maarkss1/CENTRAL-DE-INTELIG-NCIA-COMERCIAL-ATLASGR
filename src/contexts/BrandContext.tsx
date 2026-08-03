@@ -55,6 +55,13 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         document.documentElement.style.setProperty('--brand-primary', brandInfo.primaryColor);
         document.documentElement.style.setProperty('--brand-accent', brandInfo.accentColor);
+        // --brand/--brand-2 são as variáveis que os tokens de design (bg-brand, text-brand,
+        // border-brand etc.) realmente consomem via --color-brand: var(--brand) no globals.css.
+        // Ficaram de fora da troca de marca acima (só --brand-primary/--brand-accent eram
+        // atualizadas), então qualquer componente migrado pros novos tokens ficava sempre laranja
+        // (cor da AtlasGR) mesmo com a TotalTrac selecionada.
+        document.documentElement.style.setProperty('--brand', brandInfo.primaryColor);
+        document.documentElement.style.setProperty('--brand-2', brandInfo.accentColor);
     }, [activeBrand, brandInfo]);
 
     return (

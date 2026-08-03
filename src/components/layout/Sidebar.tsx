@@ -1,7 +1,8 @@
 
-import { 
-    Home, LayoutTemplate, Search, Users, Building2, 
-    Activity, Bot, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText
+import {
+    Home, LayoutTemplate, Search, Users, Building2,
+    Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
+    PhoneCall, Target, Shield, MessageSquare
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { Logo } from '../Logo';
@@ -30,7 +31,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     ];
 
     const aiTools = [
-        { id: 'roleplay' as TabType, label: 'Dojo de Vendas', icon: <Bot size={20} /> },
+        { id: 'roleplay' as TabType, label: 'Roleplay', icon: <PhoneCall size={20} /> },
+        { id: 'qualification_matrix' as TabType, label: 'Matriz de Qualificação', icon: <Target size={20} /> },
+        { id: 'objections_matrix' as TabType, label: 'Matriz de Objeções', icon: <Shield size={20} /> },
+        { id: 'chatbook' as TabType, label: 'Chatbook', icon: <MessageSquare size={20} /> },
         { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
         { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
@@ -51,13 +55,20 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
 
                 <div className="relative group cursor-pointer" onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}>
                     <div className="flex items-center justify-between p-2 rounded-xl border border-line bg-surface-2 hover:bg-brand/10 transition-all">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
-                                Operação Atual
-                            </span>
-                            <span className="text-sm font-black text-ink">
-                                {isAtlas ? 'AtlasGR' : 'TotalTrac'}
-                            </span>
+                        <div className="flex items-center gap-2">
+                            {isAtlas ? (
+                                <Logo variant="symbol" className="h-6 w-6 shrink-0" />
+                            ) : (
+                                <TotalTrackLogo className="h-6 w-6 shrink-0 text-ink" />
+                            )}
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
+                                    Operação Atual
+                                </span>
+                                <span className="text-sm font-black text-ink">
+                                    {isAtlas ? 'AtlasGR' : 'TotalTrac'}
+                                </span>
+                            </div>
                         </div>
                         <div className="w-6 h-6 rounded-md flex items-center justify-center bg-surface shadow-sm text-ink-2">
                             <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
