@@ -1,0 +1,2113 @@
+openapi: 3.0.3
+info:
+  title: Prospector AtlasGR API
+  version: "1.0.0"
+  description: |
+    Documentação da API do Prospector AtlasGR (CRM comercial + prospecção + IA).
+
+    **Autenticação**: a maioria das rotas exige uma sessão válida do Better Auth,
+    enviada via cookie de sessão (`better-auth.session_token`) definido por
+    `POST /api/auth/sign-in/email` ou pelo fluxo social (`/api/auth/sign-in/social`).
+    As rotas `/api/auth/*` são geridas pela biblioteca `better-auth` e não são
+    implementadas manualmente neste projeto — os schemas de request abaixo
+    (`SignUpEmailRequest`, `SignInEmailRequest`) refletem os campos aceitos pela
+    lib, mas o contrato completo (inclusive `/api/auth/sign-in/social`,
+    `/api/auth/sign-out`, `/api/auth/get-session`, etc.) é o padrão do Better Auth.
+
+    **Multi-tenant**: toda rota autenticada (exceto `/api/auth/*`) roda sob
+    `requireTenant`, que resolve o `organizationId` da sessão; todos os recursos
+    abaixo são implicitamente filtrados por esse tenant.
+
+    **Envelope de resposta**: a maior parte dos endpoints devolve
+    `{ "success": true, "data": ... }` (e opcionalmente `meta` para paginação) em
+    caso de sucesso, ou `{ "success": false, "error": "..." }` em caso de falha.
+    Alguns endpoints legados de `/api/intelligence` fogem do padrão e devolvem
+    `{ "result": ... }` diretamente — isso está anotado endpoint a endpoint.
+  contact:
+    name: AtlasGR
+    email: comercial@atlasgr.com.br
+
+servers:
+  - url: /api
+    description: Caminho base relativo (mesma origem do frontend)
+
+tags:
+  - name: Auth
+    description: Cadastro/login/sessão (Better Auth)
+  - name: Companies
+    description: Empresas do CRM
+  - name: Contacts
+    description: Contatos vinculados a empresas
+  - name: Leads
+    description: Oportunidades/leads do funil comercial
+  - name: Activities
+    description: Agenda e atividades vinculadas a leads
+  - name: Notes
+    description: Anotações vinculadas a um lead
+  - name: Prospecting
+    description: Descoberta de candidatos (Apollo/IA), enriquecimento de CNPJ e promoção para o CRM
+  - name: Intelligence
+    description: Geração de conteúdo via IA, toolkit de 20 funções, ações pendentes e configuração de modelo
+  - name: Agent
+    description: Copiloto de vendas conversacional, TTS e orquestração de agentes (swarm/SDR)
+  - name: Prompts
+    description: Overrides de prompt por tenant
+  - name: Analytics
+    description: Métricas agregadas do CRM/pipeline
+  - name: Knowledge
+    description: Base de conhecimento (RAG) — ingestão e busca híbrida
+  - name: Notifications
+    description: Notificações in-app do usuário
+  - name: Automations
+    description: Regras de automação (gatilho → ação)
+  - name: Usage
+    description: Consumo de IA/billing por organização
+  - name: WhatsApp
+    description: Integração WhatsApp (Baileys) por tenant
+  - name: Google
+    description: Integração Google (OAuth Calendar/Gmail)
+  - name: Birth Voice
+    description: SDR de voz (Birth Voices Hub) — discagem, campanha fria e lista de bloqueio
+
+security:
+  - sessionCookie: []
+
+paths:
+  # ───────────────────────────── Auth (better-auth) ─────────────────────────────
+  /auth/sign-up/email:
+    post:
+      tags: [Auth]
+      summary: Cadastro por e-mail/senha (Better Auth)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpEmailRequest'
+      responses:
+        '200':
+          description: Usuário criado e sessão iniciada (cookie de sessão setado na resposta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/sign-in/email:
+    post:
+      tags: [Auth]
+      summary: Login por e-mail/senha (Better Auth)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInEmailRequest'
+      responses:
+        '200':
+          description: Sessão iniciada (cookie de sessão setado na resposta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '401':
+          description: Credenciais inválidas
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/get-session:
+    get:
+      tags: [Auth]
+      summary: Retorna a sessão atual (via cookie), se houver
+      responses:
+        '200':
+          description: Sessão ativa ou `null`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+
+  /auth/sign-out:
+    post:
+      tags: [Auth]
+      summary: Encerra a sessão atual
+      responses:
+        '200':
+          description: Sessão encerrada
+
+  # ───────────────────────────── Companies ─────────────────────────────
+  /companies:
+    get:
+      tags: [Companies]
+      summary: Lista empresas do tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyListResponse'
+    post:
+      tags: [Companies]
+      summary: Cria uma empresa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /companies/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Companies]
+      summary: Busca empresa por id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Companies]
+      summary: Atualiza parcialmente uma empresa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyInputPartial'
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Companies]
+      summary: Remove uma empresa (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removida
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /companies/{id}/enrich:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Companies]
+      summary: Reenriquece uma empresa existente (Receita Federal + heurísticas de domínio/e-mail)
+      responses:
+        '200':
+          description: Empresa enriquecida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+
+  # ───────────────────────────── Contacts ─────────────────────────────
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: Lista contatos (paginado, com busca opcional)
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          description: Busca textual (nome/e-mail/telefone)
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactListResponse'
+    post:
+      tags: [Contacts]
+      summary: Cria um contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInput'
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /contacts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Contacts]
+      summary: Busca contato por id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Contacts]
+      summary: Atualiza parcialmente um contato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactInputPartial'
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactResponse'
+    delete:
+      tags: [Contacts]
+      summary: Remove um contato (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /contacts/{id}/enrich:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Contacts]
+      summary: Enriquece a empresa vinculada ao contato (Receita Federal + Google Negócios + Apollo)
+      responses:
+        '200':
+          description: Resultado do enriquecimento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── Leads ─────────────────────────────
+  /leads:
+    get:
+      tags: [Leads]
+      summary: Lista leads do tenant (paginado/filtrável — filtros aplicados no controller)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadListResponse'
+    post:
+      tags: [Leads]
+      summary: Cria um lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadInput'
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+
+  /leads/export/csv:
+    get:
+      tags: [Leads]
+      summary: Exporta os leads do tenant em CSV
+      responses:
+        '200':
+          description: Arquivo CSV
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /leads/export/bitrix24:
+    post:
+      tags: [Leads]
+      summary: Exporta leads selecionados para o Bitrix24
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Resultado da exportação
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /leads/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Leads]
+      summary: Busca lead por id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Leads]
+      summary: Atualiza parcialmente um lead (status do funil, qualificação, PIC, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadInputPartial'
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+    delete:
+      tags: [Leads]
+      summary: Remove um lead (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /leads/{id}/enrich:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Leads]
+      summary: Reenriquece um lead já prospectado
+      responses:
+        '200':
+          description: Lead enriquecido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadResponse'
+
+  /leads/{leadId}/notes:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Notes]
+      summary: Lista as notas de um lead
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteListResponse'
+    post:
+      tags: [Notes]
+      summary: Cria uma nota no lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+
+  /leads/{leadId}/notes/{noteId}:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: noteId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [Notes]
+      summary: Remove uma nota
+      responses:
+        '204':
+          description: Removida
+
+  # ───────────────────────────── Activities ─────────────────────────────
+  /activities:
+    get:
+      tags: [Activities]
+      summary: Lista atividades — modo "agenda" (range de datas) ou lista paginada
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+          description: Junto com `to`, retorna todas as atividades no intervalo (grade do Calendário, sem paginação)
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer }
+        - name: leadId
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/ActivityStatus' }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/ActivityType' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityListResponse'
+    post:
+      tags: [Activities]
+      summary: Cria uma atividade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+
+  /activities/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Activities]
+      summary: Atualiza parcialmente uma atividade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityInputPartial'
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityResponse'
+    delete:
+      tags: [Activities]
+      summary: Remove uma atividade
+      responses:
+        '204':
+          description: Removida
+
+  # ───────────────────────────── Prospecting ─────────────────────────────
+  /prospecting/apollo/reconnect:
+    post:
+      tags: [Prospecting]
+      summary: Revalida a conexão técnica com a Apollo (API key), sem consumir créditos
+      responses:
+        '200':
+          description: Status da conexão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /prospecting/discover:
+    post:
+      tags: [Prospecting]
+      summary: Descoberta de candidatos via IA a partir de um ICP (Perfil de Cliente Ideal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Critérios de busca (ProspectCriteria) — formato livre, definido em prospecting.service.ts
+      responses:
+        '200':
+          description: Lista de candidatos descobertos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/enrich-cnpj:
+    post:
+      tags: [Prospecting]
+      summary: Consulta em tempo real (sem persistir) de um CNPJ na Receita Federal via BrasilAPI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnpj]
+              properties:
+                cnpj: { type: string }
+      responses:
+        '200':
+          description: Dados do CNPJ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/promote:
+    post:
+      tags: [Prospecting]
+      summary: Promove um candidato (IA ou CNPJ) para o CRM — cria Company + Contact + Lead e enriquece automaticamente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tradeName, source]
+              properties:
+                tradeName: { type: string }
+                source: { type: string }
+      responses:
+        '201':
+          description: Recursos criados no CRM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/decision-makers:
+    post:
+      tags: [Prospecting]
+      summary: Busca decisores (contatos-chave) para uma empresa específica, por domínio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain: { type: string }
+                criteria: { type: object }
+      responses:
+        '200':
+          description: Decisores encontrados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/icebreaker:
+    post:
+      tags: [Prospecting]
+      summary: Gera um quebra-gelo comercial sob demanda a partir de recortes públicos reais da empresa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyName]
+              properties:
+                companyName: { type: string }
+      responses:
+        '200':
+          description: Texto do quebra-gelo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      icebreaker: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ───────────────────────────── Intelligence ─────────────────────────────
+  /intelligence/studio:
+    post:
+      tags: [Intelligence]
+      summary: Gera um artefato de IA Studio (e-mail, matriz B2B, roteiro de treinamento etc. — union discriminada por `kind`)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, brand, inputs]
+              description: Discriminated union por `kind` (email, b2b_matrix, training_script, ...) — ver studio.service.ts
+              properties:
+                kind: { type: string }
+                brand: { type: object }
+                inputs: { type: object }
+      responses:
+        '200':
+          description: 'Artefato gerado. Observação: este endpoint não usa o envelope `{success,data}` padrão, e sim `{ "result": ... }`.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: { type: object }
+
+  /intelligence:
+    post:
+      tags: [Intelligence]
+      summary: Gera conteúdo comercial via IA para uma ferramenta específica (e-mail, script, matriz, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool]
+              properties:
+                tool: { type: string, maxLength: 80 }
+                leadId: { type: string, maxLength: 100 }
+                competitor: { type: string, maxLength: 200 }
+                tone: { type: string, maxLength: 80 }
+                objective: { type: string, maxLength: 100 }
+                personaFallback: { type: string, maxLength: 200 }
+                brandId: { type: string, enum: [atlasgr, totaltrac], default: atlasgr }
+      responses:
+        '200':
+          description: 'Conteúdo gerado. Observação: devolve `{ "result": ... }`, não o envelope padrão.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: { type: string }
+        '400':
+          description: Ferramenta inválida ou concorrente ausente
+
+  /intelligence/qualify:
+    post:
+      tags: [Intelligence]
+      summary: Enfileira a qualificação assíncrona de um lead (worker de IA via BullMQ)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadId]
+              properties:
+                leadId: { type: string }
+                companyInfo:
+                  type: string
+                  description: Opcional — quando ausente, o worker busca os dados reais da empresa no CRM.
+      responses:
+        '202':
+          description: Job enfileirado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  jobId: { type: string }
+        '400':
+          description: leadId ausente
+
+  /intelligence/agents/sdr/qualify:
+    post:
+      tags: [Intelligence]
+      summary: Dispara o agente SDR de qualificação para um lead (execução assíncrona em background)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadId]
+              properties:
+                leadId: { type: string }
+                sessionId: { type: string }
+      responses:
+        '202':
+          description: Agente iniciado em background
+        '400':
+          description: leadId ausente
+
+  /intelligence/search:
+    get:
+      tags: [Intelligence]
+      summary: Busca vetorial (RAG) sobre a base de conhecimento do tenant
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 5, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: 'Resultados da busca vetorial (`{ results: [...] }`, sem o envelope padrão)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results: { type: array, items: { type: object } }
+        '400':
+          description: Query ausente ou longa demais
+
+  /intelligence/pending:
+    get:
+      tags: [Intelligence]
+      summary: Lista ações de IA pendentes de aprovação humana (AIPendingAction)
+      responses:
+        '200':
+          description: 'Lista de ações pendentes (array puro, sem envelope)'
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  /intelligence/pending/{id}/approve:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Intelligence]
+      summary: Aprova uma ação de IA pendente para execução downstream
+      responses:
+        '200':
+          description: Ação aprovada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /intelligence/pending/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Intelligence]
+      summary: Descarta uma ação de IA pendente
+      responses:
+        '204':
+          description: Descartada
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /intelligence/ai-settings:
+    get:
+      tags: [Intelligence]
+      summary: Lista a configuração de provider/modelo/temperatura por ferramenta de IA
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    put:
+      tags: [Intelligence]
+      summary: Salva a configuração de provider/modelo/temperatura por ferramenta de IA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: array
+                  items:
+                    type: object
+                    required: [toolKey, provider, model, temperature]
+                    properties:
+                      toolKey: { type: string }
+                      provider: { type: string }
+                      model:
+                        type: string
+                        enum: [local-llama3, local-llama3-fast, qwen-coder, deepseek-coder]
+                      temperature: { type: number, minimum: 0, maximum: 2 }
+      responses:
+        '200':
+          description: Configuração salva
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /intelligence/report:
+    post:
+      tags: [Intelligence]
+      summary: Gera uma leitura executiva em Markdown a partir de métricas já calculadas (ex. `/api/analytics/overview`)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [metrics]
+              properties:
+                metrics: { type: object }
+                brandId: { type: string, enum: [atlasgr, totaltrac], default: atlasgr }
+      responses:
+        '200':
+          description: 'Relatório em Markdown (`{ "result": "..." }`, sem envelope padrão)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: { type: string }
+
+  /intelligence/toolkit/execute:
+    post:
+      tags: [Intelligence]
+      summary: Executa uma das 20 funções do AI Toolkit (summarizeLead, generateEmailDraft, scoreLeadQuality, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [functionName, args]
+              properties:
+                functionName:
+                  type: string
+                  description: Nome de uma função do toolkit (ver src/lib/ai/features.ts)
+                args:
+                  type: array
+                  items: { type: string }
+                  description: Argumentos de texto — a aridade exata varia por função
+      responses:
+        '200':
+          description: Resultado da função
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: Função desconhecida ou aridade de argumentos incorreta
+
+  # ───────────────────────────── Agent (copiloto/voz/swarm) ─────────────────────────────
+  /agent/chat:
+    post:
+      tags: [Agent]
+      summary: Copiloto de vendas conversacional (modo padrão/objeções)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+
+  /agent/groq:
+    post:
+      tags: [Agent]
+      summary: Assistente de consulta rápida (sem contexto de base interna)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+
+  /agent/roleplay:
+    post:
+      tags: [Agent]
+      summary: Simulação de comprador B2B para treino de objeções
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+
+  /agent/qualification:
+    post:
+      tags: [Agent]
+      summary: Gera de 4 a 6 perguntas de qualificação (SPIN/BANT) para o vendedor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+
+  /agent/tts:
+    post:
+      tags: [Agent]
+      summary: Converte texto em áudio (Voicebox TTS)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        '200':
+          description: Áudio WAV
+          content:
+            audio/wav:
+              schema:
+                type: string
+                format: binary
+
+  /agent/swarm/mission:
+    post:
+      tags: [Agent]
+      summary: Executa uma missão síncrona do enxame de agentes (supervisor + sub-agentes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwarmMissionRequest'
+      responses:
+        '200':
+          description: Mensagens produzidas pelo enxame
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /agent/swarm/stream:
+    post:
+      tags: [Agent]
+      summary: Executa uma missão do enxame de agentes com streaming (Server-Sent Events)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwarmMissionRequest'
+      responses:
+        '200':
+          description: 'Stream `text/event-stream` de eventos da missão, terminando em `event: end`'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /agent/swarm/learn:
+    post:
+      tags: [Agent]
+      summary: Roda o agente de aprendizado contínuo, refletindo sobre ações recentes do usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, organizationId]
+              properties:
+                userId: { type: string }
+                organizationId: { type: string }
+      responses:
+        '200':
+          description: Diretrizes aprendidas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  learnedGuidelines: { type: string }
+
+  # ───────────────────────────── Prompts ─────────────────────────────
+  /prompts:
+    get:
+      tags: [Prompts]
+      summary: Lista os prompts (overrides) do tenant autenticado
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Prompts]
+      summary: Cria um novo prompt override
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, category]
+              properties:
+                name: { type: string }
+                category: { type: string }
+                variables: { type: object }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /prompts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Prompts]
+      summary: Atualiza as variáveis de um prompt existente do tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [variables]
+              properties:
+                variables: { type: object }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Analytics ─────────────────────────────
+  /analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: Visão geral usada pelo LiveStatsWidget (home) e pelo relatório executivo por IA
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /analytics/dashboard:
+    get:
+      tags: [Analytics]
+      summary: Dashboard completo da tela de Analytics, numa única requisição
+      parameters:
+        - name: months
+          in: query
+          schema: { type: integer, minimum: 3, maximum: 24, default: 6 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── Knowledge ─────────────────────────────
+  /knowledge:
+    get:
+      tags: [Knowledge]
+      summary: Lista os documentos da base de conhecimento do tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Knowledge]
+      summary: Ingesta um documento a partir de texto colado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                content: { type: string, minLength: 1, maxLength: 400000 }
+      responses:
+        '201':
+          description: Documento criado e indexado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /knowledge/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Knowledge]
+      summary: Retorna um documento completo, com conteúdo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Knowledge]
+      summary: Edita título e/ou conteúdo do documento (reindexa se o conteúdo mudou)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string, maxLength: 200 }
+                content: { type: string, maxLength: 400000 }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Knowledge]
+      summary: Remove um documento
+      responses:
+        '204':
+          description: Removido
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /knowledge/upload:
+    post:
+      tags: [Knowledge]
+      summary: Ingesta um documento a partir de um arquivo (base64) — .txt, .md, .csv, .json ou .docx
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileName, data]
+              properties:
+                fileName: { type: string, minLength: 1, maxLength: 255 }
+                data: { type: string, description: Conteúdo do arquivo em base64 }
+                title: { type: string, maxLength: 200 }
+      responses:
+        '201':
+          description: Documento criado e indexado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /knowledge/search:
+    post:
+      tags: [Knowledge]
+      summary: Busca híbrida (vetorial + texto) na base de conhecimento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string, minLength: 2, maxLength: 500 }
+                limit: { type: integer, minimum: 1, maximum: 25 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /knowledge/{id}/reembed:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Knowledge]
+      summary: Regera vetores/embeddings que faltaram na ingestão original
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── Notifications ─────────────────────────────
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Lista notificações do usuário autenticado
+      parameters:
+        - name: unread
+          in: query
+          schema: { type: string, enum: ['1', 'true'] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items: { type: array, items: { type: object } }
+                      unread: { type: integer }
+
+  /notifications/{id}/read:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Notifications]
+      summary: Marca uma notificação como lida
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Marca todas as notificações do usuário como lidas
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      count: { type: integer }
+
+  /notifications/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Notifications]
+      summary: Remove uma notificação
+      responses:
+        '204':
+          description: Removida
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Automations ─────────────────────────────
+  /automations/options:
+    get:
+      tags: [Automations]
+      summary: Lista os gatilhos e ações disponíveis, para montar os selects da tela
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      triggers: { type: array, items: { type: string } }
+                      actions: { type: array, items: { type: string } }
+
+  /automations:
+    get:
+      tags: [Automations]
+      summary: Lista as automações do tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Automations]
+      summary: Cria uma automação (gatilho → ação)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationInput'
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /automations/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Automations]
+      summary: Atualiza parcialmente uma automação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationInput'
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Automations]
+      summary: Remove uma automação
+      responses:
+        '204':
+          description: Removida
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Usage / Billing ─────────────────────────────
+  /usage:
+    get:
+      tags: [Usage]
+      summary: Consumo de IA da organização (custo, tokens, chamadas) numa janela de dias
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 7, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── WhatsApp ─────────────────────────────
+  /whatsapp/messages:
+    get:
+      tags: [WhatsApp]
+      summary: Histórico de mensagens persistidas (de um lead, ou as mais recentes do tenant)
+      parameters:
+        - name: leadId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /whatsapp/connect:
+    post:
+      tags: [WhatsApp]
+      summary: Inicia a sessão do WhatsApp do tenant e gera QR Code
+      responses:
+        '200':
+          description: Solicitação de conexão enviada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /whatsapp/status:
+    get:
+      tags: [WhatsApp]
+      summary: Status da sessão do WhatsApp do tenant (conectado/desconectado/QR Code)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /whatsapp/disconnect:
+    post:
+      tags: [WhatsApp]
+      summary: Desconecta a sessão do WhatsApp do tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /whatsapp/send:
+    post:
+      tags: [WhatsApp]
+      summary: Envia uma mensagem pela sessão do tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [number, text]
+              properties:
+                number: { type: string }
+                text: { type: string }
+      responses:
+        '200':
+          description: Enviada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ───────────────────────────── Google ─────────────────────────────
+  /google/auth-url:
+    get:
+      tags: [Google]
+      summary: Gera a URL de autenticação OAuth do Google
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  url: { type: string }
+
+  /google/callback:
+    get:
+      tags: [Google]
+      summary: Processa o callback OAuth do Google
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /google/status:
+    get:
+      tags: [Google]
+      summary: Status da integração Google
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── Birth Voice (SDR de voz) ─────────────────────────────
+  /integrations/birth-voice/cold-call/status:
+    get:
+      tags: [Birth Voice]
+      summary: Status da campanha de prospecção fria (discagem automática) para o tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /integrations/birth-voice/call/{leadId}:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Birth Voice]
+      summary: Dispara uma ligação do SDR de voz para o lead informado
+      responses:
+        '202':
+          description: Ligação iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '422':
+          description: Lead sem telefone válido
+        '409':
+          description: Número em lista de bloqueio (opt-out)
+        '503':
+          description: Integração Birth Voices Hub não configurada
+
+  /integrations/birth-voice/suppressions:
+    get:
+      tags: [Birth Voice]
+      summary: Lista os números em bloqueio (opt-out) de discagem para o tenant
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Birth Voice]
+      summary: Bloqueia manualmente um número (opt-out registrado por outro canal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string }
+                reason: { type: string, maxLength: 500 }
+                leadId: { type: string }
+      responses:
+        '201':
+          description: Bloqueado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+        '422':
+          description: Telefone fora de um formato brasileiro discável
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: better-auth.session_token
+      description: |
+        Cookie de sessão emitido pelo Better Auth no login. Rotas protegidas passam por
+        `authenticateToken` (valida a sessão) e `requireTenant` (resolve o organizationId).
+        Endpoints marcados com roles (ex. `[ADMIN, GESTOR]`) também exigem `requireRole`.
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Corpo da requisição inválido (schema Zod rejeitou os dados)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Recurso não encontrado (ou não pertence ao tenant autenticado)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Papel do usuário não tem permissão suficiente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Limite de requisições excedido (rate limiting por IP/tenant)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error: { type: string }
+
+    DataEnvelope:
+      type: object
+      description: Envelope de resposta genérico usado pela maioria dos endpoints
+      properties:
+        success: { type: boolean, example: true }
+        data: {}
+        meta: { type: object, description: 'Presente em listagens paginadas (page, limit, total, etc.)' }
+
+    # ── Enums de domínio (espelham src/lib/zod.ts) ──
+    CompanyStatus:
+      type: string
+      enum: [Ativo, Inativo, Em análise]
+    LeadStatus:
+      type: string
+      enum:
+        - Novo Lead
+        - Qualificação
+        - Primeiro Contato
+        - Diagnóstico
+        - Proposta
+        - Negociação
+        - Fechado Ganho
+        - Fechado Perdido
+    ActivityType:
+      type: string
+      enum: [Ligação, WhatsApp, E-mail, Reunião, Follow-up, Visita, Tarefa]
+    ActivityStatus:
+      type: string
+      enum: [Pendente, Em andamento, Concluída, Cancelada]
+    LeadTemperature:
+      type: string
+      enum: [Frio, Morno, Quente]
+    ContactStatus:
+      type: string
+      enum: [Ativo, Inativo]
+
+    # ── Auth (Better Auth) ──
+    SignUpEmailRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, minLength: 1 }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+        organizationId:
+          type: string
+          nullable: true
+          description: Reflete o registerSchema do projeto (src/lib/zod.ts); a lib Better Auth também aceita campos adicionais próprios.
+
+    SignInEmailRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+
+    AuthSessionResponse:
+      type: object
+      description: Formato do Better Auth — não segue o envelope `{success,data}` do resto da API.
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: string }
+            email: { type: string }
+            name: { type: string }
+            role: { type: string, description: 'ADMIN | GESTOR | VENDEDOR | VISUALIZADOR' }
+            organizationId: { type: string }
+        session:
+          type: object
+          properties:
+            id: { type: string }
+            expiresAt: { type: string, format: date-time }
+
+    # ── Company ──
+    CompanyInput:
+      type: object
+      required: [legalName, tradeName]
+      properties:
+        legalName: { type: string }
+        tradeName: { type: string }
+        cnpj: { type: string, nullable: true }
+        stateRegistration: { type: string, nullable: true }
+        segment: { type: string, nullable: true }
+        cnae: { type: string, nullable: true }
+        size: { type: string, nullable: true }
+        employeeCount: { type: integer, nullable: true }
+        estimatedRevenue: { type: number, nullable: true }
+        website: { type: string, nullable: true }
+        linkedin: { type: string, nullable: true }
+        instagram: { type: string, nullable: true }
+        phones: { type: array, items: { type: string }, default: [] }
+        emails: { type: array, items: { type: string }, default: [] }
+        address: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        zipCode: { type: string, nullable: true }
+        owner: { type: string, nullable: true }
+        status:
+          allOf: [{ $ref: '#/components/schemas/CompanyStatus' }]
+          default: Ativo
+        tags: { type: array, items: { type: string }, default: [] }
+        observations: { type: string, nullable: true }
+    CompanyInputPartial:
+      allOf:
+        - $ref: '#/components/schemas/CompanyInput'
+      description: Todos os campos de CompanyInput são opcionais em PUT (`.partial()` no schema Zod)
+    Company:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string }
+            organizationId: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+        - $ref: '#/components/schemas/CompanyInput'
+    CompanyResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Company' }
+    CompanyListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Company' } }
+        meta: { type: object }
+
+    # ── Contact ──
+    ContactInput:
+      type: object
+      required: [name, companyId]
+      properties:
+        name: { type: string }
+        role: { type: string, nullable: true }
+        department: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        whatsapp: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        linkedin: { type: string, nullable: true }
+        birthDate: { type: string, nullable: true }
+        observations: { type: string, nullable: true }
+        status:
+          allOf: [{ $ref: '#/components/schemas/ContactStatus' }]
+          default: Ativo
+        companyId: { type: string }
+    ContactInputPartial:
+      allOf:
+        - $ref: '#/components/schemas/ContactInput'
+      description: Todos os campos são opcionais em PUT (`.partial()`)
+    Contact:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string }
+            organizationId: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+        - $ref: '#/components/schemas/ContactInput'
+    ContactResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Contact' }
+    ContactListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Contact' } }
+        meta: { type: object }
+
+    # ── Lead ──
+    LeadInput:
+      type: object
+      properties:
+        status:
+          allOf: [{ $ref: '#/components/schemas/LeadStatus' }]
+          default: Novo Lead
+        source: { type: string, nullable: true }
+        channel: { type: string, nullable: true }
+        temperature:
+          allOf: [{ $ref: '#/components/schemas/LeadTemperature' }]
+          type: string
+          nullable: true
+        score: { type: integer, nullable: true }
+        owner: { type: string, nullable: true }
+        companyId: { type: string, nullable: true }
+        contactId: { type: string, nullable: true }
+        pic:
+          type: string
+          nullable: true
+          enum: [PIC1_Expansao, PIC2_Risco, PIC3_Transicao]
+          description: Perfil de Cliente Ideal do Playbook de Pré-Vendas Atlas
+        qualification:
+          type: object
+          nullable: true
+          description: Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2) — objeto livre
+    LeadInputPartial:
+      allOf:
+        - $ref: '#/components/schemas/LeadInput'
+      description: Todos os campos são opcionais em PUT (`.partial()`)
+    Lead:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string }
+            organizationId: { type: string }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+        - $ref: '#/components/schemas/LeadInput'
+    LeadResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Lead' }
+    LeadListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Lead' } }
+        meta: { type: object }
+
+    # ── Activity ──
+    ActivityInput:
+      type: object
+      required: [type, owner, date, leadId]
+      properties:
+        type: { $ref: '#/components/schemas/ActivityType' }
+        owner: { type: string }
+        date: { type: string, format: date }
+        time: { type: string, nullable: true }
+        status:
+          allOf: [{ $ref: '#/components/schemas/ActivityStatus' }]
+          default: Pendente
+        observations: { type: string, nullable: true }
+        leadId: { type: string }
+    ActivityInputPartial:
+      allOf:
+        - $ref: '#/components/schemas/ActivityInput'
+      description: Todos os campos são opcionais em PUT (`.partial()`)
+    Activity:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string }
+            organizationId: { type: string }
+            createdAt: { type: string, format: date-time }
+        - $ref: '#/components/schemas/ActivityInput'
+    ActivityResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Activity' }
+    ActivityListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Activity' } }
+        meta: { type: object, description: 'Ausente quando a resposta é o modo agenda (from/to)' }
+
+    # ── Note ──
+    NoteInput:
+      type: object
+      required: [content, author]
+      properties:
+        content: { type: string, minLength: 1 }
+        author: { type: string, minLength: 1 }
+    Note:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string }
+            leadId: { type: string }
+            organizationId: { type: string }
+            createdAt: { type: string, format: date-time }
+        - $ref: '#/components/schemas/NoteInput'
+    NoteResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { $ref: '#/components/schemas/Note' }
+    NoteListResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data: { type: array, items: { $ref: '#/components/schemas/Note' } }
+
+    # ── Automation ──
+    AutomationInput:
+      type: object
+      description: Formato exato (campos de gatilho/ação) definido em automation.service.ts; consulte GET /api/automations/options para os valores válidos de trigger/action.
+      properties:
+        name: { type: string }
+        trigger: { type: string }
+        action: { type: string }
+        active: { type: boolean }
+        config: { type: object }
+
+    # ── Agent / conversas ──
+    ConversationRequest:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 8000 }
+        tool:
+          type: string
+          enum: [copilot, groq, roleplay, objections, qualification, playbook]
+        history:
+          type: array
+          maxItems: 12
+          default: []
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role: { type: string, enum: [user, assistant] }
+              content: { type: string, minLength: 1, maxLength: 6000 }
+    ConversationResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        reply: { type: string }
+        model: { type: string }
+        mode: { type: string }
+
+    SwarmMissionRequest:
+      type: object
+      required: [mission]
+      properties:
+        mission: { type: string, minLength: 1, maxLength: 4000 }
+        sessionId: { type: string, maxLength: 200 }
+        leadId:
+          type: string
+          maxLength: 200
+          description: Quando presente, permite ao agente SDR do enxame buscar o contexto real do lead no CRM.

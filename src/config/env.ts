@@ -29,6 +29,9 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
+  // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
+  EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
   // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
@@ -56,6 +59,17 @@ const envSchema = z.object({
   SDR_MAX_CALLS_PER_RUN: z.coerce.number().int().positive().default(10),
   SDR_MAX_ATTEMPTS_PER_LEAD: z.coerce.number().int().positive().default(3),
   SDR_RETRY_COOLDOWN_HOURS: z.coerce.number().int().positive().default(48),
+
+  // ── Envio real de e-mail (executor de AIPendingAction) ───────────────────
+  // Todas opcionais: sem SMTP_HOST, o mailer fica inerte — "aprovar" volta a só abrir o cliente
+  // de e-mail do usuário (mailto:), em vez de falhar a aplicação inteira ao subir.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_SECURE: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  /** Endereço "De" usado no envio — cai para SMTP_USER quando ausente. */
+  SMTP_FROM: z.string().optional(),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.

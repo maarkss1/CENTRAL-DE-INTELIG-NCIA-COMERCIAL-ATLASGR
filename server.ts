@@ -53,6 +53,9 @@ import { searchQueue } from './src/lib/queue/search.queue.js';
 import { agentQueue } from './src/lib/queue/agent.worker.js';
 import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
 import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
+import swaggerUi from 'swagger-ui-express';
+import { parse as parseYaml } from 'yaml';
+import { readFileSync } from 'fs';
 
 const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
@@ -188,6 +191,22 @@ async function startServer() {
                 res.status(500).end(ex);
             }
         });
+    }
+
+    // ── Documentação da API (OpenAPI/Swagger) ─────────────────────────────
+    // DOC-002: a API não tinha nenhuma documentação além do código-fonte das rotas. Montada em dev
+    // por padrão, ou em qualquer ambiente quando EXPOSE_API_DOCS=true é setado explicitamente —
+    // mesmo padrão de opt-in explícito usado por EXPOSE_METRICS/ENABLE_SEARCH (nunca ligado
+    // implicitamente em produção).
+    if (env.NODE_ENV !== 'production' || env.EXPOSE_API_DOCS) {
+        try {
+            const openApiDocument = parseYaml(
+                readFileSync(path.join(process.cwd(), 'docs', 'openapi.yaml'), 'utf-8'),
+            );
+            app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+        } catch (err) {
+            logger.warn({ err }, 'Falha ao carregar docs/openapi.yaml — /api-docs não foi montado');
+        }
     }
 
     // ── Health Checks ──────────────────────────────────────────────────────
