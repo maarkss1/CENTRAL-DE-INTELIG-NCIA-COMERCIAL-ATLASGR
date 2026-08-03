@@ -1,5 +1,9 @@
 import { prisma } from '../../../lib/prisma.js';
-import { generateEmbedding } from '../../../lib/ai/embeddings.js';
+// IA-002: usava lib/ai/embeddings.js (só Google direto, sem fallback — retornava null e a busca
+// falhava silenciosamente sem GEMINI_API_KEY configurada). gateway.ts é local-first (embedLocal,
+// sem chave nenhuma) com fallback pra LiteLLM/Google — mesma fonte de embedding que VectorService
+// já usa, então as duas classes passam a gerar vetores compatíveis pra mesma tabela KnowledgeChunk.
+import { generateEmbedding } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
 
 export interface SearchResult {
@@ -16,8 +20,9 @@ export class VectorSearchService {
     static async updateChunkEmbedding(chunkId: string, content: string, organizationId: string): Promise<boolean> {
         if (!organizationId) return false;
         try {
+            // generateEmbedding (gateway.ts) nunca devolve null — ou retorna um vetor válido ou
+            // lança, então uma falha real cai direto no catch abaixo.
             const vector = await generateEmbedding(content);
-            if (!vector) return false;
 
             // pgvector expect a string array like '[0.1, 0.2, ...]'
             const vectorString = `[${vector.join(',')}]`;
@@ -42,7 +47,6 @@ export class VectorSearchService {
         if (!organizationId) return [];
         try {
             const vector = await generateEmbedding(query);
-            if (!vector) return [];
 
             const vectorString = `[${vector.join(',')}]`;
 
