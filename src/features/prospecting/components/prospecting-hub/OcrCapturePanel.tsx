@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Camera, Loader2, Sparkles, UploadCloud, CheckCircle2, AlertCircle, Building2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Loader2, Sparkles, UploadCloud, CheckCircle2, AlertCircle, Building2, Aperture, X } from 'lucide-react';
 import { api } from '../../../../lib/api';
 import { useBrand } from '../../../../contexts/BrandContext';
 import type { ProspectCandidate } from '../../services/prospecting.service';
@@ -15,6 +15,8 @@ function getErrorMessage(error: unknown, fallback: string): string {
 export function OcrCapturePanel() {
     const { brandInfo } = useBrand();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [reading, setReading] = useState(false);
@@ -22,8 +24,55 @@ export function OcrCapturePanel() {
     const [candidate, setCandidate] = useState<ProspectCandidate | null>(null);
     const [promoting, setPromoting] = useState(false);
     const [promoted, setPromoted] = useState<PromoteResult | null>(null);
+    const [cameraActive, setCameraActive] = useState(false);
+
+    const stopCamera = () => {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setCameraActive(false);
+    };
+
+    // Garante que a câmera do usuário nunca fica ligada em segundo plano se ele trocar de tela
+    // sem clicar em "Fechar câmera" — vazamento de permissão de câmera é um problema sério, não
+    // só de performance.
+    useEffect(() => () => stopCamera(), []);
+
+    const startCamera = async () => {
+        setError(null);
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+            });
+            streamRef.current = stream;
+            setCameraActive(true);
+            // O elemento <video> só existe depois do próximo render (cameraActive vira true agora).
+            requestAnimationFrame(() => {
+                if (videoRef.current) videoRef.current.srcObject = stream;
+            });
+        } catch {
+            setError('Não foi possível acessar a câmera. Verifique a permissão do navegador ou envie uma foto pelo botão de upload.');
+        }
+    };
+
+    const capturePhoto = () => {
+        const video = videoRef.current;
+        if (!video || !video.videoWidth) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(video, 0, 0);
+        canvas.toBlob((blob) => {
+            if (!blob) return;
+            stopCamera();
+            handleFile(new File([blob], `captura-${Date.now()}.jpg`, { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+    };
 
     const reset = () => {
+        stopCamera();
         setPreviewUrl(null);
         setCandidate(null);
         setPromoted(null);
@@ -88,30 +137,60 @@ export function OcrCapturePanel() {
 
     return (
         <div className="max-w-2xl mx-auto space-y-5">
-            <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={onDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-atlas-orange hover:bg-surface-2/50 transition-all bg-surface"
-            >
-                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onFileInputChange} />
-                {previewUrl ? (
-                    <img src={previewUrl} alt="Pré-visualização" className="max-h-64 mx-auto rounded-xl object-contain" />
-                ) : (
-                    <div className="space-y-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-atlas-orange flex items-center justify-center text-white mx-auto shadow-lg">
-                            <Camera className="w-7 h-7" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-ink text-sm">Cartão de visita, fachada ou lista impressa</p>
-                            <p className="text-xs text-ink-2 mt-1">Arraste uma foto aqui ou clique para escolher (JPEG, PNG ou WebP, até 8MB)</p>
-                        </div>
-                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-atlas-orange">
-                            <UploadCloud className="w-4 h-4" /> Selecionar imagem
-                        </div>
+            {cameraActive ? (
+                <div className="rounded-2xl overflow-hidden border border-line bg-black relative">
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full max-h-96 object-contain bg-black" />
+                    <div className="absolute inset-x-0 bottom-0 p-4 flex items-center justify-center gap-3 bg-gradient-to-t from-black/70 to-transparent">
+                        <button
+                            onClick={capturePhoto}
+                            className="flex items-center gap-2 bg-atlas-orange text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg hover:bg-orange-600 transition-colors"
+                        >
+                            <Aperture className="w-4 h-4" /> Capturar Foto
+                        </button>
+                        <button
+                            onClick={stopCamera}
+                            className="flex items-center gap-1.5 bg-white/10 text-white px-4 py-2.5 rounded-full font-bold text-sm hover:bg-white/20 transition-colors"
+                        >
+                            <X className="w-4 h-4" /> Fechar câmera
+                        </button>
                     </div>
-                )}
-            </div>
+                </div>
+            ) : (
+                <div
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={onDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-atlas-orange hover:bg-surface-2/50 transition-all bg-surface"
+                >
+                    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={onFileInputChange} />
+                    {previewUrl ? (
+                        <img src={previewUrl} alt="Pré-visualização" className="max-h-64 mx-auto rounded-xl object-contain" />
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-atlas-orange flex items-center justify-center text-white mx-auto shadow-lg">
+                                <Camera className="w-7 h-7" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-ink text-sm">Cartão de visita, fachada ou lista impressa</p>
+                                <p className="text-xs text-ink-2 mt-1">Arraste uma foto aqui ou clique para escolher (JPEG, PNG ou WebP, até 8MB)</p>
+                            </div>
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-atlas-orange">
+                                    <UploadCloud className="w-4 h-4" /> Selecionar imagem
+                                </span>
+                                <span className="text-[11px] text-ink-2">ou</span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); startCamera(); }}
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300"
+                                >
+                                    <Camera className="w-4 h-4" /> Usar câmera agora
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {reading && (
                 <div className="flex items-center justify-center gap-2 text-sm text-ink-2 font-medium">
