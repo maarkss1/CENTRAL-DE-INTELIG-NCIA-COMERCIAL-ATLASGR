@@ -1,133 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     MessageSquare, Sparkles, Mic, MicOff, Send, RotateCcw,
-    CheckCircle2, AlertTriangle, Trophy, Bot, Zap, Phone, PhoneOff
+    CheckCircle2, AlertTriangle, Trophy, Bot, Phone, PhoneOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
-
-interface SpeechRecognitionEventLike {
-    results: {
-        [index: number]: {
-            [index: number]: { transcript: string };
-        };
-    };
-}
-
-interface SpeechRecognitionLike {
-    continuous: boolean;
-    lang: string;
-    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-    onerror: (() => void) | null;
-    onend: (() => void) | null;
-    start(): void;
-    stop(): void;
-}
-
-interface SpeechRecognitionConstructorLike {
-    new(): SpeechRecognitionLike;
-}
-
-// TypeScript declaration for Web Speech API
-declare global {
-    interface Window {
-        webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
-        SpeechRecognition?: SpeechRecognitionConstructorLike;
-    }
-}
-
-// Removed TabType as we only have Roleplay now
-
-interface Message {
-    id: string;
-    sender: 'bot' | 'user';
-    text: string;
-    timestamp: string;
-}
-
-interface QualificationCriteria {
-    category: string;
-    atlas: string;
-    totaltrac: string;
-    spinQuestionAtlas: string;
-    spinQuestionTotaltrac: string;
-}
-
-interface ObjectionItem {
-    id: string;
-    title: string;
-    description: string;
-    bestResponseAtlas: string;
-    bestResponseTotaltrac: string;
-    technique: string;
-}
-
-const QUALIFICATION_CRITERIA: QualificationCriteria[] = [
-    {
-        category: 'Need (Necessidade)',
-        atlas: 'Alta sinistralidade, perda de cobertura de seguro de carga, falhas recorrentes no monitoramento de rotas de alto risco.',
-        totaltrac: 'Excesso de gastos com combustível, falta de telemetria real (leitura CAN), descontrole de jornada de motoristas e vulnerabilidade a jammers.',
-        spinQuestionAtlas: 'Qual a sua taxa média de sinistros e como você audita se as regras da GR estão sendo cumpridas em tempo real?',
-        spinQuestionTotaltrac: 'Sua telemetria atual lê os dados reais da central CAN do veículo ou trabalha apenas com estimativas de GPS?'
-    },
-    {
-        category: 'Authority (Autoridade)',
-        atlas: 'Diretor de Logística, Head de Gerenciamento de Risco (GR), Gerente de Compliance / Seguros, CEO/Dono.',
-        totaltrac: 'Gestor de Frotas, Diretor de Operações, Gerente de Risco, RH / Departamento Pessoal (para Jornada).',
-        spinQuestionAtlas: 'Quem além de você aprova novos fornecedores de tecnologia em gerenciamento de risco e apólices de transporte?',
-        spinQuestionTotaltrac: 'Além da gestão de frota, quem na diretoria acompanha os custos com combustível e passivos trabalhistas de motoristas?'
-    },
-    {
-        category: 'Budget (Orçamento)',
-        atlas: 'Orçamento dedicado de GR, tecnologia da informação, seguro de carga e prevenção de perdas.',
-        totaltrac: 'Orçamento de frota, manutenção preventiva, combustível e sistemas de rastreamento/telemetria.',
-        spinQuestionAtlas: 'Quanto sua operação perdeu no último ano com sinistros ou retenção de sinistros por falta de auditoria?',
-        spinQuestionTotaltrac: 'Se conseguirmos reduzir 10% do consumo de combustível com telemetria CAN, qual o impacto no seu orçamento anual?'
-    },
-    {
-        category: 'Timeline (Prazo)',
-        atlas: 'Renovação iminente de apólice de seguro de carga ou ocorrência recente de sinistro em rota estratégica.',
-        totaltrac: 'Renovação de contrato de rastreamento antigo, expansão de frota ou fiscalização/passivo trabalhista recente.',
-        spinQuestionAtlas: 'Para quando está prevista a renovação da sua apólice de seguro ou revisão de regras de GR?',
-        spinQuestionTotaltrac: 'Qual a urgência para implementar o controle automático de jornada e videotelemetria nos novos veículos?'
-    }
-];
-
-const OBJECTIONS_DATA: ObjectionItem[] = [
-    {
-        id: '1',
-        title: 'Já tenho fornecedor de rastreamento / GR',
-        description: 'O cliente alega satisfação com a solução contratada atualmente.',
-        bestResponseAtlas: 'Excelente! A AtlasGR não visa substituir sua GR atual, mas atuar como uma camada de Inteligência Artificial Autônoma que audita em tempo real o cumprimento das regras e reduz falhas humanas.',
-        bestResponseTotaltrac: 'Entendo perfeitamente! Grande parte dos nossos clientes também usava rastreadores comuns. O diferencial do Total Telemetria CAN é que lemos direto os dados reais da central do veículo, e nossas Iscas RF continuam funcionando mesmo quando ladrões usam jammer.',
-        technique: 'Acknowledge & Elevate (Validar e Elevar o Nível)'
-    },
-    {
-        id: '2',
-        title: 'Acho o valor muito alto / Fora do Orçamento',
-        description: 'Resistência ao preço inicial do investimento.',
-        bestResponseAtlas: 'Entendo a preocupação com custos. No entanto, o custo de um único sinistro sem cobertura por descumprimento de regra de GR supera em anos o investimento na plataforma AtlasGR.',
-        bestResponseTotaltrac: 'Compreendo. Porém, com o Total Jornada e o Total Telemetria CAN, a economia direta em combustível e a eliminação de horas extras indevidas cobrem integralmente a mensalidade no primeiro trimestre.',
-        technique: 'ROI vs Cost Framing (Enquadramento por Retorno)'
-    },
-    {
-        id: '3',
-        title: 'Resistência de motoristas (Videotelemetria / Jornada)',
-        description: 'Receio da equipe sobre monitoramento contínuo e controle de horas.',
-        bestResponseAtlas: 'Nossa inteligência foca na automação de processos de risco, garantindo transparência e segurança para todos os envolvidos na cadeia.',
-        bestResponseTotaltrac: 'Essa é uma dúvida comum! O Total Safe com Videotelemetria IA protege o próprio motorista contra acusações injustas e previne acidentes por fadiga. É uma ferramenta de proteção da vida.',
-        technique: 'Safety First (Proteção & Parceria)'
-    },
-    {
-        id: '4',
-        title: 'Minha seguradora não exige esses adicionais',
-        description: 'Visão de conformidade mínima apenas para cumprir apólice.',
-        bestResponseAtlas: 'Cumprir a apólice é a obrigação mínima. A AtlasGR garante que, no momento crítico do sinistro, você tenha 100% de conformidade comprovável para receber a indenização sem contestação.',
-        bestResponseTotaltrac: 'A exigência da seguradora é o básico. Nossos equipamentos invisíveis (Total Imobilizador e Isca RF) garantem a recuperação real do veículo e da carga, evitando o prejuízo da franquia e o aumento da apólice no ano seguinte.',
-        technique: 'Total Asset Protection (Proteção Ativa do Patrimônio)'
-    }
-];
+import type { SpeechRecognitionEventLike, SpeechRecognitionLike, Message } from './chatbook-hub/types';
+import { QUALIFICATION_CRITERIA, OBJECTIONS_DATA } from './chatbook-hub/playbookData';
+import { QualificationMatrix } from './chatbook-hub/QualificationMatrix';
+import { ObjectionsMatrix } from './chatbook-hub/ObjectionsMatrix';
 
 export function ChatbookHub() {
     const { activeBrand, brandInfo } = useBrand();
@@ -828,82 +710,12 @@ export function ChatbookHub() {
 
                 {/* ABA 2: MATRIZ DE QUALIFICAÇÃO (SPIN / BANT) */}
                 {activeTab === 'qualificacao' && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <div className="bg-white/80 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 border border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.03)]">
-                            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-3">
-                                Matriz de Qualificação — <span className={activeBrand === 'totaltrac' ? 'text-sky-600' : 'text-atlas-orange'}>{brandInfo.name}</span>
-                            </h2>
-                            <p className="text-gray-500 text-base font-medium mb-10 max-w-3xl">
-                                Estrutura SPIN Selling e BANT para validar se o Lead possui o perfil ideal e a dor correta para fechamento.
-                            </p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {QUALIFICATION_CRITERIA.map((crit, idx) => (
-                                    <motion.div whileHover={{ y: -5 }} key={idx} className="bg-white/60 p-8 rounded-[2rem] border border-white shadow-[0_10px_30px_rgba(0,0,0,0.03)] space-y-6 flex flex-col justify-between">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <h3 className="font-black text-xl text-gray-900 tracking-tight">{crit.category}</h3>
-                                            <span className={`px-3 py-1.5 text-[10px] font-black rounded-xl uppercase tracking-widest ${activeBrand === 'totaltrac' ? 'bg-sky-100 text-sky-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                SPIN / BANT
-                                            </span>
-                                        </div>
-
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Critério para {brandInfo.name}</p>
-                                            <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                                                {activeBrand === 'totaltrac' ? crit.totaltrac : crit.atlas}
-                                            </p>
-                                        </div>
-
-                                        <div className={`p-5 rounded-[1.5rem] border ${activeBrand === 'totaltrac' ? 'bg-sky-50/50 border-sky-100' : 'bg-orange-50/50 border-orange-100'}`}>
-                                            <p className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1.5 ${activeBrand === 'totaltrac' ? 'text-sky-600' : 'text-atlas-orange'}`}>
-                                                <Zap className="w-4 h-4" /> Pergunta SPIN Recomendada
-                                            </p>
-                                            <p className="text-sm text-gray-800 italic font-medium leading-relaxed">
-                                                "{activeBrand === 'totaltrac' ? crit.spinQuestionTotaltrac : crit.spinQuestionAtlas}"
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    </motion.div>
+                    <QualificationMatrix activeBrand={activeBrand} brandInfo={brandInfo} />
                 )}
 
                 {/* ABA 3: MATRIZ DE OBJEÇÕES */}
                 {activeTab === 'objecoes' && (
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-                        <div className="bg-white/80 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 border border-white/80 shadow-[0_20px_40px_rgba(0,0,0,0.03)]">
-                            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-3">
-                                Contorno de Objeções — <span className={activeBrand === 'totaltrac' ? 'text-sky-600' : 'text-atlas-orange'}>{brandInfo.name}</span>
-                            </h2>
-                            <p className="text-gray-500 text-base font-medium mb-10 max-w-3xl">
-                                Respostas de alta conversão para transformar hesitações e objeções comuns em oportunidades de fechamento.
-                            </p>
-
-                            <div className="space-y-6">
-                                {OBJECTIONS_DATA.map((obj) => (
-                                    <motion.div whileHover={{ scale: 1.01 }} key={obj.id} className="p-8 rounded-[2rem] border border-white bg-white/60 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-lg transition-all duration-300 space-y-5">
-                                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-gray-100 pb-5">
-                                            <div>
-                                                <h3 className="font-black text-xl text-gray-900 tracking-tight">{obj.title}</h3>
-                                                <p className="text-sm text-gray-500 font-medium mt-1">{obj.description}</p>
-                                            </div>
-                                            <span className="px-4 py-2 bg-amber-100/50 text-amber-700 text-[10px] font-black uppercase tracking-widest rounded-xl self-start shrink-0 border border-amber-200">
-                                                Técnica: {obj.technique}
-                                            </span>
-                                        </div>
-
-                                        <div className={`p-5 rounded-[1.5rem] border ${activeBrand === 'totaltrac' ? 'bg-sky-50/50 border-sky-100' : 'bg-orange-50/50 border-orange-100'}`}>
-                                            <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${activeBrand === 'totaltrac' ? 'text-sky-400' : 'text-orange-400'}`}>Script Comercial Sugerido</p>
-                                            <div className="text-base text-gray-800 leading-relaxed font-medium italic">
-                                                "{activeBrand === 'totaltrac' ? obj.bestResponseTotaltrac : obj.bestResponseAtlas}"
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </div>
-                        </div>
-                    </motion.div>
+                    <ObjectionsMatrix activeBrand={activeBrand} brandInfo={brandInfo} />
                 )}
 
             </div>
