@@ -342,13 +342,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             </section>
                         )}
 
-                        {/* AI Cold Email Generator Copilot */}
+                        {/* Copiloto de IA: e-mail, ligação ou mensagem */}
                         <section>
                             <AIEmailGenerator
                                 companyName={company?.legalName || company?.tradeName || 'Empresa Lead'}
                                 contactName={lead.contact?.name || 'Decisor de Compras'}
                                 sector={company?.segment || 'Mercado B2B'}
                                 role={lead.contact?.role || 'Diretor Comercial'}
+                                phone={lead.contact?.whatsapp || lead.contact?.phone || company?.phones?.[0]}
                             />
                         </section>
 

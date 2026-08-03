@@ -25,6 +25,32 @@ export const studioGenerationSchema = z.discriminatedUnion('kind', [
         }),
     }),
     z.object({
+        kind: z.literal('call_script'),
+        brand: brandSchema,
+        inputs: z.object({
+            companyName: shortText,
+            contactName: shortText,
+            sector: shortText,
+            role: shortText,
+            technologies: z.array(shortText).max(20),
+            companySize: shortText,
+            tone: z.enum(['consultative', 'direct', 'roi_focused', 'hyper_personalized']),
+        }),
+    }),
+    z.object({
+        kind: z.literal('message'),
+        brand: brandSchema,
+        inputs: z.object({
+            companyName: shortText,
+            contactName: shortText,
+            sector: shortText,
+            role: shortText,
+            technologies: z.array(shortText).max(20),
+            companySize: shortText,
+            tone: z.enum(['consultative', 'direct', 'roi_focused', 'hyper_personalized']),
+        }),
+    }),
+    z.object({
         kind: z.literal('b2b_matrix'),
         brand: brandSchema,
         inputs: z.object({
@@ -121,6 +147,23 @@ export type StudioGenerationRequest = z.infer<typeof studioGenerationSchema>;
 const emailResultSchema = z.object({
     subject: z.string().trim().min(3).max(140),
     body: z.string().trim().min(40).max(4_000),
+    icpAnalysis: z.string().trim().min(10).max(600),
+});
+
+const callScriptResultSchema = z.object({
+    opening: z.string().trim().min(10).max(500),
+    discoveryQuestions: z.array(z.string().trim().min(10).max(300)).min(3).max(5),
+    objectionTips: z.array(z.object({
+        objection: z.string().trim().min(5).max(300),
+        response: z.string().trim().min(10).max(500),
+    })).min(2).max(4),
+    closing: z.string().trim().min(10).max(400),
+    icpAnalysis: z.string().trim().min(10).max(600),
+});
+
+const messageResultSchema = z.object({
+    body: z.string().trim().min(20).max(700),
+    followUpSuggestion: z.string().trim().min(10).max(300),
     icpAnalysis: z.string().trim().min(10).max(600),
 });
 
@@ -429,6 +472,47 @@ O assunto deve ser curto. O corpo deve ter no máximo 140 palavras, uma hipótes
 hipótese e um CTA simples. A análise de ICP deve explicar o fit sem inventar score percentual.
 ${jsonOnlyInstruction('{"subject":"string","body":"string","icpAnalysis":"string"}')}`;
             return invokeStructured(prompt, 'studio:email', emailResultSchema, '{"subject":"string","body":"string","icpAnalysis":"string"}', 0.55);
+        }
+
+        if (request.kind === 'call_script') {
+            const prompt = `${SYSTEM_RULES}
+
+Crie um roteiro de ligação fria (cold call) para ${request.brand.name}, cuja solução é: ${request.brand.description}.
+Dados do lead e tom: ${JSON.stringify(request.inputs, null, 2)}
+
+A abertura deve conquistar 10 segundos de atenção sem soar como script decorado. As perguntas de descoberta devem
+seguir uma lógica de qualificação (situação → problema → impacto), sem induzir a resposta. As dicas de objeção
+devem cobrir as objeções mais prováveis para esse cargo/segmento, reconhecendo a preocupação antes de responder.
+O fechamento deve propor um próximo passo concreto (ex.: agendar uma call), nunca fechar venda na primeira ligação.
+A análise de ICP deve explicar o fit sem inventar score percentual.
+${jsonOnlyInstruction('{"opening":"string","discoveryQuestions":["3 a 5 strings"],"objectionTips":[{"objection":"string","response":"string"}],"closing":"string","icpAnalysis":"string"}')}`;
+            return invokeStructured(
+                prompt,
+                'studio:call-script',
+                callScriptResultSchema,
+                '{"opening":"string","discoveryQuestions":["string"],"objectionTips":[{"objection":"string","response":"string"}],"closing":"string","icpAnalysis":"string"}',
+                0.55,
+            );
+        }
+
+        if (request.kind === 'message') {
+            const prompt = `${SYSTEM_RULES}
+
+Crie uma mensagem curta de prospecção (estilo WhatsApp/SMS) para ${request.brand.name}, cuja solução é: ${request.brand.description}.
+Dados do lead e tom: ${JSON.stringify(request.inputs, null, 2)}
+
+A mensagem deve ter no máximo 3 frases curtas, tom conversacional (não parecer e-mail formal nem propaganda em
+massa), uma hipótese de dor tratada como hipótese, e terminar com uma pergunta simples de sim/não ou baixo
+esforço de resposta. A sugestão de follow-up deve orientar o vendedor sobre quando/como insistir se não houver
+resposta em alguns dias. A análise de ICP deve explicar o fit sem inventar score percentual.
+${jsonOnlyInstruction('{"body":"string","followUpSuggestion":"string","icpAnalysis":"string"}')}`;
+            return invokeStructured(
+                prompt,
+                'studio:message',
+                messageResultSchema,
+                '{"body":"string","followUpSuggestion":"string","icpAnalysis":"string"}',
+                0.6,
+            );
         }
 
         if (request.kind === 'b2b_matrix') {
