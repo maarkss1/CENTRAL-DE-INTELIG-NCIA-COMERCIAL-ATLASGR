@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowRight, Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand, BRAND_CONFIGS } from '../../../contexts/BrandContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 import { authClient } from '../../../lib/auth-client';
 import { isAuthorizedLoginEmail, getBrandFromEmail } from '../../../config/access-policy';
+import { Logo } from '../../../components/Logo';
+import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
 
 export function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -15,6 +18,7 @@ export function LoginScreen() {
   const [name, setName] = useState('');
   const navigate = useNavigate();
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
+  const { theme, toggleTheme } = useTheme();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +49,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex items-center justify-center relative overflow-hidden font-sans p-4">
+    <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
       {/* Elementos Ambientais Gradient Glow */}
       <motion.div
         animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}
@@ -58,24 +62,42 @@ export function LoginScreen() {
         className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"
       />
 
+      <button
+        type="button"
+        onClick={toggleTheme}
+        className="fixed top-5 right-5 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 shadow-sm transition-colors hover:bg-surface-2 cursor-pointer"
+        aria-label="Alternar tema"
+        title={`Mudar para modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
+      >
+        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </button>
+
       <div className="w-full max-w-md relative z-10">
 
         {/* Card de Autenticação */}
-        <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-white/10 bg-slate-900/80 shadow-2xl relative">
+        <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-line bg-surface/95 shadow-2xl relative">
           <div className="flex flex-col items-center mb-6">
-            <div className="flex items-center gap-1 mb-6 bg-slate-800/60 border border-white/10 rounded-full p-1">
+            <div className="flex items-center gap-1 mb-6 bg-surface-2 border border-line rounded-full p-1">
               {(Object.keys(BRAND_CONFIGS) as Array<keyof typeof BRAND_CONFIGS>).map((brand) => (
                 <button
                   key={brand}
                   type="button"
                   onClick={() => setActiveBrand(brand)}
-                  className={`px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                     activeBrand === brand
-                      ? 'bg-white text-slate-900 shadow'
-                      : 'text-gray-400 hover:text-white'
+                      ? 'bg-surface text-ink shadow'
+                      : 'text-ink-2 hover:text-ink'
                   }`}
                 >
-                  {BRAND_CONFIGS[brand].name}
+                  {brand === 'atlasgr' ? (
+                    <>
+                      <Logo variant="symbol" className="h-3.5 w-3.5 shrink-0" />
+                      {BRAND_CONFIGS[brand].name}
+                    </>
+                  ) : (
+                    // TotalTrackLogo já é a marca completa (com o nome escrito) — não repete o texto do lado.
+                    <TotalTrackLogo className="h-4 w-auto shrink-0" />
+                  )}
                 </button>
               ))}
             </div>
@@ -84,7 +106,7 @@ export function LoginScreen() {
             ) : (
               <img src="/totaltrack-logo.png" alt="TotalTrac" className="h-10 w-auto object-contain" />
             )}
-            <p className="text-gray-400 text-xs mt-3 font-medium text-center">{brandInfo.slogan}</p>
+            <p className="text-ink-2 text-xs mt-3 font-medium text-center">{brandInfo.slogan}</p>
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
@@ -92,21 +114,21 @@ export function LoginScreen() {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="bg-red-500/10 border border-red-500/30 text-red-300 p-3.5 rounded-2xl text-xs flex items-start gap-2.5"
+                className="bg-danger/10 border border-danger/30 text-danger p-3.5 rounded-2xl text-xs flex items-start gap-2.5"
               >
-                <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-400" />
+                <AlertCircle size={16} className="shrink-0 mt-0.5" />
                 <p>{error}</p>
               </motion.div>
             )}
 
             {isSignUp && (
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
+                <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-800/90 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
                   placeholder="Ex: Marcelo Nascimento"
                   required={isSignUp}
                 />
@@ -114,24 +136,24 @@ export function LoginScreen() {
             )}
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+              <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-800/90 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
                 placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Senha de Acesso</label>
+              <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Senha de Acesso</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-800/90 border border-white/10 rounded-2xl px-4 py-3.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
                 placeholder="••••••••"
                 required
               />
@@ -159,7 +181,7 @@ export function LoginScreen() {
                 setIsSignUp(!isSignUp);
                 setError('');
               }}
-              className="text-xs text-gray-400 hover:text-atlas-orange font-bold transition-colors cursor-pointer"
+              className="text-xs text-ink-2 hover:text-atlas-orange font-bold transition-colors cursor-pointer"
             >
               {isSignUp ? 'Já possui conta? Fazer Login' : 'Não possui conta? Registrar Novo Acesso'}
             </button>
