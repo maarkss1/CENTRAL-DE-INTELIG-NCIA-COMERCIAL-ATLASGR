@@ -31,7 +31,7 @@ export function GameWidget() {
     };
 
     return (
-        <Card className="w-full h-[500px] bg-slate-900 relative overflow-hidden flex flex-col border border-white/10">
+        <Card className="w-full h-[500px] bg-surface relative overflow-hidden flex flex-col border border-line">
             {/* Overlay 2D (UI) */}
             <div className="absolute top-0 left-0 right-0 p-6 flex items-start justify-between z-10 pointer-events-none">
                 <div className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-3">

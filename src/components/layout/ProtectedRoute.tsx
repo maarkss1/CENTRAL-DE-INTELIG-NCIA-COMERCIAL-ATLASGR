@@ -8,7 +8,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
     if (isPending) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="min-h-screen bg-bg flex items-center justify-center">
                 <Loader2 className="animate-spin text-[var(--brand-primary)] w-8 h-8" />
             </div>
         );

@@ -265,7 +265,7 @@ if __name__ == "__main__":
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
+                className="bg-surface rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-line text-ink"
             >
                 {/* Ambient glow */}
                 <div className={`absolute top-0 right-0 w-[500px] h-[500px] ${accent.blobA} rounded-full blur-[100px] pointer-events-none -mt-40 -mr-40`}></div>
@@ -284,10 +284,10 @@ if __name__ == "__main__":
                         <Zap size={14} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Automation Engine & Workflow Designer</span>
                     </div>
-                    <h3 className="text-4xl font-black text-white mb-4 tracking-tight">
+                    <h3 className="text-4xl font-black text-ink mb-4 tracking-tight">
                         {accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Guia e Construtor de Automações</span>
                     </h3>
-                    <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
+                    <p className="text-sm text-ink-2 max-w-2xl leading-relaxed">
                         Mapeie fluxos de automação entre origens e destinos. Obtenha o blueprint passo a passo, schema JSON pronto para n8n/Make e scripts de automação.
                     </p>
                 </div>
@@ -295,31 +295,31 @@ if __name__ == "__main__":
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
                     
                     {/* App Origem */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Link size={14} /> App de Origem (Gatilho / Trigger)
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'trigger' ? null : 'trigger')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedTriggerObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedTriggerObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'trigger' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {TRIGGERS.map(t => (
                                         <div
                                             key={t.id} onClick={() => { setTriggerApp(t.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex flex-col gap-0.5 border-b border-white/5 last:border-none"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-white">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {t.title} {triggerApp === t.id && <Check size={16} className={accent.text} />}
                                             </div>
-                                            <span className="text-xs text-slate-400">{t.desc}</span>
+                                            <span className="text-xs text-ink-2">{t.desc}</span>
                                         </div>
                                     ))}
                                 </motion.div>
@@ -328,31 +328,31 @@ if __name__ == "__main__":
                     </div>
 
                     {/* App Destino */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <GitCommit size={14} /> App de Destino (Ação / Action)
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'action' ? null : 'action')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedActionObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedActionObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'action' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {ACTIONS.map(a => (
                                         <div
                                             key={a.id} onClick={() => { setActionApp(a.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex flex-col gap-0.5 border-b border-white/5 last:border-none"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-white">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {a.title} {actionApp === a.id && <Check size={16} className={accent.text} />}
                                             </div>
-                                            <span className="text-xs text-slate-400">{a.desc}</span>
+                                            <span className="text-xs text-ink-2">{a.desc}</span>
                                         </div>
                                     ))}
                                 </motion.div>
@@ -361,26 +361,26 @@ if __name__ == "__main__":
                     </div>
 
                     {/* Ferramenta de Orquestração */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-yellow-400">
                             <Layers size={14} /> Ferramenta de Orquestração
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'tool' ? null : 'tool')}
-                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors"
                         >
-                            <span className="truncate">{selectedToolObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedToolObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'tool' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {TOOLS.map(t => (
-                                        <div 
+                                        <div
                                             key={t.id} onClick={() => { setTool(t.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {t.title} {tool === t.id && <Check size={16} className="text-yellow-400" />}
                                         </div>
@@ -391,26 +391,26 @@ if __name__ == "__main__":
                     </div>
 
                     {/* Camada de IA */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-rose-400">
                             <Bot size={14} /> Camada de Inteligência IA
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'ai' ? null : 'ai')}
-                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors"
                         >
-                            <span className="truncate">{selectedAiObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedAiObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'ai' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#141C2E] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {AI_LAYERS.map(a => (
-                                        <div 
+                                        <div
                                             key={a.id} onClick={() => { setAiLayer(a.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {a.title} {aiLayer === a.id && <Check size={16} className="text-rose-400" />}
                                         </div>
@@ -422,16 +422,16 @@ if __name__ == "__main__":
                 </div>
 
                 {/* Campo Objetivo */}
-                <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-slate-400">
+                <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
+                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
                         Objetivo Principal da Automação
                     </label>
-                    <input 
+                    <input
                         type="text"
                         placeholder="Ex: Enriquecer lead e criar oportunidade no CRM"
                         value={automationGoal}
                         onChange={(e) => setAutomationGoal(e.target.value)}
-                        className={`w-full bg-transparent text-white text-sm placeholder-slate-600 focus:outline-none border-b border-white/10 focus:${accent.border} transition-colors pb-2`}
+                        className={`w-full bg-transparent text-ink text-sm placeholder-ink-2 focus:outline-none border-b border-line focus:${accent.border} transition-colors pb-2`}
                     />
                 </div>
 
@@ -479,9 +479,9 @@ if __name__ == "__main__":
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="bg-white border border-gray-200 text-slate-900 rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden"
+                        className="bg-surface border border-line text-ink rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden"
                     >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-white/10 pb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4 border-b border-line pb-4">
                             <div className={`flex items-center gap-3 ${accent.text} text-xs font-mono uppercase tracking-widest`}>
                                 <Zap size={16} />
                                 Arquitetura Gerada para {selectedToolObj.title}
@@ -494,8 +494,8 @@ if __name__ == "__main__":
                                     onClick={handleCopy}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
                                         copied 
-                                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                                        : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+                                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                        : 'bg-surface-2 text-ink-2 hover:bg-line border border-line'
                                     }`}
                                 >
                                     {copied ? <><Check size={14} /> Copiado</> : <><Copy size={14} /> Copiar</>}
@@ -516,7 +516,7 @@ if __name__ == "__main__":
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                                     activeTabOutput === 'blueprint'
                                     ? `${accent.solidBg} text-white shadow-lg`
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                    : 'bg-surface-2 text-ink-2 hover:bg-line'
                                 }`}
                             >
                                 Blueprint Passo a Passo
@@ -526,7 +526,7 @@ if __name__ == "__main__":
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                                     activeTabOutput === 'json'
                                     ? 'bg-slate-600 text-white shadow-lg'
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                    : 'bg-surface-2 text-ink-2 hover:bg-line'
                                 }`}
                             >
                                 Payload Workflow (n8n JSON)
@@ -536,7 +536,7 @@ if __name__ == "__main__":
                                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                                     activeTabOutput === 'code' 
                                     ? 'bg-sky-600 text-white shadow-lg' 
-                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                    : 'bg-surface-2 text-ink-2 hover:bg-line'
                                 }`}
                             >
                                 Script Python Equivalente

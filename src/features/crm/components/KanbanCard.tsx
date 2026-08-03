@@ -57,10 +57,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
             {...attributes}
             {...listeners}
             onClick={() => onClick(lead)}
-            className={`bg-gray-800/80 p-4 rounded-2xl border border-gray-700/60 shadow-md cursor-grab active:cursor-grabbing hover:border-blue-500/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-blue-500 z-50 bg-gray-900' : ''}`}
+            className={`bg-surface p-4 rounded-2xl border border-line shadow-md cursor-grab active:cursor-grabbing hover:border-blue-500/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-blue-500 z-50 bg-surface-2' : ''}`}
         >
             <div className="flex justify-between items-start mb-2">
-                <h4 className="font-bold text-white group-hover:text-blue-400 transition-colors text-sm">
+                <h4 className="font-bold text-ink group-hover:text-blue-400 transition-colors text-sm">
                     {lead.company?.tradeName || lead.company?.legalName || 'Sem Empresa'}
                 </h4>
                 {lead.score && (
@@ -70,16 +70,16 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 )}
             </div>
 
-            <div className="space-y-2 mt-2 text-xs text-gray-300">
+            <div className="space-y-2 mt-2 text-xs text-ink-2">
                 {lead.contact && (
-                    <div className="flex items-center gap-1.5 text-gray-300">
+                    <div className="flex items-center gap-1.5 text-ink-2">
                         <User className="w-3.5 h-3.5 text-blue-400" />
                         <span className="truncate">{lead.contact.name}</span>
                     </div>
                 )}
                 {lead.company?.segment && (
-                    <div className="flex items-center gap-1.5 text-gray-400">
-                        <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                    <div className="flex items-center gap-1.5 text-ink-2">
+                        <Building2 className="w-3.5 h-3.5 text-ink-2" />
                         <span className="truncate">{lead.company.segment}</span>
                     </div>
                 )}
@@ -93,8 +93,8 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                     </div>
                 )}
 
-                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-700/50">
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
+                    <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(lead.updatedAt || lead.createdAt || '').toLocaleDateString('pt-BR')}
                     </div>

@@ -12,6 +12,18 @@
         "BETTER_AUTH_URL": "http://localhost:3005",
         "ALLOWED_ORIGINS": "http://localhost:3005,http://localhost:3000,http://localhost:5173"
       }
+    },
+    {
+      "name": "prospector-dev-uxcheck",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3009,
+      "env": {
+        "DATABASE_URL": "postgresql://prospector_app:prospector_app_pass@localhost:5434/prospectordb?schema=public",
+        "PORT": "3009",
+        "BETTER_AUTH_URL": "http://localhost:3009",
+        "ALLOWED_ORIGINS": "http://localhost:3009,http://localhost:3000,http://localhost:5173"
+      }
     }
   ]
 }

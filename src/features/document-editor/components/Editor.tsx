@@ -126,16 +126,16 @@ export function Editor() {
     }, [doc]);
 
     return (
-        <div className="flex-1 overflow-hidden bg-slate-950 p-8 flex flex-col">
+        <div className="flex-1 overflow-hidden bg-transparent p-8 flex flex-col">
             <div className="max-w-6xl mx-auto w-full flex flex-col min-h-0 flex-1 gap-6">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <FileText className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Editor de Documentos</h1>
-                            <p className="text-sm text-gray-400">
+                            <h1 className="text-3xl font-bold text-ink">Editor de Documentos</h1>
+                            <p className="text-sm text-ink-2">
                                 Edita os documentos da Base de Conhecimento e reindexa a busca
                             </p>
                         </div>
@@ -157,7 +157,7 @@ export function Editor() {
                 {listError && (
                     <Card padding="lg" className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                        <p className="text-sm text-gray-300 mb-4">{listError}</p>
+                        <p className="text-sm text-ink-2 mb-4">{listError}</p>
                         <Button variant="outline" onClick={() => void loadList()}>Tentar novamente</Button>
                     </Card>
                 )}
@@ -165,8 +165,8 @@ export function Editor() {
                 {!listError && !loadingList && documents.length === 0 && (
                     <Card padding="lg" className="text-center border-dashed">
                         <FileText className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-white mb-1">Nenhum documento para editar</h3>
-                        <p className="text-sm text-gray-400">
+                        <h3 className="text-lg font-semibold text-ink mb-1">Nenhum documento para editar</h3>
+                        <p className="text-sm text-ink-2">
                             Envie um arquivo ou cole um texto na Base de Conhecimento primeiro.
                         </p>
                     </Card>
@@ -177,13 +177,13 @@ export function Editor() {
                         {/* Lista */}
                         <Card padding="sm" className="flex flex-col min-h-0">
                             <div className="relative mb-2">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-2" />
                                 <input
                                     value={filter}
                                     onChange={(e) => setFilter(e.target.value)}
                                     placeholder="Filtrar…"
                                     aria-label="Filtrar documentos"
-                                    className="w-full bg-slate-950/60 border border-white/10 rounded-lg pl-8 pr-2 py-1.5 text-xs text-white placeholder-gray-500 outline-none focus:border-atlas-orange"
+                                    className="w-full bg-surface-2 border border-line rounded-lg pl-8 pr-2 py-1.5 text-xs text-ink placeholder-ink-2 outline-none focus:border-atlas-orange"
                                 />
                             </div>
 
@@ -196,15 +196,15 @@ export function Editor() {
                                         className={`text-left px-2 py-1.5 rounded-lg transition-colors ${
                                             selectedId === d.id
                                                 ? `${accent.bgSoft} ${accent.text}`
-                                                : 'text-gray-300 hover:bg-white/5'
+                                                : 'text-ink-2 hover:bg-surface-2'
                                         }`}
                                     >
                                         <span className="block text-xs font-semibold truncate">{d.title}</span>
-                                        <span className="block text-[10px] text-gray-500">{d.chunkCount} trecho(s)</span>
+                                        <span className="block text-[10px] text-ink-2">{d.chunkCount} trecho(s)</span>
                                     </button>
                                 ))}
                                 {filtered.length === 0 && (
-                                    <p className="text-xs text-gray-500 px-2 py-3">Nenhum documento com esse nome.</p>
+                                    <p className="text-xs text-ink-2 px-2 py-3">Nenhum documento com esse nome.</p>
                                 )}
                             </div>
                         </Card>
@@ -212,7 +212,7 @@ export function Editor() {
                         {/* Edição */}
                         <Card padding="sm" className="flex flex-col min-h-0">
                             {loadingDoc && (
-                                <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
+                                <div className="flex-1 flex items-center justify-center text-sm text-ink-2">
                                     <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Carregando documento…
                                 </div>
                             )}
@@ -223,16 +223,16 @@ export function Editor() {
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
                                         aria-label="Título do documento"
-                                        className="w-full bg-transparent text-lg font-bold text-white outline-none border-b border-white/10 focus:border-atlas-orange pb-2 mb-3 transition-colors"
+                                        className="w-full bg-transparent text-lg font-bold text-ink outline-none border-b border-line focus:border-atlas-orange pb-2 mb-3 transition-colors"
                                     />
                                     <textarea
                                         value={content}
                                         onChange={(e) => setContent(e.target.value)}
                                         aria-label="Conteúdo do documento"
                                         spellCheck
-                                        className="flex-1 w-full bg-slate-950/40 border border-white/10 rounded-xl p-3 text-sm text-gray-200 leading-relaxed outline-none focus:border-atlas-orange transition-colors resize-none min-h-[320px]"
+                                        className="flex-1 w-full bg-surface-2 border border-line rounded-xl p-3 text-sm text-ink leading-relaxed outline-none focus:border-atlas-orange transition-colors resize-none min-h-[320px]"
                                     />
-                                    <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500">
+                                    <div className="flex items-center justify-between mt-2 text-[11px] text-ink-2">
                                         <span>
                                             {content.length.toLocaleString('pt-BR')} caracteres · {doc.chunkCount} trecho(s) indexado(s)
                                         </span>
@@ -242,7 +242,7 @@ export function Editor() {
                             )}
 
                             {!loadingDoc && !doc && (
-                                <div className="flex-1 flex items-center justify-center text-sm text-gray-500">
+                                <div className="flex-1 flex items-center justify-center text-sm text-ink-2">
                                     Selecione um documento à esquerda.
                                 </div>
                             )}

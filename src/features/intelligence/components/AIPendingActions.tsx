@@ -68,30 +68,30 @@ export function AIPendingActions() {
         }
     };
 
-    if (loading) return <div className="p-4 text-gray-500">Carregando ações da IA...</div>;
+    if (loading) return <div className="p-4 text-ink-2">Carregando ações da IA...</div>;
 
     if (actions.length === 0) {
         return (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center">
+            <div className="bg-surface rounded-lg shadow-sm border border-line p-8 text-center flex flex-col items-center">
                 <div className="bg-blue-50 p-4 rounded-full mb-4">
                     <Bot className="w-8 h-8 text-blue-500" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-1">Nenhuma ação pendente</h3>
-                <p className="text-gray-500">Seus agentes autônomos estão ociosos no momento.</p>
+                <h3 className="text-lg font-medium text-ink mb-1">Nenhuma ação pendente</h3>
+                <p className="text-ink-2">Seus agentes autônomos estão ociosos no momento.</p>
             </div>
         );
     }
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center">
-                <Bot className="mr-2 w-6 h-6 text-indigo-600" /> 
+            <h2 className="text-xl font-bold text-ink flex items-center">
+                <Bot className="mr-2 w-6 h-6 text-indigo-600" />
                 Ações Autônomas Aguardando Aprovação
             </h2>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {actions.map(action => (
-                    <div key={action.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                    <div key={action.id} className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden hover:shadow-md transition-shadow">
                         <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-3 flex items-center justify-between">
                             <div className="flex items-center text-indigo-800 font-medium text-sm">
                                 <Mail className="w-4 h-4 mr-2" />
@@ -104,24 +104,24 @@ export function AIPendingActions() {
                         
                         <div className="p-4 space-y-3">
                             <div>
-                                <p className="text-xs text-gray-500 font-medium">Para</p>
-                                <p className="text-sm text-gray-900 font-medium truncate">{action.payload.to || 'Desconhecido'}</p>
-                            </div>
-                            
-                            <div>
-                                <p className="text-xs text-gray-500 font-medium">Assunto</p>
-                                <p className="text-sm text-gray-900 truncate">{action.payload.subject}</p>
+                                <p className="text-xs text-ink-2 font-medium">Para</p>
+                                <p className="text-sm text-ink font-medium truncate">{action.payload.to || 'Desconhecido'}</p>
                             </div>
 
                             <div>
-                                <p className="text-xs text-gray-500 font-medium mb-1">Mensagem Gerada</p>
-                                <div className="bg-gray-50 rounded-md p-3 text-sm text-gray-700 h-32 overflow-y-auto whitespace-pre-wrap">
+                                <p className="text-xs text-ink-2 font-medium">Assunto</p>
+                                <p className="text-sm text-ink truncate">{action.payload.subject}</p>
+                            </div>
+
+                            <div>
+                                <p className="text-xs text-ink-2 font-medium mb-1">Mensagem Gerada</p>
+                                <div className="bg-surface-2 rounded-md p-3 text-sm text-ink-2 h-32 overflow-y-auto whitespace-pre-wrap">
                                     {action.payload.body}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="border-t border-gray-100 p-3 bg-gray-50 flex gap-2">
+                        <div className="border-t border-line p-3 bg-surface-2 flex gap-2">
                             <button
                                 onClick={() => handleApprove(action)}
                                 className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
@@ -132,7 +132,7 @@ export function AIPendingActions() {
                             </button>
                             <button
                                 onClick={() => handleDiscard(action.id)}
-                                className="flex items-center justify-center bg-white hover:bg-red-50 text-red-600 border border-gray-200 py-2 px-3 rounded-lg text-sm transition-colors"
+                                className="flex items-center justify-center bg-surface hover:bg-red-50 text-red-600 border border-line py-2 px-3 rounded-lg text-sm transition-colors"
                                 title="Descartar"
                             >
                                 <X className="w-4 h-4" />

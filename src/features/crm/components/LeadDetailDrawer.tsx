@@ -156,18 +156,18 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
 
             {/* Drawer */}
-            <div className="relative w-full max-w-xl h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-                <div className="p-5 border-b border-gray-100 flex items-start justify-between gap-4 shrink-0">
+            <div className="relative w-full max-w-xl h-full bg-surface shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+                <div className="p-5 border-b border-line flex items-start justify-between gap-4 shrink-0">
                     <div className="min-w-0">
                         <h2 className="font-black text-xl text-atlas-dark truncate">
                             🎯 {company?.tradeName || company?.legalName || 'Lead'}
                         </h2>
-                        <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        <p className="text-xs text-ink-2 mt-0.5 truncate">
                             {lead?.source || 'Origem desconhecida'}
                             {lead?.createdAt && ` · criado em ${new Date(lead.createdAt).toLocaleDateString('pt-BR')}`}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0">
+                    <button onClick={onClose} className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors shrink-0">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -183,7 +183,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <select
                                 value={lead.status}
                                 onChange={(e) => handleStatusChange(e.target.value)}
-                                className="p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange"
+                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange"
                             >
                                 {LEAD_STATUSES.map((s) => (
                                     <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>
@@ -206,7 +206,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                         {/* PIC (Perfil de Cliente Ideal) — setado manualmente pelo SDR/AM */}
                         <div>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">🎯 PIC (Playbook de Pré-Vendas)</h3>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🎯 PIC (Playbook de Pré-Vendas)</h3>
                             <div className="flex flex-wrap gap-1.5">
                                 {PIC_OPTIONS.map((pic) => (
                                     <button
@@ -214,7 +214,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         type="button"
                                         title={pic.desc}
                                         onClick={() => handleSetPic(pic.value)}
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-indigo-300'}`}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-indigo-300'}`}
                                     >
                                         {pic.label}
                                     </button>
@@ -225,25 +225,25 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {/* Empresa */}
                         {company && (
                             <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">🏢 Empresa</h3>
-                                <div className="bg-gray-50/70 rounded-xl p-4 space-y-2 text-sm text-gray-700">
+                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🏢 Empresa</h3>
+                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-2 text-sm text-ink-2">
                                     <p className="font-bold text-atlas-dark">{company.legalName}</p>
-                                    {company.cnpj && <p className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-gray-400" /> {company.cnpj}</p>}
+                                    {company.cnpj && <p className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-ink-2" /> {company.cnpj}</p>}
                                     {(company.city || company.state) && (
-                                        <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-gray-400" /> {[company.city, company.state].filter(Boolean).join(', ')}</p>
+                                        <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-ink-2" /> {[company.city, company.state].filter(Boolean).join(', ')}</p>
                                     )}
-                                    {company.segment && <p className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-gray-400" /> {company.segment}</p>}
-                                    {company.phones?.[0] && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-gray-400" /> {company.phones.join(' · ')}</p>}
-                                    {company.emails?.[0] && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-400" /> {company.emails[0]}</p>}
+                                    {company.segment && <p className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-ink-2" /> {company.segment}</p>}
+                                    {company.phones?.[0] && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-ink-2" /> {company.phones.join(' · ')}</p>}
+                                    {company.emails?.[0] && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-ink-2" /> {company.emails[0]}</p>}
                                     {company.website && (
                                         <p className="flex items-center gap-1.5">
-                                            <Globe className="w-3.5 h-3.5 text-gray-400" />
+                                            <Globe className="w-3.5 h-3.5 text-ink-2" />
                                             <a href={company.website.split(' ')[0]} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">{company.website}</a>
                                         </p>
                                     )}
                                     {company.linkedin && (
                                         <p className="flex items-center gap-1.5">
-                                            <Linkedin className="w-3.5 h-3.5 text-gray-400" />
+                                            <Linkedin className="w-3.5 h-3.5 text-ink-2" />
                                             <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">LinkedIn</a>
                                         </p>
                                     )}
@@ -258,7 +258,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         )}
 
                         <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">👥 Decisores</h3>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👥 Decisores</h3>
                             <DecisionMakerSearch
                                 companyName={company?.tradeName || company?.legalName || 'Empresa do lead'}
                                 website={company?.website}
@@ -273,12 +273,12 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {/* Contato */}
                         {lead.contact && (
                             <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">👤 Contato</h3>
-                                <div className="bg-gray-50/70 rounded-xl p-4 space-y-1.5 text-sm text-gray-700">
-                                    <p className="font-bold text-atlas-dark flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-gray-400" /> {lead.contact.name}</p>
-                                    {lead.contact.role && <p className="text-gray-500 pl-5">{lead.contact.role}</p>}
-                                    {lead.contact.email && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-gray-400" /> {lead.contact.email}</p>}
-                                    {lead.contact.phone && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-gray-400" /> {lead.contact.phone}</p>}
+                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Contato</h3>
+                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-1.5 text-sm text-ink-2">
+                                    <p className="font-bold text-atlas-dark flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.name}</p>
+                                    {lead.contact.role && <p className="text-ink-2 pl-5">{lead.contact.role}</p>}
+                                    {lead.contact.email && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.email}</p>}
+                                    {lead.contact.phone && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.phone}</p>}
                                 </div>
                             </section>
                         )}
@@ -296,7 +296,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {/* Observações do enriquecimento */}
                         {company?.observations && (
                             <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">📝 Resumo do Enriquecimento</h3>
+                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">📝 Resumo do Enriquecimento</h3>
                                 <p className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-xs text-gray-600 leading-relaxed">{company.observations}</p>
                             </section>
                         )}
@@ -305,13 +305,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         <section>
                             <button
                                 onClick={() => setQualOpen((v) => !v)}
-                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 hover:text-atlas-orange transition-colors"
+                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 hover:text-atlas-orange transition-colors"
                             >
                                 <span className="flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Checklist de Qualificação (Playbook)</span>
                                 {qualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </button>
                             {qualOpen && (
-                                <div className="bg-gray-50/70 rounded-xl p-4 space-y-4">
+                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-4">
                                     <QualGroup title="Contexto Operacional">
                                         <QualInput label="Segmento da operação" value={qualDraft.segmentoOperacao} onChange={(v) => setQualDraft((d) => ({ ...d, segmentoOperacao: v }))} />
                                         <QualInput label="Tipo de carga" value={qualDraft.tipoCarga} onChange={(v) => setQualDraft((d) => ({ ...d, tipoCarga: v }))} />
@@ -371,14 +371,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                         {/* Notas */}
                         <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">💬 Notas ({lead.internalNotes?.length || 0})</h3>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">💬 Notas ({lead.internalNotes?.length || 0})</h3>
                             <div className="flex gap-2 mb-3">
                                 <input
                                     value={noteText}
                                     onChange={(e) => setNoteText(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
                                     placeholder="Escreva uma nota e pressione Enter..."
-                                    className="flex-1 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-sm outline-none focus:border-atlas-orange"
+                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm outline-none focus:border-atlas-orange"
                                 />
                                 <button
                                     onClick={handleAddNote}
@@ -402,13 +402,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                         {/* Timeline */}
                         <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2">🕐 Histórico ({lead.timeline?.length || 0})</h3>
-                            <div className="space-y-0 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-gray-200">
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🕐 Histórico ({lead.timeline?.length || 0})</h3>
+                            <div className="space-y-0 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-line">
                                 {(lead.timeline || []).map((event) => (
                                     <div key={event.id} className="relative pl-6 pb-4">
-                                        <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full bg-white border-2 border-atlas-orange" />
-                                        <p className="text-sm text-gray-700">{event.description}</p>
-                                        <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                        <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full bg-surface border-2 border-atlas-orange" />
+                                        <p className="text-sm text-ink-2">{event.description}</p>
+                                        <p className="text-[10px] text-ink-2 flex items-center gap-1 mt-0.5">
                                             <Clock className="w-3 h-3" /> {new Date(event.createdAt).toLocaleString('pt-BR')}
                                         </p>
                                     </div>
@@ -419,7 +419,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                 )}
 
                 {/* Rodapé */}
-                <div className="p-4 border-t border-gray-100 flex justify-between items-center shrink-0">
+                <div className="p-4 border-t border-line flex justify-between items-center shrink-0">
                     <button
                         onClick={handleDelete}
                         disabled={deleting}
@@ -428,7 +428,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
                         Excluir lead
                     </button>
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">
+                    <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
                         Fechar
                     </button>
                 </div>
@@ -449,12 +449,12 @@ function QualGroup({ title, children }: { title: string; children: React.ReactNo
 function QualInput({ label, value, onChange, full }: { label: string; value?: string; onChange: (v: string) => void; full?: boolean }) {
     return (
         <label className={`block ${full ? 'col-span-2' : ''}`}>
-            <span className="block text-[9px] text-gray-400 mb-0.5">{label}</span>
+            <span className="block text-[9px] text-ink-2 mb-0.5">{label}</span>
             <input
                 type="text"
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-atlas-orange"
+                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-atlas-orange"
             />
         </label>
     );
@@ -463,11 +463,11 @@ function QualInput({ label, value, onChange, full }: { label: string; value?: st
 function QualSelect({ label, value, options, onChange }: { label: string; value?: string; options: string[]; onChange: (v: string) => void }) {
     return (
         <label className="block">
-            <span className="block text-[9px] text-gray-400 mb-0.5">{label}</span>
+            <span className="block text-[9px] text-ink-2 mb-0.5">{label}</span>
             <select
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-white rounded-lg border border-gray-200 text-xs outline-none focus:border-atlas-orange"
+                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-atlas-orange"
             >
                 {options.map((o) => <option key={o} value={o}>{o || '—'}</option>)}
             </select>

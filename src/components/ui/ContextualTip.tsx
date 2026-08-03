@@ -54,14 +54,14 @@ export const ContextualTip: React.FC<ContextualTipProps> = ({
                 <div className="flex items-center gap-1 shrink-0">
                     <button
                         onClick={() => setExpanded(!expanded)}
-                        className="text-xs text-gray-400 hover:text-amber-400 p-1 rounded-lg hover:bg-white/5 transition-colors"
+                        className="text-xs text-ink-2 hover:text-amber-400 p-1 rounded-lg hover:bg-surface-2 transition-colors"
                         title={expanded ? "Recolher dica" : "Expandir dica"}
                     >
                         <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
                     </button>
                     <button
                         onClick={() => setDismissed(true)}
-                        className="text-xs text-gray-400 hover:text-red-400 p-1 rounded-lg hover:bg-white/5 transition-colors"
+                        className="text-xs text-ink-2 hover:text-red-400 p-1 rounded-lg hover:bg-surface-2 transition-colors"
                         title="Fechar dica"
                     >
                         <X className="w-4 h-4" />

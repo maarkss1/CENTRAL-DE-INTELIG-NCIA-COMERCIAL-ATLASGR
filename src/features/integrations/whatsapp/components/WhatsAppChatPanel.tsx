@@ -84,24 +84,24 @@ export function WhatsAppChatPanel({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
             <div
-                className="bg-slate-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden"
+                className="bg-surface border border-line rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-emerald-600/10">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-line bg-emerald-600/10">
                     <div className="flex items-center gap-2 min-w-0">
                         <MessageCircle className="text-emerald-400 shrink-0" size={20} />
                         <div className="min-w-0">
-                            <h3 className="font-bold text-white text-sm truncate">{contactName || 'WhatsApp'}</h3>
-                            <p className="text-[11px] text-gray-400 truncate">{phone}</p>
+                            <h3 className="font-bold text-ink text-sm truncate">{contactName || 'WhatsApp'}</h3>
+                            <p className="text-[11px] text-ink-2 truncate">{phone}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white p-1 shrink-0">
+                    <button onClick={onClose} className="text-ink-2 hover:text-ink p-1 shrink-0">
                         <X size={18} />
                     </button>
                 </div>
 
                 {status === 'checking' && (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 gap-2">
+                    <div className="flex-1 flex items-center justify-center text-ink-2 gap-2">
                         <Loader2 className="animate-spin" size={18} /> Verificando conexão...
                     </div>
                 )}
@@ -109,7 +109,7 @@ export function WhatsAppChatPanel({
                 {(status === 'disconnected' || status === 'connecting') && (
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-3">
                         <AlertTriangle className="text-amber-500" size={32} />
-                        <p className="text-sm text-gray-300">
+                        <p className="text-sm text-ink-2">
                             O WhatsApp da organização não está conectado. Vá em <strong>Integrações → WhatsApp</strong> e escaneie o QR Code antes de enviar mensagens.
                         </p>
                     </div>
@@ -119,13 +119,13 @@ export function WhatsAppChatPanel({
                     <>
                         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
                             {messages.length === 0 && (
-                                <p className="text-center text-xs text-gray-500 mt-8">Nenhuma mensagem ainda. Envie a primeira abaixo.</p>
+                                <p className="text-center text-xs text-ink-2 mt-8">Nenhuma mensagem ainda. Envie a primeira abaixo.</p>
                             )}
                             {messages.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${msg.direction === 'outbound' ? 'bg-emerald-600 text-white' : 'bg-white/10 text-gray-200'}`}>
+                                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${msg.direction === 'outbound' ? 'bg-emerald-600 text-white' : 'bg-surface-2 text-ink'}`}>
                                         {msg.body || <span className="italic opacity-70">(mídia sem texto)</span>}
-                                        <div className={`text-[10px] mt-1 ${msg.direction === 'outbound' ? 'text-emerald-100/70' : 'text-gray-400'}`}>
+                                        <div className={`text-[10px] mt-1 ${msg.direction === 'outbound' ? 'text-emerald-100/70' : 'text-ink-2'}`}>
                                             {new Date(msg.receivedAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                         </div>
                                     </div>
@@ -133,7 +133,7 @@ export function WhatsAppChatPanel({
                             ))}
                         </div>
 
-                        <div className="p-3 border-t border-white/10">
+                        <div className="p-3 border-t border-line">
                             {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
                             <div className="flex items-center gap-2">
                                 <input
@@ -142,7 +142,7 @@ export function WhatsAppChatPanel({
                                     onChange={(e) => setText(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                                     placeholder="Digite uma mensagem..."
-                                    className="flex-1 bg-slate-950/60 border border-white/10 rounded-full px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    className="flex-1 bg-surface-2 border border-line rounded-full px-4 py-2.5 text-sm text-ink outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
                                 />
                                 <button
                                     onClick={handleSend}

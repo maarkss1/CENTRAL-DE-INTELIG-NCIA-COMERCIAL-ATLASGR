@@ -109,7 +109,7 @@ export function RobustScriptGenerator() {
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
+                className="bg-surface rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-line text-ink"
             >
                 {/* Background effects */}
                 <div className={`absolute top-0 right-0 w-[500px] h-[500px] ${accent.blobA} rounded-full blur-[100px] pointer-events-none -mt-40 -mr-40`}></div>
@@ -128,10 +128,10 @@ export function RobustScriptGenerator() {
                         <Code2 size={14} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Developer Studio & Prompt Lab</span>
                     </div>
-                    <h3 className="text-4xl font-black text-white mb-4 tracking-tight">
+                    <h3 className="text-4xl font-black text-ink mb-4 tracking-tight">
                         {accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Gerador de Prompts e Scripts Robustos</span>
                     </h3>
-                    <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
+                    <p className="text-sm text-ink-2 max-w-2xl leading-relaxed">
                         Compile artefatos prontos para produção em Python, PowerShell, TypeScript e System Prompts blindados com retries, logs e tratamento de erros.
                     </p>
                 </div>
@@ -139,26 +139,26 @@ export function RobustScriptGenerator() {
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
                     
                     {/* Linguagem */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Braces size={14} /> Stack Tecnológico / Linguagem
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'language' ? null : 'language')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedLangObj.label}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedLangObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'language' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#121A2F] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {LANGUAGES.map(l => (
                                         <div
                                             key={l.id} onClick={() => { setLanguage(l.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {l.label} {language === l.id && <Check size={16} className={accent.text} />}
                                         </div>
@@ -169,31 +169,31 @@ export function RobustScriptGenerator() {
                     </div>
 
                     {/* Propósito */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Globe size={14} /> Vetor de Propósito / Funcionalidade
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'purpose' ? null : 'purpose')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedPurposeObj.title}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedPurposeObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'purpose' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#121A2F] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {PURPOSES.map(p => (
                                         <div
                                             key={p.id} onClick={() => { setPurpose(p.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex flex-col gap-0.5 border-b border-white/5 last:border-none"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-white">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {p.title} {purpose === p.id && <Check size={16} className={accent.text} />}
                                             </div>
-                                            <span className="text-xs text-slate-400">{p.desc}</span>
+                                            <span className="text-xs text-ink-2">{p.desc}</span>
                                         </div>
                                     ))}
                                 </motion.div>
@@ -202,26 +202,26 @@ export function RobustScriptGenerator() {
                     </div>
 
                     {/* Framework */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Layers size={14} /> Abordagem & Framework
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'framework' ? null : 'framework')}
-                            className={`w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedFrameworkObj.label}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedFrameworkObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'framework' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#121A2F] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {FRAMEWORKS.map(f => (
                                         <div
                                             key={f.id} onClick={() => { setFramework(f.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {f.label} {framework === f.id && <Check size={16} className={accent.text} />}
                                         </div>
@@ -232,26 +232,26 @@ export function RobustScriptGenerator() {
                     </div>
 
                     {/* Complexidade */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <ShieldCheck size={14} /> Nível de Resiliência & Complexidade
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'complexity' ? null : 'complexity')}
-                            className={`w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{selectedComplexityObj.label}</span> <ChevronDown size={16} className="text-slate-500 shrink-0" />
+                            <span className="truncate">{selectedComplexityObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'complexity' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-[#121A2F] border border-white/10 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {COMPLEXITIES.map(c => (
                                         <div
                                             key={c.id} onClick={() => { setComplexity(c.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {c.label} {complexity === c.id && <Check size={16} className={accent.text} />}
                                         </div>
@@ -263,8 +263,8 @@ export function RobustScriptGenerator() {
                 </div>
 
                 {/* Instruções Adicionais */}
-                <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-slate-400">
+                <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
+                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
                         Contexto ou Regras Personalizadas (Opcional)
                     </label>
                     <input
@@ -272,7 +272,7 @@ export function RobustScriptGenerator() {
                         placeholder="Ex: Utilizar token Bearer no header, salvar logs no diretório C:\Logs, etc..."
                         value={customContext}
                         onChange={(e) => setCustomContext(e.target.value)}
-                        className={`w-full bg-transparent text-white text-sm placeholder-slate-600 focus:outline-none border-b border-white/10 focus:${accent.border} transition-colors pb-2`}
+                        className={`w-full bg-transparent text-ink text-sm placeholder-ink-2 focus:outline-none border-b border-line focus:${accent.border} transition-colors pb-2`}
                     />
                 </div>
 

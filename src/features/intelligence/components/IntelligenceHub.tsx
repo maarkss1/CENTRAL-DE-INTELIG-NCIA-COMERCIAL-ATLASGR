@@ -56,26 +56,26 @@ export function IntelligenceHub({ initialTab = 'swarm' }: IntelligenceHubProps) 
                         </div>
 
         <div className="space-y-3">
-                            <div className={`p-5 bg-white/[0.03] border border-white/10 rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
+                            <div className={`p-5 bg-surface-2 border border-line rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
                                 <div className="flex items-center gap-4">
                                     <div className={`w-10 h-10 rounded-full ${accent.bgSoft} flex items-center justify-center ${accent.text} shrink-0`}>
                                         <Target size={18} />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-white text-sm">Playbook Estratégico - Vendas B2B {accent.brandName}</p>
-                                        <p className="text-[11px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wider">Última sincronização há 2 horas</p>
+                                        <p className="font-bold text-ink text-sm">Playbook Estratégico - Vendas B2B {accent.brandName}</p>
+                                        <p className="text-[11px] font-semibold text-ink-2 mt-0.5 uppercase tracking-wider">Última sincronização há 2 horas</p>
                                     </div>
                                 </div>
                                 <div className="px-3 py-1 bg-success/15 text-success text-[10px] font-black uppercase tracking-widest rounded-lg border border-success/30">Ativo</div>
                             </div>
-                            <div className={`p-5 bg-white/[0.03] border border-white/10 rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
+                            <div className={`p-5 bg-surface-2 border border-line rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
                                 <div className="flex items-center gap-4">
                                     <div className="w-10 h-10 rounded-full bg-info/15 flex items-center justify-center text-info shrink-0">
                                         <Zap size={18} />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-white text-sm">{accent.isAtlas ? 'Regras ICP B2B - Logística & Frotas' : 'Regras ICP B2B - Frotas & Telemetria'}</p>
-                                        <p className="text-[11px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wider">Última sincronização há 5 dias</p>
+                                        <p className="font-bold text-ink text-sm">{accent.isAtlas ? 'Regras ICP B2B - Logística & Frotas' : 'Regras ICP B2B - Frotas & Telemetria'}</p>
+                                        <p className="text-[11px] font-semibold text-ink-2 mt-0.5 uppercase tracking-wider">Última sincronização há 5 dias</p>
                                     </div>
                                 </div>
                                 <div className="px-3 py-1 bg-success/15 text-success text-[10px] font-black uppercase tracking-widest rounded-lg border border-success/30">Ativo</div>

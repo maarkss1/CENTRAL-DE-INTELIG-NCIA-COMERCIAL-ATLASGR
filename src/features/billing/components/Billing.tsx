@@ -39,9 +39,9 @@ const compact = (v: number) => v.toLocaleString('pt-BR', { notation: 'compact', 
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
     return (
         <Card variant="stat" padding="sm">
-            <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">{label}</p>
-            <p className="text-2xl font-black mt-1 text-white">{value}</p>
-            {hint && <p className="text-[11px] text-gray-500 mt-0.5">{hint}</p>}
+            <p className="text-[11px] uppercase tracking-wide text-ink-2 font-semibold">{label}</p>
+            <p className="text-2xl font-black mt-1 text-ink">{value}</p>
+            {hint && <p className="text-[11px] text-ink-2 mt-0.5">{hint}</p>}
         </Card>
     );
 }
@@ -73,28 +73,28 @@ export function Billing() {
     }));
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-950 p-8">
+        <div className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <Wallet className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Consumo de IA</h1>
-                            <p className="text-sm text-gray-400">Tokens, chamadas e custo estimado por modelo</p>
+                            <h1 className="text-3xl font-bold text-ink">Consumo de IA</h1>
+                            <p className="text-sm text-ink-2">Tokens, chamadas e custo estimado por modelo</p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-xl border border-white/10 overflow-hidden" role="group" aria-label="Período">
+                        <div className="flex items-center rounded-xl border border-line overflow-hidden" role="group" aria-label="Período">
                             {PERIODS.map((p) => (
                                 <button
                                     key={p}
                                     onClick={() => setDays(p)}
                                     aria-pressed={days === p}
                                     className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                                        days === p ? `${accent.bg} text-white` : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                        days === p ? `${accent.bg} text-white` : 'text-ink-2 hover:text-ink hover:bg-surface-2'
                                     }`}
                                 >
                                     {p}d
@@ -119,7 +119,7 @@ export function Billing() {
                 </div>
 
                 {loading && !data && (
-                    <Card padding="lg" className="text-center text-gray-400 text-sm">
+                    <Card padding="lg" className="text-center text-ink-2 text-sm">
                         <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" /> Carregando consumo…
                     </Card>
                 )}
@@ -127,7 +127,7 @@ export function Billing() {
                 {error && (
                     <Card padding="lg" className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                        <p className="text-sm text-gray-300 mb-4">{error}</p>
+                        <p className="text-sm text-ink-2 mb-4">{error}</p>
                         <Button variant="outline" onClick={() => void load(days)}>Tentar novamente</Button>
                     </Card>
                 )}
@@ -135,8 +135,8 @@ export function Billing() {
                 {data?.isEmpty && !loading && !error && (
                     <Card padding="lg" className="text-center border-dashed">
                         <Wallet className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-white mb-1">Nenhuma chamada de IA no período</h3>
-                        <p className="text-sm text-gray-400 max-w-md mx-auto">
+                        <h3 className="text-lg font-semibold text-ink mb-1">Nenhuma chamada de IA no período</h3>
+                        <p className="text-sm text-ink-2 max-w-md mx-auto">
                             Use o Hub de IA, o Chatbook ou a Base de Conhecimento e o consumo aparece aqui.
                         </p>
                     </Card>
@@ -152,14 +152,14 @@ export function Billing() {
                         </div>
 
                         {data.unattributedCalls > 0 && (
-                            <p className="text-[11px] text-gray-500">
+                            <p className="text-[11px] text-ink-2">
                                 {data.unattributedCalls} chamada(s) no período sem organização atribuída
                                 (execuções fora de requisição ou anteriores ao registro de tenant) não entram nos números acima.
                             </p>
                         )}
 
                         <Card padding="sm">
-                            <h3 className="text-sm font-bold text-white mb-3">Custo por dia</h3>
+                            <h3 className="text-sm font-bold text-ink mb-3">Custo por dia</h3>
                             <ResponsiveContainer width="100%" height={240}>
                                 <BarChart data={daily} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
                                     <CartesianGrid stroke={INK.grid} vertical={false} />
@@ -176,11 +176,11 @@ export function Billing() {
                         </Card>
 
                         <Card padding="sm">
-                            <h3 className="text-sm font-bold text-white mb-3">Por modelo</h3>
+                            <h3 className="text-sm font-bold text-ink mb-3">Por modelo</h3>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs">
                                     <thead>
-                                        <tr className="text-gray-400 border-b border-white/10">
+                                        <tr className="text-ink-2 border-b border-line">
                                             <th className="text-left font-semibold py-2 pr-4">Modelo</th>
                                             <th className="text-right font-semibold py-2 pr-4">Chamadas</th>
                                             <th className="text-right font-semibold py-2 pr-4">Tokens</th>
@@ -188,10 +188,10 @@ export function Billing() {
                                             <th className="text-right font-semibold py-2">Custo estimado</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="text-gray-300 [font-variant-numeric:tabular-nums]">
+                                    <tbody className="text-ink-2 [font-variant-numeric:tabular-nums]">
                                         {data.byModel.map((m) => (
-                                            <tr key={m.model} className="border-b border-white/5">
-                                                <td className="py-2 pr-4 text-white font-medium">{m.model}</td>
+                                            <tr key={m.model} className="border-b border-line">
+                                                <td className="py-2 pr-4 text-ink font-medium">{m.model}</td>
                                                 <td className="py-2 pr-4 text-right">{m.calls.toLocaleString('pt-BR')}</td>
                                                 <td className="py-2 pr-4 text-right">{m.tokens.toLocaleString('pt-BR')}</td>
                                                 <td className="py-2 pr-4 text-right">{m.avgLatencyMs} ms</td>

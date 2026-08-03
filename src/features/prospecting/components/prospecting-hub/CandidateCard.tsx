@@ -43,12 +43,12 @@ export function CandidateCard({
     const [chatTarget, setChatTarget] = useState<{ phone: string; name: string } | null>(null);
 
     return (
-        <div className="bg-slate-900/60 p-6 rounded-2xl border border-white/10 hover:border-atlas-orange/40 transition-all shadow-sm group">
+        <div className="bg-surface p-6 rounded-2xl border border-line hover:border-atlas-orange/40 transition-all shadow-sm group">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-white/20 text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-line text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="font-black text-lg text-white group-hover:text-atlas-orange transition-colors">{candidate.tradeName}</h3>
+                        <h3 className="font-black text-lg text-ink group-hover:text-atlas-orange transition-colors">{candidate.tradeName}</h3>
                         <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-atlas-yellow/20 text-atlas-yellow'}`}>
                             <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
@@ -59,23 +59,23 @@ export function CandidateCard({
                         )}
                     </div>
 
-                    <div className="flex flex-wrap gap-4 text-xs font-semibold text-gray-400 mb-2">
-                        <span className="flex items-center gap-1.5"><Building2 size={14} className="text-gray-400" /> {candidate.segment}</span>
-                        <span className="flex items-center gap-1.5"><Users size={14} className="text-gray-400" /> {candidate.size}</span>
-                        <span className="flex items-center gap-1.5"><MapPin size={14} className="text-gray-400" /> {candidate.location}</span>
+                    <div className="flex flex-wrap gap-4 text-xs font-semibold text-ink-2 mb-2">
+                        <span className="flex items-center gap-1.5"><Building2 size={14} className="text-ink-2" /> {candidate.segment}</span>
+                        <span className="flex items-center gap-1.5"><Users size={14} className="text-ink-2" /> {candidate.size}</span>
+                        <span className="flex items-center gap-1.5"><MapPin size={14} className="text-ink-2" /> {candidate.location}</span>
                         {candidate.foundedYear && (
-                            <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400" /> Fundada em {candidate.foundedYear}</span>
+                            <span className="flex items-center gap-1.5"><Calendar size={14} className="text-ink-2" /> Fundada em {candidate.foundedYear}</span>
                         )}
                         {candidate.annualRevenue != null && (
-                            <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-gray-400" /> {formatUsd(candidate.annualRevenue)}/ano</span>
+                            <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-ink-2" /> {formatUsd(candidate.annualRevenue)}/ano</span>
                         )}
                         {candidate.phone && (
                             getTelephoneLink(candidate.phone) ? (
-                                <a href={getTelephoneLink(candidate.phone)} className="flex items-center gap-1.5 hover:text-white hover:underline">
-                                    <Phone size={14} className="text-gray-400" /> {candidate.phone}
+                                <a href={getTelephoneLink(candidate.phone)} className="flex items-center gap-1.5 hover:text-ink hover:underline">
+                                    <Phone size={14} className="text-ink-2" /> {candidate.phone}
                                 </a>
                             ) : (
-                                <span className="flex items-center gap-1.5"><Phone size={14} className="text-gray-400" /> {candidate.phone}</span>
+                                <span className="flex items-center gap-1.5"><Phone size={14} className="text-ink-2" /> {candidate.phone}</span>
                             )
                         )}
                         {getWhatsAppLink(candidate.phone) && (
@@ -118,7 +118,7 @@ export function CandidateCard({
                     {candidate.technologies && candidate.technologies.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2">
                             {candidate.technologies.map((tech, idx) => (
-                                <span key={idx} className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2 py-0.5 text-[10px] text-gray-400">
+                                <span key={idx} className="flex items-center gap-1 bg-surface-2 border border-line rounded-full px-2 py-0.5 text-[10px] text-ink-2">
                                     <Wrench size={9} /> {tech}
                                 </span>
                             ))}
@@ -126,12 +126,12 @@ export function CandidateCard({
                     )}
 
                     {!enrichment && candidate.rationale && (
-                        <p className="text-xs text-gray-400 italic mb-2">"{candidate.rationale}"</p>
+                        <p className="text-xs text-ink-2 italic mb-2">"{candidate.rationale}"</p>
                     )}
 
                     {!enrichment && candidate.decisionMakers && candidate.decisionMakers.length > 0 && (
                         <div className="mt-2 mb-3">
-                            <p className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 flex items-center gap-1">
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 flex items-center gap-1">
                                 <Users size={12} /> Decisores já encontrados (Apollo/Hunter) — prontos para uso
                             </p>
                             <div className="flex flex-col gap-2">
@@ -145,9 +145,9 @@ export function CandidateCard({
                                     const tel = getTelephoneLink(dm.phone);
                                     const whatsapp = getWhatsAppLink(dm.phone);
                                     return (
-                                        <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-gray-300 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                            <strong className="text-white text-sm">{dm.name}</strong>
-                                            {dm.title && <span className="text-gray-400 bg-white/10 px-2 py-0.5 rounded-md">{dm.title}</span>}
+                                        <div key={idx} className="bg-surface-2 border border-line rounded-xl p-3 text-xs text-ink-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                            <strong className="text-ink text-sm">{dm.name}</strong>
+                                            {dm.title && <span className="text-ink-2 bg-surface-2 px-2 py-0.5 rounded-md">{dm.title}</span>}
                                             {dm.email && (
                                                 <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success hover:underline">
                                                     <Mail size={12} /> {dm.email}
@@ -155,7 +155,7 @@ export function CandidateCard({
                                                 </a>
                                             )}
                                             {tel && (
-                                                <a href={tel} className="flex items-center gap-1 text-gray-300 hover:text-white hover:underline">
+                                                <a href={tel} className="flex items-center gap-1 text-ink-2 hover:text-ink hover:underline">
                                                     <Phone size={12} /> {dm.phone}
                                                 </a>
                                             )}
@@ -180,7 +180,7 @@ export function CandidateCard({
                     )}
 
                     {!enrichment && candidate.decisionMakers?.length === 0 && (
-                        <p className="text-[11px] text-gray-500 mb-3">
+                        <p className="text-[11px] text-ink-2 mb-3">
                             Nenhum decisor encontrado automaticamente para este domínio — seu plano Apollo pode não incluir People Search
                             {' '}e não há chave Hunter.io configurada. Você ainda pode tentar uma busca manual abaixo.
                         </p>
@@ -201,37 +201,37 @@ export function CandidateCard({
                             <p className="text-[10px] tracking-wider font-bold uppercase text-indigo-300 mb-1 flex items-center gap-1">
                                 <Sparkles size={12} /> 📝 Resumo do Enriquecimento
                             </p>
-                            <p className="text-xs text-gray-400 leading-relaxed">{enrichment.company.observations}</p>
+                            <p className="text-xs text-ink-2 leading-relaxed">{enrichment.company.observations}</p>
                         </div>
                     )}
 
                     {enrichment?.apolloContacts && enrichment.apolloContacts.length > 0 && (
                         <div className="mt-3">
-                            <p className="text-[10px] tracking-wider font-bold uppercase text-gray-400 mb-2 flex items-center gap-1">
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 flex items-center gap-1">
                                 <Users size={12} /> Decisores Descobertos (Apollo)
                             </p>
                             <div className="flex flex-col gap-3">
                                 {enrichment.apolloContacts.map((contact, idx) => (
-                                    <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-gray-300 flex flex-col gap-2">
+                                    <div key={idx} className="bg-surface-2 border border-line rounded-xl p-3 text-xs text-ink-2 flex flex-col gap-2">
                                         <div className="flex items-center justify-between">
-                                            <strong className="text-white text-sm">{contact.name}</strong>
+                                            <strong className="text-ink text-sm">{contact.name}</strong>
                                             {contact.linkedin_url && (
                                                 <a href={contact.linkedin_url} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">
                                                     LinkedIn
                                                 </a>
                                             )}
                                         </div>
-                                        {contact.title && <span className="text-gray-400">{contact.title}</span>}
+                                        {contact.title && <span className="text-ink-2">{contact.title}</span>}
 
                                         <div className="flex flex-wrap items-center gap-3 mt-1">
                                             {contact.email && (
-                                                <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md">
-                                                    <Mail size={12} className="text-gray-400" /> {contact.email}
+                                                <span className="flex items-center gap-1.5 bg-surface-2 px-2 py-1 rounded-md">
+                                                    <Mail size={12} className="text-ink-2" /> {contact.email}
                                                 </span>
                                             )}
                                             {contact.phone && (
-                                                <span className="flex items-center gap-1.5 bg-black/20 px-2 py-1 rounded-md">
-                                                    <Phone size={12} className="text-gray-400" /> {contact.phone}
+                                                <span className="flex items-center gap-1.5 bg-surface-2 px-2 py-1 rounded-md">
+                                                    <Phone size={12} className="text-ink-2" /> {contact.phone}
                                                 </span>
                                             )}
                                         </div>
@@ -247,7 +247,7 @@ export function CandidateCard({
                     <button
                         onClick={onPromote}
                         disabled={isPromoting}
-                        className="bg-white/5 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-atlas-orange hover:text-white transition-colors flex items-center gap-2 border border-white/10 hover:border-atlas-orange w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
+                        className="bg-surface-2 text-ink px-6 py-2.5 rounded-full font-bold text-sm hover:bg-atlas-orange hover:text-white transition-colors flex items-center gap-2 border border-line hover:border-atlas-orange w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
                     >
                         {isPromoting ? <Loader2 className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
                         {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer e Adicionar'}

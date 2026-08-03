@@ -161,10 +161,10 @@ export function Intelligence() {
     };
 
     return (
-        <div className="space-y-8 bg-gray-50/30 min-h-screen p-4 lg:p-8 rounded-3xl">
+        <div className="space-y-8 bg-transparent min-h-screen p-4 lg:p-8 rounded-3xl">
             <AIPendingActions />
-            
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 border-t border-gray-200/60 pt-8">
+
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 border-t border-line/60 pt-8">
                 {/* ESQUERDA: CONFIGURAÇÕES E FERRAMENTAS */}
                 <div className="xl:col-span-5 flex flex-col h-full space-y-6">
                     <div>
@@ -176,8 +176,8 @@ export function Intelligence() {
                             <Sparkles className="w-4 h-4" />
                             <span className="text-xs font-bold uppercase tracking-wider">Premium AI Suite</span>
                         </motion.div>
-                        <h2 className="font-black text-4xl text-gray-900 tracking-tight mb-2">{accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Outreach Intelligence</span></h2>
-                        <p className="text-gray-500 text-sm leading-relaxed max-w-md">O arsenal definitivo de IA Generativa. Ferramentas ultra-personalizadas alimentadas por algoritmos preditivos e dados em tempo real.</p>
+                        <h2 className="font-black text-4xl text-ink tracking-tight mb-2">{accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Outreach Intelligence</span></h2>
+                        <p className="text-ink-2 text-sm leading-relaxed max-w-md">O arsenal definitivo de IA Generativa. Ferramentas ultra-personalizadas alimentadas por algoritmos preditivos e dados em tempo real.</p>
                     </div>
 
                     {/* SELETOR DE LEAD PREMIUM */}
@@ -186,7 +186,7 @@ export function Intelligence() {
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-4 rounded-2xl border border-atlas-orange/30 bg-gradient-to-br from-white to-orange-50/30 shadow-[0_8px_30px_rgb(234,88,12,0.12)] relative overflow-hidden group"
+                                className="p-4 rounded-2xl border border-atlas-orange/30 bg-gradient-to-br from-surface to-orange-50/30 shadow-[0_8px_30px_rgb(234,88,12,0.12)] relative overflow-hidden group"
                             >
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-atlas-orange/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
                                 <div className="flex items-start gap-4 relative z-10">
@@ -195,18 +195,18 @@ export function Intelligence() {
                                         <div className="absolute inset-0 rounded-xl border border-white/20"></div>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="font-black text-lg text-gray-900 truncate tracking-tight">{selectedLead.company?.tradeName || 'Empresa Desconhecida'}</p>
+                                        <p className="font-black text-lg text-ink truncate tracking-tight">{selectedLead.company?.tradeName || 'Empresa Desconhecida'}</p>
                                         {selectedLead.contact?.name && (
-                                            <p className="text-xs text-gray-500 truncate flex items-center gap-1.5 mt-0.5">
-                                                <User size={12} className="text-gray-400" /> 
+                                            <p className="text-xs text-ink-2 truncate flex items-center gap-1.5 mt-0.5">
+                                                <User size={12} className="text-ink-2" />
                                                 <span className="font-medium">{selectedLead.contact.name}</span>
-                                                {selectedLead.contact.role && <span className="text-gray-300">|</span>}
+                                                {selectedLead.contact.role && <span className="text-ink-2">|</span>}
                                                 {selectedLead.contact.role && <span>{selectedLead.contact.role}</span>}
                                             </p>
                                         )}
                                         <div className="flex flex-wrap gap-1.5 mt-3">
                                             {selectedLead.temperature && (
-                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-white border border-gray-200 text-gray-600 shadow-sm">
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-surface border border-line text-ink-2 shadow-sm">
                                                     <Activity size={10} className={selectedLead.temperature === 'Quente' ? 'text-red-500' : selectedLead.temperature === 'Morno' ? 'text-amber-500' : 'text-blue-500'} />
                                                     {selectedLead.temperature}
                                                 </span>
@@ -217,7 +217,7 @@ export function Intelligence() {
                                                     type="button"
                                                     title={pic.desc}
                                                     onClick={() => handleSetPic(pic.value)}
-                                                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border transition-all ${selectedLead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white border-gray-200 text-gray-400 hover:border-indigo-300 hover:text-indigo-500'}`}
+                                                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md border transition-all ${selectedLead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-surface border-line text-ink-2 hover:border-indigo-300 hover:text-indigo-500'}`}
                                                 >
                                                     {pic.label}
                                                 </button>
@@ -226,7 +226,7 @@ export function Intelligence() {
                                     </div>
                                     <button 
                                         onClick={() => setPickerOpen(true)} 
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-atlas-orange hover:text-white transition-colors shrink-0"
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-atlas-orange hover:text-white transition-colors shrink-0"
                                         title="Trocar Lead"
                                     >
                                         <RefreshCw size={14} />
@@ -236,14 +236,14 @@ export function Intelligence() {
                         ) : (
                             <button
                                 onClick={() => setPickerOpen(true)}
-                                className="w-full p-5 rounded-2xl border-2 border-dashed border-gray-300 hover:border-atlas-orange/60 hover:bg-orange-50/50 text-gray-500 hover:text-atlas-orange transition-all flex flex-col items-center justify-center gap-3 group"
+                                className="w-full p-5 rounded-2xl border-2 border-dashed border-line hover:border-atlas-orange/60 hover:bg-orange-50/50 text-ink-2 hover:text-atlas-orange transition-all flex flex-col items-center justify-center gap-3 group"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-orange-100 flex items-center justify-center transition-colors">
-                                    <Search size={18} className="text-gray-400 group-hover:text-atlas-orange" />
+                                <div className="w-10 h-10 rounded-full bg-surface-2 group-hover:bg-orange-100 flex items-center justify-center transition-colors">
+                                    <Search size={18} className="text-ink-2 group-hover:text-atlas-orange" />
                                 </div>
                                 <div className="text-center">
-                                    <p className="font-bold text-sm text-gray-700 group-hover:text-atlas-orange">Vincular Lead Alvo (Recomendado)</p>
-                                    <p className="text-[11px] text-gray-400 mt-1 max-w-xs mx-auto">Para hiper-personalização, a IA analisará segmento, porte e stack tecnológico do lead.</p>
+                                    <p className="font-bold text-sm text-ink-2 group-hover:text-atlas-orange">Vincular Lead Alvo (Recomendado)</p>
+                                    <p className="text-[11px] text-ink-2 mt-1 max-w-xs mx-auto">Para hiper-personalização, a IA analisará segmento, porte e stack tecnológico do lead.</p>
                                 </div>
                             </button>
                         )}
@@ -256,29 +256,29 @@ export function Intelligence() {
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute z-50 left-0 right-0 mt-2 p-4 border border-gray-200/60 rounded-2xl bg-white/80 backdrop-blur-xl shadow-2xl"
+                                className="absolute z-50 left-0 right-0 mt-2 p-4 border border-line/60 rounded-2xl bg-surface/80 backdrop-blur-xl shadow-2xl"
                             >
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-[10px] tracking-widest font-bold uppercase text-gray-400 flex items-center gap-1">
+                                    <span className="text-[10px] tracking-widest font-bold uppercase text-ink-2 flex items-center gap-1">
                                         <Fingerprint size={12} /> Selecionar Alvo
                                     </span>
-                                    <button onClick={() => setPickerOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={14} /></button>
+                                    <button onClick={() => setPickerOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
                                 </div>
                                 <div className="relative mb-3">
-                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" />
                                     <input
                                         autoFocus
                                         type="text"
                                         placeholder="Pesquisar por empresa ou contato..."
                                         value={leadQuery}
                                         onChange={(e) => setLeadQuery(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200/80 rounded-xl text-sm font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                        className="w-full pl-9 pr-4 py-2.5 bg-surface-2 border border-line/80 rounded-xl text-sm font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
                                     />
                                 </div>
                                 <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
-                                    {leadsLoading && <p className="text-xs font-medium text-gray-400 text-center py-4">Buscando banco de dados...</p>}
+                                    {leadsLoading && <p className="text-xs font-medium text-ink-2 text-center py-4">Buscando banco de dados...</p>}
                                     {!leadsLoading && filteredLeads.length === 0 && (
-                                        <p className="text-xs font-medium text-gray-400 text-center py-4">Nenhum alvo detectado.</p>
+                                        <p className="text-xs font-medium text-ink-2 text-center py-4">Nenhum alvo detectado.</p>
                                     )}
                                     {filteredLeads.map((l) => (
                                         <button
@@ -286,12 +286,12 @@ export function Intelligence() {
                                             onClick={() => { setSelectedLead(l); setPickerOpen(false); setLeadQuery(''); }}
                                             className="w-full text-left p-3 rounded-xl hover:bg-orange-50 flex items-center gap-3 transition-colors group border border-transparent hover:border-atlas-orange/20"
                                         >
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 group-hover:bg-white flex items-center justify-center shrink-0">
-                                                <Building2 size={14} className="text-gray-400 group-hover:text-atlas-orange" />
+                                            <div className="w-8 h-8 rounded-lg bg-surface-2 group-hover:bg-surface flex items-center justify-center shrink-0">
+                                                <Building2 size={14} className="text-ink-2 group-hover:text-atlas-orange" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm text-gray-800 truncate group-hover:text-atlas-orange">{l.company?.tradeName || 'Sem empresa'}</p>
-                                                {l.contact?.name && <p className="text-[11px] text-gray-400 truncate">{l.contact.name}</p>}
+                                                <p className="font-bold text-sm text-ink truncate group-hover:text-atlas-orange">{l.company?.tradeName || 'Sem empresa'}</p>
+                                                {l.contact?.name && <p className="text-[11px] text-ink-2 truncate">{l.contact.name}</p>}
                                             </div>
                                         </button>
                                     ))}
@@ -301,31 +301,31 @@ export function Intelligence() {
                     </AnimatePresence>
 
                     {/* PARÂMETROS DE NEURO-GERAÇÃO (Custom Dropdowns) */}
-                    <div className="bg-white p-5 rounded-2xl border border-gray-200/60 shadow-sm relative z-40">
-                        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-1.5">
+                    <div className="bg-surface p-5 rounded-2xl border border-line/60 shadow-sm relative z-40">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-ink-2 mb-4 flex items-center gap-1.5">
                             <BrainCircuit size={14} className="text-atlas-orange" /> Parâmetros Neurais
                         </h3>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {/* Dropdown Tom de Voz */}
                             <div className="relative">
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Matriz de Tom</label>
-                                <button 
+                                <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Matriz de Tom</label>
+                                <button
                                     onClick={() => setActiveDropdown(activeDropdown === 'tone' ? null : 'tone')}
-                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
+                                    className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                 >
-                                    {tone} <ChevronDown size={14} className="text-gray-400" />
+                                    {tone} <ChevronDown size={14} className="text-ink-2" />
                                 </button>
                                 <AnimatePresence>
                                     {activeDropdown === 'tone' && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                            className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                            className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                         >
                                             {TONES.map(t => (
-                                                <div 
+                                                <div
                                                     key={t} onClick={() => { setTone(t); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
                                                 >
                                                     {t} {tone === t && <Check size={14} className="text-atlas-orange" />}
                                                 </div>
@@ -337,23 +337,23 @@ export function Intelligence() {
 
                             {/* Dropdown Objetivo */}
                             <div className="relative">
-                                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Vetor de Objetivo</label>
-                                <button 
+                                <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Vetor de Objetivo</label>
+                                <button
                                     onClick={() => setActiveDropdown(activeDropdown === 'objective' ? null : 'objective')}
-                                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
+                                    className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                 >
-                                    {objective} <ChevronDown size={14} className="text-gray-400" />
+                                    {objective} <ChevronDown size={14} className="text-ink-2" />
                                 </button>
                                 <AnimatePresence>
                                     {activeDropdown === 'objective' && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                            className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                            className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                         >
                                             {OBJECTIVES.map(o => (
-                                                <div 
+                                                <div
                                                     key={o} onClick={() => { setObjective(o); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
                                                 >
                                                     {o} {objective === o && <Check size={14} className="text-atlas-orange" />}
                                                 </div>
@@ -366,23 +366,23 @@ export function Intelligence() {
                             {/* Dropdown Persona (Fallback) */}
                             {!selectedLead && (
                                 <div className="relative sm:col-span-2">
-                                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1.5">Persona Simulada</label>
-                                    <button 
+                                    <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Persona Simulada</label>
+                                    <button
                                         onClick={() => setActiveDropdown(activeDropdown === 'persona' ? null : 'persona')}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 flex items-center justify-between hover:border-gray-300 focus:outline-none"
+                                        className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                     >
-                                        {personaFallback} <ChevronDown size={14} className="text-gray-400" />
+                                        {personaFallback} <ChevronDown size={14} className="text-ink-2" />
                                     </button>
                                     <AnimatePresence>
                                         {activeDropdown === 'persona' && (
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }}
-                                                className="absolute left-0 right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl z-50 overflow-hidden"
+                                                className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                             >
                                                 {personas.map(p => (
-                                                    <div 
+                                                    <div
                                                         key={p} onClick={() => { setPersonaFallback(p); setActiveDropdown(null); }}
-                                                        className="px-4 py-2.5 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                        className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
                                                     >
                                                         {p} {personaFallback === p && <Check size={14} className="text-atlas-orange" />}
                                                     </div>
@@ -402,20 +402,20 @@ export function Intelligence() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute z-50 inset-x-0 mt-4 p-5 border border-atlas-orange/30 rounded-2xl bg-white/90 backdrop-blur-2xl shadow-2xl shadow-atlas-orange/10"
+                                className="absolute z-50 inset-x-0 mt-4 p-5 border border-atlas-orange/30 rounded-2xl bg-surface/90 backdrop-blur-2xl shadow-2xl shadow-atlas-orange/10"
                             >
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-[10px] tracking-widest font-black uppercase text-atlas-orange flex items-center gap-1.5">
                                         <Swords size={14} /> {suggestedCompetitors.length ? 'Selecione o Concorrente' : 'Informe o Concorrente'}
                                     </span>
-                                    <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"><X size={14} /></button>
+                                    <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {suggestedCompetitors.map((c) => (
                                         <button
                                             key={c}
                                             onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-gray-200 bg-white text-gray-700 hover:border-atlas-orange hover:bg-atlas-orange hover:text-white transition-all shadow-sm"
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-line bg-surface text-ink-2 hover:border-atlas-orange hover:bg-atlas-orange hover:text-white transition-all shadow-sm"
                                         >
                                             {c}
                                         </button>
@@ -427,7 +427,7 @@ export function Intelligence() {
                                         placeholder="Ou digite o nome de outro concorrente..."
                                         value={customCompetitor}
                                         onChange={(e) => setCustomCompetitor(e.target.value)}
-                                        className="flex-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                        className="flex-1 p-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
                                     />
                                     <button
                                         onClick={() => customCompetitor.trim() && handleGenerate('competitor_battlecard', customCompetitor.trim())}
@@ -443,8 +443,8 @@ export function Intelligence() {
 
                     {/* GRID DE FERRAMENTAS */}
                     <div className="flex-1 overflow-hidden relative">
-                        <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-gray-50/30 to-transparent z-10 pointer-events-none"></div>
-                        <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-gray-50/30 to-transparent z-10 pointer-events-none"></div>
+                        <div className="absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-bg/30 to-transparent z-10 pointer-events-none"></div>
+                        <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-bg/30 to-transparent z-10 pointer-events-none"></div>
                         <motion.div 
                             variants={containerVariants}
                             initial="hidden"
@@ -459,9 +459,9 @@ export function Intelligence() {
                                     key={tool.id}
                                     onClick={() => handleGenerate(tool.id as ToolType)}
                                     className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[140px] relative overflow-hidden
-                                        ${activeTool === tool.id 
-                                            ? 'border-atlas-orange bg-gradient-to-br from-orange-50 to-white shadow-lg shadow-atlas-orange/20 ring-1 ring-atlas-orange/50' 
-                                            : 'border-gray-200/60 bg-white hover:border-atlas-orange/40 hover:shadow-xl hover:shadow-gray-200/50'
+                                        ${activeTool === tool.id
+                                            ? 'border-atlas-orange bg-gradient-to-br from-orange-50 to-surface shadow-lg shadow-atlas-orange/20 ring-1 ring-atlas-orange/50'
+                                            : 'border-line/60 bg-surface hover:border-atlas-orange/40 hover:shadow-xl hover:shadow-gray-200/50'
                                         }`}
                                 >
                                     {/* Efeito Glow Interno */}
@@ -473,7 +473,7 @@ export function Intelligence() {
                                         <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
                                             ${activeTool === tool.id 
                                                 ? 'bg-gradient-to-br from-atlas-orange to-orange-500 text-white shadow-md' 
-                                                : 'bg-gray-50 border border-gray-100 text-gray-500 group-hover:bg-orange-50 group-hover:text-atlas-orange group-hover:border-orange-100'
+                                                : 'bg-surface-2 border border-line text-ink-2 group-hover:bg-orange-50 group-hover:text-atlas-orange group-hover:border-orange-100'
                                             }`}
                                         >
                                             <tool.icon size={18} />
@@ -485,11 +485,11 @@ export function Intelligence() {
                                     
                                     <div className="relative z-10 mt-3">
                                         <h3 className={`font-black text-sm mb-1 leading-tight transition-colors line-clamp-1
-                                            ${activeTool === tool.id ? 'text-atlas-orange' : 'text-gray-900 group-hover:text-atlas-orange'}`}
+                                            ${activeTool === tool.id ? 'text-atlas-orange' : 'text-ink group-hover:text-atlas-orange'}`}
                                         >
                                             {tool.title}
                                         </h3>
-                                        <p className="text-[10px] text-gray-500 leading-snug line-clamp-2">{tool.desc}</p>
+                                        <p className="text-[10px] text-ink-2 leading-snug line-clamp-2">{tool.desc}</p>
                                     </div>
                                 </motion.div>
                             ))}

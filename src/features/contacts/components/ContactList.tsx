@@ -20,12 +20,12 @@ const SENIORITY_COLORS: Record<string, string> = {
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-gray-100 animate-pulse">
-      <td className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-gray-200" /><div className="space-y-2"><div className="h-3 bg-gray-200 rounded-full w-32" /><div className="h-2.5 bg-gray-100 rounded-full w-20" /></div></div></td>
-      <td className="p-4 hidden md:table-cell"><div className="h-3 bg-gray-200 rounded-full w-28" /></td>
-      <td className="p-4 hidden lg:table-cell"><div className="space-y-1.5"><div className="h-2.5 bg-gray-100 rounded-full w-36" /><div className="h-2.5 bg-gray-100 rounded-full w-24" /></div></td>
-      <td className="p-4 hidden xl:table-cell"><div className="h-5 bg-gray-100 rounded-full w-20" /></td>
-      <td className="p-4"><div className="flex justify-end gap-2"><div className="w-8 h-8 bg-gray-100 rounded-xl" /><div className="w-8 h-8 bg-gray-100 rounded-xl" /></div></td>
+    <tr className="border-b border-line animate-pulse">
+      <td className="p-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-2xl bg-surface-2" /><div className="space-y-2"><div className="h-3 bg-surface-2 rounded-full w-32" /><div className="h-2.5 bg-surface-2 rounded-full w-20" /></div></div></td>
+      <td className="p-4 hidden md:table-cell"><div className="h-3 bg-surface-2 rounded-full w-28" /></td>
+      <td className="p-4 hidden lg:table-cell"><div className="space-y-1.5"><div className="h-2.5 bg-surface-2 rounded-full w-36" /><div className="h-2.5 bg-surface-2 rounded-full w-24" /></div></td>
+      <td className="p-4 hidden xl:table-cell"><div className="h-5 bg-surface-2 rounded-full w-20" /></td>
+      <td className="p-4"><div className="flex justify-end gap-2"><div className="w-8 h-8 bg-surface-2 rounded-xl" /><div className="w-8 h-8 bg-surface-2 rounded-xl" /></div></td>
     </tr>
   );
 }
@@ -79,21 +79,21 @@ export function ContactList() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">👤 Contatos & Decisores</h1>
-            <p className="text-xs text-gray-500 mt-0.5 font-medium">
+            <h1 className="text-2xl font-black text-ink tracking-tight">👤 Contatos & Decisores</h1>
+            <p className="text-xs text-ink-2 mt-0.5 font-medium">
               {loading ? 'Carregando...' : `${meta?.total ?? contacts.length} contato${(meta?.total ?? contacts.length) !== 1 ? 's' : ''} no banco de dados`}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-ink-2 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 placeholder="Buscar por nome, cargo, e-mail..."
-                className="bg-white/90 backdrop-blur-xl border border-white/80 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-gray-900 font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
+                className="bg-surface/90 backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
               />
             </div>
             <button
@@ -115,28 +115,28 @@ export function ContactList() {
         )}
 
         {/* Table */}
-        <div className="bg-white/95 backdrop-blur-2xl rounded-[2rem] border border-white/90 shadow-xl overflow-hidden">
+        <div className="bg-surface/95 backdrop-blur-2xl rounded-[2rem] border border-line shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
-                  <th className="p-4 text-[11px] font-black text-gray-500 uppercase tracking-wider">Contato</th>
-                  <th className="p-4 text-[11px] font-black text-gray-500 uppercase tracking-wider hidden md:table-cell">Empresa</th>
-                  <th className="p-4 text-[11px] font-black text-gray-500 uppercase tracking-wider hidden lg:table-cell">Canais</th>
-                  <th className="p-4 text-[11px] font-black text-gray-500 uppercase tracking-wider hidden xl:table-cell">Seniority</th>
-                  <th className="p-4 text-[11px] font-black text-gray-500 uppercase tracking-wider text-right">Ações</th>
+                <tr className="border-b border-line bg-surface-2/60">
+                  <th className="p-4 text-[11px] font-black text-ink-2 uppercase tracking-wider">Contato</th>
+                  <th className="p-4 text-[11px] font-black text-ink-2 uppercase tracking-wider hidden md:table-cell">Empresa</th>
+                  <th className="p-4 text-[11px] font-black text-ink-2 uppercase tracking-wider hidden lg:table-cell">Canais</th>
+                  <th className="p-4 text-[11px] font-black text-ink-2 uppercase tracking-wider hidden xl:table-cell">Seniority</th>
+                  <th className="p-4 text-[11px] font-black text-ink-2 uppercase tracking-wider text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-line">
                 {loading
                   ? [...Array(6)].map((_, i) => <SkeletonRow key={i} />)
                   : error
                   ? (
                     <tr>
                       <td colSpan={5} className="p-16 text-center">
-                        <div className="flex flex-col items-center gap-2 text-gray-400">
-                          <WifiOff className="w-8 h-8 text-gray-300" />
-                          <p className="text-xs text-gray-400">Não foi possível carregar os contatos. Veja o aviso acima.</p>
+                        <div className="flex flex-col items-center gap-2 text-ink-2">
+                          <WifiOff className="w-8 h-8 text-ink-2" />
+                          <p className="text-xs text-ink-2">Não foi possível carregar os contatos. Veja o aviso acima.</p>
                         </div>
                       </td>
                     </tr>
@@ -145,11 +145,11 @@ export function ContactList() {
                   ? (
                     <tr>
                       <td colSpan={5} className="p-16 text-center">
-                        <div className="flex flex-col items-center gap-3 text-gray-400">
-                          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                            <User className="w-8 h-8 text-gray-300" />
+                        <div className="flex flex-col items-center gap-3 text-ink-2">
+                          <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center">
+                            <User className="w-8 h-8 text-ink-2" />
                           </div>
-                          <p className="font-bold text-gray-500">Nenhum contato encontrado</p>
+                          <p className="font-bold text-ink-2">Nenhum contato encontrado</p>
                           <button
                             onClick={() => { setSelectedContact(null); setIsFormOpen(true); }}
                             className="flex items-center gap-2 bg-atlas-orange text-white font-bold text-xs px-4 py-2 rounded-xl cursor-pointer"
@@ -174,14 +174,14 @@ export function ContactList() {
                             {contact.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-extrabold text-gray-900 text-sm">{contact.name}</p>
-                            <p className="text-xs text-gray-500 font-medium">{contact.role || contact.department || '—'}</p>
+                            <p className="font-extrabold text-ink text-sm">{contact.name}</p>
+                            <p className="text-xs text-ink-2 font-medium">{contact.role || contact.department || '—'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="p-4 hidden md:table-cell">
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 font-semibold">
-                          <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-ink-2 font-semibold">
+                          <Building className="w-3.5 h-3.5 text-ink-2 shrink-0" />
                           <span className="truncate max-w-[150px]">
                             {contact.company?.tradeName || contact.company?.legalName || '—'}
                           </span>
@@ -190,13 +190,13 @@ export function ContactList() {
                       <td className="p-4 hidden lg:table-cell">
                         <div className="space-y-0.5">
                           {contact.email && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                            <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
                               <Mail className="w-3 h-3 text-atlas-orange shrink-0" />
                               <span className="truncate max-w-[160px] font-medium">{contact.email}</span>
                             </div>
                           )}
                           {contact.phone && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                            <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
                               <Phone className="w-3 h-3 text-sky-500 shrink-0" />
                               <span className="font-medium">{contact.phone}</span>
                             </div>
@@ -214,7 +214,7 @@ export function ContactList() {
                             </a>
                           )}
                           {contact.linkedin && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                            <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
                               <Linkedin className="w-3 h-3 text-blue-600 shrink-0" />
                               <span className="font-medium">LinkedIn</span>
                             </div>
@@ -265,22 +265,22 @@ export function ContactList() {
 
           {/* Pagination */}
           {!loading && totalPages > 1 && (
-            <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
-              <span className="text-xs text-gray-500 font-semibold">
+            <div className="p-4 border-t border-line bg-surface-2/50 flex items-center justify-between">
+              <span className="text-xs text-ink-2 font-semibold">
                 Página {page} de {totalPages} · {meta?.total ?? 0} contatos
               </span>
               <div className="flex gap-2">
                 <button
                   disabled={page === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="p-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all cursor-pointer"
+                  className="p-2 rounded-xl bg-surface border border-line text-ink-2 hover:bg-surface-2 disabled:opacity-40 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   disabled={page === totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-all cursor-pointer"
+                  className="p-2 rounded-xl bg-surface border border-line text-ink-2 hover:bg-surface-2 disabled:opacity-40 transition-all cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

@@ -32,27 +32,27 @@ const TYPE_COLORS: Record<string, string> = {
 const STATUS_STYLES: Record<string, string> = {
   'pending': 'bg-amber-100 text-amber-700 border-amber-200',
   'done': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'cancelled': 'bg-gray-100 text-gray-500 border-gray-200',
+  'cancelled': 'bg-surface-2 text-ink-2 border-line',
   // pt-BR variants
   'Pendente': 'bg-amber-100 text-amber-700 border-amber-200',
   'Concluída': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  'Cancelada': 'bg-gray-100 text-gray-500 border-gray-200',
+  'Cancelada': 'bg-surface-2 text-ink-2 border-line',
 };
 
 const ACTIVITY_TYPES = ['Ligação', 'E-mail', 'WhatsApp', 'Reunião', 'Visita', 'Follow-up', 'Tarefa'];
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-[1.75rem] border border-gray-100 p-6 animate-pulse space-y-3">
+    <div className="bg-surface rounded-[1.75rem] border border-line p-6 animate-pulse space-y-3">
       <div className="flex items-center justify-between">
-        <div className="h-4 bg-gray-200 rounded-full w-24" />
-        <div className="h-5 bg-gray-200 rounded-full w-20" />
+        <div className="h-4 bg-surface-2 rounded-full w-24" />
+        <div className="h-5 bg-surface-2 rounded-full w-20" />
       </div>
-      <div className="h-3 bg-gray-100 rounded-full w-40 mt-1" />
-      <div className="h-10 bg-gray-100 rounded-2xl w-full mt-2" />
+      <div className="h-3 bg-surface-2 rounded-full w-40 mt-1" />
+      <div className="h-10 bg-surface-2 rounded-2xl w-full mt-2" />
       <div className="flex gap-2 mt-3">
-        <div className="h-8 bg-gray-100 rounded-xl flex-1" />
-        <div className="h-8 bg-gray-100 rounded-xl w-10" />
+        <div className="h-8 bg-surface-2 rounded-xl flex-1" />
+        <div className="h-8 bg-surface-2 rounded-xl w-10" />
       </div>
     </div>
   );
@@ -133,8 +133,8 @@ export function ActivityList() {
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">📅 Agenda de Atividades</h1>
-            <p className="text-xs text-gray-500 mt-0.5 font-medium">
+            <h1 className="text-2xl font-black text-ink tracking-tight">📅 Agenda de Atividades</h1>
+            <p className="text-xs text-ink-2 mt-0.5 font-medium">
               {loading ? 'Carregando...' : `${filtered.length} atividade${filtered.length !== 1 ? 's' : ''} encontrada${filtered.length !== 1 ? 's' : ''}`}
             </p>
           </div>
@@ -142,13 +142,13 @@ export function ActivityList() {
           <div className="flex items-center gap-3">
             {/* Search */}
             <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-ink-2 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por tipo, responsável..."
-                className="bg-white/90 backdrop-blur-xl border border-white/80 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-gray-900 font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
+                className="bg-surface backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
               />
             </div>
 
@@ -183,13 +183,13 @@ export function ActivityList() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-24 space-y-4 text-gray-400"
+            className="flex flex-col items-center justify-center py-24 space-y-4 text-ink-2"
           >
-            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
-              <Calendar className="w-10 h-10 text-gray-300" />
+            <div className="w-20 h-20 rounded-full bg-surface-2 flex items-center justify-center">
+              <Calendar className="w-10 h-10 text-ink-2" />
             </div>
-            <p className="font-extrabold text-gray-500 text-base">Nenhuma atividade encontrada</p>
-            <p className="text-xs text-gray-400">Clique em "Nova Atividade" para começar a agendar compromissos.</p>
+            <p className="font-extrabold text-ink-2 text-base">Nenhuma atividade encontrada</p>
+            <p className="text-xs text-ink-2">Clique em "Nova Atividade" para começar a agendar compromissos.</p>
             <button
               onClick={() => setIsFormOpen(true)}
               className="mt-2 flex items-center gap-2 bg-atlas-orange text-white font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer"
@@ -205,8 +205,8 @@ export function ActivityList() {
             {filtered.map((a, idx) => {
               const typeKey = a.type?.toLowerCase();
               const typeIcon = TYPE_ICONS[typeKey] ?? <ActivityIcon className="w-4 h-4" />;
-              const typeColor = TYPE_COLORS[typeKey] ?? 'bg-gray-100 text-gray-600 border-gray-200';
-              const statusStyle = STATUS_STYLES[a.status] ?? 'bg-gray-100 text-gray-500 border-gray-200';
+              const typeColor = TYPE_COLORS[typeKey] ?? 'bg-surface-2 text-ink-2 border-line';
+              const statusStyle = STATUS_STYLES[a.status] ?? 'bg-surface-2 text-ink-2 border-line';
               const isDone = a.status === 'Concluída';
               const formattedDate = a.date
                 ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
@@ -218,7 +218,7 @@ export function ActivityList() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.03 }}
-                  className={`bg-white/95 backdrop-blur-2xl rounded-[1.75rem] border border-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_50px_rgba(0,0,0,0.12)] transition-all duration-300 p-6 flex flex-col justify-between space-y-4 ${isDone ? 'opacity-60' : ''}`}
+                  className={`bg-surface backdrop-blur-2xl rounded-[1.75rem] border border-line shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:shadow-[0_16px_50px_rgba(0,0,0,0.12)] transition-all duration-300 p-6 flex flex-col justify-between space-y-4 ${isDone ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className={`flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full border ${typeColor}`}>
@@ -230,25 +230,25 @@ export function ActivityList() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-[11px] text-gray-500 font-semibold">
+                    <div className="flex items-center gap-2 text-[11px] text-ink-2 font-semibold">
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{formattedDate}</span>
                       {a.time && <><Clock className="w-3.5 h-3.5 ml-1" /><span>{a.time}</span></>}
                     </div>
                     {a.owner && (
-                      <p className="text-xs text-gray-700 font-bold">👤 {a.owner}</p>
+                      <p className="text-xs text-ink-2 font-bold">👤 {a.owner}</p>
                     )}
                     {a.observations && (
-                      <p className="text-xs text-gray-500 font-medium leading-relaxed line-clamp-2">{a.observations}</p>
+                      <p className="text-xs text-ink-2 font-medium leading-relaxed line-clamp-2">{a.observations}</p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                  <div className="flex items-center gap-2 pt-2 border-t border-line">
                     <button
                       onClick={() => handleToggleStatus(a)}
                       className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] font-extrabold py-2 rounded-xl border transition-all cursor-pointer ${
                         isDone
-                          ? 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                          ? 'bg-surface-2 text-ink-2 border-line hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
                           : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                       }`}
                     >
@@ -275,22 +275,22 @@ export function ActivityList() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-[2.5rem] shadow-2xl border border-white/80 w-full max-w-lg p-8 space-y-5"
+            className="bg-surface rounded-[2.5rem] shadow-2xl border border-line w-full max-w-lg p-8 space-y-5"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-black text-gray-900">Nova Atividade</h3>
-              <button onClick={() => setIsFormOpen(false)} className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 cursor-pointer transition-all">
-                <X className="w-4 h-4 text-gray-600" />
+              <h3 className="text-lg font-black text-ink">Nova Atividade</h3>
+              <button onClick={() => setIsFormOpen(false)} className="p-2 rounded-xl bg-surface-2 hover:bg-line cursor-pointer transition-all">
+                <X className="w-4 h-4 text-ink-2" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-1">Tipo de Atividade</label>
+                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Tipo de Atividade</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
                 >
                   {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -298,46 +298,46 @@ export function ActivityList() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-1">Data</label>
+                  <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Data</label>
                   <input
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-black text-gray-500 uppercase mb-1">Hora (opcional)</label>
+                  <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Hora (opcional)</label>
                   <input
                     type="time"
                     value={form.time}
                     onChange={(e) => setForm({ ...form, time: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-1">Responsável</label>
+                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Responsável</label>
                 <input
                   type="text"
                   value={form.owner}
                   onChange={(e) => setForm({ ...form, owner: e.target.value })}
                   placeholder="Nome do responsável"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-black text-gray-500 uppercase mb-1">Observações</label>
+                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Observações</label>
                 <textarea
                   value={form.observations}
                   onChange={(e) => setForm({ ...form, observations: e.target.value })}
                   placeholder="Detalhes da atividade..."
                   rows={3}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-xs font-semibold text-gray-900 focus:ring-2 focus:ring-atlas-orange focus:outline-none resize-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none resize-none"
                 />
               </div>
 

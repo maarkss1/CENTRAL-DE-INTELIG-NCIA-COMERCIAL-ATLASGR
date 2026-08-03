@@ -108,7 +108,7 @@ export function CompanyList() {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto bg-gray-900 text-slate-100 p-6 md:p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
             {/* Popover de Tecnologia */}
             <ToolTechPopover 
                 info={activeToolPopover} 
@@ -130,22 +130,22 @@ export function CompanyList() {
                 />
 
                 {/* Top Header */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-800/40 p-6 rounded-3xl border border-gray-700/50 backdrop-blur-xl">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-surface p-6 rounded-3xl border border-line backdrop-blur-xl">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-white flex items-center gap-3 tracking-tight">
+                        <h1 className="text-3xl font-extrabold text-ink flex items-center gap-3 tracking-tight">
                             🏢 Empresas & Carteira
                             <span className="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full font-bold">
                                 {companies.length} Mapeadas
                             </span>
                         </h1>
-                        <p className="text-gray-400 text-sm mt-1">Gerencie prospects com visibilidade total do ecossistema de software e inteligência</p>
+                        <p className="text-ink-2 text-sm mt-1">Gerencie prospects com visibilidade total do ecossistema de software e inteligência</p>
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Layout Mode Toggle */}
-                        <div className="bg-gray-800 p-1 rounded-2xl border border-gray-700 flex items-center gap-1">
+                        <div className="bg-surface-2 p-1 rounded-2xl border border-line flex items-center gap-1">
                             <button
                                 onClick={() => setLayoutMode('grid')}
-                                className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'grid' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                                className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'grid' ? 'bg-blue-600 text-white shadow-md' : 'text-ink-2 hover:text-ink'}`}
                                 title="Visão em Cards com Logos de Ferramentas"
                             >
                                 <LayoutGrid className="w-4 h-4" />
@@ -153,7 +153,7 @@ export function CompanyList() {
                             </button>
                             <button
                                 onClick={() => setLayoutMode('table')}
-                                className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-white'}`}
+                                className={`p-2 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold ${layoutMode === 'table' ? 'bg-blue-600 text-white shadow-md' : 'text-ink-2 hover:text-ink'}`}
                                 title="Visão em Tabela Compacta"
                             >
                                 <LayoutList className="w-4 h-4" />
@@ -172,21 +172,21 @@ export function CompanyList() {
                 </div>
 
                 {/* Search & Filter Bar */}
-                <div className="bg-gray-800/60 p-4 rounded-2xl border border-gray-700/60 shadow-lg flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="bg-surface p-4 rounded-2xl border border-line shadow-lg flex flex-col sm:flex-row gap-4 items-center justify-between">
                     <div className="relative flex-1 w-full">
-                        <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Search className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-2" />
                         <input
                             type="text"
                             placeholder="🔎 Buscar por nome, CNPJ, ferramenta (ex: AWS, React, SAP), cidade..."
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                            className="w-full pl-11 pr-4 py-2.5 bg-gray-900/80 border border-gray-700 text-white placeholder-gray-400 rounded-xl focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none text-sm"
+                            className="w-full pl-11 pr-4 py-2.5 bg-surface-2 border border-line text-ink placeholder-ink-2 rounded-xl focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none text-sm"
                         />
                     </div>
                     {searchTerm && (
-                        <button 
-                            onClick={() => setSearchTerm('')} 
-                            className="text-xs text-gray-400 hover:text-white px-3 py-1.5 bg-gray-700/50 rounded-xl transition-colors shrink-0"
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="text-xs text-ink-2 hover:text-ink px-3 py-1.5 bg-surface-2 rounded-xl transition-colors shrink-0"
                         >
                             Limpar busca
                         </button>
@@ -195,12 +195,12 @@ export function CompanyList() {
 
                 {/* CONTENT AREA: Cards Grid vs Table View */}
                 {loading ? (
-                    <div className="p-16 text-center bg-gray-800/30 rounded-3xl border border-gray-800 flex flex-col items-center gap-4">
+                    <div className="p-16 text-center bg-surface rounded-3xl border border-line flex flex-col items-center gap-4">
                         <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        <p className="text-gray-400 font-medium text-sm">Carregando carteira de empresas e logos de ferramentas...</p>
+                        <p className="text-ink-2 font-medium text-sm">Carregando carteira de empresas e logos de ferramentas...</p>
                     </div>
                 ) : error ? (
-                    <div className="bg-gray-800/40 border border-gray-700/50 rounded-3xl p-8">
+                    <div className="bg-surface border border-line rounded-3xl p-8">
                         <EmptyState
                             title="Não foi possível carregar as empresas"
                             description={error}
@@ -210,7 +210,7 @@ export function CompanyList() {
                         />
                     </div>
                 ) : companies.length === 0 ? (
-                    <div className="bg-gray-800/40 border border-gray-700/50 rounded-3xl p-8">
+                    <div className="bg-surface border border-line rounded-3xl p-8">
                         <EmptyState
                             title="Nenhuma empresa encontrada"
                             description="Não encontramos empresas cadastradas com os filtros atuais."
@@ -230,7 +230,7 @@ export function CompanyList() {
                             return (
                                 <div
                                     key={company.id}
-                                    className={`bg-gray-800/50 hover:bg-gray-800/90 border border-gray-700/60 hover:border-blue-500/40 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 shadow-lg hover:shadow-2xl flex flex-col justify-between group relative overflow-hidden ${selectedIds.has(company.id) ? 'ring-2 ring-blue-500 bg-blue-950/20' : ''}`}
+                                    className={`bg-surface hover:bg-surface-2 border border-line hover:border-blue-500/40 rounded-3xl p-6 transition-all duration-300 transform hover:-translate-y-1 shadow-lg hover:shadow-2xl flex flex-col justify-between group relative overflow-hidden ${selectedIds.has(company.id) ? 'ring-2 ring-blue-500 bg-blue-950/20' : ''}`}
                                 >
                                     {/* Top card info */}
                                     <div className="space-y-4">
@@ -238,11 +238,11 @@ export function CompanyList() {
                                             <div className="flex items-center gap-3">
                                                 <input
                                                     type="checkbox"
-                                                    className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                    className="w-4 h-4 rounded border-line bg-surface-2 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                                     checked={selectedIds.has(company.id)}
                                                     onChange={() => toggleSelection(company.id)}
                                                 />
-                                                <div 
+                                                <div
                                                     onClick={() => { setSelectedCompany(company); setViewMode('detail'); }}
                                                     className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0 cursor-pointer group-hover:scale-105 transition-transform overflow-hidden"
                                                 >
@@ -256,40 +256,40 @@ export function CompanyList() {
 
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
                                                 company.status === 'Ativo' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                'bg-gray-700/40 text-gray-400 border-gray-600'
+                                                'bg-surface-2 text-ink-2 border-line'
                                             }`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'Ativo' ? 'bg-green-400 animate-ping' : 'bg-gray-400'}`} />
+                                                <span className={`w-1.5 h-1.5 rounded-full ${company.status === 'Ativo' ? 'bg-green-400 animate-ping' : 'bg-ink-2'}`} />
                                                 {company.status}
                                             </span>
                                         </div>
 
                                         <div className="cursor-pointer" onClick={() => { setSelectedCompany(company); setViewMode('detail'); }}>
-                                            <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-1">
+                                            <h3 className="text-lg font-bold text-ink group-hover:text-blue-400 transition-colors line-clamp-1">
                                                 {company.tradeName || company.legalName}
                                             </h3>
-                                            <p className="text-xs text-gray-400 font-mono mt-0.5">
+                                            <p className="text-xs text-ink-2 font-mono mt-0.5">
                                                 {company.cnpj || 'CNPJ Não informado'}
                                             </p>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2 text-xs text-gray-400">
+                                        <div className="flex flex-wrap gap-2 text-xs text-ink-2">
                                             {company.segment && (
-                                                <span className="bg-gray-900/60 px-2.5 py-1 rounded-lg border border-gray-700/50 flex items-center gap-1 text-gray-300">
-                                                    <Building className="w-3.5 h-3.5 text-gray-400" />
+                                                <span className="bg-surface-2 px-2.5 py-1 rounded-lg border border-line flex items-center gap-1 text-ink-2">
+                                                    <Building className="w-3.5 h-3.5 text-ink-2" />
                                                     {company.segment}
                                                 </span>
                                             )}
                                             {(company.city || company.state) && (
-                                                <span className="bg-gray-900/60 px-2.5 py-1 rounded-lg border border-gray-700/50 flex items-center gap-1 text-gray-300">
-                                                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                                <span className="bg-surface-2 px-2.5 py-1 rounded-lg border border-line flex items-center gap-1 text-ink-2">
+                                                    <MapPin className="w-3.5 h-3.5 text-ink-2" />
                                                     {company.city}{company.state ? `, ${company.state}` : ''}
                                                 </span>
                                             )}
                                         </div>
 
                                         {/* LOGOS DAS FERRAMENTAS DA EMPRESA */}
-                                        <div className="pt-3 border-t border-gray-700/40 space-y-2">
-                                            <p className="text-[11px] uppercase tracking-wider font-extrabold text-gray-400 flex items-center gap-1">
+                                        <div className="pt-3 border-t border-line space-y-2">
+                                            <p className="text-[11px] uppercase tracking-wider font-extrabold text-ink-2 flex items-center gap-1">
                                                 <Wrench className="w-3 h-3 text-blue-400" />
                                                 Ferramentas & Tech Stack
                                             </p>
@@ -303,7 +303,7 @@ export function CompanyList() {
                                                     />
                                                 ))}
                                                 {techStack.length > 5 && (
-                                                    <span className="text-[11px] text-gray-400 px-2 py-0.5 rounded-lg bg-gray-900/40 border border-gray-700/50 flex items-center">
+                                                    <span className="text-[11px] text-ink-2 px-2 py-0.5 rounded-lg bg-surface-2 border border-line flex items-center">
                                                         +{techStack.length - 5}
                                                     </span>
                                                 )}
@@ -312,7 +312,7 @@ export function CompanyList() {
                                     </div>
 
                                     {/* Action Footer */}
-                                    <div className="mt-5 pt-3 border-t border-gray-700/40 flex items-center justify-between">
+                                    <div className="mt-5 pt-3 border-t border-line flex items-center justify-between">
                                         <button
                                             onClick={() => { setSelectedCompany(company); setViewMode('detail'); }}
                                             className="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
@@ -325,21 +325,21 @@ export function CompanyList() {
                                             <button
                                                 onClick={() => handleEnrich(company.id)}
                                                 disabled={enrichingId === company.id}
-                                                className="p-2 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl transition-colors"
+                                                className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-xl transition-colors"
                                                 title="✨ Enriquecer com IA"
                                             >
                                                 {enrichingId === company.id ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <Sparkles className="w-4 h-4" />}
                                             </button>
                                             <button
                                                 onClick={() => { setSelectedCompany(company); setIsFormOpen(true); }}
-                                                className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors"
+                                                className="p-2 text-ink-2 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors"
                                                 title="Editar"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(company.id)}
-                                                className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                                                className="p-2 text-ink-2 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
                                                 title="Excluir"
                                             >
                                                 <Trash className="w-4 h-4" />
@@ -352,39 +352,39 @@ export function CompanyList() {
                     </div>
                 ) : (
                     /* TABLE VIEW */
-                    <div className="bg-gray-800/50 rounded-3xl border border-gray-700/60 overflow-hidden shadow-xl">
+                    <div className="bg-surface rounded-3xl border border-line overflow-hidden shadow-xl">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-gray-700/60 bg-gray-800/80">
+                                    <tr className="border-b border-line bg-surface-2">
                                         <th className="p-4 w-12">
-                                            <input 
-                                                type="checkbox" 
-                                                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 rounded border-line bg-surface-2 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                                 checked={companies.length > 0 && selectedIds.size === companies.length}
                                                 onChange={toggleAll}
                                             />
                                         </th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400">Empresa</th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400">Ferramentas Mapeadas</th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400 hidden md:table-cell">Segmento</th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400 hidden lg:table-cell">Localização</th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400">Status</th>
-                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-gray-400 text-right">Ações</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2">Empresa</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2">Ferramentas Mapeadas</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2 hidden md:table-cell">Segmento</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2 hidden lg:table-cell">Localização</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2">Status</th>
+                                        <th className="p-4 text-xs font-bold uppercase tracking-wider text-ink-2 text-right">Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-700/40">
+                                <tbody className="divide-y divide-line">
                                     {companies.map((company) => {
                                         const techStack = company.technologies && company.technologies.length > 0
                                             ? company.technologies
                                             : ['React', 'AWS'];
 
                                         return (
-                                            <tr key={company.id} className={`hover:bg-gray-700/30 transition-colors group ${selectedIds.has(company.id) ? 'bg-blue-950/20' : ''}`}>
+                                            <tr key={company.id} className={`hover:bg-surface-2 transition-colors group ${selectedIds.has(company.id) ? 'bg-blue-950/20' : ''}`}>
                                                 <td className="p-4">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                    <input
+                                                        type="checkbox"
+                                                        className="w-4 h-4 rounded border-line bg-surface-2 text-blue-600 focus:ring-blue-500 cursor-pointer"
                                                         checked={selectedIds.has(company.id)}
                                                         onChange={() => toggleSelection(company.id)}
                                                     />
@@ -399,8 +399,8 @@ export function CompanyList() {
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <p className="font-bold text-white hover:text-blue-400 transition-colors">{company.tradeName || company.legalName}</p>
-                                                            <p className="text-xs text-gray-400 font-mono">{company.cnpj || 'Sem CNPJ'}</p>
+                                                            <p className="font-bold text-ink hover:text-blue-400 transition-colors">{company.tradeName || company.legalName}</p>
+                                                            <p className="text-xs text-ink-2 font-mono">{company.cnpj || 'Sem CNPJ'}</p>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -416,22 +416,22 @@ export function CompanyList() {
                                                             />
                                                         ))}
                                                         {techStack.length > 3 && (
-                                                            <span className="text-[10px] text-gray-400 px-1.5 py-0.5 rounded bg-gray-900 border border-gray-700">
+                                                            <span className="text-[10px] text-ink-2 px-1.5 py-0.5 rounded bg-surface-2 border border-line">
                                                                 +{techStack.length - 3}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="p-4 hidden md:table-cell text-sm text-gray-300">
+                                                <td className="p-4 hidden md:table-cell text-sm text-ink-2">
                                                     {company.segment || '-'}
                                                 </td>
-                                                <td className="p-4 hidden lg:table-cell text-sm text-gray-300">
+                                                <td className="p-4 hidden lg:table-cell text-sm text-ink-2">
                                                     {company.city ? `${company.city}, ${company.state}` : '-'}
                                                 </td>
                                                 <td className="p-4">
                                                     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
                                                         company.status === 'Ativo' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                                        'bg-gray-700/40 text-gray-400 border-gray-600'
+                                                        'bg-surface-2 text-ink-2 border-line'
                                                     }`}>
                                                         {company.status}
                                                     </span>
@@ -441,21 +441,21 @@ export function CompanyList() {
                                                         <button
                                                             onClick={() => handleEnrich(company.id)}
                                                             disabled={enrichingId === company.id}
-                                                            className="p-2 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
+                                                            className="p-2 text-ink-2 hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-colors"
                                                             title="✨ Enriquecer"
                                                         >
                                                             {enrichingId === company.id ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <Sparkles className="w-4 h-4" />}
                                                         </button>
                                                         <button
                                                             onClick={() => { setSelectedCompany(company); setIsFormOpen(true); }}
-                                                            className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                            className="p-2 text-ink-2 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                                                             title="Editar"
                                                         >
                                                             <Edit className="w-4 h-4" />
                                                         </button>
                                                         <button
                                                             onClick={() => handleDelete(company.id)}
-                                                            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                            className="p-2 text-ink-2 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                                                             title="Excluir"
                                                         >
                                                             <Trash className="w-4 h-4" />
@@ -473,22 +473,22 @@ export function CompanyList() {
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="p-4 bg-gray-800/40 border border-gray-700/50 rounded-2xl flex justify-between items-center text-sm">
-                        <span className="text-gray-400">
-                            Página <strong className="text-white">{page}</strong> de <strong className="text-white">{totalPages}</strong>
+                    <div className="p-4 bg-surface border border-line rounded-2xl flex justify-between items-center text-sm">
+                        <span className="text-ink-2">
+                            Página <strong className="text-ink">{page}</strong> de <strong className="text-ink">{totalPages}</strong>
                         </span>
                         <div className="flex gap-2">
                             <button
                                 disabled={page === 1}
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                                className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors font-medium cursor-pointer"
+                                className="px-4 py-2 bg-surface-2 border border-line text-ink-2 rounded-xl hover:bg-surface disabled:opacity-50 transition-colors font-medium cursor-pointer"
                             >
                                 Anterior
                             </button>
                             <button
                                 disabled={page === totalPages}
                                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-xl hover:bg-gray-700 disabled:opacity-50 transition-colors font-medium cursor-pointer"
+                                className="px-4 py-2 bg-surface-2 border border-line text-ink-2 rounded-xl hover:bg-surface disabled:opacity-50 transition-colors font-medium cursor-pointer"
                             >
                                 Próxima
                             </button>
@@ -507,12 +507,12 @@ export function CompanyList() {
 
             {/* Floating Bulk Actions Toolbar */}
             {selectedIds.size > 0 && (
-                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 border border-blue-500/40 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 z-50 animate-in slide-in-from-bottom-5 duration-300 backdrop-blur-xl">
+                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-surface border border-blue-500/40 text-ink px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 z-50 animate-in slide-in-from-bottom-5 duration-300 backdrop-blur-xl">
                     <div className="flex items-center gap-2">
                         <span className="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-extrabold">{selectedIds.size}</span>
                         <span className="text-sm font-bold">empresas selecionadas</span>
                     </div>
-                    <div className="w-px h-6 bg-gray-700"></div>
+                    <div className="w-px h-6 bg-line"></div>
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleBulkEnrich}

@@ -203,21 +203,21 @@ export function Base() {
 
     return (
         <div
-            className="flex-1 overflow-y-auto bg-slate-950 p-8"
+            className="flex-1 overflow-y-auto bg-transparent p-8"
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
         >
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Cabeçalho */}
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <Database className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Base de Conhecimento</h1>
-                            <p className="text-sm text-gray-400">
+                            <h1 className="text-3xl font-bold text-ink">Base de Conhecimento</h1>
+                            <p className="text-sm text-ink-2">
                                 {loadingDocs
                                     ? 'Carregando…'
                                     : `${documents.length} documento${documents.length === 1 ? '' : 's'} · ${totalChunks} trecho${totalChunks === 1 ? '' : 's'} indexado${totalChunks === 1 ? '' : 's'}`}
@@ -254,12 +254,12 @@ export function Base() {
                 {/* Busca */}
                 <form onSubmit={handleSearch}>
                     <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-2" />
                         <input
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Pergunte em linguagem natural: como reduzir sinistro de carga?"
-                            className="w-full bg-slate-900/60 border border-white/10 rounded-2xl pl-12 pr-32 py-4 text-sm text-white placeholder-gray-500 outline-none transition-all focus:border-atlas-orange"
+                            className="w-full bg-surface border border-line rounded-2xl pl-12 pr-32 py-4 text-sm text-ink placeholder-ink-2 outline-none transition-all focus:border-atlas-orange"
                         />
                         <Button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2" disabled={searching}>
                             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
@@ -271,14 +271,14 @@ export function Base() {
                 {results && (
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-semibold text-gray-300">
+                            <h2 className="text-sm font-semibold text-ink-2">
                                 {results.hits.length === 0
                                     ? 'Nenhum trecho encontrado'
                                     : `${results.hits.length} trecho${results.hits.length === 1 ? '' : 's'} relevante${results.hits.length === 1 ? '' : 's'}`}
                             </h2>
                             <button
                                 onClick={() => { setResults(null); setQuery(''); }}
-                                className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+                                className="text-xs text-ink-2 hover:text-ink transition-colors"
                             >
                                 Limpar busca
                             </button>
@@ -292,12 +292,12 @@ export function Base() {
                         )}
 
                         {results.hits.map((hit) => (
-                            <Card key={hit.chunkId} padding="sm" className="hover:border-white/20 transition-colors">
+                            <Card key={hit.chunkId} padding="sm" className="hover:border-line transition-colors">
                                 <div className="flex items-start justify-between gap-4 mb-2">
                                     <div className="flex items-center gap-2 min-w-0">
                                         <FileText className={`w-4 h-4 shrink-0 ${accent.text}`} />
-                                        <span className="text-sm font-semibold text-white truncate">{hit.documentTitle}</span>
-                                        <span className="text-[11px] text-gray-500 shrink-0">trecho #{hit.chunkIndex + 1}</span>
+                                        <span className="text-sm font-semibold text-ink truncate">{hit.documentTitle}</span>
+                                        <span className="text-[11px] text-ink-2 shrink-0">trecho #{hit.chunkIndex + 1}</span>
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         {hit.matchedBy.includes('semantic') && (
@@ -311,13 +311,13 @@ export function Base() {
                                             </span>
                                         )}
                                         {hit.similarity != null && (
-                                            <span className="text-[10px] font-mono text-gray-500">
+                                            <span className="text-[10px] font-mono text-ink-2">
                                                 {(hit.similarity * 100).toFixed(0)}%
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                <p className="text-sm text-ink-2 leading-relaxed whitespace-pre-wrap">
                                     <Highlighted text={hit.content} query={results.query} />
                                 </p>
                             </Card>
@@ -326,7 +326,7 @@ export function Base() {
                         {results.hits.length === 0 && (
                             <Card padding="lg" className="text-center">
                                 <Search className="w-10 h-10 mx-auto mb-3 text-gray-600" />
-                                <p className="text-sm text-gray-400">
+                                <p className="text-sm text-ink-2">
                                     Nada encontrado para “{results.query}”. Tente outras palavras ou envie mais documentos.
                                 </p>
                             </Card>
@@ -336,10 +336,10 @@ export function Base() {
 
                 {/* Documentos */}
                 <div className="space-y-3">
-                    <h2 className="text-sm font-semibold text-gray-300">Documentos</h2>
+                    <h2 className="text-sm font-semibold text-ink-2">Documentos</h2>
 
                     {loadingDocs && (
-                        <Card padding="lg" className="text-center text-gray-400 text-sm">
+                        <Card padding="lg" className="text-center text-ink-2 text-sm">
                             <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" /> Carregando documentos…
                         </Card>
                     )}
@@ -347,7 +347,7 @@ export function Base() {
                     {loadError && !loadingDocs && (
                         <Card padding="lg" className="text-center">
                             <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                            <p className="text-sm text-gray-300 mb-4">{loadError}</p>
+                            <p className="text-sm text-ink-2 mb-4">{loadError}</p>
                             <Button variant="outline" onClick={() => void loadDocuments()}>Tentar novamente</Button>
                         </Card>
                     )}
@@ -355,8 +355,8 @@ export function Base() {
                     {!loadingDocs && !loadError && documents.length === 0 && (
                         <Card padding="lg" className="text-center border-dashed">
                             <Database className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                            <h3 className="text-lg font-semibold text-white mb-1">Nenhum documento ainda</h3>
-                            <p className="text-sm text-gray-400 mb-5 max-w-md mx-auto">
+                            <h3 className="text-lg font-semibold text-ink mb-1">Nenhum documento ainda</h3>
+                            <p className="text-sm text-ink-2 mb-5 max-w-md mx-auto">
                                 Envie propostas, playbooks, tabelas de preço ou apresentações. O conteúdo vira
                                 busca semântica para toda a equipe comercial.
                             </p>
@@ -377,10 +377,10 @@ export function Base() {
                     {documents.map((doc) => (
                         <Card key={doc.id} padding="sm" className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-3 min-w-0">
-                                <FileText className="w-5 h-5 text-gray-500 shrink-0" />
+                                <FileText className="w-5 h-5 text-ink-2 shrink-0" />
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate">{doc.title}</p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-sm font-semibold text-ink truncate">{doc.title}</p>
+                                    <p className="text-xs text-ink-2">
                                         {doc.chunkCount} trecho{doc.chunkCount === 1 ? '' : 's'} · {formatDate(doc.createdAt)}
                                         {doc.sourceName && ` · ${doc.sourceName}`}
                                     </p>
@@ -391,7 +391,7 @@ export function Base() {
                                     onClick={() => void handleReembed(doc)}
                                     disabled={busyDocId === doc.id}
                                     title="Regerar embeddings que falharam"
-                                    className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
+                                    className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors disabled:opacity-40"
                                 >
                                     {busyDocId === doc.id
                                         ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -401,7 +401,7 @@ export function Base() {
                                     onClick={() => void handleDelete(doc)}
                                     disabled={busyDocId === doc.id}
                                     title="Remover documento"
-                                    className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                                    className="p-2 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -427,10 +427,10 @@ export function Base() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
                     <Card className="w-full max-w-2xl" accentBar>
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-white">Adicionar texto à base</h2>
+                            <h2 className="text-lg font-bold text-ink">Adicionar texto à base</h2>
                             <button
                                 onClick={() => setPasteOpen(false)}
-                                className="p-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -441,21 +441,21 @@ export function Base() {
                                 value={pasteTitle}
                                 onChange={(e) => setPasteTitle(e.target.value)}
                                 placeholder="Título — ex: Playbook de objeções 2026"
-                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-atlas-orange transition-colors"
+                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors"
                             />
                             <textarea
                                 value={pasteContent}
                                 onChange={(e) => setPasteContent(e.target.value)}
                                 rows={12}
                                 placeholder="Cole aqui o conteúdo que a equipe precisa consultar…"
-                                className="w-full bg-slate-950/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-atlas-orange transition-colors resize-none"
+                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors resize-none"
                             />
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-ink-2">
                                 {pasteContent.length.toLocaleString('pt-BR')} caracteres
                             </p>
                         </div>
 
-                        <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-white/10">
+                        <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
                             <Button variant="outline" onClick={() => setPasteOpen(false)} disabled={uploading}>
                                 Cancelar
                             </Button>

@@ -28,15 +28,15 @@ export function AiToolBuilder() {
   };
 
   return (
-    <div className="bg-white/95 backdrop-blur-3xl p-8 rounded-[3rem] border border-white/90 shadow-2xl space-y-6 text-gray-900">
-      <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+    <div className="bg-surface/95 backdrop-blur-3xl p-8 rounded-[3rem] border border-line/90 shadow-2xl space-y-6 text-ink">
+      <div className="flex items-center justify-between border-b border-line pb-4">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-2xl bg-orange-100 text-atlas-orange border border-orange-200">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-xl font-black tracking-tight">Estúdio de Criação de Novas Ferramentas de IA</h2>
-            <p className="text-xs text-gray-500 font-medium">Crie e publique seus próprios geradores e copilotos comerciais customizados</p>
+            <p className="text-xs text-ink-2 font-medium">Crie e publique seus próprios geradores e copilotos comerciais customizados</p>
           </div>
         </div>
         <span className="px-3 py-1 bg-orange-50 text-atlas-orange text-xs font-black rounded-full border border-orange-200">
@@ -46,29 +46,29 @@ export function AiToolBuilder() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Formulário de Criação */}
-        <form onSubmit={handleCreate} className="lg:col-span-7 space-y-4 bg-gray-50/80 p-6 rounded-3xl border border-gray-200">
-          <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
+        <form onSubmit={handleCreate} className="lg:col-span-7 space-y-4 bg-surface-2/80 p-6 rounded-3xl border border-line">
+          <h3 className="font-extrabold text-sm text-ink-2 flex items-center gap-2">
             <Plus className="w-4 h-4 text-atlas-orange" /> Configurar Nova Ferramenta Customizada
           </h3>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Nome da Ferramenta IA</label>
+            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Nome da Ferramenta IA</label>
             <input
               type="text"
               value={toolName}
               onChange={(e) => setToolName(e.target.value)}
               placeholder="Ex: Gerador de Proposta Comercial para Frotas de Carga"
-              className="w-full bg-white border border-gray-300 rounded-2xl px-4 py-3 text-xs text-gray-900 font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Categoria de Aplicação</label>
+            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Categoria de Aplicação</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-white border border-gray-300 rounded-2xl px-4 py-3 text-xs text-gray-900 font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
             >
               <option value="Outbound SDR">Outbound SDR & Cadência</option>
               <option value="Qualificação B2B">Qualificação B2B & MEDDPICC</option>
@@ -78,13 +78,13 @@ export function AiToolBuilder() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">Instruções de Prompt do Sistema (AI Engine)</label>
+            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Instruções de Prompt do Sistema (AI Engine)</label>
             <textarea
               rows={4}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Digite o comportamento e instruções para o modelo de inteligência artificial..."
-              className="w-full bg-white border border-gray-300 rounded-2xl p-4 text-xs text-gray-900 font-medium focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl p-4 text-xs text-ink font-medium focus:ring-2 focus:ring-atlas-orange focus:outline-none"
               required
             />
           </div>
@@ -100,20 +100,20 @@ export function AiToolBuilder() {
 
         {/* Lista de Ferramentas Criadas */}
         <div className="lg:col-span-5 space-y-4">
-          <h3 className="font-extrabold text-sm text-gray-800 flex items-center gap-2">
+          <h3 className="font-extrabold text-sm text-ink-2 flex items-center gap-2">
             <Bot className="w-4 h-4 text-indigo-600" /> Ferramentas Customizadas Publicadas ({createdTools.length})
           </h3>
 
           <div className="space-y-3">
             {createdTools.map((t) => (
-              <div key={t.id} className="p-4 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-1">
+              <div key={t.id} className="p-4 rounded-2xl bg-surface border border-line shadow-sm space-y-1">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs text-gray-900">{t.name}</h4>
-                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold border border-gray-200">
+                  <h4 className="font-bold text-xs text-ink">{t.name}</h4>
+                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-surface-2 text-ink-2 font-bold border border-line">
                     {t.category}
                   </span>
                 </div>
-                <p className="text-[11px] text-gray-500 line-clamp-2">{t.prompt}</p>
+                <p className="text-[11px] text-ink-2 line-clamp-2">{t.prompt}</p>
               </div>
             ))}
           </div>

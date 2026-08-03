@@ -158,7 +158,7 @@ export const AIConfigCenter: React.FC = () => {
 
       <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400 gap-2">
+          <div className="flex items-center justify-center py-16 text-ink-2 gap-2">
             <Loader2 size={20} className="animate-spin" /> Carregando configurações…
           </div>
         ) : (
@@ -168,20 +168,20 @@ export const AIConfigCenter: React.FC = () => {
               return (
                 <div
                   key={tool.key}
-                  className="rounded-card border border-white/10 bg-white/[0.03] p-4 flex flex-col gap-3"
+                  className="rounded-card border border-line bg-surface-2 p-4 flex flex-col gap-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-sm text-gray-100">{tool.label}</span>
+                    <span className="font-semibold text-sm text-ink">{tool.label}</span>
                     <Badge variant="gradient">{setting.provider}</Badge>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="flex flex-col gap-1 text-xs text-gray-400">
+                    <label className="flex flex-col gap-1 text-xs text-ink-2">
                       Modelo
                       <select
                         value={setting.model}
                         onChange={(e) => handleModelChange(tool.key, e.target.value)}
-                        className="bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-atlas-orange"
+                        className="bg-surface-2 border border-line rounded-lg px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-atlas-orange"
                       >
                         {MODEL_OPTIONS.map((m) => (
                           <option key={m.value} value={m.value}>
@@ -191,7 +191,7 @@ export const AIConfigCenter: React.FC = () => {
                       </select>
                     </label>
 
-                    <label className="flex flex-col gap-1 text-xs text-gray-400">
+                    <label className="flex flex-col gap-1 text-xs text-ink-2">
                       Temperatura ({setting.temperature.toFixed(2)})
                       <input
                         type="range"

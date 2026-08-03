@@ -170,19 +170,19 @@ export function CrmBoard() {
     }, [leads]);
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-gray-900 text-slate-100 animate-in fade-in duration-500 overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-bg text-ink animate-in fade-in duration-500 overflow-hidden">
             {/* Header com estilo moderno */}
-            <div className="p-6 border-b border-gray-800 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gray-900/90 backdrop-blur-xl shrink-0 gap-4">
+            <div className="p-6 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between bg-bg/90 backdrop-blur-xl shrink-0 gap-4">
                 <div>
-                    <h2 className="font-extrabold text-2xl text-white tracking-tight flex items-center gap-2">
+                    <h2 className="font-extrabold text-2xl text-ink tracking-tight flex items-center gap-2">
                         🎯 {brandInfo.name} Sales Cloud (Pipeline CRM)
                     </h2>
-                    <p className="text-gray-400 text-xs mt-1">Arraste os cards para avançar no funil comercial e veja as ferramentas mapeadas em cada conta</p>
+                    <p className="text-ink-2 text-xs mt-1">Arraste os cards para avançar no funil comercial e veja as ferramentas mapeadas em cada conta</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => toast.info('Importação direta do Bitrix24 ainda não está disponível — chegando em breve.')}
-                        className="flex items-center gap-2 bg-gray-800 border border-gray-700 text-gray-300 px-4 py-2 rounded-xl font-bold text-xs hover:bg-gray-700 transition-colors"
+                        className="flex items-center gap-2 bg-surface-2 border border-line text-ink-2 px-4 py-2 rounded-xl font-bold text-xs hover:bg-surface transition-colors"
                         title="Importar leads do Bitrix24 (em breve)"
                     >
                         <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 Importar do Bitrix24 (em breve)
@@ -206,12 +206,12 @@ export function CrmBoard() {
                 />
             </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-gray-950/50">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-surface-2/50">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
                             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-gray-400 font-medium text-sm">Carregando pipeline comercial...</p>
+                            <p className="text-ink-2 font-medium text-sm">Carregando pipeline comercial...</p>
                         </div>
                     </div>
                 ) : error ? (

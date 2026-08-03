@@ -89,20 +89,20 @@ function DayCell({ date, inMonth, isToday, activities, onOpen }: {
     return (
         <div
             ref={setNodeRef}
-            className={`min-h-[104px] p-1.5 border border-white/5 flex flex-col gap-1 transition-colors ${
-                inMonth ? 'bg-slate-900/40' : 'bg-slate-900/10'
+            className={`min-h-[104px] p-1.5 border border-line flex flex-col gap-1 transition-colors ${
+                inMonth ? 'bg-surface-2' : 'bg-surface-2/40'
             } ${isOver ? `${accent.bgSoft} ring-1 ${accent.border}` : ''}`}
         >
             <div className="flex items-center justify-between">
                 <span
                     className={`text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full ${
-                        isToday ? `${accent.bg} text-white` : inMonth ? 'text-gray-300' : 'text-gray-600'
+                        isToday ? `${accent.bg} text-white` : inMonth ? 'text-ink-2' : 'text-gray-600'
                     }`}
                 >
                     {date.getDate()}
                 </span>
                 {activities.length > 0 && (
-                    <span className="text-[10px] text-gray-500">{activities.length}</span>
+                    <span className="text-[10px] text-ink-2">{activities.length}</span>
                 )}
             </div>
 
@@ -111,7 +111,7 @@ function DayCell({ date, inMonth, isToday, activities, onOpen }: {
                 {hidden > 0 && (
                     <button
                         onClick={() => onOpen(activities[visible.length])}
-                        className="text-[10px] text-gray-500 hover:text-gray-300 text-left transition-colors"
+                        className="text-[10px] text-ink-2 hover:text-ink text-left transition-colors"
                     >
                         +{hidden} {hidden === 1 ? 'outra' : 'outras'}
                     </button>
@@ -204,16 +204,16 @@ export function Calendar() {
     const monthLabel = reference.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-950 p-8">
+        <div className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <CalendarDays className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white capitalize">{monthLabel}</h1>
-                            <p className="text-sm text-gray-400">
+                            <h1 className="text-3xl font-bold text-ink capitalize">{monthLabel}</h1>
+                            <p className="text-sm text-ink-2">
                                 {loading
                                     ? 'Carregando…'
                                     : `${activities.length} atividade${activities.length === 1 ? '' : 's'} no período · arraste para remarcar`}
@@ -235,16 +235,16 @@ export function Calendar() {
                 {error && (
                     <Card padding="lg" className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                        <p className="text-sm text-gray-300 mb-4">{error}</p>
+                        <p className="text-sm text-ink-2 mb-4">{error}</p>
                         <Button variant="outline" onClick={() => void load(reference)}>Tentar novamente</Button>
                     </Card>
                 )}
 
                 {!error && (
                     <Card padding="none" className={`overflow-hidden transition-opacity ${loading ? 'opacity-60' : ''}`}>
-                        <div className="grid grid-cols-7 border-b border-white/10">
+                        <div className="grid grid-cols-7 border-b border-line">
                             {WEEKDAYS.map((d) => (
-                                <div key={d} className="py-2 text-center text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                                <div key={d} className="py-2 text-center text-[11px] font-bold uppercase tracking-wide text-ink-2">
                                     {d}
                                 </div>
                             ))}
@@ -280,8 +280,8 @@ export function Calendar() {
                 {!loading && !error && activities.length === 0 && (
                     <Card padding="lg" className="text-center border-dashed">
                         <CalendarDays className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-white mb-1">Nenhuma atividade neste mês</h3>
-                        <p className="text-sm text-gray-400">
+                        <h3 className="text-lg font-semibold text-ink mb-1">Nenhuma atividade neste mês</h3>
+                        <p className="text-sm text-ink-2">
                             As atividades criadas na Agenda e no CRM aparecem aqui automaticamente.
                         </p>
                     </Card>
@@ -294,12 +294,12 @@ export function Calendar() {
                     <Card className="w-full max-w-md" accentBar>
                         <div className="flex items-start justify-between mb-4 gap-4">
                             <div>
-                                <h2 className="text-lg font-bold text-white">{selected.type}</h2>
-                                <p className="text-sm text-gray-400">{activitySubject(selected)}</p>
+                                <h2 className="text-lg font-bold text-ink">{selected.type}</h2>
+                                <p className="text-sm text-ink-2">{activitySubject(selected)}</p>
                             </div>
                             <button
                                 onClick={() => setSelected(null)}
-                                className="p-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+                                className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                                 aria-label="Fechar"
                             >
                                 <X className="w-5 h-5" />
@@ -308,32 +308,32 @@ export function Calendar() {
 
                         <dl className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <dt className="text-gray-500">Data</dt>
-                                <dd className="text-gray-200">
+                                <dt className="text-ink-2">Data</dt>
+                                <dd className="text-ink">
                                     {new Date(selected.date).toLocaleDateString('pt-BR', { dateStyle: 'full' })}
                                 </dd>
                             </div>
                             <div className="flex justify-between">
-                                <dt className="text-gray-500">Horário</dt>
-                                <dd className="text-gray-200">{timeLabel(selected)}</dd>
+                                <dt className="text-ink-2">Horário</dt>
+                                <dd className="text-ink">{timeLabel(selected)}</dd>
                             </div>
                             <div className="flex justify-between">
-                                <dt className="text-gray-500">Responsável</dt>
-                                <dd className="text-gray-200">{selected.owner}</dd>
+                                <dt className="text-ink-2">Responsável</dt>
+                                <dd className="text-ink">{selected.owner}</dd>
                             </div>
                             <div className="flex justify-between">
-                                <dt className="text-gray-500">Status</dt>
-                                <dd className="text-gray-200">{selected.status}</dd>
+                                <dt className="text-ink-2">Status</dt>
+                                <dd className="text-ink">{selected.status}</dd>
                             </div>
                         </dl>
 
                         {selected.observations && (
-                            <p className="mt-3 text-sm text-gray-300 bg-white/5 rounded-xl p-3 whitespace-pre-wrap">
+                            <p className="mt-3 text-sm text-ink-2 bg-surface-2 rounded-xl p-3 whitespace-pre-wrap">
                                 {selected.observations}
                             </p>
                         )}
 
-                        <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-white/10">
+                        <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
                             {selected.status !== 'Cancelada' && (
                                 <Button variant="outline" onClick={() => void changeStatus(selected, 'Cancelada')}>
                                     <X className="w-4 h-4 mr-2" /> Cancelar
@@ -350,7 +350,7 @@ export function Calendar() {
             )}
 
             {loading && activities.length === 0 && !error && (
-                <div className="fixed bottom-8 right-8 flex items-center gap-2 text-sm text-gray-400 bg-slate-900/90 border border-white/10 rounded-xl px-4 py-2">
+                <div className="fixed bottom-8 right-8 flex items-center gap-2 text-sm text-ink-2 bg-surface border border-line rounded-xl px-4 py-2">
                     <Loader2 className="w-4 h-4 animate-spin" /> Carregando atividades…
                 </div>
             )}

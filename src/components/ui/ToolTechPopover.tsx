@@ -17,8 +17,8 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div 
-                className="bg-gray-900 border border-gray-800 text-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-300 relative overflow-hidden"
+            <div
+                className="bg-surface border border-line text-ink rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-300 relative overflow-hidden"
                 style={{
                     boxShadow: `0 20px 50px -10px ${info.color}25`
                 }}
@@ -39,7 +39,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-bold text-white tracking-tight">{info.name}</h3>
+                                <h3 className="text-xl font-bold text-ink tracking-tight">{info.name}</h3>
                                 <span 
                                     className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full border"
                                     style={{ backgroundColor: info.bgColor, borderColor: info.borderColor, color: info.color }}
@@ -47,23 +47,23 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                                     {info.category}
                                 </span>
                             </div>
-                            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                            <p className="text-xs text-ink-2 mt-0.5 flex items-center gap-1">
                                 <Info className="w-3 h-3 text-blue-400" />
                                 Ecossistema Tecnológico Mapeado
                             </p>
                         </div>
                     </div>
 
-                    <button 
+                    <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                        className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="bg-gray-800/60 border border-gray-700/50 rounded-2xl p-4 space-y-2">
-                    <p className="text-sm text-gray-300 leading-relaxed">
+                <div className="bg-surface-2 border border-line rounded-2xl p-4 space-y-2">
+                    <p className="text-sm text-ink-2 leading-relaxed">
                         {info.description}
                     </p>
                 </div>
@@ -83,7 +83,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                     )}
                     <button
                         onClick={onClose}
-                        className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl font-medium transition-colors"
+                        className="px-4 py-2.5 bg-surface-2 hover:bg-line text-ink-2 rounded-xl font-medium transition-colors"
                     >
                         Fechar
                     </button>

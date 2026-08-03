@@ -14,17 +14,17 @@ function renderReportMarkdown(markdown: string) {
   return markdown.split('\n').map((line, idx) => {
     const trimmed = line.trim();
     if (!trimmed) return <div key={idx} className="h-2" />;
-    if (trimmed.startsWith('### ')) return <h4 key={idx} className="font-black text-white text-sm mt-4 mb-1">{trimmed.slice(4)}</h4>;
-    if (trimmed.startsWith('## ')) return <h3 key={idx} className="font-black text-white text-base mt-5 mb-2">{trimmed.slice(3)}</h3>;
-    if (trimmed.startsWith('# ')) return <h2 key={idx} className="font-black text-white text-lg mt-5 mb-2">{trimmed.slice(2)}</h2>;
+    if (trimmed.startsWith('### ')) return <h4 key={idx} className="font-black text-ink text-sm mt-4 mb-1">{trimmed.slice(4)}</h4>;
+    if (trimmed.startsWith('## ')) return <h3 key={idx} className="font-black text-ink text-base mt-5 mb-2">{trimmed.slice(3)}</h3>;
+    if (trimmed.startsWith('# ')) return <h2 key={idx} className="font-black text-ink text-lg mt-5 mb-2">{trimmed.slice(2)}</h2>;
     if (/^[-*]\s/.test(trimmed)) {
       return (
-        <p key={idx} className="text-sm text-gray-300 leading-relaxed pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-atlas-orange">
+        <p key={idx} className="text-sm text-ink-2 leading-relaxed pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-atlas-orange">
           {trimmed.replace(/^[-*]\s/, '')}
         </p>
       );
     }
-    return <p key={idx} className="text-sm text-gray-300 leading-relaxed">{trimmed}</p>;
+    return <p key={idx} className="text-sm text-ink-2 leading-relaxed">{trimmed}</p>;
   });
 }
 
@@ -93,34 +93,34 @@ export function ReportsHub() {
         </div>
 
         {/* Métricas usadas como base do relatório */}
-        <div className="rounded-card border border-white/10 bg-white/[0.03] p-4">
-          <h4 className="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-3">Dados-base (tempo real)</h4>
+        <div className="rounded-card border border-line bg-surface-2 p-4">
+          <h4 className="text-[11px] font-black uppercase tracking-wider text-ink-2 mb-3">Dados-base (tempo real)</h4>
           {loadingMetrics ? (
-            <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+            <div className="flex items-center gap-2 text-ink-2 text-sm py-4">
               <Loader2 size={16} className="animate-spin" /> Carregando métricas…
             </div>
           ) : metrics ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div><span className="text-gray-400 block">Empresas</span><span className="font-black text-white">{metrics.totalCompanies}</span></div>
-              <div><span className="text-gray-400 block">Contatos</span><span className="font-black text-white">{metrics.totalContacts}</span></div>
-              <div><span className="text-gray-400 block">Leads Ativos</span><span className="font-black text-white">{metrics.totalLeads}</span></div>
-              <div><span className="text-gray-400 block">Atividades</span><span className="font-black text-white">{metrics.totalActivities}</span></div>
-              <div><span className="text-gray-400 block">Fechados no Mês</span><span className="font-black text-success">{metrics.closedThisMonth}</span></div>
+              <div><span className="text-ink-2 block">Empresas</span><span className="font-black text-ink">{metrics.totalCompanies}</span></div>
+              <div><span className="text-ink-2 block">Contatos</span><span className="font-black text-ink">{metrics.totalContacts}</span></div>
+              <div><span className="text-ink-2 block">Leads Ativos</span><span className="font-black text-ink">{metrics.totalLeads}</span></div>
+              <div><span className="text-ink-2 block">Atividades</span><span className="font-black text-ink">{metrics.totalActivities}</span></div>
+              <div><span className="text-ink-2 block">Fechados no Mês</span><span className="font-black text-success">{metrics.closedThisMonth}</span></div>
               {/* Não existe campo de valor no modelo Lead: exibimos "—" em vez de "R$ 0", que
                   seria lido como "pipeline zerado" e não como "métrica indisponível". */}
-              <div><span className="text-gray-400 block">Valor em Pipeline</span><span className="font-black text-atlas-orange">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
-              <div><span className="text-gray-400 block">Conversão</span><span className="font-black text-info">{metrics.conversionRate.toFixed(1)}%</span></div>
-              <div><span className="text-gray-400 block">Pendentes</span><span className="font-black text-danger">{metrics.pendingActivities}</span></div>
+              <div><span className="text-ink-2 block">Valor em Pipeline</span><span className="font-black text-atlas-orange">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
+              <div><span className="text-ink-2 block">Conversão</span><span className="font-black text-info">{metrics.conversionRate.toFixed(1)}%</span></div>
+              <div><span className="text-ink-2 block">Pendentes</span><span className="font-black text-danger">{metrics.pendingActivities}</span></div>
             </div>
           ) : (
-            <p className="text-sm text-gray-400">Sem dados disponíveis no momento.</p>
+            <p className="text-sm text-ink-2">Sem dados disponíveis no momento.</p>
           )}
         </div>
 
         {/* Relatório Gerado */}
-        <div className="rounded-card border border-atlas-orange/15 bg-slate-950/40 p-5 min-h-[160px]">
+        <div className="rounded-card border border-atlas-orange/15 bg-surface-2 p-5 min-h-[160px]">
           {generating ? (
-            <div className="flex items-center justify-center gap-2 text-gray-400 text-sm py-10">
+            <div className="flex items-center justify-center gap-2 text-ink-2 text-sm py-10">
               <Loader2 size={18} className="animate-spin" /> A IA está lendo os dados e escrevendo o relatório…
             </div>
           ) : report ? (
@@ -128,7 +128,7 @@ export function ReportsHub() {
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-10">
               <Sparkles className="w-8 h-8 text-atlas-orange/50 mb-3" />
-              <p className="text-sm text-gray-400 max-w-md">
+              <p className="text-sm text-ink-2 max-w-md">
                 Clique no botão acima para que a nossa IA analise as métricas atuais e construa um diagnóstico executivo automático.
               </p>
             </div>

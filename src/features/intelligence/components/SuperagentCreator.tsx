@@ -300,7 +300,7 @@ $status | ConvertTo-Json -Depth 3
             <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-gray-200 text-slate-900"
+                className="bg-surface rounded-[2.5rem] p-8 shadow-xl relative overflow-hidden border border-line text-ink"
             >
                 {/* Background ambient lighting */}
                 <div className={`absolute top-0 right-0 w-[600px] h-[600px] ${accent.blobA} rounded-full blur-[150px] pointer-events-none -mt-40 -mr-40`}></div>
@@ -315,14 +315,14 @@ $status | ConvertTo-Json -Depth 3
                     >
                         <Bot size={40} className="text-white" />
                     </motion.div>
-                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 ${accent.text} mb-4 backdrop-blur-md`}>
+                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-2 border border-line ${accent.text} mb-4 backdrop-blur-md`}>
                         <Network size={14} />
                         <span className="text-[10px] font-black uppercase tracking-widest">Multi-Agent AI Engine Builder</span>
                     </div>
-                    <h3 className="text-4xl font-black text-white mb-4 tracking-tight">
+                    <h3 className="text-4xl font-black text-ink mb-4 tracking-tight">
                         {accent.brandName} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Fábrica de Superagentes</span>
                     </h3>
-                    <p className="text-sm text-gray-400 max-w-2xl leading-relaxed">
+                    <p className="text-sm text-ink-2 max-w-2xl leading-relaxed">
                         Configure e versione agentes autônomos com motores neurais avançados. Defina provedor, modelo, temperatura, memória RAG e ferramentas executáveis.
                     </p>
                 </div>
@@ -330,7 +330,7 @@ $status | ConvertTo-Json -Depth 3
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-8">
                     
                     {/* Campo 1: Identificação */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Bot size={14} /> Nome e Identificação do Agente
                         </label>
@@ -339,36 +339,36 @@ $status | ConvertTo-Json -Depth 3
                             placeholder="Ex: SDR Alpha Outbound, Insight Bot..."
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className={`w-full bg-transparent text-white text-lg placeholder-gray-600 focus:outline-none border-b border-white/10 focus:${accent.border} transition-colors pb-2`}
+                            className={`w-full bg-transparent text-ink text-lg placeholder-ink-2 focus:outline-none border-b border-line focus:${accent.border} transition-colors pb-2`}
                         />
                     </div>
 
                     {/* Campo 2: Papel / Função */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Papel & Especialidade (Role)
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'role' ? null : 'role')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{role}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                            <span className="truncate">{role}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'role' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden max-h-64 overflow-y-auto"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-64 overflow-y-auto"
                                 >
                                     {ROLES.map(r => (
                                         <div
                                             key={r.id} onClick={() => { setRole(r.title); setActiveDropdown(null); }}
-                                            className="px-5 py-3.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white cursor-pointer flex flex-col border-b border-white/5 last:border-none"
+                                            className="px-5 py-3.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-white">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {r.title} {role === r.title && <Check size={16} className={accent.text} />}
                                             </div>
-                                            <span className="text-xs text-gray-400 mt-0.5">{r.desc}</span>
+                                            <span className="text-xs text-ink-2 mt-0.5">{r.desc}</span>
                                         </div>
                                     ))}
                                 </motion.div>
@@ -377,27 +377,27 @@ $status | ConvertTo-Json -Depth 3
                     </div>
 
                     {/* Campo 3: Provedor de IA */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-sky-400">
                             <Cpu size={14} /> Provedor de IA (Engine Provider)
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'provider' ? null : 'provider')}
-                            className="w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-sky-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-sky-400/50 transition-colors"
                         >
-                            <span className="truncate">{currentProviderObj.name}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                            <span className="truncate">{currentProviderObj.name}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
-                        <p className="mt-2 text-[10px] text-gray-500">Alvo do projeto; a implantação exige a credencial desse provedor.</p>
+                        <p className="mt-2 text-[10px] text-ink-2">Alvo do projeto; a implantação exige a credencial desse provedor.</p>
                         <AnimatePresence>
                             {activeDropdown === 'provider' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {PROVIDERS.map(p => (
-                                        <div 
+                                        <div
                                             key={p.id} onClick={() => handleProviderChange(p.id)}
-                                            className="px-5 py-3 text-sm font-medium text-gray-300 hover:bg-sky-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-sky-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {p.name} {provider === p.id && <Check size={16} className="text-sky-400" />}
                                         </div>
@@ -408,27 +408,27 @@ $status | ConvertTo-Json -Depth 3
                     </div>
 
                     {/* Campo 4: Modelo Cognitivo */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Modelo Cognitivo Específico
                         </label>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'model' ? null : 'model')}
-                            className={`w-full bg-transparent text-white text-lg focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
-                            <span className="truncate">{model}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                            <span className="truncate">{model}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
-                        <p className="mt-2 text-[10px] text-gray-500">O Groq configurado gera os artefatos; este modelo será usado pelo agente implantado.</p>
+                        <p className="mt-2 text-[10px] text-ink-2">O Groq configurado gera os artefatos; este modelo será usado pelo agente implantado.</p>
                         <AnimatePresence>
                             {activeDropdown === 'model' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {currentProviderObj.models.map(m => (
                                         <div
                                             key={m} onClick={() => { setModel(m); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {m} {model === m && <Check size={16} className={accent.text} />}
                                         </div>
@@ -439,26 +439,26 @@ $status | ConvertTo-Json -Depth 3
                     </div>
 
                     {/* Campo 5: Temperatura / Criatividade */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
                             <Sliders size={14} /> Temperatura / Criatividade do Motor
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'temp' ? null : 'temp')}
-                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-amber-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-amber-400/50 transition-colors"
                         >
-                            <span className="truncate">{TEMPERATURES.find(t => t.value === temperature)?.label}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                            <span className="truncate">{TEMPERATURES.find(t => t.value === temperature)?.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'temp' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {TEMPERATURES.map(t => (
-                                        <div 
+                                        <div
                                             key={t.value} onClick={() => { setTemperature(t.value); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-xs font-medium text-gray-300 hover:bg-amber-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="px-5 py-3 text-xs font-medium text-ink-2 hover:bg-amber-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {t.label} {temperature === t.value && <Check size={16} className="text-amber-400" />}
                                         </div>
@@ -469,31 +469,31 @@ $status | ConvertTo-Json -Depth 3
                     </div>
 
                     {/* Campo 6: Memória / RAG */}
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative">
+                    <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
                         <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-emerald-400">
                             <Database size={14} /> Arquitetura de Memória & RAG
                         </label>
-                        <button 
+                        <button
                             onClick={() => setActiveDropdown(activeDropdown === 'memory' ? null : 'memory')}
-                            className="w-full bg-transparent text-white text-sm focus:outline-none border-b border-white/10 pb-2 flex items-center justify-between text-left hover:border-emerald-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-emerald-400/50 transition-colors"
                         >
-                            <span className="truncate">{MEMORIES.find(m => m.id === memory)?.title}</span> <ChevronDown size={16} className="text-gray-500 shrink-0" />
+                            <span className="truncate">{MEMORIES.find(m => m.id === memory)?.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
                         <AnimatePresence>
                             {activeDropdown === 'memory' && (
-                                <motion.div 
+                                <motion.div
                                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                                    className="absolute left-0 right-0 top-full mt-2 bg-gray-900 border border-white/15 shadow-2xl rounded-2xl z-50 overflow-hidden"
+                                    className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {MEMORIES.map(m => (
-                                        <div 
+                                        <div
                                             key={m.id} onClick={() => { setMemory(m.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-xs font-medium text-gray-300 hover:bg-emerald-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5"
+                                            className="px-5 py-3 text-xs font-medium text-ink-2 hover:bg-emerald-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-white">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {m.title} {memory === m.id && <Check size={16} className="text-emerald-400" />}
                                             </div>
-                                            <span className="text-[11px] text-gray-400">{m.desc}</span>
+                                            <span className="text-[11px] text-ink-2">{m.desc}</span>
                                         </div>
                                     ))}
                                 </motion.div>
@@ -504,7 +504,7 @@ $status | ConvertTo-Json -Depth 3
                 </div>
 
                 {/* Seleção de Ferramentas / Capabilities */}
-                <div className="relative z-10 max-w-5xl mx-auto mb-10 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+                <div className="relative z-10 max-w-5xl mx-auto mb-10 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
                     <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
                         <Zap size={14} /> Ferramentas & Capabilities Habilitadas para o Agente
                     </label>
@@ -519,7 +519,7 @@ $status | ConvertTo-Json -Depth 3
                                     className={`px-4 py-3 rounded-xl border text-xs font-bold text-left transition-all flex items-center justify-between ${
                                         isSelected
                                         ? `${accent.selectedBg} text-white`
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200'
+                                        : 'bg-surface-2 border-line text-ink-2 hover:border-line hover:text-ink'
                                     }`}
                                 >
                                     <span>{t.name}</span>

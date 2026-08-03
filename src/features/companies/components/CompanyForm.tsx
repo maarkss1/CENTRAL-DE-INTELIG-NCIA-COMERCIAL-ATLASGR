@@ -14,8 +14,8 @@ interface CompanyFormProps {
     onSave: () => void;
 }
 
-const inputClass = "w-full px-4 py-2 bg-slate-950/60 border border-white/10 rounded-xl text-sm text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-atlas-orange/40 focus:border-atlas-orange outline-none transition-colors";
-const labelClass = "text-sm font-medium text-gray-400";
+const inputClass = "w-full px-4 py-2 bg-surface-2 border border-line rounded-xl text-sm text-ink placeholder-ink-2 focus:ring-2 focus:ring-atlas-orange/40 focus:border-atlas-orange outline-none transition-colors";
+const labelClass = "text-sm font-medium text-ink-2";
 const errorClass = "text-xs text-danger mt-1";
 
 // Validação do dígito verificador oficial do CNPJ (mesma regra usada em
@@ -99,12 +99,12 @@ export function CompanyForm({ company, onClose, onSave }: CompanyFormProps) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-slate-900/95 backdrop-blur-xl rounded-card-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] border border-white/10">
-                <div className="p-6 border-b border-white/10 flex justify-between items-center">
-                    <h2 className="text-xl font-display font-bold text-white">
+            <div className="bg-surface/95 backdrop-blur-xl rounded-card-lg w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] border border-line">
+                <div className="p-6 border-b border-line flex justify-between items-center">
+                    <h2 className="text-xl font-display font-bold text-ink">
                         {company ? 'Editar Empresa' : 'Nova Empresa'}
                     </h2>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer">
+                    <button onClick={onClose} className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-xl transition-colors cursor-pointer">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -165,8 +165,8 @@ export function CompanyForm({ company, onClose, onSave }: CompanyFormProps) {
                     </form>
                 </div>
 
-                <div className="p-6 border-t border-white/10 flex justify-end gap-3">
-                    <Button type="button" variant="ghost" onClick={onClose} className="text-gray-300">
+                <div className="p-6 border-t border-line flex justify-end gap-3">
+                    <Button type="button" variant="ghost" onClick={onClose} className="text-ink-2">
                         Cancelar
                     </Button>
                     <Button type="submit" form="company-form" disabled={isSubmitting}>

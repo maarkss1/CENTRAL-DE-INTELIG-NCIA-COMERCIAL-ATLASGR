@@ -34,14 +34,14 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
     return (
         <div
             ref={setNodeRef}
-            className={`flex flex-col bg-gray-50 rounded-2xl min-w-[320px] max-w-[320px] shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-blue-400 bg-blue-50/20' : 'border-gray-200'}`}
+            className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-blue-400 bg-blue-50/20' : 'border-line'}`}
         >
-            <div className="p-4 border-b border-gray-200 bg-gray-50/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center">
-                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+            <div className="p-4 border-b border-line bg-surface-2/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center">
+                <h3 className="font-semibold text-ink-2 flex items-center gap-2">
                     <span>{STATUS_EMOJI[status] || '📌'}</span>
                     {status}
                 </h3>
-                <span className="bg-gray-200 text-gray-600 text-xs font-medium px-2.5 py-1 rounded-full">
+                <span className="bg-surface-2 text-ink-2 text-xs font-medium px-2.5 py-1 rounded-full">
                     {leads.length}
                 </span>
             </div>
@@ -58,7 +58,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
                     ))}
                 </SortableContext>
                 {leads.length === 0 && (
-                    <div className="h-full min-h-[100px] border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-gray-400 text-sm">
+                    <div className="h-full min-h-[100px] border-2 border-dashed border-line rounded-xl flex items-center justify-center text-ink-2 text-sm">
                         📥 Solte cards aqui
                     </div>
                 )}

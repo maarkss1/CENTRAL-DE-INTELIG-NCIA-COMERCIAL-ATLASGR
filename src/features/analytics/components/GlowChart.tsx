@@ -21,14 +21,14 @@ export function GlowChart() {
   const fillColor = isAtlas ? '#FF5618' : '#0088CC';
 
   return (
-    <div className="w-full h-72 bg-white/[0.02] border border-white/10 rounded-2xl p-6 relative group overflow-hidden shadow-2xl">
+    <div className="w-full h-72 bg-white/[0.02] border border-line rounded-2xl p-6 relative group overflow-hidden shadow-2xl">
       {/* Background Glow Effect */}
       <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[80px] opacity-20 transition-all duration-1000 ${isAtlas ? 'bg-atlas-orange' : 'bg-totaltrack-blue'} group-hover:opacity-40`} />
       
       <div className="relative z-10 w-full h-full">
         <div className="mb-4">
           <h3 className={`text-lg font-bold ${theme === 'light' ? 'text-slate-800' : 'text-white'}`}>Volume de Leads (Ao Vivo)</h3>
-          <p className="text-sm text-gray-500">Métricas em tempo real processadas pela IA.</p>
+          <p className="text-sm text-ink-2">Métricas em tempo real processadas pela IA.</p>
         </div>
         
         <div className="w-full h-[80%]">

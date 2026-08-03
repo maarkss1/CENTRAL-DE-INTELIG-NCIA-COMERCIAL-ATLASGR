@@ -12,9 +12,9 @@ import {
 import { ColdCallStatusCard } from './ColdCallStatusCard';
 
 const inputClass =
-    'w-full bg-slate-950/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-atlas-orange transition-colors';
+    'w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors';
 
-const labelClass = 'block text-[11px] uppercase tracking-wide text-gray-400 font-semibold mb-1';
+const labelClass = 'block text-[11px] uppercase tracking-wide text-ink-2 font-semibold mb-1';
 
 function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: () => void }) {
     const [name, setName] = useState('');
@@ -62,8 +62,8 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
             <Card className="w-full max-w-lg" accentBar>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-white">Nova automação</h2>
-                    <button onClick={onCancel} aria-label="Fechar" className="p-1 rounded-lg text-gray-500 hover:text-white hover:bg-white/10">
+                    <h2 className="text-lg font-bold text-ink">Nova automação</h2>
+                    <button onClick={onCancel} aria-label="Fechar" className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -133,7 +133,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                             </div>
                         </>
                     ) : action === 'Ligar via SDR de Voz' ? (
-                        <p className="text-xs text-gray-400 bg-white/5 rounded-lg p-3">
+                        <p className="text-xs text-ink-2 bg-surface-2 rounded-lg p-3">
                             O SDR de voz liga para o telefone do contato do lead (ou, na falta dele, o da
                             empresa) e registra o resultado da chamada como atividade. Leads sem telefone
                             discável são ignorados.
@@ -150,7 +150,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                     )}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-white/10">
+                <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
                     <Button variant="outline" onClick={onCancel} disabled={saving}>Cancelar</Button>
                     <Button onClick={() => void submit()} disabled={saving}>
                         {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -210,16 +210,16 @@ export function Automations() {
     }, []);
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-950 p-8">
+        <div className="flex-1 overflow-y-auto bg-bg p-8">
             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <Cpu className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Automações</h1>
-                            <p className="text-sm text-gray-400">
+                            <h1 className="text-3xl font-bold text-ink">Automações</h1>
+                            <p className="text-sm text-ink-2">
                                 {loading
                                     ? 'Carregando…'
                                     : `${items.length} regra${items.length === 1 ? '' : 's'} · ${items.filter((a) => a.enabled).length} ativa(s)`}
@@ -234,7 +234,7 @@ export function Automations() {
                 <ColdCallStatusCard />
 
                 {loading && (
-                    <Card padding="lg" className="text-center text-gray-400 text-sm">
+                    <Card padding="lg" className="text-center text-ink-2 text-sm">
                         <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" /> Carregando…
                     </Card>
                 )}
@@ -242,7 +242,7 @@ export function Automations() {
                 {error && !loading && (
                     <Card padding="lg" className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                        <p className="text-sm text-gray-300 mb-4">{error}</p>
+                        <p className="text-sm text-ink-2 mb-4">{error}</p>
                         <Button variant="outline" onClick={() => void load()}>Tentar novamente</Button>
                     </Card>
                 )}
@@ -250,8 +250,8 @@ export function Automations() {
                 {!loading && !error && items.length === 0 && (
                     <Card padding="lg" className="text-center border-dashed">
                         <Zap className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-white mb-1">Nenhuma automação ainda</h3>
-                        <p className="text-sm text-gray-400 max-w-md mx-auto mb-5">
+                        <h3 className="text-lg font-semibold text-ink mb-1">Nenhuma automação ainda</h3>
+                        <p className="text-sm text-ink-2 max-w-md mx-auto mb-5">
                             Regras disparam sozinhas quando um lead é criado, muda de etapa ou uma
                             atividade é concluída — avisando a equipe ou agendando o follow-up.
                         </p>
@@ -266,7 +266,7 @@ export function Automations() {
                         <Card key={item.id} padding="sm" className="flex items-center justify-between gap-4">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <p className="text-sm font-semibold text-white truncate">{item.name}</p>
+                                    <p className="text-sm font-semibold text-ink truncate">{item.name}</p>
                                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                         item.enabled
                                             ? 'bg-emerald-500/15 text-emerald-300'
@@ -275,8 +275,8 @@ export function Automations() {
                                         {item.enabled ? 'ativa' : 'pausada'}
                                     </span>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-0.5">{describeAutomation(item)}</p>
-                                <p className="text-[11px] text-gray-500 mt-0.5">
+                                <p className="text-xs text-ink-2 mt-0.5">{describeAutomation(item)}</p>
+                                <p className="text-[11px] text-ink-2 mt-0.5">
                                     {item.runCount === 0
                                         ? 'ainda não disparou'
                                         : `${item.runCount} execução(ões)${item.lastRunAt ? ` · última em ${new Date(item.lastRunAt).toLocaleDateString('pt-BR')}` : ''}`}
@@ -301,7 +301,7 @@ export function Automations() {
                                     onClick={() => void remove(item)}
                                     disabled={busyId === item.id}
                                     title="Remover automação"
-                                    className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+                                    className="p-2 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-40"
                                 >
                                     {busyId === item.id
                                         ? <Loader2 className="w-4 h-4 animate-spin" />

@@ -44,32 +44,32 @@ export function Timeline({ leadId }: TimelineProps) {
             case 'movement': return 'bg-orange-100 text-orange-600 border-orange-200';
             case 'activity': return 'bg-green-100 text-green-600 border-green-200';
             case 'comment': return 'bg-purple-100 text-purple-600 border-purple-200';
-            default: return 'bg-gray-100 text-gray-600 border-gray-200';
+            default: return 'bg-surface-2 text-ink-2 border-line';
         }
     };
 
     if (loading) {
-        return <div className="p-4 text-center text-sm text-gray-500">Carregando timeline...</div>;
+        return <div className="p-4 text-center text-sm text-ink-2">Carregando timeline...</div>;
     }
 
     if (events.length === 0) {
-        return <div className="p-4 text-center text-sm text-gray-500">Nenhum evento registrado.</div>;
+        return <div className="p-4 text-center text-sm text-ink-2">Nenhum evento registrado.</div>;
     }
 
     return (
         <div className="space-y-4">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+            <h3 className="font-semibold text-ink flex items-center gap-2 mb-4">
                 <History className="w-4 h-4" /> Histórico
             </h3>
-            <div className="relative border-l-2 border-gray-100 ml-3 space-y-6">
+            <div className="relative border-l-2 border-line ml-3 space-y-6">
                 {events.map((event) => (
                     <div key={event.id} className="relative pl-6">
                         <div className={`absolute -left-[11px] top-1 w-5 h-5 rounded-full border flex items-center justify-center ${getEventColor(event.type)}`}>
                             {React.cloneElement(getEventIcon(event.type) as React.ReactElement<{ className?: string }>, { className: 'w-2.5 h-2.5' })}
                         </div>
                         <div>
-                            <p className="text-sm text-gray-900">{event.description}</p>
-                            <span className="text-xs text-gray-500 mt-1 block">
+                            <p className="text-sm text-ink">{event.description}</p>
+                            <span className="text-xs text-ink-2 mt-1 block">
                                 {new Date(event.createdAt).toLocaleString('pt-BR')}
                             </span>
                         </div>

@@ -356,23 +356,23 @@ export function ProspectingHub() {
         <div className="flex-1 overflow-y-auto bg-transparent p-6 sm:p-8 font-sans">
             <div className="max-w-7xl mx-auto space-y-8">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 space-y-4">
-                    <h1 className="text-4xl font-black tracking-tight text-white">
+                    <h1 className="text-4xl font-black tracking-tight text-ink">
                         {brandInfo.name} <span className={`text-transparent bg-clip-text bg-gradient-to-r ${accent.gradient}`}>Prospect</span> <Sparkles className={`inline-block ${accent.text} -mt-1 ml-1`} size={28} />
                     </h1>
-                    <p className="text-gray-400 text-sm font-medium">Motor de enriquecimento autônomo com IA para capturar leads corporativos de altíssimo nível.</p>
+                    <p className="text-ink-2 text-sm font-medium">Motor de enriquecimento autônomo com IA para capturar leads corporativos de altíssimo nível.</p>
                     <GamificationWidget />
                 </motion.div>
 
-                <div className="flex gap-3 bg-slate-900/60 backdrop-blur-xl p-2 rounded-2xl border border-white shadow-sm w-fit relative z-10">
+                <div className="flex gap-3 bg-surface backdrop-blur-xl p-2 rounded-2xl border border-line shadow-sm w-fit relative z-10">
                     <button
                         onClick={() => setTab('cnpj')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-gradient-to-br from-atlas-dark to-black text-white shadow-lg shadow-black/10 scale-100' : 'text-gray-400 hover:bg-white/10 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-gradient-to-br from-atlas-dark to-black text-white shadow-lg shadow-black/10 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
                     >
                         <Landmark size={18} /> Busca Direta (CNPJ/Nome)
                     </button>
                     <button
                         onClick={() => setTab('discovery')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-atlas-orange to-[#ff6b3d] text-white shadow-lg shadow-atlas-orange/20 scale-100' : 'text-gray-400 hover:bg-white/10 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-atlas-orange to-[#ff6b3d] text-white shadow-lg shadow-atlas-orange/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
                     >
                         <Database size={18} /> Radar Discovery (Fontes abertas)
                     </button>

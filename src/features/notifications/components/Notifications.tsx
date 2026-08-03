@@ -89,23 +89,23 @@ export function Notifications() {
     }, []);
 
     return (
-        <div className="flex-1 overflow-y-auto bg-slate-950 p-8">
+        <div className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <Bell className="w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold text-white">Notificações</h1>
-                            <p className="text-sm text-gray-400">
+                            <h1 className="text-3xl font-bold text-ink">Notificações</h1>
+                            <p className="text-sm text-ink-2">
                                 {loading ? 'Carregando…' : unread === 0 ? 'Tudo em dia' : `${unread} não lida${unread === 1 ? '' : 's'}`}
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center rounded-xl border border-white/10 overflow-hidden">
+                        <div className="flex items-center rounded-xl border border-line overflow-hidden">
                             {[
                                 { label: 'Todas', value: false },
                                 { label: 'Não lidas', value: true },
@@ -117,7 +117,7 @@ export function Notifications() {
                                     className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                                         onlyUnread === opt.value
                                             ? `${accent.bg} text-white`
-                                            : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                            : 'text-ink-2 hover:text-ink hover:bg-surface-2'
                                     }`}
                                 >
                                     {opt.label}
@@ -131,7 +131,7 @@ export function Notifications() {
                 </div>
 
                 {loading && (
-                    <Card padding="lg" className="text-center text-gray-400 text-sm">
+                    <Card padding="lg" className="text-center text-ink-2 text-sm">
                         <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin" /> Carregando…
                     </Card>
                 )}
@@ -139,7 +139,7 @@ export function Notifications() {
                 {error && !loading && (
                     <Card padding="lg" className="text-center">
                         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
-                        <p className="text-sm text-gray-300 mb-4">{error}</p>
+                        <p className="text-sm text-ink-2 mb-4">{error}</p>
                         <Button variant="outline" onClick={() => void load(onlyUnread)}>Tentar novamente</Button>
                     </Card>
                 )}
@@ -147,10 +147,10 @@ export function Notifications() {
                 {!loading && !error && items.length === 0 && (
                     <Card padding="lg" className="text-center border-dashed">
                         <Bell className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                        <h3 className="text-lg font-semibold text-white mb-1">
+                        <h3 className="text-lg font-semibold text-ink mb-1">
                             {onlyUnread ? 'Nenhuma notificação não lida' : 'Nenhuma notificação ainda'}
                         </h3>
-                        <p className="text-sm text-gray-400 max-w-md mx-auto">
+                        <p className="text-sm text-ink-2 max-w-md mx-auto">
                             Crie automações para ser avisado quando um lead mudar de etapa ou uma
                             atividade for concluída.
                         </p>
@@ -166,7 +166,7 @@ export function Notifications() {
                                 key={item.id}
                                 padding="sm"
                                 onClick={() => void markRead(item)}
-                                className={`flex items-start gap-3 cursor-pointer transition-colors hover:border-white/20 ${
+                                className={`flex items-start gap-3 cursor-pointer transition-colors hover:border-line ${
                                     lida ? 'opacity-60' : ''
                                 }`}
                             >
@@ -175,10 +175,10 @@ export function Notifications() {
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
                                         {!lida && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${accent.bg}`} aria-label="não lida" />}
-                                        <p className="text-sm font-semibold text-white truncate">{item.title}</p>
+                                        <p className="text-sm font-semibold text-ink truncate">{item.title}</p>
                                     </div>
-                                    {item.body && <p className="text-xs text-gray-400 mt-0.5">{item.body}</p>}
-                                    <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                                    {item.body && <p className="text-xs text-ink-2 mt-0.5">{item.body}</p>}
+                                    <div className="flex items-center gap-2 mt-1 text-[11px] text-ink-2">
                                         <span>{relativeTime(item.createdAt)}</span>
                                         <span className="uppercase tracking-wide">{item.kind}</span>
                                         {item.automation && (
@@ -193,7 +193,7 @@ export function Notifications() {
                                     onClick={(e) => { e.stopPropagation(); void remove(item); }}
                                     disabled={busyId === item.id}
                                     title="Remover"
-                                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 disabled:opacity-40"
+                                    className="p-1.5 rounded-lg text-ink-2 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0 disabled:opacity-40"
                                 >
                                     {busyId === item.id
                                         ? <Loader2 className="w-4 h-4 animate-spin" />

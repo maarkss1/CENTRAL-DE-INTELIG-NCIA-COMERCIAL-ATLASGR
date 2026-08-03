@@ -68,30 +68,30 @@ export function AIEmailGenerator({
   };
 
   return (
-    <div className="glass-card p-5 rounded-2xl border border-white/10 bg-slate-900/60 space-y-4 shadow-xl">
+    <div className="glass-card p-5 rounded-2xl border border-line bg-surface space-y-4 shadow-xl">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-line">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-atlas-orange flex items-center justify-center text-white shadow-md">
             <Bot className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-bold text-white">Copiloto IA: Gerador de Cold Mail V3</h4>
+              <h4 className="text-sm font-bold text-ink">Copiloto IA: Gerador de Cold Mail V3</h4>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400" /> ICP Match
               </span>
             </div>
-            <p className="text-xs text-gray-400">Personalização profunda baseada na Persona ({role}) e ICP ({companySize})</p>
+            <p className="text-xs text-ink-2">Personalização profunda baseada na Persona ({role}) e ICP ({companySize})</p>
           </div>
         </div>
 
         {/* Seleção de Tom */}
-        <div className="flex flex-wrap items-center bg-slate-800/90 p-1 rounded-xl border border-white/10 text-[11px] font-semibold">
+        <div className="flex flex-wrap items-center bg-surface-2 p-1 rounded-xl border border-line text-[11px] font-semibold">
           <button
             onClick={() => setTone('consultative')}
             className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              tone === 'consultative' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white'
+              tone === 'consultative' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
             }`}
           >
             Consultivo
@@ -99,7 +99,7 @@ export function AIEmailGenerator({
           <button
             onClick={() => setTone('direct')}
             className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              tone === 'direct' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white'
+              tone === 'direct' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
             }`}
           >
             Direto
@@ -107,7 +107,7 @@ export function AIEmailGenerator({
           <button
             onClick={() => setTone('roi_focused')}
             className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              tone === 'roi_focused' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white'
+              tone === 'roi_focused' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
             }`}
           >
             Foco ROI
@@ -115,7 +115,7 @@ export function AIEmailGenerator({
           <button
             onClick={() => setTone('hyper_personalized')}
             className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-              tone === 'hyper_personalized' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-gray-400 hover:text-white'
+              tone === 'hyper_personalized' ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
             }`}
           >
             Hiper-personalizado
@@ -131,13 +131,13 @@ export function AIEmailGenerator({
       )}
 
       {!body ? (
-        <div className="text-center p-6 border border-dashed border-white/10 rounded-xl bg-white/5 space-y-3">
+        <div className="text-center p-6 border border-dashed border-line rounded-xl bg-surface-2 space-y-3">
           <Sparkles className="w-8 h-8 text-indigo-400 mx-auto animate-pulse" />
           <div>
-            <p className="text-xs font-bold text-white mb-1">
+            <p className="text-xs font-bold text-ink mb-1">
               Pronto para gerar cold mail de altíssima conversão
             </p>
-            <p className="text-xs text-gray-400 max-w-md mx-auto">
+            <p className="text-xs text-ink-2 max-w-md mx-auto">
               O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>, os dados do segmento <strong className="text-indigo-300">{sector}</strong> e as ferramentas detectadas (<strong className="text-indigo-300">{technologies.join(', ')}</strong>).
             </p>
           </div>
@@ -156,26 +156,26 @@ export function AIEmailGenerator({
           )}
 
           <div>
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 block mb-1">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
               Assunto Recomendado (AIDA Hook)
             </label>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full text-xs font-bold px-3 py-2 rounded-lg bg-slate-800 text-white border border-white/10 focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+              className="w-full text-xs font-bold px-3 py-2 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
             />
           </div>
 
           <div>
-            <label className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 block mb-1">
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
               Corpo da Mensagem (Engenharia de Prompt ICP)
             </label>
             <textarea
               rows={7}
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              className="w-full text-xs px-3 py-2.5 rounded-lg bg-slate-800 text-gray-200 border border-white/10 focus:outline-none focus:ring-1 focus:ring-atlas-orange leading-relaxed font-sans"
+              className="w-full text-xs px-3 py-2.5 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange leading-relaxed font-sans"
             />
           </div>
 
