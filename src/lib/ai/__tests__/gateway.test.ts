@@ -9,9 +9,17 @@ vi.mock('../../prisma.js', () => ({
     },
 }));
 
+// ARCH-005: gateway.ts agora importa queue/redis.ts (circuit breaker via Redis) — o mock precisa
+// cobrir todos os níveis que o módulo de conexão do Redis chama (connection.on('connect', ...) usa
+// logger.info), não só 'warn' como antes. Sem isso, um Redis real disponível no CI (mas não
+// necessariamente disponível/rápido o bastante localmente pra disparar o evento durante o teste)
+// faz o evento 'connect' chamar logger.info — undefined no mock antigo — e derruba o job inteiro
+// com "TypeError: logger.info is not a function", mesmo com todos os testes passando.
 vi.mock('../../logger.js', () => ({
     logger: {
+        info: vi.fn(),
         warn: vi.fn(),
+        error: vi.fn(),
     },
 }));
 
