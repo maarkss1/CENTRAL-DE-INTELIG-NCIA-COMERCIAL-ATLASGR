@@ -23,7 +23,13 @@ export default defineConfig(() => {
       // Do not modifyâ€”file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      // ignored: sem isso, o Vite observa o projeto inteiro (inclusive playwright-report/ e
+      // test-results/, que o Playwright regrava a cada teste enquanto o servidor de e2e roda essa
+      // mesma config em middleware mode) — cada gravação do relatório disparava um full reload da
+      // página no meio do teste, derrubando login/formulário em andamento (TEST-002).
+      watch: process.env.DISABLE_HMR === 'true' ? null : {
+        ignored: ['**/playwright-report/**', '**/test-results/**', '**/coverage/**'],
+      },
     },
     build: {
       rollupOptions: {
