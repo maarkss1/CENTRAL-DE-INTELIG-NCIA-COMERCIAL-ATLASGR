@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     TrendingUp, Building2, Users, MapPin, Calendar, DollarSign, Wrench, Mail,
     MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck,
@@ -11,6 +12,7 @@ import {
     validContactEmails,
 } from '../../../../shared/utils/contact-links';
 import { DecisionMakerSearch } from './DecisionMakerSearch';
+import { WhatsAppChatPanel } from '../../../integrations/whatsapp/components/WhatsAppChatPanel';
 
 interface PromoteResult {
     lead: { id: string };
@@ -38,6 +40,7 @@ export function CandidateCard({
     const finalScore = promotedResult?.fit?.score ?? candidate.fitScoreEstimate;
     const isEstimate = !promotedResult?.fit;
     const enrichment = promotedResult?.enrichment;
+    const [chatTarget, setChatTarget] = useState<{ phone: string; name: string } | null>(null);
 
     return (
         <div className="bg-slate-900/60 p-6 rounded-2xl border border-white/10 hover:border-atlas-orange/40 transition-all shadow-sm group">
@@ -76,15 +79,14 @@ export function CandidateCard({
                             )
                         )}
                         {getWhatsAppLink(candidate.phone) && (
-                            <a
-                                href={getWhatsAppLink(candidate.phone)}
-                                target="_blank"
-                                rel="noreferrer"
+                            <button
+                                type="button"
+                                onClick={() => setChatTarget({ phone: candidate.phone!, name: candidate.tradeName })}
                                 title="Número coletado — a existência de WhatsApp não foi verificada"
                                 className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
                             >
                                 <MessageCircle size={14} /> WhatsApp
-                            </a>
+                            </button>
                         )}
                         {candidate.website && (
                             <a
@@ -158,15 +160,14 @@ export function CandidateCard({
                                                 </a>
                                             )}
                                             {whatsapp && (
-                                                <a
-                                                    href={whatsapp}
-                                                    target="_blank"
-                                                    rel="noreferrer"
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setChatTarget({ phone: dm.phone!, name: dm.name })}
                                                     title="Número coletado — a existência de WhatsApp não foi verificada"
                                                     className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 hover:underline"
                                                 >
                                                     <MessageCircle size={12} /> WhatsApp
-                                                </a>
+                                                </button>
                                             )}
                                             <a href={linkedIn.href} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-400 hover:text-blue-300 hover:underline">
                                                 <Linkedin size={12} /> {linkedIn.isDirectProfile ? 'Abrir perfil' : 'Buscar no LinkedIn'}
@@ -253,6 +254,13 @@ export function CandidateCard({
                     </button>
                 )}
             </div>
+            {chatTarget && (
+                <WhatsAppChatPanel
+                    phone={chatTarget.phone}
+                    contactName={chatTarget.name}
+                    onClose={() => setChatTarget(null)}
+                />
+            )}
         </div>
     );
 }

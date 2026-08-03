@@ -2,17 +2,20 @@ import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } from './whatsapp.service.js';
 import { prisma } from '../../../lib/prisma.js';
+import { toE164BR } from '../../../lib/phone.js';
 
 const router = Router();
 
-// Histórico de mensagens persistidas — de um lead específico, ou as mais recentes de toda a
-// organização quando nenhum leadId é informado.
+// Histórico de mensagens persistidas — de um lead específico, de um telefone específico (útil para
+// candidatos de prospecção ainda não promovidos a Lead), ou as mais recentes de toda a organização
+// quando nenhum filtro é informado.
 router.get('/messages', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const leadId = typeof req.query.leadId === 'string' ? req.query.leadId : undefined;
+        const phoneE164 = typeof req.query.phone === 'string' ? toE164BR(req.query.phone) : undefined;
         const messages = await prisma.whatsAppMessage.findMany({
-            where: { organizationId, ...(leadId ? { leadId } : {}) },
+            where: { organizationId, ...(leadId ? { leadId } : {}), ...(phoneE164 ? { phoneE164 } : {}) },
             orderBy: { receivedAt: 'desc' },
             take: 50,
         });
