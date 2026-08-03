@@ -15,7 +15,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './src/lib/auth.js';
 import { intelligenceRoutes } from './src/features/intelligence/routes/intelligence.routes.js';
 import { promptRoutes } from './src/features/intelligence/routes/prompt.routes.js';
-import { authenticateToken } from './src/shared/middlewares/authenticateToken.js';
+import { authenticateToken, type AuthRequest } from './src/shared/middlewares/authenticateToken.js';
 import { requestContext } from './src/lib/async-context.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { prisma } from './src/lib/prisma.js';
@@ -130,25 +130,31 @@ async function startServer() {
     });
     app.use('/api', apiLimiter);
 
-    // Rate Limiting — 15 req/15min por IP nas rotas /api/intelligence
+    // Rate Limiting — SEC-008b: 15 req/15min por TENANT (organizationId) nas rotas de IA, não por
+    // IP. Por IP, um escritório inteiro atrás do mesmo NAT compartilha (e esgota) a cota de outras
+    // organizações; por tenant, cada organização tem a sua própria cota isolada, e vários tenants
+    // atrás do mesmo IP não se atrapalham. Exige identidade conhecida ANTES do limiter rodar, por
+    // isso authenticateToken foi movido pra cá (e removido do mount tardio destas 3 rotas abaixo —
+    // roda só uma vez, não duas).
     const aiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
         max: env.AI_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
+        keyGenerator: (req) => (req as AuthRequest).user?.organizationId || req.ip || 'unknown',
         store: env.NODE_ENV === 'production' ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
-        message: { success: false, error: 'Too many requests to AI services from this IP, please try again after 15 minutes' }
+        message: { success: false, error: 'Too many requests to AI services from this organization, please try again after 15 minutes' }
     });
-    app.use('/api/intelligence', aiLimiter);
+    app.use('/api/intelligence', authenticateToken, aiLimiter);
     // As rotas de agentes (Swarm/SDR) também disparam chamadas de LLM e ficavam de
     // fora de qualquer limitador dedicado de IA, cobertas só pelo apiLimiter genérico.
-    app.use('/api/agent', aiLimiter);
+    app.use('/api/agent', authenticateToken, aiLimiter);
 
     // A Base de Conhecimento gera embeddings a cada ingestão e a cada busca, então cai no mesmo
     // limite das rotas de IA — é o mesmo provedor e a mesma cota.
-    app.use('/api/knowledge', aiLimiter);
+    app.use('/api/knowledge', authenticateToken, aiLimiter);
 
     // Rate Limiting dedicado e mais restritivo para autenticação — login/cadastro
     // não devem compartilhar a cota genérica de 600 req/15min usada pelo resto da
@@ -261,17 +267,19 @@ async function startServer() {
     app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
-    app.use('/api/intelligence', authenticateToken, requireTenant, intelligenceRoutes);
+    // authenticateToken já rodou pra estas 3 (junto com o aiLimiter, ver SEC-008b acima) — só falta
+    // requireTenant aqui, chamar de novo seria uma segunda consulta de sessão redundante.
+    app.use('/api/intelligence', requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
-    app.use('/api/knowledge', authenticateToken, requireTenant, knowledgeRoutes);
+    app.use('/api/knowledge', requireTenant, knowledgeRoutes);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
     app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
-    app.use('/api/agent', authenticateToken, requireTenant, agentRoutes);
+    app.use('/api/agent', requireTenant, agentRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
     // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa
