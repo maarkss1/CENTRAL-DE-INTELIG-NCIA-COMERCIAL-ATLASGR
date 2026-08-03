@@ -6,10 +6,6 @@ export const AUTHORIZED_LOGIN_EMAILS = [
 export const AUTHORIZED_LOGIN_DOMAINS = [
   'atlasgr.com.br',
   'totaltrac.com.br',
-  // Mesma marca, grafia com "k" também usada em e-mails reais da equipe (ver TotalTrackLogo,
-  // totaltrack-logo.png) — sem isso, contas como kaue.oliveira@totaltrack.com.br são
-  // rejeitadas no login mesmo com a senha correta.
-  'totaltrack.com.br',
 ] as const;
 
 export function normalizeLoginEmail(email: string): string {
