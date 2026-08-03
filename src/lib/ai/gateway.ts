@@ -2,6 +2,7 @@ import type { BaseMessage } from '@langchain/core/messages';
 import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
+import { cacheConnection } from '../queue/redis.js';
 
 // Nome lógico mantido por compatibilidade com os serviços existentes. Renomeado de "gemini-pro"
 // (IA-001): esse nome sugeria o Gemini real do Google, mas o alias sempre resolveu, por padrão,
@@ -212,34 +213,69 @@ export async function withRetry<T>(fn: () => Promise<T>, retries: number = 1, ba
     throw lastError;
 }
 
-interface CircuitState {
+// ARCH-005: estado do circuit breaker em Redis (cacheConnection — conexão fail-fast, sem fila
+// offline) em vez de só Map() local. Antes, cada instância só aprendia da própria experiência: com
+// N instâncias atrás do load balancer, cada uma precisava acumular CIRCUIT_FAILURE_THRESHOLD falhas
+// por conta própria antes de abrir o circuito, então o provedor recebia até N vezes mais tentativas
+// inúteis do que o desenhado. Se o Redis em si estiver indisponível, cai pro Map() local em vez de
+// desistir de proteger o provedor inteiramente — um circuit breaker que nunca abre durante uma
+// indisponibilidade de Redis (justo quando a infra está com problema) não protegeria nada.
+const CIRCUIT_KEY_PREFIX = 'ai-gateway:circuit';
+const CIRCUIT_FAILURES_TTL_SECONDS = Math.ceil((CIRCUIT_COOLDOWN_MS / 1000) * 4);
+
+interface LocalCircuitState {
     failures: number;
     openUntil: number;
 }
+const localCircuitFallback = new Map<string, LocalCircuitState>();
 
-const circuitState = new Map<string, CircuitState>();
-
-/** Só para testes: limpa o estado do circuit breaker entre casos para evitar interferência. */
-export function __resetCircuitBreakerForTests(): void {
-    circuitState.clear();
-}
-
-function isCircuitOpen(provider: string): boolean {
-    const state = circuitState.get(provider);
-    return !!state && Date.now() < state.openUntil;
-}
-
-function recordCircuitSuccess(provider: string): void {
-    circuitState.delete(provider);
-}
-
-function recordCircuitFailure(provider: string): void {
-    const state = circuitState.get(provider) ?? { failures: 0, openUntil: 0 };
-    state.failures += 1;
-    if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
-        state.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+/** Só para testes: limpa o estado do circuit breaker (Redis e o fallback local) entre casos. */
+export async function __resetCircuitBreakerForTests(): Promise<void> {
+    localCircuitFallback.clear();
+    try {
+        const keys = await cacheConnection.keys(`${CIRCUIT_KEY_PREFIX}:*`);
+        if (keys.length > 0) await cacheConnection.del(...keys);
+    } catch {
+        // Redis indisponível — só o fallback local importava mesmo, e já foi limpo acima.
     }
-    circuitState.set(provider, state);
+}
+
+async function isCircuitOpen(provider: string): Promise<boolean> {
+    try {
+        const open = await cacheConnection.exists(`${CIRCUIT_KEY_PREFIX}:${provider}:open`);
+        return open === 1;
+    } catch (err) {
+        logger.warn({ err, provider }, 'Circuit breaker: Redis indisponível, usando estado local desta instância');
+        const state = localCircuitFallback.get(provider);
+        return !!state && Date.now() < state.openUntil;
+    }
+}
+
+async function recordCircuitSuccess(provider: string): Promise<void> {
+    localCircuitFallback.delete(provider);
+    try {
+        await cacheConnection.del(`${CIRCUIT_KEY_PREFIX}:${provider}:failures`, `${CIRCUIT_KEY_PREFIX}:${provider}:open`);
+    } catch (err) {
+        logger.warn({ err, provider }, 'Circuit breaker: falha ao limpar estado no Redis (fallback local já limpo)');
+    }
+}
+
+async function recordCircuitFailure(provider: string): Promise<void> {
+    try {
+        const failures = await cacheConnection.incr(`${CIRCUIT_KEY_PREFIX}:${provider}:failures`);
+        await cacheConnection.expire(`${CIRCUIT_KEY_PREFIX}:${provider}:failures`, CIRCUIT_FAILURES_TTL_SECONDS);
+        if (failures >= CIRCUIT_FAILURE_THRESHOLD) {
+            await cacheConnection.set(`${CIRCUIT_KEY_PREFIX}:${provider}:open`, '1', 'PX', CIRCUIT_COOLDOWN_MS);
+        }
+    } catch (err) {
+        logger.warn({ err, provider }, 'Circuit breaker: Redis indisponível, contando falha só localmente');
+        const state = localCircuitFallback.get(provider) ?? { failures: 0, openUntil: 0 };
+        state.failures += 1;
+        if (state.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+            state.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+        }
+        localCircuitFallback.set(provider, state);
+    }
 }
 
 /**
@@ -248,15 +284,15 @@ function recordCircuitFailure(provider: string): void {
  * sabidamente fora do ar) — só volta a tentar depois do resfriamento.
  */
 async function callProvider<T>(provider: string, fn: () => Promise<T>): Promise<T> {
-    if (isCircuitOpen(provider)) {
+    if (await isCircuitOpen(provider)) {
         throw new Error(`Provedor "${provider}" temporariamente desativado após falhas recentes (nova tentativa em breve).`);
     }
     try {
         const result = await withRetry(fn, MAX_ATTEMPTS_PER_LEG - 1, RETRY_BASE_DELAY_MS);
-        recordCircuitSuccess(provider);
+        await recordCircuitSuccess(provider);
         return result;
     } catch (error) {
-        recordCircuitFailure(provider);
+        await recordCircuitFailure(provider);
         throw error;
     }
 }

@@ -36,11 +36,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('AI gateway', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         process.env.LITELLM_URL = 'http://litellm.test/v1/';
         process.env.LITELLM_KEY = 'test-litellm-key';
         delete process.env.GROQ_API_KEY;
-        __resetCircuitBreakerForTests();
+        await __resetCircuitBreakerForTests();
     });
 
     afterEach(() => {
