@@ -51,6 +51,13 @@ export const studioGenerationSchema = z.discriminatedUnion('kind', [
         }),
     }),
     z.object({
+        kind: z.literal('ocr_extract'),
+        brand: brandSchema,
+        inputs: z.object({
+            rawText: z.string().trim().min(1).max(4_000),
+        }),
+    }),
+    z.object({
         kind: z.literal('b2b_matrix'),
         brand: brandSchema,
         inputs: z.object({
@@ -165,6 +172,18 @@ const messageResultSchema = z.object({
     body: z.string().trim().min(20).max(700),
     followUpSuggestion: z.string().trim().min(10).max(300),
     icpAnalysis: z.string().trim().min(10).max(600),
+});
+
+const ocrExtractResultSchema = z.object({
+    tradeName: z.string().trim().min(1).max(200).nullable(),
+    segment: z.string().trim().max(150).nullable(),
+    location: z.string().trim().max(150).nullable(),
+    phone: z.string().trim().max(40).nullable(),
+    email: z.string().trim().max(150).nullable(),
+    website: z.string().trim().max(200).nullable(),
+    contactName: z.string().trim().max(150).nullable(),
+    contactRole: z.string().trim().max(150).nullable(),
+    confidence: z.enum(['alta', 'media', 'baixa']),
 });
 
 const b2bResultSchema = z.object({
@@ -512,6 +531,28 @@ ${jsonOnlyInstruction('{"body":"string","followUpSuggestion":"string","icpAnalys
                 messageResultSchema,
                 '{"body":"string","followUpSuggestion":"string","icpAnalysis":"string"}',
                 0.6,
+            );
+        }
+
+        if (request.kind === 'ocr_extract') {
+            const prompt = `${SYSTEM_RULES}
+
+Um usuário fotografou um cartão de visita, fachada ou documento de uma empresa e o texto abaixo foi extraído por
+OCR — pode ter erros de leitura, texto fora de ordem e ruído. Extraia os dados reais de empresa/contato presentes
+no texto. NUNCA invente um dado que não esteja no texto: se um campo não aparecer, retorne null nele. "confidence"
+deve refletir o quanto o texto realmente parece uma empresa/contato legível (alta/media/baixa), não sua vontade
+de ajudar.
+
+TEXTO EXTRAÍDO POR OCR:
+${request.inputs.rawText}
+
+${jsonOnlyInstruction('{"tradeName":"string ou null","segment":"string ou null","location":"string ou null","phone":"string ou null","email":"string ou null","website":"string ou null","contactName":"string ou null","contactRole":"string ou null","confidence":"alta|media|baixa"}')}`;
+            return invokeStructured(
+                prompt,
+                'studio:ocr-extract',
+                ocrExtractResultSchema,
+                '{"tradeName":"string|null","segment":"string|null","location":"string|null","phone":"string|null","email":"string|null","website":"string|null","contactName":"string|null","contactRole":"string|null","confidence":"alta|media|baixa"}',
+                0.2,
             );
         }
 

@@ -9,10 +9,13 @@ type ViteImportMeta = ImportMeta & {
 };
 
 export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
-    const defaultHeaders = {
+    // FormData (upload de arquivo) precisa que o navegador defina o Content-Type sozinho, com o
+    // boundary do multipart — forçar 'application/json' aqui quebraria o parse no servidor.
+    const isFormData = options?.body instanceof FormData;
+    const defaultHeaders: Record<string, string> = isFormData ? {} : {
         'Content-Type': 'application/json',
     };
-    
+
     // Check if there is an auth token in localStorage (if used)
     const token = localStorage.getItem('token');
     if (token) {
@@ -81,4 +84,6 @@ export const api = {
     post: <T>(url: string, body?: unknown, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
     put: <T>(url: string, body?: unknown, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'PUT', body: JSON.stringify(body) }),
     delete: <T>(url: string, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
+    /** Upload de arquivo (multipart/form-data) — ex.: OCR de imagem. Não usa JSON.stringify. */
+    postForm: <T>(url: string, form: FormData, options?: ApiRequestOptions) => apiFetch<T>(url, { ...options, method: 'POST', body: form }),
 };

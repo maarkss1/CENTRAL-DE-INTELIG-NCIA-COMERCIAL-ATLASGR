@@ -15,6 +15,9 @@ test-results/
 # Modelos de embeddings baixados em runtime (~400 MB)
 .cache/
 
+# Modelos de idioma do Tesseract (OCR) — baixados sob demanda pelo tesseract.js no primeiro uso.
+*.traineddata
+
 # Dump de persistência local do Redis — nunca deveria ter sido commitado (DEP-006).
 dump.rdb
 

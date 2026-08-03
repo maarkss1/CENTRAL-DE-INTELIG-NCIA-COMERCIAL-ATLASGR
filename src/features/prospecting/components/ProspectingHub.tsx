@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Landmark, Sparkles } from 'lucide-react';
+import { Database, Landmark, Sparkles, Camera } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
@@ -11,10 +11,11 @@ import { GamificationWidget } from '../../../components/ui/GamificationWidget';
 import { CnpjSearchPanel } from './prospecting-hub/CnpjSearchPanel';
 import { DiscoveryFilterPanel } from './prospecting-hub/DiscoveryFilterPanel';
 import { DiscoveryResultsPanel } from './prospecting-hub/DiscoveryResultsPanel';
+import { OcrCapturePanel } from './prospecting-hub/OcrCapturePanel';
 
 export { DecisionMakerSearch } from './prospecting-hub/DecisionMakerSearch';
 
-type HubTab = 'cnpj' | 'discovery';
+type HubTab = 'cnpj' | 'discovery' | 'ocr';
 
 const ufMap: Record<string, string> = {
     'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA', 'Ceará': 'CE', 'Distrito Federal': 'DF',
@@ -380,6 +381,12 @@ export function ProspectingHub() {
                     >
                         <Database size={18} /> Radar Discovery (Fontes abertas)
                     </button>
+                    <button
+                        onClick={() => setTab('ocr')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'ocr' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
+                    >
+                        <Camera size={18} /> Cadastrar por Foto (OCR)
+                    </button>
                 </div>
 
                 {tab === 'cnpj' && (
@@ -433,6 +440,8 @@ export function ProspectingHub() {
                         />
                     </div>
                 )}
+
+                {tab === 'ocr' && <OcrCapturePanel />}
             </div>
         </div>
     );

@@ -1,15 +1,21 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 
 import { discoverCandidates, promoteToCrm, discoverDecisionMakers } from '../services/prospecting.service.js';
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
+import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from '../services/ocr.service.js';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const icebreakerService = new IcebreakerService();
 
 const router = Router();
+
+// Só em memória (nunca grava em disco) — a imagem só existe pelo tempo do OCR, não é um asset
+// que o app precisa reter depois de extrair o texto.
+const ocrUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 // Revalida o login técnico da Apollo por API key sem consumir créditos.
 router.post('/apollo/reconnect', async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -32,6 +38,32 @@ router.post('/discover', async (req: Request, res: Response, next: NextFunction)
         const result = await discoverCandidates(criteria);
         res.json({ success: true, data: result });
     } catch (error) {
+        next(error);
+    }
+});
+
+// Lê uma foto (cartão de visita, fachada, lista impressa) via OCR local + IA e devolve um
+// candidato no mesmo formato da Descoberta — o cadastro real no CRM usa o /promote já existente,
+// depois que o usuário confere os dados extraídos (OCR erra; não promovemos sozinho).
+router.post('/ocr', ocrUpload.single('image'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        if (!req.file) {
+            res.status(400).json({ success: false, error: 'Envie uma imagem no campo "image".' });
+            return;
+        }
+        const brandName = typeof req.body?.brandName === 'string' ? req.body.brandName : 'AtlasGR';
+        const brandDescription = typeof req.body?.brandDescription === 'string'
+            ? req.body.brandDescription
+            : 'Gestão de risco e inteligência logística B2B';
+
+        const rawText = await extractTextFromImage(req.file.buffer, req.file.mimetype);
+        const candidate = await structureOcrCandidate(rawText, { name: brandName, description: brandDescription });
+        res.json({ success: true, data: { candidate, rawText } });
+    } catch (error) {
+        if (error instanceof OcrValidationError) {
+            res.status(422).json({ success: false, error: error.message });
+            return;
+        }
         next(error);
     }
 });
