@@ -1,6 +1,7 @@
 import { AgentService } from '../services/agent.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { vectorService } from '../services/vector.service.js';
+import { minimizePii, rehydratePii, type PiiToken } from '../services/guardrails.service.js';
 
 export class SDROutboundDraftAgent extends AgentService {
     protected agentType = 'SDR_OUTBOUND';
@@ -50,7 +51,13 @@ ${ragContext}
 Escreva um e-mail curto de primeiro contato. Foco em dor/gatilho baseado no segmento e no contexto do Playbook fornecido acima.
 `;
 
-        const generatedEmail = await this.processMessage(promptContext);
+        // SEC-013b: mesmo padrão de ai.service.ts — o provedor de IA externo nunca vê o nome real
+        // do contato durante a geração; ele só é restaurado na resposta final, que vai pro humano
+        // revisar em AIPendingAction antes de qualquer envio.
+        const minimized = minimizePii(promptContext, [{ token: '[NOME_DO_CONTATO]', value: lead.contact.name }]);
+        const piiTokens: PiiToken[] = minimized.applied;
+        const draftedEmail = await this.processMessage(minimized.text);
+        const generatedEmail = piiTokens.length > 0 ? rehydratePii(draftedEmail, piiTokens) : draftedEmail;
 
         // Salvar a ação na tabela de pendências para o SDR humano aprovar
         await prisma.aIPendingAction.create({

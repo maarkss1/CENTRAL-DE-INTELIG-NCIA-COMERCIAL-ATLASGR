@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../../lib/prisma.js';
 import { toPrismaLeadStatus } from '../../../lib/enumMap';
 import { getTenantId } from '../../../lib/async-context.js';
+import { minimizePii } from '../services/guardrails.service.js';
 
 /**
  * Ferramenta para o agente buscar o contexto completo de um Lead (empresa, contato, interações)
@@ -42,6 +43,17 @@ export const getLeadContextTool = tool(
 
         if (p) {
             context += `\nContato: ${p.name} (${p.role || 'Cargo desconhecido'})\n`;
+        }
+
+        // SEC-013b: este texto vira uma ToolMessage devolvida ao LLM externo (Groq/OpenAI/Gemini)
+        // dentro do loop de tool-calling do agente — sem isto, o nome real do contato ia direto pro
+        // provedor. Diferente de ai.service.ts/sdr-agent.ts (chamada única, resposta reidratada no
+        // fim), aqui o texto reentra num agente multi-turn: reidratar de volta exigiria rastrear o
+        // token pelo estado do grafo até onde a saída final chega no humano — não coberto ainda,
+        // então o pior caso hoje é "[NOME_DO_CONTATO]" aparecer cru se a IA ecoar o token de volta
+        // no resumo de qualificação, nunca o nome real vazando pro provedor externo.
+        if (p) {
+            context = minimizePii(context, [{ token: '[NOME_DO_CONTATO]', value: p.name }]).text;
         }
 
         return context;
