@@ -43,6 +43,8 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
     const [exportingBitrix, setExportingBitrix] = useState(false);
+    const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
+    const [savingOwner, setSavingOwner] = useState(false);
 
     const fetchLead = useCallback(async () => {
         try {
@@ -59,6 +61,12 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     useEffect(() => {
         fetchLead();
     }, [fetchLead]);
+
+    useEffect(() => {
+        api.get<{ owners: { id: string; name: string }[] }>('/api/team/assignable')
+            .then((data) => setOwners(data.owners))
+            .catch(() => setOwners([])); // Sem time cadastrado ainda ou sem permissão — cai pro campo livre.
+    }, []);
 
     useEffect(() => {
         if (lead?.qualification) setQualDraft(lead.qualification);
@@ -79,6 +87,21 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             onChanged();
         } catch {
             toast.error('Falha ao mudar o estágio do lead.');
+        }
+    };
+
+    const handleReassignOwner = async (newOwner: string) => {
+        if (!lead || newOwner === (lead.owner || '')) return;
+        setSavingOwner(true);
+        try {
+            await api.put(`/api/leads/${leadId}`, { owner: newOwner || null });
+            toast.success(newOwner ? `Lead realocado para ${newOwner}.` : 'Responsável removido do lead.');
+            await fetchLead();
+            onChanged();
+        } catch {
+            toast.error('Falha ao realocar o lead.');
+        } finally {
+            setSavingOwner(false);
         }
     };
 
@@ -215,6 +238,29 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 {enriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                                 {enriching ? 'Enriquecendo...' : '✨ Enriquecer'}
                             </button>
+                        </div>
+
+                        {/* Responsável — realocar para outro vendedor/SDR */}
+                        <div>
+                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Responsável</h3>
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={lead.owner || ''}
+                                    onChange={(e) => handleReassignOwner(e.target.value)}
+                                    disabled={savingOwner}
+                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange disabled:opacity-50"
+                                >
+                                    <option value="">Sem responsável</option>
+                                    {owners.map((o) => (
+                                        <option key={o.id} value={o.name}>{o.name}</option>
+                                    ))}
+                                    {/* Garante que um responsável já salvo apareça mesmo se não estiver (mais) na lista da equipe. */}
+                                    {lead.owner && !owners.some((o) => o.name === lead.owner) && (
+                                        <option value={lead.owner}>{lead.owner}</option>
+                                    )}
+                                </select>
+                                {savingOwner && <Loader2 className="w-4 h-4 animate-spin text-ink-2 shrink-0" />}
+                            </div>
                         </div>
 
                         {/* PIC (Perfil de Cliente Ideal) — setado manualmente pelo SDR/AM */}

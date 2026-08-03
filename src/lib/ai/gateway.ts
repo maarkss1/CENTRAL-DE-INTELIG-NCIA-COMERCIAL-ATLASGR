@@ -24,6 +24,23 @@ const GROQ_MODEL_ALIASES: Record<string, string> = {
     'claude-sonnet': 'llama-3.3-70b-versatile',
 };
 
+// O Ollama local (litellm-config.yaml → local-llama3/local-llama3-fast) processa uma única
+// completion por vez nesta máquina — confirmado empiricamente: 3 chamadas simultâneas fazem a 2ª
+// terminar em ~60s e a 3ª nunca terminar dentro do timeout. Sem essa fila, qualquer sobreposição
+// (ex.: enxame autônomo rodando junto com o Chatbook ou um embedding) derruba os agentes mais
+// lentos por timeout mesmo com o modelo saudável. A fila serializa só as chamadas que batem no
+// Ollama; modelos que vão para APIs reais (gpt-4o, claude-sonnet, openrouter) não são afetados.
+const OLLAMA_BACKED_MODELS = new Set(['local-llama3', 'local-llama3-fast']);
+let ollamaRequestQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueIfOllamaBacked<T>(resolvedModel: string, fn: () => Promise<T>): Promise<T> {
+    if (!OLLAMA_BACKED_MODELS.has(resolvedModel)) return fn();
+    const run = ollamaRequestQueue.then(fn, fn);
+    // Erros não devem travar a fila para as próximas chamadas — só nos importa a ordem de execução.
+    ollamaRequestQueue = run.catch(() => undefined);
+    return run;
+}
+
 const DEFAULT_GATEWAY_TIMEOUT_MS = 30_000;
 const DEFAULT_FALLBACK_TIMEOUT_MS = 60_000;
 const MAX_MESSAGES_PER_REQUEST = 100;
@@ -367,7 +384,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             let litellmError: unknown;
 
             try {
-                response = await callProvider('litellm', () => requestChatCompletion(
+                response = await enqueueIfOllamaBacked(resolvedModel, () => callProvider('litellm', () => requestChatCompletion(
                     `${litellmBaseUrl}/v1/chat/completions`,
                     litellmKey,
                     resolvedModel,
@@ -376,7 +393,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                     agentContext,
                     gatewayTimeoutMs,
                     true,
-                ));
+                )));
             } catch (error) {
                 litellmError = error;
             }

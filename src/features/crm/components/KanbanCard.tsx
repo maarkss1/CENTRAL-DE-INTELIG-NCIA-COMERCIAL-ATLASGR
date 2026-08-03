@@ -94,9 +94,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 )}
 
                 <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-line">
-                    <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
-                        <Calendar className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1.5 text-[11px] text-ink-2 min-w-0">
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
                         {new Date(lead.updatedAt || lead.createdAt || '').toLocaleDateString('pt-BR')}
+                        {lead.owner && <span className="truncate">· {lead.owner}</span>}
                     </div>
                     {onEnrich && lead.companyId && (
                         <button

@@ -1,12 +1,22 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
-import { listTeamMembers, createTeamMember, deleteTeamMember, TeamServiceError, ASSIGNABLE_ROLES } from '../services/team.service.js';
+import { listTeamMembers, listAssignableOwners, createTeamMember, deleteTeamMember, TeamServiceError, ASSIGNABLE_ROLES } from '../services/team.service.js';
 
 const router = Router();
 
-// Toda a gestão de equipe (criar/excluir usuário, ver a lista) é restrita a ADMIN — é uma
-// operação de conta, não de dados comerciais do dia a dia.
+// Só nome/id, sem e-mail nem papel — qualquer usuário da organização pode ver para reatribuir um
+// lead/atividade a um colega, mesmo sem ser ADMIN. Precisa vir ANTES do requireRole(['ADMIN'])
+// abaixo, que protege o resto da gestão de equipe (criar/excluir usuário, ver a lista completa).
+router.get('/assignable', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const owners = await listAssignableOwners((req as AuthRequest).user.organizationId);
+        res.json({ success: true, data: { owners } });
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.use(requireRole(['ADMIN']));
 
 router.get('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {

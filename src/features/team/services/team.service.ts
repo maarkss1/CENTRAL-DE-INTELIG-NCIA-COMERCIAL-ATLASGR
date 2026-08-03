@@ -35,6 +35,22 @@ export async function listTeamMembers(organizationId: string): Promise<TeamMembe
     });
 }
 
+export interface AssignableOwner {
+    id: string;
+    name: string;
+}
+
+// Versão sem dados sensíveis (sem e-mail, papel, mustChangePassword) de listTeamMembers — usada
+// pelo seletor de "responsável" em Leads/Activities, que qualquer usuário autenticado da
+// organização precisa ver, não só ADMIN.
+export async function listAssignableOwners(organizationId: string): Promise<AssignableOwner[]> {
+    return prisma.user.findMany({
+        where: { organizationId },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+    });
+}
+
 function generateTempPassword(): string {
     // 12 caracteres alfanuméricos legíveis (sem 0/O/1/l pra evitar confusão ao digitar).
     const alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
