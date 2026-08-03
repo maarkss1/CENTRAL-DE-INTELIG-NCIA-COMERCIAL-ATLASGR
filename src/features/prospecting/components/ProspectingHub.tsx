@@ -283,7 +283,11 @@ export function ProspectingHub() {
             setLoadingStepIdx((prev) => Math.min(prev + 1, loadingSteps.length - 1));
         }, 800);
         try {
-            const result = await api.post<DiscoverResult>('/api/prospecting/discover', criteria);
+            // Busca real encadeia Google Places/Nominatim + Apollo (organizações e, opcionalmente,
+            // decisores) + heurísticas de CNPJ — o timeout padrão de 15s (pensado pra CRUD simples)
+            // matava a requisição no cliente antes do backend terminar, mesmo quando cada chamada
+            // individual (inclusive o Apollo) respondia rápido isoladamente.
+            const result = await api.post<DiscoverResult>('/api/prospecting/discover', criteria, { timeoutMs: 45_000 });
             setCandidates(result.candidates);
             setApolloError(result.apolloError || null);
         } catch (error) {
