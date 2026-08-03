@@ -1,8 +1,26 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } from './whatsapp.service.js';
+import { prisma } from '../../../lib/prisma.js';
 
 const router = Router();
+
+// Histórico de mensagens persistidas — de um lead específico, ou as mais recentes de toda a
+// organização quando nenhum leadId é informado.
+router.get('/messages', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const leadId = typeof req.query.leadId === 'string' ? req.query.leadId : undefined;
+        const messages = await prisma.whatsAppMessage.findMany({
+            where: { organizationId, ...(leadId ? { leadId } : {}) },
+            orderBy: { receivedAt: 'desc' },
+            take: 50,
+        });
+        res.json({ success: true, data: messages });
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Inicia a sessão e gera QR Code (por tenant)
 router.post('/connect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {

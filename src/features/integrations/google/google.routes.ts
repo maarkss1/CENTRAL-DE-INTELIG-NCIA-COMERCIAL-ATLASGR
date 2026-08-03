@@ -1,40 +1,92 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { getGoogleAuthUrl, processGoogleCallback, getGoogleStatus } from './google.service.js';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import {
+    getGoogleAuthUrl,
+    processGoogleCallback,
+    getGoogleStatus,
+    disconnectGoogle,
+    getUpcomingCalendarEvents,
+    verifyState,
+    GoogleNotConfiguredError,
+    GoogleNotConnectedError,
+} from './google.service.js';
 
 const router = Router();
 
-// Endpoint para pegar a URL de autenticação do Google (OAuth)
-router.get('/auth-url', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// URL real de consentimento OAuth do Google (Gmail + Calendar) para a organização autenticada.
+router.get('/auth-url', (req: Request, res: Response, next: NextFunction): void => {
     try {
-        const url = await getGoogleAuthUrl();
-        res.json({ success: true, url });
+        const { organizationId } = (req as AuthRequest).user;
+        const url = getGoogleAuthUrl(organizationId);
+        res.json({ success: true, data: { url } });
     } catch (error) {
+        if (error instanceof GoogleNotConfiguredError) {
+            res.status(503).json({ success: false, error: error.message });
+            return;
+        }
         next(error);
     }
 });
 
-// Endpoint para processar o callback do Google
-router.get('/callback', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// Callback do Google — chegada via navegação do próprio navegador do usuário (mesma sessão
+// autenticada que iniciou o /auth-url), então redireciona de volta para a tela de Integrações
+// em vez de devolver JSON cru.
+router.get('/callback', async (req: Request, res: Response): Promise<void> => {
+    const { organizationId } = (req as AuthRequest).user;
+    const redirectBack = (status: 'connected' | 'error', message?: string): void => {
+        const params = new URLSearchParams({ google: status, ...(message ? { message } : {}) });
+        res.redirect(`/app?${params.toString()}`);
+    };
+
     try {
-        const { code } = req.query;
-        if (!code || typeof code !== 'string') {
-            res.status(400).json({ success: false, error: 'Authorization code is missing.' });
+        const { code, state } = req.query;
+        if (!code || typeof code !== 'string' || !state || typeof state !== 'string') {
+            redirectBack('error', 'Parâmetros ausentes no retorno do Google.');
+            return;
+        }
+        if (!verifyState(state, organizationId)) {
+            redirectBack('error', 'Não foi possível validar o retorno do Google (state inválido).');
             return;
         }
 
-        const result = await processGoogleCallback(code);
-        res.json({ success: true, data: result });
+        await processGoogleCallback(organizationId, code);
+        redirectBack('connected');
+    } catch (error) {
+        redirectBack('error', error instanceof Error ? error.message : 'Falha ao conectar com o Google.');
+    }
+});
+
+router.get('/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const status = await getGoogleStatus(organizationId);
+        res.json({ success: true, data: status });
     } catch (error) {
         next(error);
     }
 });
 
-// Endpoint para obter o status da integração
-router.get('/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/disconnect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const status = await getGoogleStatus();
-        res.json({ success: true, data: status });
+        const { organizationId } = (req as AuthRequest).user;
+        await disconnectGoogle(organizationId);
+        res.json({ success: true });
     } catch (error) {
+        next(error);
+    }
+});
+
+// Próximos eventos reais do Google Calendar da conta conectada.
+router.get('/calendar/upcoming', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const events = await getUpcomingCalendarEvents(organizationId);
+        res.json({ success: true, data: events });
+    } catch (error) {
+        if (error instanceof GoogleNotConnectedError) {
+            res.status(409).json({ success: false, error: error.message });
+            return;
+        }
         next(error);
     }
 });

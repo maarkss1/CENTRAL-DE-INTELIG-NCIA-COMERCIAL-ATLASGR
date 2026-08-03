@@ -35,18 +35,24 @@ export function AIPendingActions() {
     }, []);
 
     /**
-     * "Aprovar" nunca enviou nada de verdade — não existe infraestrutura de envio de e-mail no
-     * projeto (IA-005). Em vez de fingir uma automação que não existe, abre o rascunho no cliente de
-     * e-mail do próprio usuário (via mailto:) pra ele mandar de fato, e só então marca como aprovado.
+     * "Aprovar" agora envia o e-mail de verdade via SMTP quando o servidor está configurado
+     * (IA-005). Só cai no fallback de abrir o rascunho no cliente de e-mail do próprio usuário
+     * (mailto:) quando o backend reporta que não enviou — SMTP ausente ou envio falhou — nunca
+     * incondicionalmente, senão o lead receberia a mensagem duas vezes.
      */
     const handleApprove = async (action: PendingAction) => {
         try {
-            const to = encodeURIComponent(action.payload.to || '');
-            const subject = encodeURIComponent(action.payload.subject || '');
-            const body = encodeURIComponent(action.payload.body || '');
-            window.open(`mailto:${to}?subject=${subject}&body=${body}`, '_blank');
+            const result = await api.post<{ execution: { sent: boolean; reason?: string } }>(
+                `/api/intelligence/pending/${action.id}/approve`,
+            );
 
-            await api.post(`/api/intelligence/pending/${action.id}/approve`);
+            if (!result.execution.sent) {
+                const to = encodeURIComponent(action.payload.to || '');
+                const subject = encodeURIComponent(action.payload.subject || '');
+                const body = encodeURIComponent(action.payload.body || '');
+                window.open(`mailto:${to}?subject=${subject}&body=${body}`, '_blank');
+            }
+
             setActions(prev => prev.filter(a => a.id !== action.id));
         } catch (error) {
             console.error('Error approving', error);
@@ -119,10 +125,10 @@ export function AIPendingActions() {
                             <button
                                 onClick={() => handleApprove(action)}
                                 className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition-colors"
-                                title="Abre este rascunho no seu cliente de e-mail para você enviar"
+                                title="Envia o e-mail de verdade quando o servidor de e-mail está configurado; senão, abre o rascunho no seu cliente de e-mail para você enviar"
                             >
                                 <Check className="w-4 h-4 mr-1.5" />
-                                Aprovar e abrir e-mail
+                                Aprovar e enviar
                             </button>
                             <button
                                 onClick={() => handleDiscard(action.id)}

@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
+import { toast } from '../../../lib/toast';
+
+interface UpcomingEvent {
+    id: string;
+    summary: string;
+    start: string | null;
+}
 
 export function Integrations() {
     const [qrCode, setQrCode] = useState<string | null>(null);
     const [status, setStatus] = useState<string>('disconnected');
     const [loading, setLoading] = useState(false);
+
+    const [googleConnected, setGoogleConnected] = useState(false);
+    const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
     const fetchStatus = async () => {
         try {
@@ -20,8 +32,45 @@ export function Integrations() {
         }
     };
 
+    const fetchGoogleStatus = async () => {
+        try {
+            const res = await fetch('/api/google/status');
+            const data = await res.json();
+            if (data.success) {
+                setGoogleConnected(data.data.connected);
+                setGoogleEmail(data.data.email);
+                if (data.data.connected) {
+                    const eventsRes = await fetch('/api/google/calendar/upcoming');
+                    const eventsData = await eventsRes.json();
+                    if (eventsData.success) setUpcomingEvents(eventsData.data);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch Google status', error);
+        }
+    };
+
+    // Depois do callback OAuth (google.routes.ts redireciona pra cá com ?google=connected|error),
+    // mostra o resultado e limpa a URL — sem isso, um F5 na página reenviaria os mesmos parâmetros.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const googleParam = params.get('google');
+        if (googleParam === 'connected') {
+            toast.success('Google Workspace conectado com sucesso.');
+        } else if (googleParam === 'error') {
+            toast.error(params.get('message') || 'Falha ao conectar com o Google.');
+        }
+        if (googleParam) {
+            params.delete('google');
+            params.delete('message');
+            const query = params.toString();
+            window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
+        }
+    }, []);
+
     useEffect(() => {
         fetchStatus();
+        fetchGoogleStatus();
         const interval = setInterval(fetchStatus, 3000);
         return () => clearInterval(interval);
     }, []);
@@ -46,6 +95,36 @@ export function Integrations() {
             console.error('Failed to disconnect', error);
         }
         setLoading(false);
+    };
+
+    const handleGoogleConnect = async () => {
+        setGoogleLoading(true);
+        try {
+            const res = await fetch('/api/google/auth-url');
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = data.data.url;
+                return;
+            }
+            toast.error(data.error || 'Não foi possível iniciar a conexão com o Google.');
+        } catch (error) {
+            console.error('Failed to start Google connect', error);
+            toast.error('Não foi possível iniciar a conexão com o Google.');
+        }
+        setGoogleLoading(false);
+    };
+
+    const handleGoogleDisconnect = async () => {
+        setGoogleLoading(true);
+        try {
+            await fetch('/api/google/disconnect', { method: 'POST' });
+            setGoogleConnected(false);
+            setGoogleEmail(null);
+            setUpcomingEvents([]);
+        } catch (error) {
+            console.error('Failed to disconnect Google', error);
+        }
+        setGoogleLoading(false);
     };
 
     return (
@@ -82,7 +161,7 @@ export function Integrations() {
                             </div>
 
                             {status === 'disconnected' && (
-                                <button 
+                                <button
                                     onClick={handleConnect}
                                     disabled={loading}
                                     className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
@@ -99,7 +178,7 @@ export function Integrations() {
                             )}
 
                             {status === 'connected' && (
-                                <button 
+                                <button
                                     onClick={handleDisconnect}
                                     disabled={loading}
                                     className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
@@ -110,7 +189,7 @@ export function Integrations() {
                         </div>
                     </Card>
 
-                    <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 opacity-70 hover:opacity-100 transition-opacity">
+                    <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10">
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Workspace</h2>
@@ -122,21 +201,42 @@ export function Integrations() {
                         </div>
                         <div className="space-y-4">
                             <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Desconectado</span>
+                                <span className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    {googleConnected ? `Conectado (${googleEmail})` : 'Desconectado'}
+                                </span>
                             </div>
-                            <button 
-                                onClick={async () => {
-                                    const res = await fetch('/api/google/auth-url');
-                                    const data = await res.json();
-                                    if(data.success) {
-                                        window.location.href = data.url;
-                                    }
-                                }}
-                                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-                            >
-                                Conectar Conta Google
-                            </button>
+
+                            {googleConnected ? (
+                                <>
+                                    {upcomingEvents.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <p className="text-xs text-gray-500 font-medium">Próximos eventos do Calendar</p>
+                                            {upcomingEvents.map((event) => (
+                                                <div key={event.id} className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-black/20 rounded-lg px-3 py-2 truncate">
+                                                    {event.summary}
+                                                    {event.start && <span className="text-gray-400 text-xs ml-2">{new Date(event.start).toLocaleString('pt-BR')}</span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={handleGoogleDisconnect}
+                                        disabled={googleLoading}
+                                        className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
+                                    >
+                                        {googleLoading ? 'Desconectando...' : 'Desconectar'}
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    onClick={handleGoogleConnect}
+                                    disabled={googleLoading}
+                                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                                >
+                                    {googleLoading ? 'Conectando...' : 'Conectar Conta Google'}
+                                </button>
+                            )}
                         </div>
                     </Card>
                 </div>

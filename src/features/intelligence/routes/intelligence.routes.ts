@@ -179,15 +179,15 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
         const { id } = req.params;
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
-        const action = await approvePendingAction(db, authRequest.user.organizationId, id);
-        if (!action) {
+        const result = await approvePendingAction(db, authRequest.user.organizationId, id);
+        if (!result) {
             res.status(404).json({ success: false, error: 'Ação pendente não encontrada.' });
             return;
         }
 
-        logger.info({ actionId: id }, 'AI action approved for downstream execution');
+        logger.info({ actionId: id, sent: result.execution.sent, reason: result.execution.reason }, 'AI action approved');
 
-        res.json({ success: true, action });
+        res.json({ success: true, data: { action: result.action, execution: result.execution } });
     } catch (error) {
         logger.error({ err: error }, 'Error approving action');
         next(error);

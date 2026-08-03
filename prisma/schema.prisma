@@ -159,6 +159,7 @@ model Contact {
   companyId      String
   company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   leads          Lead[]
+  whatsAppMessages WhatsAppMessage[]
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
 
@@ -202,6 +203,7 @@ model Lead {
   activities     Activity[]
   timeline       TimelineEvent[]
   internalNotes  Note[]
+  whatsAppMessages WhatsAppMessage[]
   organizationId String?
   organization   Organization?   @relation(fields: [organizationId], references: [id])
 
@@ -317,6 +319,8 @@ model Organization {
   agentMemories    AgentMemory[]
   callSuppressions CallSuppression[]
   coldCallRuns     ColdCallRun[]
+  whatsAppMessages WhatsAppMessage[]
+  googleWorkspaceConnection GoogleWorkspaceConnection?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -580,6 +584,55 @@ model CallSuppression {
   @@index([organizationId])
 }
 
+/// Mensagem trocada pelo WhatsApp (Baileys), enviada ou recebida. Sem esta tabela, mensagens
+/// recebidas eram descartadas — o handler `messages.upsert` de whatsapp.service.ts só tinha um
+/// comentário "// TODO: salvar no CRM no futuro". `contactId`/`leadId` ficam nulos quando o
+/// número remetente não corresponde a nenhum contato já cadastrado no tenant.
+model WhatsAppMessage {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Id da mensagem no WhatsApp — idempotência: o Baileys pode reentregar o mesmo evento após uma
+  /// reconexão.
+  waMessageId String
+  direction   String // 'inbound' | 'outbound'
+  /// Telefone normalizado em E.164 do lado remoto (quem mandou, se inbound; quem recebeu, se outbound).
+  phoneE164   String
+  body        String? @db.Text
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  receivedAt DateTime @default(now())
+
+  @@unique([organizationId, waMessageId])
+  @@index([organizationId, phoneE164])
+  @@index([leadId])
+}
+
+/// Conexão real de Google Workspace (Gmail + Calendar) de uma organização — antes disso,
+/// google.service.ts era inteiramente simulado (`access_token: 'mock_token'`), sem persistir nada.
+/// Um registro por organização: é a integração do tenant, não de um usuário individual.
+model GoogleWorkspaceConnection {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Conta Google conectada — mostrado na tela de Integrações.
+  email        String
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  scope        String
+  expiresAt    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a
 /// campanha rodava 100% invisível — só `logger.info`, sem nenhuma tela para a operação ver o que
 /// o SDR de voz fez (quantos discou, quantos pulou e por quê).
@@ -624,6 +677,14 @@ model AIPendingAction {
   action         String
   payload        Json
   approved       Boolean       @default(false)
+  /// Se a ação aprovada foi de fato executada (ex: e-mail enviado de verdade via SMTP). Sem este
+  /// campo, "aprovar" só marcava um flag no banco e nada consumia isso depois (IA-005) — o
+  /// executor real fica em src/features/intelligence/services/aiPendingAction.service.ts.
+  executed       Boolean       @default(false)
+  executedAt     DateTime?
+  /// Preenchido quando a execução foi tentada e falhou (ex: SMTP fora do ar). `executed`
+  /// continua false nesse caso — a tela usa isso para decidir se ainda oferece o fallback manual.
+  executionError String?
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

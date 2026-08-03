@@ -5,6 +5,9 @@ import pino from 'pino';
 import path from 'path';
 import fs from 'fs';
 import { EventEmitter } from 'events';
+import { requestContext } from '../../../lib/async-context.js';
+import { logger } from '../../../lib/logger.js';
+import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.service.js';
 
 export const whatsappEvents = new EventEmitter();
 
@@ -100,9 +103,27 @@ export async function initWhatsApp(organizationId: string) {
         }
     });
 
-    // Escuta novas mensagens (Opcional, para salvar no CRM no futuro)
-    sock.ev.on('messages.upsert', async (_m) => {
-        // console.log(JSON.stringify(m, undefined, 2))
+    // Persiste mensagens recebidas (e as enviadas por este socket) vinculando ao contato/lead do
+    // CRM quando o número bate com um já cadastrado — ver whatsappMessage.service.ts.
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        if (type !== 'notify' && type !== 'append') return;
+        // O worker roda fora de uma requisição HTTP, então nada preencheria o tenant que a RLS exige.
+        await requestContext.run({ tenantId: organizationId }, async () => {
+            for (const message of messages) {
+                if (!message.key.id) continue;
+                try {
+                    await persistWhatsAppMessage({
+                        organizationId,
+                        waMessageId: message.key.id,
+                        direction: message.key.fromMe ? 'outbound' : 'inbound',
+                        remoteJid: message.key.remoteJid,
+                        body: extractMessageText(message),
+                    });
+                } catch (error) {
+                    logger.error({ err: error, organizationId }, 'Falha ao persistir mensagem de WhatsApp.');
+                }
+            }
+        });
     });
 }
 
