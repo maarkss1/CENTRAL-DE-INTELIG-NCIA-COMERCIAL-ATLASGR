@@ -5,7 +5,7 @@ import { TabType } from './Header';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 
 interface MainLayoutProps {
@@ -32,18 +32,15 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
                 <div className="flex-1 flex flex-col h-full overflow-hidden relative">
                 <AppTopbar activeTab={activeTab} />
                 <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-transparent">
-                <AnimatePresence mode="wait">
                     <motion.div
                         key={activeTab}
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -15 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         className="flex-1 flex flex-col min-h-0 overflow-hidden"
                     >
                         {children}
                     </motion.div>
-                </AnimatePresence>
             </main>
             <Toaster />
             <VoiceCommandWidget />
