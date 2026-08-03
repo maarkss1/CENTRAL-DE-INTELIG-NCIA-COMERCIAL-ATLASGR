@@ -98,13 +98,21 @@ function resolveApolloLocations(criteria: ProspectCriteria): string[] {
     return REGION_TO_APOLLO_LOCATIONS[criteria.localizacao] || [criteria.localizacao];
 }
 
+/**
+ * Só os segmentos que São de fato sinônimos em inglês do que a Apollo reconhece como keyword tag
+ * viram um termo fixo — qualquer outro segmento (ex: "loja de roupa", "mercado", carro-chefe de um
+ * nicho fora do ICP logístico padrão) usa o texto exatamente como a pessoa digitou. Antes, todo
+ * segmento não mapeado caía silenciosamente em 'logistics', então buscar qualquer coisa fora da
+ * lista fixa (mercado, loja de roupa, restaurante...) devolvia sempre transportadoras/operadores
+ * logísticos em vez do que foi pedido.
+ */
 function mapSegmentToKeyword(segmento: string): string {
     const s = segmento.toLowerCase();
     if (s.includes('transportadora')) return 'trucking';
     if (s.includes('embarcador')) return 'logistics';
     if (s.includes('3pl') || s.includes('operador logístico')) return 'third party logistics';
     if (s.includes('facilities') || s.includes('rh')) return 'facilities services';
-    return 'logistics';
+    return segmento.split('(')[0].trim();
 }
 
 /**
