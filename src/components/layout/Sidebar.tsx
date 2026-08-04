@@ -2,7 +2,7 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug
 } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,6 +44,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
         { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
+        { id: 'integrations' as TabType, label: 'Integrações', icon: <Plug size={20} /> },
         { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
         { id: 'knowledge' as TabType, label: 'Base de Conhecimento', icon: <Database size={20} /> },
         { id: 'editor' as TabType, label: 'Editor de Documentos', icon: <FileText size={20} /> },
