@@ -174,12 +174,19 @@ async function getStatusLabels(webhookUrl: string): Promise<Map<string, string>>
 export async function listBitrixLeads(
     organizationId: string,
     start: number,
+    search?: string,
 ): Promise<{ leads: BitrixLeadSummary[]; next: number | null; total: number }> {
     const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
     if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
 
+    // "%TITLE" é o operador de busca parcial (LIKE '%valor%') da REST API do Bitrix — resolvido
+    // no servidor deles, não filtrado localmente, então funciona mesmo fora da página atual.
+    const filter: Record<string, unknown> = {};
+    if (search?.trim()) filter['%TITLE'] = search.trim();
+
     const [data, labels, imported] = await Promise.all([
         callBitrix<{ result: BitrixLeadRaw[]; next?: number; total: number }>(webhookUrl, 'crm.lead.list', {
+            filter,
             select: ['ID', 'TITLE', 'NAME', 'LAST_NAME', 'COMPANY_TITLE', 'PHONE', 'EMAIL', 'STATUS_ID', 'SOURCE_ID', 'DATE_CREATE'],
             order: { DATE_CREATE: 'DESC' },
             start,
@@ -369,6 +376,8 @@ export interface BitrixDealFilters {
     /** 1-12. Só tem efeito junto com `year` — mês sozinho seria ambíguo entre anos diferentes. */
     month?: number;
     year?: number;
+    /** Busca parcial pelo título (nome da empresa/negócio) — resolvida no servidor do Bitrix. */
+    search?: string;
 }
 
 /**
@@ -389,6 +398,7 @@ export async function listBitrixDeals(
     if (filters.categoryId) filter.CATEGORY_ID = filters.categoryId;
     if (filters.stageId) filter.STAGE_ID = filters.stageId;
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
+    if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
     if (filters.month && filters.year) {
         const start_ = new Date(Date.UTC(filters.year, filters.month - 1, 1));
         const end_ = new Date(Date.UTC(filters.year, filters.month, 1));

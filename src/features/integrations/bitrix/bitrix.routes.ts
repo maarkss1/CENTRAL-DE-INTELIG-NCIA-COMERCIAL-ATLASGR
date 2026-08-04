@@ -55,7 +55,8 @@ router.get('/leads', async (req: Request, res: Response, next: NextFunction): Pr
     try {
         const { organizationId } = (req as AuthRequest).user;
         const start = Number(req.query.start) || 0;
-        const result = await listBitrixLeads(organizationId, start);
+        const search = req.query.search ? String(req.query.search) : undefined;
+        const result = await listBitrixLeads(organizationId, start, search);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -126,6 +127,7 @@ router.get('/deals', async (req: Request, res: Response, next: NextFunction): Pr
             assignedById: req.query.assignedById ? String(req.query.assignedById) : undefined,
             month: Number.isInteger(month) && month! >= 1 && month! <= 12 ? month : undefined,
             year: Number.isInteger(year) && year! > 2000 ? year : undefined,
+            search: req.query.search ? String(req.query.search) : undefined,
         });
         res.json({ success: true, data: result });
     } catch (error) {

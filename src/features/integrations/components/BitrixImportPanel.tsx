@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Download, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Loader2, Download, CheckCircle2, RefreshCw, Search, X } from 'lucide-react';
 import { api } from '../../../lib/api';
 
 interface BitrixLeadSummary {
@@ -64,6 +64,16 @@ export function BitrixImportPanel() {
     // ── Modo Leads (lista crua, sem pipeline) ───────────────────────────────────────────────
     const [leads, setLeads] = useState<BitrixLeadSummary[]>([]);
 
+    // ── Busca por nome (comum aos dois modos) ───────────────────────────────────────────────
+    // Debounced: dispara a busca de verdade (%TITLE, resolvida no servidor do Bitrix) só 400ms
+    // depois da última tecla digitada, senão cada letra digitada vira uma requisição.
+    const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedSearch(search), 400);
+        return () => clearTimeout(timer);
+    }, [search]);
+
     // ── Estado compartilhado ─────────────────────────────────────────────────────────────────
     const [start, setStart] = useState(0);
     const [next, setNext] = useState<number | null>(null);
@@ -100,6 +110,7 @@ export function BitrixImportPanel() {
             if (assignedById) params.set('assignedById', assignedById);
             if (month) params.set('month', month);
             if (year) params.set('year', year);
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
             const data = await api.get<{ deals: BitrixDealSummary[]; next: number | null; total: number }>(`/api/bitrix/deals?${params}`);
             setDeals(data.deals);
             setNext(data.next);
@@ -116,7 +127,9 @@ export function BitrixImportPanel() {
         setLoading(true);
         setError('');
         try {
-            const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?start=${from}`);
+            const params = new URLSearchParams({ start: String(from) });
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+            const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?${params}`);
             setLeads(data.leads);
             setNext(data.next);
             setTotal(data.total);
@@ -137,7 +150,7 @@ export function BitrixImportPanel() {
         setImportResult(null);
         load(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, categoryId, stageId, assignedById, month, year]);
+    }, [mode, categoryId, stageId, assignedById, month, year, debouncedSearch]);
 
     const toggle = (id: string) => {
         setSelected((prev) => {
@@ -198,6 +211,26 @@ export function BitrixImportPanel() {
                 >
                     Leads (todos)
                 </button>
+            </div>
+
+            <div className="relative w-full max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Pesquisar por nome do lead/empresa…"
+                    className="w-full text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white pl-8 pr-7 py-1.5 placeholder:text-gray-400"
+                />
+                {search && (
+                    <button
+                        onClick={() => setSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white"
+                        title="Limpar busca"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
 
             {mode === 'deals' && (
