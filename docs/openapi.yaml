@@ -961,6 +961,20 @@ paths:
                   type: array
                   items: { type: string }
                   description: Argumentos de texto — a aridade exata varia por função
+                piiValues:
+                  type: array
+                  description: >-
+                    Opcional. Valores de PII conhecidos pelo chamador (ex.: nome do contato de um
+                    lead) a minimizar no texto antes de ir ao provedor de IA externo e restaurar na
+                    resposta — mesmo padrão usado nos demais endpoints de IA. Sem isso, o texto em
+                    `args` vai integralmente ao provedor externo, já que estas funções recebem
+                    texto livre sem um campo estruturado de PII.
+                  items:
+                    type: object
+                    required: [token, value]
+                    properties:
+                      token: { type: string, description: 'Placeholder que substitui o valor, ex.: "[NOME_DO_CONTATO]"' }
+                      value: { type: string, nullable: true }
       responses:
         '200':
           description: Resultado da função

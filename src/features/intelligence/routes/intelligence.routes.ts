@@ -20,7 +20,8 @@ import {
     extractKeywords,
     categorizeLead,
     translateText,
-    extractActionItems
+    extractActionItems,
+    type PiiValue
 } from '../../../lib/ai/features.js';
 
 
@@ -312,9 +313,22 @@ const AI_TOOLKIT_ARITY: Record<string, number> = {
     extractKeywords: 1, categorizeLead: 1, translateText: 2, extractActionItems: 1,
 };
 
+// Normaliza o campo opcional `piiValues` do corpo da requisição: descarta silenciosamente
+// entradas malformadas (não é um contrato de segurança — só controla o que é minimizado antes de
+// ir pro provedor externo, então falhar aberto para "nenhum valor" é seguro e não bloqueia quem
+// não sabe/precisa desse recurso).
+function normalizePiiValues(raw: unknown): PiiValue[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((entry): entry is PiiValue => (
+        typeof entry === 'object' && entry !== null
+        && typeof (entry as { token?: unknown }).token === 'string'
+        && (typeof (entry as { value?: unknown }).value === 'string' || (entry as { value?: unknown }).value == null)
+    ));
+}
+
 router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { functionName, args } = req.body as { functionName?: unknown; args?: unknown };
+        const { functionName, args, piiValues } = req.body as { functionName?: unknown; args?: unknown; piiValues?: unknown };
 
         if (typeof functionName !== 'string' || !aiToolkitFunctions[functionName]) {
             res.status(400).json({ error: 'Function not found in AI Toolkit' });
@@ -332,7 +346,10 @@ router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFu
             return;
         }
 
-        const result = await aiToolkitFunctions[functionName](...(args as string[]));
+        // piiValues é opcional: quem chama a API e conhece um dado de PII no texto (ex.: nome do
+        // contato de um lead) pode informá-lo aqui para que seja minimizado antes de ir ao
+        // provedor de IA externo e restaurado na resposta — mesmo padrão de ai.service.ts/crmTools.ts.
+        const result = await aiToolkitFunctions[functionName](...(args as string[]), normalizePiiValues(piiValues));
         res.json({ success: true, result });
     } catch (error) {
         logger.error({ err: error }, 'Error executing AI Toolkit function');

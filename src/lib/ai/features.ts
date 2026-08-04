@@ -1,14 +1,26 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { getAiModel } from './gateway.js';
+import { minimizePii, rehydratePii, type PiiToken } from '../../features/intelligence/services/guardrails.service.js';
 
-const callModel = async (systemPrompt: string, userPrompt: string, model: string = 'local-llama3') => {
+/**
+ * Valor de PII opcional que o chamador pode fornecer (ex.: nome do contato de um lead) para que
+ * seja minimizado no texto antes de ir para o provedor de IA externo e restaurado na resposta —
+ * mesmo padrão usado em ai.service.ts/crmTools.ts. Diferente daqueles chokepoints, as funções
+ * deste arquivo recebem texto livre já digitado/colado por quem chama a API REST (ver
+ * intelligence.routes.ts:/toolkit/execute), sem um campo estruturado de "nome do contato" —
+ * por isso o parâmetro é opcional: só é aplicado quando o chamador sabe qual valor é PII.
+ */
+export type PiiValue = { token: string; value: string | null | undefined };
+
+const callModel = async (systemPrompt: string, userPrompt: string, model: string = 'local-llama3', piiValues: PiiValue[] = []) => {
     const aiModel = getAiModel(model);
+    const minimized = piiValues.length > 0 ? minimizePii(userPrompt, piiValues) : { text: userPrompt, applied: [] as PiiToken[] };
     const result = await aiModel.invoke([
         new SystemMessage(systemPrompt),
-        new HumanMessage(userPrompt),
+        new HumanMessage(minimized.text),
     ]);
-    return result.content;
+    return minimized.applied.length > 0 ? rehydratePii(result.content, minimized.applied) : result.content;
 };
 
 function extractJsonContent(raw: string): string {
@@ -44,24 +56,30 @@ const callModelJson = async <T>(
     userPrompt: string,
     schema: z.ZodType<T>,
     model: string = 'local-llama3-fast',
+    piiValues: PiiValue[] = [],
 ): Promise<T> => {
     const aiModel = getAiModel(model);
     const jsonSystemPrompt = `${systemPrompt}\n\nRespond strictly in JSON format without markdown blocks or code formatting.`;
+    const minimized = piiValues.length > 0 ? minimizePii(userPrompt, piiValues) : { text: userPrompt, applied: [] as PiiToken[] };
+    // Rehidrata o texto bruto ANTES do parse: os tokens de PII são strings simples dentro de um
+    // campo JSON, então a substituição não quebra a estrutura, e assim o schema Zod já valida o
+    // valor real (não o token) no objeto tipado devolvido ao chamador.
+    const rehydrate = (raw: string) => (minimized.applied.length > 0 ? rehydratePii(raw, minimized.applied) : raw);
 
     const first = await aiModel.invoke([
         new SystemMessage(jsonSystemPrompt),
-        new HumanMessage(userPrompt),
+        new HumanMessage(minimized.text),
     ]);
-    const firstAttempt = parseAndValidate(first.content, schema);
+    const firstAttempt = parseAndValidate(rehydrate(first.content), schema);
     if (firstAttempt.success) return firstAttempt.data;
 
     const repaired = await aiModel.invoke([
         new SystemMessage(jsonSystemPrompt),
-        new HumanMessage(userPrompt),
+        new HumanMessage(minimized.text),
         new AIMessage(first.content),
         new HumanMessage(`Sua resposta anterior não é um JSON válido nesse formato (${firstAttempt.error}). Responda de novo, SOMENTE com o JSON corrigido, sem markdown.`),
     ]);
-    const secondAttempt = parseAndValidate(repaired.content, schema);
+    const secondAttempt = parseAndValidate(rehydrate(repaired.content), schema);
     if (secondAttempt.success) return secondAttempt.data;
 
     throw new Error(`Failed to parse AI JSON response after repair attempt: ${repaired.content}`);
@@ -88,24 +106,24 @@ export type CategorizationResult = z.infer<typeof CategorizationSchema>;
 export type ActionItemsResult = z.infer<typeof ActionItemsSchema>;
 export type TranslationResult = z.infer<typeof TranslationSchema>;
 
-export const summarizeLead = async (leadData: string) => callModel('Você é um assistente da AtlasGR especializado em resumir perfis de leads no mercado B2B.', `Resuma as seguintes informações do lead de forma estratégica, focando em oportunidades de negócios e logística corporativa:\n${leadData}`, 'local-llama3');
-export const generateEmailDraft = async (context: string, goal: string) => callModel('Você é um SDR experiente da AtlasGR, especializado em escrever e-mails frios e follow-ups persuasivos B2B.', `Escreva um e-mail profissional com foco em alta taxa de resposta.\nContexto: ${context}\nObjetivo: ${goal}`, 'local-llama3');
-export const predictConversionScore = async (leadData: string) => callModel('Você é um Analista de RevOps avançado da AtlasGR.', `Avalie os dados qualitativos deste lead B2B e forneça uma estimativa de probabilidade de conversão (0 a 100%). Justifique criticamente apontando sinais vitais de compra.\nDados: ${leadData}`, 'local-llama3');
-export const generateMeetingAgenda = async (topic: string, duration: string) => callModel('Você é um Consultor de Vendas Enterprise da AtlasGR.', `Gere uma pauta (agenda) estruturada, orientada a fechamento e discovery, para uma reunião B2B com os seguintes detalhes:\nTópico: ${topic}\nDuração: ${duration}`, 'local-llama3');
-export const draftFollowUp = async (previousInteraction: string) => callModel('Você é um especialista em vendas B2B focado em cadências de follow-up que geram engajamento.', `Crie uma mensagem de follow-up engajadora (sem soar insistente demais) baseada na interação anterior:\nInteração Anterior: ${previousInteraction}`, 'local-llama3');
-export const scoreLeadQuality = async (leadData: string) => callModel('Você é um Diretor de Vendas B2B responsável por qualificação rigorosa (BANT/SPIN).', `Classifique a maturidade do lead (Fria, Morna, Quente) detalhando objetivamente por que essa classificação foi dada com base nos dados:\n${leadData}`, 'local-llama3');
-export const suggestNextAction = async (leadStatus: string, recentHistory: string) => callModel('Você é um mentor de Inside Sales B2B.', `Com base no status do lead e no histórico recente de touchpoints, sugira a próxima ação tática mais provável de gerar avanço no funil:\nStatus: ${leadStatus}\nHistórico: ${recentHistory}`, 'local-llama3');
-export const generateObjectionHandling = async (objection: string) => callModel('Você é um treinador de objeções de vendas complexas (logística/tecnologia B2B).', `O prospect levantou a seguinte objeção. Forneça 3 estratégias de contorno (Reframe, Pivot, Case Study) para superá-la:\nObjeção: ${objection}`, 'local-llama3');
-export const analyzeCompetitors = async (companyDescription: string) => callModel('Você é um Inteligência de Mercado B2B (Competitive Intelligence).', `A partir da descrição desta empresa, deduz e liste quem seriam seus 5 prováveis concorrentes diretos no mercado (seja global ou LATAM):\n${companyDescription}`, 'local-llama3');
-export const generateElevatorPitch = async (productDetails: string) => callModel('Você é um Copywriter de Vendas Enterprise.', `Crie um 'elevator pitch' magnético de no máximo 30 segundos (em formato de texto) destacando o ROI para este produto/serviço:\n${productDetails}`, 'local-llama3');
-export const identifyPainPoints = async (customerFeedback: string) => callModel('Você é um especialista em CS (Customer Success) e Discovery de vendas B2B.', `Mapeie e liste de forma acionável as dores primárias (pain points) explícitas e implícitas contidas neste feedback/ata de reunião:\n${customerFeedback}`, 'local-llama3');
-export const createColdCallScript = async (targetAudience: string, valueProposition: string) => callModel('Você é um SDR Outbound de alta conversão.', `Crie um script de Cold Call B2B (abertura, quebra-gelo, pitch de 15s e call-to-action) voltado para este cenário:\nPúblico-alvo: ${targetAudience}\nProposta de Valor: ${valueProposition}`, 'local-llama3');
-export const summarizeMeetingNotes = async (transcript: string) => callModel('Você é um BDR focado em documentação de CRM.', `Transforme a transcrição desta reunião de vendas B2B em um resumo executivo com os principais tópicos discutidos:\n${transcript}`, 'local-llama3');
-export const generateLinkedInMessage = async (prospectProfile: string, purpose: string) => callModel('Você é um estrategista de Social Selling no LinkedIn.', `Escreva uma mensagem de conexão hyper-personalizada (limite 300 caracteres) focada em conversão silenciosa:\nPerfil: ${prospectProfile}\nObjetivo: ${purpose}`, 'local-llama3');
-export const evaluateDealRisk = async (dealDetails: string) => callModel('Você é um Gerente de Pipeline de Vendas B2B (Deal Desk).', `Analise os sinais presentes nesta negociação, determine o Risco (Baixo, Médio, Alto) e aponte os buracos que o vendedor deixou abertos:\n${dealDetails}`, 'local-llama3');
+export const summarizeLead = async (leadData: string, piiValues: PiiValue[] = []) => callModel('Você é um assistente da AtlasGR especializado em resumir perfis de leads no mercado B2B.', `Resuma as seguintes informações do lead de forma estratégica, focando em oportunidades de negócios e logística corporativa:\n${leadData}`, 'local-llama3', piiValues);
+export const generateEmailDraft = async (context: string, goal: string, piiValues: PiiValue[] = []) => callModel('Você é um SDR experiente da AtlasGR, especializado em escrever e-mails frios e follow-ups persuasivos B2B.', `Escreva um e-mail profissional com foco em alta taxa de resposta.\nContexto: ${context}\nObjetivo: ${goal}`, 'local-llama3', piiValues);
+export const predictConversionScore = async (leadData: string, piiValues: PiiValue[] = []) => callModel('Você é um Analista de RevOps avançado da AtlasGR.', `Avalie os dados qualitativos deste lead B2B e forneça uma estimativa de probabilidade de conversão (0 a 100%). Justifique criticamente apontando sinais vitais de compra.\nDados: ${leadData}`, 'local-llama3', piiValues);
+export const generateMeetingAgenda = async (topic: string, duration: string, piiValues: PiiValue[] = []) => callModel('Você é um Consultor de Vendas Enterprise da AtlasGR.', `Gere uma pauta (agenda) estruturada, orientada a fechamento e discovery, para uma reunião B2B com os seguintes detalhes:\nTópico: ${topic}\nDuração: ${duration}`, 'local-llama3', piiValues);
+export const draftFollowUp = async (previousInteraction: string, piiValues: PiiValue[] = []) => callModel('Você é um especialista em vendas B2B focado em cadências de follow-up que geram engajamento.', `Crie uma mensagem de follow-up engajadora (sem soar insistente demais) baseada na interação anterior:\nInteração Anterior: ${previousInteraction}`, 'local-llama3', piiValues);
+export const scoreLeadQuality = async (leadData: string, piiValues: PiiValue[] = []) => callModel('Você é um Diretor de Vendas B2B responsável por qualificação rigorosa (BANT/SPIN).', `Classifique a maturidade do lead (Fria, Morna, Quente) detalhando objetivamente por que essa classificação foi dada com base nos dados:\n${leadData}`, 'local-llama3', piiValues);
+export const suggestNextAction = async (leadStatus: string, recentHistory: string, piiValues: PiiValue[] = []) => callModel('Você é um mentor de Inside Sales B2B.', `Com base no status do lead e no histórico recente de touchpoints, sugira a próxima ação tática mais provável de gerar avanço no funil:\nStatus: ${leadStatus}\nHistórico: ${recentHistory}`, 'local-llama3', piiValues);
+export const generateObjectionHandling = async (objection: string, piiValues: PiiValue[] = []) => callModel('Você é um treinador de objeções de vendas complexas (logística/tecnologia B2B).', `O prospect levantou a seguinte objeção. Forneça 3 estratégias de contorno (Reframe, Pivot, Case Study) para superá-la:\nObjeção: ${objection}`, 'local-llama3', piiValues);
+export const analyzeCompetitors = async (companyDescription: string, piiValues: PiiValue[] = []) => callModel('Você é um Inteligência de Mercado B2B (Competitive Intelligence).', `A partir da descrição desta empresa, deduz e liste quem seriam seus 5 prováveis concorrentes diretos no mercado (seja global ou LATAM):\n${companyDescription}`, 'local-llama3', piiValues);
+export const generateElevatorPitch = async (productDetails: string, piiValues: PiiValue[] = []) => callModel('Você é um Copywriter de Vendas Enterprise.', `Crie um 'elevator pitch' magnético de no máximo 30 segundos (em formato de texto) destacando o ROI para este produto/serviço:\n${productDetails}`, 'local-llama3', piiValues);
+export const identifyPainPoints = async (customerFeedback: string, piiValues: PiiValue[] = []) => callModel('Você é um especialista em CS (Customer Success) e Discovery de vendas B2B.', `Mapeie e liste de forma acionável as dores primárias (pain points) explícitas e implícitas contidas neste feedback/ata de reunião:\n${customerFeedback}`, 'local-llama3', piiValues);
+export const createColdCallScript = async (targetAudience: string, valueProposition: string, piiValues: PiiValue[] = []) => callModel('Você é um SDR Outbound de alta conversão.', `Crie um script de Cold Call B2B (abertura, quebra-gelo, pitch de 15s e call-to-action) voltado para este cenário:\nPúblico-alvo: ${targetAudience}\nProposta de Valor: ${valueProposition}`, 'local-llama3', piiValues);
+export const summarizeMeetingNotes = async (transcript: string, piiValues: PiiValue[] = []) => callModel('Você é um BDR focado em documentação de CRM.', `Transforme a transcrição desta reunião de vendas B2B em um resumo executivo com os principais tópicos discutidos:\n${transcript}`, 'local-llama3', piiValues);
+export const generateLinkedInMessage = async (prospectProfile: string, purpose: string, piiValues: PiiValue[] = []) => callModel('Você é um estrategista de Social Selling no LinkedIn.', `Escreva uma mensagem de conexão hyper-personalizada (limite 300 caracteres) focada em conversão silenciosa:\nPerfil: ${prospectProfile}\nObjetivo: ${purpose}`, 'local-llama3', piiValues);
+export const evaluateDealRisk = async (dealDetails: string, piiValues: PiiValue[] = []) => callModel('Você é um Gerente de Pipeline de Vendas B2B (Deal Desk).', `Analise os sinais presentes nesta negociação, determine o Risco (Baixo, Médio, Alto) e aponte os buracos que o vendedor deixou abertos:\n${dealDetails}`, 'local-llama3', piiValues);
 
-export const analyzeSentiment = async (text: string): Promise<SentimentResult> => callModelJson<SentimentResult>('Você é um sistema de análise de sentimentos NLP. Output no formato JSON: { "sentiment": "Positivo" | "Negativo" | "Neutro", "confidence": number }.', `Analise o texto: "${text}"`, SentimentSchema, 'local-llama3-fast');
-export const extractKeywords = async (text: string): Promise<KeywordResult> => callModelJson<KeywordResult>('Você é um extrator de Named Entity Recognition. Extraia palavras-chave e tópicos comerciais B2B do texto. Output no formato JSON: { "keywords": ["string"] }.', `Texto: "${text}"`, KeywordSchema, 'local-llama3-fast');
-export const categorizeLead = async (leadDescription: string): Promise<CategorizationResult> => callModelJson<CategorizationResult>('Você é um classificador de verticais de mercado B2B. Output no formato JSON: { "industry": "string", "segment": "string", "reasoning": "string" }.', `Descrição da empresa: "${leadDescription}"`, CategorizationSchema, 'local-llama3-fast');
-export const translateText = async (text: string, targetLanguage: string): Promise<TranslationResult> => callModelJson<TranslationResult>(`Você é um tradutor API preciso. Output no formato JSON: { "translatedText": "string" }. Traduza para ${targetLanguage}.`, `Texto original: "${text}"`, TranslationSchema, 'local-llama3-fast');
-export const extractActionItems = async (transcript: string): Promise<ActionItemsResult> => callModelJson<ActionItemsResult>('Você é um extrator de Next Steps (Action Items). Output no formato JSON: { "actionItems": [{ "task": "string", "owner": "string opcional", "deadline": "string opcional" }] }.', `Transcrição ou Ata: "${transcript}"`, ActionItemsSchema, 'local-llama3-fast');
+export const analyzeSentiment = async (text: string, piiValues: PiiValue[] = []): Promise<SentimentResult> => callModelJson<SentimentResult>('Você é um sistema de análise de sentimentos NLP. Output no formato JSON: { "sentiment": "Positivo" | "Negativo" | "Neutro", "confidence": number }.', `Analise o texto: "${text}"`, SentimentSchema, 'local-llama3-fast', piiValues);
+export const extractKeywords = async (text: string, piiValues: PiiValue[] = []): Promise<KeywordResult> => callModelJson<KeywordResult>('Você é um extrator de Named Entity Recognition. Extraia palavras-chave e tópicos comerciais B2B do texto. Output no formato JSON: { "keywords": ["string"] }.', `Texto: "${text}"`, KeywordSchema, 'local-llama3-fast', piiValues);
+export const categorizeLead = async (leadDescription: string, piiValues: PiiValue[] = []): Promise<CategorizationResult> => callModelJson<CategorizationResult>('Você é um classificador de verticais de mercado B2B. Output no formato JSON: { "industry": "string", "segment": "string", "reasoning": "string" }.', `Descrição da empresa: "${leadDescription}"`, CategorizationSchema, 'local-llama3-fast', piiValues);
+export const translateText = async (text: string, targetLanguage: string, piiValues: PiiValue[] = []): Promise<TranslationResult> => callModelJson<TranslationResult>(`Você é um tradutor API preciso. Output no formato JSON: { "translatedText": "string" }. Traduza para ${targetLanguage}.`, `Texto original: "${text}"`, TranslationSchema, 'local-llama3-fast', piiValues);
+export const extractActionItems = async (transcript: string, piiValues: PiiValue[] = []): Promise<ActionItemsResult> => callModelJson<ActionItemsResult>('Você é um extrator de Next Steps (Action Items). Output no formato JSON: { "actionItems": [{ "task": "string", "owner": "string opcional", "deadline": "string opcional" }] }.', `Transcrição ou Ata: "${transcript}"`, ActionItemsSchema, 'local-llama3-fast', piiValues);
