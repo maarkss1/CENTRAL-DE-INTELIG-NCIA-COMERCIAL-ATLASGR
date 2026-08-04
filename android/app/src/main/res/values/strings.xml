@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AtlasGR Prospector</string>
+    <string name="title_activity_main">AtlasGR Prospector</string>
+    <string name="package_name">br.com.atlasgr.prospector</string>
+    <string name="custom_url_scheme">br.com.atlasgr.prospector</string>
+</resources>
