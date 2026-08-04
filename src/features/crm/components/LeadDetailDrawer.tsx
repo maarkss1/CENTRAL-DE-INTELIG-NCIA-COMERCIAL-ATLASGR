@@ -132,7 +132,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const handleEnrich = async () => {
         setEnriching(true);
         try {
-            await api.post(`/api/leads/${leadId}/enrich`);
+            // Enriquecimento encadeia várias chamadas externas (CNPJ, checagem de domínio/e-mail,
+            // Google Places, geração de icebreaker por IA) — 15s (timeout padrão do api client)
+            // não é suficiente e derrubava a requisição no cliente mesmo quando o backend ia terminar.
+            await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
             toast.success('✨ Lead reenriquecido com sucesso!');
             await fetchLead();
             onChanged();

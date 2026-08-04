@@ -35,7 +35,9 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
     const handleEnrich = async () => {
         setEnriching(true);
         try {
-            await api.post(`/api/companies/${companyId}/enrich`);
+            // Mesma cadeia de chamadas externas do enriquecimento de lead (CNPJ, domínio/e-mail,
+            // Google Places, icebreaker por IA) — precisa de mais que os 15s padrão do api client.
+            await api.post(`/api/companies/${companyId}/enrich`, undefined, { timeoutMs: 60_000 });
             await fetchCompany();
         } catch (error) {
             console.error('Error enriching company:', error);
