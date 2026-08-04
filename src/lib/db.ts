@@ -35,8 +35,9 @@ export const companiesDB = {
   /** Delete a company */
   delete: (id: string) => api.delete<void>(`/api/companies/${id}`),
 
-  /** Enrich company data via CNPJ (Receita Federal integration) */
-  enrich: (cnpj: string) => api.post<Partial<Company>>('/api/companies/enrich', { cnpj }),
+  /** Re-enrich an existing company by ID (Receita Federal + heurísticas de domínio/e-mail) —
+   * mesma cadeia lenta do enrich de lead, por isso o timeout maior que o padrão de 15s. */
+  enrich: (id: string) => api.post<Partial<Company>>(`/api/companies/${id}/enrich`, undefined, { timeoutMs: 60_000 }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,8 +67,10 @@ export const contactsDB = {
   /** Delete a contact */
   delete: (id: string) => api.delete<void>(`/api/contacts/${id}`),
 
-  /** Validate email via SMTP live check */
-  validateEmail: (email: string) => api.post<{ valid: boolean; reason?: string }>('/api/contacts/validate-email', { email }),
+  /** Re-enriquece o contato (empresa vinculada: Receita Federal + Google Negócios + Apollo), o que
+   * inclui checagem real de entregabilidade do e-mail (MX/domínio descartável) como efeito colateral.
+   * Mesma cadeia lenta do enrich de lead/empresa, por isso o timeout maior que o padrão de 15s. */
+  enrich: (id: string) => api.post<{ contact: Contact; fit: number; enrichment: unknown }>(`/api/contacts/${id}/enrich`, undefined, { timeoutMs: 60_000 }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,8 +152,8 @@ export const prospectingDB = {
     tecnologiaAtual?: string;
   }) => api.post<{ companies: Company[]; insights: string }>('/api/prospecting', criteria),
 
-  /** Enrich a company directly from CNPJ */
-  enrichByCnpj: (cnpj: string) => api.get<Partial<Company>>(`/api/companies/enrich?cnpj=${cnpj}`),
+  /** Consulta em tempo real (sem persistir) de um CNPJ na Receita Federal via BrasilAPI */
+  enrichByCnpj: (cnpj: string) => api.post<Partial<Company>>('/api/prospecting/enrich-cnpj', { cnpj }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

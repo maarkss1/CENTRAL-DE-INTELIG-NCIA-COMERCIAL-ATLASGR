@@ -53,10 +53,10 @@ export function ContactList() {
   const handleEnrich = async (id: string) => {
     setEnrichingId(id);
     try {
-      await contactsDB.validateEmail(contacts.find((c) => c.id === id)?.email ?? '');
+      await contactsDB.enrich(id);
       await refetch();
-    } catch {
-      // silently fail — endpoint may not be implemented yet
+    } catch (error) {
+      console.error('Error enriching contact:', error);
     } finally {
       setEnrichingId(null);
     }

@@ -47,7 +47,7 @@ export function CompanyList() {
     const handleEnrich = async (id: string) => {
         setEnrichingId(id);
         try {
-            await companiesDB.enrich(companies.find(c => c.id === id)?.cnpj ?? '');
+            await companiesDB.enrich(id);
             await refetch();
         } catch (error) {
             console.error('Error enriching company:', error);
@@ -85,7 +85,7 @@ export function CompanyList() {
                     continue;
                 }
                 try {
-                    await companiesDB.enrich(company.cnpj);
+                    await companiesDB.enrich(company.id);
                     succeeded += 1;
                 } catch (error) {
                     console.error(`Error enriching company ${company.id}:`, error);
