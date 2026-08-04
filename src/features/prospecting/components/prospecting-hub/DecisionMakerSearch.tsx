@@ -132,10 +132,12 @@ export function DecisionMakerSearch({
         setSelectedDecisionMaker(null);
         setError(null);
         try {
+            // Apollo People Search (15s) + fallback/complemento Hunter.io por contato sem e-mail —
+            // pode passar dos 15s padrão em domínios com muitos decisores.
             const res = await api.post<{ decisionMakers: DecisionMaker[], error?: string }>('/api/prospecting/decision-makers', {
                 domain,
                 criteria
-            });
+            }, { timeoutMs: 30_000 });
             setResults(res.decisionMakers);
             if (res.error) setError(res.error);
         } catch (err) {
@@ -148,7 +150,9 @@ export function DecisionMakerSearch({
     const handleGenerateIcebreaker = async (idx: number) => {
         setIcebreakers((prev) => ({ ...prev, [idx]: { loading: true } }));
         try {
-            const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName });
+            // Faz scraping headless (Playwright + DuckDuckGo) antes de chamar a IA — bem mais lento
+            // que uma geração de texto simples, precisa de bastante folga sobre os 15s padrão.
+            const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName }, { timeoutMs: 60_000 });
             setIcebreakers((prev) => ({
                 ...prev,
                 [idx]: res.icebreaker

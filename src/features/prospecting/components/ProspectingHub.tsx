@@ -144,6 +144,9 @@ export function ProspectingHub() {
                 const candidate = candidates[idx];
                 const key = `discovery-${idx}`;
                 if (!promoted[key]) {
+                    // autoEnrich:true dispara a mesma cadeia de enriquecimento (CNPJ, domínio/e-mail,
+                    // Google Places, notícias, Apollo, icebreaker por IA) do botão "Enriquecer" de
+                    // lead/empresa — precisa da mesma folga de 60s do timeout padrão de 15s.
                     const result = await api.post<PromoteResult>('/api/prospecting/promote', {
                         tradeName: candidate.tradeName,
                         legalName: candidate.legalNameGuess,
@@ -157,7 +160,7 @@ export function ProspectingHub() {
                         phone: candidate.phone,
                         website: candidate.website,
                         decisionMakers: candidate.decisionMakers,
-                    });
+                    }, { timeoutMs: 60_000 });
                     setPromoted(prev => ({ ...prev, [key]: result }));
                 }
             }
@@ -265,7 +268,9 @@ export function ProspectingHub() {
         setCnpjError(null);
         setCnpjResult(null);
         try {
-            const result = await api.post<CnpjLookupResult>('/api/prospecting/enrich-cnpj', { cnpj: cnpjInput });
+            // A BrasilAPI (Receita Federal) faz retry interno (2 tentativas x 8s) quando está lenta —
+            // pode passar dos 15s padrão mesmo sem falhar de verdade.
+            const result = await api.post<CnpjLookupResult>('/api/prospecting/enrich-cnpj', { cnpj: cnpjInput }, { timeoutMs: 30_000 });
             setCnpjResult(result);
         } catch (error) {
             setCnpjError(getErrorMessage(error, 'Falha ao consultar CNPJ'));

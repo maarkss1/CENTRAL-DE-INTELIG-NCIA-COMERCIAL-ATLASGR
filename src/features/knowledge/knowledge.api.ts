@@ -40,8 +40,10 @@ export const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json',
 export const knowledgeApi = {
     list: () => api.get<KnowledgeDocumentSummary[]>('/api/knowledge'),
 
+    // Mesmo pipeline de chunking + embedding do /upload (1 embedding por trecho) — texto colado
+    // grande pode gerar tantos trechos quanto um arquivo, então precisa da mesma folga de timeout.
     ingestText: (title: string, content: string) =>
-        api.post<IngestResult>('/api/knowledge', { title, content }),
+        api.post<IngestResult>('/api/knowledge', { title, content }, { timeoutMs: 180_000 }),
 
     /**
      * Ingestão a partir de arquivo. O upload vai como base64 num JSON comum porque o servidor não
