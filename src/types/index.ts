@@ -194,12 +194,3 @@ export interface Note {
     createdAt: string;
     updatedAt: string;
 }
-
-export interface SearchCriteria {
-    segmento: string;
-    localizacao: string;
-    tamanhoFrota: string;
-    faturamento: string;
-    dorPrincipal: string;
-    tecnologiaAtual: string;
-}

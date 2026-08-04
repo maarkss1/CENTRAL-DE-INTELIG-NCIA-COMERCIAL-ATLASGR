@@ -125,9 +125,6 @@ export const activitiesDB = {
     return api.get<PaginatedResponse<Activity>>(`/api/activities?${qs.toString()}`);
   },
 
-  /** Get a single activity */
-  get: (id: string) => api.get<Activity>(`/api/activities/${id}`),
-
   /** Create a new activity / schedule */
   create: (data: Partial<Activity>) => api.post<Activity>('/api/activities', data),
 
@@ -142,16 +139,6 @@ export const activitiesDB = {
 // PROSPECTING (AI Search Engine)
 // ─────────────────────────────────────────────────────────────────────────────
 export const prospectingDB = {
-  /** Run a prospecting search with AI criteria */
-  search: (criteria: {
-    segmento?: string;
-    localizacao?: string;
-    tamanhoFrota?: string;
-    faturamento?: string;
-    dorPrincipal?: string;
-    tecnologiaAtual?: string;
-  }) => api.post<{ companies: Company[]; insights: string }>('/api/prospecting', criteria),
-
   /** Consulta em tempo real (sem persistir) de um CNPJ na Receita Federal via BrasilAPI */
   enrichByCnpj: (cnpj: string) => api.post<Partial<Company>>('/api/prospecting/enrich-cnpj', { cnpj }),
 };
