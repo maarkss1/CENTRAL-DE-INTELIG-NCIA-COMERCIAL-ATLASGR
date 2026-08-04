@@ -1,0 +1,2 @@
+ALTER TABLE "BitrixSyncRule" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'deal';
+ALTER TABLE "BitrixSyncRule" ALTER COLUMN "categoryId" DROP NOT NULL;

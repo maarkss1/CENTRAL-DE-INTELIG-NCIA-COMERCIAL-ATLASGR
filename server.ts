@@ -58,6 +58,7 @@ import { createWhatsAppSignalWorker } from './src/lib/queue/whatsappSignal.worke
 import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
+import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -325,6 +326,13 @@ async function startServer() {
     const agentWorker = createAgentWorker();
     const enrichmentWorker = createEnrichmentWorker();
     const whatsappSignalWorker = createWhatsAppSignalWorker();
+    // Sempre ativo (não gated por organização/env var, ao contrário do enxame/prospecção fria):
+    // as regras que controlam o que de fato sincroniza são criadas dinamicamente pela tela de
+    // Integrações, então o worker precisa estar de pé desde o boot para pegar a primeira regra
+    // que alguém criar sem precisar reiniciar o servidor. Sem nenhuma regra ativa, cada tick é um
+    // no-op barato (runBitrixSyncTick só age em cima do que existir na tabela).
+    const bitrixSyncWorker = createBitrixSyncWorker();
+    await scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
     // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
     // inicialização do Meilisearch sempre rodavam, independentemente da flag.
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -361,6 +369,7 @@ async function startServer() {
         await whatsappSignalWorker.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
+        await bitrixSyncWorker.close();
         await prisma.$disconnect();
         process.exit(0);
     };

@@ -47,7 +47,12 @@ const MONTHS = [
 
 const selectClass = 'text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2 py-1.5 disabled:opacity-40';
 
-export function BitrixImportPanel() {
+interface BitrixImportPanelProps {
+    /** Qual portal Bitrix consultar/importar — uma organização pode ter mais de um conectado. */
+    connectionId: string;
+}
+
+export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
     const [mode, setMode] = useState<'deals' | 'leads'>('deals');
 
     // ── Modo Negócios (pipeline real) ───────────────────────────────────────────────────────
@@ -88,23 +93,23 @@ export function BitrixImportPanel() {
 
     // Pipelines + usuários carregam uma vez (independem de filtro/paginação).
     useEffect(() => {
-        api.get<BitrixDealPipeline[]>('/api/bitrix/deal-pipelines').then(setPipelines).catch(() => setPipelines([]));
-        api.get<BitrixUserOption[]>('/api/bitrix/users').then(setUsers).catch(() => setUsers([]));
-    }, []);
+        api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then(setPipelines).catch(() => setPipelines([]));
+        api.get<BitrixUserOption[]>(`/api/bitrix/users?connectionId=${connectionId}`).then(setUsers).catch(() => setUsers([]));
+    }, [connectionId]);
 
     // Etapas dependem do pipeline escolhido — recarrega ao trocar, e limpa a etapa selecionada
     // (uma etapa de outro pipeline não existe mais no novo contexto).
     useEffect(() => {
         setStageId('');
         if (!categoryId) { setStages([]); return; }
-        api.get<BitrixDealStage[]>(`/api/bitrix/deal-stages?categoryId=${categoryId}`).then(setStages).catch(() => setStages([]));
-    }, [categoryId]);
+        api.get<BitrixDealStage[]>(`/api/bitrix/deal-stages?connectionId=${connectionId}&categoryId=${categoryId}`).then(setStages).catch(() => setStages([]));
+    }, [connectionId, categoryId]);
 
     const loadDeals = async (from: number) => {
         setLoading(true);
         setError('');
         try {
-            const params = new URLSearchParams({ start: String(from) });
+            const params = new URLSearchParams({ start: String(from), connectionId });
             if (categoryId) params.set('categoryId', categoryId);
             if (stageId) params.set('stageId', stageId);
             if (assignedById) params.set('assignedById', assignedById);
@@ -127,7 +132,7 @@ export function BitrixImportPanel() {
         setLoading(true);
         setError('');
         try {
-            const params = new URLSearchParams({ start: String(from) });
+            const params = new URLSearchParams({ start: String(from), connectionId });
             if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
             const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?${params}`);
             setLeads(data.leads);
@@ -150,7 +155,7 @@ export function BitrixImportPanel() {
         setImportResult(null);
         load(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, categoryId, stageId, assignedById, month, year, debouncedSearch]);
+    }, [connectionId, mode, categoryId, stageId, assignedById, month, year, debouncedSearch]);
 
     const toggle = (id: string) => {
         setSelected((prev) => {
@@ -167,7 +172,9 @@ export function BitrixImportPanel() {
         setImportResult(null);
         try {
             const endpoint = mode === 'deals' ? '/api/bitrix/deals/import' : '/api/bitrix/leads/import';
-            const body = mode === 'deals' ? { bitrixDealIds: Array.from(selected) } : { bitrixLeadIds: Array.from(selected) };
+            const body = mode === 'deals'
+                ? { connectionId, bitrixDealIds: Array.from(selected) }
+                : { connectionId, bitrixLeadIds: Array.from(selected) };
             const result = await api.post<{ imported: number; skipped: number }>(endpoint, body, { timeoutMs: 60_000 });
             setImportResult(result);
             setSelected(new Set());

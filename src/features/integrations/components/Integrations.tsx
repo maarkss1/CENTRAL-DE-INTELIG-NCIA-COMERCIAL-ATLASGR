@@ -3,11 +3,18 @@ import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { toast } from '../../../lib/toast';
 import { BitrixImportPanel } from './BitrixImportPanel';
+import { BitrixSyncRulesPanel } from './BitrixSyncRulesPanel';
 
 interface UpcomingEvent {
     id: string;
     summary: string;
     start: string | null;
+}
+
+interface BitrixConnectionSummary {
+    id: string;
+    label: string;
+    portalDomain: string | null;
 }
 
 export function Integrations() {
@@ -20,9 +27,10 @@ export function Integrations() {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
 
-    const [bitrixConnected, setBitrixConnected] = useState(false);
-    const [bitrixPortalDomain, setBitrixPortalDomain] = useState<string | null>(null);
+    const [bitrixConnections, setBitrixConnections] = useState<BitrixConnectionSummary[]>([]);
+    const [selectedBitrixConnectionId, setSelectedBitrixConnectionId] = useState<string | null>(null);
     const [bitrixWebhookInput, setBitrixWebhookInput] = useState('');
+    const [bitrixLabelInput, setBitrixLabelInput] = useState('');
     const [bitrixLoading, setBitrixLoading] = useState(false);
 
     const fetchStatus = async () => {
@@ -74,23 +82,25 @@ export function Integrations() {
         }
     }, []);
 
-    const fetchBitrixStatus = async () => {
+    const fetchBitrixConnections = async () => {
         try {
-            const res = await fetch('/api/bitrix/status');
+            const res = await fetch('/api/bitrix/connections');
             const data = await res.json();
             if (data.success) {
-                setBitrixConnected(data.data.connected);
-                setBitrixPortalDomain(data.data.portalDomain);
+                const connections: BitrixConnectionSummary[] = data.data;
+                setBitrixConnections(connections);
+                // Mantém a seleção atual se ela ainda existir; senão cai pra primeira conexão.
+                setSelectedBitrixConnectionId((prev) => (prev && connections.some((c) => c.id === prev) ? prev : connections[0]?.id ?? null));
             }
         } catch (error) {
-            console.error('Failed to fetch Bitrix24 status', error);
+            console.error('Failed to fetch Bitrix24 connections', error);
         }
     };
 
     useEffect(() => {
         fetchStatus();
         fetchGoogleStatus();
-        fetchBitrixStatus();
+        fetchBitrixConnections();
         const interval = setInterval(fetchStatus, 3000);
         return () => clearInterval(interval);
     }, []);
@@ -157,13 +167,14 @@ export function Integrations() {
             const res = await fetch('/api/bitrix/connect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ webhookUrl: bitrixWebhookInput.trim() }),
+                body: JSON.stringify({ webhookUrl: bitrixWebhookInput.trim(), label: bitrixLabelInput.trim() || undefined }),
             });
             const data = await res.json();
             if (data.success) {
-                setBitrixConnected(true);
-                setBitrixPortalDomain(data.data.portalDomain);
                 setBitrixWebhookInput('');
+                setBitrixLabelInput('');
+                setSelectedBitrixConnectionId(data.data.id);
+                await fetchBitrixConnections();
                 toast.success('Bitrix24 conectado com sucesso.');
             } else {
                 toast.error(data.error || 'Não foi possível conectar ao Bitrix24.');
@@ -175,12 +186,11 @@ export function Integrations() {
         setBitrixLoading(false);
     };
 
-    const handleBitrixDisconnect = async () => {
+    const handleBitrixDisconnect = async (connectionId: string) => {
         setBitrixLoading(true);
         try {
-            await fetch('/api/bitrix/disconnect', { method: 'POST' });
-            setBitrixConnected(false);
-            setBitrixPortalDomain(null);
+            await fetch(`/api/bitrix/disconnect/${connectionId}`, { method: 'POST' });
+            await fetchBitrixConnections();
         } catch (error) {
             console.error('Failed to disconnect Bitrix24', error);
         }
@@ -304,7 +314,7 @@ export function Integrations() {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Todo lead novo do Atlas vai automaticamente pro Bitrix24. A importação do Bitrix pro Atlas é manual — você escolhe o que trazer.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Todo lead novo do Atlas vai automaticamente pro primeiro portal Bitrix24 conectado. A importação do Bitrix pro Atlas é manual — você escolhe o que trazer, portal por portal.</p>
                             </div>
                             <div className="w-12 h-12 bg-orange-50 dark:bg-orange-500/10 rounded-full flex items-center justify-center">
                                 <span className="text-2xl">🔗</span>
@@ -312,45 +322,65 @@ export function Integrations() {
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <span className={`w-3 h-3 rounded-full ${bitrixConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {bitrixConnected ? `Conectado${bitrixPortalDomain ? ` (${bitrixPortalDomain})` : ''}` : 'Desconectado'}
-                                </span>
+                            {bitrixConnections.length > 0 && (
+                                <div className="space-y-2">
+                                    {bitrixConnections.map((conn) => (
+                                        <div
+                                            key={conn.id}
+                                            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedBitrixConnectionId === conn.id ? 'border-orange-500 bg-orange-50 dark:bg-orange-500/10' : 'border-gray-100 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                                            onClick={() => setSelectedBitrixConnectionId(conn.id)}
+                                        >
+                                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{conn.label}</p>
+                                                {conn.portalDomain && <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{conn.portalDomain}</p>}
+                                            </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleBitrixDisconnect(conn.id); }}
+                                                disabled={bitrixLoading}
+                                                className="shrink-0 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400"
+                                            >
+                                                Desconectar
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="p-3 rounded-lg border border-dashed border-gray-200 dark:border-white/10 space-y-2">
+                                <p className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                    {bitrixConnections.length > 0 ? 'Conectar outro portal Bitrix24' : 'Conectar Bitrix24'}
+                                </p>
+                                <input
+                                    type="text"
+                                    value={bitrixLabelInput}
+                                    onChange={(e) => setBitrixLabelInput(e.target.value)}
+                                    placeholder="Nome pra identificar (ex.: AtlasGR, TotalTrac)"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-colors"
+                                />
+                                <input
+                                    type="url"
+                                    value={bitrixWebhookInput}
+                                    onChange={(e) => setBitrixWebhookInput(e.target.value)}
+                                    placeholder="https://seudominio.bitrix24.com.br/rest/1/xxxxxxxx/"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-colors"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Gere em Bitrix24 → Aplicativos → Webhooks → Webhook de entrada, com permissão <strong>crm</strong>.
+                                </p>
+                                <button
+                                    onClick={handleBitrixConnect}
+                                    disabled={bitrixLoading}
+                                    className="w-full py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+                                >
+                                    {bitrixLoading ? 'Validando webhook...' : 'Conectar'}
+                                </button>
                             </div>
 
-                            {bitrixConnected ? (
+                            {selectedBitrixConnectionId && (
                                 <>
-                                    <button
-                                        onClick={handleBitrixDisconnect}
-                                        disabled={bitrixLoading}
-                                        className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
-                                    >
-                                        {bitrixLoading ? 'Desconectando...' : 'Desconectar'}
-                                    </button>
-                                    <BitrixImportPanel />
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <input
-                                            type="url"
-                                            value={bitrixWebhookInput}
-                                            onChange={(e) => setBitrixWebhookInput(e.target.value)}
-                                            placeholder="https://seudominio.bitrix24.com.br/rest/1/xxxxxxxx/"
-                                            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 transition-colors"
-                                        />
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                                            Gere em Bitrix24 → Aplicativos → Webhooks → Webhook de entrada, com permissão <strong>crm</strong>.
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={handleBitrixConnect}
-                                        disabled={bitrixLoading}
-                                        className="w-full py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
-                                    >
-                                        {bitrixLoading ? 'Validando webhook...' : 'Conectar Bitrix24'}
-                                    </button>
+                                    <BitrixImportPanel connectionId={selectedBitrixConnectionId} />
+                                    <BitrixSyncRulesPanel connectionId={selectedBitrixConnectionId} />
                                 </>
                             )}
                         </div>

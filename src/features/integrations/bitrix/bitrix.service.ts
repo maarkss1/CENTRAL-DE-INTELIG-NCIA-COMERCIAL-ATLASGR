@@ -2,6 +2,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { requestContext } from '../../../lib/async-context.js';
 
 function normalizeWebhookUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -45,8 +46,32 @@ async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }
     return { portalDomain };
 }
 
-/** Valida, testa contra o Bitrix24 de verdade e persiste o webhook desta organização. */
-export async function connectBitrix(organizationId: string, rawWebhookUrl: unknown): Promise<{ portalDomain: string }> {
+function hostnameOf(webhookUrl: string): string | null {
+    try {
+        return new URL(webhookUrl).hostname;
+    } catch {
+        return null;
+    }
+}
+
+export interface BitrixConnectionSummary {
+    id: string;
+    label: string;
+    portalDomain: string | null;
+}
+
+/** Lista todos os portais Bitrix conectados desta organização — uma organização pode ter mais de um (ex.: AtlasGR e TotalTrac). */
+export async function listBitrixConnections(organizationId: string): Promise<BitrixConnectionSummary[]> {
+    const connections = await prisma.bitrixConnection.findMany({
+        where: { organizationId },
+        select: { id: true, label: true, webhookUrl: true },
+        orderBy: { createdAt: 'asc' },
+    });
+    return connections.map((c) => ({ id: c.id, label: c.label, portalDomain: hostnameOf(c.webhookUrl) }));
+}
+
+/** Valida, testa contra o Bitrix24 de verdade e persiste um NOVO portal conectado a esta organização. */
+export async function connectBitrix(organizationId: string, rawWebhookUrl: unknown, rawLabel: unknown): Promise<{ id: string; portalDomain: string }> {
     if (!rawWebhookUrl || typeof rawWebhookUrl !== 'string') {
         throw new AppError('Informe a URL do webhook de entrada do Bitrix24.', 400);
     }
@@ -54,44 +79,28 @@ export async function connectBitrix(organizationId: string, rawWebhookUrl: unkno
     const webhookUrl = normalizeWebhookUrl(rawWebhookUrl);
     await assertSafeWebhookUrl(webhookUrl);
     const { portalDomain } = await testWebhook(webhookUrl);
+    const label = (typeof rawLabel === 'string' && rawLabel.trim()) || portalDomain || 'Bitrix24';
 
-    await prisma.bitrixConnection.upsert({
-        where: { organizationId },
-        create: { organizationId, webhookUrl },
-        update: { webhookUrl },
+    const connection = await prisma.bitrixConnection.create({
+        data: { organizationId, webhookUrl, label },
     });
 
-    logger.info({ organizationId, portalDomain }, '[bitrix] Webhook conectado');
-    return { portalDomain };
+    logger.info({ organizationId, connectionId: connection.id, portalDomain }, '[bitrix] Webhook conectado');
+    return { id: connection.id, portalDomain };
 }
 
-export async function getBitrixStatus(organizationId: string): Promise<{ connected: boolean; portalDomain: string | null }> {
-    const connection = await prisma.bitrixConnection.findUnique({
-        where: { organizationId },
+export async function disconnectBitrix(organizationId: string, connectionId: string): Promise<void> {
+    await prisma.bitrixConnection.deleteMany({ where: { id: connectionId, organizationId } });
+}
+
+/** Resolve a URL do webhook de UMA conexão específica, validando que ela pertence a esta organização. */
+export async function getConnectionWebhookUrl(organizationId: string, connectionId: string): Promise<string> {
+    const connection = await prisma.bitrixConnection.findFirst({
+        where: { id: connectionId, organizationId },
         select: { webhookUrl: true },
     });
-    if (!connection) return { connected: false, portalDomain: null };
-
-    let portalDomain: string | null = null;
-    try {
-        portalDomain = new URL(connection.webhookUrl).hostname;
-    } catch {
-        // URL salva antes de alguma mudança de validação — não deveria acontecer, mas não é motivo pra quebrar o status
-    }
-    return { connected: true, portalDomain };
-}
-
-export async function disconnectBitrix(organizationId: string): Promise<void> {
-    await prisma.bitrixConnection.deleteMany({ where: { organizationId } });
-}
-
-/** Usado pelo fluxo de exportação de lead como fallback quando a requisição não traz webhookUrl. */
-export async function getStoredBitrixWebhookUrl(organizationId: string): Promise<string | null> {
-    const connection = await prisma.bitrixConnection.findUnique({
-        where: { organizationId },
-        select: { webhookUrl: true },
-    });
-    return connection?.webhookUrl ?? null;
+    if (!connection) throw new AppError('Conexão Bitrix24 não encontrada para esta organização.', 404);
+    return connection.webhookUrl;
 }
 
 // ── Sincronização bidirecional ──────────────────────────────────────────────────────────────
@@ -166,23 +175,38 @@ async function getStatusLabels(webhookUrl: string): Promise<Map<string, string>>
     return labels;
 }
 
+/** Lista os status possíveis de Lead deste portal (equivalente a getDealStages, mas para o objeto Lead — que não tem pipeline). */
+export async function getLeadStatuses(organizationId: string, connectionId: string): Promise<BitrixDealStage[]> {
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
+    const labels = await getStatusLabels(webhookUrl);
+    return Array.from(labels.entries()).map(([id, name]) => ({ id, name }));
+}
+
 /**
  * Lista uma página de leads do Bitrix24 para o usuário escolher o que importar — NUNCA grava
  * nada sozinho. `alreadyImported` reflete o que já existe no Atlas (por bitrixLeadId), pra tela
  * poder desabilitar o que já foi trazido antes.
  */
+export interface BitrixLeadFilters {
+    search?: string;
+    statusId?: string;
+    assignedById?: string;
+}
+
 export async function listBitrixLeads(
     organizationId: string,
+    connectionId: string,
     start: number,
-    search?: string,
+    filters: BitrixLeadFilters = {},
 ): Promise<{ leads: BitrixLeadSummary[]; next: number | null; total: number }> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     // "%TITLE" é o operador de busca parcial (LIKE '%valor%') da REST API do Bitrix — resolvido
     // no servidor deles, não filtrado localmente, então funciona mesmo fora da página atual.
     const filter: Record<string, unknown> = {};
-    if (search?.trim()) filter['%TITLE'] = search.trim();
+    if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
+    if (filters.statusId) filter.STATUS_ID = filters.statusId;
+    if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
 
     const [data, labels, imported] = await Promise.all([
         callBitrix<{ result: BitrixLeadRaw[]; next?: number; total: number }>(webhookUrl, 'crm.lead.list', {
@@ -216,10 +240,10 @@ export async function listBitrixLeads(
 /** Importa só os leads cujo ID a pessoa marcou na tela — pula silenciosamente o que já foi importado antes. */
 export async function importSelectedBitrixLeads(
     organizationId: string,
+    connectionId: string,
     bitrixLeadIds: string[],
 ): Promise<{ imported: number; skipped: number }> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
     if (bitrixLeadIds.length === 0) return { imported: 0, skipped: 0 };
     if (bitrixLeadIds.length > 100) throw new AppError('Selecione no máximo 100 leads por vez.', 400);
 
@@ -300,18 +324,16 @@ export interface BitrixUserOption {
 }
 
 /** Lista os pipelines (categorias) de Negócio configurados no portal. */
-export async function getDealPipelines(organizationId: string): Promise<BitrixDealPipeline[]> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+export async function getDealPipelines(organizationId: string, connectionId: string): Promise<BitrixDealPipeline[]> {
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     const data = await callBitrix<{ result: Array<{ ID: string; NAME: string }> }>(webhookUrl, 'crm.dealcategory.list', {});
     return data.result.map((c) => ({ id: c.ID, name: c.NAME }));
 }
 
 /** Lista as etapas de um pipeline específico de Negócio (STAGE_ID é prefixado por "C<pipeline>:"). */
-export async function getDealStages(organizationId: string, categoryId: string): Promise<BitrixDealStage[]> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+export async function getDealStages(organizationId: string, connectionId: string, categoryId: string): Promise<BitrixDealStage[]> {
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     const data = await callBitrix<{ result: Array<{ STATUS_ID: string; NAME: string }> }>(
         webhookUrl,
@@ -326,9 +348,8 @@ export async function getDealStages(organizationId: string, categoryId: string):
  * `user` habilitado (comum em webhooks criados só com escopo de CRM) — nesse caso devolve uma
  * lista vazia em vez de derrubar a tela inteira; a UI cai para exibir o ID bruto do responsável.
  */
-export async function getBitrixUsers(organizationId: string): Promise<BitrixUserOption[]> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+export async function getBitrixUsers(organizationId: string, connectionId: string): Promise<BitrixUserOption[]> {
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     try {
         const data = await callBitrix<{ result: Array<{ ID: string; NAME?: string; LAST_NAME?: string }> }>(
@@ -388,11 +409,11 @@ export interface BitrixDealFilters {
  */
 export async function listBitrixDeals(
     organizationId: string,
+    connectionId: string,
     start: number,
     filters: BitrixDealFilters = {},
 ): Promise<{ deals: BitrixDealSummary[]; next: number | null; total: number }> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     const filter: Record<string, unknown> = {};
     if (filters.categoryId) filter.CATEGORY_ID = filters.categoryId;
@@ -424,7 +445,7 @@ export async function listBitrixDeals(
     const categoryIds = [...new Set(data.result.map((d) => d.CATEGORY_ID).filter((v): v is string => Boolean(v)))];
     const stageLabelsByCategory = new Map<string, Map<string, string>>();
     await Promise.all(categoryIds.map(async (categoryId) => {
-        const stages = await getDealStages(organizationId, categoryId);
+        const stages = await getDealStages(organizationId, connectionId, categoryId);
         stageLabelsByCategory.set(categoryId, new Map(stages.map((s) => [s.id, s.name])));
     }));
 
@@ -446,10 +467,10 @@ export async function listBitrixDeals(
 /** Importa só os Negócios cujo ID a pessoa marcou na tela — pula silenciosamente o que já foi importado antes. */
 export async function importSelectedBitrixDeals(
     organizationId: string,
+    connectionId: string,
     bitrixDealIds: string[],
 ): Promise<{ imported: number; skipped: number }> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
     if (bitrixDealIds.length === 0) return { imported: 0, skipped: 0 };
     if (bitrixDealIds.length > 100) throw new AppError('Selecione no máximo 100 negócios por vez.', 400);
 
@@ -492,7 +513,7 @@ export async function importSelectedBitrixDeals(
         }
 
         const stageLabel = deal.CATEGORY_ID && deal.STAGE_ID
-            ? (await getDealStages(organizationId, deal.CATEGORY_ID)).find((s) => s.id === deal.STAGE_ID)?.name || deal.STAGE_ID
+            ? (await getDealStages(organizationId, connectionId, deal.CATEGORY_ID)).find((s) => s.id === deal.STAGE_ID)?.name || deal.STAGE_ID
             : null;
 
         const company = await prisma.company.create({
@@ -537,10 +558,7 @@ export async function importSelectedBitrixDeals(
  * entradas públicas abaixo — lança AppError em qualquer falha; cada chamador decide se propaga
  * (botão manual) ou engole (push automático).
  */
-async function syncLeadToBitrix(organizationId: string, leadId: string): Promise<{ bitrixLeadId: string }> {
-    const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-    if (!webhookUrl) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
-
+async function syncLeadToBitrix(organizationId: string, webhookUrl: string, leadId: string): Promise<{ bitrixLeadId: string }> {
     const lead = await prisma.lead.findFirst({
         where: { id: leadId, organizationId },
         include: { company: true, contact: true },
@@ -580,20 +598,160 @@ async function syncLeadToBitrix(organizationId: string, leadId: string): Promise
  * Chamado automaticamente sempre que um lead nasce no Atlas (ver promoteToCrm) — não precisa de
  * clique manual. Fire-and-forget por design: nunca propaga erro, já que o Bitrix é um sistema
  * secundário e uma falha aqui não pode impedir o lead de existir no Atlas. Também é um no-op
- * silencioso se a organização não tiver Bitrix conectado.
+ * silencioso se a organização não tiver nenhum Bitrix conectado.
+ *
+ * LIMITAÇÃO CONHECIDA: `Lead.bitrixLeadId` é um único campo — se a organização tiver mais de um
+ * portal conectado (ex.: AtlasGR e TotalTrac), só o PRIMEIRO recebe o push automático hoje.
+ * Suportar todos exigiria uma tabela de junção Lead↔BitrixConnection (fora do escopo desta rodada).
  */
 export async function pushLeadToBitrix(organizationId: string, leadId: string): Promise<void> {
     try {
-        const webhookUrl = await getStoredBitrixWebhookUrl(organizationId);
-        if (!webhookUrl) return;
-        await syncLeadToBitrix(organizationId, leadId);
-        logger.info({ organizationId, leadId }, '[bitrix] Lead enviado automaticamente');
+        const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
+        if (!connection) return;
+        await syncLeadToBitrix(organizationId, connection.webhookUrl, leadId);
+        logger.info({ organizationId, connectionId: connection.id, leadId }, '[bitrix] Lead enviado automaticamente');
     } catch (err) {
         logger.warn({ err, organizationId, leadId }, '[bitrix] Falha ao enviar lead automaticamente');
     }
 }
 
-/** Usado pelo botão manual "Exportar p/ Bitrix24" — ao contrário do push automático, propaga erro. */
+/** Usado pelo botão manual "Exportar p/ Bitrix24" — ao contrário do push automático, propaga erro. Mesma limitação de pushLeadToBitrix (1ª conexão só). */
 export async function exportLeadToBitrixNow(organizationId: string, leadId: string): Promise<{ bitrixLeadId: string }> {
-    return syncLeadToBitrix(organizationId, leadId);
+    const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
+    if (!connection) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+    return syncLeadToBitrix(organizationId, connection.webhookUrl, leadId);
+}
+
+// ── Sincronização automática (regras) — ver bitrixSync.worker.ts ───────────────────────────────
+//
+// Diferente da importação manual acima (sempre por clique explícito), isto deixa o Atlas trazer
+// negócios sozinho — mas só o que bate com uma regra que o usuário criou explicitamente aqui
+// (pipeline + etapa/vendedor opcionais). Sem nenhuma regra ativa, nada acontece automaticamente;
+// isto preserva a decisão original de não importar tudo do portal sem escopo (ver nota no topo
+// deste arquivo sobre leads/negócios misturados com notificações de e-mail automáticas).
+
+export interface BitrixSyncRuleInput {
+    connectionId: string;
+    source: 'lead' | 'deal';
+    /** Obrigatório quando source="deal" (pipeline do Negócio); ignorado quando source="lead". */
+    categoryId?: string | null;
+    /** Etapa (Deal) ou status (Lead) — opcional nos dois casos. */
+    stageId?: string | null;
+    assignedById?: string | null;
+}
+
+export async function listSyncRules(organizationId: string, connectionId: string) {
+    return prisma.bitrixSyncRule.findMany({ where: { organizationId, connectionId }, orderBy: { createdAt: 'desc' } });
+}
+
+export async function createSyncRule(organizationId: string, input: BitrixSyncRuleInput) {
+    if (input.source === 'deal' && !input.categoryId) {
+        throw new AppError('Informe o pipeline da regra.', 400);
+    }
+    // Confirma que a conexão realmente pertence a esta organização antes de gravar a regra —
+    // sem isto, um connectionId de outro tenant passaria despercebido (RLS bloquearia a leitura
+    // depois, mas o erro apareceria tarde demais, na primeira execução do worker).
+    const connection = await prisma.bitrixConnection.findFirst({ where: { id: input.connectionId, organizationId } });
+    if (!connection) throw new AppError('Conexão Bitrix24 não encontrada para esta organização.', 404);
+
+    return prisma.bitrixSyncRule.create({
+        data: {
+            organizationId,
+            connectionId: input.connectionId,
+            source: input.source,
+            categoryId: input.source === 'deal' ? input.categoryId : null,
+            stageId: input.stageId || null,
+            assignedById: input.assignedById || null,
+        },
+    });
+}
+
+export async function setSyncRuleActive(organizationId: string, ruleId: string, active: boolean) {
+    const rule = await prisma.bitrixSyncRule.findFirst({ where: { id: ruleId, organizationId } });
+    if (!rule) throw new AppError('Regra não encontrada.', 404);
+    return prisma.bitrixSyncRule.update({ where: { id: ruleId }, data: { active } });
+}
+
+export async function deleteSyncRule(organizationId: string, ruleId: string): Promise<void> {
+    const rule = await prisma.bitrixSyncRule.findFirst({ where: { id: ruleId, organizationId } });
+    if (!rule) throw new AppError('Regra não encontrada.', 404);
+    await prisma.bitrixSyncRule.delete({ where: { id: ruleId } });
+}
+
+// Trava de segurança por execução de regra: mesmo com um pipeline movimentado, uma regra nunca
+// importa mais que isto numa única rodada do worker — evita que uma regra mal configurada (ex.:
+// pipeline errado, sem etapa) inunde o CRM de uma vez só. O próximo tick pega o restante.
+const MAX_AUTO_IMPORT_PER_RULE_PER_TICK = 25;
+
+/** Executa uma única regra: busca registros não importados que batem com o filtro e importa até o teto por rodada. */
+async function runSyncRule(
+    organizationId: string,
+    rule: { id: string; connectionId: string; source: string; categoryId: string | null; stageId: string | null; assignedById: string | null },
+): Promise<number> {
+    if (rule.source === 'lead') {
+        const { leads } = await listBitrixLeads(organizationId, rule.connectionId, 0, {
+            statusId: rule.stageId || undefined,
+            assignedById: rule.assignedById || undefined,
+        });
+        const pendingIds = leads.filter((l) => !l.alreadyImported).map((l) => l.id).slice(0, MAX_AUTO_IMPORT_PER_RULE_PER_TICK);
+        if (pendingIds.length === 0) return 0;
+        const { imported } = await importSelectedBitrixLeads(organizationId, rule.connectionId, pendingIds);
+        return imported;
+    }
+
+    if (!rule.categoryId) return 0; // regra "deal" mal formada (não deveria acontecer — createSyncRule já valida)
+    const { deals } = await listBitrixDeals(organizationId, rule.connectionId, 0, {
+        categoryId: rule.categoryId,
+        stageId: rule.stageId || undefined,
+        assignedById: rule.assignedById || undefined,
+    });
+    const pendingIds = deals.filter((d) => !d.alreadyImported).map((d) => d.id).slice(0, MAX_AUTO_IMPORT_PER_RULE_PER_TICK);
+    if (pendingIds.length === 0) return 0;
+
+    const { imported } = await importSelectedBitrixDeals(organizationId, rule.connectionId, pendingIds);
+    return imported;
+}
+
+/**
+ * Roda uma vez para TODAS as organizações com pelo menos uma regra ativa — chamado pelo worker
+ * periódico (bitrixSync.worker.ts). Uma regra com erro (ex.: webhook desconectado nesse meio
+ * tempo) não derruba as demais; cada uma registra seu próprio resultado.
+ *
+ * BitrixSyncRule tem RLS por tenant (como toda tabela de dado de cliente) — não está na allowlist
+ * de bypass (essa allowlist é só para tabelas de identidade: User/Organization/Session/etc., ver
+ * async-context.ts). Por isso a descoberta de "quais organizações existem" usa bypass só em cima
+ * de Organization (que ESTÁ na allowlist), e cada regra é lida/gravada dentro do contexto de
+ * tenant real dela — RLS de verdade, não uma exceção só pra este worker.
+ */
+export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: number; totalImported: number }> {
+    const organizations = await requestContext.run({ bypassRls: true }, () => prisma.organization.findMany({ select: { id: true } }));
+
+    let organizationsProcessed = 0;
+    let totalImported = 0;
+
+    for (const { id: organizationId } of organizations) {
+        await requestContext.run({ tenantId: organizationId }, async () => {
+            const rules = await prisma.bitrixSyncRule.findMany({ where: { active: true } });
+            if (rules.length === 0) return;
+            organizationsProcessed++;
+
+            for (const rule of rules) {
+                try {
+                    const imported = await runSyncRule(organizationId, rule);
+                    totalImported += imported;
+                    await prisma.bitrixSyncRule.update({
+                        where: { id: rule.id },
+                        data: { lastRunAt: new Date(), lastImportedCount: imported },
+                    });
+                    if (imported > 0) {
+                        logger.info({ organizationId, ruleId: rule.id, imported }, '[bitrix] Regra de sincronização automática importou registros');
+                    }
+                } catch (err) {
+                    logger.error({ err, organizationId, ruleId: rule.id }, '[bitrix] Falha ao executar regra de sincronização automática');
+                }
+            }
+        });
+    }
+
+    return { organizationsProcessed, totalImported };
 }

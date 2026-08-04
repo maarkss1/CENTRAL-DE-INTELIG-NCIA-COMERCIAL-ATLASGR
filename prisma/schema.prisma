@@ -357,7 +357,8 @@ model Organization {
   whatsAppMessages WhatsAppMessage[]
   conversationSignals ConversationSignal[]
   googleWorkspaceConnection GoogleWorkspaceConnection?
-  bitrixConnection BitrixConnection?
+  bitrixConnections BitrixConnection[]
+  bitrixSyncRules  BitrixSyncRule[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -709,10 +710,19 @@ model GoogleWorkspaceConnection {
 /// a URL do webhook não era persistida em lugar nenhum: cada exportação exigia colar a URL de
 /// novo no corpo da requisição, e não havia nenhuma tela para configurá-la. Um registro por
 /// organização, igual ao padrão do GoogleWorkspaceConnection acima.
+/// Uma organização Atlas pode falar com MAIS DE UM portal Bitrix24 ao mesmo tempo (ex.: AtlasGR e
+/// TotalTrac são marcas/empresas distintas, cada uma com seu próprio Bitrix) — por isso não é mais
+/// 1:1 com Organization (era @unique antes; várias linhas por organizationId agora são o normal).
+/// Cada conexão é independente: sua própria importação seletiva, seus próprios pipelines/etapas,
+/// suas próprias regras de sincronização automática (ver BitrixSyncRule.connectionId).
 model BitrixConnection {
   id             String       @id @default(cuid())
-  organizationId String       @unique
+  organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Nome de exibição pra distinguir as conexões na tela (ex.: "AtlasGR", "TotalTrac") — livre,
+  /// não precisa bater com o domínio real do portal.
+  label String @default("Bitrix24")
 
   /// URL completa do webhook de entrada, incluindo o token (ex: https://SEUDOMINIO.bitrix24.com.br/rest/1/xxxxxxxx/).
   /// Mesmo tratamento de segurança que o resto da base: nenhuma coluna tem criptografia de campo
@@ -724,8 +734,53 @@ model BitrixConnection {
   /// inteiros do portal a cada 15 minutos em vez de só o que mudou.
   lastImportedAt DateTime?
 
+  syncRules BitrixSyncRule[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+/// Regra de sincronização automática Bitrix → Atlas (ver bitrixSync.worker.ts). Diferente da
+/// importação manual (listBitrixLeads/listBitrixDeals, sempre por escolha explícita na tela),
+/// isto é opt-in por regra: só existe automação para o que o usuário definiu aqui, escopado por
+/// pipeline/etapa/vendedor — nunca "importar tudo que aparecer", que encheria o CRM de lixo (o
+/// portal mistura prospecção real com notificações de e-mail automáticas, chamados de suporte
+/// etc.). Sem nenhuma regra ativa, o worker não faz nada.
+model BitrixSyncRule {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Qual conexão/portal Bitrix esta regra observa — uma organização pode ter mais de uma
+  /// conexão (ex.: AtlasGR e TotalTrac), então a regra precisa dizer qual delas, não só o tenant.
+  connectionId String
+  connection   BitrixConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  /// "deal" (objeto Negócio, com pipeline/etapa reais) ou "lead" (objeto Lead, lista plana de
+  /// status — sem pipeline). Portais diferentes usam um, outro, ou os dois em paralelo.
+  source String @default("deal")
+
+  /// CATEGORY_ID do pipeline de Negócio a observar (ex: "28" = Comercial) — obrigatório quando
+  /// source="deal", ignorado quando source="lead" (Lead não tem pipeline).
+  categoryId String?
+  /// STAGE_ID (Deal) ou STATUS_ID (Lead) opcional — sem isso, a regra observa todas as etapas/status.
+  stageId String?
+  /// ASSIGNED_BY_ID opcional — sem isso, a regra observa registros de qualquer vendedor.
+  assignedById String?
+
+  active Boolean @default(true)
+
+  lastRunAt          DateTime?
+  lastImportedCount  Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([connectionId])
+  @@index([active])
 }
 
 /// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a
