@@ -19,6 +19,13 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
   const { theme, toggleTheme } = useTheme();
+  // refetch da mesma store reativa que ProtectedRoute/AuthContext leem (authClient.useSession()).
+  // sign-up/sign-in dispara um refetch em segundo plano (via $sessionSignal do better-auth), mas
+  // ele é assíncrono e não termina a tempo do navigate('/app') abaixo — ProtectedRoute então
+  // renderiza /app com o estado ANTIGO da store (usuário nulo) e manda de volta pro /login antes
+  // da sessão nova chegar. Aguardar este refetch garante que currentUser já está populado no
+  // primeiro render de ProtectedRoute em /app.
+  const { refetch: refetchSession } = authClient.useSession();
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +52,7 @@ export function LoginScreen() {
       return;
     }
 
+    await refetchSession();
     navigate('/app');
   };
 
