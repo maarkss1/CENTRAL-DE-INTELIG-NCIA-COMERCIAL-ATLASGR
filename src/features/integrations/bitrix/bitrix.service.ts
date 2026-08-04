@@ -724,7 +724,17 @@ async function runSyncRule(
  * tenant real dela — RLS de verdade, não uma exceção só pra este worker.
  */
 export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: number; totalImported: number }> {
-    const organizations = await requestContext.run({ bypassRls: true }, () => prisma.organization.findMany({ select: { id: true } }));
+    // IMPORTANTE: o callback do run() precisa dar `await` na query Prisma, não só retorná-la.
+    // `prisma.model.findMany(...)` devolve um PrismaPromise "lazy" (um thenable customizado, não
+    // uma Promise nativa) — a query só é de fato disparada (e o hook $allOperations de prisma.ts
+    // só é chamado) quando algo dá `.then()`/`await` nela. Se o callback só faz
+    // `() => prisma.organization.findMany(...)`, o `.then()` acontece no `await` DE FORA do
+    // run(), depois que o AsyncLocalStorage já saiu de escopo — requestContext.getStore() então
+    // chega `undefined` dentro de $allOperations e a query roda sem bypass_rls, sem achar nenhuma
+    // organização. Confirmado via scripts/debug-als-hypothesis.ts.
+    const organizations = await requestContext.run({ bypassRls: true }, async () => {
+        return await prisma.organization.findMany({ select: { id: true } });
+    });
 
     let organizationsProcessed = 0;
     let totalImported = 0;
