@@ -386,8 +386,28 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             const requestMessages = toChatCompletionMessages(messages);
             let response: ChatCompletionResponse | undefined;
 
+            let litellmError: unknown;
+            if (process.env.LITELLM_URL) {
+                const baseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL);
+                const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
+                try {
+                    response = await callProvider('litellm', () => requestChatCompletion(
+                        `${baseUrl}/v1/chat/completions`,
+                        litellmKey,
+                        resolvedModel,
+                        requestMessages,
+                        temperature,
+                        agentContext,
+                        fallbackTimeoutMs,
+                        true,
+                    ));
+                } catch (error) {
+                    litellmError = error;
+                }
+            }
+
             let groqError: unknown;
-            if (process.env.GROQ_API_KEY) {
+            if (!response && process.env.GROQ_API_KEY) {
                 const groqModel = GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
                 try {
                     response = await callProvider('groq', () => requestChatCompletion(
@@ -423,17 +443,49 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                 }
             }
 
+            let geminiError: unknown;
+            const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+            if (!response && geminiApiKey) {
+                try {
+                    response = await callProvider('gemini', () => requestChatCompletion(
+                        'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+                        geminiApiKey,
+                        'gemini-1.5-flash',
+                        requestMessages,
+                        temperature,
+                        agentContext,
+                        fallbackTimeoutMs,
+                        false,
+                    ));
+                } catch (error) {
+                    geminiError = error;
+                }
+            }
+
             if (!response) {
+                const litellmMessage = sanitizeProviderMessage(
+                    litellmError instanceof Error ? litellmError.message : litellmError,
+                );
                 const groqMessage = sanitizeProviderMessage(
                     groqError instanceof Error ? groqError.message : groqError,
                 );
                 const openaiMessage = sanitizeProviderMessage(
                     openaiError instanceof Error ? openaiError.message : openaiError,
                 );
+                const geminiMessage = sanitizeProviderMessage(
+                    geminiError instanceof Error ? geminiError.message : geminiError,
+                );
+                const configured = [
+                    process.env.LITELLM_URL && 'LiteLLM',
+                    process.env.GROQ_API_KEY && 'Groq',
+                    process.env.OPENAI_API_KEY && 'OpenAI',
+                    geminiApiKey && 'Gemini',
+                ].filter(Boolean).join(', ');
+
                 throw new Error(
-                    process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY
-                        ? `Os motores de IA estão indisponíveis. Groq: ${groqMessage}. OpenAI: ${openaiMessage}`
-                        : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com) no .env.',
+                    configured
+                        ? `Os motores de IA estão indisponíveis (${configured}). LiteLLM: ${litellmMessage}. Groq: ${groqMessage}. OpenAI: ${openaiMessage}. Gemini: ${geminiMessage}`
+                        : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com), OPENAI_API_KEY ou GEMINI_API_KEY no .env.',
                 );
             }
 
@@ -452,6 +504,32 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
         },
     };
 };
+
+/**
+ * Extrai e converte respostas JSON retornadas por modelos de IA,
+ * removendo blocos de código Markdown (```json ... ```) e caracteres excedentes.
+ */
+export function cleanAndParseJson<T>(content: string): T {
+    if (!content || typeof content !== 'string') {
+        throw new Error('Conteúdo para parse JSON está vazio ou é inválido.');
+    }
+
+    let cleaned = content.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    const firstBrace = cleaned.search(/[\{\[]/);
+    const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
+
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+    }
+
+    try {
+        return JSON.parse(cleaned) as T;
+    } catch (err) {
+        throw new Error(`Falha ao decodificar JSON gerado pela IA: ${(err as Error).message}. Conteúdo original: ${content.slice(0, 200)}...`);
+    }
+}
 
 // Preço aproximado por 1M de tokens (USD) — usado só para estimar custo no AILog, não é cobrança real.
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {

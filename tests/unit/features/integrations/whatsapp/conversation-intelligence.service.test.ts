@@ -12,10 +12,14 @@ vi.mock('../../../../../src/lib/prisma.js', () => ({
 }));
 
 const invoke = vi.fn();
-vi.mock('../../../../../src/lib/ai/gateway.js', () => ({
-    getAiModel: () => ({ invoke: (...args: unknown[]) => invoke(...args) }),
-    logAiUsage: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('../../../../../src/lib/ai/gateway.js', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../../../src/lib/ai/gateway.js')>();
+    return {
+        ...actual,
+        getAiModel: () => ({ invoke: (...args: unknown[]) => invoke(...args) }),
+        logAiUsage: vi.fn().mockResolvedValue(undefined),
+    };
+});
 
 vi.mock('../../../../../src/lib/logger.js', () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },

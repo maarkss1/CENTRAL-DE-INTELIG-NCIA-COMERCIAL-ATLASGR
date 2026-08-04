@@ -60,10 +60,19 @@ function obterExtrator(): Promise<FeatureExtractor> {
     return carregando;
 }
 
+const EMBEDDING_CACHE_MAX_SIZE = 500;
+const embeddingCache = new Map<string, number[]>();
+
 /** Gera o vetor de um texto. `kind` define o prefixo exigido pelo e5. */
 export async function embedLocal(text: string, kind: EmbeddingKind = 'passage'): Promise<number[]> {
     const normalizado = text.trim();
     if (!normalizado) throw new Error('O texto do embedding não pode ser vazio.');
+
+    const cacheKey = `${kind}:${normalizado}`;
+    const cached = embeddingCache.get(cacheKey);
+    if (cached) {
+        return [...cached];
+    }
 
     const extrator = await obterExtrator();
     const saida = await extrator(`${kind}: ${normalizado}`, { pooling: 'mean', normalize: true });
@@ -78,12 +87,19 @@ export async function embedLocal(text: string, kind: EmbeddingKind = 'passage'):
         throw new Error('O modelo devolveu um embedding com valores inválidos.');
     }
 
+    if (embeddingCache.size >= EMBEDDING_CACHE_MAX_SIZE) {
+        const oldestKey = embeddingCache.keys().next().value;
+        if (oldestKey) embeddingCache.delete(oldestKey);
+    }
+    embeddingCache.set(cacheKey, vetor);
+
     return vetor;
 }
 
 /** Usado nos testes para reiniciar o estado do carregamento. */
 export function resetLocalEmbeddings(): void {
     carregando = null;
+    embeddingCache.clear();
 }
 
 export const LOCAL_EMBEDDING_MODEL_ID = MODEL_ID;

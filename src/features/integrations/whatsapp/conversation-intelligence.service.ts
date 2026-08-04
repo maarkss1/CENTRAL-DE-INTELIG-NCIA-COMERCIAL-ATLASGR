@@ -1,6 +1,6 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import type { Prisma } from '@prisma/client';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 
@@ -39,15 +39,11 @@ function buildTranscript(messages: Array<{ direction: string; body: string | nul
         .join('\n');
 }
 
-function stripMarkdownFence(raw: string): string {
-    return raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-}
-
 function parseModelOutput(raw: string): ConversationSignalResult {
-    const parsed = JSON.parse(stripMarkdownFence(raw));
+    const parsed = cleanAndParseJson<Record<string, unknown>>(raw);
     return {
-        intent: ALLOWED_INTENTS.has(parsed.intent) ? parsed.intent : null,
-        urgency: ALLOWED_URGENCY.has(parsed.urgency) ? parsed.urgency : null,
+        intent: typeof parsed.intent === 'string' && ALLOWED_INTENTS.has(parsed.intent) ? parsed.intent : null,
+        urgency: typeof parsed.urgency === 'string' && ALLOWED_URGENCY.has(parsed.urgency) ? parsed.urgency : null,
         objections: Array.isArray(parsed.objections)
             ? parsed.objections.filter((o: unknown): o is string => typeof o === 'string').slice(0, 10)
             : [],
@@ -94,7 +90,7 @@ export async function analyzeConversation(leadId: string, organizationId: string
     let rawModelOutput: Prisma.InputJsonValue;
     try {
         result = parseModelOutput(response.content);
-        rawModelOutput = JSON.parse(stripMarkdownFence(response.content));
+        rawModelOutput = cleanAndParseJson<Prisma.InputJsonValue>(response.content);
     } catch (error) {
         logger.warn({ err: error, leadId }, 'Falha ao interpretar sinal de conversa gerado pela IA');
         result = {

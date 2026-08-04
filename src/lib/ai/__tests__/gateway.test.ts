@@ -25,6 +25,7 @@ vi.mock('../../logger.js', () => ({
 
 import {
     __resetCircuitBreakerForTests,
+    cleanAndParseJson,
     generateEmbedding,
     getAiModel,
     toChatCompletionMessages,
@@ -227,5 +228,23 @@ describe('AI gateway', () => {
             .rejects.toThrow('temporariamente desativado');
         // O circuit breaker impediu uma 4ª chamada de rede ao provedor já sabidamente fora do ar.
         expect(fetchMock).toHaveBeenCalledTimes(callsBeforeBreakerOpen);
+    });
+
+    describe('cleanAndParseJson', () => {
+        it('limpa markdown code fences e extrai o objeto JSON', () => {
+            const raw = '```json\n{"score": 95, "reason": "Excelente fit"}\n```';
+            const parsed = cleanAndParseJson<{ score: number; reason: string }>(raw);
+            expect(parsed).toEqual({ score: 95, reason: 'Excelente fit' });
+        });
+
+        it('extrai JSON envolto por texto explicativo', () => {
+            const raw = 'Aqui está a resposta:\n[{"id": 1}, {"id": 2}]\nEspero ter ajudado!';
+            const parsed = cleanAndParseJson<Array<{ id: number }>>(raw);
+            expect(parsed).toEqual([{ id: 1 }, { id: 2 }]);
+        });
+
+        it('lança erro legível ao receber JSON corrompido', () => {
+            expect(() => cleanAndParseJson('{ score: invalid }')).toThrow('Falha ao decodificar JSON gerado pela IA');
+        });
     });
 });

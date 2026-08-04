@@ -1,5 +1,5 @@
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { IEnrichedLead } from '../../../types/prospecting';
 
 function describeLead(lead: IEnrichedLead): string {
@@ -29,8 +29,7 @@ async function askJson<T>(systemPrompt: string, userPrompt: string, agentContext
       usage: response.response_metadata.tokenUsage,
       latencyMs: Date.now() - startTime,
     });
-    const jsonText = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonText) as T;
+    return cleanAndParseJson<T>(response.content);
   } catch {
     return fallback;
   }

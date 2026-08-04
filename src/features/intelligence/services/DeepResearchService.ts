@@ -1,6 +1,6 @@
 import { logger } from '../../../lib/logger.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { cleanAndParseJson, getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { IDataProvider } from '../../../lib/adapters/data-providers/IDataProvider.js';
 import { IEnrichedLead } from '../../../types/prospecting.js';
 import { chromium } from '@playwright/test'; // Utilizando Playwright para Multimodal Vision
@@ -82,8 +82,7 @@ async function inferMissingInsights(lead: Partial<IEnrichedLead>, visionInsight:
       ),
       new HumanMessage(`Fatos:\n${knownFacts.join(' | ')}`),
     ]);
-    const jsonText = response.content.toString().replace(/```json/g, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(jsonText);
+    const parsed = cleanAndParseJson<InferredInsights>(response.content.toString());
     return {
       description: typeof parsed.description === 'string' ? parsed.description : '',
       technologies: Array.isArray(parsed.technologies) ? parsed.technologies : [],

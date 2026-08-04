@@ -149,13 +149,13 @@ export async function disconnectGoogle(organizationId: string): Promise<void> {
  * Access token válido para chamar as APIs do Google em nome desta organização — renova via
  * refresh_token quando o access_token salvo já expirou (ou expira nos próximos 60s).
  */
-async function getValidAccessToken(organizationId: string): Promise<string> {
+async function getValidAccessToken(organizationId: string, forceRefresh = false): Promise<string> {
     const connection = await prisma.googleWorkspaceConnection.findUnique({ where: { organizationId } });
     if (!connection) {
         throw new GoogleNotConnectedError('Esta organização ainda não conectou uma conta Google.');
     }
 
-    if (connection.expiresAt.getTime() > Date.now() + 60_000) {
+    if (!forceRefresh && connection.expiresAt.getTime() > Date.now() + 60_000) {
         return connection.accessToken;
     }
 
@@ -188,7 +188,7 @@ export interface UpcomingCalendarEvent {
 
 /** Próximos eventos reais do Google Calendar da conta conectada — prova de que a integração funciona de verdade. */
 export async function getUpcomingCalendarEvents(organizationId: string, maxResults = 5): Promise<UpcomingCalendarEvent[]> {
-    const accessToken = await getValidAccessToken(organizationId);
+    let accessToken = await getValidAccessToken(organizationId);
 
     const params = new URLSearchParams({
         timeMin: new Date().toISOString(),
@@ -196,9 +196,18 @@ export async function getUpcomingCalendarEvents(organizationId: string, maxResul
         singleEvents: 'true',
         orderBy: 'startTime',
     });
-    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+    let response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
     });
+
+    if (response.status === 401) {
+        logger.warn({ organizationId }, 'Google Calendar retornou 401 — forçando renovação de token');
+        accessToken = await getValidAccessToken(organizationId, true);
+        response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+    }
+
     if (!response.ok) {
         const body = await response.text().catch(() => '');
         logger.error({ status: response.status, body, organizationId }, 'Falha ao buscar eventos do Google Calendar.');
