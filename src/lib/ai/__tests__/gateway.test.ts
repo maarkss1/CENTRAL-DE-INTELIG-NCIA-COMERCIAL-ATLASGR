@@ -104,12 +104,12 @@ describe('AI gateway', () => {
         expect(body.metadata).toEqual({ agent: 'unit:test' });
     });
 
-    it('usa Groq como contingência sem perder os papéis das mensagens', async () => {
+    it('tenta Groq primeiro e só cai pro LiteLLM (último recurso) se Groq falhar', async () => {
         process.env.GROQ_API_KEY = 'gsk_test_key_for_unit_tests';
         const fetchMock = vi.fn()
-            .mockRejectedValueOnce(new Error('LiteLLM offline'))
+            .mockRejectedValueOnce(new Error('Groq offline'))
             .mockResolvedValueOnce(jsonResponse({
-                model: 'llama-3.3-70b-versatile',
+                model: 'local-llama3',
                 choices: [{ message: { content: 'fallback ativo' } }],
             }));
         vi.stubGlobal('fetch', fetchMock);
@@ -121,13 +121,19 @@ describe('AI gateway', () => {
 
         expect(result.content).toBe('fallback ativo');
         expect(fetchMock).toHaveBeenCalledTimes(2);
-        const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
-        expect(url).toBe('https://api.groq.com/openai/v1/chat/completions');
-        const body = JSON.parse(String(init.body));
-        expect(body.model).toBe('llama-3.3-70b-versatile');
-        expect(body.messages[0]).toEqual({ role: 'system', content: 'Regra' });
-        expect(body).not.toHaveProperty('metadata');
-        expect(body).not.toHaveProperty('user');
+
+        const [groqUrl, groqInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(groqUrl).toBe('https://api.groq.com/openai/v1/chat/completions');
+        const groqBody = JSON.parse(String(groqInit.body));
+        expect(groqBody.model).toBe('llama-3.3-70b-versatile');
+        expect(groqBody.messages[0]).toEqual({ role: 'system', content: 'Regra' });
+        expect(groqBody).not.toHaveProperty('metadata');
+        expect(groqBody).not.toHaveProperty('user');
+
+        const [litellmUrl, litellmInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+        expect(litellmUrl).toBe('http://litellm.test/v1/chat/completions');
+        const litellmBody = JSON.parse(String(litellmInit.body));
+        expect(litellmBody.messages[0]).toEqual({ role: 'system', content: 'Regra' });
     });
 
     it('rejeita respostas vazias do provedor', async () => {
@@ -200,7 +206,7 @@ describe('AI gateway', () => {
         const fetchMock = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ error: 'Requisição inválida' }, 400))
             .mockResolvedValueOnce(jsonResponse({
-                model: 'llama-3.3-70b-versatile',
+                model: 'local-llama3',
                 choices: [{ message: { content: 'fallback ativo' } }],
             }));
         vi.stubGlobal('fetch', fetchMock);
@@ -208,9 +214,10 @@ describe('AI gateway', () => {
         const result = await getAiModel('local-llama3', 0, 'unit:no-retry-4xx').invoke([new HumanMessage('Pedido')]);
 
         expect(result.content).toBe('fallback ativo');
-        // Só 2 chamadas no total: 1 tentativa no LiteLLM (sem retry por ser 4xx) + 1 no Groq.
+        // Só 2 chamadas no total: 1 tentativa no Groq (sem retry por ser 4xx) + 1 no LiteLLM (último recurso).
         expect(fetchMock).toHaveBeenCalledTimes(2);
-        expect(fetchMock.mock.calls[1][0]).toBe('https://api.groq.com/openai/v1/chat/completions');
+        expect(fetchMock.mock.calls[0][0]).toBe('https://api.groq.com/openai/v1/chat/completions');
+        expect(fetchMock.mock.calls[1][0]).toBe('http://litellm.test/v1/chat/completions');
     });
 
     it('abre o circuit breaker após falhas consecutivas e para de contatar o provedor', async () => {

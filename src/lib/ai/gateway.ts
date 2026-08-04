@@ -386,28 +386,13 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             const requestMessages = toChatCompletionMessages(messages);
             let response: ChatCompletionResponse | undefined;
 
-            let litellmError: unknown;
-            if (process.env.LITELLM_URL) {
-                const baseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL);
-                const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
-                try {
-                    response = await callProvider('litellm', () => requestChatCompletion(
-                        `${baseUrl}/v1/chat/completions`,
-                        litellmKey,
-                        resolvedModel,
-                        requestMessages,
-                        temperature,
-                        agentContext,
-                        fallbackTimeoutMs,
-                        true,
-                    ));
-                } catch (error) {
-                    litellmError = error;
-                }
-            }
-
+            // Groq primeiro (rápido, sem o gargalo de concorrência do modelo local). LiteLLM entra
+            // só como reserva mais abaixo, depois de Groq/OpenAI/Gemini — tentar o LiteLLM (que
+            // nesta máquina resolve pro Ollama local, capaz de processar só 1 requisição por vez)
+            // antes do Groq reintroduziria exatamente a lentidão que motivou tirá-lo da rota
+            // principal do enxame de agentes.
             let groqError: unknown;
-            if (!response && process.env.GROQ_API_KEY) {
+            if (process.env.GROQ_API_KEY) {
                 const groqModel = GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
                 try {
                     response = await callProvider('groq', () => requestChatCompletion(
@@ -462,6 +447,29 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                 }
             }
 
+            // Último recurso, não primeira tentativa: nesta máquina o LITELLM_URL resolve pro Ollama
+            // local, que processa 1 requisição por vez — só vale a pena pagar esse gargalo depois de
+            // Groq/OpenAI/Gemini já terem falhado, nunca antes.
+            let litellmError: unknown;
+            if (!response && process.env.LITELLM_URL) {
+                const baseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL);
+                const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
+                try {
+                    response = await callProvider('litellm', () => requestChatCompletion(
+                        `${baseUrl}/v1/chat/completions`,
+                        litellmKey,
+                        resolvedModel,
+                        requestMessages,
+                        temperature,
+                        agentContext,
+                        fallbackTimeoutMs,
+                        true,
+                    ));
+                } catch (error) {
+                    litellmError = error;
+                }
+            }
+
             if (!response) {
                 const litellmMessage = sanitizeProviderMessage(
                     litellmError instanceof Error ? litellmError.message : litellmError,
@@ -476,15 +484,15 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                     geminiError instanceof Error ? geminiError.message : geminiError,
                 );
                 const configured = [
-                    process.env.LITELLM_URL && 'LiteLLM',
                     process.env.GROQ_API_KEY && 'Groq',
                     process.env.OPENAI_API_KEY && 'OpenAI',
                     geminiApiKey && 'Gemini',
+                    process.env.LITELLM_URL && 'LiteLLM',
                 ].filter(Boolean).join(', ');
 
                 throw new Error(
                     configured
-                        ? `Os motores de IA estão indisponíveis (${configured}). LiteLLM: ${litellmMessage}. Groq: ${groqMessage}. OpenAI: ${openaiMessage}. Gemini: ${geminiMessage}`
+                        ? `Os motores de IA estão indisponíveis (${configured}). Groq: ${groqMessage}. OpenAI: ${openaiMessage}. Gemini: ${geminiMessage}. LiteLLM: ${litellmMessage}`
                         : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com), OPENAI_API_KEY ou GEMINI_API_KEY no .env.',
                 );
             }
