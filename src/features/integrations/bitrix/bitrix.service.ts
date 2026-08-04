@@ -323,12 +323,21 @@ export interface BitrixUserOption {
     name: string;
 }
 
-/** Lista os pipelines (categorias) de Negócio configurados no portal. */
+/**
+ * Lista os pipelines (categorias) de Negócio configurados no portal — só o pipeline "Comercial".
+ * Portais como o da TotalTrac têm dezenas de pipelines operacionais (Financeiro, RH, Suporte
+ * Técnico, Implantação...) que não são funil de vendas; misturar tudo na tela de importação do
+ * Atlas (uma ferramenta de prospecção/CRM comercial) só traz ruído. Se o portal não tiver nenhum
+ * pipeline chamado "Comercial" (caso do AtlasGR, cujas vendas vivem em Lead, não em Negócio), a
+ * lista vem vazia e a aba Negócios não tem o que mostrar — a pessoa usa a aba Leads nesse caso.
+ */
 export async function getDealPipelines(organizationId: string, connectionId: string): Promise<BitrixDealPipeline[]> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     const data = await callBitrix<{ result: Array<{ ID: string; NAME: string }> }>(webhookUrl, 'crm.dealcategory.list', {});
-    return data.result.map((c) => ({ id: c.ID, name: c.NAME }));
+    return data.result
+        .filter((c) => c.NAME.trim().toLowerCase() === 'comercial')
+        .map((c) => ({ id: c.ID, name: c.NAME }));
 }
 
 /** Lista as etapas de um pipeline específico de Negócio (STAGE_ID é prefixado por "C<pipeline>:"). */
@@ -415,8 +424,20 @@ export async function listBitrixDeals(
 ): Promise<{ deals: BitrixDealSummary[]; next: number | null; total: number }> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
+    // Sem categoryId explícito ("Todos os pipelines" no filtro), resolve o pipeline Comercial e
+    // filtra por ele mesmo assim — sem isso, "Todos" vazaria negócios de pipelines operacionais
+    // (Financeiro, RH, Suporte...) que getDealPipelines já esconde da lista de opções. Se o portal
+    // não tem pipeline Comercial (ex.: AtlasGR, cujas vendas vivem em Lead), não existe "todos os
+    // negócios relevantes" pra cair como fallback — devolve vazio em vez de vazar o portal inteiro.
+    let categoryId = filters.categoryId;
+    if (!categoryId) {
+        const [comercial] = await getDealPipelines(organizationId, connectionId);
+        if (!comercial) return { deals: [], next: null, total: 0 };
+        categoryId = comercial.id;
+    }
+
     const filter: Record<string, unknown> = {};
-    if (filters.categoryId) filter.CATEGORY_ID = filters.categoryId;
+    if (categoryId) filter.CATEGORY_ID = categoryId;
     if (filters.stageId) filter.STAGE_ID = filters.stageId;
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
     if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
