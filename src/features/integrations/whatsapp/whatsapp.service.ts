@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState as getMultiFileAuthState, DisconnectReason, Browsers, WASocket } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState as getMultiFileAuthState, DisconnectReason, Browsers, WASocket, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
@@ -76,20 +76,42 @@ export async function initWhatsApp(organizationId: string) {
     session.status = 'connecting';
     await persistStatusToRedis(organizationId, session);
     const authFolder = authFolderFor(organizationId);
-    if (!fs.existsSync(authFolder)) {
-        fs.mkdirSync(authFolder, { recursive: true });
+
+    let sock: WASocket;
+    let saveCreds: () => Promise<void>;
+    try {
+        if (!fs.existsSync(authFolder)) {
+            fs.mkdirSync(authFolder, { recursive: true });
+        }
+
+        const authState = await getMultiFileAuthState(authFolder);
+        saveCreds = authState.saveCreds;
+
+        // Sem isso, o socket usa a versão do WhatsApp Web fixada no pacote @whiskeysockets/baileys
+        // instalado. Quando o WhatsApp atualiza os servidores e essa versão fica desatualizada, o
+        // handshake é rejeitado com "405 Connection Failure" ANTES de qualquer QR ser emitido — a
+        // sessão fica presa em "connecting" pra sempre (o front-end nunca recebe QR nem erro; ver
+        // BUG relatado na tela de Integrações). Buscar a versão mais recente evita isso.
+        const { version } = await fetchLatestBaileysVersion();
+
+        sock = makeWASocket({
+            auth: authState.state,
+            version,
+            printQRInTerminal: false,
+            browser: Browsers.macOS('Desktop'),
+            syncFullHistory: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            logger: pino({ level: 'silent' }) as any
+        });
+    } catch (err) {
+        // Se algo falhar antes do socket existir, não pode deixar a sessão presa em "connecting"
+        // pra sempre — sem isso, o front-end (que só reage a 'connecting'/'connected'/'disconnected')
+        // ficaria mostrando "Conectando..." indefinidamente mesmo com a inicialização já morta.
+        session.status = 'disconnected';
+        await persistStatusToRedis(organizationId, session);
+        logger.error({ err, organizationId }, 'WhatsApp: falha ao inicializar sessão.');
+        throw err;
     }
-
-    const { state, saveCreds } = await getMultiFileAuthState(authFolder);
-
-    const sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: false,
-        browser: Browsers.macOS('Desktop'),
-        syncFullHistory: false,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        logger: pino({ level: 'silent' }) as any
-    });
     session.sock = sock;
 
     sock.ev.on('creds.update', saveCreds);
