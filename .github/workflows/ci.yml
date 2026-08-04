@@ -49,6 +49,7 @@ jobs:
       # better-auth precisa disto pra assinar cookie de sessão; test:e2e sobe o servidor Express
       # real (ver TEST-002/playwright.config.ts) e faz login de verdade contra ele.
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
 
     steps:
