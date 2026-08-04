@@ -11,43 +11,35 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 
-const LITELLM_URL = process.env.LITELLM_URL || 'http://localhost:4000';
-const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
-const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
-
-// Mesmo esquema de load balancing/fallback do SDRQualificationAgent (ver sdr.agent.ts): primário
-// via LiteLLM, com fallback direto pra Groq se o proxy falhar.
-const primaryLlm = new ChatOpenAI({
-    modelName: 'local-llama3-fast',
-    temperature: 0,
-    openAIApiKey: LITELLM_KEY,
-    maxRetries: 1,
-    timeout: 30_000,
-    configuration: {
-        baseURL: `${LITELLM_URL.replace(/\/+$/, '').replace(/\/v1$/i, '')}/v1`,
-    },
-});
-
-const fallbackGroqLlm = new ChatOpenAI({
-    modelName: 'llama-3.1-8b-instant',
-    temperature: 0,
-    openAIApiKey: GROQ_API_KEY,
-    maxRetries: 1,
-    timeout: 30_000,
-    configuration: {
-        baseURL: 'https://api.groq.com/openai/v1',
-    },
-});
-
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
 // via get_lead_context/search_playbook — nunca inventando um leadId ou dado de empresa.
 const tools = [getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
 const toolNode = new ToolNode(tools);
 
-const modelWithTools = primaryLlm.bindTools(tools).withFallbacks([
-    fallbackGroqLlm.bindTools(tools),
-]);
+// Lazy + memoizado: monta o cliente só no primeiro uso real (dentro de callModel), nunca na carga
+// do módulo — process.env.GROQ_API_KEY lido numa const de topo de arquivo ficava congelado como
+// vazio se este módulo fosse importado antes de `dotenv/config` terminar de rodar. Motor local
+// (Ollama via LiteLLM) removido de propósito: processa uma completion por vez nesta máquina,
+// travando o enxame inteiro por vários segundos a cada etapa. Groq é rápido e não tem esse gargalo.
+let cachedModelWithTools: ReturnType<ChatOpenAI['bindTools']> | null = null;
+function getModelWithTools() {
+    if (cachedModelWithTools) return cachedModelWithTools;
+
+    const groqLlm = new ChatOpenAI({
+        modelName: 'llama-3.1-8b-instant',
+        temperature: 0,
+        apiKey: process.env.GROQ_API_KEY || '',
+        maxRetries: 1,
+        timeout: 30_000,
+        configuration: {
+            baseURL: 'https://api.groq.com/openai/v1',
+        },
+    });
+
+    cachedModelWithTools = groqLlm.bindTools(tools);
+    return cachedModelWithTools;
+}
 
 interface SerializedMessage {
     role: string;
@@ -70,7 +62,7 @@ Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um
     );
 
     const startTime = Date.now();
-    const response = await modelWithTools.invoke([systemPrompt, ...state.messages]);
+    const response = await getModelWithTools().invoke([systemPrompt, ...state.messages]);
 
     if (response.usage_metadata) {
         await logAiUsage({

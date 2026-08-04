@@ -24,23 +24,6 @@ const GROQ_MODEL_ALIASES: Record<string, string> = {
     'claude-sonnet': 'llama-3.3-70b-versatile',
 };
 
-// O Ollama local (litellm-config.yaml → local-llama3/local-llama3-fast) processa uma única
-// completion por vez nesta máquina — confirmado empiricamente: 3 chamadas simultâneas fazem a 2ª
-// terminar em ~60s e a 3ª nunca terminar dentro do timeout. Sem essa fila, qualquer sobreposição
-// (ex.: enxame autônomo rodando junto com o Chatbook ou um embedding) derruba os agentes mais
-// lentos por timeout mesmo com o modelo saudável. A fila serializa só as chamadas que batem no
-// Ollama; modelos que vão para APIs reais (gpt-4o, claude-sonnet, openrouter) não são afetados.
-const OLLAMA_BACKED_MODELS = new Set(['local-llama3', 'local-llama3-fast']);
-let ollamaRequestQueue: Promise<unknown> = Promise.resolve();
-
-function enqueueIfOllamaBacked<T>(resolvedModel: string, fn: () => Promise<T>): Promise<T> {
-    if (!OLLAMA_BACKED_MODELS.has(resolvedModel)) return fn();
-    const run = ollamaRequestQueue.then(fn, fn);
-    // Erros não devem travar a fila para as próximas chamadas — só nos importa a ordem de execução.
-    ollamaRequestQueue = run.catch(() => undefined);
-    return run;
-}
-
 const DEFAULT_GATEWAY_TIMEOUT_MS = 30_000;
 const DEFAULT_FALLBACK_TIMEOUT_MS = 60_000;
 const MAX_MESSAGES_PER_REQUEST = 100;
@@ -357,19 +340,17 @@ async function requestChatCompletion(
 }
 
 /**
- * Retorna um "chat model" mínimo compatível com o padrão `.invoke([HumanMessage])` do LangChain,
- * usando o LiteLLM como rota principal e a API Groq diretamente como contingência local.
+ * Retorna um "chat model" mínimo compatível com o padrão `.invoke([HumanMessage])` do LangChain.
+ *
+ * Motor local (Ollama via LiteLLM) removido de propósito: nesta máquina o Ollama processa uma
+ * única completion por vez (confirmado por teste direto — três chamadas simultâneas faziam a
+ * segunda terminar em ~60s e a terceira nunca terminar), então qualquer missão com mais de um
+ * agente ficava lenta ou travava esperando o motor local, mesmo com a fila de serialização. Groq
+ * é a rota principal agora (rápido, sem esse gargalo de concorrência); OpenAI continua como
+ * segunda opção só se configurado.
  */
 export const getAiModel = (modelName: string = 'local-llama3', temperature: number = 0.7, agentContext: string = 'system'): AiChatModel => {
     const resolvedModel = MODEL_ALIASES[modelName] || modelName;
-    const litellmBaseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL || 'http://localhost:4000');
-    const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
-    const gatewayTimeoutMs = readBoundedInteger(
-        process.env.AI_GATEWAY_TIMEOUT_MS,
-        DEFAULT_GATEWAY_TIMEOUT_MS,
-        5_000,
-        120_000,
-    );
     const fallbackTimeoutMs = readBoundedInteger(
         process.env.AI_FALLBACK_TIMEOUT_MS,
         DEFAULT_FALLBACK_TIMEOUT_MS,
@@ -381,27 +362,9 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
         async invoke(messages: BaseMessage[]): Promise<AiInvokeResult> {
             const requestMessages = toChatCompletionMessages(messages);
             let response: ChatCompletionResponse | undefined;
-            let litellmError: unknown;
 
-            try {
-                response = await enqueueIfOllamaBacked(resolvedModel, () => callProvider('litellm', () => requestChatCompletion(
-                    `${litellmBaseUrl}/v1/chat/completions`,
-                    litellmKey,
-                    resolvedModel,
-                    requestMessages,
-                    temperature,
-                    agentContext,
-                    gatewayTimeoutMs,
-                    true,
-                )));
-            } catch (error) {
-                litellmError = error;
-            }
-
-            // O fallback direto mantém o desenvolvimento funcional quando o Docker/LiteLLM
-            // estiver desligado. Em produção, o proxy continua sendo a primeira opção.
             let groqError: unknown;
-            if (!response && process.env.GROQ_API_KEY) {
+            if (process.env.GROQ_API_KEY) {
                 const groqModel = GROQ_MODEL_ALIASES[resolvedModel] || resolvedModel;
                 try {
                     response = await callProvider('groq', () => requestChatCompletion(
@@ -438,16 +401,17 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             }
 
             if (!response) {
-                const proxyMessage = sanitizeProviderMessage(
-                    litellmError instanceof Error ? litellmError.message : litellmError,
-                );
                 const groqMessage = sanitizeProviderMessage(
                     groqError instanceof Error ? groqError.message : groqError,
                 );
                 const openaiMessage = sanitizeProviderMessage(
                     openaiError instanceof Error ? openaiError.message : openaiError,
                 );
-                throw new Error(`Os motores de IA estão indisponíveis. LiteLLM: ${proxyMessage}. Groq: ${groqMessage}. OpenAI: ${openaiMessage}`);
+                throw new Error(
+                    process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY
+                        ? `Os motores de IA estão indisponíveis. Groq: ${groqMessage}. OpenAI: ${openaiMessage}`
+                        : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com) no .env.',
+                );
             }
 
             const usage = response.usage;
