@@ -187,47 +187,12 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         return [headers.map(escape).join(';'), ...rows].join('\n');
     }
 
-    async exportLeadToBitrix(organizationId: string, leadId: string | undefined, webhookUrl: string) {
-        const { Bitrix24Adapter } = await import('../../../lib/adapters/crm/Bitrix24Adapter');
-        const adapter = new Bitrix24Adapter(webhookUrl.endsWith('/') ? webhookUrl : webhookUrl + '/');
-
-        // Se passar um lead específico, exporta só ele. Se não passar, exporta o mais recente ou os selecionados (simplificado para um aqui)
-        if (leadId) {
-            const l = await this.repository.findById!(organizationId, leadId);
-            if (!l) throw new Error('Lead não encontrado');
-            
-            const company = l.company as LeadCompanyRelation | undefined;
-            const contact = l.contact as LeadContactRelation | undefined;
-            const iEnriched = {
-                socialReason: company?.legalName || l.source || '',
-                fantasyName: company?.tradeName || l.source || '',
-                cnaeMain: company?.cnae || '',
-                employeesCount: company?.size || '',
-                estimatedRevenue: '',
-                commercialPhone: company?.phones?.[0] || contact?.phone || '',
-                generalEmail: contact?.email || '',
-                website: company?.website || '',
-                description: company?.observations || '',
-                decisionMakers: contact ? [{
-                    name: contact.name,
-                    role: contact.role,
-                    phone: contact.phone,
-                    whatsapp: contact.whatsapp,
-                    corporateEmail: contact.email,
-                }] : [],
-                intelligence: {
-                    fitScore: l.score || 0,
-                    fitReason: 'Lead prospectado no AtlasGR',
-                    painPoints: [] as string[],
-                    valueProposition: ''
-                }
-            };
-            
-            const dealId = await adapter.exportLead(iEnriched as unknown as import('../../../types/prospecting').IEnrichedLead);
-            return { dealId };
-        } else {
-            // Bulk export mock for now
+    async exportLeadToBitrix(organizationId: string, leadId: string | undefined) {
+        if (!leadId) {
             return { success: true, message: 'Exportação em lote via webhook em breve' };
         }
+        const { exportLeadToBitrixNow } = await import('../../integrations/bitrix/bitrix.service');
+        const { bitrixLeadId } = await exportLeadToBitrixNow(organizationId, leadId);
+        return { bitrixLeadId };
     }
 }

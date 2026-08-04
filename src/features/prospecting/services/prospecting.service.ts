@@ -9,6 +9,7 @@ import { searchGooglePlacesCandidates } from './places.service';
 import { searchNominatimCandidates } from './nominatim.service';
 import { toPrismaLeadStatus, fromPrismaLeadStatus, fromPrismaCompanyStatus } from '../../../lib/enumMap';
 import { getProspectingProviderMode } from '../../../config/prospecting-integrations.js';
+import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
 
 export interface ProspectCriteria {
     segmento: string;
@@ -394,6 +395,11 @@ export async function promoteToCrm(input: PromoteInput) {
         },
         include: { company: true, contact: true, timeline: true },
     });
+
+    // Fire-and-forget: Atlas → Bitrix24 é automático (nunca exige clique manual), mas nunca deve
+    // atrasar nem derrubar a resposta de criação do lead — pushLeadToBitrix já engole os próprios
+    // erros e vira no-op se a organização não tiver Bitrix conectado.
+    void pushLeadToBitrix(input.organizationId, lead.id);
 
     return {
         lead: {

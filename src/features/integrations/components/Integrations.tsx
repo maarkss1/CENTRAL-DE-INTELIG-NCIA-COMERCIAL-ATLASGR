@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { toast } from '../../../lib/toast';
+import { BitrixImportPanel } from './BitrixImportPanel';
 
 interface UpcomingEvent {
     id: string;
@@ -302,8 +303,8 @@ export function Integrations() {
                     <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10">
                         <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Exporte leads qualificados direto para o seu CRM Bitrix24.</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Todo lead novo do Atlas vai automaticamente pro Bitrix24. A importação do Bitrix pro Atlas é manual — você escolhe o que trazer.</p>
                             </div>
                             <div className="w-12 h-12 bg-orange-50 dark:bg-orange-500/10 rounded-full flex items-center justify-center">
                                 <span className="text-2xl">🔗</span>
@@ -319,13 +320,16 @@ export function Integrations() {
                             </div>
 
                             {bitrixConnected ? (
-                                <button
-                                    onClick={handleBitrixDisconnect}
-                                    disabled={bitrixLoading}
-                                    className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
-                                >
-                                    {bitrixLoading ? 'Desconectando...' : 'Desconectar'}
-                                </button>
+                                <>
+                                    <button
+                                        onClick={handleBitrixDisconnect}
+                                        disabled={bitrixLoading}
+                                        className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
+                                    >
+                                        {bitrixLoading ? 'Desconectando...' : 'Desconectar'}
+                                    </button>
+                                    <BitrixImportPanel />
+                                </>
                             ) : (
                                 <>
                                     <div>

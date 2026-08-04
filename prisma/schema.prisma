@@ -207,6 +207,17 @@ model Lead {
   // como JSON (ver LeadQualification no frontend) em vez de ~20 colunas separadas.
   qualification   Json?
 
+  // Sincronização bidirecional com o Bitrix24 (ver bitrix.service.ts) — o ID do Lead lá no
+  // portal do cliente. Sem isso, cada rodada de importação recriaria os mesmos 99+ leads de novo
+  // (não há outra chave natural: nome de empresa se repete, telefone pode faltar). Não é @unique
+  // "hard" porque cada organização fala com o SEU PRÓPRIO portal Bitrix — múltiplos tenants nunca
+  // colidem no mesmo ID na prática, mas travar isso com constraint global é desnecessário.
+  bitrixLeadId String?
+  // Nome da etapa como está no Bitrix (ex: "Novo Lead (Distribuidoras)") — preservado à parte do
+  // `status` mapeado pro enum interno, porque o Bitrix tem estágios/categorias específicas do
+  // negócio do cliente que não têm equivalente 1:1 no nosso LeadStatus fixo.
+  bitrixStageLabel String?
+
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   contactId String?
@@ -228,6 +239,7 @@ model Lead {
 
   @@index([organizationId])
   @@index([organizationId, status])
+  @@index([bitrixLeadId])
 }
 
 model Activity {
@@ -699,6 +711,11 @@ model BitrixConnection {
   /// Mesmo tratamento de segurança que o resto da base: nenhuma coluna tem criptografia de campo
   /// própria (ver GoogleWorkspaceConnection.accessToken) — a proteção vem de RLS por tenant.
   webhookUrl String @db.Text
+
+  /// Checkpoint da última importação bem-sucedida (crm.lead.list filtrado por >DATE_MODIFY a
+  /// partir daqui) — sem isto, cada rodada do worker periódico teria que reprocessar os leads
+  /// inteiros do portal a cada 15 minutos em vez de só o que mudou.
+  lastImportedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
