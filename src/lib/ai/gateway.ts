@@ -517,7 +517,7 @@ export function cleanAndParseJson<T>(content: string): T {
     let cleaned = content.trim();
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
-    const firstBrace = cleaned.search(/[\{\[]/);
+    const firstBrace = cleaned.search(/[{[]/);
     const lastBrace = Math.max(cleaned.lastIndexOf('}'), cleaned.lastIndexOf(']'));
 
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
