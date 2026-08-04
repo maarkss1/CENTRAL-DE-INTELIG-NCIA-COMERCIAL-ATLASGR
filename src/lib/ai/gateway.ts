@@ -33,7 +33,12 @@ const MAX_EMBEDDING_INPUT_CHARS = 100_000;
 // Retry só compensa para falhas que podem ser passageiras (timeout, sobrecarga do provedor).
 // Uma falha de rede/conexão (provedor fora do ar) não some com uma segunda tentativa imediata —
 // nesse caso é melhor cair pro próximo provedor da cadeia o quanto antes.
-const MAX_ATTEMPTS_PER_LEG = 2;
+// 3 tentativas (não 2): um enxame chega a fazer ~6-9 chamadas Groq em poucos segundos (roteamento
+// do supervisor + cada especialista + síntese final), então é comum bater no limite de TPM do
+// tier gratuito (6000/min) no meio de uma missão — o próprio Groq já informa o tempo de espera
+// necessário ("Please try again in 440ms"), então vale a pena esperar exatamente isso e tentar de
+// novo em vez de derrubar a etapa inteira do enxame.
+const MAX_ATTEMPTS_PER_LEG = 3;
 const RETRY_BASE_DELAY_MS = 300;
 
 // Circuit breaker leve em memória: depois de falhas consecutivas, um provedor fica "aberto"
@@ -192,10 +197,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Reexecuta `fn` uma vez após uma falha claramente transitória e rápida (HTTP 429/5xx, recusa de
- * conexão) antes de desistir. Timeout não é reexecutado (já esperamos o tempo máximo configurado
- * pra chegar lá) e erros de validação/autenticação (4xx) também não — repetir uma chave inválida
- * ou um payload malformado só adiciona latência sem chance de sucesso.
+ * Extrai o tempo de espera sugerido pelo próprio provedor num erro de rate limit, ex.:
+ * "Please try again in 440ms" ou "Please try again in 2.5s" (formato do Groq/OpenAI). Sem isso,
+ * um backoff fixo pode ser curto demais (a janela de TPM ainda não resetou) ou desperdiçar tempo
+ * esperando mais do que o necessário.
+ */
+function extractSuggestedRetryDelayMs(message: string): number | null {
+    const msMatch = message.match(/try again in\s+([\d.]+)\s*ms/i);
+    if (msMatch) return Math.ceil(Number(msMatch[1]));
+    const secondsMatch = message.match(/try again in\s+([\d.]+)\s*s\b/i);
+    if (secondsMatch) return Math.ceil(Number(secondsMatch[1]) * 1000);
+    return null;
+}
+
+/**
+ * Reexecuta `fn` após uma falha claramente transitória e rápida (HTTP 429/5xx, recusa de conexão)
+ * antes de desistir. Timeout não é reexecutado (já esperamos o tempo máximo configurado pra chegar
+ * lá) e erros de validação/autenticação (4xx) também não — repetir uma chave inválida ou um payload
+ * malformado só adiciona latência sem chance de sucesso.
+ * Em erros de rate limit (429), respeita o tempo de espera que o próprio provedor sugeriu em vez do
+ * backoff fixo, quando disponível — ver `extractSuggestedRetryDelayMs`.
  * Usado pelo próprio gateway (cada camada de provedor) e reaproveitado por outros serviços de IA
  * (ex.: geração de conteúdo em ai.service.ts) para não precisarem reimplementar a mesma lógica.
  */
@@ -207,7 +228,9 @@ export async function withRetry<T>(fn: () => Promise<T>, retries: number = 1, ba
         } catch (error) {
             lastError = error;
             if (attempt === retries || !isRetryableAiError(error)) throw error;
-            await sleep(backoffMs * (attempt + 1));
+            const suggestedMs = error instanceof Error ? extractSuggestedRetryDelayMs(error.message) : null;
+            const delay = suggestedMs !== null ? Math.max(suggestedMs + 50, backoffMs) : backoffMs * (attempt + 1);
+            await sleep(delay);
         }
     }
     throw lastError;

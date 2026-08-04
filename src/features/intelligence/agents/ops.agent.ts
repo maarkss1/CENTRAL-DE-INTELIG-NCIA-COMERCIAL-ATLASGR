@@ -30,7 +30,11 @@ function getModelWithTools() {
         modelName: 'llama-3.1-8b-instant',
         temperature: 0,
         apiKey: process.env.GROQ_API_KEY || '',
-        maxRetries: 1,
+        // 3, não 1: o tier gratuito do Groq tem TPM baixo (6000/min) e um enxame de 4 agentes
+        // facilmente bate nele no meio de uma missão — o SDK do OpenAI já respeita o header
+        // Retry-After do 429 automaticamente, então mais tentativas custam pouco e evitam derrubar
+        // a etapa inteira por um rate limit que se resolve em menos de 1s.
+        maxRetries: 3,
         timeout: 30_000,
         configuration: {
             baseURL: 'https://api.groq.com/openai/v1',
