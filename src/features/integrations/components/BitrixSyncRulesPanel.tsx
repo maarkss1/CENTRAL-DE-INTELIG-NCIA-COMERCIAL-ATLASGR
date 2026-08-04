@@ -63,7 +63,12 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
     useEffect(() => {
         setLoading(true);
         Promise.all([
-            api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then(setPipelines).catch(() => setPipelines([])),
+            // O backend só devolve o pipeline Comercial (os demais são operacionais, não funil de
+            // vendas) — pré-seleciona ele em vez de deixar a pessoa escolher entre uma opção só.
+            api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then((data) => {
+                setPipelines(data);
+                setNewCategoryId(data[0]?.id ?? '');
+            }).catch(() => { setPipelines([]); setNewCategoryId(''); }),
             api.get<BitrixStageOption[]>(`/api/bitrix/lead-statuses?connectionId=${connectionId}`).then(setLeadStatuses).catch(() => setLeadStatuses([])),
             api.get<BitrixUserOption[]>(`/api/bitrix/users?connectionId=${connectionId}`).then(setUsers).catch(() => setUsers([])),
             loadRules(),
@@ -195,10 +200,15 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                             </button>
                         </div>
                         {newSource === 'deal' && (
-                            <select value={newCategoryId} onChange={(e) => setNewCategoryId(e.target.value)} className={selectClass}>
-                                <option value="">Escolha um pipeline…</option>
-                                {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
+                            pipelines.length > 0 ? (
+                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-xs font-bold whitespace-nowrap">
+                                    {pipelines[0].name}
+                                </span>
+                            ) : (
+                                <span className="text-[11px] text-gray-400 italic">
+                                    Este portal não tem pipeline Comercial — use uma regra de Lead.
+                                </span>
+                            )
                         )}
                         <select
                             value={newStageId}
