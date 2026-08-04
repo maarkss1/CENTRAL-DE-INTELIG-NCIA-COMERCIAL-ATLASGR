@@ -1,13 +1,13 @@
 # Sugestão de Roadmap
 
 ## Próximo ciclo
-*   Integração e sincronização bidirecional de calendário (Google/Outlook) no módulo de Agenda.
-*   Exportação de relatórios em CSV/Excel.
+- Adição de gráficos resumidos diretamente no Dashboard principal.
+- Criação de filtros rápidos adicionais nas telas de Empresas e Decisores.
 
 ## Médio prazo
-*   Aplicativo móvel complementar para gestores aprovarem propostas.
-*   Painéis de dashboard personalizáveis por usuário (drag and drop de widgets).
+- Implementação de templates no Editor de Documentos utilizando sugestões de Inteligência Artificial.
+- Nova opção de visualização em Lista para as oportunidades cadastradas no Pipeline CRM.
 
 ## Evolução estratégica
-*   Hub de integrações abertas via Zapier/Make.
-*   Módulo avançado de Business Intelligence preditivo utilizando o histórico de dados do CRM.
+- Módulo de comunicação integrada, permitindo envio e recebimento de e-mails corporativos e mensagens (WhatsApp) diretamente de dentro do CRM.
+- Ampliação das automações com gatilhos personalizáveis interligados aos relatórios da Inteligência Artificial.
