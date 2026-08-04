@@ -15,8 +15,56 @@ interface BitrixLeadSummary {
     alreadyImported: boolean;
 }
 
+interface BitrixDealSummary {
+    id: string;
+    title: string;
+    stageLabel: string;
+    assignedById: string | null;
+    dateCreate: string | null;
+    opportunity: string | null;
+    alreadyImported: boolean;
+}
+
+interface BitrixDealPipeline {
+    id: string;
+    name: string;
+}
+
+interface BitrixDealStage {
+    id: string;
+    name: string;
+}
+
+interface BitrixUserOption {
+    id: string;
+    name: string;
+}
+
+const MONTHS = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+const selectClass = 'text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2 py-1.5 disabled:opacity-40';
+
 export function BitrixImportPanel() {
+    const [mode, setMode] = useState<'deals' | 'leads'>('deals');
+
+    // ── Modo Negócios (pipeline real) ───────────────────────────────────────────────────────
+    const [pipelines, setPipelines] = useState<BitrixDealPipeline[]>([]);
+    const [stages, setStages] = useState<BitrixDealStage[]>([]);
+    const [users, setUsers] = useState<BitrixUserOption[]>([]);
+    const [categoryId, setCategoryId] = useState('');
+    const [stageId, setStageId] = useState('');
+    const [assignedById, setAssignedById] = useState('');
+    const [month, setMonth] = useState('');
+    const [year, setYear] = useState('');
+    const [deals, setDeals] = useState<BitrixDealSummary[]>([]);
+
+    // ── Modo Leads (lista crua, sem pipeline) ───────────────────────────────────────────────
     const [leads, setLeads] = useState<BitrixLeadSummary[]>([]);
+
+    // ── Estado compartilhado ─────────────────────────────────────────────────────────────────
     const [start, setStart] = useState(0);
     const [next, setNext] = useState<number | null>(null);
     const [total, setTotal] = useState(0);
@@ -26,7 +74,45 @@ export function BitrixImportPanel() {
     const [importing, setImporting] = useState(false);
     const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
 
-    const load = async (from: number) => {
+    const currentYear = new Date().getFullYear();
+
+    // Pipelines + usuários carregam uma vez (independem de filtro/paginação).
+    useEffect(() => {
+        api.get<BitrixDealPipeline[]>('/api/bitrix/deal-pipelines').then(setPipelines).catch(() => setPipelines([]));
+        api.get<BitrixUserOption[]>('/api/bitrix/users').then(setUsers).catch(() => setUsers([]));
+    }, []);
+
+    // Etapas dependem do pipeline escolhido — recarrega ao trocar, e limpa a etapa selecionada
+    // (uma etapa de outro pipeline não existe mais no novo contexto).
+    useEffect(() => {
+        setStageId('');
+        if (!categoryId) { setStages([]); return; }
+        api.get<BitrixDealStage[]>(`/api/bitrix/deal-stages?categoryId=${categoryId}`).then(setStages).catch(() => setStages([]));
+    }, [categoryId]);
+
+    const loadDeals = async (from: number) => {
+        setLoading(true);
+        setError('');
+        try {
+            const params = new URLSearchParams({ start: String(from) });
+            if (categoryId) params.set('categoryId', categoryId);
+            if (stageId) params.set('stageId', stageId);
+            if (assignedById) params.set('assignedById', assignedById);
+            if (month) params.set('month', month);
+            if (year) params.set('year', year);
+            const data = await api.get<{ deals: BitrixDealSummary[]; next: number | null; total: number }>(`/api/bitrix/deals?${params}`);
+            setDeals(data.deals);
+            setNext(data.next);
+            setTotal(data.total);
+            setStart(from);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Não foi possível carregar os negócios do Bitrix24.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadLeads = async (from: number) => {
         setLoading(true);
         setError('');
         try {
@@ -42,9 +128,16 @@ export function BitrixImportPanel() {
         }
     };
 
+    const load = (from: number) => (mode === 'deals' ? loadDeals(from) : loadLeads(from));
+
+    // Troca de modo ou de filtro reinicia a listagem do zero — mistura de resultado de filtros
+    // diferentes na mesma tela seria confuso, e a seleção antiga não faz mais sentido no novo contexto.
     useEffect(() => {
+        setSelected(new Set());
+        setImportResult(null);
         load(0);
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mode, categoryId, stageId, assignedById, month, year]);
 
     const toggle = (id: string) => {
         setSelected((prev) => {
@@ -60,25 +153,27 @@ export function BitrixImportPanel() {
         setError('');
         setImportResult(null);
         try {
-            const result = await api.post<{ imported: number; skipped: number }>('/api/bitrix/leads/import', {
-                bitrixLeadIds: Array.from(selected),
-            }, { timeoutMs: 60_000 });
+            const endpoint = mode === 'deals' ? '/api/bitrix/deals/import' : '/api/bitrix/leads/import';
+            const body = mode === 'deals' ? { bitrixDealIds: Array.from(selected) } : { bitrixLeadIds: Array.from(selected) };
+            const result = await api.post<{ imported: number; skipped: number }>(endpoint, body, { timeoutMs: 60_000 });
             setImportResult(result);
             setSelected(new Set());
             await load(start);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Falha ao importar os leads selecionados.');
+            setError(e instanceof Error ? e.message : 'Falha ao importar os itens selecionados.');
         } finally {
             setImporting(false);
         }
     };
 
+    const userName = (id: string | null) => (id && users.find((u) => u.id === id)?.name) || (id ? `Usuário #${id}` : null);
+
     return (
         <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Importar leads do Bitrix24</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Escolha manualmente o que trazer — nada é importado sozinho. {total > 0 && `${total} leads no portal.`}</p>
+                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Importar do Bitrix24</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Escolha manualmente o que trazer — nada é importado sozinho. {total > 0 && `${total} registro(s) no portal.`}</p>
                 </div>
                 <button
                     onClick={() => load(start)}
@@ -90,10 +185,55 @@ export function BitrixImportPanel() {
                 </button>
             </div>
 
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-lg w-fit">
+                <button
+                    onClick={() => setMode('deals')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${mode === 'deals' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                >
+                    Negócios (pipeline)
+                </button>
+                <button
+                    onClick={() => setMode('leads')}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${mode === 'leads' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                >
+                    Leads (todos)
+                </button>
+            </div>
+
+            {mode === 'deals' && (
+                <div className="flex flex-wrap gap-2">
+                    <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={selectClass}>
+                        <option value="">Todos os pipelines</option>
+                        {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                    <select value={stageId} onChange={(e) => setStageId(e.target.value)} disabled={!categoryId} className={selectClass}>
+                        <option value="">Todas as etapas</option>
+                        {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
+                        <option value="">Todos os vendedores</option>
+                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                    <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectClass}>
+                        <option value="">Todos os meses</option>
+                        {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
+                    <select value={year} onChange={(e) => setYear(e.target.value)} className={selectClass}>
+                        <option value="">Todos os anos</option>
+                        {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                </div>
+            )}
+            {mode === 'deals' && users.length === 0 && (
+                <p className="text-[11px] text-gray-400">
+                    O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo "user" ao webhook para ver nomes.
+                </p>
+            )}
+
             {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
             {importResult && (
                 <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> {importResult.imported} lead(s) importado(s){importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {importResult.imported} registro(s) importado(s){importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
                 </p>
             )}
 
@@ -101,18 +241,29 @@ export function BitrixImportPanel() {
                 <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
             ) : (
                 <div className="max-h-80 overflow-y-auto rounded-lg border border-gray-100 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/10">
-                    {leads.map((lead) => (
+                    {mode === 'deals' ? deals.map((deal) => (
+                        <label
+                            key={deal.id}
+                            className={`flex items-start gap-3 p-3 text-xs cursor-pointer ${deal.alreadyImported ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                        >
+                            <input type="checkbox" checked={selected.has(deal.id)} disabled={deal.alreadyImported} onChange={() => toggle(deal.id)} className="mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-gray-900 dark:text-white truncate">{deal.title}</span>
+                                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-300 text-[10px] font-bold">{deal.stageLabel}</span>
+                                    {deal.alreadyImported && <span className="shrink-0 text-[10px] text-gray-400">já importado</span>}
+                                </div>
+                                <p className="text-gray-500 dark:text-gray-400 truncate">
+                                    {[userName(deal.assignedById), deal.opportunity && `R$ ${Number(deal.opportunity).toLocaleString('pt-BR')}`, deal.dateCreate && new Date(deal.dateCreate).toLocaleDateString('pt-BR')].filter(Boolean).join(' · ') || 'Sem dados adicionais'}
+                                </p>
+                            </div>
+                        </label>
+                    )) : leads.map((lead) => (
                         <label
                             key={lead.id}
                             className={`flex items-start gap-3 p-3 text-xs cursor-pointer ${lead.alreadyImported ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
                         >
-                            <input
-                                type="checkbox"
-                                checked={selected.has(lead.id)}
-                                disabled={lead.alreadyImported}
-                                onChange={() => toggle(lead.id)}
-                                className="mt-0.5"
-                            />
+                            <input type="checkbox" checked={selected.has(lead.id)} disabled={lead.alreadyImported} onChange={() => toggle(lead.id)} className="mt-0.5" />
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                     <span className="font-bold text-gray-900 dark:text-white truncate">{lead.title}</span>
@@ -125,7 +276,7 @@ export function BitrixImportPanel() {
                             </div>
                         </label>
                     ))}
-                    {leads.length === 0 && <p className="p-4 text-xs text-gray-500 text-center">Nenhum lead encontrado.</p>}
+                    {(mode === 'deals' ? deals.length : leads.length) === 0 && <p className="p-4 text-xs text-gray-500 text-center">Nenhum registro encontrado com esses filtros.</p>}
                 </div>
             )}
 

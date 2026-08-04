@@ -213,9 +213,15 @@ model Lead {
   // "hard" porque cada organização fala com o SEU PRÓPRIO portal Bitrix — múltiplos tenants nunca
   // colidem no mesmo ID na prática, mas travar isso com constraint global é desnecessário.
   bitrixLeadId String?
-  // Nome da etapa como está no Bitrix (ex: "Novo Lead (Distribuidoras)") — preservado à parte do
-  // `status` mapeado pro enum interno, porque o Bitrix tem estágios/categorias específicas do
-  // negócio do cliente que não têm equivalente 1:1 no nosso LeadStatus fixo.
+  // Mesma ideia de bitrixLeadId, mas para importação a partir do objeto Deal (Negócio) do Bitrix
+  // — usado quando a organização importa pelo funil de vendas real (com pipeline/etapa), não pelo
+  // objeto Lead cru. Campo separado porque IDs de Lead e Deal são namespaces distintos no Bitrix
+  // (podem colidir numericamente sem ter nenhuma relação entre si).
+  bitrixDealId String?
+  // Nome da etapa como está no Bitrix (ex: "Novo Lead (Distribuidoras)" para Lead, ou "Proposta
+  // Enviada" para Deal) — preservado à parte do `status` mapeado pro enum interno, porque o
+  // Bitrix tem estágios/categorias específicas do negócio do cliente que não têm equivalente 1:1
+  // no nosso LeadStatus fixo.
   bitrixStageLabel String?
 
   companyId String?
@@ -240,6 +246,7 @@ model Lead {
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([bitrixLeadId])
+  @@index([bitrixDealId])
 }
 
 model Activity {
