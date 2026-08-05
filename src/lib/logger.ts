@@ -1,30 +1,40 @@
 import pino from 'pino';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const lokiHost = process.env.LOKI_HOST;
 
-export const logger = pino({
-    level: process.env.LOG_LEVEL || 'info',
-    // Em produção, envia logs estruturados para o Loki
-    // Em dev, formata para ficar legível no terminal.
-    transport: isProduction
-        ? {
+// Só ativa pino-loki em produção se LOKI_HOST estiver explicitamente configurado (ex: docker-compose local).
+// Em ambientes de cloud como Railway / Kubernetes sem Loki dedicado, o pino grava JSON diretamente no stdout,
+// evitando crash por erro de resolução de DNS 'ENOTFOUND loki'.
+const getTransport = () => {
+    if (lokiHost) {
+        return {
             target: 'pino-loki',
             options: {
                 batching: true,
                 interval: 5,
-                host: process.env.LOKI_HOST || 'http://loki:3100' // Dentro do docker-compose
-            }
-        }
-        : {
+                host: lokiHost,
+            },
+        };
+    }
+    if (!isProduction) {
+        return {
             target: 'pino-pretty',
             options: {
                 colorize: true,
                 translateTime: 'SYS:standard',
-                ignore: 'pid,hostname'
-            }
-        },
+                ignore: 'pid,hostname',
+            },
+        };
+    }
+    return undefined; // Standard JSON output to stdout in production
+};
+
+export const logger = pino({
+    level: process.env.LOG_LEVEL || 'info',
+    transport: getTransport(),
     base: {
         env: process.env.NODE_ENV,
         service: 'prospector-atlas-api',
-    }
+    },
 });

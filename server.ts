@@ -66,12 +66,7 @@ import { readFileSync } from 'fs';
 
 const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : (env.NODE_ENV !== 'production' ? ['http://localhost:3000', 'http://localhost:5173'] : []);
-
-if (env.NODE_ENV === 'production' && ALLOWED_ORIGINS.length === 0) {
-    console.error('FATAL ERROR: ALLOWED_ORIGINS is not set in production. Failing fast.');
-    process.exit(1);
-}
+    : ['http://localhost:3005', 'http://localhost:3000', 'http://localhost:5173'];
 
 const sendRateLimitCommand = (...args: string[]): Promise<RedisReply> =>
     rateLimiterConnection.call(args[0], ...args.slice(1)) as Promise<RedisReply>;
@@ -120,7 +115,7 @@ async function startServer() {
             if (!origin) return callback(null, true);
             // Permitir todas as origens localmente para acesso na rede
             if (env.NODE_ENV !== 'production') return callback(null, true);
-            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+            if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.railway.app')) return callback(null, true);
             callback(new Error(`CORS policy: origin ${origin} not allowed`));
         },
         credentials: true, // Necessário para Better Auth (cookies de sessão)
