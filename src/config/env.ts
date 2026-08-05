@@ -7,7 +7,7 @@ const envSchema = z.object({
   // em vez de silenciosamente assumir 'development' (e, com isso, habilitar bypasses
   // de autenticação e CORS permissivo destinados apenas a ambiente local).
   NODE_ENV: z.enum(['development', 'production', 'test']),
-  PORT: z.string().default('3000'),
+  PORT: z.string().default('3005'),
   HOST: z.string().default('0.0.0.0'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória'),
   REDIS_URL: z.string().optional(),

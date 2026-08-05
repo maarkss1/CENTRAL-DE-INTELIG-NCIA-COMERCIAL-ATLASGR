@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Download, CheckCircle2, RefreshCw, Search, X } from 'lucide-react';
+import { Loader2, Download, CheckCircle2, RefreshCw, Search, X, Filter, Tag, Users, CalendarDays, Info } from 'lucide-react';
 import { api } from '../../../lib/api';
 
 interface BitrixLeadSummary {
@@ -45,7 +45,8 @@ const MONTHS = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
-const selectClass = 'text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2 py-1.5 disabled:opacity-40';
+const selectClass = 'h-[30px] text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2.5 disabled:opacity-40 min-w-[9rem]';
+const filterLabelClass = 'text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 flex items-center gap-1';
 
 interface BitrixImportPanelProps {
     /** Qual portal Bitrix consultar/importar — uma organização pode ter mais de um conectado. */
@@ -91,9 +92,16 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
 
     const currentYear = new Date().getFullYear();
 
-    // Pipelines + usuários carregam uma vez (independem de filtro/paginação).
+    // Pipelines + usuários carregam uma vez (independem de filtro/paginação). O backend já só
+    // devolve o pipeline Comercial (getDealPipelines filtra os outros pipelines operacionais do
+    // portal) — seleciona ele automaticamente em vez de deixar o filtro "vazio" por padrão, senão
+    // a etapa fica sem poder ser escolhida até a pessoa clicar manualmente num dropdown que só tem
+    // uma opção mesmo.
     useEffect(() => {
-        api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then(setPipelines).catch(() => setPipelines([]));
+        api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then((data) => {
+            setPipelines(data);
+            setCategoryId(data[0]?.id ?? '');
+        }).catch(() => { setPipelines([]); setCategoryId(''); });
         api.get<BitrixUserOption[]>(`/api/bitrix/users?connectionId=${connectionId}`).then(setUsers).catch(() => setUsers([]));
     }, [connectionId]);
 
@@ -210,7 +218,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                     onClick={() => setMode('deals')}
                     className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${mode === 'deals' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
                 >
-                    Negócios (pipeline)
+                    Negócios (Comercial)
                 </button>
                 <button
                     onClick={() => setMode('leads')}
@@ -220,55 +228,79 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 </button>
             </div>
 
-            <div className="relative w-full max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Pesquisar por nome do lead/empresa…"
-                    className="w-full text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white pl-8 pr-7 py-1.5 placeholder:text-gray-400"
-                />
-                {search && (
-                    <button
-                        onClick={() => setSearch('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white"
-                        title="Limpar busca"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
+            <div className="rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.03] p-3 space-y-3">
+                <div className="relative w-full sm:max-w-sm">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder={mode === 'deals' ? 'Pesquisar por nome da empresa/negócio…' : 'Pesquisar por nome do lead/empresa…'}
+                        className="w-full h-[30px] text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white pl-8 pr-7 placeholder:text-gray-400"
+                    />
+                    {search && (
+                        <button
+                            onClick={() => setSearch('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white"
+                            title="Limpar busca"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+
+                {mode === 'deals' && (
+                    pipelines.length === 0 ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 shrink-0" />
+                            Este portal não tem um pipeline "Comercial" — as vendas dele provavelmente ficam na aba Leads, não em Negócios.
+                        </p>
+                    ) : (
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="flex flex-col gap-1">
+                                <span className={filterLabelClass}><Filter className="w-3 h-3" /> Pipeline</span>
+                                <span className="flex items-center gap-1.5 h-[30px] px-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-xs font-bold whitespace-nowrap">
+                                    {pipelines[0].name}
+                                </span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className={filterLabelClass}><Tag className="w-3 h-3" /> Etapa</label>
+                                <select value={stageId} onChange={(e) => setStageId(e.target.value)} className={selectClass}>
+                                    <option value="">Todas as etapas</option>
+                                    {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className={filterLabelClass}><Users className="w-3 h-3" /> Vendedor</label>
+                                <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
+                                    <option value="">Todos os vendedores</option>
+                                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className={filterLabelClass}><CalendarDays className="w-3 h-3" /> Mês</label>
+                                <select value={month} onChange={(e) => setMonth(e.target.value)} className={`${selectClass} min-w-[7rem]`}>
+                                    <option value="">Todos</option>
+                                    {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className={filterLabelClass}>Ano</label>
+                                <select value={year} onChange={(e) => setYear(e.target.value)} className={`${selectClass} min-w-[5rem]`}>
+                                    <option value="">Todos</option>
+                                    {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    )
+                )}
+                {mode === 'deals' && pipelines.length > 0 && users.length === 0 && (
+                    <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
+                        <Info className="w-3 h-3 shrink-0" />
+                        O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo "user" ao webhook para ver nomes.
+                    </p>
                 )}
             </div>
-
-            {mode === 'deals' && (
-                <div className="flex flex-wrap gap-2">
-                    <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={selectClass}>
-                        <option value="">Todos os pipelines</option>
-                        {pipelines.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                    <select value={stageId} onChange={(e) => setStageId(e.target.value)} disabled={!categoryId} className={selectClass}>
-                        <option value="">Todas as etapas</option>
-                        {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
-                        <option value="">Todos os vendedores</option>
-                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                    <select value={month} onChange={(e) => setMonth(e.target.value)} className={selectClass}>
-                        <option value="">Todos os meses</option>
-                        {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                    </select>
-                    <select value={year} onChange={(e) => setYear(e.target.value)} className={selectClass}>
-                        <option value="">Todos os anos</option>
-                        {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                </div>
-            )}
-            {mode === 'deals' && users.length === 0 && (
-                <p className="text-[11px] text-gray-400">
-                    O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo "user" ao webhook para ver nomes.
-                </p>
-            )}
 
             {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
             {importResult && (

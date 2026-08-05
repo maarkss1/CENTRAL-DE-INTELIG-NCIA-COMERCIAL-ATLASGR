@@ -72,7 +72,7 @@ router.post('/', validateRequest(contentGenerationSchema), async (req: Request, 
             brandId,
             organizationId: authRequest.user.organizationId,
         });
-        res.json({ result });
+        res.json({ success: true, data: { result }, result });
     } catch (error: unknown) {
         const err = error as Error;
         if (err.message === 'Invalid tool' || err.message === 'Missing competitor') {

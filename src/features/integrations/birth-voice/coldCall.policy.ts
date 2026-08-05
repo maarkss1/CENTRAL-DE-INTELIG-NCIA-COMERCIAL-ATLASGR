@@ -32,9 +32,10 @@ const WEEKEND = new Set(['Sat', 'Sun']);
  * às 6h da manhã no Brasil achando que são 9h.
  */
 export function isWithinCallWindow(now: Date, window: CallWindow = DEFAULT_CALL_WINDOW): boolean {
+    const is24hMode = window.startHour === 0 && (window.endHour >= 24 || window.endHour === 0);
+
     const parts = new Intl.DateTimeFormat('en-US', {
         timeZone: window.timeZone,
-        // h23 em vez de hour12:false: este último devolve "24" para a meia-noite em alguns runtimes.
         hourCycle: 'h23',
         hour: '2-digit',
         weekday: 'short',
@@ -44,9 +45,10 @@ export function isWithinCallWindow(now: Date, window: CallWindow = DEFAULT_CALL_
     const weekdayPart = parts.find((p) => p.type === 'weekday')?.value;
     if (hourPart === undefined || weekdayPart === undefined) return false;
 
-    if (window.weekdaysOnly && WEEKEND.has(weekdayPart)) return false;
+    if (window.weekdaysOnly && !is24hMode && WEEKEND.has(weekdayPart)) return false;
 
     const hour = Number(hourPart);
+    if (is24hMode) return true;
     return hour >= window.startHour && hour < window.endHour;
 }
 

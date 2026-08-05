@@ -3,6 +3,7 @@ import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
 import { requestContext } from '../../../lib/async-context.js';
+import { fromPrismaLeadStatus } from '../../../lib/enumMap.js';
 
 function normalizeWebhookUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -120,17 +121,29 @@ interface BitrixApiError {
 
 async function callBitrix<T>(webhookUrl: string, method: string, params?: Record<string, unknown>): Promise<T> {
     await assertSafeWebhookUrl(webhookUrl);
-    const response = await fetch(`${webhookUrl}${method}.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params || {}),
-    });
-    const data = (await response.json().catch(() => null)) as (T & { error?: string; error_description?: string }) | null;
-    if (!response.ok || !data || (data as unknown as BitrixApiError).error) {
-        const err = data as unknown as BitrixApiError | null;
-        throw new AppError(err?.error_description || `Bitrix24 respondeu com erro (HTTP ${response.status}).`, 502);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+        const response = await fetch(`${webhookUrl}${method}.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params || {}),
+            signal: controller.signal,
+        });
+        const data = (await response.json().catch(() => null)) as (T & { error?: string; error_description?: string }) | null;
+        if (!response.ok || !data || (data as unknown as BitrixApiError).error) {
+            const err = data as unknown as BitrixApiError | null;
+            throw new AppError(err?.error_description || `Bitrix24 respondeu com erro (HTTP ${response.status}).`, 502);
+        }
+        return data;
+    } catch (err: unknown) {
+        if (controller.signal.aborted) {
+            throw new AppError('Tempo limite esgotado ao comunicar com o Bitrix24 (timeout 15s).', 504);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeout);
     }
-    return data;
 }
 
 interface BitrixLeadRaw {
@@ -323,12 +336,21 @@ export interface BitrixUserOption {
     name: string;
 }
 
-/** Lista os pipelines (categorias) de Negócio configurados no portal. */
+/**
+ * Lista os pipelines (categorias) de Negócio configurados no portal — só o pipeline "Comercial".
+ * Portais como o da TotalTrac têm dezenas de pipelines operacionais (Financeiro, RH, Suporte
+ * Técnico, Implantação...) que não são funil de vendas; misturar tudo na tela de importação do
+ * Atlas (uma ferramenta de prospecção/CRM comercial) só traz ruído. Se o portal não tiver nenhum
+ * pipeline chamado "Comercial" (caso do AtlasGR, cujas vendas vivem em Lead, não em Negócio), a
+ * lista vem vazia e a aba Negócios não tem o que mostrar — a pessoa usa a aba Leads nesse caso.
+ */
 export async function getDealPipelines(organizationId: string, connectionId: string): Promise<BitrixDealPipeline[]> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     const data = await callBitrix<{ result: Array<{ ID: string; NAME: string }> }>(webhookUrl, 'crm.dealcategory.list', {});
-    return data.result.map((c) => ({ id: c.ID, name: c.NAME }));
+    return data.result
+        .filter((c) => c.NAME.trim().toLowerCase() === 'comercial')
+        .map((c) => ({ id: c.ID, name: c.NAME }));
 }
 
 /** Lista as etapas de um pipeline específico de Negócio (STAGE_ID é prefixado por "C<pipeline>:"). */
@@ -415,8 +437,20 @@ export async function listBitrixDeals(
 ): Promise<{ deals: BitrixDealSummary[]; next: number | null; total: number }> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
+    // Sem categoryId explícito ("Todos os pipelines" no filtro), resolve o pipeline Comercial e
+    // filtra por ele mesmo assim — sem isso, "Todos" vazaria negócios de pipelines operacionais
+    // (Financeiro, RH, Suporte...) que getDealPipelines já esconde da lista de opções. Se o portal
+    // não tem pipeline Comercial (ex.: AtlasGR, cujas vendas vivem em Lead), não existe "todos os
+    // negócios relevantes" pra cair como fallback — devolve vazio em vez de vazar o portal inteiro.
+    let categoryId = filters.categoryId;
+    if (!categoryId) {
+        const [comercial] = await getDealPipelines(organizationId, connectionId);
+        if (!comercial) return { deals: [], next: null, total: 0 };
+        categoryId = comercial.id;
+    }
+
     const filter: Record<string, unknown> = {};
-    if (filters.categoryId) filter.CATEGORY_ID = filters.categoryId;
+    if (categoryId) filter.CATEGORY_ID = categoryId;
     if (filters.stageId) filter.STAGE_ID = filters.stageId;
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
     if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
@@ -565,6 +599,23 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
     });
     if (!lead) throw new AppError('Lead não encontrado.', 404);
 
+    const statusLabel = fromPrismaLeadStatus(lead.status);
+    const qualInfo = lead.qualification && typeof lead.qualification === 'object'
+        ? Object.entries(lead.qualification as Record<string, unknown>)
+            .filter(([_, v]) => v != null && v !== '')
+            .map(([k, v]) => `${k}: ${v}`)
+            .join('\n')
+        : '';
+
+    const commentsParts = [
+        lead.company?.observations,
+        `Etapa no Atlas: ${statusLabel}`,
+        lead.temperature ? `Temperatura: ${lead.temperature}` : null,
+        lead.score ? `Fit Score: ${lead.score}` : null,
+        lead.pic ? `Perfil (PIC): ${lead.pic}` : null,
+        qualInfo ? `\n--- Qualificação Atlas ---\n${qualInfo}` : null,
+    ].filter(Boolean).join('\n');
+
     const fields = {
         TITLE: lead.company?.tradeName || lead.company?.legalName || 'Lead Atlas',
         NAME: lead.contact?.name?.split(' ')[0],
@@ -574,7 +625,7 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
         EMAIL: (lead.contact?.email || lead.company?.emails?.[0]) ? [{ VALUE: lead.contact?.email || lead.company?.emails?.[0], VALUE_TYPE: 'WORK' }] : undefined,
         SOURCE_ID: 'WEB',
         SOURCE_DESCRIPTION: 'AtlasGR Prospector',
-        COMMENTS: lead.company?.observations || undefined,
+        COMMENTS: commentsParts || undefined,
     };
 
     if (lead.bitrixLeadId) {
@@ -588,21 +639,23 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
         fields: {
             ENTITY_ID: newId,
             ENTITY_TYPE: 'lead',
-            COMMENT: `Lead criado automaticamente pelo AtlasGR Prospector.${lead.score ? `\nFit Score: ${lead.score}` : ''}`,
+            COMMENT: `Lead criado pelo AtlasGR Prospector.\nEtapa: ${statusLabel}${lead.score ? `\nFit Score: ${lead.score}` : ''}`,
         },
     });
     return { bitrixLeadId: String(newId) };
 }
 
+/** Testar saúde de uma conexão existente contra o Bitrix24. */
+export async function testBitrixConnection(organizationId: string, connectionId: string): Promise<{ success: boolean; portalDomain: string }> {
+    const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
+    const { portalDomain } = await testWebhook(webhookUrl);
+    return { success: true, portalDomain };
+}
+
 /**
  * Chamado automaticamente sempre que um lead nasce no Atlas (ver promoteToCrm) — não precisa de
  * clique manual. Fire-and-forget por design: nunca propaga erro, já que o Bitrix é um sistema
- * secundário e uma falha aqui não pode impedir o lead de existir no Atlas. Também é um no-op
- * silencioso se a organização não tiver nenhum Bitrix conectado.
- *
- * LIMITAÇÃO CONHECIDA: `Lead.bitrixLeadId` é um único campo — se a organização tiver mais de um
- * portal conectado (ex.: AtlasGR e TotalTrac), só o PRIMEIRO recebe o push automático hoje.
- * Suportar todos exigiria uma tabela de junção Lead↔BitrixConnection (fora do escopo desta rodada).
+ * secundário e uma falha aqui não pode impedir o lead de existir no Atlas.
  */
 export async function pushLeadToBitrix(organizationId: string, leadId: string): Promise<void> {
     try {
@@ -615,11 +668,46 @@ export async function pushLeadToBitrix(organizationId: string, leadId: string): 
     }
 }
 
-/** Usado pelo botão manual "Exportar p/ Bitrix24" — ao contrário do push automático, propaga erro. Mesma limitação de pushLeadToBitrix (1ª conexão só). */
-export async function exportLeadToBitrixNow(organizationId: string, leadId: string): Promise<{ bitrixLeadId: string }> {
-    const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
-    if (!connection) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
-    return syncLeadToBitrix(organizationId, connection.webhookUrl, leadId);
+/** Suporta exportação individual OU em lote (quando leadId é omitido/undefined). */
+export async function exportLeadToBitrixNow(
+    organizationId: string,
+    leadId?: string,
+    connectionId?: string
+): Promise<{ bitrixLeadId?: string; exportedCount?: number; skippedCount?: number }> {
+    let webhookUrl: string;
+    if (connectionId) {
+        webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
+    } else {
+        const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
+        if (!connection) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+        webhookUrl = connection.webhookUrl;
+    }
+
+    if (leadId && leadId !== 'all') {
+        return syncLeadToBitrix(organizationId, webhookUrl, leadId);
+    }
+
+    // Exportação em lote de todos os leads da organização
+    const leads = await prisma.lead.findMany({
+        where: { organizationId },
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    let exportedCount = 0;
+    let skippedCount = 0;
+
+    for (const l of leads) {
+        try {
+            await syncLeadToBitrix(organizationId, webhookUrl, l.id);
+            exportedCount++;
+        } catch (err) {
+            logger.warn({ err, leadId: l.id }, '[bitrix] Falha ao exportar lead em lote');
+            skippedCount++;
+        }
+    }
+
+    return { exportedCount, skippedCount };
 }
 
 // ── Sincronização automática (regras) — ver bitrixSync.worker.ts ───────────────────────────────

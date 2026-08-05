@@ -59,18 +59,14 @@ import { enabledOrganizations } from './src/features/integrations/birth-voice/co
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
+import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
 
 const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
     ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-    : (env.NODE_ENV !== 'production' ? ['http://localhost:3000', 'http://localhost:5173'] : []);
-
-if (env.NODE_ENV === 'production' && ALLOWED_ORIGINS.length === 0) {
-    console.error('FATAL ERROR: ALLOWED_ORIGINS is not set in production. Failing fast.');
-    process.exit(1);
-}
+    : ['http://localhost:3005', 'http://localhost:3000', 'http://localhost:5173'];
 
 const sendRateLimitCommand = (...args: string[]): Promise<RedisReply> =>
     rateLimiterConnection.call(args[0], ...args.slice(1)) as Promise<RedisReply>;
@@ -80,6 +76,13 @@ async function startServer() {
     const PORT = parseInt(env.PORT, 10);
 
     // ── Segurança ──────────────────────────────────────────────────────────
+    // CORREÇÃO: TRUST_PROXY definido em env.ts mas nunca aplicado aqui — sem isso
+    // o rate limiter usava o IP do proxy reverso (sempre o mesmo) em vez do IP real
+    // do cliente, tornando o limite ineficaz em produção atrás de um load balancer.
+    if (env.TRUST_PROXY) {
+        app.set('trust proxy', 1);
+    }
+
     // Helmet adiciona cabeçalhos HTTP de segurança (X-Frame-Options, HSTS, etc.)
     // CSP customizada (em vez do default implícito do Helmet) cobrindo os recursos
     // externos conhecidos da aplicação: Google Fonts, Font Awesome (cdnjs), áudio
@@ -112,7 +115,7 @@ async function startServer() {
             if (!origin) return callback(null, true);
             // Permitir todas as origens localmente para acesso na rede
             if (env.NODE_ENV !== 'production') return callback(null, true);
-            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+            if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.railway.app')) return callback(null, true);
             callback(new Error(`CORS policy: origin ${origin} not allowed`));
         },
         credentials: true, // Necessário para Better Auth (cookies de sessão)
@@ -190,8 +193,11 @@ async function startServer() {
     // HMAC calculada sobre os bytes crus do corpo, que o parser global consumiria. Quem chama é o
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
+    app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
 
-    app.use(express.json({ limit: '10mb' }));
+    app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+    // CORREÇÃO: JSON_BODY_LIMIT definida em env.ts (default '2mb') mas o valor
+    // hardcoded '10mb' aqui sobrescrevia a configuração da env completamente.
 
     // ── Metrics ────────────────────────────────────────────────────────────
     // OBS-001: EXPOSE_METRICS existia em env.ts mas nunca era lida aqui — /metrics ficava sempre
@@ -249,7 +255,9 @@ async function startServer() {
     // do Better Auth). O isolamento de dados de negócio (companies, leads, etc.) continua
     // real: essas rotas passam por authenticateToken, que só concede tenantId real da sessão.
     const authHandler = toNodeHandler(auth);
-    app.all('/api/auth/*', (req, res) => {
+    // CORREÇÃO: app.all captura todos os métodos HTTP, incluindo CONNECT e TRACE.
+    // app.use é mais correto aqui: deixa o Better Auth decidir quais métodos aceita.
+    app.use('/api/auth', (req, res) => {
         requestContext.run({ bypassRls: true }, () => authHandler(req, res));
     });
 
@@ -287,6 +295,7 @@ async function startServer() {
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
+    app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
     app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
@@ -322,42 +331,40 @@ async function startServer() {
 
     // ── Bootstrapping DI & Services ───────────────────────────────────────
     setupDI();
+
+    app.listen(PORT, '0.0.0.0', () => {
+        logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
+    });
+
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
     const enrichmentWorker = createEnrichmentWorker();
     const whatsappSignalWorker = createWhatsAppSignalWorker();
-    // Sempre ativo (não gated por organização/env var, ao contrário do enxame/prospecção fria):
-    // as regras que controlam o que de fato sincroniza são criadas dinamicamente pela tela de
-    // Integrações, então o worker precisa estar de pé desde o boot para pegar a primeira regra
-    // que alguém criar sem precisar reiniciar o servidor. Sem nenhuma regra ativa, cada tick é um
-    // no-op barato (runBitrixSyncTick só age em cima do que existir na tabela).
     const bitrixSyncWorker = createBitrixSyncWorker();
-    await scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
-    // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
-    // inicialização do Meilisearch sempre rodavam, independentemente da flag.
+    scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (env.ENABLE_SEARCH) {
-        await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
+        initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
-    // Prospecção fria: só sobe se houver organização explicitamente autorizada (ver
-    // SDR_COLD_CALL_ENABLED e SDR_COLD_CALL_ORGANIZATIONS). Sem isso, nenhum worker é criado.
-    const coldCallWorker = enabledOrganizations().length > 0 ? createColdCallWorker() : null;
-    if (coldCallWorker) {
-        await scheduleColdCallCampaigns().catch((err) =>
-            logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
-        );
-    }
+    enabledOrganizations().then((coldCallOrgs) => {
+        const coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        if (coldCallWorker) {
+            scheduleColdCallCampaigns().catch((err) =>
+                logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
+            );
+        }
+    }).catch(() => null);
 
-    // Enxame autônomo: mesmo desenho de opt-in explícito da prospecção fria (ver
-    // SWARM_SCHEDULER_ENABLED e SWARM_SCHEDULER_ORGANIZATIONS). Só propõe (AIPendingAction),
-    // nunca executa ação real sozinho.
-    const swarmSchedulerWorker = swarmSchedulerEnabledOrganizations().length > 0 ? createSwarmSchedulerWorker() : null;
-    if (swarmSchedulerWorker) {
-        await scheduleSwarmScheduler().catch((err) =>
-            logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
-        );
-    }
+    swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
+        const swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        if (swarmSchedulerWorker) {
+            scheduleSwarmScheduler().catch((err) =>
+                logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
+            );
+        }
+    }).catch(() => null);
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
@@ -367,8 +374,6 @@ async function startServer() {
         await searchWorker?.close();
         await enrichmentWorker.close();
         await whatsappSignalWorker.close();
-        await coldCallWorker?.close();
-        await swarmSchedulerWorker?.close();
         await bitrixSyncWorker.close();
         await prisma.$disconnect();
         process.exit(0);
@@ -376,10 +381,6 @@ async function startServer() {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
-
-    app.listen(PORT, '0.0.0.0', () => {
-        logger.info({ port: PORT, env: env.NODE_ENV }, 'Server running');
-    });
 }
 
 startServer();

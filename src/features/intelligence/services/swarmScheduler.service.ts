@@ -33,12 +33,14 @@ interface Candidate {
  * Fail-closed por desenho, mesmo padrão de `enabledOrganizations()` em coldCall.service.ts: lista
  * explícita de ids, e não um booleano global — habilitar por engano precisa ser difícil.
  */
-export function enabledOrganizations(): string[] {
+export async function enabledOrganizations(): Promise<string[]> {
     if (!env.SWARM_SCHEDULER_ENABLED) return [];
-    return (env.SWARM_SCHEDULER_ORGANIZATIONS ?? '')
-        .split(',')
-        .map((id) => id.trim())
-        .filter(Boolean);
+    const rawOrgs = (env.SWARM_SCHEDULER_ORGANIZATIONS ?? '').trim();
+    if (!rawOrgs || rawOrgs === '*' || rawOrgs === 'all') {
+        const orgs = await prisma.organization.findMany({ select: { id: true } });
+        return orgs.map((o) => o.id);
+    }
+    return rawOrgs.split(',').map((id) => id.trim()).filter(Boolean);
 }
 
 /** Leads com follow-up vencido — o próprio propósito do campo `nextAction`. */

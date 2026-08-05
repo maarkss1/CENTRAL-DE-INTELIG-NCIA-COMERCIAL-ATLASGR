@@ -8,7 +8,7 @@ import { queuesEnabled } from './queue/redis.js';
 import { logger } from './logger.js';
 import { requestContext } from './async-context.js';
 import { env } from '../config/env.js';
-const connectionString = process.env.DATABASE_URL || "postgresql://dummy:dummy@localhost:5432/dummy";
+const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 
 // Production-ready connection pool configuration
 const pool = new Pool({
@@ -16,6 +16,7 @@ const pool = new Pool({
   max: 20, // Max number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  allowExitOnIdle: true,
 });
 
 // Error handling for idle clients — usa logger estruturado (não console.error) para aparecer no Pino/Datadog.
@@ -174,7 +175,12 @@ export const prisma = basePrisma.$extends({
         // --- Soft Delete (findUnique filtering) ---
         if (isAuditable && (operation === 'findUnique' || operation === 'findUniqueOrThrow')) {
             if (result && result.deletedAt !== null) {
-                if (operation === 'findUniqueOrThrow') throw new Error('Record not found');
+                if (operation === 'findUniqueOrThrow') {
+                    throw new Prisma.PrismaClientKnownRequestError(
+                        'An operation failed because it depends on one or more records that were required but not found.',
+                        { code: 'P2025', clientVersion: Prisma.prismaVersion.client }
+                    );
+                }
                 return null;
             }
         }

@@ -33,6 +33,25 @@ export function Integrations() {
     const [bitrixLabelInput, setBitrixLabelInput] = useState('');
     const [bitrixLoading, setBitrixLoading] = useState(false);
 
+    // 3CX PABX State
+    const [threecxConnections, setThreecxConnections] = useState<Array<{ id: string; label: string; pbxUrl: string; extension: string; autoDialEnabled: boolean }>>([]);
+    const [threecxPbxUrlInput, setThreecxPbxUrlInput] = useState('');
+    const [threecxExtensionInput, setThreecxExtensionInput] = useState('');
+    const [threecxLabelInput, setThreecxLabelInput] = useState('');
+    const [threecxLoading, setThreecxLoading] = useState(false);
+
+    const fetchThreeCXConnections = async () => {
+        try {
+            const res = await fetch('/api/integrations/3cx/connections');
+            const data = await res.json();
+            if (data.success) {
+                setThreecxConnections(data.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch 3CX connections', error);
+        }
+    };
+
     const fetchStatus = async () => {
         try {
             const res = await fetch('/api/whatsapp/status');
@@ -101,9 +120,71 @@ export function Integrations() {
         fetchStatus();
         fetchGoogleStatus();
         fetchBitrixConnections();
+        fetchThreeCXConnections();
         const interval = setInterval(fetchStatus, 3000);
         return () => clearInterval(interval);
     }, []);
+
+    const handle3CXConnect = async () => {
+        if (!threecxPbxUrlInput.trim() || !threecxExtensionInput.trim()) {
+            toast.error('Informe a URL do PABX 3CX e o Ramal.');
+            return;
+        }
+        setThreecxLoading(true);
+        try {
+            const res = await fetch('/api/integrations/3cx/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pbxUrl: threecxPbxUrlInput,
+                    extension: threecxExtensionInput,
+                    label: threecxLabelInput || `3CX Ramal ${threecxExtensionInput}`,
+                    autoDialEnabled: true,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || 'Falha ao conectar PABX 3CX.');
+            }
+            toast.success('PABX 3CX registrado com sucesso!');
+            setThreecxPbxUrlInput('');
+            setThreecxExtensionInput('');
+            setThreecxLabelInput('');
+            fetchThreeCXConnections();
+        } catch (error) {
+            toast.error((error as Error).message);
+        } finally {
+            setThreecxLoading(false);
+        }
+    };
+
+    const handle3CXDisconnect = async (id: string) => {
+        setThreecxLoading(true);
+        try {
+            const res = await fetch(`/api/integrations/3cx/disconnect/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                toast.success('PABX 3CX desconectado.');
+                fetchThreeCXConnections();
+            }
+        } catch {
+            toast.error('Erro ao desconectar 3CX.');
+        } finally {
+            setThreecxLoading(false);
+        }
+    };
+
+    const handle3CXTest = async (id: string) => {
+        try {
+            const res = await fetch(`/api/integrations/3cx/connections/${id}/test`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(data.data.message || 'PABX 3CX pronto para chamadas!');
+            }
+        } catch {
+            toast.error('Não foi possível testar a comunicação com o 3CX.');
+        }
+    };
 
     const handleConnect = async () => {
         setLoading(true);
@@ -383,6 +464,93 @@ export function Integrations() {
                                     <BitrixSyncRulesPanel connectionId={selectedBitrixConnectionId} />
                                 </>
                             )}
+                        </div>
+                    </Card>
+
+                    {/* 3CX PABX Telephony Card */}
+                    <Card className="glass-card p-6 border border-gray-200 dark:border-white/10 rounded-2xl shadow-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-xl">
+                                    <IconWrench className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">PABX Telefonia 3CX</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        Click-to-Call, gravação de chamadas e prospecção fria de IA 24h via 3CX IP PBX.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
+                            </span>
+                        </div>
+
+                        <div className="space-y-4">
+                            {threecxConnections.length > 0 && (
+                                <div className="space-y-2">
+                                    {threecxConnections.map((conn) => (
+                                        <div key={conn.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5">
+                                            <div className="flex items-center gap-3">
+                                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                <div>
+                                                    <p className="text-sm font-bold text-gray-900 dark:text-white">{conn.label}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400">{conn.pbxUrl} — Ramal {conn.extension}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => handle3CXTest(conn.id)}
+                                                    className="px-2.5 py-1 text-xs font-semibold bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-500/20 rounded-md transition-colors"
+                                                >
+                                                    Testar PABX
+                                                </button>
+                                                <button
+                                                    onClick={() => handle3CXDisconnect(conn.id)}
+                                                    disabled={threecxLoading}
+                                                    className="px-2.5 py-1 text-xs font-semibold text-red-600 hover:text-red-700 dark:text-red-400 transition-colors"
+                                                >
+                                                    Desconectar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="p-3 rounded-lg border border-dashed border-gray-200 dark:border-white/10 space-y-2">
+                                <p className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                    {threecxConnections.length > 0 ? 'Conectar outro PABX 3CX' : 'Conectar Servidor 3CX PABX'}
+                                </p>
+                                <input
+                                    type="text"
+                                    value={threecxLabelInput}
+                                    onChange={(e) => setThreecxLabelInput(e.target.value)}
+                                    placeholder="Nome de exibição (ex.: 3CX Comercial, Ramal 101)"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 transition-colors"
+                                />
+                                <input
+                                    type="url"
+                                    value={threecxPbxUrlInput}
+                                    onChange={(e) => setThreecxPbxUrlInput(e.target.value)}
+                                    placeholder="https://seu-pabx.3cx.us"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 transition-colors"
+                                />
+                                <input
+                                    type="text"
+                                    value={threecxExtensionInput}
+                                    onChange={(e) => setThreecxExtensionInput(e.target.value)}
+                                    placeholder="Ramal (ex.: 101)"
+                                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/40 focus:border-sky-500 transition-colors"
+                                />
+                                <button
+                                    onClick={handle3CXConnect}
+                                    disabled={threecxLoading}
+                                    className="w-full py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
+                                >
+                                    {threecxLoading ? 'Registrando 3CX...' : 'Conectar 3CX PABX'}
+                                </button>
+                            </div>
                         </div>
                     </Card>
                 </div>

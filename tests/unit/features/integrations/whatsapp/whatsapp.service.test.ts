@@ -62,6 +62,7 @@ const mockSocket = {
 vi.mock('@whiskeysockets/baileys', () => ({
     default: vi.fn(() => mockSocket),
     useMultiFileAuthState: vi.fn(async () => ({ state: {}, saveCreds: vi.fn() })),
+    fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1015901307], isLatest: true }),
     DisconnectReason: { loggedOut: 401 },
     Browsers: { macOS: () => ['Atlas', 'Desktop', '1.0'] },
 }));

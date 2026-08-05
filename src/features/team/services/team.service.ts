@@ -108,6 +108,52 @@ export async function createTeamMember(input: {
     return { member, tempPassword };
 }
 
+/**
+ * Redefine a senha de um usuário já existente da organização (inclusive a própria conta de quem
+ * está chamando — diferente de deleteTeamMember, aqui não há razão pra bloquear auto-reset: é
+ * exatamente o caminho de "esqueci minha senha" pra quem já é ADMIN). Gera uma senha temporária
+ * nova do mesmo jeito que createTeamMember (aleatória, nunca escolhida por fora), zera todas as
+ * sessões ativas dessa conta (login antigo para de valer imediatamente) e marca
+ * mustChangePassword pra forçar a troca por uma senha definitiva no próximo login.
+ */
+export async function resetTeamMemberPassword(organizationId: string, targetUserId: string): Promise<{ member: TeamMember; tempPassword: string }> {
+    const target = await prisma.user.findFirst({
+        where: { id: targetUserId, organizationId },
+        select: { id: true },
+    });
+    if (!target) {
+        throw new TeamServiceError('Usuário não encontrado nesta organização.', 404);
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    const credentialAccount = await prisma.account.findFirst({
+        where: { userId: targetUserId, providerId: 'credential' },
+        select: { id: true },
+    });
+
+    if (credentialAccount) {
+        await prisma.account.update({ where: { id: credentialAccount.id }, data: { password: passwordHash } });
+    } else {
+        // Conta que só tinha login social (Google/Microsoft) até agora — ganha um método de
+        // login por senha novo, sem mexer no vínculo OAuth já existente.
+        await prisma.account.create({
+            data: { id: crypto.randomUUID(), userId: targetUserId, accountId: target.id, providerId: 'credential', password: passwordHash },
+        });
+    }
+
+    await prisma.session.deleteMany({ where: { userId: targetUserId } });
+
+    const member = await prisma.user.update({
+        where: { id: targetUserId },
+        data: { mustChangePassword: true },
+        select: { id: true, name: true, email: true, role: true, mustChangePassword: true, createdAt: true },
+    });
+
+    return { member, tempPassword };
+}
+
 export async function deleteTeamMember(organizationId: string, targetUserId: string, requestingUserId: string): Promise<void> {
     if (targetUserId === requestingUserId) {
         throw new TeamServiceError('Você não pode excluir sua própria conta por aqui.', 400);

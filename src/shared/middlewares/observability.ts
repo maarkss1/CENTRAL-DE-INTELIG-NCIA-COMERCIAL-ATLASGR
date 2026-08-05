@@ -14,12 +14,14 @@ export interface IObservabilityRequest extends Request {
 }
 
 export const observabilityMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-    const requestId = req.headers['x-request-id'] || uuidv4();
-    const correlationId = req.headers['x-correlation-id'] || uuidv4();
+    const rawReqId = req.headers['x-request-id'];
+    const rawCorrId = req.headers['x-correlation-id'];
+    const requestId = (Array.isArray(rawReqId) ? rawReqId[0] : rawReqId) || uuidv4();
+    const correlationId = (Array.isArray(rawCorrId) ? rawCorrId[0] : rawCorrId) || uuidv4();
 
     // Set response headers
-    res.setHeader('x-request-id', requestId as string);
-    res.setHeader('x-correlation-id', correlationId as string);
+    res.setHeader('x-request-id', requestId);
+    res.setHeader('x-correlation-id', correlationId);
 
     // Get current span if any
     const span = trace.getSpan(context.active());
@@ -32,8 +34,8 @@ export const observabilityMiddleware = (req: Request, res: Response, next: NextF
     const tenantId = authReq.user?.organizationId || 'none';
 
     if (span) {
-        span.setAttribute('http.request_id', requestId as string);
-        span.setAttribute('http.correlation_id', correlationId as string);
+        span.setAttribute('http.request_id', requestId);
+        span.setAttribute('http.correlation_id', correlationId);
         span.setAttribute('user.id', userId);
         span.setAttribute('tenant.id', tenantId);
     }
@@ -46,16 +48,20 @@ export const observabilityMiddleware = (req: Request, res: Response, next: NextF
         spanId
     };
 
-    logger.info({
-        requestId,
-        correlationId,
-        traceId,
-        spanId,
-        userId,
-        tenantId,
-        method: req.method,
-        url: req.url
-    }, 'Incoming request');
+    // Ignora logs de rotas de monitoramento frequentes (liveness probes e metrics)
+    const isHealthCheck = req.url.startsWith('/health/') || req.url === '/metrics';
+    if (!isHealthCheck) {
+        logger.info({
+            requestId,
+            correlationId,
+            traceId,
+            spanId,
+            userId,
+            tenantId,
+            method: req.method,
+            url: req.url
+        }, 'Incoming request');
+    }
 
     next();
 };

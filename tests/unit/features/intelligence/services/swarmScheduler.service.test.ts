@@ -15,6 +15,7 @@ vi.mock('../../../../../src/lib/prisma.js', () => ({
     prisma: {
         lead: { findMany: (...args: unknown[]) => leadFindMany(...args) },
         conversationSignal: { findMany: (...args: unknown[]) => signalFindMany(...args) },
+        organization: { findMany: vi.fn().mockResolvedValue([]) },
         aIPendingAction: {
             findFirst: (...args: unknown[]) => pendingActionFindFirst(...args),
             create: (...args: unknown[]) => pendingActionCreate(...args),
@@ -55,16 +56,16 @@ afterEach(() => {
 });
 
 describe('enabledOrganizations (swarm scheduler)', () => {
-    it('is fail-closed: disabled by default even with organizations listed', () => {
+    it('is fail-closed: disabled by default even with organizations listed', async () => {
         mockEnv.SWARM_SCHEDULER_ENABLED = false;
         mockEnv.SWARM_SCHEDULER_ORGANIZATIONS = 'org-1,org-2';
-        expect(enabledOrganizations()).toEqual([]);
+        expect(await enabledOrganizations()).toEqual([]);
     });
 
-    it('parses the comma-separated list only when explicitly enabled', () => {
+    it('parses the comma-separated list only when explicitly enabled', async () => {
         mockEnv.SWARM_SCHEDULER_ENABLED = true;
         mockEnv.SWARM_SCHEDULER_ORGANIZATIONS = 'org-1, org-2 ,, org-3';
-        expect(enabledOrganizations()).toEqual(['org-1', 'org-2', 'org-3']);
+        expect(await enabledOrganizations()).toEqual(['org-1', 'org-2', 'org-3']);
     });
 });
 
