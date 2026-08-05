@@ -113,28 +113,36 @@ export async function test3CXConnection(organizationId: string, connectionId: st
     const conn = connections.find((c) => c.id === connectionId);
     if (!conn) throw new AppError('Conexão 3CX PABX não encontrada.', 404);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8_000);
     try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8_000);
         // Teste de ping na API do 3CX (MakeCall API / REST Call Control)
         const res = await fetch(`${conn.pbxUrl}/api/v1/healthcheck`, {
             method: 'GET',
             signal: controller.signal,
-        }).catch(() => null);
-        clearTimeout(timeout);
+        });
 
-        logger.info({ organizationId, connectionId, pbxUrl: conn.pbxUrl }, '[3cx] Teste de comunicação realizado');
+        logger.info({ organizationId, connectionId, pbxUrl: conn.pbxUrl, ok: res.ok }, '[3cx] Teste de comunicação realizado');
+        // CORREÇÃO: antes este retorno era sempre success:true (inclusive quando o ping falhava ou
+        // dava timeout) — o botão "Testar conexão" nunca conseguia reportar um problema real ao
+        // usuário. Agora reflete o resultado de verdade do healthcheck.
         return {
-            success: true,
-            message: res?.ok ? 'PABX 3CX respondendo normalmente.' : 'Conexão configurada. Servidor 3CX pronto para chamadas.',
+            success: res.ok,
+            message: res.ok ? 'PABX 3CX respondendo normalmente.' : `Servidor 3CX respondeu com erro (HTTP ${res.status}).`,
             pbxUrl: conn.pbxUrl,
         };
-    } catch {
+    } catch (err) {
+        const timedOut = controller.signal.aborted;
+        logger.warn({ err, organizationId, connectionId, pbxUrl: conn.pbxUrl, timedOut }, '[3cx] Falha ao testar comunicação com o PABX');
         return {
-            success: true,
-            message: 'Configuração salva. PABX 3CX registrado para chamadas ativas.',
+            success: false,
+            message: timedOut
+                ? 'Tempo limite esgotado ao comunicar com o servidor 3CX (timeout 8s).'
+                : 'Não foi possível comunicar com o servidor 3CX. Confira a URL e se o PABX está acessível.',
             pbxUrl: conn.pbxUrl,
         };
+    } finally {
+        clearTimeout(timeout);
     }
 }
 
