@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { enrichCompany } from '../../features/prospecting/services/enrichment.service.js';
+import { requestContext } from '../async-context.js';
 
 export const ENRICHMENT_QUEUE_NAME = 'enrichment-queue';
 
@@ -10,6 +11,7 @@ enrichmentQueue.on('error', (err) => logger.warn({ message: err.message }, 'enri
 
 interface EnrichmentJobData {
     companyId: string;
+    organizationId: string;
     cnpj?: string;
     segmentKeywords?: string[];
 }
@@ -18,16 +20,20 @@ export function createEnrichmentWorker() {
     const worker = new Worker<EnrichmentJobData>(
         ENRICHMENT_QUEUE_NAME,
         async (job: Job<EnrichmentJobData>) => {
-            logger.info({ jobId: job.id, companyId: job.data.companyId }, 'Processing enrichment job');
+            const { companyId, organizationId, cnpj, segmentKeywords } = job.data;
+            logger.info({ jobId: job.id, companyId, organizationId }, 'Processing enrichment job');
 
-            try {
-                const { companyId, cnpj, segmentKeywords } = job.data;
-                await enrichCompany(companyId, { cnpj, segmentKeywords });
-                logger.info({ companyId }, 'Enrichment job completed successfully');
-            } catch (error) {
-                logger.error({ err: error, jobId: job.id }, 'Enrichment job failed');
-                throw error;
-            }
+            // O worker BullMQ roda fora do contexto HTTP — precisamos injetar o tenantId
+            // manualmente para que o Prisma extension aplique o RLS e encontre a empresa.
+            await requestContext.run({ tenantId: organizationId }, async () => {
+                try {
+                    await enrichCompany(companyId, { cnpj, segmentKeywords });
+                    logger.info({ companyId, organizationId }, 'Enrichment job completed successfully');
+                } catch (error) {
+                    logger.error({ err: error, jobId: job.id, companyId }, 'Enrichment job failed');
+                    throw error;
+                }
+            });
         },
         { connection, concurrency: 5 }
     );
