@@ -336,41 +336,40 @@ async function startServer() {
 
     // ── Bootstrapping DI & Services ───────────────────────────────────────
     setupDI();
+
+    app.listen(PORT, '0.0.0.0', () => {
+        logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
+    });
+
     const leadsWorker = createLeadsWorker();
     const agentWorker = createAgentWorker();
     const enrichmentWorker = createEnrichmentWorker();
     const whatsappSignalWorker = createWhatsAppSignalWorker();
-    // Sempre ativo (não gated por organização/env var, ao contrário do enxame/prospecção fria):
-    // as regras que controlam o que de fato sincroniza são criadas dinamicamente pela tela de
-    // Integrações, então o worker precisa estar de pé desde o boot para pegar a primeira regra
-    // que alguém criar sem precisar reiniciar o servidor. Sem nenhuma regra ativa, cada tick é um
-    // no-op barato (runBitrixSyncTick só age em cima do que existir na tabela).
     const bitrixSyncWorker = createBitrixSyncWorker();
-    await scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
-    // OBS-001: ENABLE_SEARCH existia em env.ts mas nunca era lida aqui — o worker de indexação e a
-    // inicialização do Meilisearch sempre rodavam, independentemente da flag.
+    scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (env.ENABLE_SEARCH) {
-        await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
+        initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
-    // Prospecção fria: sobe para as organizações autorizadas ou todas quando configurado.
-    const coldCallOrgs = await enabledOrganizations();
-    const coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
-    if (coldCallWorker) {
-        await scheduleColdCallCampaigns().catch((err) =>
-            logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
-        );
-    }
+    enabledOrganizations().then((coldCallOrgs) => {
+        const coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        if (coldCallWorker) {
+            scheduleColdCallCampaigns().catch((err) =>
+                logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
+            );
+        }
+    }).catch(() => null);
 
-    // Enxame autônomo 24h: mesmo desenho de opt-in. Só propõe (AIPendingAction), nunca executa ação real sozinho.
-    const swarmOrgs = await swarmSchedulerEnabledOrganizations();
-    const swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
-    if (swarmSchedulerWorker) {
-        await scheduleSwarmScheduler().catch((err) =>
-            logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
-        );
-    }
+    swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
+        const swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        if (swarmSchedulerWorker) {
+            scheduleSwarmScheduler().catch((err) =>
+                logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
+            );
+        }
+    }).catch(() => null);
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
@@ -380,8 +379,6 @@ async function startServer() {
         await searchWorker?.close();
         await enrichmentWorker.close();
         await whatsappSignalWorker.close();
-        await coldCallWorker?.close();
-        await swarmSchedulerWorker?.close();
         await bitrixSyncWorker.close();
         await prisma.$disconnect();
         process.exit(0);
@@ -389,10 +386,6 @@ async function startServer() {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
-
-    app.listen(PORT, '0.0.0.0', () => {
-        logger.info({ port: PORT, env: env.NODE_ENV }, 'Server running');
-    });
 }
 
 startServer();
