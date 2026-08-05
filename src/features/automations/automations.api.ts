@@ -28,10 +28,14 @@ export interface AutomationDraft {
 export const TRIGGERS: AutomationTrigger[] = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'];
 export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'];
 
-/** Etapas do funil, para o filtro de condição do gatilho de status. */
+/** Etapas dos dois funis (Lead + Negócio), para o filtro de condição do gatilho de status. */
 export const LEAD_STATUSES = [
-    'Novo Lead', 'Qualificação', 'Primeiro Contato', 'Diagnóstico',
-    'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido',
+    'Lead Recebido', 'Cadência Iniciada', 'Qualificação (SDR)', 'Reunião Agendada',
+    'Convertido em Oportunidade', 'Lead Desqualificado',
+    'Nova Oportunidade', 'Proposta Enviada', 'Call/Visita Agendada', 'Piloto VTECH',
+    'Piloto Atlas Profile', 'Piloto Atlas Profile - Concluído', 'Piloto Atlas Profile - Cancelado',
+    'Piloto Logística', 'Piloto Logístico - Concluído', 'Piloto Logístico - Cancelado',
+    'Negócios Ganhos', 'Negócios Perdidos',
 ];
 
 export const automationsApi = {

@@ -153,6 +153,9 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             cols[57] = l.owner || '';
             cols[58] = l.createdAt.toISOString();
             cols[69] = l.channel || '';
+            cols[71] = l.cadenceStage || '';
+            cols[73] = l.lossReason || '';
+            cols[74] = l.resumeDate ? new Date(l.resumeDate).toISOString() : '';
             cols[75] = qual.segmentoOperacao || company?.segment || '';
             cols[76] = qual.tipoCarga || '';
             cols[77] = qual.mediaContratacaoTerceiros || '';
@@ -163,13 +166,13 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             cols[82] = qual.rastreador || '';
             cols[83] = qual.seguradora || '';
             cols[84] = qual.corretora || '';
-            cols[85] = qual.possuiGR || '';
+            cols[85] = qual.fornecedorGRAtual || '';
             cols[86] = qual.possuiGR || '';
             cols[87] = qual.usaTerceiros || '';
             cols[88] = qual.possuiSoftwareLogistico || '';
-            cols[89] = qual.possuiSoftwareLogistico || '';
+            cols[89] = qual.softwareLogisticoAtual || '';
             cols[90] = qual.possuiCadastroMotorista || '';
-            cols[91] = qual.possuiCadastroMotorista || '';
+            cols[91] = qual.consultaCadastroAtual || '';
             cols[92] = qual.dorPrincipal || '';
             cols[93] = qual.detalhamentoDor || '';
             cols[94] = qual.solucaoAtlas || '';

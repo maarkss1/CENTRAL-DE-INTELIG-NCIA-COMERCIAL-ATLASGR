@@ -68,7 +68,7 @@ DIRETRIZES DE EXECUÇÃO:
 2. RACIOCÍNIO FRIO: Analise o Fit Score (0 a 100) baseando-se ESTRITAMENTE em porte (frota, faturamento), situação cadastral e aderência ao segmento logístico.
 3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'.
    - A nota deve refletir a realidade crua dos dados.
-   - O status deve ser 'Primeiro_Contato' apenas para leads com nota > 75, caso contrário 'Qualificacao' ou 'Descartado'.
+   - O status deve ser 'Reuniao_Agendada' apenas para leads com nota > 75, caso contrário 'Qualificacao_SDR' ou 'Lead_Desqualificado'.
 Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'.`
         + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}` : '')
     );

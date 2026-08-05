@@ -29,15 +29,40 @@ enum ContactStatus {
   Inativo
 }
 
+// Duas etapas de funil distintas, espelhando os dois objetos do Bitrix24 (Lead vs. Negócio/Deal)
+// em vez de um único board genérico — ver LeadFunnel para o discriminador de qual conjunto de
+// valores é válido para um Lead em cada momento.
 enum LeadStatus {
-  Novo_Lead        @map("Novo Lead")
-  Qualificacao     @map("Qualificação")
-  Primeiro_Contato @map("Primeiro Contato")
-  Diagnostico      @map("Diagnóstico")
-  Proposta
-  Negociacao       @map("Negociação")
-  Fechado_Ganho    @map("Fechado Ganho")
-  Fechado_Perdido  @map("Fechado Perdido")
+  // Funil de Leads (pré-qualificação, 6 etapas — mesma lista de status do objeto Lead no Bitrix24)
+  Lead_Recebido           @map("Lead Recebido")
+  Cadencia_Iniciada       @map("Cadência Iniciada")
+  Qualificacao_SDR        @map("Qualificação (SDR)")
+  Reuniao_Agendada        @map("Reunião Agendada")
+  Convertido_Oportunidade @map("Convertido em Oportunidade")
+  Lead_Desqualificado     @map("Lead Desqualificado")
+
+  // Funil de Negócios (pipeline comercial real, 12 etapas — mesmas etapas do pipeline "Negócios"
+  // padrão no Bitrix24, categoria 0)
+  Nova_Oportunidade              @map("Nova Oportunidade")
+  Proposta_Enviada                @map("Proposta Enviada")
+  Call_Visita_Agendada            @map("Call/Visita Agendada")
+  Piloto_VTECH                    @map("Piloto VTECH")
+  Piloto_Atlas_Profile            @map("Piloto Atlas Profile")
+  Piloto_Atlas_Profile_Concluido  @map("Piloto Atlas Profile - Concluído")
+  Piloto_Atlas_Profile_Cancelado  @map("Piloto Atlas Profile - Cancelado")
+  Piloto_Logistica                @map("Piloto Logística")
+  Piloto_Logistico_Concluido      @map("Piloto Logístico - Concluído")
+  Piloto_Logistico_Cancelado      @map("Piloto Logístico - Cancelado")
+  Negocios_Ganhos                 @map("Negócios Ganhos")
+  Negocios_Perdidos               @map("Negócios Perdidos")
+}
+
+// Discrimina qual dos dois Kanbans (e qual subconjunto de LeadStatus) este Lead pertence agora.
+// "Convertido em Oportunidade" no funil Lead é a transição que move o registro pra Negocio — o
+// mesmo comportamento do Bitrix24 quando um Lead vira Deal, sem precisar de uma tabela separada.
+enum LeadFunnel {
+  Lead
+  Negocio
 }
 
 enum LeadTemperature {
@@ -189,7 +214,10 @@ model Lead {
   id String @id @default(cuid())
 
   // New CRM fields
-  status          LeadStatus       @default(Novo_Lead)
+  status          LeadStatus       @default(Lead_Recebido)
+  // Qual dos dois Kanbans este registro pertence agora — ver LeadFunnel. Todo Lead nasce em
+  // "Lead" (funil de pré-qualificação); vira "Negocio" quando convertido em oportunidade real.
+  funnel          LeadFunnel       @default(Lead)
   source          String?
   channel         String?
   temperature     LeadTemperature?
@@ -197,6 +225,32 @@ model Lead {
   owner           String?
   lastInteraction DateTime?
   nextAction      DateTime?
+  // Data de retomada (Bitrix: "Data de Retomada") — quando um lead/negócio esfriado deve ser
+  // reabordado. Preenchido manualmente pelo SDR/AM, não inferido.
+  resumeDate      DateTime?
+  // Etapa da cadência de prospecção (Bitrix: "Etapa da Cadência") — ex.: "03 - Ligação 1". Lista
+  // fixa de 12 passos definida no playbook, mas guardada como texto livre (não enum) porque o
+  // Bitrix já trata como enumeration configurável no admin, sem contrato fixo do nosso lado.
+  cadenceStage    String?
+  // Motivo de desqualificação (funil Lead) ou de negociação perdida (funil Negócio) — Bitrix trata
+  // como dois campos distintos por objeto, mas aqui é um só porque o conceito é o mesmo: "por que
+  // este registro não virou cliente".
+  lossReason      String?
+  // Pacote/plano comercial negociado (Bitrix: "Pacote") — ex.: "STANDARD", "ATLAS PROFILE". Só
+  // existe no objeto Negócio do Bitrix (Lead não tem produto associado ainda).
+  dealPackage     String?
+  // Status operacional do negócio em andamento (Bitrix: "Status do Negócio") — Ativo, Em Stand-By,
+  // Em Retomada. Independente do `status` (etapa do funil); um negócio "Em Stand-By" pode estar
+  // parado em qualquer etapa do pipeline.
+  dealStatus      String?
+  // Nível de relacionamento percebido com o cliente/prospect (Bitrix: "Nível de Relacionamento").
+  relationshipLevel String?
+  // Comissão de parceiro/corretor nesta venda (Bitrix: "% Comissão" + "Parceiro / Corretor").
+  commissionPercent String?
+  partnerBroker     String?
+  // Se o AM (Account Manager) já validou a qualificação feita pelo SDR antes de assumir o negócio
+  // (Bitrix: "Qualificação validada pelo AM?") — gate manual entre pré-vendas e vendas.
+  qualificationValidatedByAM Boolean?
   // PIC (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — setado manualmente pelo SDR/AM
   // após identificar o gatilho real na conversa (não é inferido automaticamente): "PIC1_Expansao"
   // (transportadora em expansão operacional), "PIC2_Risco" (sob pressão de risco/sinistro), ou
@@ -245,6 +299,7 @@ model Lead {
 
   @@index([organizationId])
   @@index([organizationId, status])
+  @@index([organizationId, funnel])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
 }

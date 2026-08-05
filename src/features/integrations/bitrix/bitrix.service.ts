@@ -3,6 +3,10 @@ import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
 import { requestContext } from '../../../lib/async-context.js';
+import { BITRIX_FIELD_MAP } from './bitrixFieldMap.js';
+import { LEAD_FUNNEL_STATUS, DEAL_FUNNEL_STATUS, type LeadStatus } from '../../../lib/zod.js';
+import { toPrismaLeadStatus } from '../../../lib/enumMap.js';
+import type { Prisma } from '@prisma/client';
 
 function normalizeWebhookUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -182,6 +186,164 @@ export async function getLeadStatuses(organizationId: string, connectionId: stri
     return Array.from(labels.entries()).map(([id, name]) => ({ id, name }));
 }
 
+// ── Sincronização dos campos comerciais mapeados (BITRIX_FIELD_MAP) ────────────────────────────
+//
+// Bitrix guarda o valor de um campo `enumeration` como um ID numérico opaco (ex: "18650"), não o
+// texto ("Prospecção Ativa") — a tradução ID↔texto depende da lista `items` de CADA campo, que é
+// específica deste portal e muda se o campo for reconfigurado no admin. Por isso nunca hardcoded:
+// resolvida uma vez por webhook via crm.lead.fields/crm.deal.fields e cacheada, no mesmo espírito
+// de statusLabelCache acima.
+
+interface BitrixEnumFieldMeta {
+    itemIdToLabel: Map<string, string>;
+    itemLabelToId: Map<string, string>;
+}
+
+let fieldMetaCache: { webhookUrl: string; lead: Map<string, BitrixEnumFieldMeta>; deal: Map<string, BitrixEnumFieldMeta> } | null = null;
+
+async function getFieldMeta(webhookUrl: string): Promise<{ lead: Map<string, BitrixEnumFieldMeta>; deal: Map<string, BitrixEnumFieldMeta> }> {
+    if (fieldMetaCache?.webhookUrl === webhookUrl) return fieldMetaCache;
+
+    type RawFieldDef = { items?: Array<{ ID: string; VALUE: string }> };
+    const build = (fields: Record<string, RawFieldDef>) => {
+        const map = new Map<string, BitrixEnumFieldMeta>();
+        for (const [code, def] of Object.entries(fields)) {
+            if (!def.items?.length) continue;
+            map.set(code, {
+                itemIdToLabel: new Map(def.items.map((i) => [i.ID, i.VALUE])),
+                itemLabelToId: new Map(def.items.map((i) => [i.VALUE, i.ID])),
+            });
+        }
+        return map;
+    };
+
+    const [leadFieldsRes, dealFieldsRes] = await Promise.all([
+        callBitrix<{ result: Record<string, RawFieldDef> }>(webhookUrl, 'crm.lead.fields', {}),
+        callBitrix<{ result: Record<string, RawFieldDef> }>(webhookUrl, 'crm.deal.fields', {}),
+    ]);
+
+    const result = { webhookUrl, lead: build(leadFieldsRes.result), deal: build(dealFieldsRes.result) };
+    fieldMetaCache = result;
+    return result;
+}
+
+/**
+ * Lê os campos de BITRIX_FIELD_MAP de um registro cru (Lead ou Deal) do Bitrix e separa o que
+ * precisa ser gravado em cada parte da Lead da plataforma — a coluna top-level, o JSON de
+ * qualificação, ou o cargo do contato vinculado.
+ */
+async function extractMappedFields(
+    webhookUrl: string,
+    entity: 'lead' | 'deal',
+    raw: Record<string, unknown>,
+): Promise<{ leadPatch: Record<string, unknown>; qualificationPatch: Record<string, string>; contactRole: string | null }> {
+    const meta = await getFieldMeta(webhookUrl);
+    const entityMeta = entity === 'lead' ? meta.lead : meta.deal;
+
+    const leadPatch: Record<string, unknown> = {};
+    const qualificationPatch: Record<string, string> = {};
+    let contactRole: string | null = null;
+
+    for (const mapping of BITRIX_FIELD_MAP) {
+        const code = entity === 'lead' ? mapping.leadCode : mapping.dealCode;
+        if (!code) continue;
+        const rawValue = raw[code];
+        if (rawValue == null || rawValue === '') continue;
+
+        if (mapping.type === 'enumeration' || mapping.type === 'boolean_sim_nao') {
+            const id = Array.isArray(rawValue) ? String(rawValue[0]) : String(rawValue);
+            const label = entityMeta.get(code)?.itemIdToLabel.get(id);
+            if (!label) continue;
+
+            if (mapping.type === 'boolean_sim_nao') {
+                const boolValue = label === 'Sim' ? true : label === 'Não' ? false : null;
+                if (boolValue === null) continue;
+                if (mapping.target.kind === 'lead') leadPatch[mapping.target.field] = boolValue;
+                continue;
+            }
+            if (mapping.target.kind === 'lead') leadPatch[mapping.target.field] = label;
+            else if (mapping.target.kind === 'qualification') qualificationPatch[mapping.target.field] = label;
+            else if (mapping.target.kind === 'contact') contactRole = label;
+            continue;
+        }
+
+        let value: string;
+        if (mapping.type === 'date') {
+            const parsed = new Date(String(rawValue));
+            if (Number.isNaN(parsed.getTime())) continue;
+            value = parsed.toISOString();
+        } else {
+            value = String(rawValue);
+        }
+        if (!value) continue;
+
+        if (mapping.target.kind === 'lead') leadPatch[mapping.target.field] = value;
+        else if (mapping.target.kind === 'qualification') qualificationPatch[mapping.target.field] = value;
+        else if (mapping.target.kind === 'contact') contactRole = value;
+    }
+
+    return { leadPatch, qualificationPatch, contactRole };
+}
+
+/**
+ * Caminho inverso de extractMappedFields — monta o objeto `fields` (código UF_CRM_* → valor) pra
+ * enviar num crm.lead.update/add, a partir dos dados já persistidos na plataforma. Usado pelo push
+ * manual/automático (ver syncLeadToBitrix). Só funciona para entity='lead' hoje — o push para
+ * Negócio (Deal) não existe ainda, só a importação de lá.
+ */
+async function buildMappedBitrixFields(
+    webhookUrl: string,
+    entity: 'lead' | 'deal',
+    lead: Record<string, unknown> & { qualification?: unknown },
+    contactRole: string | null,
+): Promise<Record<string, unknown>> {
+    const meta = await getFieldMeta(webhookUrl);
+    const entityMeta = entity === 'lead' ? meta.lead : meta.deal;
+    const qualification = (lead.qualification || {}) as Record<string, unknown>;
+
+    const fields: Record<string, unknown> = {};
+    for (const mapping of BITRIX_FIELD_MAP) {
+        const code = entity === 'lead' ? mapping.leadCode : mapping.dealCode;
+        if (!code) continue;
+
+        let appValue: unknown;
+        if (mapping.target.kind === 'lead') appValue = lead[mapping.target.field];
+        else if (mapping.target.kind === 'qualification') appValue = qualification[mapping.target.field];
+        else if (mapping.target.kind === 'contact') appValue = contactRole;
+
+        if (appValue == null || appValue === '') continue;
+
+        if (mapping.type === 'boolean_sim_nao') {
+            const label = appValue === true ? 'Sim' : appValue === false ? 'Não' : null;
+            const id = label ? entityMeta.get(code)?.itemLabelToId.get(label) : undefined;
+            if (id) fields[code] = id;
+            continue;
+        }
+        if (mapping.type === 'enumeration') {
+            const id = entityMeta.get(code)?.itemLabelToId.get(String(appValue));
+            if (id) fields[code] = id;
+            continue;
+        }
+        if (mapping.type === 'date') {
+            const parsed = new Date(String(appValue));
+            if (Number.isNaN(parsed.getTime())) continue;
+            fields[code] = parsed.toISOString().slice(0, 10);
+            continue;
+        }
+        fields[code] = appValue;
+    }
+    return fields;
+}
+
+/** Tenta casar o rótulo de etapa do Bitrix com um dos valores conhecidos do funil correspondente
+ * na plataforma — se o registro estiver num status/etapa fora do que mapeamos (outro pipeline,
+ * etapa custom sem equivalente), cai no primeiro valor do funil como padrão seguro. */
+function matchFunnelStatus(stageLabel: string | null, funnel: 'lead' | 'deal'): string {
+    const known = funnel === 'lead' ? LEAD_FUNNEL_STATUS : DEAL_FUNNEL_STATUS;
+    const match = stageLabel && (known as readonly string[]).includes(stageLabel) ? stageLabel : null;
+    return match ?? known[0];
+}
+
 /**
  * Lista uma página de leads do Bitrix24 para o usuário escolher o que importar — NUNCA grava
  * nada sozinho. `alreadyImported` reflete o que já existe no Atlas (por bitrixLeadId), pra tela
@@ -263,6 +425,13 @@ export async function importSelectedBitrixLeads(
         const contactName = [raw.NAME, raw.LAST_NAME].filter(Boolean).join(' ');
         const phone = raw.PHONE?.[0]?.VALUE || null;
         const email = raw.EMAIL?.[0]?.VALUE || null;
+        const stageLabel = (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null;
+
+        const { leadPatch, qualificationPatch, contactRole } = await extractMappedFields(
+            webhookUrl,
+            'lead',
+            raw as unknown as Record<string, unknown>,
+        );
 
         const company = await prisma.company.create({
             data: {
@@ -279,20 +448,25 @@ export async function importSelectedBitrixLeads(
 
         const contact = contactName
             ? await prisma.contact.create({
-                data: { name: contactName, phone, email, companyId: company.id, organizationId },
+                data: { name: contactName, phone, email, role: contactRole, companyId: company.id, organizationId },
             })
             : null;
 
+        const status = toPrismaLeadStatus(matchFunnelStatus(stageLabel, 'lead') as LeadStatus) as unknown as Prisma.LeadCreateInput['status'];
+
         await prisma.lead.create({
             data: {
-                status: 'Novo_Lead',
+                status,
+                funnel: 'Lead',
                 source: 'Bitrix24 (importado)',
                 companyId: company.id,
                 contactId: contact?.id,
                 organizationId,
                 bitrixLeadId: raw.ID,
-                bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
-            },
+                bitrixStageLabel: stageLabel,
+                qualification: Object.keys(qualificationPatch).length > 0 ? qualificationPatch : undefined,
+                ...leadPatch,
+            } as Prisma.LeadCreateInput,
         });
         imported++;
     }
@@ -516,6 +690,12 @@ export async function importSelectedBitrixDeals(
             ? (await getDealStages(organizationId, connectionId, deal.CATEGORY_ID)).find((s) => s.id === deal.STAGE_ID)?.name || deal.STAGE_ID
             : null;
 
+        const { leadPatch, qualificationPatch, contactRole } = await extractMappedFields(
+            webhookUrl,
+            'deal',
+            deal as unknown as Record<string, unknown>,
+        );
+
         const company = await prisma.company.create({
             data: {
                 legalName: tradeName,
@@ -531,20 +711,29 @@ export async function importSelectedBitrixDeals(
 
         const contact = contactName
             ? await prisma.contact.create({
-                data: { name: contactName, phone, email, companyId: company.id, organizationId },
+                data: { name: contactName, phone, email, role: contactRole, companyId: company.id, organizationId },
             })
             : null;
 
+        // Só a categoria 0 (pipeline "Negócios", o comercial) tem equivalente no LeadStatus da
+        // plataforma — negócios de outros pipelines (RH, T.I, Financeiro...) entram como
+        // "Nova Oportunidade" por padrão via matchFunnelStatus, mas continuam com `bitrixStageLabel`
+        // preservando o nome real da etapa lá no Bitrix.
+        const status = toPrismaLeadStatus(matchFunnelStatus(stageLabel, 'deal') as LeadStatus) as unknown as Prisma.LeadCreateInput['status'];
+
         await prisma.lead.create({
             data: {
-                status: 'Novo_Lead',
+                status,
+                funnel: 'Negocio',
                 source: 'Bitrix24 (importado via Negócio)',
                 companyId: company.id,
                 contactId: contact?.id,
                 organizationId,
                 bitrixDealId: deal.ID,
                 bitrixStageLabel: stageLabel,
-            },
+                qualification: Object.keys(qualificationPatch).length > 0 ? qualificationPatch : undefined,
+                ...leadPatch,
+            } as Prisma.LeadCreateInput,
         });
         imported++;
     }
@@ -565,6 +754,15 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
     });
     if (!lead) throw new AppError('Lead não encontrado.', 404);
 
+    // Campos comerciais mapeados (checklist de qualificação + etapa da cadência, motivo de perda,
+    // etc. — ver bitrixFieldMap.ts) — enviados junto dos campos padrão abaixo, na mesma chamada.
+    const mappedFields = await buildMappedBitrixFields(
+        webhookUrl,
+        'lead',
+        lead as unknown as Record<string, unknown>,
+        lead.contact?.role || null,
+    );
+
     const fields = {
         TITLE: lead.company?.tradeName || lead.company?.legalName || 'Lead Atlas',
         NAME: lead.contact?.name?.split(' ')[0],
@@ -575,6 +773,7 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
         SOURCE_ID: 'WEB',
         SOURCE_DESCRIPTION: 'AtlasGR Prospector',
         COMMENTS: lead.company?.observations || undefined,
+        ...mappedFields,
     };
 
     if (lead.bitrixLeadId) {

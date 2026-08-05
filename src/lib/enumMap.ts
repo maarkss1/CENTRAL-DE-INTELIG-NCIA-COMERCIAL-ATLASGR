@@ -5,14 +5,26 @@ import type { LeadStatus, CompanyStatus, ActivityType, ActivityStatus } from './
 // o resto do sistema (zod, frontend, rotas) só conhece o texto exibido.
 
 const LEAD_STATUS_TO_PRISMA: Record<LeadStatus, string> = {
-    'Novo Lead': 'Novo_Lead',
-    'Qualificação': 'Qualificacao',
-    'Primeiro Contato': 'Primeiro_Contato',
-    'Diagnóstico': 'Diagnostico',
-    'Proposta': 'Proposta',
-    'Negociação': 'Negociacao',
-    'Fechado Ganho': 'Fechado_Ganho',
-    'Fechado Perdido': 'Fechado_Perdido',
+    // Funil de Leads
+    'Lead Recebido': 'Lead_Recebido',
+    'Cadência Iniciada': 'Cadencia_Iniciada',
+    'Qualificação (SDR)': 'Qualificacao_SDR',
+    'Reunião Agendada': 'Reuniao_Agendada',
+    'Convertido em Oportunidade': 'Convertido_Oportunidade',
+    'Lead Desqualificado': 'Lead_Desqualificado',
+    // Funil de Negócios
+    'Nova Oportunidade': 'Nova_Oportunidade',
+    'Proposta Enviada': 'Proposta_Enviada',
+    'Call/Visita Agendada': 'Call_Visita_Agendada',
+    'Piloto VTECH': 'Piloto_VTECH',
+    'Piloto Atlas Profile': 'Piloto_Atlas_Profile',
+    'Piloto Atlas Profile - Concluído': 'Piloto_Atlas_Profile_Concluido',
+    'Piloto Atlas Profile - Cancelado': 'Piloto_Atlas_Profile_Cancelado',
+    'Piloto Logística': 'Piloto_Logistica',
+    'Piloto Logístico - Concluído': 'Piloto_Logistico_Concluido',
+    'Piloto Logístico - Cancelado': 'Piloto_Logistico_Cancelado',
+    'Negócios Ganhos': 'Negocios_Ganhos',
+    'Negócios Perdidos': 'Negocios_Perdidos',
 };
 
 const COMPANY_STATUS_TO_PRISMA: Record<CompanyStatus, string> = {

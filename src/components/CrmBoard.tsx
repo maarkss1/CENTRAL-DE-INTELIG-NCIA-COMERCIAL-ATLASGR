@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download, WifiOff } from 'lucide-react';
-import { Lead, LeadStatus } from '../types';
+import { Lead, LeadStatus, LeadFunnel, LEAD_FUNNEL_STATUS, DEAL_FUNNEL_STATUS } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
@@ -10,26 +10,28 @@ import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
-import { 
-    DndContext, 
-    closestCenter, 
-    KeyboardSensor, 
-    PointerSensor, 
-    useSensor, 
-    useSensors, 
-    DragOverlay 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragOverlay
 } from '@dnd-kit/core';
 
-const COLUMNS: LeadStatus[] = [
-    'Novo Lead',
-    'Qualificação',
-    'Primeiro Contato',
-    'Diagnóstico',
-    'Proposta',
-    'Negociação',
-    'Fechado Ganho',
-    'Fechado Perdido'
-];
+// Dois Kanbans, espelhando os dois objetos do Bitrix24 (Lead x Negócio/Deal) — ver LeadFunnel.
+const FUNNEL_COLUMNS: Record<LeadFunnel, LeadStatus[]> = {
+    Lead: [...LEAD_FUNNEL_STATUS],
+    Negocio: [...DEAL_FUNNEL_STATUS],
+};
+
+const FUNNEL_LABEL: Record<LeadFunnel, string> = { Lead: 'Leads', Negocio: 'Negócios' };
+
+// Última etapa do funil de Lead: dropar/clicar aqui não é um "estado de descanso" normal — dispara
+// a conversão pra Negócio (mesma transição que o Bitrix24 faz quando um Lead vira Deal).
+const CONVERT_TRIGGER_STATUS: LeadStatus = 'Convertido em Oportunidade';
+const OPPORTUNITY_ENTRY_STATUS: LeadStatus = 'Nova Oportunidade';
 
 export function CrmBoard() {
     const { brandInfo } = useBrand();
@@ -38,6 +40,8 @@ export function CrmBoard() {
     const [error, setError] = useState<string | null>(null);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
+    const [activeFunnel, setActiveFunnel] = useState<LeadFunnel>('Lead');
+    const columns = FUNNEL_COLUMNS[activeFunnel];
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -91,7 +95,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (COLUMNS.includes(over.id)) {
+        if (columns.includes(over.id)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);
@@ -113,18 +117,33 @@ export function CrmBoard() {
                 fetchLeads();
             }
         }
-    }, [leads, fetchLeads]);
+    }, [leads, columns, fetchLeads]);
 
     const handleCardClick = useCallback((lead: Lead) => {
         setSelectedLeadId(lead.id);
     }, []);
 
+    // "Converter em Oportunidade" muda de Kanban (funil Lead → Negócio), não só de coluna — por
+    // isso é uma ação explícita no card em vez de mais um alvo de drag-and-drop comum.
+    const handleConvertToOpportunity = useCallback(async (leadId: string) => {
+        setLeads(prev => prev.map(l => l.id === leadId ? { ...l, funnel: 'Negocio' as LeadFunnel, status: OPPORTUNITY_ENTRY_STATUS } : l));
+        try {
+            await api.put(`/api/leads/${leadId}`, { status: OPPORTUNITY_ENTRY_STATUS, funnel: 'Negocio' });
+            toast.success('Lead convertido em oportunidade — movido para o funil de Negócios.');
+        } catch (error) {
+            console.error('Error converting lead to opportunity:', error);
+            toast.error('Falha ao converter o lead em oportunidade.');
+            fetchLeads();
+        }
+    }, [fetchLeads]);
+
     const handleCardEnrich = useCallback(async (leadId: string) => {
         try {
-            await api.post(`/api/leads/${leadId}/enrich-cnpj`);
+            await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
             fetchLeads();
         } catch (error) {
             console.error('Error enriching lead:', error);
+            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);
 
@@ -151,22 +170,19 @@ export function CrmBoard() {
     };
 
     const groupedLeads = useMemo(() => {
-        const grouped: Record<LeadStatus, Lead[]> = {
-            'Novo Lead': [],
-            'Qualificação': [],
-            'Primeiro Contato': [],
-            'Diagnóstico': [],
-            'Proposta': [],
-            'Negociação': [],
-            'Fechado Ganho': [],
-            'Fechado Perdido': []
-        };
+        const grouped = Object.fromEntries(columns.map(status => [status, [] as Lead[]])) as Record<LeadStatus, Lead[]>;
         leads.forEach(lead => {
-            if (grouped[lead.status]) {
+            if (lead.funnel === activeFunnel && grouped[lead.status]) {
                 grouped[lead.status].push(lead);
             }
         });
         return grouped;
+    }, [leads, columns, activeFunnel]);
+
+    const funnelCounts = useMemo(() => {
+        const counts: Record<LeadFunnel, number> = { Lead: 0, Negocio: 0 };
+        leads.forEach(lead => { counts[lead.funnel] = (counts[lead.funnel] || 0) + 1; });
+        return counts;
     }, [leads]);
 
     return (
@@ -206,6 +222,21 @@ export function CrmBoard() {
                 />
             </div>
 
+            {/* Tabs: funil de Leads (pré-qualificação) x funil de Negócios (pipeline comercial real) */}
+            <div className="px-6 pt-4 shrink-0">
+                <div className="flex gap-1 p-1 bg-surface-2 rounded-lg w-fit">
+                    {(['Lead', 'Negocio'] as LeadFunnel[]).map(funnel => (
+                        <button
+                            key={funnel}
+                            onClick={() => setActiveFunnel(funnel)}
+                            className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${activeFunnel === funnel ? 'bg-surface text-blue-500 shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+                        >
+                            {FUNNEL_LABEL[funnel]} ({funnelCounts[funnel]})
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-surface-2/50">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
@@ -230,13 +261,14 @@ export function CrmBoard() {
                         onDragEnd={handleDragEnd}
                     >
                         <div className="flex gap-6 h-full items-start">
-                            {COLUMNS.map(status => (
+                            {columns.map(status => (
                                 <KanbanColumn
                                     key={status}
                                     status={status}
                                     leads={groupedLeads[status]}
                                     onCardClick={handleCardClick}
                                     onCardEnrich={handleCardEnrich}
+                                    onCardConvert={activeFunnel === 'Lead' && status === CONVERT_TRIGGER_STATUS ? handleConvertToOpportunity : undefined}
                                 />
                             ))}
                         </div>

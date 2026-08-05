@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
-    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
+    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2, Briefcase,
 } from 'lucide-react';
-import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
+import { Lead, Note, LeadQualification, LeadFunnel, LEAD_FUNNEL_STATUS, DEAL_FUNNEL_STATUS } from '../../../types';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { PIC_OPTIONS } from '../../../shared/constants/icp-options';
@@ -12,17 +12,35 @@ import { useBrand } from '../../../contexts/BrandContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 
 const STATUS_EMOJI: Record<string, string> = {
-    'Novo Lead': '🆕', 'Qualificação': '🔎', 'Primeiro Contato': '☎️', 'Diagnóstico': '🩺',
-    'Proposta': '📄', 'Negociação': '🤝', 'Fechado Ganho': '🏆', 'Fechado Perdido': '❌',
+    // Funil de Leads
+    'Lead Recebido': '🆕', 'Cadência Iniciada': '📨', 'Qualificação (SDR)': '🔎',
+    'Reunião Agendada': '📅', 'Convertido em Oportunidade': '🔄', 'Lead Desqualificado': '🚫',
+    // Funil de Negócios
+    'Nova Oportunidade': '🎯', 'Proposta Enviada': '📄', 'Call/Visita Agendada': '☎️',
+    'Piloto VTECH': '🧪', 'Piloto Atlas Profile': '🧪', 'Piloto Atlas Profile - Concluído': '✅',
+    'Piloto Atlas Profile - Cancelado': '❌', 'Piloto Logística': '🚚', 'Piloto Logístico - Concluído': '✅',
+    'Piloto Logístico - Cancelado': '❌', 'Negócios Ganhos': '🏆', 'Negócios Perdidos': '❌',
 };
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
-const LEAD_STATUSES: LeadStatus[] = [
-    'Novo Lead', 'Qualificação', 'Primeiro Contato', 'Diagnóstico',
-    'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido',
-];
-void ({} as typeof LEAD_STATUS); // mantém o import de tipo referenciado
+// Qual funil (LEAD_FUNNEL_STATUS ou DEAL_FUNNEL_STATUS) preenche o dropdown de etapa — depende de
+// em qual dos dois Kanbans este lead está agora (lead.funnel), não é uma lista fixa única.
+const FUNNEL_STATUSES: Record<LeadFunnel, readonly string[]> = { Lead: LEAD_FUNNEL_STATUS, Negocio: DEAL_FUNNEL_STATUS };
+
+/** Campos comerciais espelhados do Bitrix24 (ver bitrixFieldMap.ts no backend) — fora do checklist
+ * de qualificação porque são de gestão do funil/negociação, não do diagnóstico inicial do SDR. */
+interface CommercialFieldsDraft {
+    resumeDate?: string | null;
+    cadenceStage?: string | null;
+    lossReason?: string | null;
+    dealPackage?: string | null;
+    dealStatus?: string | null;
+    relationshipLevel?: string | null;
+    commissionPercent?: string | null;
+    partnerBroker?: string | null;
+    qualificationValidatedByAM?: boolean | null;
+}
 
 interface LeadDetailDrawerProps {
     leadId: string;
@@ -42,6 +60,9 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualOpen, setQualOpen] = useState(false);
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
+    const [commercialOpen, setCommercialOpen] = useState(false);
+    const [commercialDraft, setCommercialDraft] = useState<CommercialFieldsDraft>({});
+    const [savingCommercial, setSavingCommercial] = useState(false);
     const [exportingBitrix, setExportingBitrix] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
@@ -71,6 +92,21 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     useEffect(() => {
         if (lead?.qualification) setQualDraft(lead.qualification);
     }, [lead?.qualification]);
+
+    useEffect(() => {
+        if (!lead) return;
+        setCommercialDraft({
+            resumeDate: lead.resumeDate ? lead.resumeDate.slice(0, 10) : null,
+            cadenceStage: lead.cadenceStage,
+            lossReason: lead.lossReason,
+            dealPackage: lead.dealPackage,
+            dealStatus: lead.dealStatus,
+            relationshipLevel: lead.relationshipLevel,
+            commissionPercent: lead.commissionPercent,
+            partnerBroker: lead.partnerBroker,
+            qualificationValidatedByAM: lead.qualificationValidatedByAM,
+        });
+    }, [lead]);
 
     // Fecha com Esc
     useEffect(() => {
@@ -126,6 +162,23 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             toast.error('Falha ao salvar o checklist.');
         } finally {
             setSavingQual(false);
+        }
+    };
+
+    const handleSaveCommercial = async () => {
+        setSavingCommercial(true);
+        try {
+            await api.put(`/api/leads/${leadId}`, {
+                ...commercialDraft,
+                resumeDate: commercialDraft.resumeDate || null,
+            });
+            toast.success('Dados comerciais salvos.');
+            await fetchLead();
+            onChanged();
+        } catch {
+            toast.error('Falha ao salvar os dados comerciais.');
+        } finally {
+            setSavingCommercial(false);
         }
     };
 
@@ -224,7 +277,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 onChange={(e) => handleStatusChange(e.target.value)}
                                 className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange"
                             >
-                                {LEAD_STATUSES.map((s) => (
+                                {FUNNEL_STATUSES[lead.funnel].map((s) => (
                                     <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>
                                 ))}
                             </select>
@@ -393,8 +446,11 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         <QualInput label="Seguradora" value={qualDraft.seguradora} onChange={(v) => setQualDraft((d) => ({ ...d, seguradora: v }))} />
                                         <QualInput label="Corretora" value={qualDraft.corretora} onChange={(v) => setQualDraft((d) => ({ ...d, corretora: v }))} />
                                         <QualInput label="Possui GR hoje? (com quem)" value={qualDraft.possuiGR} onChange={(v) => setQualDraft((d) => ({ ...d, possuiGR: v }))} />
+                                        <QualInput label="Fornecedor de GR atual" value={qualDraft.fornecedorGRAtual} onChange={(v) => setQualDraft((d) => ({ ...d, fornecedorGRAtual: v }))} />
                                         <QualInput label="Cadastro/consulta de motorista (com quem)" value={qualDraft.possuiCadastroMotorista} onChange={(v) => setQualDraft((d) => ({ ...d, possuiCadastroMotorista: v }))} />
+                                        <QualInput label="Consulta/cadastro atual" value={qualDraft.consultaCadastroAtual} onChange={(v) => setQualDraft((d) => ({ ...d, consultaCadastroAtual: v }))} />
                                         <QualInput label="Software logístico (com quem)" value={qualDraft.possuiSoftwareLogistico} onChange={(v) => setQualDraft((d) => ({ ...d, possuiSoftwareLogistico: v }))} />
+                                        <QualInput label="Software logístico atual" value={qualDraft.softwareLogisticoAtual} onChange={(v) => setQualDraft((d) => ({ ...d, softwareLogisticoAtual: v }))} />
                                     </QualGroup>
 
                                     <QualGroup title="Dor Mapeada">
@@ -427,6 +483,57 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     >
                                         {savingQual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                         {savingQual ? 'Salvando...' : 'Salvar checklist'}
+                                    </button>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Dados Comerciais (etapa da cadência, motivo de perda, pacote, status do negócio... — espelhados do Bitrix24) */}
+                        <section>
+                            <button
+                                onClick={() => setCommercialOpen((v) => !v)}
+                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 hover:text-atlas-orange transition-colors"
+                            >
+                                <span className="flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5" /> Dados Comerciais (Bitrix24)</span>
+                                {commercialOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                            {commercialOpen && (
+                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-4">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <QualInput label="Etapa da cadência" value={commercialDraft.cadenceStage || undefined} onChange={(v) => setCommercialDraft((d) => ({ ...d, cadenceStage: v }))} />
+                                        <label className="block">
+                                            <span className="block text-[9px] text-ink-2 mb-0.5">Data de retomada</span>
+                                            <input
+                                                type="date"
+                                                value={commercialDraft.resumeDate || ''}
+                                                onChange={(e) => setCommercialDraft((d) => ({ ...d, resumeDate: e.target.value }))}
+                                                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-atlas-orange"
+                                            />
+                                        </label>
+                                        <QualInput label="Motivo de perda/desqualificação" value={commercialDraft.lossReason || undefined} onChange={(v) => setCommercialDraft((d) => ({ ...d, lossReason: v }))} full />
+                                        <QualInput label="Pacote/plano" value={commercialDraft.dealPackage || undefined} onChange={(v) => setCommercialDraft((d) => ({ ...d, dealPackage: v }))} />
+                                        <QualSelect label="Status do negócio" value={commercialDraft.dealStatus || undefined} options={['', 'Ativo', 'Em Stand-By', 'Em Retomada']} onChange={(v) => setCommercialDraft((d) => ({ ...d, dealStatus: v }))} />
+                                        <QualSelect label="Nível de relacionamento" value={commercialDraft.relationshipLevel || undefined} options={['', 'Alto', 'Médio', 'Baixo']} onChange={(v) => setCommercialDraft((d) => ({ ...d, relationshipLevel: v }))} />
+                                        <QualInput label="% Comissão" value={commercialDraft.commissionPercent || undefined} onChange={(v) => setCommercialDraft((d) => ({ ...d, commissionPercent: v }))} />
+                                        <QualInput label="Parceiro / Corretor" value={commercialDraft.partnerBroker || undefined} onChange={(v) => setCommercialDraft((d) => ({ ...d, partnerBroker: v }))} />
+                                        <label className="flex items-center gap-2 col-span-2 mt-1">
+                                            <input
+                                                type="checkbox"
+                                                checked={commercialDraft.qualificationValidatedByAM === true}
+                                                onChange={(e) => setCommercialDraft((d) => ({ ...d, qualificationValidatedByAM: e.target.checked }))}
+                                                className="w-3.5 h-3.5"
+                                            />
+                                            <span className="text-xs text-ink-2">Qualificação validada pelo AM</span>
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        onClick={handleSaveCommercial}
+                                        disabled={savingCommercial}
+                                        className="w-full flex items-center justify-center gap-2 bg-atlas-dark text-white py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-colors disabled:opacity-50"
+                                    >
+                                        {savingCommercial ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        {savingCommercial ? 'Salvando...' : 'Salvar dados comerciais'}
                                     </button>
                                 </div>
                             )}

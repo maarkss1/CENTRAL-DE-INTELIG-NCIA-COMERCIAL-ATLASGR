@@ -74,7 +74,7 @@ interface LookalikeRow {
 
 /**
  * Mede a semelhança firmográfica desta empresa com empresas do mesmo tenant que já fecharam
- * negócio ("Fechado Ganho"), por distância de cosseno entre embeddings — sem treinar nenhum
+ * negócio ("Negócios Ganhos"), por distância de cosseno entre embeddings — sem treinar nenhum
  * modelo, mesma técnica que `VectorSearchService` já usa pra busca semântica na Base de
  * Conhecimento. Devolve `null` quando não há histórico de vitórias suficiente pra ser um sinal
  * confiável (tenant novo, ou nenhuma empresa ganha ainda tem embedding — ver limitação no
@@ -104,7 +104,7 @@ export async function computeLookalikeScore(companyId: string, organizationId: s
             WHERE c."organizationId" = ${organizationId}
               AND c.id != ${companyId}
               AND c."profileEmbedding" IS NOT NULL
-              AND l.status = 'Fechado Ganho'
+              AND l.status = 'Negócios Ganhos'
             ORDER BY c.id, similarity DESC
         `;
 

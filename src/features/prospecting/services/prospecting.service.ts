@@ -323,7 +323,7 @@ export async function promoteToCrm(input: PromoteInput) {
             where: {
                 companyId: company.id,
                 organizationId: input.organizationId,
-                status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] },
+                status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
             },
             include: { company: true, contact: true, timeline: true },
         });
@@ -378,7 +378,7 @@ export async function promoteToCrm(input: PromoteInput) {
 
     const lead = await prisma.lead.create({
         data: {
-            status: toPrismaLeadStatus('Novo Lead') as unknown as Prisma.LeadCreateInput['status'],
+            status: toPrismaLeadStatus('Lead Recebido') as unknown as Prisma.LeadCreateInput['status'],
             source: input.source,
             channel: 'Prospecção',
             temperature: fit?.temperature || 'Morno',

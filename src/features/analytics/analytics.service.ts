@@ -5,18 +5,29 @@ import {
     fromPrismaActivityStatus,
 } from '../../lib/enumMap.js';
 
-/** Ordem real do funil comercial — usada para o gráfico e para a conversão etapa a etapa. */
+/**
+ * Ordem real do funil comercial — usada para o gráfico e para a conversão etapa a etapa. É o
+ * funil de Negócio (pipeline pós-conversão, onde a receita realmente acontece), não o de Lead —
+ * ver LeadFunnel/LEAD_FUNNEL_STATUS em zod.ts para o funil de pré-qualificação separado.
+ */
 export const FUNNEL_STAGES = [
-    'Novo_Lead',
-    'Qualificacao',
-    'Primeiro_Contato',
-    'Diagnostico',
-    'Proposta',
-    'Negociacao',
+    'Nova_Oportunidade',
+    'Proposta_Enviada',
+    'Call_Visita_Agendada',
+    'Piloto_VTECH',
+    'Piloto_Atlas_Profile',
+    'Piloto_Atlas_Profile_Concluido',
+    'Piloto_Atlas_Profile_Cancelado',
+    'Piloto_Logistica',
+    'Piloto_Logistico_Concluido',
+    'Piloto_Logistico_Cancelado',
 ] as const;
 
-const WON = 'Fechado_Ganho';
-const LOST = 'Fechado_Perdido';
+const WON = 'Negocios_Ganhos';
+const LOST = 'Negocios_Perdidos';
+// Terceiro estado terminal — do funil de Lead, não do de Negócio — que também precisa sair das
+// contagens de "em aberto"; sem isto, leads desqualificados voltariam a inflar `totalLeads`.
+const DISQUALIFIED = 'Lead_Desqualificado';
 
 export interface OverviewMetrics {
     totalCompanies: number;
@@ -129,7 +140,7 @@ export class AnalyticsService {
         ] = await Promise.all([
             prisma.company.count({ where: scope }),
             prisma.contact.count({ where: scope }),
-            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, LOST] } } }),
+            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, LOST, DISQUALIFIED] } } }),
             prisma.lead.count({ where: scope }),
             prisma.activity.count({ where: scope }),
             prisma.activity.count({ where: { ...scope, status: 'Pendente' } }),
@@ -139,7 +150,7 @@ export class AnalyticsService {
             prisma.lead.count({ where: { ...scope, status: LOST, updatedAt: { gte: monthStart } } }),
             prisma.lead.count({ where: { ...scope, status: WON } }),
             prisma.lead.aggregate({
-                where: { ...scope, status: { notIn: [WON, LOST] }, score: { not: null } },
+                where: { ...scope, status: { notIn: [WON, LOST, DISQUALIFIED] }, score: { not: null } },
                 _avg: { score: true },
             }),
         ]);

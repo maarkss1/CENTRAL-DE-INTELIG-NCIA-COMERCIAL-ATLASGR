@@ -6,16 +6,41 @@ import { z } from 'zod';
 // tempo de compilação se um valor desconhecido for passado.
 
 export const COMPANY_STATUS = ['Ativo', 'Inativo', 'Em análise'] as const;
-export const LEAD_STATUS = [
-    'Novo Lead',
-    'Qualificação',
-    'Primeiro Contato',
-    'Diagnóstico',
-    'Proposta',
-    'Negociação',
-    'Fechado Ganho',
-    'Fechado Perdido',
+
+// Funil de Leads (pré-qualificação, 6 etapas) — mesma lista de status do objeto Lead no Bitrix24.
+export const LEAD_FUNNEL_STATUS = [
+    'Lead Recebido',
+    'Cadência Iniciada',
+    'Qualificação (SDR)',
+    'Reunião Agendada',
+    'Convertido em Oportunidade',
+    'Lead Desqualificado',
 ] as const;
+
+// Funil de Negócios (pipeline comercial real, 12 etapas) — mesmas etapas do pipeline "Negócios"
+// padrão no Bitrix24 (categoria 0).
+export const DEAL_FUNNEL_STATUS = [
+    'Nova Oportunidade',
+    'Proposta Enviada',
+    'Call/Visita Agendada',
+    'Piloto VTECH',
+    'Piloto Atlas Profile',
+    'Piloto Atlas Profile - Concluído',
+    'Piloto Atlas Profile - Cancelado',
+    'Piloto Logística',
+    'Piloto Logístico - Concluído',
+    'Piloto Logístico - Cancelado',
+    'Negócios Ganhos',
+    'Negócios Perdidos',
+] as const;
+
+export const LEAD_STATUS = [...LEAD_FUNNEL_STATUS, ...DEAL_FUNNEL_STATUS] as const;
+
+// Qual dos dois Kanbans (e qual subconjunto de LEAD_STATUS) um Lead pertence agora. Todo Lead
+// nasce em "Lead"; vira "Negocio" quando convertido em oportunidade real — mesma transição que o
+// Bitrix24 faz quando um Lead vira Deal.
+export const LEAD_FUNNEL = ['Lead', 'Negocio'] as const;
+
 export const ACTIVITY_TYPE = ['Ligação', 'WhatsApp', 'E-mail', 'Reunião', 'Follow-up', 'Visita', 'Tarefa'] as const;
 export const ACTIVITY_STATUS = ['Pendente', 'Em andamento', 'Concluída', 'Cancelada'] as const;
 export const LEAD_TEMPERATURE = ['Frio', 'Morno', 'Quente'] as const;
@@ -24,6 +49,7 @@ export const CONTACT_STATUS = ['Ativo', 'Inativo'] as const;
 // TypeScript union types derivados dos arrays de enums
 export type CompanyStatus = (typeof COMPANY_STATUS)[number];
 export type LeadStatus = (typeof LEAD_STATUS)[number];
+export type LeadFunnel = (typeof LEAD_FUNNEL)[number];
 export type ActivityType = (typeof ACTIVITY_TYPE)[number];
 export type ActivityStatus = (typeof ACTIVITY_STATUS)[number];
 export type LeadTemperature = (typeof LEAD_TEMPERATURE)[number];
@@ -72,7 +98,8 @@ export const contactSchema = z.object({
 
 export const leadSchema = z.object({
     // Core CRM fields
-    status: z.enum(LEAD_STATUS).default('Novo Lead'),
+    status: z.enum(LEAD_STATUS).default('Lead Recebido'),
+    funnel: z.enum(LEAD_FUNNEL).default('Lead'),
     source: z.string().optional().nullable(),
     channel: z.string().optional().nullable(),
     temperature: z.enum(LEAD_TEMPERATURE).optional().nullable(),
@@ -84,6 +111,17 @@ export const leadSchema = z.object({
     pic: z.enum(['PIC1_Expansao', 'PIC2_Risco', 'PIC3_Transicao']).optional().nullable(),
     // Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2) — objeto livre, ver LeadQualification no frontend.
     qualification: z.record(z.string(), z.any()).optional().nullable(),
+    // Campos comerciais espelhados do Bitrix24 (ver bitrixFieldMap.ts) — preenchidos manualmente
+    // pelo time ou sincronizados na importação/exportação.
+    resumeDate: z.string().optional().nullable(),
+    cadenceStage: z.string().optional().nullable(),
+    lossReason: z.string().optional().nullable(),
+    dealPackage: z.string().optional().nullable(),
+    dealStatus: z.string().optional().nullable(),
+    relationshipLevel: z.string().optional().nullable(),
+    commissionPercent: z.string().optional().nullable(),
+    partnerBroker: z.string().optional().nullable(),
+    qualificationValidatedByAM: z.boolean().optional().nullable(),
 });
 
 export const activitySchema = z.object({

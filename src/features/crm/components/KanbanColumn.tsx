@@ -5,14 +5,26 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 
 const STATUS_EMOJI: Record<LeadStatus, string> = {
-    'Novo Lead': '🆕',
-    'Qualificação': '🔎',
-    'Primeiro Contato': '☎️',
-    'Diagnóstico': '🩺',
-    'Proposta': '📄',
-    'Negociação': '🤝',
-    'Fechado Ganho': '🏆',
-    'Fechado Perdido': '❌',
+    // Funil de Leads
+    'Lead Recebido': '🆕',
+    'Cadência Iniciada': '📨',
+    'Qualificação (SDR)': '🔎',
+    'Reunião Agendada': '📅',
+    'Convertido em Oportunidade': '🔄',
+    'Lead Desqualificado': '🚫',
+    // Funil de Negócios
+    'Nova Oportunidade': '🎯',
+    'Proposta Enviada': '📄',
+    'Call/Visita Agendada': '☎️',
+    'Piloto VTECH': '🧪',
+    'Piloto Atlas Profile': '🧪',
+    'Piloto Atlas Profile - Concluído': '✅',
+    'Piloto Atlas Profile - Cancelado': '❌',
+    'Piloto Logística': '🚚',
+    'Piloto Logístico - Concluído': '✅',
+    'Piloto Logístico - Cancelado': '❌',
+    'Negócios Ganhos': '🏆',
+    'Negócios Perdidos': '❌',
 };
 
 interface KanbanColumnProps {
@@ -20,9 +32,11 @@ interface KanbanColumnProps {
     leads: Lead[];
     onCardClick: (lead: Lead) => void;
     onCardEnrich?: (leadId: string) => Promise<void>;
+    /** Só definido na coluna "Convertido em Oportunidade" do funil de Leads — move o card pro funil de Negócios. */
+    onCardConvert?: (leadId: string) => Promise<void>;
 }
 
-export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, onCardClick, onCardEnrich }: KanbanColumnProps) {
+export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, onCardClick, onCardEnrich, onCardConvert }: KanbanColumnProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: status,
         data: {
@@ -54,6 +68,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
                             lead={lead}
                             onClick={onCardClick}
                             onEnrich={onCardEnrich}
+                            onConvert={onCardConvert}
                         />
                     ))}
                 </SortableContext>

@@ -1,9 +1,11 @@
 import { Repository } from '../../../shared/domain/Repository';
-import { LeadStatus, LeadTemperature } from '@prisma/client';
+import { LeadStatus, LeadTemperature, LeadFunnel } from '@prisma/client';
 
 export interface Lead {
     id: string;
     status: LeadStatus;
+    /** Qual dos dois Kanbans (Leads ou Negócios) este registro pertence agora. */
+    funnel: LeadFunnel;
     source: string | null;
     channel: string | null;
     temperature: LeadTemperature | null;
@@ -16,6 +18,16 @@ export interface Lead {
     organizationId: string | null;
     pic: string | null;
     qualification: Record<string, unknown> | null;
+    // Campos comerciais espelhados do Bitrix24 (ver bitrixFieldMap.ts)
+    resumeDate: Date | null;
+    cadenceStage: string | null;
+    lossReason: string | null;
+    dealPackage: string | null;
+    dealStatus: string | null;
+    relationshipLevel: string | null;
+    commissionPercent: string | null;
+    partnerBroker: string | null;
+    qualificationValidatedByAM: boolean | null;
     createdAt: Date;
     updatedAt: Date;
     company?: unknown;
