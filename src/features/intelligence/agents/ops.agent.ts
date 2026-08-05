@@ -1,7 +1,7 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
 import { ChatOpenAI } from '@langchain/openai';
 import { prisma } from '../../../lib/prisma.js';
-import { getLeadContextTool } from '../tools/crmTools.js';
+import { getLeadContextTool, searchLeadsTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { createFollowUpTaskTool, notifyTeamTool } from '../tools/opsTools.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
@@ -14,7 +14,7 @@ import { logAiUsage } from '../../../lib/ai/gateway.js';
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
 // via get_lead_context/search_playbook — nunca inventando um leadId ou dado de empresa.
-const tools = [getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
+const tools = [searchLeadsTool, getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
 const toolNode = new ToolNode(tools);
 
 // Lazy + memoizado: monta o cliente só no primeiro uso real (dentro de callModel), nunca na carga
@@ -57,11 +57,12 @@ async function callModel(state: typeof MessagesAnnotation.State) {
 Sua missão é EXECUTAR ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descrever o que deveria ser feito.
 
 DIRETRIZES DE EXECUÇÃO:
-1. Se a instrução mencionar um Lead e você tiver o ID dele, use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
-2. Se faltar critério ou regra de negócio (ex: quando agendar follow-up, o que vale um alerta), use 'search_playbook'.
-3. Para agendar um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real.
-4. Para alertar a equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team'.
-5. Se a instrução exigir uma ação (agendar, notificar) mas faltar um dado indispensável (ex: nenhum leadId foi informado), não invente um ID: explique objetivamente o que falta e pare.
+1. Se a instrução já vier com um Lead ID (informado explicitamente na mensagem), use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
+2. Se a instrução mencionar uma empresa, contato ou lead PELO NOME (sem um ID pronto), use 'search_leads' primeiro para localizar o(s) lead(s) correspondente(s) — nunca recuse a missão só porque não veio um ID explícito, o CRM pode ser consultado por nome. Se 'search_leads' retornar exatamente um resultado, use o ID retornado normalmente. Se retornar mais de um, peça esclarecimento indicando as opções em vez de escolher arbitrariamente. Se não retornar nada, então sim explique que não encontrou e pare.
+3. Se faltar critério ou regra de negócio (ex: quando agendar follow-up, o que vale um alerta), use 'search_playbook'.
+4. Para agendar um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real.
+5. Para alertar a equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team'.
+6. Só desista de uma ação (agendar, notificar) por falta de leadId depois de tentar 'search_leads' e não achar nada correspondente — nunca invente um ID.
 Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um dado essencial, então responda com um resumo curto e direto do que foi (ou não pôde ser) executado.`,
     );
 
