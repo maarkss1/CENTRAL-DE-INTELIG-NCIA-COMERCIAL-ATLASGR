@@ -59,6 +59,7 @@ import { enabledOrganizations } from './src/features/integrations/birth-voice/co
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
+import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -197,6 +198,7 @@ async function startServer() {
     // HMAC calculada sobre os bytes crus do corpo, que o parser global consumiria. Quem chama é o
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
+    app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
 
     app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
     // CORREÇÃO: JSON_BODY_LIMIT definida em env.ts (default '2mb') mas o valor
@@ -298,6 +300,7 @@ async function startServer() {
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
+    app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
     app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
@@ -351,19 +354,18 @@ async function startServer() {
         await initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
-    // Prospecção fria: só sobe se houver organização explicitamente autorizada (ver
-    // SDR_COLD_CALL_ENABLED e SDR_COLD_CALL_ORGANIZATIONS). Sem isso, nenhum worker é criado.
-    const coldCallWorker = enabledOrganizations().length > 0 ? createColdCallWorker() : null;
+    // Prospecção fria: sobe para as organizações autorizadas ou todas quando configurado.
+    const coldCallOrgs = await enabledOrganizations();
+    const coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
     if (coldCallWorker) {
         await scheduleColdCallCampaigns().catch((err) =>
             logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
         );
     }
 
-    // Enxame autônomo: mesmo desenho de opt-in explícito da prospecção fria (ver
-    // SWARM_SCHEDULER_ENABLED e SWARM_SCHEDULER_ORGANIZATIONS). Só propõe (AIPendingAction),
-    // nunca executa ação real sozinho.
-    const swarmSchedulerWorker = swarmSchedulerEnabledOrganizations().length > 0 ? createSwarmSchedulerWorker() : null;
+    // Enxame autônomo 24h: mesmo desenho de opt-in. Só propõe (AIPendingAction), nunca executa ação real sozinho.
+    const swarmOrgs = await swarmSchedulerEnabledOrganizations();
+    const swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
     if (swarmSchedulerWorker) {
         await scheduleSwarmScheduler().catch((err) =>
             logger.error({ err }, 'Falha ao agendar o enxame autônomo'),

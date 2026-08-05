@@ -39,7 +39,7 @@ export function createColdCallWorker() {
  * dez campanhas simultâneas discando para os mesmos leads.
  */
 export async function scheduleColdCallCampaigns(): Promise<number> {
-    const organizations = enabledOrganizations();
+    const organizations = await enabledOrganizations();
     if (organizations.length === 0) return 0;
 
     for (const organizationId of organizations) {

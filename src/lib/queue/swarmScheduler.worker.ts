@@ -38,7 +38,7 @@ export function createSwarmSchedulerWorker() {
  * de acumular um novo a cada reinício do servidor — mesmo padrão de scheduleColdCallCampaigns.
  */
 export async function scheduleSwarmScheduler(): Promise<number> {
-    const organizations = enabledOrganizations();
+    const organizations = await enabledOrganizations();
     if (organizations.length === 0) return 0;
 
     for (const organizationId of organizations) {

@@ -56,12 +56,14 @@ export function dialPolicyFromEnv(): DialPolicy {
  * Fail-closed por desenho: uma lista explícita de ids, e não um booleano global. Discar para
  * estranhos é a operação mais arriscada do sistema — habilitar por engano precisa ser difícil.
  */
-export function enabledOrganizations(): string[] {
+export async function enabledOrganizations(): Promise<string[]> {
     if (!env.SDR_COLD_CALL_ENABLED) return [];
-    return (env.SDR_COLD_CALL_ORGANIZATIONS ?? '')
-        .split(',')
-        .map((id) => id.trim())
-        .filter(Boolean);
+    const rawOrgs = (env.SDR_COLD_CALL_ORGANIZATIONS ?? '').trim();
+    if (!rawOrgs || rawOrgs === '*' || rawOrgs === 'all') {
+        const orgs = await prisma.organization.findMany({ select: { id: true } });
+        return orgs.map((o) => o.id);
+    }
+    return rawOrgs.split(',').map((id) => id.trim()).filter(Boolean);
 }
 
 function emptyTally(): SkipTally {

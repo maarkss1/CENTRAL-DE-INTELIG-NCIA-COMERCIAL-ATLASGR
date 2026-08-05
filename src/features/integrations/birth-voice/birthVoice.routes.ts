@@ -18,7 +18,7 @@ const router = Router();
 router.get('/cold-call/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        const enabled = enabledOrganizations().includes(organizationId);
+        const enabled = (await enabledOrganizations()).includes(organizationId);
         const recentRuns = await prisma.coldCallRun.findMany({
             where: { organizationId },
             orderBy: { runAt: 'desc' },
