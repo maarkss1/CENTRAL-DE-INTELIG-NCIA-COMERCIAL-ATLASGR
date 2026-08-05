@@ -9,6 +9,7 @@ import { requestContext } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.service.js';
 import { cacheConnection } from '../../../lib/queue/redis.js';
+import { withTimeout } from '../../../lib/http.js';
 
 export const whatsappEvents = new EventEmitter();
 
@@ -92,7 +93,10 @@ export async function initWhatsApp(organizationId: string) {
         // handshake é rejeitado com "405 Connection Failure" ANTES de qualquer QR ser emitido — a
         // sessão fica presa em "connecting" pra sempre (o front-end nunca recebe QR nem erro; ver
         // BUG relatado na tela de Integrações). Buscar a versão mais recente evita isso.
-        const { version } = await fetchLatestBaileysVersion();
+        // Com timeout: fetchLatestBaileysVersion() não aceita AbortSignal, e sem isto, se a chamada
+        // de rede travar (em vez de falhar), initWhatsApp nunca chega ao catch abaixo — reintroduzindo
+        // exatamente o mesmo bug de sessão presa em "connecting" pra sempre, um passo antes.
+        const { version } = await withTimeout(fetchLatestBaileysVersion(), 15_000);
 
         sock = makeWASocket({
             auth: authState.state,
