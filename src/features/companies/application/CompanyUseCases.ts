@@ -22,9 +22,11 @@ export class CompanyUseCases extends BaseUseCases<Company, CompanyRepository> {
         const validated = companySchema.parse(data);
         const company = await this.create(organizationId, validated);
 
-        // Dispatch para a fila de enriquecimento
+        // Dispatch para a fila de enriquecimento — organizationId é obrigatório para o
+        // worker injetar o tenantId no requestContext e o Prisma/RLS encontrar a empresa.
         await enrichmentQueue.add('enrich-company', {
             companyId: company.id,
+            organizationId,
             cnpj: company.cnpj || undefined,
             segmentKeywords: company.segment ? [company.segment] : undefined
         });
