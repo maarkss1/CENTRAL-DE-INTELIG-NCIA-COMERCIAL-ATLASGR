@@ -7,6 +7,7 @@ import { logger } from '../../../lib/logger.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { redactSensitiveData } from '../services/guardrails.service.js';
 import { synthesizeSpeech } from '../services/voicebox.service.js';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
 
@@ -185,8 +186,11 @@ router.post('/swarm/stream', validateRequest(swarmMissionSchema), async (req, re
 
 router.post('/swarm/learn', async (req, res, next) => {
     try {
-        const { userId, organizationId } = req.body;
-        if (!userId || !organizationId) throw new Error('userId e organizationId são obrigatórios.');
+        // userId/organizationId vêm da sessão autenticada, nunca do body — do contrário qualquer
+        // usuário logado poderia passar o organizationId de outro tenant e ler o AuditLog dele
+        // (vazamento entre tenants), além de contaminar o perfil de estilo aprendido que os outros
+        // agentes daquele tenant herdam depois.
+        const { id: userId, organizationId } = (req as AuthRequest).user;
         const learningAgent = new LearningAgent();
         const guidelines = await learningAgent.reflectAndLearn(userId, organizationId);
         res.json({ success: true, learnedGuidelines: guidelines || 'Sem ações recentes suficientes para aprender.' });
