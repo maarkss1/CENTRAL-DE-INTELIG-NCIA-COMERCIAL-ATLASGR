@@ -65,8 +65,17 @@ import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
 
 const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS
-    ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
     : ['http://localhost:3005', 'http://localhost:3000', 'http://localhost:5173'];
+
+// Sem isto, esquecer de definir ALLOWED_ORIGINS em produção fazia o servidor subir "com sucesso"
+// mas só aceitando as origens de localhost do fallback acima — todo tráfego do frontend real de
+// produção era rejeitado por CORS, uma falha silenciosa e difícil de diagnosticar (o deploy parece
+// saudável nos logs). Falhar rápido aqui torna o erro óbvio no boot em vez de um mistério em runtime.
+if (env.NODE_ENV === 'production' && !env.ALLOWED_ORIGINS) {
+    console.error('FATAL ERROR: ALLOWED_ORIGINS não está definida em produção. Encerrando.');
+    process.exit(1);
+}
 
 const sendRateLimitCommand = (...args: string[]): Promise<RedisReply> =>
     rateLimiterConnection.call(args[0], ...args.slice(1)) as Promise<RedisReply>;
@@ -115,7 +124,12 @@ async function startServer() {
             if (!origin) return callback(null, true);
             // Permitir todas as origens localmente para acesso na rede
             if (env.NODE_ENV !== 'production') return callback(null, true);
-            if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.railway.app')) return callback(null, true);
+            // CORREÇÃO: `origin.endsWith('.railway.app')` liberava CORS com credentials:true (cookies
+            // de sessão) pra QUALQUER subdomínio railway.app, não só o desta aplicação — qualquer
+            // outro app hospedado no Railway podia fazer requisições autenticadas contra esta API.
+            // O domínio real de produção (ex: seu-app.up.railway.app) deve estar listado explicitamente
+            // em ALLOWED_ORIGINS, igual a qualquer outra origem.
+            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
             callback(new Error(`CORS policy: origin ${origin} not allowed`));
         },
         credentials: true, // Necessário para Better Auth (cookies de sessão)
@@ -348,8 +362,15 @@ async function startServer() {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
+    // Hoisted pro escopo da função (não dentro do `.then()`) de propósito: precisam continuar
+    // acessíveis em `shutdown()` abaixo. Antes estavam declarados como `const` dentro do próprio
+    // `.then()`, saindo de escopo — SIGTERM/SIGINT fechavam todos os outros workers mas nunca estes
+    // dois, arriscando job duplicado (ex: discar duas vezes pro mesmo lead) depois de um restart.
+    let coldCallWorker: ReturnType<typeof createColdCallWorker> | null = null;
+    let swarmSchedulerWorker: ReturnType<typeof createSwarmSchedulerWorker> | null = null;
+
     enabledOrganizations().then((coldCallOrgs) => {
-        const coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
         if (coldCallWorker) {
             scheduleColdCallCampaigns().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
@@ -358,7 +379,7 @@ async function startServer() {
     }).catch(() => null);
 
     swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
-        const swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
         if (swarmSchedulerWorker) {
             scheduleSwarmScheduler().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
@@ -375,6 +396,8 @@ async function startServer() {
         await enrichmentWorker.close();
         await whatsappSignalWorker.close();
         await bitrixSyncWorker.close();
+        await coldCallWorker?.close();
+        await swarmSchedulerWorker?.close();
         await prisma.$disconnect();
         process.exit(0);
     };
