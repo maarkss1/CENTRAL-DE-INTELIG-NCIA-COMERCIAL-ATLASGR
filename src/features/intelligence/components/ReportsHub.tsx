@@ -6,6 +6,7 @@ import { analyticsDB } from '../../../lib/db';
 import { api } from '../../../lib/api';
 import { useBrand } from '../../../contexts/BrandContext';
 import { GlowChart } from '../../analytics/components/GlowChart';
+import { analyticsApi, type MonthlyPoint } from '../../analytics/analytics.api';
 
 type Metrics = Awaited<ReturnType<typeof analyticsDB.overview>>;
 
@@ -31,6 +32,7 @@ function renderReportMarkdown(markdown: string) {
 export function ReportsHub() {
   const { activeBrand } = useBrand();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [monthly, setMonthly] = useState<MonthlyPoint[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [report, setReport] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -43,6 +45,10 @@ export function ReportsHub() {
       .then((data) => { if (!cancelled) setMetrics(data); })
       .catch(() => { if (!cancelled) setError('Não foi possível carregar os dados da plataforma.'); })
       .finally(() => { if (!cancelled) setLoadingMetrics(false); });
+    analyticsApi
+      .dashboard(6)
+      .then((data) => { if (!cancelled) setMonthly(data.monthly); })
+      .catch(() => { if (!cancelled) setMonthly([]); });
     return () => { cancelled = true; };
   }, []);
 
@@ -87,9 +93,8 @@ export function ReportsHub() {
       )}
 
       <CardContent className="space-y-6">
-        {/* GlowChart adicionado aqui (Data Viz 3.0) */}
         <div className="mb-8 w-full">
-          <GlowChart />
+          <GlowChart data={monthly} />
         </div>
 
         {/* Métricas usadas como base do relatório */}
