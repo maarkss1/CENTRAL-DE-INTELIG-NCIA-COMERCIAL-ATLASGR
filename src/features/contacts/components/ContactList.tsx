@@ -9,6 +9,7 @@ import { ContactForm } from './ContactForm';
 import { useContacts } from '../../../hooks/useDatabase';
 import { contactsDB } from '../../../lib/db';
 import { getWhatsAppLink } from '../../../shared/utils/contact-links';
+import { toast } from '../../../lib/toast';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
@@ -47,7 +48,13 @@ export function ContactList() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir este contato?')) return;
-    await deleteContact(id);
+    try {
+      await deleteContact(id);
+      toast.success('Contato excluído.');
+    } catch (error) {
+      console.error('Error deleting contact:', error);
+      toast.error(error instanceof Error ? error.message : 'Falha ao excluir o contato — confira se você tem permissão.');
+    }
   };
 
   const handleEnrich = async (id: string) => {

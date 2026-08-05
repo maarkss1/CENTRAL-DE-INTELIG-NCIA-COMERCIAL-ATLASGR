@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useActivities } from '../../../hooks/useDatabase';
 import { Activity } from '../../../types';
+import { toast } from '../../../lib/toast';
 import React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
@@ -99,7 +100,13 @@ export function ActivityList() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Excluir esta atividade?')) return;
-    await deleteActivity(id);
+    try {
+      await deleteActivity(id);
+      toast.success('Atividade excluída.');
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+      toast.error(error instanceof Error ? error.message : 'Falha ao excluir a atividade.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

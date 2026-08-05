@@ -72,19 +72,31 @@ export function CnpjSearchPanel({
                     </div>
                 )}
 
-                {cnpjResult && !cnpjResult.found && (
-                    <div className="bg-surface rounded-2xl border border-line shadow-sm p-10 flex flex-col items-center justify-center min-h-[300px]">
-                        <AlertTriangle className="text-amber-500 mb-4" size={40} />
-                        <h3 className="font-black text-xl text-ink mb-2">
-                            {cnpjResult.error === 'invalid_format' ? 'CNPJ inválido' : 'CNPJ não encontrado na base da Receita'}
-                        </h3>
-                        <p className="text-sm text-ink-2 text-center max-w-sm">
-                            {cnpjResult.error === 'invalid_format'
-                                ? 'Verifique os dígitos verificadores e tente novamente.'
-                                : 'Confira o número digitado — esse CNPJ não foi localizado na base pública.'}
-                        </p>
-                    </div>
-                )}
+                {cnpjResult && !cnpjResult.found && (() => {
+                    // CORREÇÃO: erro de rede/timeout da Receita era mostrado como "CNPJ não existe"
+                    // — um vendedor podia descartar um lead válido por causa de uma falha transitória
+                    // que nada tem a ver com o CNPJ em si.
+                    const isTransient = cnpjResult.error === 'timeout'
+                        || cnpjResult.error === 'network_error'
+                        || (typeof cnpjResult.error === 'string' && cnpjResult.error.startsWith('upstream_error_'));
+                    const title = cnpjResult.error === 'invalid_format'
+                        ? 'CNPJ inválido'
+                        : isTransient
+                            ? 'Falha temporária ao consultar a Receita'
+                            : 'CNPJ não encontrado na base da Receita';
+                    const message = cnpjResult.error === 'invalid_format'
+                        ? 'Verifique os dígitos verificadores e tente novamente.'
+                        : isTransient
+                            ? 'A consulta à Receita Federal falhou por instabilidade de rede — não significa que o CNPJ não exista. Tente novamente em alguns instantes.'
+                            : 'Confira o número digitado — esse CNPJ não foi localizado na base pública.';
+                    return (
+                        <div className="bg-surface rounded-2xl border border-line shadow-sm p-10 flex flex-col items-center justify-center min-h-[300px]">
+                            <AlertTriangle className="text-amber-500 mb-4" size={40} />
+                            <h3 className="font-black text-xl text-ink mb-2">{title}</h3>
+                            <p className="text-sm text-ink-2 text-center max-w-sm">{message}</p>
+                        </div>
+                    );
+                })()}
 
                 {cnpjResult?.found && cnpjResult.data && (
                     <CnpjResultCard

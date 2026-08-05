@@ -338,6 +338,11 @@ export function ProspectingHub() {
     };
 
     const promoteCandidate = async (candidate: ProspectCandidate, idx: number) => {
+        // Defesa em profundidade: o botão individual já fica desabilitado durante uma promoção em
+        // massa (ver DiscoveryResultsPanel), mas um clique disparado antes do re-render aplicar o
+        // disabled ainda cairia aqui — sem este guard, isso duplicava a Company/Lead criada pela
+        // promoção em massa do mesmo candidato (check-then-act não atômico em promoteToCrm).
+        if (isSavingBatch) return;
         const key = `discovery-${idx}`;
         setPromotingKey(key);
         try {
