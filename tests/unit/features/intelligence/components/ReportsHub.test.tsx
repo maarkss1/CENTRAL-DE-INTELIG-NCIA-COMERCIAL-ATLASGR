@@ -11,13 +11,17 @@ import '@testing-library/jest-dom/vitest';
 
 const overviewMock = vi.fn();
 const postMock = vi.fn();
+const getMock = vi.fn();
 
 vi.mock('@/lib/db', () => ({
     analyticsDB: { overview: (...args: unknown[]) => overviewMock(...args) },
 }));
 
 vi.mock('@/lib/api', () => ({
-    api: { post: (...args: unknown[]) => postMock(...args) },
+    api: {
+        post: (...args: unknown[]) => postMock(...args),
+        get: (...args: unknown[]) => getMock(...args),
+    },
 }));
 
 import { ReportsHub } from '@/features/intelligence/components/ReportsHub';
@@ -49,6 +53,7 @@ const metricsFixture = {
 beforeEach(() => {
     vi.clearAllMocks();
     overviewMock.mockResolvedValue(metricsFixture);
+    getMock.mockResolvedValue({ monthly: [] });
     Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, value: 800 });
     Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: 400 });
 });
