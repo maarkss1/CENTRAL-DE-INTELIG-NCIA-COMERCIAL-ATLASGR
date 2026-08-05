@@ -74,10 +74,16 @@ export class NotificationService {
         });
     }
 
-    /** Marca uma notificação como lida. Devolve `false` se ela não pertence ao tenant. */
-    async markRead(organizationId: string, id: string): Promise<boolean> {
+    /**
+     * Marca uma notificação como lida. Devolve `false` se ela não pertence ao tenant, ou se é uma
+     * notificação pessoal (userId preenchido) endereçada a OUTRO usuário — mesma regra de
+     * visibilidade de `list()`/`unreadCount()` (dono da notificação ou entregue à organização
+     * inteira). Sem isso, qualquer usuário da mesma organização que descobrisse o id de uma
+     * notificação pessoal de um colega podia marcá-la como lida antes dele ver.
+     */
+    async markRead(organizationId: string, id: string, userId: string): Promise<boolean> {
         const { count } = await prisma.notification.updateMany({
-            where: { id, organizationId, readAt: null },
+            where: { id, organizationId, readAt: null, OR: [{ userId }, { userId: null }] },
             data: { readAt: new Date() },
         });
         return count > 0;
@@ -91,8 +97,11 @@ export class NotificationService {
         return count;
     }
 
-    async remove(organizationId: string, id: string): Promise<boolean> {
-        const { count } = await prisma.notification.deleteMany({ where: { id, organizationId } });
+    /** Mesma regra de visibilidade do markRead: só o dono (ou notificação da organização inteira). */
+    async remove(organizationId: string, id: string, userId: string): Promise<boolean> {
+        const { count } = await prisma.notification.deleteMany({
+            where: { id, organizationId, OR: [{ userId }, { userId: null }] },
+        });
         return count > 0;
     }
 }

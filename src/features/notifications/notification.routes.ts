@@ -22,8 +22,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 /** POST /api/notifications/:id/read */
 router.post('/:id/read', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
-        const ok = await notificationService.markRead(organizationId, req.params.id);
+        const { organizationId, id: userId } = (req as AuthRequest).user;
+        const ok = await notificationService.markRead(organizationId, req.params.id, userId);
         if (!ok) {
             res.status(404).json({ success: false, error: 'Notificação não encontrada ou já lida.' });
             return;
@@ -47,8 +47,8 @@ router.post('/read-all', async (req: Request, res: Response, next: NextFunction)
 
 router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { organizationId } = (req as AuthRequest).user;
-        const ok = await notificationService.remove(organizationId, req.params.id);
+        const { organizationId, id: userId } = (req as AuthRequest).user;
+        const ok = await notificationService.remove(organizationId, req.params.id, userId);
         if (!ok) {
             res.status(404).json({ success: false, error: 'Notificação não encontrada.' });
             return;
