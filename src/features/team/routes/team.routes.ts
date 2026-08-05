@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
-import { listTeamMembers, listAssignableOwners, createTeamMember, deleteTeamMember, TeamServiceError, ASSIGNABLE_ROLES } from '../services/team.service.js';
+import { listTeamMembers, listAssignableOwners, createTeamMember, resetTeamMemberPassword, deleteTeamMember, TeamServiceError, ASSIGNABLE_ROLES } from '../services/team.service.js';
 
 const router = Router();
 
@@ -44,6 +44,21 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
         // A senha temporária só existe nesta resposta — nunca é persistida em texto puro nem
         // devolvida de novo depois. O admin precisa copiá-la e repassar agora.
         res.status(201).json({ success: true, data: { member, tempPassword } });
+    } catch (error) {
+        if (error instanceof TeamServiceError) {
+            res.status(error.statusCode).json({ success: false, error: error.message });
+            return;
+        }
+        next(error);
+    }
+});
+
+router.post('/:id/reset-password', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const authReq = req as AuthRequest;
+        const { member, tempPassword } = await resetTeamMemberPassword(authReq.user.organizationId, req.params.id);
+        // Mesma regra da criação: a senha só existe nesta resposta, nunca é devolvida de novo.
+        res.json({ success: true, data: { member, tempPassword } });
     } catch (error) {
         if (error instanceof TeamServiceError) {
             res.status(error.statusCode).json({ success: false, error: error.message });

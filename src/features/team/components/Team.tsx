@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, Check, Copy, Loader2, Shield, Trash2, UserPlus, Users } from 'lucide-react';
+import { AlertCircle, Check, Copy, KeyRound, Loader2, Shield, Trash2, UserPlus, Users } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -31,10 +31,12 @@ export function Team() {
     const [role, setRole] = useState('VENDEDOR');
     const [isCreating, setIsCreating] = useState(false);
     const [createError, setCreateError] = useState('');
-    const [createdCredentials, setCreatedCredentials] = useState<{ email: string; tempPassword: string } | null>(null);
+    const [revealedCredentials, setRevealedCredentials] = useState<{ email: string; tempPassword: string; justCreated: boolean } | null>(null);
     const [copied, setCopied] = useState(false);
 
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [resettingId, setResettingId] = useState<string | null>(null);
+    const [resetError, setResetError] = useState('');
 
     const loadMembers = async () => {
         setIsLoading(true);
@@ -58,11 +60,11 @@ export function Team() {
         e.preventDefault();
         setIsCreating(true);
         setCreateError('');
-        setCreatedCredentials(null);
+        setRevealedCredentials(null);
         try {
             const data = await api.post<{ member: TeamMember; tempPassword: string }>('/api/team', { name, email, role });
             setMembers((prev) => [...prev, data.member]);
-            setCreatedCredentials({ email: data.member.email, tempPassword: data.tempPassword });
+            setRevealedCredentials({ email: data.member.email, tempPassword: data.tempPassword, justCreated: true });
             setName('');
             setEmail('');
             setRole('VENDEDOR');
@@ -70,6 +72,27 @@ export function Team() {
             setCreateError(error instanceof Error ? error.message : 'Falha ao criar usuário.');
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleResetPassword = async (member: TeamMember) => {
+        const isSelf = member.id === currentUser?.id;
+        if (!window.confirm(
+            isSelf
+                ? 'Redefinir a sua própria senha? Sua sessão atual será encerrada e você vai precisar entrar de novo com a senha temporária gerada agora.'
+                : `Redefinir a senha de ${member.name}? O acesso atual dela(e) para de funcionar imediatamente — só volta a entrar com a senha temporária que você vai copiar agora.`
+        )) return;
+        setResettingId(member.id);
+        setResetError('');
+        setRevealedCredentials(null);
+        try {
+            const data = await api.post<{ member: TeamMember; tempPassword: string }>(`/api/team/${member.id}/reset-password`, {});
+            setMembers((prev) => prev.map((m) => (m.id === data.member.id ? data.member : m)));
+            setRevealedCredentials({ email: data.member.email, tempPassword: data.tempPassword, justCreated: false });
+        } catch (error) {
+            setResetError(error instanceof Error ? error.message : 'Falha ao redefinir a senha.');
+        } finally {
+            setResettingId(null);
         }
     };
 
@@ -87,8 +110,8 @@ export function Team() {
     };
 
     const copyCredentials = () => {
-        if (!createdCredentials) return;
-        navigator.clipboard.writeText(`E-mail: ${createdCredentials.email}\nSenha temporária: ${createdCredentials.tempPassword}`);
+        if (!revealedCredentials) return;
+        navigator.clipboard.writeText(`E-mail: ${revealedCredentials.email}\nSenha temporária: ${revealedCredentials.tempPassword}`);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -118,12 +141,14 @@ export function Team() {
                         </div>
                     )}
 
-                    {createdCredentials && (
+                    {revealedCredentials && (
                         <div className="bg-success/10 border border-success/30 rounded-xl p-4 text-xs space-y-2">
-                            <p className="font-bold text-success">Usuário criado! Copie a senha temporária agora — ela não aparece de novo.</p>
+                            <p className="font-bold text-success">
+                                {revealedCredentials.justCreated ? 'Usuário criado!' : 'Senha redefinida!'} Copie a senha temporária agora — ela não aparece de novo.
+                            </p>
                             <div className="bg-surface font-mono p-3 rounded-lg border border-line text-ink">
-                                <div>{createdCredentials.email}</div>
-                                <div>{createdCredentials.tempPassword}</div>
+                                <div>{revealedCredentials.email}</div>
+                                <div>{revealedCredentials.tempPassword}</div>
                             </div>
                             <button
                                 type="button"
@@ -185,10 +210,15 @@ export function Team() {
 
                 {/* Lista de usuários */}
                 <div className="bg-surface/80 rounded-2xl border border-line overflow-hidden">
-                    <div className="px-6 py-4 border-b border-line">
+                    <div className="px-6 py-4 border-b border-line space-y-2">
                         <h2 className="font-black text-sm text-ink flex items-center gap-2">
                             <Shield size={16} className="text-atlas-orange" /> Usuários da organização ({members.length})
                         </h2>
+                        {resetError && (
+                            <div className="bg-danger/10 border border-danger/30 text-danger p-2.5 rounded-lg text-xs flex items-start gap-2">
+                                <AlertCircle size={14} className="shrink-0 mt-0.5" /> {resetError}
+                            </div>
+                        )}
                     </div>
 
                     {isLoading ? (
@@ -210,6 +240,15 @@ export function Team() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info font-bold">{ROLE_LABELS[member.role] || member.role}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleResetPassword(member)}
+                                            disabled={resettingId === member.id}
+                                            title={member.id === currentUser?.id ? 'Redefinir a sua própria senha' : `Redefinir a senha de ${member.name}`}
+                                            className="text-ink-2 hover:bg-atlas-orange/10 hover:text-atlas-orange p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                        >
+                                            {resettingId === member.id ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() => handleDelete(member)}
