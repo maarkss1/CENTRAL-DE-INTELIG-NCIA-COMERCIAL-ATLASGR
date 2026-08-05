@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
 import { logger } from '../../lib/logger.js';
+import { env } from '../../config/env.js';
 
 export interface ApiResponse<T = unknown> {
     success: boolean;
@@ -63,8 +64,12 @@ export const errorHandler = (err: Error & { statusCode?: number; details?: unkno
     }
 
     const status = err.statusCode ?? 500;
+    const errorMessage = env.NODE_ENV === 'production' && status === 500
+        ? 'Erro Interno do Servidor'
+        : (err.message || 'Erro Interno do Servidor');
+
     res.status(status).json({
         success: false,
-        error: err.message || 'Erro Interno do Servidor'
+        error: errorMessage
     });
 };

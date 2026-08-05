@@ -132,6 +132,9 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             const phone = contact?.phone || company?.phones?.[0] || '';
 
             const cols: unknown[] = new Array(headers.length).fill('');
+            // CORREÇÃO: Preencher col[0] (ID) para que o Bitrix24 possa atualizar
+            // registros existentes em vez de criar duplicados a cada re-exportação.
+            cols[0] = l.id || '';
             cols[1] = company?.tradeName || company?.legalName || l.source || '';
             cols[3] = firstName || '';
             cols[4] = lastName || '';
@@ -163,13 +166,19 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             cols[82] = qual.rastreador || '';
             cols[83] = qual.seguradora || '';
             cols[84] = qual.corretora || '';
-            cols[85] = qual.possuiGR || '';
+            // CORREÇÃO: cols[85] era 'possuiGR' duplicado — deve ser 'fornecedorGR'
+            // (campo "Fornecedor de GR Atual" no cabeçalho).
+            cols[85] = qual.fornecedorGR || '';
             cols[86] = qual.possuiGR || '';
             cols[87] = qual.usaTerceiros || '';
+            // CORREÇÃO: cols[88] era 'possuiSoftwareLogistico' duplicado — deve ser
+            // 'possuiSoftwareLogistico' e cols[89] deve ser 'softwareLogisticoAtual'.
             cols[88] = qual.possuiSoftwareLogistico || '';
-            cols[89] = qual.possuiSoftwareLogistico || '';
+            cols[89] = qual.softwareLogisticoAtual || '';
+            // CORREÇÃO: cols[90] era 'possuiCadastroMotorista' duplicado — cols[91]
+            // deve ser 'cadastroAtual' (campo "Consulta e Cadastro Atual").
             cols[90] = qual.possuiCadastroMotorista || '';
-            cols[91] = qual.possuiCadastroMotorista || '';
+            cols[91] = qual.cadastroAtual || '';
             cols[92] = qual.dorPrincipal || '';
             cols[93] = qual.detalhamentoDor || '';
             cols[94] = qual.solucaoAtlas || '';
@@ -188,11 +197,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
     }
 
     async exportLeadToBitrix(organizationId: string, leadId: string | undefined) {
-        if (!leadId) {
-            return { success: true, message: 'Exportação em lote via webhook em breve' };
-        }
-        const { exportLeadToBitrixNow } = await import('../../integrations/bitrix/bitrix.service');
-        const { bitrixLeadId } = await exportLeadToBitrixNow(organizationId, leadId);
-        return { bitrixLeadId };
+        const { exportLeadToBitrixNow } = await import('../../integrations/bitrix/bitrix.service.js');
+        return exportLeadToBitrixNow(organizationId, leadId);
     }
 }

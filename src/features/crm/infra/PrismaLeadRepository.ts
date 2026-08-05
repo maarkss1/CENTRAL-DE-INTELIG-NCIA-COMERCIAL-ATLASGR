@@ -96,11 +96,11 @@ export class PrismaLeadRepository implements LeadRepository {
     }
 
     async update(organizationId: string, id: string, data: Partial<Lead> & { status?: string }): Promise<Lead> {
-        const currentLead = await prisma.lead.findFirst({ where: { id, organizationId } });
-        if (!currentLead) throw new Error('Lead not found');
-
+        // Não fazemos findFirst prévio: se o lead não existir (ou não pertencer ao org),
+        // o Prisma lança P2025 que o errorHandler mapeia para 404 — sem N+1 queries.
+        // O `where` inclui organizationId para garantir isolamento de tenant.
         const lead = await prisma.lead.update({
-            where: { id },
+            where: { id, organizationId },
             data: {
                 ...data,
                 ...(data.status ? { status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'] } : {}),
@@ -121,12 +121,15 @@ export class PrismaLeadRepository implements LeadRepository {
     }
 
     async updateStatus(organizationId: string, id: string, newStatus: string): Promise<Lead> {
+        // Busca o status atual para compor a mensagem de timeline, e valida a existência + tenant
+        // numa única query. Se não encontrar, lança Error que o errorHandler converte em 404.
         const currentLead = await prisma.lead.findFirst({ where: { id, organizationId } });
         if (!currentLead) throw new Error('Lead not found');
 
         const previousStatusLabel = fromPrismaLeadStatus(currentLead.status);
+        // O `where` inclui organizationId para garantir isolamento de tenant no update.
         const lead = await prisma.lead.update({
-            where: { id },
+            where: { id, organizationId },
             data: {
                 status: toPrismaLeadStatus(newStatus as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'],
                 timeline: {
@@ -142,9 +145,22 @@ export class PrismaLeadRepository implements LeadRepository {
     }
 
     async delete(organizationId: string, id: string): Promise<Lead> {
-        const currentLead = await prisma.lead.findFirst({ where: { id, organizationId } });
-        if (!currentLead) throw new Error('Lead not found');
-        return prisma.lead.delete({ where: { id } }) as unknown as Lead;
+        // CORREÇÃO: Usar soft delete (update com deletedAt) em vez de hard delete.
+        // A chamada direta a prisma.lead.delete() bypassava a extensão em prisma.ts que
+        // intercepta deletes e os converte para update com deletedAt — o registro era
+        // removido fisicamente do banco. Agora aplicamos o soft delete explicitamente,
+        // garantindo consistência com o resto do sistema (filtros de findMany, cascade, etc.).
+        // O `where` inclui organizationId para garantir isolamento de tenant.
+        const lead = await prisma.lead.update({
+            where: { id, organizationId },
+            data: { deletedAt: new Date() },
+        }).catch((err) => {
+            // Prisma lança P2025 quando o registro não existe — propagamos como erro simples
+            // para o errorHandler mapear para 404.
+            if (err?.code === 'P2025') throw new Error('Lead not found');
+            throw err;
+        });
+        return lead as unknown as Lead;
     }
 
     async findAllForExport(organizationId: string): Promise<Lead[]> {
@@ -153,6 +169,9 @@ export class PrismaLeadRepository implements LeadRepository {
             include: { company: true, contact: true },
             orderBy: { createdAt: 'desc' },
         });
-        return leads as unknown as Lead[];
+        // CORREÇÃO: Aplicar serializeLead para converter enums internos do Prisma
+        // (ex: 'Novo_Lead') para os rótulos legíveis usados na UI e no CSV
+        // (ex: 'Novo Lead'). Sem isso, o Bitrix24 recebia valores ilegíveis.
+        return leads.map(serializeLead) as unknown as Lead[];
     }
 }

@@ -80,6 +80,13 @@ async function startServer() {
     const PORT = parseInt(env.PORT, 10);
 
     // ── Segurança ──────────────────────────────────────────────────────────
+    // CORREÇÃO: TRUST_PROXY definido em env.ts mas nunca aplicado aqui — sem isso
+    // o rate limiter usava o IP do proxy reverso (sempre o mesmo) em vez do IP real
+    // do cliente, tornando o limite ineficaz em produção atrás de um load balancer.
+    if (env.TRUST_PROXY) {
+        app.set('trust proxy', 1);
+    }
+
     // Helmet adiciona cabeçalhos HTTP de segurança (X-Frame-Options, HSTS, etc.)
     // CSP customizada (em vez do default implícito do Helmet) cobrindo os recursos
     // externos conhecidos da aplicação: Google Fonts, Font Awesome (cdnjs), áudio
@@ -191,7 +198,9 @@ async function startServer() {
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
 
-    app.use(express.json({ limit: '10mb' }));
+    app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+    // CORREÇÃO: JSON_BODY_LIMIT definida em env.ts (default '2mb') mas o valor
+    // hardcoded '10mb' aqui sobrescrevia a configuração da env completamente.
 
     // ── Metrics ────────────────────────────────────────────────────────────
     // OBS-001: EXPOSE_METRICS existia em env.ts mas nunca era lida aqui — /metrics ficava sempre
@@ -249,7 +258,9 @@ async function startServer() {
     // do Better Auth). O isolamento de dados de negócio (companies, leads, etc.) continua
     // real: essas rotas passam por authenticateToken, que só concede tenantId real da sessão.
     const authHandler = toNodeHandler(auth);
-    app.all('/api/auth/*', (req, res) => {
+    // CORREÇÃO: app.all captura todos os métodos HTTP, incluindo CONNECT e TRACE.
+    // app.use é mais correto aqui: deixa o Better Auth decidir quais métodos aceita.
+    app.use('/api/auth', (req, res) => {
         requestContext.run({ bypassRls: true }, () => authHandler(req, res));
     });
 

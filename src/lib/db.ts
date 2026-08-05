@@ -180,7 +180,7 @@ export const aiToolsStore = {
 
   save: (tool: { name: string; category: string; prompt: string }) => {
     const tools = aiToolsStore.list();
-    const newTool = { ...tool, id: Date.now().toString(), createdAt: new Date().toISOString() };
+    const newTool = { ...tool, id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), createdAt: new Date().toISOString() };
     tools.unshift(newTool);
     localStorage.setItem(aiToolsStore.STORAGE_KEY, JSON.stringify(tools));
     return newTool;

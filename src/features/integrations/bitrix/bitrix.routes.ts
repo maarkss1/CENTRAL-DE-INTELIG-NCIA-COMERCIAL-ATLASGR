@@ -16,6 +16,7 @@ import {
     setSyncRuleActive,
     deleteSyncRule,
     getLeadStatuses,
+    testBitrixConnection,
 } from './bitrix.service.js';
 
 const router = Router();
@@ -40,6 +41,16 @@ router.post('/connect', async (req: Request, res: Response, next: NextFunction):
         const { organizationId } = (req as AuthRequest).user;
         const { webhookUrl, label } = req.body;
         const result = await connectBitrix(organizationId, webhookUrl, label);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/connections/:connectionId/test', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await testBitrixConnection(organizationId, req.params.connectionId);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

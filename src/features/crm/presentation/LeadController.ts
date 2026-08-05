@@ -2,17 +2,20 @@ import { Request, Response, NextFunction } from 'express';
 import { LeadUseCases } from '../application/LeadUseCases';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import { automationEngine } from '../../automations/automation.engine';
+import { logger } from '../../../lib/logger';
 
 const UTF8_BOM = String.fromCharCode(0xfeff);
 
 /**
  * Dispara as automações sem bloquear a resposta.
  *
- * O motor já engole os próprios erros; o `.catch` aqui é a última rede para que uma rejeição
- * inesperada não vire um unhandled rejection e derrube o processo.
+ * O motor já engole os próprios erros; o `.catch` aqui registra eventuais exceções não tratadas
+ * sem bloquear o fluxo do controller.
  */
 function fireAutomations(event: Parameters<typeof automationEngine.handle>[0]): void {
-    void automationEngine.handle(event).catch(() => {});
+    void automationEngine.handle(event).catch((err) => {
+        logger.error({ err, event }, 'Erro não tratado no disparo assíncrono de automações');
+    });
 }
 
 export class LeadController {

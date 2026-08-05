@@ -101,7 +101,7 @@ function conversationHandler(pathMode: AssistantMode) {
             const request = req.body as ConversationRequest;
             const mode = resolveMode(pathMode, request.tool);
             const result = await generateReply(request, mode);
-            res.json({ success: true, ...result });
+            res.json({ success: true, data: result, ...result });
         } catch (error) {
             logger.error({ err: error, mode: pathMode }, 'AI assistant request failed');
             next(error);
