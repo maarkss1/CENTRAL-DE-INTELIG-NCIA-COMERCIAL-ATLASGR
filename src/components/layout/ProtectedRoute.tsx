@@ -1,5 +1,4 @@
 import { ReactNode, lazy, Suspense } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -16,10 +15,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         );
     }
 
-    // Se o usuário não está autenticado, redireciona estritamente para a Tela de Login
-    if (!currentUser) {
-        return <Navigate to="/login" replace />;
-    }
+    // A plataforma agora abre em modo público quando não há sessão.
 
     // Senha temporária/padrão definida por um admin — bloqueia o resto do app até trocar.
     if (currentUser.mustChangePassword) {
