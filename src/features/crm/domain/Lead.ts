@@ -1,11 +1,11 @@
 import { Repository } from '../../../shared/domain/Repository';
-import { LeadStatus, LeadTemperature, LeadFunnel } from '@prisma/client';
+import { LeadStatus, LeadTemperature,   } from '@prisma/client';
 
 export interface Lead {
     id: string;
     status: LeadStatus;
     /** Qual dos dois Kanbans (Leads ou Negócios) este registro pertence agora. */
-    funnel: LeadFunnel;
+    funnel: "LEADS" | "NEGOCIOS";
     source: string | null;
     channel: string | null;
     temperature: LeadTemperature | null;
