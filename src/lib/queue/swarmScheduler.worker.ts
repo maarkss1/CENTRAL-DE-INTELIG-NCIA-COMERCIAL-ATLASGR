@@ -41,11 +41,11 @@ export async function scheduleSwarmScheduler(): Promise<number> {
     const organizations = await enabledOrganizations();
     if (organizations.length === 0) return 0;
 
-    for (const organizationId of organizations) {
-        await swarmSchedulerQueue.add(
-            'run-swarm-scheduler',
-            { organizationId },
-            {
+    await swarmSchedulerQueue.addBulk(
+        organizations.map((organizationId) => ({
+            name: 'run-swarm-scheduler',
+            data: { organizationId },
+            opts: {
                 repeat: { every: RUN_EVERY_MS },
                 jobId: `swarm-scheduler-${organizationId}`,
                 removeOnComplete: true,
@@ -53,8 +53,8 @@ export async function scheduleSwarmScheduler(): Promise<number> {
                 // recomendações duplicadas pros mesmos leads.
                 attempts: 1,
             },
-        );
-    }
+        }))
+    );
 
     logger.info({ organizations }, 'Enxame autônomo agendado.');
     return organizations.length;

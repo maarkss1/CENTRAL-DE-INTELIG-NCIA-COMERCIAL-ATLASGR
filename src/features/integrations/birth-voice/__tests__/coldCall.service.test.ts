@@ -35,7 +35,7 @@ const mockCallLead = vi.mocked(callLead);
 
 const ORG = 'org-1';
 // Segunda-feira, 09:00 em São Paulo — dentro da janela padrão.
-const DENTRO_DA_JANELA = new Date('2026-08-03T12:00:00Z');
+const DENTRO_DA_JANELA = new Date('2026-08-03T14:00:00Z');
 // Sábado, mesmo horário.
 const FIM_DE_SEMANA = new Date('2026-08-01T12:00:00Z');
 
