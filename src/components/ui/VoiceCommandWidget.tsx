@@ -3,30 +3,30 @@ import { Mic, Sparkles, Volume2, Command, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../contexts/BrandContext';
 import { navigationBus } from '../../lib/navigationBus';
+import { clientLogger } from '../../lib/clientLogger';
+
+// SpeechRecognitionLike / Window.SpeechRecognition são tipos ambient globais definidos em
+// src/types/speech-recognition.d.ts (Web Speech API não faz parte da lib "DOM" do TypeScript).
 
 export function VoiceCommandWidget() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognitionLike | null>(null);
   const { setActiveBrand } = useBrand();
 
   useEffect(() => {
     // Inicializa Web Speech API se suportado pelo navegador
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const rec = new SpeechRecognitionAPI();
       rec.continuous = false;
       rec.interimResults = true;
       rec.lang = 'pt-BR';
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rec.onresult = (event: any) => {
+      rec.onresult = (event) => {
         const currentText = Array.from(event.results)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((result: any) => result[0].transcript)
+          .map((result) => result[0].transcript)
           .join('');
         
         setTranscript(currentText);
@@ -93,7 +93,7 @@ export function VoiceCommandWidget() {
       try {
         recognition.start();
       } catch (err) {
-        console.error(err);
+        clientLogger.error({ err }, 'Falha ao iniciar reconhecimento de voz');
       }
     }
   };
@@ -104,7 +104,7 @@ export function VoiceCommandWidget() {
       try {
         recognition.stop();
       } catch (err) {
-        console.error(err);
+        clientLogger.error({ err }, 'Falha ao parar reconhecimento de voz');
       }
     }
   };

@@ -8,6 +8,7 @@ import { BDRAgent } from './bdr.agent.js';
 import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 // Lazy + memoizado: monta o cliente só no primeiro uso real, nunca na carga do módulo —
 // process.env.GROQ_API_KEY lido numa const de topo de arquivo ficava congelado como vazio se este
@@ -214,8 +215,7 @@ async function supervisorNode(state: SwarmStateType) {
         ? `Lead ID disponível para esta missão: ${state.leadId} (o especialista 'sdr' pode usá-lo).`
         : `Nenhum Lead ID foi informado para esta missão — NÃO escolha 'sdr' enquanto isso não mudar, pois ele depende de um lead real do CRM e sempre falharia sem um ID.`;
 
-    const systemPrompt = `Você é o Supervisor de um Enxame (Swarm) de Agentes de Inteligência Comercial da Atlas.
-Você coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
+    const systemPrompt = `${SWARM_IDENTITY} Você é o Supervisor: coordena ${agentKeys.length} especialistas e decide, a cada rodada, qual deve atuar a seguir (ou se a missão está concluída):
 ${(Object.entries(AGENT_INFO) as [SwarmAgentKey, { label: string; description: string; chooseWhen: string }][])
     .map(([key, info]) => `- '${key}' (${info.label}): ${info.description}\n  Escolha quando: ${info.chooseWhen}`)
     .join('\n')}
@@ -230,7 +230,7 @@ Resultados produzidos até agora:
 ${resultsSummary}
 
 Decida o próximo passo usando a ferramenta de decisão de roteamento. Escolha o especialista cujo critério "Escolha quando" bate com a missão — se mais de um parecer plausível, prefira o mais específico. Não repita um especialista que já respondeu de forma satisfatória, a não ser que haja uma lacuna clara que só ele resolve.
-A instrução que você escrever para o especialista deve citar o dado concreto da missão que ele precisa usar — nunca escreva uma instrução genérica como "analise os dados disponíveis".
+A instrução que você escrever para o especialista deve ser objetiva, caber em 1 a 2 frases e citar o dado concreto da missão que ele precisa usar — nunca escreva uma instrução genérica como "analise os dados disponíveis", e nunca a deixe vazia a menos que a ação seja 'finish'.
 Se a missão já foi suficientemente atendida pelos especialistas já acionados, escolha 'finish'.`;
 
     let decision: SupervisorDecision;
@@ -422,7 +422,9 @@ async function finishNode(state: SwarmStateType) {
         const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
         const response = await model.invoke([
             new SystemMessage(
-                'Você é o Supervisor do Enxame de Agentes da Atlas. Com base na missão do usuário e nos resultados retornados pelos especialistas, escreva uma resposta final única, direta e acionável em português do Brasil, sem markdown, resumindo o que foi feito e quais são os próximos passos recomendados. Baseie-se SOMENTE nas informações fornecidas; não invente dados novos.',
+                `${SWARM_IDENTITY} Você é o Supervisor encerrando a missão. Com base na missão do usuário e nos ` +
+                'resultados retornados pelos especialistas, escreva uma síntese final única, direta e acionável ' +
+                `(no máximo 5 frases), resumindo o que foi feito e quais são os próximos passos recomendados. ${SWARM_OUTPUT_CONTRACT}`,
             ),
             new HumanMessage(`Missão: ${state.mission}\n\nResultados dos especialistas:\n${resultsSummary}`),
         ]);

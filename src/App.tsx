@@ -105,7 +105,7 @@ export default function App() {
           <ClickSpark />
           <Suspense fallback={<PageFallback />}>
             <Routes>
-              <Route path="/" element={<Navigate to="/welcome" replace />} />
+              <Route path="/" element={<Navigate to="/app" replace />} />
               <Route path="/welcome" element={<WelcomeScreen />} />
               <Route path="/select-brand" element={<SelectionScreen />} />
               <Route path="/login" element={<LoginScreen />} />

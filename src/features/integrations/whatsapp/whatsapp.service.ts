@@ -13,6 +13,14 @@ import { withTimeout } from '../../../lib/http.js';
 
 export const whatsappEvents = new EventEmitter();
 
+/**
+ * baileys define sua própria interface ILogger (não exportada do pacote) em vez de aceitar
+ * pino.Logger diretamente — estruturalmente parecidas, mas não idênticas o bastante pra o
+ * TypeScript aceitar sem cast. Deriva o tipo exato esperado a partir da própria assinatura de
+ * makeWASocket, em vez de reimportar um caminho interno do pacote (frágil entre versões).
+ */
+type WASocketLogger = Parameters<typeof makeWASocket>[0]['logger'];
+
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 60000;
@@ -104,8 +112,7 @@ export async function initWhatsApp(organizationId: string) {
             printQRInTerminal: false,
             browser: Browsers.macOS('Desktop'),
             syncFullHistory: false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            logger: pino({ level: 'silent' }) as any
+            logger: pino({ level: 'silent' }) as unknown as WASocketLogger
         });
     } catch (err) {
         // Se algo falhar antes do socket existir, não pode deixar a sessão presa em "connecting"

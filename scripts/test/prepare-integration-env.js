@@ -37,7 +37,7 @@ const TEST_DB_NAME = 'prospectordb_test';
 const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
 if (!isCI) {
-  const result = spawnSync('docker-compose', ['up', '-d'], { stdio: 'inherit', shell: true });
+  const result = spawnSync('docker', ['compose', 'up', '-d'], { stdio: 'inherit', shell: true });
   if (result.status !== 0) {
     console.error('Falha ao subir docker-compose (postgres/redis/meilisearch). Veja a saída acima.');
     process.exit(result.status || 1);

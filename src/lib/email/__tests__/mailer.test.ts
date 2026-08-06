@@ -63,4 +63,26 @@ describe('sendEmail', () => {
         await expect(sendEmail({ to: 'lead@empresa.com', subject: 'Proposta', text: 'Corpo' }))
             .rejects.toThrow('conexão recusada');
     });
+
+    it('utiliza o transporter em cache em chamadas subsequentes', async () => {
+        mockedEnv = { SMTP_HOST: 'smtp.example.com', SMTP_PORT: 587, SMTP_SECURE: false };
+        const { sendEmail } = await import('../mailer.js');
+
+        await sendEmail({ to: 'lead1@empresa.com', subject: 'P1', text: 'C1' });
+        await sendEmail({ to: 'lead2@empresa.com', subject: 'P2', text: 'C2' });
+
+        expect(createTransportMock).toHaveBeenCalledTimes(1);
+        expect(sendMailMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('não envia SMTP_USER quando SMTP_USER não é definido', async () => {
+        mockedEnv = { SMTP_HOST: 'smtp.example.com', SMTP_PORT: 587, SMTP_SECURE: false, SMTP_PASS: 'pass' };
+        const { sendEmail } = await import('../mailer.js');
+
+        await sendEmail({ to: 'lead@empresa.com', subject: 'Proposta', text: 'Corpo do e-mail' });
+
+        expect(createTransportMock).toHaveBeenCalledWith(expect.objectContaining({
+            auth: undefined
+        }));
+    });
 });

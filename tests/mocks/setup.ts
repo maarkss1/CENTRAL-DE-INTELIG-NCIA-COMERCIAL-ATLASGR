@@ -1,3 +1,4 @@
+process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy';
 // Setup global do MSW para os testes unitários (TEST-004). Registrado via `setupFiles` em
 // `vitest.unit.config.ts`. Antes disto, o mock de HTTP era ad hoc por arquivo
 // (`global.fetch = vi.fn()` / `vi.spyOn(globalThis, 'fetch')` / `vi.mock` da camada de API),

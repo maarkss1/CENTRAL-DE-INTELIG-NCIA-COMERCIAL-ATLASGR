@@ -10,6 +10,7 @@ import { useContacts } from '../../../hooks/useDatabase';
 import { contactsDB } from '../../../lib/db';
 import { getWhatsAppLink } from '../../../shared/utils/contact-links';
 import { toast } from '../../../lib/toast';
+import { clientLogger } from '../../../lib/clientLogger';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
@@ -52,7 +53,7 @@ export function ContactList() {
       await deleteContact(id);
       toast.success('Contato excluído.');
     } catch (error) {
-      console.error('Error deleting contact:', error);
+      clientLogger.error({ err: error }, 'Error deleting contact');
       toast.error(error instanceof Error ? error.message : 'Falha ao excluir o contato — confira se você tem permissão.');
     }
   };
@@ -63,7 +64,7 @@ export function ContactList() {
       await contactsDB.enrich(id);
       await refetch();
     } catch (error) {
-      console.error('Error enriching contact:', error);
+      clientLogger.error({ err: error }, 'Error enriching contact');
     } finally {
       setEnrichingId(null);
     }
