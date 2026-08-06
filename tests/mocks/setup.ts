@@ -14,3 +14,6 @@ import { server } from './server';
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
+
+// Mock DATABASE_URL para os testes passarem na validação do Zod
+process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy';
