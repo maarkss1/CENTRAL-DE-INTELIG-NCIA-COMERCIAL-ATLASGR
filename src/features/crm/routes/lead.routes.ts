@@ -11,6 +11,7 @@ const router = Router();
 router.get('/', (req, res, next) => container.resolve<LeadController>('LeadController').getLeads(req, res, next));
 router.get('/export/csv', (req, res, next) => container.resolve<LeadController>('LeadController').exportCsv(req, res, next));
 router.post('/export/bitrix24', (req, res, next) => container.resolve<LeadController>('LeadController').exportToBitrix24(req, res, next));
+router.post('/import/bitrix24', (req, res, next) => container.resolve<LeadController>('LeadController').importFromBitrix24(req, res, next));
 router.get('/:id', (req, res, next) => container.resolve<LeadController>('LeadController').getLeadById(req, res, next));
 router.post('/', validateRequest(leadSchema), (req, res, next) => container.resolve<LeadController>('LeadController').createLead(req, res, next));
 router.put('/:id', validateRequest(leadSchema.partial()), (req, res, next) => container.resolve<LeadController>('LeadController').updateLead(req, res, next));

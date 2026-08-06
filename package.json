@@ -31,7 +31,8 @@
     "setup:db:check": "tsx scripts/setup-vector-db.ts --check",
     "verify:integrations": "tsx scripts/verify-integrations.ts",
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
-    "docs": "typedoc"
+    "docs": "typedoc",
+    "reset:passwords": "tsx scripts/reset-passwords.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
