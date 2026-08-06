@@ -243,25 +243,49 @@ export function ProspectingHub() {
 
     const exportToExcel = async () => {
         if (candidates.length === 0) return;
-        const XLSX = await import('xlsx');
-        const data = candidates.map(c => ({
-            'Nome Fantasia': c.tradeName,
-            'Razão Social': c.legalNameGuess || c.tradeName,
-            'CNPJ': c.cnpjGuess || '',
-            'Segmento': c.segment,
-            'Porte': c.size,
-            'Localização': c.location,
-            'Website': c.website || '',
-            'Emails': c.emails ? c.emails.join(', ') : '',
-            'Telefones': c.phone || '',
-            'LinkedIn': c.linkedinUrl || '',
-            'Decisores': c.apolloContacts ? c.apolloContacts.map((d) => `${d.name} (${d.title}) - ${d.email || ''}`).join(' | ') : ''
-        }));
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Prospects');
-        XLSX.writeFile(workbook, `${brandInfo.name}_Prospects_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        const ExcelJS = (await import('exceljs')).default;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Prospects');
+        worksheet.columns = [
+            { header: 'Nome Fantasia',  key: 'tradeName',    width: 30 },
+            { header: 'Razão Social',   key: 'legalName',    width: 30 },
+            { header: 'CNPJ',           key: 'cnpj',         width: 20 },
+            { header: 'Segmento',       key: 'segment',      width: 20 },
+            { header: 'Porte',          key: 'size',         width: 12 },
+            { header: 'Localização',    key: 'location',     width: 25 },
+            { header: 'Website',        key: 'website',      width: 30 },
+            { header: 'Emails',         key: 'emails',       width: 35 },
+            { header: 'Telefones',      key: 'phone',        width: 20 },
+            { header: 'LinkedIn',       key: 'linkedin',     width: 35 },
+            { header: 'Decisores',      key: 'decisores',    width: 60 },
+        ];
+        candidates.forEach(c => {
+            worksheet.addRow({
+                tradeName:  c.tradeName,
+                legalName:  c.legalNameGuess || c.tradeName,
+                cnpj:       c.cnpjGuess || '',
+                segment:    c.segment,
+                size:       c.size,
+                location:   c.location,
+                website:    c.website || '',
+                emails:     c.emails ? c.emails.join(', ') : '',
+                phone:      c.phone || '',
+                linkedin:   c.linkedinUrl || '',
+                decisores:  c.apolloContacts
+                    ? c.apolloContacts.map((d) => `${d.name} (${d.title}) - ${d.email || ''}`).join(' | ')
+                    : '',
+            });
+        });
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${brandInfo.name}_Prospects_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
     };
+
 
     const handleCnpjLookup = async () => {
         setCnpjLoading(true);
