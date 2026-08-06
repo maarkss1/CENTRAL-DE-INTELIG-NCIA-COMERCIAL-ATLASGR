@@ -704,10 +704,10 @@ async function runEnrichment(
             }
         });
 
-        for (const c of apolloContacts) {
-            if (!c.name || c.name === 'Sem Nome') continue;
-            await prisma.contact.create({
-                data: {
+        const validContacts = apolloContacts.filter((c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => c.name && c.name !== 'Sem Nome');
+        if (validContacts.length > 0) {
+            const contactsData = await Promise.all(
+                validContacts.map(async (c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => ({
                     name: c.name,
                     role: c.title,
                     email: c.email,
@@ -718,7 +718,11 @@ async function runEnrichment(
                     emailStatus: await resolveEmailStatus(c.email),
                     companyId,
                     organizationId: company.organizationId
-                }
+                }))
+            );
+
+            await prisma.contact.createMany({
+                data: contactsData
             });
         }
     } else if (domainGuess.verified && domainGuess.domain) {
@@ -740,10 +744,10 @@ async function runEnrichment(
             });
 
             // Save contacts to CRM
-            for (const c of apolloContacts) {
-                if (!c.name || c.name === 'Sem Nome') continue;
-                await prisma.contact.create({
-                    data: {
+            const validContactsNew = apolloContacts.filter((c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => c.name && c.name !== 'Sem Nome');
+            if (validContactsNew.length > 0) {
+                const contactsData = await Promise.all(
+                    validContactsNew.map(async (c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => ({
                         name: c.name,
                         role: c.title,
                         email: c.email,
@@ -754,7 +758,11 @@ async function runEnrichment(
                         emailStatus: await resolveEmailStatus(c.email),
                         companyId,
                         organizationId: company.organizationId
-                    }
+                    }))
+                );
+
+                await prisma.contact.createMany({
+                    data: contactsData
                 });
             }
         }
