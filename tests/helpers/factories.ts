@@ -38,7 +38,7 @@ export const ContactFactory = {
 
 export const LeadFactory = {
   build: (overrides?: any): any => ({
-    status: 'Novo_Lead',
+    status: 'Lead Recebido',
     source: faker.helpers.arrayElement(['Inbound', 'Outbound', 'Referral']),
     temperature: faker.helpers.arrayElement(['Frio', 'Morno', 'Quente']),
     score: faker.number.int({ min: 0, max: 100 }),
@@ -53,7 +53,7 @@ export const ActivityFactory = {
     type: faker.helpers.arrayElement(['Ligacao', 'WhatsApp', 'Email', 'Reuniao', 'Follow_up', 'Visita', 'Tarefa']),
     owner: faker.person.fullName(),
     date: faker.date.recent().toISOString(),
-    status: 'Concluida',
+    status: 'Concluída',
     organizationId: 'test-org-id',
     lead: overrides?.lead || {
       create: LeadFactory.build(),
