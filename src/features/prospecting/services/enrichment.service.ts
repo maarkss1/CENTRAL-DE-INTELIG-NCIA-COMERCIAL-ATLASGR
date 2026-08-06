@@ -1,6 +1,28 @@
+// ARCH-009 (auditoria de dívida técnica): 846L / complexidade proxy 235 — a maior do repo.
+// Diferente de bitrix/apollo (onde a decomposição foi por responsabilidade de domínio), aqui o
+// núcleo é UM único fluxo sequencial (runEnrichment) que orquestra várias fontes de dado passo a
+// passo, cada passo alimentando o próximo (domínio guessado informa busca de contato, que informa
+// o resumo final etc.) — não dá pra separar isso em "adapters" independentes sem reescrever a
+// orquestração inteira, e este arquivo não tem cobertura de teste que garanta que uma reescrita
+// desse tipo preserva o comportamento atual (ver nota abaixo sobre lib/adapters).
+//
+// O que FOI extraído sem mudar comportamento (código movido, não reescrito) foram os três blocos
+// que são funções puras/isoladas dentro do arquivo, cada uma testável e reutilizável por si só:
+// - enrichment/cnpjLookup.ts: fetchCnpjData/fetchCepData (BrasilAPI/Receita Federal)
+// - enrichment/domainGuess.ts: heurística de domínio/e-mail + status de entregabilidade
+// - enrichment/fitScore.ts: computeFitScore (determinístico, auditável)
+// Este arquivo mantém enrichCompany/runEnrichment — o orquestrador de fato — e reexporta a API
+// pública dos três módulos acima.
+//
+// Nota para uma iteração futura: já existem adapters (IDataProvider) em lib/adapters/data-providers
+// (BrasilApiAdapter, ApolloAdapter, CnpjWsAdapter, GooglePlacesAdapter) que duplicam parte da lógica
+// daqui sem serem usados por runEnrichment. Migrar runEnrichment para consumi-los eliminaria essa
+// duplicação, mas é uma mudança de comportamento real (não só de organização de arquivo) num fluxo
+// de negócio crítico sem testes — fora do escopo deste item do checklist, registrado aqui para não
+// se perder.
 import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
-import { isValidCnpj, sanitizeCnpj, formatCnpj, discoverCnpjByName } from './cnpj.util';
+import { isValidCnpj, discoverCnpjByName } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
 import { searchNominatimPlace } from './nominatim.service';
@@ -9,423 +31,13 @@ import { fromPrismaCompanyStatus } from '../../../lib/enumMap';
 import { searchCompanyNews, type NewsMention } from './news.service';
 import { checkEmailDeliverability } from './email-verification.service';
 import { computeLookalikeScore } from './lookalike-scoring.service';
+import { fetchCnpjData } from './enrichment/cnpjLookup.js';
+import { guessDomainAndEmails, extractDomainFromWebsite, resolveEmailStatus, guessWhatsappFromPhone, type DomainGuess } from './enrichment/domainGuess.js';
+import { computeFitScore } from './enrichment/fitScore.js';
 
-// Trechos (lowercase) de nomes de ERP/TMS comuns no mercado logístico/transportador brasileiro —
-// usados para um pequeno bônus de fit score quando a Apollo detecta um deles na empresa (ver
-// computeFitScore). Comparamos por "contains" porque a Apollo devolve nomes de exibição livres
-// (ex: "SAP Business One", "TOTVS Protheus"), não os UIDs usados como filtro de busca.
-const LOGISTICS_RELEVANT_TECH_KEYWORDS = ['sap', 'protheus', 'sankhya', 'netsuite', 'totvs'];
-
-// Categorias de carga com maior índice de roubo no Brasil, segundo a Associação Nacional do
-// Transporte de Cargas e Logística (NTC) — citadas na Apresentação de Gerenciamento de Risco da
-// Atlas como as "cargas mais roubadas no Brasil". Empresas que transportam esse tipo de carga são
-// prioridade comercial real (maior exposição a sinistro = maior valor percebido do GR da Atlas).
-const HIGH_THEFT_RISK_CARGO_KEYWORDS = [
-    'aliment', 'bebida', 'eletroeletr', 'eletr', 'cigarro', 'tabaco', 'farmac', 'quimic', 'químic',
-    'têxtil', 'textil', 'confec', 'autope', 'agric', 'agro', 'combust', 'petrol', 'higiene', 'limpeza',
-];
-
-const BRASIL_API_BASE = 'https://brasilapi.com.br/api';
-
-// BrasilAPI está atrás de um CDN que retorna 403 para o User-Agent padrão do fetch/undici do Node.
-// Um header de navegador real resolve — não é bypass de auth, é só evitar o bloqueio de bots do CDN.
-const BRASIL_API_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-    Accept: 'application/json',
-};
-
-// Mapeia código de porte da Receita Federal para uma faixa de funcionários estimada.
-// A Receita não expõe headcount real, então isso é uma estimativa explícita — nunca
-// apresentada como dado oficial.
-const PORTE_TO_EMPLOYEE_ESTIMATE: Record<number, { label: string; count: number }> = {
-    1: { label: '1-9 (estimado)', count: 5 },
-    2: { label: '1-9 (estimado)', count: 5 },
-    3: { label: '10-49 (estimado)', count: 25 },
-    5: { label: '50-500+ (estimado)', count: 120 },
-};
-
-interface BrasilApiCnpjResponse {
-    cnpj: string;
-    razao_social: string;
-    nome_fantasia: string;
-    descricao_situacao_cadastral: string;
-    natureza_juridica: string;
-    capital_social: number;
-    data_inicio_atividade: string;
-    cnae_fiscal: number;
-    cnae_fiscal_descricao: string;
-    porte: string;
-    codigo_porte: number;
-    logradouro: string;
-    numero: string;
-    complemento: string;
-    bairro: string;
-    municipio: string;
-    uf: string;
-    cep: string;
-    ddd_telefone_1: string;
-    ddd_telefone_2: string;
-    email: string | null;
-    qsa: Array<{ nome_socio: string; qualificacao_socio: string }>;
-}
-
-export interface CnpjLookupResult {
-    found: boolean;
-    cnpj: string;
-    source: 'BrasilAPI-CNPJ';
-    data?: {
-        legalName: string;
-        tradeName: string;
-        situacaoCadastral: string;
-        naturezaJuridica: string;
-        capitalSocial: number;
-        dataAbertura: string;
-        cnae: string;
-        cnaeDescription: string;
-        size: string;
-        employeeCountEstimate: number;
-        address: string;
-        city: string;
-        state: string;
-        zipCode: string;
-        phones: string[];
-        emails: string[];
-        qsa: Array<{ nome: string; qualificacao: string }>;
-    };
-    raw?: BrasilApiCnpjResponse;
-    error?: string;
-}
-
-/** Fetch com timeout + retry (1 nova tentativa em erro de rede/timeout) — BrasilAPI ocasionalmente é lenta ou instável. */
-async function fetchWithRetry(url: string, init: RequestInit, attempts = 2, timeoutMs = 8000): Promise<Response> {
-    const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'brasilapi.com.br') {
-        throw new Error('invalid_upstream_url');
-    }
-
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-            const res = await fetch(url, { ...init, signal: controller.signal });
-            clearTimeout(timeout);
-            if (res.status >= 500 && attempt < attempts) continue; // erro do servidor upstream — tenta de novo
-            return res;
-        } catch (error) {
-            clearTimeout(timeout);
-            lastError = error;
-            if (attempt >= attempts) throw error;
-        }
-    }
-    throw lastError;
-}
-
-function formatPhone(ddd_telefone: string): string | null {
-    const digits = (ddd_telefone || '').replace(/\D/g, '');
-    if (digits.length < 10) return null;
-    const ddd = digits.slice(0, 2);
-    const rest = digits.slice(2);
-    return rest.length === 9
-        ? `(${ddd}) ${rest.slice(0, 5)}-${rest.slice(5)}`
-        : `(${ddd}) ${rest.slice(0, 4)}-${rest.slice(4)}`;
-}
-
-/** Consulta dados cadastrais reais de um CNPJ na Receita Federal via BrasilAPI (fonte oficial, gratuita, sem chave). */
-export async function fetchCnpjData(cnpjRaw: string): Promise<CnpjLookupResult> {
-    const cnpj = sanitizeCnpj(cnpjRaw);
-    if (!isValidCnpj(cnpj)) {
-        return { found: false, cnpj: cnpjRaw, source: 'BrasilAPI-CNPJ', error: 'invalid_format' };
-    }
-
-    let res: Response;
-    try {
-        res = await fetchWithRetry(`${BRASIL_API_BASE}/cnpj/v1/${cnpj}`, { headers: BRASIL_API_HEADERS });
-    } catch (error) {
-        const reason = error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'network_error';
-        return { found: false, cnpj: formatCnpj(cnpj), source: 'BrasilAPI-CNPJ', error: reason };
-    }
-    if (res.status === 404) {
-        return { found: false, cnpj: formatCnpj(cnpj), source: 'BrasilAPI-CNPJ', error: 'not_found' };
-    }
-    if (!res.ok) {
-        return { found: false, cnpj: formatCnpj(cnpj), source: 'BrasilAPI-CNPJ', error: `upstream_error_${res.status}` };
-    }
-
-    const raw = (await res.json()) as BrasilApiCnpjResponse;
-    const employeeEstimate = PORTE_TO_EMPLOYEE_ESTIMATE[raw.codigo_porte] ?? PORTE_TO_EMPLOYEE_ESTIMATE[5];
-
-    const addressParts = [raw.logradouro, raw.numero, raw.complemento, raw.bairro].filter(Boolean);
-    const phones = [formatPhone(raw.ddd_telefone_1), formatPhone(raw.ddd_telefone_2)].filter(
-        (p): p is string => !!p
-    );
-
-    return {
-        found: true,
-        cnpj: formatCnpj(cnpj),
-        source: 'BrasilAPI-CNPJ',
-        raw,
-        data: {
-            legalName: raw.razao_social,
-            tradeName: raw.nome_fantasia || raw.razao_social,
-            situacaoCadastral: raw.descricao_situacao_cadastral,
-            naturezaJuridica: raw.natureza_juridica,
-            capitalSocial: raw.capital_social,
-            dataAbertura: raw.data_inicio_atividade,
-            cnae: String(raw.cnae_fiscal),
-            cnaeDescription: raw.cnae_fiscal_descricao,
-            size: raw.porte,
-            employeeCountEstimate: employeeEstimate.count,
-            address: addressParts.join(', '),
-            city: raw.municipio,
-            state: raw.uf,
-            zipCode: raw.cep,
-            phones,
-            emails: raw.email ? [raw.email] : [],
-            qsa: (raw.qsa || []).map((s) => ({ nome: s.nome_socio, qualificacao: s.qualificacao_socio })),
-        },
-    };
-}
-
-export interface CepLookupResult {
-    found: boolean;
-    source: 'BrasilAPI-CEP';
-    street?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-}
-
-/** Consulta endereço real por CEP via BrasilAPI (Correios), usada quando o CNPJ não traz endereço completo. */
-export async function fetchCepData(cepRaw: string): Promise<CepLookupResult> {
-    const cep = (cepRaw || '').replace(/\D/g, '');
-    if (cep.length !== 8) return { found: false, source: 'BrasilAPI-CEP' };
-
-    try {
-        const res = await fetchWithRetry(`${BRASIL_API_BASE}/cep/v2/${cep}`, { headers: BRASIL_API_HEADERS });
-        if (!res.ok) return { found: false, source: 'BrasilAPI-CEP' };
-        const data = await res.json();
-        return {
-            found: true,
-            source: 'BrasilAPI-CEP',
-            street: data.street,
-            neighborhood: data.neighborhood,
-            city: data.city,
-            state: data.state,
-        };
-    } catch {
-        return { found: false, source: 'BrasilAPI-CEP' };
-    }
-}
-
-function slugify(name: string): string {
-    return (name || '')
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toLowerCase()
-        .replace(/(ltda|me|eireli|s\/a|sa|epp)\b/g, '')
-        .replace(/[^a-z0-9\s]/g, '')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('');
-}
-
-export interface DomainGuess {
-    domain: string;
-    verified: boolean;
-    emails: string[];
-}
-
-/**
- * Números de celular brasileiros (DDD + 9 dígitos, começando com 9) normalmente têm WhatsApp —
- * heurística padrão de SDR, não uma verificação real. Não inventamos um número novo: só
- * reaproveitamos o mesmo telefone já coletado (Apollo/Hunter) quando o formato indica celular.
- */
-/**
- * Traduz a checagem de MX/disposable (`checkEmailDeliverability`) para o vocabulário já usado em
- * `Contact.emailStatus` ("verified"/"guessed"). Apollo/Hunter não garantem que o e-mail devolvido
- * realmente exista — hoje todo contato virava "guessed" sem checagem nenhuma; com MX real, um
- * e-mail sem domínio de e-mail válido vira "invalid" em vez de entrar como se fosse confiável.
- */
-async function resolveEmailStatus(email: string | null): Promise<string | null> {
-    if (!email) return null;
-    const result = await checkEmailDeliverability(email);
-    if (result.status === 'verified') return 'verified';
-    if (result.status === 'invalid') return 'invalid';
-    return 'guessed';
-}
-
-function guessWhatsappFromPhone(phone: string | null | undefined): string | null {
-    if (!phone) return null;
-    const digits = phone.replace(/\D/g, '').replace(/^55(?=\d{11}$)/, '');
-    if (digits.length === 11 && digits[2] === '9') return phone;
-    return null;
-}
-
-/** Extrai o hostname (sem "www.") de uma URL de site já conhecida — usado para preferir um domínio real a uma heurística. */
-function extractDomainFromWebsite(website?: string | null): string | null {
-    if (!website) return null;
-    try {
-        const url = new URL(website.startsWith('http') ? website : `https://${website}`);
-        return url.hostname.replace(/^www\./, '') || null;
-    } catch {
-        return null;
-    }
-}
-
-/**
- * Heurística de descoberta de domínio/e-mail (SDR manual faz isso o tempo todo):
- * deriva um domínio provável a partir do nome e tenta uma verificação HTTP real.
- * Se o domínio responder, marcamos como "verificado"; caso contrário é só uma sugestão.
- */
-export async function guessDomainAndEmails(companyName: string): Promise<DomainGuess> {
-    const slug = slugify(companyName);
-    const domain = slug ? `${slug}.com.br` : '';
-    let verified = false;
-
-    if (domain) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 3500);
-            const res = await fetch(`https://${domain}`, { method: 'HEAD', signal: controller.signal });
-            clearTimeout(timeout);
-            verified = res.ok || (res.status >= 300 && res.status < 500);
-        } catch {
-            verified = false;
-        }
-    }
-
-    const emails = domain
-        ? [`contato@${domain}`, `comercial@${domain}`, `atendimento@${domain}`]
-        : [];
-
-    return { domain, verified, emails };
-}
-
-export interface ScoreBreakdownItem {
-    label: string;
-    points: number;
-    detail: string;
-}
-
-export interface FitScoreResult {
-    score: number;
-    temperature: 'Quente' | 'Morno' | 'Frio';
-    breakdown: ScoreBreakdownItem[];
-}
-
-export interface FitScoreInput {
-    situacaoCadastral?: string | null;
-    capitalSocial?: number | null;
-    employeeCountEstimate?: number | null;
-    size?: string | null;
-    cnaeDescription?: string | null;
-    segmentKeywords?: string[];
-    /** Segmento/indústria (ex: Apollo `industry`, ou o segmento do ICP) — usado junto com o CNAE para o bônus de carga de risco. */
-    segment?: string | null;
-    /** Cidade/UF real (pós-enriquecimento) — usado para o bônus de região de risco do playbook Atlas. */
-    city?: string | null;
-    state?: string | null;
-    /** Faixa de frota selecionada no ICP (texto do dropdown) — usado para o bônus de frota do playbook Atlas. */
-    fleetSizeHint?: string | null;
-    /** UIDs de tecnologia detectados via Apollo Organization Enrich — usado para o bônus de ERP/TMS logístico. */
-    technologies?: string[] | null;
-}
-
-/** Score de fit determinístico e auditável — cada critério é real (dado da Receita) e explicado. */
-export function computeFitScore(input: FitScoreInput): FitScoreResult {
-    const breakdown: ScoreBreakdownItem[] = [];
-    let score = 0;
-
-    if (input.situacaoCadastral) {
-        if (input.situacaoCadastral.toUpperCase() === 'ATIVA') {
-            score += 30;
-            breakdown.push({ label: 'Situação cadastral', points: 30, detail: 'CNPJ ativo na Receita Federal' });
-        } else {
-            score -= 40;
-            breakdown.push({
-                label: 'Situação cadastral',
-                points: -40,
-                detail: `CNPJ com situação "${input.situacaoCadastral}" — risco alto`,
-            });
-        }
-    }
-
-    if (input.capitalSocial != null) {
-        if (input.capitalSocial >= 100000) {
-            score += 20;
-            breakdown.push({ label: 'Capital social', points: 20, detail: 'Capital social >= R$ 100 mil' });
-        } else if (input.capitalSocial >= 10000) {
-            score += 10;
-            breakdown.push({ label: 'Capital social', points: 10, detail: 'Capital social entre R$ 10 mil e R$ 100 mil' });
-        } else {
-            breakdown.push({ label: 'Capital social', points: 0, detail: 'Capital social baixo (< R$ 10 mil)' });
-        }
-    }
-
-    if (input.employeeCountEstimate != null) {
-        if (input.employeeCountEstimate >= 50) {
-            score += 20;
-            breakdown.push({ label: 'Porte estimado', points: 20, detail: 'Estimativa de 50+ funcionários' });
-        } else if (input.employeeCountEstimate >= 10) {
-            score += 12;
-            breakdown.push({ label: 'Porte estimado', points: 12, detail: 'Estimativa de 10-49 funcionários' });
-        } else {
-            score += 5;
-            breakdown.push({ label: 'Porte estimado', points: 5, detail: 'Estimativa de 1-9 funcionários' });
-        }
-    }
-
-    if (input.segmentKeywords?.length && input.cnaeDescription) {
-        const desc = input.cnaeDescription.toLowerCase();
-        const matched = input.segmentKeywords.some((k) => desc.includes(k.toLowerCase()));
-        if (matched) {
-            score += 25;
-            breakdown.push({ label: 'Aderência de CNAE ao ICP', points: 25, detail: `Atividade "${input.cnaeDescription}" combina com o segmento buscado` });
-        } else {
-            breakdown.push({ label: 'Aderência de CNAE ao ICP', points: 0, detail: `Atividade "${input.cnaeDescription}" não confirma o segmento buscado` });
-        }
-    }
-
-    // Critérios de priorização do playbook comercial Atlas: frota acima de 50 veículos
-    // e atuação em regiões de maior índice de roubo de carga (RJ e Grande SP).
-    if (input.fleetSizeHint && /acima de 50|150-500|acima de 500/i.test(input.fleetSizeHint)) {
-        score += 15;
-        breakdown.push({ label: 'Frota (playbook Atlas)', points: 15, detail: 'Frota acima de 50 veículos — critério de priorização' });
-    }
-
-    const riskRegion = `${input.city || ''} ${input.state || ''}`.toUpperCase();
-    if (input.state && /^(RJ|SP)$/.test(input.state.toUpperCase())) {
-        score += 10;
-        breakdown.push({ label: 'Região de risco (playbook Atlas)', points: 10, detail: `Atuação em ${riskRegion.trim()} — região com maior índice de roubo de carga` });
-    }
-
-    // Categoria de carga de maior risco de roubo (fonte: NTC, citada na Apresentação de
-    // Gerenciamento de Risco da Atlas) — empresas nesses segmentos têm maior exposição a sinistro,
-    // logo maior valor percebido na venda de GR.
-    const cargoText = `${input.cnaeDescription || ''} ${input.segment || ''}`.toLowerCase();
-    const matchedCargoRisk = HIGH_THEFT_RISK_CARGO_KEYWORDS.find((k) => cargoText.includes(k));
-    if (matchedCargoRisk) {
-        score += 10;
-        breakdown.push({ label: 'Categoria de carga de risco (NTC)', points: 10, detail: `Atividade sugere transporte de carga com maior índice de roubo no Brasil` });
-    }
-
-    const relevantTech = (input.technologies || []).find((t) =>
-        LOGISTICS_RELEVANT_TECH_KEYWORDS.some((k) => t.toLowerCase().includes(k))
-    );
-    if (relevantTech) {
-        score += 5;
-        breakdown.push({ label: 'Stack de ERP/TMS (Apollo)', points: 5, detail: `Usa "${relevantTech}" — indício de operação já digitalizada, mais fácil de integrar` });
-    }
-
-    score = Math.max(0, Math.min(100, score + 25)); // 25 pontos base de participação no funil
-
-    const temperature: FitScoreResult['temperature'] = score >= 75 ? 'Quente' : score >= 45 ? 'Morno' : 'Frio';
-
-    return { score, temperature, breakdown };
-}
+export { fetchCnpjData, fetchCepData, type CnpjLookupResult, type CepLookupResult } from './enrichment/cnpjLookup.js';
+export { guessDomainAndEmails, type DomainGuess } from './enrichment/domainGuess.js';
+export { computeFitScore, type ScoreBreakdownItem, type FitScoreResult, type FitScoreInput } from './enrichment/fitScore.js';
 
 export interface EnrichCompanyOptions {
     cnpj?: string;
@@ -601,14 +213,14 @@ async function runEnrichment(
     const googlePlace = await searchGooglePlace(companyName, location);
     const place = googlePlace || await searchNominatimPlace(companyName, location);
     const placeSource = googlePlace ? 'Google-Places' : 'OpenStreetMap-Nominatim';
-    
+
     if (place) {
         if (place.rating != null) updateData.googleRating = place.rating;
         if (place.userRatingCount != null) updateData.googleReviewsCount = place.userRatingCount;
         // `PlaceSearchResult.businessHours` é `unknown` (payload livre do Google Places); o cast é
         // seguro porque só chegamos aqui quando o valor não é null/undefined.
         if (place.businessHours != null) updateData.businessHours = place.businessHours as Prisma.InputJsonValue;
-        
+
         if (place.websiteUri && !domainGuess.verified) {
             updateData.website = place.websiteUri;
         }
