@@ -104,6 +104,9 @@
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
+  "overrides": {
+    "protobufjs": "7.6.5"
+  },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@eslint/js": "^9.39.5",

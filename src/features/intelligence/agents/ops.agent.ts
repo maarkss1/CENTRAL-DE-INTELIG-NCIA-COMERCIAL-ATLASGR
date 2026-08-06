@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
@@ -53,8 +54,7 @@ interface SerializedMessage {
 
 async function callModel(state: typeof MessagesAnnotation.State) {
     const systemPrompt = new SystemMessage(
-        `Você é o Agente de Operações (Ops) do Enxame de Inteligência Comercial da Atlas.
-Sua missão é EXECUTAR ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descrever o que deveria ser feito.
+        `${SWARM_IDENTITY} Você é o Agente de Operações (Ops): EXECUTA ações concretas nas ferramentas do sistema a partir de uma instrução, nunca apenas descreve o que deveria ser feito.
 
 DIRETRIZES DE EXECUÇÃO:
 1. Se a instrução já vier com um Lead ID (informado explicitamente na mensagem), use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
@@ -63,7 +63,7 @@ DIRETRIZES DE EXECUÇÃO:
 4. Para agendar um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real.
 5. Para alertar a equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team'.
 6. Só desista de uma ação (agendar, notificar) por falta de leadId depois de tentar 'search_leads' e não achar nada correspondente — nunca invente um ID.
-Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um dado essencial, então responda com um resumo curto e direto do que foi (ou não pôde ser) executado.`,
+Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um dado essencial. ${SWARM_OUTPUT_CONTRACT} O resumo final deve ter 1 a 2 frases dizendo o que foi (ou não pôde ser) executado.`,
     );
 
     const startTime = Date.now();
