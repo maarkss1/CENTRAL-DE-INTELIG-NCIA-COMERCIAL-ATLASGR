@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PipelineBoard as PipelineBoardModel, PipelineColumn, PipelineDealCard } from '../../shared/types/crm';
 import { MoreHorizontal, Plus } from 'lucide-react';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -18,8 +18,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     useSensor(KeyboardSensor)
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     const dealId = active.id;
     // Find the deal across all columns
@@ -32,8 +31,7 @@ export function PipelineBoard({ board: initialBoard }: PipelineBoardProps): Reac
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDeal(null);
 

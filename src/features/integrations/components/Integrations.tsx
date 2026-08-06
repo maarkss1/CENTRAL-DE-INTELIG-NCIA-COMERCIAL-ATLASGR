@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { toast } from '../../../lib/toast';
+import { clientLogger } from '../../../lib/clientLogger';
 import { BitrixImportPanel } from './BitrixImportPanel';
 import { BitrixSyncRulesPanel } from './BitrixSyncRulesPanel';
 
@@ -51,7 +52,7 @@ export function Integrations() {
                 setThreecxConnections(data.data);
             }
         } catch (error) {
-            console.error('Failed to fetch 3CX connections', error);
+            clientLogger.error({ err: error }, 'Failed to fetch 3CX connections');
         }
     };
 
@@ -64,7 +65,7 @@ export function Integrations() {
                 setQrCode(data.data.qr);
             }
         } catch (error) {
-            console.error('Failed to fetch WhatsApp status', error);
+            clientLogger.error({ err: error }, 'Failed to fetch WhatsApp status');
         }
     };
 
@@ -82,7 +83,7 @@ export function Integrations() {
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch Google status', error);
+            clientLogger.error({ err: error }, 'Failed to fetch Google status');
         }
     };
 
@@ -115,7 +116,7 @@ export function Integrations() {
                 setSelectedBitrixConnectionId((prev) => (prev && connections.some((c) => c.id === prev) ? prev : connections[0]?.id ?? null));
             }
         } catch (error) {
-            console.error('Failed to fetch Bitrix24 connections', error);
+            clientLogger.error({ err: error }, 'Failed to fetch Bitrix24 connections');
         }
     };
 
@@ -194,7 +195,7 @@ export function Integrations() {
         try {
             await fetch('/api/whatsapp/connect', { method: 'POST' });
         } catch (error) {
-            console.error('Failed to connect', error);
+            clientLogger.error({ err: error }, 'Failed to connect');
         }
         setLoading(false);
     };
@@ -206,7 +207,7 @@ export function Integrations() {
             setStatus('disconnected');
             setQrCode(null);
         } catch (error) {
-            console.error('Failed to disconnect', error);
+            clientLogger.error({ err: error }, 'Failed to disconnect');
         }
         setLoading(false);
     };
@@ -222,7 +223,7 @@ export function Integrations() {
             }
             toast.error(data.error || 'Não foi possível iniciar a conexão com o Google.');
         } catch (error) {
-            console.error('Failed to start Google connect', error);
+            clientLogger.error({ err: error }, 'Failed to start Google connect');
             toast.error('Não foi possível iniciar a conexão com o Google.');
         }
         setGoogleLoading(false);
@@ -236,7 +237,7 @@ export function Integrations() {
             setGoogleEmail(null);
             setUpcomingEvents([]);
         } catch (error) {
-            console.error('Failed to disconnect Google', error);
+            clientLogger.error({ err: error }, 'Failed to disconnect Google');
         }
         setGoogleLoading(false);
     };
@@ -264,7 +265,7 @@ export function Integrations() {
                 toast.error(data.error || 'Não foi possível conectar ao Bitrix24.');
             }
         } catch (error) {
-            console.error('Failed to connect Bitrix24', error);
+            clientLogger.error({ err: error }, 'Failed to connect Bitrix24');
             toast.error('Não foi possível conectar ao Bitrix24.');
         }
         setBitrixLoading(false);
@@ -276,7 +277,7 @@ export function Integrations() {
             await fetch(`/api/bitrix/disconnect/${connectionId}`, { method: 'POST' });
             await fetchBitrixConnections();
         } catch (error) {
-            console.error('Failed to disconnect Bitrix24', error);
+            clientLogger.error({ err: error }, 'Failed to disconnect Bitrix24');
         }
         setBitrixLoading(false);
     };

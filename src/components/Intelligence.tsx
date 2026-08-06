@@ -11,6 +11,7 @@ import { PIC_OPTIONS } from '../shared/constants/icp-options';
 import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
 import { useBrandAccent } from '../hooks/useBrandAccent';
 import { useBrand } from '../contexts/BrandContext';
+import { clientLogger } from '../lib/clientLogger';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
@@ -69,7 +70,7 @@ export function Intelligence() {
         setLeadsLoading(true);
         api.get<{ data: Lead[] }>('/api/leads?limit=100')
             .then((res) => setLeads(res.data))
-            .catch((e) => console.error('Error loading leads:', e))
+            .catch((e) => clientLogger.error({ err: e }, 'Error loading leads'))
             .finally(() => setLeadsLoading(false));
     }, []);
 
@@ -93,7 +94,7 @@ export function Intelligence() {
             setSelectedLead(updated);
             setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? { ...l, pic: nextPic as Lead['pic'] } : l)));
         } catch (e) {
-            console.error('Error setting PIC:', e);
+            clientLogger.error({ err: e }, 'Error setting PIC');
         }
     };
 
@@ -132,7 +133,7 @@ export function Intelligence() {
             }, { timeoutMs: 90_000 });
             setResult(response.result);
         } catch (error) {
-            console.error('Error generating intelligence:', error);
+            clientLogger.error({ err: error }, 'Error generating intelligence');
             setResult(error instanceof Error ? `Não foi possível gerar o conteúdo: ${error.message}` : 'Não foi possível gerar o conteúdo.');
         } finally {
             setIsGenerating(false);

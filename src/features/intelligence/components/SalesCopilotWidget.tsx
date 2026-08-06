@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, X, Send, User, Sparkles } from 'lucide-react';
+import { clientLogger } from '../../../lib/clientLogger';
 
 interface Message {
   id: string;
@@ -56,7 +57,7 @@ export function SalesCopilotWidget() {
           setMessages(prev => [...prev, { id: Date.now().toString(), role: 'agent', content: data.error || 'Desculpe, não foi possível processar sua solicitação.' }]);
       }
     } catch (error) {
-      console.error(error);
+      clientLogger.error({ err: error }, 'Erro ao enviar mensagem para o Copiloto de Vendas');
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'agent', content: 'Erro de conexão com o Copiloto.' }]);
     } finally {
       setIsLoading(false);

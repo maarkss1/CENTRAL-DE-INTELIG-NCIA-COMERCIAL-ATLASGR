@@ -77,10 +77,10 @@ async function inspect(url: string) {
 }
 
 async function main() {
-    console.log('\nPreparando o Postgres com pgvector\n');
+    console.log('Preparando o Postgres com pgvector...');
 
     // 1. Container
-    console.log('1. Container do banco');
+
     let containerUp = false;
     try {
         const running = run('docker ps --filter name=atlas_postgres --format "{{.Names}}"').trim();
@@ -97,15 +97,12 @@ async function main() {
         }
     } catch (err) {
         fail(`Docker indisponível: ${(err as Error).message.split('\n')[0]}`);
-        console.log(
-            '\n  O engine do Docker Desktop não está respondendo. Reinicie o Docker Desktop e ' +
-            'rode este script de novo.\n',
-        );
+        console.log('O engine do Docker Desktop não está respondendo. Reinicie o Docker Desktop e rode este script de novo.');
         process.exit(1);
     }
 
     // 2. Conexão
-    console.log('\n2. Conexão');
+
     if (!(await waitForPostgres(VECTOR_DB_URL))) {
         fail(`sem resposta em ${VECTOR_DB_URL.replace(/:[^:@]+@/, ':***@')}`);
         process.exit(1);
@@ -113,7 +110,7 @@ async function main() {
     ok('Postgres aceitando conexões na porta 5434');
 
     // 3. Extensão
-    console.log('\n3. Extensão pgvector');
+
     let state = await inspect(VECTOR_DB_URL);
     if (state.vectorEnabled) {
         ok('pgvector já está ativa');
@@ -132,7 +129,7 @@ async function main() {
     }
 
     // 4. Schema
-    console.log('\n4. Schema e migrations');
+
     info(`${state.tableCount} tabelas no schema public`);
     if (checkOnly) {
         info(
@@ -168,7 +165,7 @@ async function main() {
     }
 
     // 5. Conferência final
-    console.log('\n5. Conferência');
+
     const client = new Client({ connectionString: VECTOR_DB_URL });
     await client.connect();
     const col = await client.query(
@@ -180,8 +177,7 @@ async function main() {
     else fail(`DocumentChunk.vector é "${tipo ?? 'ausente'}" — a busca ficará só por palavra-chave`);
     await client.end();
 
-    console.log('\nPronto. Aponte a aplicação para este banco com:\n');
-    console.log(`  DATABASE_URL="${VECTOR_DB_URL}"\n`);
+    console.log(`\nPronto. Aponte a aplicação para este banco com:\n  DATABASE_URL="${VECTOR_DB_URL}"`);
 }
 
 main().catch((err) => {
