@@ -1,286 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
-import { toast } from '../../../lib/toast';
-import { clientLogger } from '../../../lib/clientLogger';
 import { BitrixImportPanel } from './BitrixImportPanel';
 import { BitrixSyncRulesPanel } from './BitrixSyncRulesPanel';
-
-interface UpcomingEvent {
-    id: string;
-    summary: string;
-    start: string | null;
-}
-
-interface BitrixConnectionSummary {
-    id: string;
-    label: string;
-    portalDomain: string | null;
-}
+import { useWhatsAppIntegration } from '../../../hooks/useWhatsAppIntegration';
+import { useGoogleIntegration } from '../../../hooks/useGoogleIntegration';
+import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
+import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
 
 export function Integrations() {
-    const [qrCode, setQrCode] = useState<string | null>(null);
-    const [status, setStatus] = useState<string>('disconnected');
-    const [loading, setLoading] = useState(false);
+    const { qrCode, status, loading, handleConnect, handleDisconnect } = useWhatsAppIntegration();
 
-    const [googleConnected, setGoogleConnected] = useState(false);
-    const [googleEmail, setGoogleEmail] = useState<string | null>(null);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+    const {
+        googleConnected, googleEmail, googleLoading, upcomingEvents,
+        handleGoogleConnect, handleGoogleDisconnect,
+    } = useGoogleIntegration();
 
-    const [bitrixConnections, setBitrixConnections] = useState<BitrixConnectionSummary[]>([]);
-    const [selectedBitrixConnectionId, setSelectedBitrixConnectionId] = useState<string | null>(null);
-    const [bitrixWebhookInput, setBitrixWebhookInput] = useState('');
-    const [bitrixLabelInput, setBitrixLabelInput] = useState('');
-    const [bitrixLoading, setBitrixLoading] = useState(false);
+    const {
+        bitrixConnections, selectedBitrixConnectionId, setSelectedBitrixConnectionId,
+        bitrixWebhookInput, setBitrixWebhookInput, bitrixLabelInput, setBitrixLabelInput,
+        bitrixLoading, handleBitrixConnect, handleBitrixDisconnect,
+    } = useBitrixIntegration();
 
-    // 3CX PABX State
-    const [threecxConnections, setThreecxConnections] = useState<Array<{ id: string; label: string; pbxUrl: string; extension: string; autoDialEnabled: boolean }>>([]);
-    const [threecxPbxUrlInput, setThreecxPbxUrlInput] = useState('');
-    const [threecxExtensionInput, setThreecxExtensionInput] = useState('');
-    const [threecxLabelInput, setThreecxLabelInput] = useState('');
-    const [threecxLoading, setThreecxLoading] = useState(false);
-    
+    const {
+        threecxConnections, threecxPbxUrlInput, setThreecxPbxUrlInput,
+        threecxExtensionInput, setThreecxExtensionInput, threecxLabelInput, setThreecxLabelInput,
+        threecxLoading, handle3CXConnect, handle3CXDisconnect, handle3CXTest,
+    } = use3CXIntegration();
+
     type Tab = 'whatsapp' | 'google' | 'bitrix' | '3cx';
     const [activeTab, setActiveTab] = useState<Tab>('whatsapp');
-
-    const fetchThreeCXConnections = async () => {
-        try {
-            const res = await fetch('/api/integrations/3cx/connections');
-            const data = await res.json();
-            if (data.success) {
-                setThreecxConnections(data.data);
-            }
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to fetch 3CX connections');
-        }
-    };
-
-    const fetchStatus = async () => {
-        try {
-            const res = await fetch('/api/whatsapp/status');
-            const data = await res.json();
-            if (data.success) {
-                setStatus(data.data.status);
-                setQrCode(data.data.qr);
-            }
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to fetch WhatsApp status');
-        }
-    };
-
-    const fetchGoogleStatus = async () => {
-        try {
-            const res = await fetch('/api/google/status');
-            const data = await res.json();
-            if (data.success) {
-                setGoogleConnected(data.data.connected);
-                setGoogleEmail(data.data.email);
-                if (data.data.connected) {
-                    const eventsRes = await fetch('/api/google/calendar/upcoming');
-                    const eventsData = await eventsRes.json();
-                    if (eventsData.success) setUpcomingEvents(eventsData.data);
-                }
-            }
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to fetch Google status');
-        }
-    };
-
-    // Depois do callback OAuth (google.routes.ts redireciona pra cá com ?google=connected|error),
-    // mostra o resultado e limpa a URL — sem isso, um F5 na página reenviaria os mesmos parâmetros.
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const googleParam = params.get('google');
-        if (googleParam === 'connected') {
-            toast.success('Google Workspace conectado com sucesso.');
-        } else if (googleParam === 'error') {
-            toast.error(params.get('message') || 'Falha ao conectar com o Google.');
-        }
-        if (googleParam) {
-            params.delete('google');
-            params.delete('message');
-            const query = params.toString();
-            window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''));
-        }
-    }, []);
-
-    const fetchBitrixConnections = async () => {
-        try {
-            const res = await fetch('/api/bitrix/connections');
-            const data = await res.json();
-            if (data.success) {
-                const connections: BitrixConnectionSummary[] = data.data;
-                setBitrixConnections(connections);
-                // Mantém a seleção atual se ela ainda existir; senão cai pra primeira conexão.
-                setSelectedBitrixConnectionId((prev) => (prev && connections.some((c) => c.id === prev) ? prev : connections[0]?.id ?? null));
-            }
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to fetch Bitrix24 connections');
-        }
-    };
-
-    useEffect(() => {
-        fetchStatus();
-        fetchGoogleStatus();
-        fetchBitrixConnections();
-        fetchThreeCXConnections();
-        const interval = setInterval(fetchStatus, 3000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const handle3CXConnect = async () => {
-        if (!threecxPbxUrlInput.trim() || !threecxExtensionInput.trim()) {
-            toast.error('Informe a URL do PABX 3CX e o Ramal.');
-            return;
-        }
-        setThreecxLoading(true);
-        try {
-            const res = await fetch('/api/integrations/3cx/connect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    pbxUrl: threecxPbxUrlInput,
-                    extension: threecxExtensionInput,
-                    label: threecxLabelInput || `3CX Ramal ${threecxExtensionInput}`,
-                    autoDialEnabled: true,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                throw new Error(data.error || 'Falha ao conectar PABX 3CX.');
-            }
-            toast.success('PABX 3CX registrado com sucesso!');
-            setThreecxPbxUrlInput('');
-            setThreecxExtensionInput('');
-            setThreecxLabelInput('');
-            fetchThreeCXConnections();
-        } catch (error) {
-            toast.error((error as Error).message);
-        } finally {
-            setThreecxLoading(false);
-        }
-    };
-
-    const handle3CXDisconnect = async (id: string) => {
-        setThreecxLoading(true);
-        try {
-            const res = await fetch(`/api/integrations/3cx/disconnect/${id}`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                toast.success('PABX 3CX desconectado.');
-                fetchThreeCXConnections();
-            }
-        } catch {
-            toast.error('Erro ao desconectar 3CX.');
-        } finally {
-            setThreecxLoading(false);
-        }
-    };
-
-    const handle3CXTest = async (id: string) => {
-        try {
-            const res = await fetch(`/api/integrations/3cx/connections/${id}/test`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                toast.success(data.data.message || 'PABX 3CX pronto para chamadas!');
-            }
-        } catch {
-            toast.error('Não foi possível testar a comunicação com o 3CX.');
-        }
-    };
-
-    const handleConnect = async () => {
-        setLoading(true);
-        try {
-            await fetch('/api/whatsapp/connect', { method: 'POST' });
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to connect');
-        }
-        setLoading(false);
-    };
-
-    const handleDisconnect = async () => {
-        setLoading(true);
-        try {
-            await fetch('/api/whatsapp/disconnect', { method: 'POST' });
-            setStatus('disconnected');
-            setQrCode(null);
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to disconnect');
-        }
-        setLoading(false);
-    };
-
-    const handleGoogleConnect = async () => {
-        setGoogleLoading(true);
-        try {
-            const res = await fetch('/api/google/auth-url');
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = data.data.url;
-                return;
-            }
-            toast.error(data.error || 'Não foi possível iniciar a conexão com o Google.');
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to start Google connect');
-            toast.error('Não foi possível iniciar a conexão com o Google.');
-        }
-        setGoogleLoading(false);
-    };
-
-    const handleGoogleDisconnect = async () => {
-        setGoogleLoading(true);
-        try {
-            await fetch('/api/google/disconnect', { method: 'POST' });
-            setGoogleConnected(false);
-            setGoogleEmail(null);
-            setUpcomingEvents([]);
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to disconnect Google');
-        }
-        setGoogleLoading(false);
-    };
-
-    const handleBitrixConnect = async () => {
-        if (!bitrixWebhookInput.trim()) {
-            toast.error('Cole a URL do webhook de entrada do Bitrix24.');
-            return;
-        }
-        setBitrixLoading(true);
-        try {
-            const res = await fetch('/api/bitrix/connect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ webhookUrl: bitrixWebhookInput.trim(), label: bitrixLabelInput.trim() || undefined }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setBitrixWebhookInput('');
-                setBitrixLabelInput('');
-                setSelectedBitrixConnectionId(data.data.id);
-                await fetchBitrixConnections();
-                toast.success('Bitrix24 conectado com sucesso.');
-            } else {
-                toast.error(data.error || 'Não foi possível conectar ao Bitrix24.');
-            }
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to connect Bitrix24');
-            toast.error('Não foi possível conectar ao Bitrix24.');
-        }
-        setBitrixLoading(false);
-    };
-
-    const handleBitrixDisconnect = async (connectionId: string) => {
-        setBitrixLoading(true);
-        try {
-            await fetch(`/api/bitrix/disconnect/${connectionId}`, { method: 'POST' });
-            await fetchBitrixConnections();
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Failed to disconnect Bitrix24');
-        }
-        setBitrixLoading(false);
-    };
 
     return (
         <div className="flex-1 overflow-hidden flex bg-gray-50/50 transition-colors duration-300">

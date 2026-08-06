@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, X, Globe, Send, RefreshCw, User, Target,
@@ -7,265 +7,42 @@ import {
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { Button } from '../../../components/ui/Button';
-import { api } from '../../../lib/api';
-import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../constants/brandMatrices';
-
-interface Message {
-  id: string;
-  sender: 'user' | 'bot';
-  text: string;
-  timestamp: string;
-  source?: 'internal' | 'web_search' | 'roleplay';
-}
+import { useAssistantChat } from '../../../hooks/useAssistantChat';
+import { useRoleplaySimulator } from '../../../hooks/useRoleplaySimulator';
+import { usePlaybookMatrixFilters } from '../../../hooks/usePlaybookMatrixFilters';
 
 export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { activeBrand, brandInfo } = useBrand();
   const [activeTab, setActiveTab] = useState<'assistant' | 'roleplay' | 'playbook'>('assistant');
-  const [searchMode, setSearchMode] = useState<'internal' | 'web_search' | 'roleplay'>('web_search');
 
-  // Interactive Matrix Filter States
+  // Compartilhado entre as 3 abas (assistente, roleplay e filtro de matrizes) — por isso não
+  // pertence a nenhum dos hooks de dados extraídos, cada um recebe como argumento.
   const [selectedBrand, setSelectedBrand] = useState<'atlasgr' | 'totaltrac'>(activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr');
-  const [selectedSegment, setSelectedSegment] = useState<string>('todos');
-  const [selectedPersona, setSelectedPersona] = useState<string>('todos');
-  const [playbookView, setPlaybookView] = useState<'objections' | 'qualifications'>('objections');
-
-  // Sync brand when activeBrand changes
   useEffect(() => {
     setSelectedBrand(activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr');
   }, [activeBrand]);
 
-  // Estado do assistente conversacional.
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'bot',
-      text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      source: 'web_search'
-    }
-  ]);
-  const [inputQuery, setInputQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const {
+    messages, inputQuery, setInputQuery, isSearching, searchMode, setSearchMode, handleSendMessage,
+  } = useAssistantChat(activeBrand, brandInfo, selectedBrand);
+
+  const {
+    roleplayPersona, setRoleplayPersona, roleplayActive, setRoleplayActive, roleplayMessages,
+    roleplayInput, setRoleplayInput, roleplayScore, roleplayFeedback, roleplayError,
+    isRoleplayThinking, startRoleplay, handleRoleplaySubmit,
+  } = useRoleplaySimulator(brandInfo, selectedBrand);
+
+  const {
+    selectedSegment, setSelectedSegment, selectedPersona, setSelectedPersona,
+    playbookView, setPlaybookView, copiedKey, handleCopy,
+    filteredObjections, filteredQualifications,
+  } = usePlaybookMatrixFilters(selectedBrand);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setMessages([{
-      id: `${activeBrand}-${Date.now()}`,
-      sender: 'bot',
-      text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      source: 'web_search',
-    }]);
-  }, [activeBrand, brandInfo.name]);
-
-  // State do Simulador de Roleplay
-  const [roleplayPersona, setRoleplayPersona] = useState<'skeptical_cfo' | 'strict_buyer' | 'tech_director'>('skeptical_cfo');
-  const [roleplayActive, setRoleplayActive] = useState(false);
-  const [roleplayMessages, setRoleplayMessages] = useState<Array<{ sender: 'sdr' | 'buyer'; text: string }>>([]);
-  const [roleplayInput, setRoleplayInput] = useState('');
-  const [roleplayScore, setRoleplayScore] = useState<{ clarity: number; objectionHandling: number; total: number } | null>(null);
-  const [roleplayFeedback, setRoleplayFeedback] = useState('');
-  const [roleplayError, setRoleplayError] = useState('');
-  const [isRoleplayThinking, setIsRoleplayThinking] = useState(false);
-
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, roleplayMessages]);
-
-  const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  // Envio de mensagem ao copiloto real, com contexto local opcional.
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputQuery.trim() || isSearching) return;
-
-    const userText = inputQuery;
-    setInputQuery('');
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: userText,
-      timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setIsSearching(true);
-
-    const queryLower = userText.toLowerCase();
-
-    const matchedObjection = BRAND_OBJECTIONS.find((o) =>
-      o.brand === selectedBrand && (
-        queryLower.includes(o.segment.toLowerCase()) ||
-        queryLower.includes(o.persona.toLowerCase()) ||
-        queryLower.includes('objeção') ||
-        queryLower.includes('caro') ||
-        queryLower.includes('concorrente') ||
-        queryLower.includes('rastreador') ||
-        queryLower.includes('crm')
-      )
-    );
-
-    const matchedQual = BRAND_QUALIFICATIONS.find((q) =>
-      q.brand === selectedBrand && (
-        queryLower.includes(q.framework.toLowerCase()) ||
-        queryLower.includes('qualificar') ||
-        queryLower.includes('pergunta') ||
-        queryLower.includes(q.segment.toLowerCase())
-      )
-    );
-
-    const localContext = searchMode === 'internal'
-      ? [
-          matchedObjection
-            ? `MATRIZ DE OBJEÇÃO:\n${JSON.stringify(matchedObjection, null, 2)}`
-            : '',
-          matchedQual
-            ? `MATRIZ DE QUALIFICAÇÃO:\n${JSON.stringify(matchedQual, null, 2)}`
-            : '',
-        ].filter(Boolean).join('\n\n')
-      : '';
-
-    try {
-      const response = await api.post<{ result: { answer: string; webAccess: false } }>('/api/intelligence/studio', {
-        kind: 'assistant',
-        brand: {
-          name: brandInfo.name,
-          description: brandInfo.description,
-        },
-        inputs: {
-          question: userText,
-          mode: searchMode === 'internal' ? 'internal' : 'general',
-          localContext,
-        },
-      }, { timeoutMs: 90_000 });
-
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        sender: 'bot',
-        text: response.result.answer,
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        source: searchMode,
-      }]);
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'Falha inesperada';
-      setMessages((prev) => [...prev, {
-        id: (Date.now() + 1).toString(),
-        sender: 'bot',
-        text: `Não consegui consultar o motor de IA agora. ${reason}`,
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        source: searchMode,
-      }]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // Roleplay Simulator Interactions extraídas das 100 objeções
-  const startRoleplay = () => {
-    setRoleplayActive(true);
-    setRoleplayScore(null);
-    setRoleplayFeedback('');
-    setRoleplayError('');
-    
-    // Pega objeções da marca selecionada na base de 100
-    const brandObjs = BRAND_OBJECTIONS.filter(o => o.brand === selectedBrand);
-    const randomObj = brandObjs[Math.floor(Math.random() * brandObjs.length)];
-    const objectionText = randomObj.objectionText.replace(/[.!?]+$/, '');
-
-    let initialGreeting = '';
-    if (roleplayPersona === 'skeptical_cfo') {
-      initialGreeting = `Olá! Sou o CFO. Em nossa operação de ${randomObj.segment}, ${objectionText}. O que a sua solução traz de retorno financeiro para justificar a contratação?`;
-    } else if (roleplayPersona === 'strict_buyer') {
-      initialGreeting = `Boa tarde. Em nossa operação de ${randomObj.segment}, ${objectionText}. Por que deveríamos perder tempo avaliando o ${selectedBrand.toUpperCase()}?`;
-    } else {
-      initialGreeting = `Oi. Sou o Diretor Técnico. Falando como ${randomObj.persona}, a dor principal em ${randomObj.segment} é que ${objectionText}. Como vocês resolvem isso na prática?`;
-    }
-
-    setRoleplayMessages([{ sender: 'buyer', text: initialGreeting }]);
-  };
-
-  const handleRoleplaySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!roleplayInput.trim() || !roleplayActive || isRoleplayThinking) return;
-
-    const userText = roleplayInput;
-    setRoleplayInput('');
-    setRoleplayError('');
-    setRoleplayFeedback('');
-    const transcript = [...roleplayMessages, { sender: 'sdr' as const, text: userText }];
-    setRoleplayMessages(transcript);
-    setIsRoleplayThinking(true);
-
-    const playbookContext = BRAND_OBJECTIONS
-      .filter((item) => item.brand === selectedBrand)
-      .slice(0, 3)
-      .map((item) => JSON.stringify({
-        segment: item.segment,
-        persona: item.persona,
-        objection: item.objectionText,
-        responseGuidance: item.responseScript,
-        differentiator: item.keyDifferentiator,
-      }))
-      .join('\n');
-
-    try {
-      const response = await api.post<{
-        result: {
-          reply: string;
-          feedback: string;
-          clarity: number;
-          objectionHandling: number;
-          total: number;
-        };
-      }>('/api/intelligence/studio', {
-        kind: 'roleplay',
-        brand: {
-          name: brandInfo.name,
-          description: brandInfo.description,
-        },
-        inputs: {
-          persona: roleplayPersona,
-          message: userText,
-          transcript,
-          playbookContext,
-        },
-      }, { timeoutMs: 90_000 });
-
-      setRoleplayMessages((prev) => [...prev, { sender: 'buyer', text: response.result.reply }]);
-      setRoleplayFeedback(response.result.feedback);
-      setRoleplayScore({
-        clarity: response.result.clarity,
-        objectionHandling: response.result.objectionHandling,
-        total: response.result.total,
-      });
-    } catch (error) {
-      setRoleplayError(error instanceof Error ? error.message : 'Falha ao consultar o motor de IA');
-    } finally {
-      setIsRoleplayThinking(false);
-    }
-  };
-
-  // Filtered Lists for Objections and Qualifications
-  const filteredObjections = BRAND_OBJECTIONS.filter((item) => {
-    if (item.brand !== selectedBrand) return false;
-    if (selectedSegment !== 'todos' && !item.segment.toLowerCase().includes(selectedSegment.toLowerCase())) return false;
-    if (selectedPersona !== 'todos' && !item.persona.toLowerCase().includes(selectedPersona.toLowerCase())) return false;
-    return true;
-  });
-
-  const filteredQualifications = BRAND_QUALIFICATIONS.filter((item) => {
-    if (item.brand !== selectedBrand) return false;
-    if (selectedSegment !== 'todos' && !item.segment.toLowerCase().includes(selectedSegment.toLowerCase())) return false;
-    if (selectedPersona !== 'todos' && !item.persona.toLowerCase().includes(selectedPersona.toLowerCase())) return false;
-    return true;
-  });
 
   return (
     <AnimatePresence>
