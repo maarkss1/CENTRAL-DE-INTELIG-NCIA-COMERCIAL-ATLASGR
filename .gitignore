@@ -21,6 +21,10 @@ test-results/
 # Dump de persistência local do Redis — nunca deveria ter sido commitado (DEP-006).
 dump.rdb
 
+# Credenciais de sessão do WhatsApp (Baileys) geradas em runtime — nunca devem ir para o
+# controle de versão (DEVOPS-008).
+whatsapp_auth/
+
 # Artefatos de vídeo/imagem gerados sob demanda por script na raiz do repo — a documentação
 # oficial vive em documentacao-aplicacao/ (versionada de propósito, não afetada por esta regra).
 /navigation_flow.mp4

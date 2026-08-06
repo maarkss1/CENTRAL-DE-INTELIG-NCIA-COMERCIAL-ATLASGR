@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, ShieldAlert, Database, Wrench, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { SWARM_BRAND } from '../agents/swarm.constants';
 
 type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'crm' | 'ops';
 type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
@@ -65,16 +66,46 @@ export function SwarmDashboard() {
         abortRef.current?.abort();
     };
 
+    // Qualquer bolha de agente ainda em 'thinking' (spinner girando) quando a missão é cancelada
+    // ou cai num erro de transporte precisa ser resolvida explicitamente — sem isto, o card do
+    // especialista ficava girando para sempre na tela, já que nenhum evento 'agent_result' chegaria
+    // para substituí-lo.
+    const resolvePendingThinking = (text: string) => {
+        setMessages(prev => prev.map(m => (m.status === 'thinking' ? { ...m, status: 'error', text } : m)));
+    };
+
+    // O backend às vezes envia `data: <string JSON>` (ex.: a mensagem de erro em
+    // 'event: error\ndata: "Falha X"\n\n') em vez de `data: <objeto SwarmEvent>` — extrai o texto
+    // de forma segura nos dois casos em vez de assumir sempre um objeto.
+    const parseSseErrorMessage = (dataStr: string): string => {
+        try {
+            const parsed = JSON.parse(dataStr);
+            return typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+        } catch {
+            return dataStr;
+        }
+    };
+
     const runSimulation = async (overrideMission?: string) => {
         const missionText = (overrideMission ?? mission).trim();
         if (!missionText) return;
 
         setIsExecuting(true);
-        setMessages([]);
         setActiveStep(0);
         setEngagedAgents(new Set());
         setStartedAt(Date.now());
         setElapsedMs(0);
+        // Feedback imediato: em vez de uma tela vazia até a primeira resposta do servidor chegar,
+        // já mostra que o Supervisor está trabalhando assim que a missão é enviada.
+        setMessages([{
+            id: 'routing-boot',
+            agent: 'supervisor',
+            text: 'Analisando a missão e escolhendo o primeiro especialista...',
+            timestamp: new Date(),
+            status: 'thinking',
+            kind: 'routing',
+            step: 0,
+        }]);
 
         const controller = new AbortController();
         abortRef.current = controller;
@@ -101,34 +132,71 @@ export function SwarmDashboard() {
 
             const decoder = new TextDecoder('utf-8');
             let buffer = '';
+            let streamErrored = false;
 
+            // SSE agrupa cada evento num "frame" terminado em linha em branco (\n\n), com uma linha
+            // opcional `event: <nome>` e uma ou mais linhas `data: <conteúdo>`. O parser anterior lia
+            // linha a linha e só olhava para `data:`, então nunca sabia diferenciar um frame normal
+            // de um `event: error` mandado pelo backend — o erro chegava, mas nada na tela reagia a
+            // ele e o card do especialista em análise ficava girando para sempre.
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
+                if (!value) continue;
 
-                if (value) {
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
+                buffer += decoder.decode(value, { stream: true });
+                const frames = buffer.split('\n\n');
+                buffer = frames.pop() || '';
 
-                    for (const line of lines) {
-                        if (!line.startsWith('data: ')) continue;
-                        const dataStr = line.substring(6).trim();
-                        if (dataStr === '{}' || !dataStr) continue;
+                for (const frame of frames) {
+                    if (!frame.trim()) continue;
 
-                        try {
-                            const event = JSON.parse(dataStr) as SwarmEvent;
-                            applyEvent(event);
-                        } catch (e) {
-                            console.error('Erro ao fazer parse SSE data', e);
-                        }
+                    let eventName = 'message';
+                    let dataStr = '';
+                    for (const line of frame.split('\n')) {
+                        if (line.startsWith('event: ')) eventName = line.slice(7).trim();
+                        else if (line.startsWith('data: ')) dataStr += line.slice(6);
+                    }
+                    if (!dataStr) continue;
+
+                    if (eventName === 'error') {
+                        streamErrored = true;
+                        const message = parseSseErrorMessage(dataStr);
+                        resolvePendingThinking('Interrompido por um erro no enxame.');
+                        setMessages(prev => [
+                            ...prev,
+                            {
+                                id: createId(),
+                                agent: 'supervisor',
+                                text: `O enxame foi interrompido: ${message}`,
+                                timestamp: new Date(),
+                                status: 'error',
+                                kind: 'routing',
+                                step: activeStep,
+                            }
+                        ]);
+                        continue;
+                    }
+
+                    if (eventName === 'end' || dataStr === '{}') continue;
+
+                    try {
+                        const event = JSON.parse(dataStr) as SwarmEvent;
+                        applyEvent(event);
+                    } catch (e) {
+                        console.error('Erro ao fazer parse SSE data', e);
                     }
                 }
             }
 
+            // Rede de segurança: se a conexão encerrar sem um evento 'final' nem 'error' explícito
+            // (proxy derrubando a conexão, por exemplo), nenhum card deve ficar preso em "Processando...".
+            if (!streamErrored) resolvePendingThinking('Sem resposta deste agente — a conexão foi encerrada antes da conclusão.');
+
             setIsExecuting(false);
         } catch (error) {
             if ((error as Error).name === 'AbortError') {
+                resolvePendingThinking('Cancelado pelo usuário.');
                 setMessages(prev => [
                     ...prev,
                     {
@@ -143,6 +211,7 @@ export function SwarmDashboard() {
                 ]);
             } else {
                 console.error('Falha ao executar Enxame via Stream:', error);
+                resolvePendingThinking('Falha de comunicação com o enxame.');
                 setMessages(prev => [
                     ...prev,
                     {
@@ -164,6 +233,11 @@ export function SwarmDashboard() {
 
     const applyEvent = (event: SwarmEvent) => {
         setActiveStep(event.step);
+
+        // Resolve o placeholder de "Analisando a missão..." assim que o primeiro evento real do
+        // servidor chega — ele nunca é alvo de um agent_result (não é um especialista), então sem
+        // isto seu spinner giraria para sempre mesmo com a missão concluída com sucesso.
+        setMessages(prev => prev.map(m => (m.id === 'routing-boot' && m.status === 'thinking' ? { ...m, status: 'done' } : m)));
 
         if (event.type === 'routing') {
             setMessages(prev => [
@@ -289,8 +363,8 @@ export function SwarmDashboard() {
                         <Zap size={24} fill="currentColor" />
                     </div>
                     <div>
-                        <h2 className="text-xl text-white font-black tracking-tight">Swarm Orchestrator</h2>
-                        <p className="text-gray-400 text-sm mt-0.5 font-medium">Rede Neural de Multi-Agentes</p>
+                        <h2 className="text-xl text-white font-black tracking-tight">{SWARM_BRAND} Swarm</h2>
+                        <p className="text-gray-400 text-sm mt-0.5 font-medium">Orquestração Autônoma de Agentes Comerciais</p>
                     </div>
                 </div>
 
@@ -356,7 +430,9 @@ export function SwarmDashboard() {
                                     animate={{ opacity: 1, y: 0 }}
                                     className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-gray-500 ml-2"
                                 >
-                                    <ShieldAlert size={12} className={accent.text} />
+                                    {msg.status === 'thinking'
+                                        ? <Loader2 size={12} className={`animate-spin ${accent.text}`} />
+                                        : <ShieldAlert size={12} className={accent.text} />}
                                     <span className={msg.status === 'error' ? 'text-danger' : ''}>{msg.text}</span>
                                 </motion.div>
                             );

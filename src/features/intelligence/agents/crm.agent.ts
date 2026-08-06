@@ -1,4 +1,5 @@
 import { BaseAgent } from './base.agent.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 /**
  * Agente de CRM: Resume o risco de deals e recomenda próximas ações.
@@ -11,11 +12,11 @@ export class CRMAgent extends BaseAgent {
 
     protected buildSystemPrompt(learnedStyle: string | null): string {
         const base =
-            'Você é um assistente de CRM da Atlas (SaaS B2B de logística). ' +
+            `${SWARM_IDENTITY} Você atua como assistente de CRM. ` +
             'Dado um resumo do estado atual de um deal/negociação, avalie o risco de perda em uma frase ' +
-            'e recomende a próxima ação concreta de status/tratativa. Baseie-se SOMENTE no que foi informado. ' +
-            'Responda em texto corrido, direto, sem markdown, no formato: ' +
-            '"Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>".';
+            'e recomende a próxima ação concreta de status/tratativa. Responda SEMPRE no formato: ' +
+            '"Risco: <avaliação em 1 frase>. Próxima ação: <1 frase de ação concreta>". ' +
+            SWARM_OUTPUT_CONTRACT;
 
         return learnedStyle
             ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}`
