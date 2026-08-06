@@ -704,25 +704,24 @@ async function runEnrichment(
             }
         });
 
-        const validContacts = apolloContacts.filter((c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => c.name && c.name !== 'Sem Nome');
-        if (validContacts.length > 0) {
-            const contactsData = await Promise.all(
-                validContacts.map(async (c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => ({
-                    name: c.name,
+        const validContacts = apolloContacts.filter((c) => c.name && c.name !== 'Sem Nome');
+        const contactsWithStatus = await Promise.all(validContacts.map(async (c) => {
+            return { ...c, emailStatus: await resolveEmailStatus(c.email) };
+        }));
+        if (contactsWithStatus.length > 0) {
+            await prisma.contact.createMany({
+                data: contactsWithStatus.map((c) => ({
+                    name: c.name!,
                     role: c.title,
                     email: c.email,
                     phone: c.phone,
                     whatsapp: guessWhatsappFromPhone(c.phone),
                     linkedin: c.linkedin_url,
                     source: 'Apollo',
-                    emailStatus: await resolveEmailStatus(c.email),
+                    emailStatus: c.emailStatus,
                     companyId,
-                    organizationId: company.organizationId
+                    organizationId: company.organizationId!
                 }))
-            );
-
-            await prisma.contact.createMany({
-                data: contactsData
             });
         }
     } else if (domainGuess.verified && domainGuess.domain) {
@@ -744,25 +743,24 @@ async function runEnrichment(
             });
 
             // Save contacts to CRM
-            const validContactsNew = apolloContacts.filter((c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => c.name && c.name !== 'Sem Nome');
-            if (validContactsNew.length > 0) {
-                const contactsData = await Promise.all(
-                    validContactsNew.map(async (c: { name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }) => ({
-                        name: c.name,
+            const validContacts = apolloContacts.filter((c) => c.name && c.name !== 'Sem Nome');
+            const contactsWithStatus = await Promise.all(validContacts.map(async (c) => {
+                return { ...c, emailStatus: await resolveEmailStatus(c.email) };
+            }));
+            if (contactsWithStatus.length > 0) {
+                await prisma.contact.createMany({
+                    data: contactsWithStatus.map((c) => ({
+                        name: c.name!,
                         role: c.title,
                         email: c.email,
                         phone: c.phone,
                         whatsapp: guessWhatsappFromPhone(c.phone),
                         linkedin: c.linkedin_url,
                         source: contactsSource === 'hunter' ? 'Hunter' : 'Apollo',
-                        emailStatus: await resolveEmailStatus(c.email),
+                        emailStatus: c.emailStatus,
                         companyId,
-                        organizationId: company.organizationId
+                        organizationId: company.organizationId!
                     }))
-                );
-
-                await prisma.contact.createMany({
-                    data: contactsData
                 });
             }
         }
