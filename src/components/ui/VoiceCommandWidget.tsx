@@ -3,6 +3,7 @@ import { Mic, Sparkles, Volume2, Command, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../contexts/BrandContext';
 import { navigationBus } from '../../lib/navigationBus';
+import { clientLogger } from '../../lib/clientLogger';
 
 // SpeechRecognitionLike / Window.SpeechRecognition são tipos ambient globais definidos em
 // src/types/speech-recognition.d.ts (Web Speech API não faz parte da lib "DOM" do TypeScript).
@@ -92,7 +93,7 @@ export function VoiceCommandWidget() {
       try {
         recognition.start();
       } catch (err) {
-        console.error(err);
+        clientLogger.error({ err }, 'Falha ao iniciar reconhecimento de voz');
       }
     }
   };
@@ -103,7 +104,7 @@ export function VoiceCommandWidget() {
       try {
         recognition.stop();
       } catch (err) {
-        console.error(err);
+        clientLogger.error({ err }, 'Falha ao parar reconhecimento de voz');
       }
     }
   };
