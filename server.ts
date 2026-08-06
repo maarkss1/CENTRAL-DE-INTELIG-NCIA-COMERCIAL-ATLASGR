@@ -35,7 +35,7 @@ import { teamRoutes } from './src/features/team/routes/team.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
-import { automationRoutes } from './src/features/automations/automation.routes.js';
+import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
