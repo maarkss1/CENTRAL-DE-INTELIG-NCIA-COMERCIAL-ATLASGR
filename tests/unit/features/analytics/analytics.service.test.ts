@@ -42,13 +42,13 @@ describe('AnalyticsService.overview — janela de fechamento do mês', () => {
     it('conta "ganho no mês" e "perdido no mês" filtrando por closedAt, não updatedAt', async () => {
         await analyticsService.overview(ORG, new Date('2026-08-15T12:00:00Z'));
 
-        const wonCall = lead.count.mock.calls.find(([args]) => args.where.status === 'Fechado_Ganho');
-        const lostCall = lead.count.mock.calls.find(([args]) => args.where.status === 'Fechado_Perdido');
+        const wonCall = lead.count.mock.calls.find(([args]) => typeof args.where.status === 'string' && args.where.status.includes('Ganho'));
+        const lostCall = lead.count.mock.calls.find(([args]) => typeof args.where.status === 'string' && args.where.status.includes('Perdido'));
 
-        expect(wonCall?.[0].where).toHaveProperty('closedAt');
-        expect(wonCall?.[0].where).not.toHaveProperty('updatedAt');
-        expect(lostCall?.[0].where).toHaveProperty('closedAt');
-        expect(lostCall?.[0].where).not.toHaveProperty('updatedAt');
+        expect(wonCall?.[0]?.where).toHaveProperty('closedAt');
+        expect(wonCall?.[0]?.where).not.toHaveProperty('updatedAt');
+        expect(lostCall?.[0]?.where).toHaveProperty('closedAt');
+        expect(lostCall?.[0]?.where).not.toHaveProperty('updatedAt');
     });
 });
 
@@ -65,7 +65,7 @@ describe('AnalyticsService.monthly — série de ganhos/perdidos', () => {
     it('agrupa um lead fechado no mês do closedAt dele, não do createdAt/updatedAt', async () => {
         lead.findMany
             .mockResolvedValueOnce([]) // created
-            .mockResolvedValueOnce([{ closedAt: new Date('2026-08-10T00:00:00Z'), status: 'Fechado_Ganho' }]); // closed
+            .mockResolvedValueOnce([{ closedAt: new Date('2026-08-10T00:00:00Z'), status: 'Negocios_Ganhos' }]); // closed
 
         const result = await analyticsService.monthly(ORG, 3, new Date('2026-08-15T12:00:00Z'));
         const augustBucket = result.find((m) => m.month === '2026-08');
