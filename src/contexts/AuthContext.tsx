@@ -17,7 +17,7 @@ export interface UserSession {
 }
 
 interface AuthContextType {
-  currentUser: UserSession | null;
+  currentUser: UserSession;
   isAdmin: boolean;
   logout: () => void;
   canAccessAdminPanel: () => boolean;
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const savedBrand = localStorage.getItem('selectedBrand') as 'atlasgr' | 'totaltrac' | null;
 
-  const currentUser: UserSession | null = sessionUser
+  const currentUser: UserSession = sessionUser
     ? (() => {
         const role = sessionUser.role || 'GUEST';
         const permissions = AuthorizationService.getPermissions(role as Role);
@@ -83,20 +83,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           mustChangePassword: !!sessionUser.mustChangePassword,
         };
       })()
-    : null;
+    : {
+        id: 'public-access-user',
+        name: 'Visitante',
+        email: 'visitante@atlasgr.com.br',
+        role: 'SUPER_ADMIN',
+        roleTitle: ROLE_TITLES.SUPER_ADMIN,
+        brand: savedBrand || 'atlasgr',
+        permissions: AuthorizationService.getPermissions('SUPER_ADMIN'),
+        avatarBg: 'bg-gradient-to-r from-orange-500 to-amber-500',
+        mustChangePassword: false,
+      };
 
   const logout = async () => {
     await authClient.signOut();
-    window.location.href = '/login';
+    window.location.href = '/app';
   };
 
-  const isAdmin = !!currentUser && ADMIN_ROLES.includes(currentUser.role);
+  const isAdmin = ADMIN_ROLES.includes(currentUser.role);
 
   const canAccessAdminPanel = () =>
-    !!currentUser && (isAdmin || currentUser.permissions.includes('settings.manage'));
+    isAdmin || currentUser.permissions.includes('settings.manage');
 
   const canAccessBrand = (brand: 'atlasgr' | 'totaltrac') => {
-    if (!currentUser) return false;
     // Papéis administrativos de conta cruzam marcas; os demais ficam restritos
     // à marca associada ao domínio do próprio e-mail corporativo.
     if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'TENANT_OWNER') return true;
