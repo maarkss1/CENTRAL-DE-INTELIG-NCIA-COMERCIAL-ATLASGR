@@ -32,11 +32,10 @@ export function PromptStudio() {
 
     const loadPrompts = async () => {
         try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const res: any = await api.get('/api/prompts');
-            setPrompts(res.data.data);
-            
-            const current = res.data.data.find((p: Prompt) => p.category === selectedCategory);
+            const data = await api.get<Prompt[]>('/api/prompts');
+            setPrompts(data);
+
+            const current = data.find((p) => p.category === selectedCategory);
             if (current?.variables?.tone) setTone(current.variables.tone as string);
         } catch (error) {
             console.error('Failed to load prompts', error);

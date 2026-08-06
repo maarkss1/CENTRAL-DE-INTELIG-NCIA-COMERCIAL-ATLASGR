@@ -3,9 +3,12 @@ import { pipeline, env } from '@xenova/transformers';
 // Optimization for Node.js
 env.allowLocalModels = true;
 
+type SentimentPipeline = Awaited<ReturnType<typeof pipeline<'sentiment-analysis'>>>;
+type ClassificationPipeline = Awaited<ReturnType<typeof pipeline<'zero-shot-classification'>>>;
+
 class LocalAIEngine {
-  private static sentimentPipeline: any = null;
-  private static classificationPipeline: any = null;
+  private static sentimentPipeline: SentimentPipeline | null = null;
+  private static classificationPipeline: ClassificationPipeline | null = null;
 
   /**
    * Initializes the models. Call this on server start to avoid cold starts.

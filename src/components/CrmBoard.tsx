@@ -17,7 +17,9 @@ import {
     PointerSensor, 
     useSensor, 
     useSensors, 
-    DragOverlay 
+    DragOverlay,
+    DragStartEvent,
+    DragEndEvent
 } from '@dnd-kit/core';
 
 const COLUMNS: LeadStatus[] = [
@@ -75,8 +77,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragStart = useCallback((event: any) => {
+    const handleDragStart = useCallback((event: DragStartEvent) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
@@ -84,8 +85,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragEnd = useCallback(async (event: any) => {
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveLead(null);
 
@@ -94,7 +94,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (COLUMNS.includes(over.id)) {
+        if (typeof over.id === 'string' && COLUMNS.includes(over.id as LeadStatus)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);

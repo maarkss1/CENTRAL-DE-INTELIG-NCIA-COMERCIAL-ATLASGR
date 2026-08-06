@@ -11,7 +11,7 @@ interface AgentState {
 
 export class AutonomousAgent {
   private llm: ChatOpenAI;
-  private graph: any;
+  private graph!: ReturnType<StateGraph<AgentState>['compile']>;
 
   constructor() {
     this.llm = new ChatOpenAI({

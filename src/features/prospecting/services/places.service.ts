@@ -13,6 +13,26 @@ export interface PlaceCandidate {
     website?: string;
 }
 
+interface GooglePlaceAddressComponent {
+    types?: string[];
+    longText?: string;
+    shortText?: string;
+}
+
+interface GooglePlaceResult {
+    displayName?: { text?: string };
+    formattedAddress?: string;
+    addressComponents?: GooglePlaceAddressComponent[];
+    rating?: number;
+    userRatingCount?: number;
+    nationalPhoneNumber?: string;
+    websiteUri?: string;
+}
+
+interface GooglePlacesTextSearchResponse {
+    places?: GooglePlaceResult[];
+}
+
 /** Busca candidatos reais de empresas por categoria+região (ex: "Transportadora em Rio de Janeiro") via Google Places (New) Text Search. */
 export async function searchGooglePlacesCandidates(query: string, count: number): Promise<PlaceCandidate[]> {
     const apiKey = getPaidProspectingKey('GOOGLE_MAPS_API_KEY');
@@ -39,16 +59,13 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
             return [];
         }
 
-        const data = await res.json();
+        const data = await res.json() as GooglePlacesTextSearchResponse;
         const places = data.places || [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return places.map((p: any) => {
+        return places.map((p) => {
             const components = p.addressComponents || [];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const city = components.find((c: any) => c.types?.includes('administrative_area_level_2'))?.longText;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const state = components.find((c: any) => c.types?.includes('administrative_area_level_1'))?.shortText;
+            const city = components.find((c) => c.types?.includes('administrative_area_level_2'))?.longText;
+            const state = components.find((c) => c.types?.includes('administrative_area_level_1'))?.shortText;
             return {
                 tradeName: p.displayName?.text || 'Empresa sem nome',
                 address: p.formattedAddress,
