@@ -59,7 +59,13 @@ export function dialPolicyFromEnv(): DialPolicy {
 export async function enabledOrganizations(): Promise<string[]> {
     if (!env.SDR_COLD_CALL_ENABLED) return [];
     const rawOrgs = (env.SDR_COLD_CALL_ORGANIZATIONS ?? '').trim();
-    if (!rawOrgs || rawOrgs === '*' || rawOrgs === 'all') {
+    // Vazio precisa continuar fail-closed (ninguém habilitado) — só '*'/'all' DIGITADOS de propósito
+    // contam como opt-in explícito pra todas as organizações. Sem essa distinção, esquecer de
+    // preencher SDR_COLD_CALL_ORGANIZATIONS com SDR_COLD_CALL_ENABLED=true ligava a discagem fria
+    // automática pra TODAS as organizações do banco por omissão — o oposto do desenho fail-closed
+    // descrito acima, e o pior lugar possível pra isso acontecer por engano.
+    if (!rawOrgs) return [];
+    if (rawOrgs === '*' || rawOrgs === 'all') {
         const orgs = await prisma.organization.findMany({ select: { id: true } });
         return orgs.map((o) => o.id);
     }

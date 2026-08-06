@@ -200,6 +200,13 @@ model Lead {
   owner           String?
   lastInteraction DateTime?
   nextAction      DateTime?
+  // Quando o lead entrou em Fechado_Ganho/Fechado_Perdido, setado só nessa transição de status
+  // (ver PrismaLeadRepository.updateStatus). Métricas de "ganho/perdido no mês" (analytics.service.ts)
+  // não podem usar `updatedAt` pra isso: esse campo é @updatedAt e sobe em QUALQUER update do
+  // registro (sync do Bitrix, uma ligação do SDR de voz tocando só lastInteraction, etc.), não só
+  // em mudança de status — um lead fechado em março podia contar como "ganho em agosto" só porque
+  // outra coisa tocou nele depois. Volta a null se o lead for reaberto pra uma etapa não-final.
+  closedAt        DateTime?
   // PIC (Perfil de Cliente Ideal) do Playbook de Pré-Vendas Atlas — setado manualmente pelo SDR/AM
   // após identificar o gatilho real na conversa (não é inferido automaticamente): "PIC1_Expansao"
   // (transportadora em expansão operacional), "PIC2_Risco" (sob pressão de risco/sinistro), ou

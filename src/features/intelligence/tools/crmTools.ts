@@ -1,9 +1,69 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { prisma } from '../../../lib/prisma.js';
-import { toPrismaLeadStatus } from '../../../lib/enumMap';
+import { toPrismaLeadStatus, fromPrismaLeadStatus } from '../../../lib/enumMap';
+import { LEAD_STATUS, type LeadStatus } from '../../../lib/zod.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { minimizePii } from '../services/guardrails.service.js';
+
+/**
+ * Ferramenta para o agente ENCONTRAR o(s) Lead(s) certo(s) quando a instrução menciona uma
+ * empresa/contato pelo nome (ou só um status/filtro) em vez de já trazer um ID pronto — sem isto,
+ * qualquer instrução que não viesse com um leadId explícito batia num beco sem saída ("me passe o
+ * ID do lead"), mesmo quando o dado já existe no CRM e só precisava ser localizado por nome.
+ */
+export const searchLeadsTool = tool(
+    async ({ query, status, limit }: { query?: string; status?: string; limit?: number }) => {
+        const organizationId = getTenantId();
+        if (!organizationId) {
+            return 'Erro: contexto de organização ausente — não é possível buscar leads com segurança.';
+        }
+
+        const take = Math.min(Math.max(limit ?? 10, 1), 20);
+        const trimmedQuery = query?.trim();
+
+        const leads = await prisma.lead.findMany({
+            where: {
+                organizationId,
+                ...(status ? { status: toPrismaLeadStatus(status as LeadStatus) as never } : {}),
+                ...(trimmedQuery
+                    ? {
+                        OR: [
+                            { company: { is: { tradeName: { contains: trimmedQuery, mode: 'insensitive' } } } },
+                            { company: { is: { legalName: { contains: trimmedQuery, mode: 'insensitive' } } } },
+                            { contact: { is: { name: { contains: trimmedQuery, mode: 'insensitive' } } } },
+                        ],
+                    }
+                    : {}),
+            },
+            include: { company: true, contact: true },
+            orderBy: { lastInteraction: 'desc' },
+            take,
+        });
+
+        if (leads.length === 0) {
+            return 'Nenhum lead encontrado com esses critérios. Confirme o nome da empresa/contato ou peça o ID diretamente.';
+        }
+
+        const lines = leads.map((l) =>
+            `- ID: ${l.id} | Empresa: ${l.company?.tradeName ?? 'Desconhecida'} | Contato: ${l.contact?.name ?? '—'} | Status: ${fromPrismaLeadStatus(l.status)}`,
+        );
+        const disambiguationHint = leads.length > 1
+            ? '\n\nMais de um lead corresponde à busca — confirme qual antes de agir, ou peça mais detalhes se não estiver claro.'
+            : '';
+        return `Encontrado(s) ${leads.length} lead(s):\n${lines.join('\n')}${disambiguationHint}`;
+    },
+    {
+        name: 'search_leads',
+        description:
+            'Busca leads existentes no CRM por nome de empresa (razão social ou fantasia), nome do contato e/ou status — use SEMPRE que a instrução mencionar uma empresa/pessoa/lead pelo nome em vez de trazer um ID pronto. Retorna o ID real de cada lead encontrado para usar em seguida com get_lead_context ou as demais ferramentas. Nunca invente um leadId: se a busca não retornar nada, informe isso ao usuário em vez de inventar um ID.',
+        schema: z.object({
+            query: z.string().optional().describe('Texto livre para buscar por nome da empresa (razão social/fantasia) ou nome do contato'),
+            status: z.enum(LEAD_STATUS).optional().describe('Filtrar por status atual do lead'),
+            limit: z.number().min(1).max(20).optional().describe('Máximo de resultados (padrão 10)'),
+        }),
+    },
+);
 
 /**
  * Ferramenta para o agente buscar o contexto completo de um Lead (empresa, contato, interações)

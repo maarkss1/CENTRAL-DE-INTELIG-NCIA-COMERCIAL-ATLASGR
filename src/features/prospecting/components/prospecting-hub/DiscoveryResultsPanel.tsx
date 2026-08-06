@@ -133,7 +133,11 @@ export function DiscoveryResultsPanel({
                             <CandidateCard
                                 candidate={c}
                                 onPromote={() => onPromoteCandidate(c, i)}
-                                isPromoting={promotingKey === `discovery-${i}`}
+                                // isSavingBatch também desabilita: sem isso, dava pra clicar
+                                // "Enriquecer e Adicionar" no MESMO candidato que uma promoção em
+                                // massa já estava processando, disparando duas chamadas concorrentes
+                                // a /api/prospecting/promote e duplicando a Company/Lead no CRM.
+                                isPromoting={promotingKey === `discovery-${i}` || isSavingBatch}
                                 promoted={!!promoted[`discovery-${i}`]}
                                 promotedResult={promoted[`discovery-${i}`]}
                                 isSelected={selectedCandidates.has(i)}

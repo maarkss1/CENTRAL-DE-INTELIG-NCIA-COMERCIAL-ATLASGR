@@ -67,6 +67,20 @@ describe('enabledOrganizations (swarm scheduler)', () => {
         mockEnv.SWARM_SCHEDULER_ORGANIZATIONS = 'org-1, org-2 ,, org-3';
         expect(await enabledOrganizations()).toEqual(['org-1', 'org-2', 'org-3']);
     });
+
+    it('is fail-closed when enabled but the organization list is left empty (never falls back to "all orgs")', async () => {
+        mockEnv.SWARM_SCHEDULER_ENABLED = true;
+        mockEnv.SWARM_SCHEDULER_ORGANIZATIONS = '';
+        expect(await enabledOrganizations()).toEqual([]);
+    });
+
+    it('only treats an explicit "*" as opt-in to every organization', async () => {
+        mockEnv.SWARM_SCHEDULER_ENABLED = true;
+        mockEnv.SWARM_SCHEDULER_ORGANIZATIONS = '*';
+        const { prisma } = await import('../../../../../src/lib/prisma.js');
+        (prisma.organization.findMany as ReturnType<typeof vi.fn>).mockResolvedValueOnce([{ id: 'org-a' }, { id: 'org-b' }]);
+        expect(await enabledOrganizations()).toEqual(['org-a', 'org-b']);
+    });
 });
 
 describe('runSwarmScheduler', () => {

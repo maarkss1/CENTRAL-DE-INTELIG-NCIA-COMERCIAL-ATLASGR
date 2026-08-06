@@ -99,11 +99,18 @@ export class PrismaLeadRepository implements LeadRepository {
         // Não fazemos findFirst prévio: se o lead não existir (ou não pertencer ao org),
         // o Prisma lança P2025 que o errorHandler mapeia para 404 — sem N+1 queries.
         // O `where` inclui organizationId para garantir isolamento de tenant.
+        // Mesmo cast de conveniência da linha de baixo (toPrismaLeadStatus(data.status as LeadStatus)):
+        // o tipo de domínio de Lead.status não bate 1:1 com o LeadStatus "rótulo legível" do zod.
+        const statusLabel = data.status as LeadStatus | undefined;
+        const isClosingNow = statusLabel === 'Fechado Ganho' || statusLabel === 'Fechado Perdido';
         const lead = await prisma.lead.update({
             where: { id, organizationId },
             data: {
                 ...data,
                 ...(data.status ? { status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'] } : {}),
+                // Mesma lógica de closedAt de updateStatus (ver comentário lá) — este método também
+                // aceita `status` no payload, então precisa manter a mesma garantia.
+                ...(data.status ? { closedAt: isClosingNow ? new Date() : null } : {}),
                 organizationId: undefined,
                 company: undefined,
                 contact: undefined,
@@ -127,11 +134,17 @@ export class PrismaLeadRepository implements LeadRepository {
         if (!currentLead) throw new Error('Lead not found');
 
         const previousStatusLabel = fromPrismaLeadStatus(currentLead.status);
+        // closedAt: setado só nesta transição (não é @updatedAt) — analytics.service.ts depende
+        // disso pra "ganho/perdido no mês" não contar como fechamento qualquer update posterior do
+        // lead (sync do Bitrix, uma ligação tocando só lastInteraction, etc.). Volta a null se o
+        // lead for reaberto pra uma etapa que não é final.
+        const isClosingNow = newStatus === 'Fechado Ganho' || newStatus === 'Fechado Perdido';
         // O `where` inclui organizationId para garantir isolamento de tenant no update.
         const lead = await prisma.lead.update({
             where: { id, organizationId },
             data: {
                 status: toPrismaLeadStatus(newStatus as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'],
+                closedAt: isClosingNow ? new Date() : null,
                 timeline: {
                     create: {
                         type: 'movement',

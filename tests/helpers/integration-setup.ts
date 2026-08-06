@@ -4,6 +4,24 @@ import path from 'path';
 // Load test environment variables before Prisma initializes
 config({ path: path.resolve(process.cwd(), '.env.test') });
 
+// Seatbelt: se .env.test não existir (ou estiver desatualizado) — por exemplo, alguém rodando
+// `vitest run -c vitest.integration.config.ts` direto, sem passar pelo `pretest:integration` que
+// prepara o arquivo — DATABASE_URL cai de volta pro que já estiver no processo, que numa máquina
+// de dev normalmente aponta pro banco de desenvolvimento de verdade ("prospectordb"). O afterAll()
+// abaixo faz `prisma.organization.deleteMany()` SEM where; rodar isso contra o banco de dev real
+// apaga todas as organizações e, por causa do ON DELETE CASCADE em BitrixConnection/BitrixSyncRule
+// (diferente do ON DELETE SET NULL em Company/Contact/Lead), destrói silenciosamente toda conexão
+// Bitrix24 salva. Recusar rodar fora de um banco cujo nome sinalize claramente "teste" é mais
+// seguro do que confiar que .env.test sempre vai existir e estar correto.
+const databaseUrl = process.env.DATABASE_URL ?? '';
+if (!/\/[\w-]*test[\w-]*(\?|$)/i.test(databaseUrl)) {
+  throw new Error(
+    `Testes de integração recusaram rodar: DATABASE_URL não aponta para um banco de teste isolado ` +
+    `(esperado um nome de banco contendo "test", ex: "prospectordb_test"; recebido "${databaseUrl || '(vazio)'}"). ` +
+    `Rode via "npm run test:integration" (que prepara .env.test automaticamente) em vez de invocar o vitest direto.`,
+  );
+}
+
 import { vi, beforeAll, beforeEach, afterAll, afterEach } from 'vitest';
 
 // Mock meilisearch completely so Prisma triggers won't fail

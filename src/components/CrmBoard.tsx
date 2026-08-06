@@ -124,10 +124,12 @@ export function CrmBoard() {
 
     const handleCardEnrich = useCallback(async (leadId: string) => {
         try {
-            await api.post(`/api/leads/${leadId}/enrich-cnpj`);
-            fetchLeads();
+            await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
+            await fetchLeads();
+            toast.success('Lead enriquecido com sucesso.');
         } catch (error) {
             console.error('Error enriching lead:', error);
+            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);
 

@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
+import { fetchWithTimeout } from '../../../lib/http.js';
 
 /** GOOGLE_CLIENT_ID/SECRET ou PUBLIC_BASE_URL ausentes — sem eles não há como montar o fluxo OAuth. */
 export class GoogleNotConfiguredError extends Error {}
@@ -84,9 +85,9 @@ export function getGoogleAuthUrl(organizationId: string): string {
 }
 
 async function fetchConnectedEmail(accessToken: string): Promise<string> {
-    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    const response = await fetchWithTimeout('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    }, 15_000);
     if (!response.ok) {
         throw new Error(`Falha ao obter e-mail da conta Google conectada (HTTP ${response.status}).`);
     }
@@ -196,16 +197,16 @@ export async function getUpcomingCalendarEvents(organizationId: string, maxResul
         singleEvents: 'true',
         orderBy: 'startTime',
     });
-    let response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+    let response = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    }, 15_000);
 
     if (response.status === 401) {
         logger.warn({ organizationId }, 'Google Calendar retornou 401 — forçando renovação de token');
         accessToken = await getValidAccessToken(organizationId, true);
-        response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+        response = await fetchWithTimeout(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
             headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        }, 15_000);
     }
 
     if (!response.ok) {

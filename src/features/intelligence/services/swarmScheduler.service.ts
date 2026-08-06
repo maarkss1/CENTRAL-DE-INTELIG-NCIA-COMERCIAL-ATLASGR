@@ -36,7 +36,12 @@ interface Candidate {
 export async function enabledOrganizations(): Promise<string[]> {
     if (!env.SWARM_SCHEDULER_ENABLED) return [];
     const rawOrgs = (env.SWARM_SCHEDULER_ORGANIZATIONS ?? '').trim();
-    if (!rawOrgs || rawOrgs === '*' || rawOrgs === 'all') {
+    // Vazio precisa continuar fail-closed (ninguém habilitado) — só '*'/'all' DIGITADOS de propósito
+    // contam como opt-in explícito pra todas as organizações. Sem essa distinção, esquecer de
+    // preencher SWARM_SCHEDULER_ORGANIZATIONS com SWARM_SCHEDULER_ENABLED=true ligava o enxame
+    // autônomo pra TODAS as organizações do banco por omissão, o oposto do desenho fail-closed acima.
+    if (!rawOrgs) return [];
+    if (rawOrgs === '*' || rawOrgs === 'all') {
         const orgs = await prisma.organization.findMany({ select: { id: true } });
         return orgs.map((o) => o.id);
     }

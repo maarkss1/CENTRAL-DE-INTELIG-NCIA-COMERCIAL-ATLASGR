@@ -137,8 +137,10 @@ export class AnalyticsService {
             prisma.activity.count({ where: { ...scope, status: 'Pendente' } }),
             // Atrasada = pendente com data no passado. É o número que o time comercial cobra.
             prisma.activity.count({ where: { ...scope, status: 'Pendente', date: { lt: now } } }),
-            prisma.lead.count({ where: { ...scope, status: WON, updatedAt: { gte: monthStart } } }),
-            prisma.lead.count({ where: { ...scope, status: LOST, updatedAt: { gte: monthStart } } }),
+            // closedAt (não updatedAt: esse é @updatedAt e sobe em QUALQUER update do lead — sync do
+            // Bitrix, uma ligação do SDR de voz tocando só lastInteraction — não só em fechamento).
+            prisma.lead.count({ where: { ...scope, status: WON, closedAt: { gte: monthStart } } }),
+            prisma.lead.count({ where: { ...scope, status: LOST, closedAt: { gte: monthStart } } }),
             prisma.lead.count({ where: { ...scope, status: WON } }),
             prisma.lead.aggregate({
                 where: { ...scope, status: { notIn: [WON, LOST] }, score: { not: null } },
@@ -204,8 +206,8 @@ export class AnalyticsService {
                 select: { createdAt: true },
             }),
             prisma.lead.findMany({
-                where: { ...scope, status: { in: [WON, LOST] }, updatedAt: { gte: since } },
-                select: { updatedAt: true, status: true },
+                where: { ...scope, status: { in: [WON, LOST] }, closedAt: { gte: since } },
+                select: { closedAt: true, status: true },
             }),
         ]);
 
@@ -221,7 +223,8 @@ export class AnalyticsService {
             if (bucket) bucket.created++;
         }
         for (const lead of closed) {
-            const bucket = buckets.get(monthKey(lead.updatedAt));
+            // closedAt não pode ser null aqui: a query acima já filtra `closedAt: { gte: since }`.
+            const bucket = buckets.get(monthKey(lead.closedAt as Date));
             if (!bucket) continue;
             if (lead.status === WON) bucket.won++;
             else bucket.lost++;

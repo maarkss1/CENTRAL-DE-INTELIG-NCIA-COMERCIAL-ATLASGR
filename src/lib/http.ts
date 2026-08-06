@@ -26,3 +26,19 @@ export async function fetchWithTimeout(
     }
 }
 
+/**
+ * Aplica um timeout a qualquer Promise que não aceite AbortSignal (ex: chamadas de SDKs de
+ * terceiros que fazem fetch internamente sem expor essa opção). Diferente de fetchWithTimeout,
+ * isto não cancela a operação original — só para de esperar por ela, para o chamador poder tratar
+ * como falha em vez de travar indefinidamente.
+ */
+export function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new HttpTimeoutError(timeoutMs)), timeoutMs);
+        promise.then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (error) => { clearTimeout(timer); reject(error); },
+        );
+    });
+}
+

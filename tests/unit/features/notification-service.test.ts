@@ -71,15 +71,16 @@ describe('NotificationService.list', () => {
 describe('NotificationService.markRead', () => {
     it('devolve false quando o id não é do tenant, sem alterar nada', async () => {
         notif.updateMany.mockResolvedValue({ count: 0 });
-        expect(await notificationService.markRead(ORG, 'de-outro-tenant')).toBe(false);
+        expect(await notificationService.markRead(ORG, 'de-outro-tenant', USER)).toBe(false);
     });
 
-    it('escopa a atualização por organização e só age sobre não lidas', async () => {
+    it('escopa a atualização por organização, só age sobre não lidas e só sobre notificações do próprio usuário (ou da organização inteira)', async () => {
         notif.updateMany.mockResolvedValue({ count: 1 });
-        expect(await notificationService.markRead(ORG, 'n1')).toBe(true);
+        expect(await notificationService.markRead(ORG, 'n1', USER)).toBe(true);
 
         const { where } = notif.updateMany.mock.calls[0][0];
         expect(where).toMatchObject({ id: 'n1', organizationId: ORG, readAt: null });
+        expect(where.OR).toEqual([{ userId: USER }, { userId: null }]);
     });
 
     it('markAllRead devolve quantas foram marcadas', async () => {
@@ -91,7 +92,13 @@ describe('NotificationService.markRead', () => {
 describe('NotificationService.remove', () => {
     it('não apaga notificação de outro tenant', async () => {
         notif.deleteMany.mockResolvedValue({ count: 0 });
-        expect(await notificationService.remove(ORG, 'alheia')).toBe(false);
+        expect(await notificationService.remove(ORG, 'alheia', USER)).toBe(false);
         expect(notif.deleteMany.mock.calls[0][0].where).toMatchObject({ organizationId: ORG });
+    });
+
+    it('não apaga notificação pessoal de outro usuário da mesma organização', async () => {
+        notif.deleteMany.mockResolvedValue({ count: 0 });
+        expect(await notificationService.remove(ORG, 'n-de-outro-usuario', USER)).toBe(false);
+        expect(notif.deleteMany.mock.calls[0][0].where.OR).toEqual([{ userId: USER }, { userId: null }]);
     });
 });

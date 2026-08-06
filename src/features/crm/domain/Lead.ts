@@ -13,6 +13,7 @@ export interface Lead {
     owner: string | null;
     lastInteraction: Date | null;
     nextAction: Date | null;
+    closedAt: Date | null;
     companyId: string | null;
     contactId: string | null;
     organizationId: string | null;

@@ -58,6 +58,13 @@ const envSchema = z.object({
   SDR_CALL_TIMEZONE: z.string().default('America/Sao_Paulo'),
   SDR_MAX_CALLS_PER_RUN: z.coerce.number().int().positive().default(10),
   SDR_MAX_ATTEMPTS_PER_LEAD: z.coerce.number().int().positive().default(3),
+
+  // ── Telefonia PABX 3CX ────────────────────────────────────────────────────
+  // Segredo compartilhado que valida a assinatura HMAC do webhook de eventos de chamada do 3CX
+  // (mesmo esquema do BIRTH_VOICES_WEBHOOK_SECRET). Sem ele o webhook fica fail-closed (503):
+  // quem chama esse endpoint não passa por authenticateToken (é o PABX do cliente, não um usuário
+  // logado), então sem assinatura qualquer um que descobrisse a URL poderia injetar eventos falsos.
+  THREECX_WEBHOOK_SECRET: z.string().optional(),
   SDR_RETRY_COOLDOWN_HOURS: z.coerce.number().int().positive().default(48),
 
   // ── Enxame autônomo (24h, sem gatilho humano) ────────────────────────────
