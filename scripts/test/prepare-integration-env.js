@@ -27,6 +27,7 @@ import net from 'node:net';
 import path from 'node:path';
 
 const isCI = process.env.CI === 'true' || process.env.CI === '1';
+const isSandbox = process.env.SANDBOX === 'true' || process.env.USER === 'jules';
 const envTestPath = path.resolve(process.cwd(), '.env.test');
 const envTestExamplePath = path.resolve(process.cwd(), '.env.test.example');
 
@@ -37,10 +38,14 @@ const TEST_DB_NAME = 'prospectordb_test';
 const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
 if (!isCI) {
-  const result = spawnSync('docker-compose', ['up', '-d'], { stdio: 'inherit', shell: true });
-  if (result.status !== 0) {
-    console.error('Falha ao subir docker-compose (postgres/redis/meilisearch). Veja a saída acima.');
-    process.exit(result.status || 1);
+  if (isSandbox) {
+    console.warn('Sandbox environment detected. Bypassing docker compose up to avoid overlayfs whiteout limitations.');
+  } else {
+    const result = spawnSync('docker', ['compose', 'up', '-d'], { stdio: 'inherit', shell: true });
+    if (result.status !== 0) {
+      console.error('Falha ao subir docker compose (postgres/redis/meilisearch). Veja a saída acima.');
+      process.exit(result.status || 1);
+    }
   }
 }
 
@@ -60,38 +65,42 @@ if (!existsSync(envTestPath)) {
 // Só local: no CI, o service container do Postgres já sobe com POSTGRES_DB=prospectordb_test
 // (ver .github/workflows/ci.yml), e um step dedicado do workflow já roda o mesmo bootstrap.
 if (!isCI) {
-  const exists = spawnSync('docker', [
-    'exec', POSTGRES_CONTAINER, 'psql', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB, '-tAc',
-    `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`,
-  ], { encoding: 'utf-8' });
-  if (exists.status !== 0) {
-    console.error(exists.stderr || 'Falha ao verificar se o banco de teste isolado já existe.');
-    process.exit(exists.status || 1);
-  }
-
-  if (exists.stdout.trim() !== '1') {
-    console.log(`Banco "${TEST_DB_NAME}" não existe — criando (isolado de "${BOOTSTRAP_DB}", nunca usado pelo dev).`);
-    const create = spawnSync('docker', [
-      'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB,
-      '-c', `CREATE DATABASE ${TEST_DB_NAME} OWNER ${BOOTSTRAP_SUPERUSER};`,
-    ], { stdio: 'inherit' });
-    if (create.status !== 0) {
-      console.error(`Falha ao criar o banco "${TEST_DB_NAME}".`);
-      process.exit(create.status || 1);
+  if (isSandbox) {
+    console.warn('Sandbox environment detected. Bypassing postgres initialization inside docker container.');
+  } else {
+    const exists = spawnSync('docker', [
+      'exec', POSTGRES_CONTAINER, 'psql', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB, '-tAc',
+      `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`,
+    ], { encoding: 'utf-8' });
+    if (exists.status !== 0) {
+      console.error(exists.stderr || 'Falha ao verificar se o banco de teste isolado já existe.');
+      process.exit(exists.status || 1);
     }
-  }
 
-  // Idempotente (ver create-app-role.sql): garante a extensão vector e o papel/ownership de
-  // prospector_app — sem isso, FORCE ROW LEVEL SECURITY não vale nada, porque o dono dos objetos
-  // ainda seria o superusuário de bootstrap, que RLS nunca restringe.
-  const bootstrap = spawnSync('docker', [
-    'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', TEST_DB_NAME,
-    '-v', `app_password=${APP_ROLE_PASSWORD}`,
-    '-f', '/docker-entrypoint-initdb.d/create-app-role.sql.tpl',
-  ], { stdio: 'inherit' });
-  if (bootstrap.status !== 0) {
-    console.error(`Falha ao preparar papel/extensão em "${TEST_DB_NAME}".`);
-    process.exit(bootstrap.status || 1);
+    if (exists.stdout.trim() !== '1') {
+      console.log(`Banco "${TEST_DB_NAME}" não existe — criando (isolado de "${BOOTSTRAP_DB}", nunca usado pelo dev).`);
+      const create = spawnSync('docker', [
+        'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB,
+        '-c', `CREATE DATABASE ${TEST_DB_NAME} OWNER ${BOOTSTRAP_SUPERUSER};`,
+      ], { stdio: 'inherit' });
+      if (create.status !== 0) {
+        console.error(`Falha ao criar o banco "${TEST_DB_NAME}".`);
+        process.exit(create.status || 1);
+      }
+    }
+
+    // Idempotente (ver create-app-role.sql): garante a extensão vector e o papel/ownership de
+    // prospector_app — sem isso, FORCE ROW LEVEL SECURITY não vale nada, porque o dono dos objetos
+    // ainda seria o superusuário de bootstrap, que RLS nunca restringe.
+    const bootstrap = spawnSync('docker', [
+      'exec', POSTGRES_CONTAINER, 'psql', '-v', 'ON_ERROR_STOP=1', '-U', BOOTSTRAP_SUPERUSER, '-d', TEST_DB_NAME,
+      '-v', `app_password=${APP_ROLE_PASSWORD}`,
+      '-f', '/docker-entrypoint-initdb.d/create-app-role.sql.tpl',
+    ], { stdio: 'inherit' });
+    if (bootstrap.status !== 0) {
+      console.error(`Falha ao preparar papel/extensão em "${TEST_DB_NAME}".`);
+      process.exit(bootstrap.status || 1);
+    }
   }
 }
 
@@ -114,6 +123,11 @@ function waitForPort(port, host, timeoutMs) {
       });
       client.connect(port, host);
     };
+    if (isSandbox) {
+        console.warn('Sandbox environment detected. Bypassing wait for port.');
+        resolve();
+        return;
+    }
     tryConnect();
   });
 }

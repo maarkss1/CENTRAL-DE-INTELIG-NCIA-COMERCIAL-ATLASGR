@@ -3,30 +3,54 @@ import { Mic, Sparkles, Volume2, Command, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBrand } from '../../contexts/BrandContext';
 import { navigationBus } from '../../lib/navigationBus';
+import { toast } from '../../lib/toast';
+
+
+interface SpeechRecognitionEvent {
+  results: { transcript: string }[][];
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start(): void;
+  stop(): void;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null;
+  onerror: ((this: SpeechRecognition, ev: Event) => void) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => void) | null;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
 
 export function VoiceCommandWidget() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [lastAction, setLastAction] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [recognition, setRecognition] = useState<any>(null);
+  const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const { setActiveBrand } = useBrand();
 
   useEffect(() => {
     // Inicializa Web Speech API se suportado pelo navegador
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognitionAPI) {
       const rec = new SpeechRecognitionAPI();
       rec.continuous = false;
       rec.interimResults = true;
       rec.lang = 'pt-BR';
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      rec.onresult = (event: any) => {
-        const currentText = Array.from(event.results)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((result: any) => result[0].transcript)
+      rec.onresult = (event: SpeechRecognitionEvent) => {
+        const currentText = Array.from(event.results as unknown as Iterable<{ transcript: string }[]>)
+          .map((result) => result[0].transcript)
           .join('');
         
         setTranscript(currentText);
@@ -80,7 +104,7 @@ export function VoiceCommandWidget() {
 
   const toggleListening = () => {
     if (!recognition) {
-      alert('Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.');
+      toast.error('Seu navegador não suporta reconhecimento de voz. Experimente usar o Google Chrome.');
       return;
     }
 
@@ -92,8 +116,8 @@ export function VoiceCommandWidget() {
       setIsListening(true);
       try {
         recognition.start();
-      } catch (err) {
-        console.error(err);
+      } catch {
+        toast.error('Ocorreu um erro no reconhecimento de voz.');
       }
     }
   };
@@ -103,8 +127,8 @@ export function VoiceCommandWidget() {
     if (recognition) {
       try {
         recognition.stop();
-      } catch (err) {
-        console.error(err);
+      } catch {
+        toast.error('Ocorreu um erro no reconhecimento de voz.');
       }
     }
   };

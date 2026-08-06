@@ -67,14 +67,10 @@ async function runEndToEndTest() {
             include: { company: true }
         });
 
-        console.log('\n--- 🎯 RESULTADO FINAL ---');
-        console.log(`Score Atribuído: ${finalLead?.score}`);
-        console.log(`Temperatura: ${finalLead?.temperature}`);
-        console.log(`Status do Lead: ${finalLead?.status}`);
-        if (finalLead?.company) {
-            console.log(`Enriquecimento da Empresa: ${finalLead.company.enrichmentStatus}`);
-        }
-        console.log('--------------------------\n');
+
+        console.log('--- 🎯 RESULTADO FINAL ---');
+        console.log(`Score: ${finalLead?.score} | Temp: ${finalLead?.temperature} | Status: ${finalLead?.status} | Enriquecimento: ${finalLead?.company?.enrichmentStatus}`);
+
     });
 
     console.log("🏁 Teste concluído com sucesso!");
