@@ -50,7 +50,7 @@ async function findOpenLeadForContact(organizationId: string, contactId: string)
         where: {
             organizationId,
             contactId,
-            status: { notIn: ['Fechado_Ganho', 'Fechado_Perdido'] },
+            status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
         },
         orderBy: { createdAt: 'desc' },
         select: { id: true },

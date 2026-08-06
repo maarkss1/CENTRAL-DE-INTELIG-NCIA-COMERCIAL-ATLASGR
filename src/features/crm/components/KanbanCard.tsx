@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Lead } from '../../../types';
-import { Building2, User, Calendar, Sparkles, Loader2 } from 'lucide-react';
+import { Building2, User, Calendar, Sparkles, Loader2, ArrowRightCircle } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TechToolLogo } from '../../../components/ui/TechToolLogo';
@@ -11,10 +11,13 @@ interface KanbanCardProps {
     lead: Lead;
     onClick: (lead: Lead) => void;
     onEnrich?: (leadId: string) => Promise<void>;
+    /** Só passado na coluna "Convertido em Oportunidade" — move o card pro funil de Negócios. */
+    onConvert?: (leadId: string) => Promise<void>;
 }
 
-export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnrich }: KanbanCardProps) {
+export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnrich, onConvert }: KanbanCardProps) {
     const [enriching, setEnriching] = useState(false);
+    const [converting, setConverting] = useState(false);
 
     const {
         attributes,
@@ -45,6 +48,17 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
             await onEnrich(lead.id);
         } finally {
             setEnriching(false);
+        }
+    };
+
+    const handleConvert = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!onConvert || converting) return;
+        setConverting(true);
+        try {
+            await onConvert(lead.id);
+        } finally {
+            setConverting(false);
         }
     };
 
@@ -99,18 +113,32 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                         {new Date(lead.updatedAt || lead.createdAt || '').toLocaleDateString('pt-BR')}
                         {lead.owner && <span className="truncate">· {lead.owner}</span>}
                     </div>
-                    {onEnrich && lead.companyId && (
-                        <button
-                            onClick={handleEnrich}
-                            disabled={enriching}
-                            title="Reenriquecer com dados da Receita Federal"
-                            className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors pointer-events-auto"
-                            onPointerDown={(e) => e.stopPropagation()}
-                        >
-                            {enriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            {enriching ? 'Enriquecendo...' : 'Enriquecer'}
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {onConvert && (
+                            <button
+                                onClick={handleConvert}
+                                disabled={converting}
+                                title="Converter em oportunidade — move este lead para o funil de Negócios"
+                                className="flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors pointer-events-auto"
+                                onPointerDown={(e) => e.stopPropagation()}
+                            >
+                                {converting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRightCircle className="w-3 h-3" />}
+                                {converting ? 'Convertendo...' : 'Converter'}
+                            </button>
+                        )}
+                        {onEnrich && lead.companyId && (
+                            <button
+                                onClick={handleEnrich}
+                                disabled={enriching}
+                                title="Reenriquecer com dados da Receita Federal"
+                                className="flex items-center gap-1 text-[11px] font-bold text-amber-400 hover:text-amber-300 disabled:opacity-50 transition-colors pointer-events-auto"
+                                onPointerDown={(e) => e.stopPropagation()}
+                            >
+                                {enriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                {enriching ? 'Enriquecendo...' : 'Enriquecer'}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

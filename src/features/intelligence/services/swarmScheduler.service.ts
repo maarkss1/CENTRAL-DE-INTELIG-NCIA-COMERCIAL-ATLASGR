@@ -4,7 +4,7 @@ import { logger } from '../../../lib/logger.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
 
-const CLOSED_STATUSES: Array<'Fechado_Ganho' | 'Fechado_Perdido'> = ['Fechado_Ganho', 'Fechado_Perdido'];
+const CLOSED_STATUSES: Array<'Negocios_Ganhos' | 'Negocios_Perdidos' | 'Lead_Desqualificado'> = ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'];
 /** Só sinais recentes contam como gatilho — uma conversa "quente" de duas semanas atrás já esfriou. */
 const SIGNAL_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 const SCAN_LIMIT = 50;

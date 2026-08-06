@@ -3,13 +3,16 @@
 export type {
     CompanyStatus,
     LeadStatus,
+    LeadFunnel,
     ActivityType,
     ActivityStatus,
     LeadTemperature,
     ContactStatus,
 } from '../lib/zod';
 
-export type { COMPANY_STATUS, LEAD_STATUS, ACTIVITY_TYPE, ACTIVITY_STATUS, LEAD_TEMPERATURE, CONTACT_STATUS } from '../lib/zod';
+export type { COMPANY_STATUS, LEAD_STATUS, LEAD_FUNNEL, ACTIVITY_TYPE, ACTIVITY_STATUS, LEAD_TEMPERATURE, CONTACT_STATUS } from '../lib/zod';
+// Arrays das etapas de cada funil (não tipos) — usados pelos dois Kanbans para montar as colunas.
+export { LEAD_FUNNEL_STATUS, DEAL_FUNNEL_STATUS } from '../lib/zod';
 
 /**
  * Checklist de qualificação do SDR — Playbook Comercial AtlasGR, seção 4.2. Preenchido
@@ -32,8 +35,11 @@ export interface LeadQualification {
     seguradora?: string;
     corretora?: string;
     possuiGR?: string;
+    fornecedorGRAtual?: string;
     possuiCadastroMotorista?: string;
+    consultaCadastroAtual?: string;
     possuiSoftwareLogistico?: string;
+    softwareLogisticoAtual?: string;
     // 4.2.3 Dor Mapeada
     dorPrincipal?: string;
     detalhamentoDor?: string;
@@ -137,6 +143,8 @@ export interface Lead {
 
     // CRM Core
     status: import('../lib/zod').LeadStatus;
+    /** Qual dos dois Kanbans (Leads ou Negócios) este registro pertence agora. */
+    funnel: import('../lib/zod').LeadFunnel;
     source?: string | null;
     channel?: string | null;
     temperature?: import('../lib/zod').LeadTemperature | null;
@@ -149,6 +157,17 @@ export interface Lead {
     pic?: 'PIC1_Expansao' | 'PIC2_Risco' | 'PIC3_Transicao' | null;
     /** Checklist de qualificação do SDR (Playbook Comercial AtlasGR, seção 4.2). */
     qualification?: LeadQualification | null;
+
+    // Campos comerciais espelhados do Bitrix24 (ver bitrixFieldMap.ts)
+    resumeDate?: string | null;
+    cadenceStage?: string | null;
+    lossReason?: string | null;
+    dealPackage?: string | null;
+    dealStatus?: string | null;
+    relationshipLevel?: string | null;
+    commissionPercent?: string | null;
+    partnerBroker?: string | null;
+    qualificationValidatedByAM?: boolean | null;
 
     companyId?: string | null;
     company?: Company | null;
