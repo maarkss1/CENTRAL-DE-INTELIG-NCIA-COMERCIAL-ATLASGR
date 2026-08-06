@@ -15,7 +15,10 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 import { prisma } from '@/lib/prisma';
-import { analyticsService } from '@/features/analytics/analytics.service';
+import { AnalyticsUseCases } from '@/features/analytics/application/AnalyticsUseCases';
+import { PrismaAnalyticsRepository } from '@/features/analytics/infra/PrismaAnalyticsRepository';
+
+const analyticsService = new AnalyticsUseCases(new PrismaAnalyticsRepository());
 
 const ORG = 'org-1';
 

@@ -8,6 +8,7 @@ import { PrismaContactRepository } from '../../features/contacts/infra/PrismaCon
 import { PrismaCompanyRepository } from '../../features/companies/infra/PrismaCompanyRepository';
 import { PrismaLeadRepository } from '../../features/crm/infra/PrismaLeadRepository';
 import { PrismaAutomationRepository } from '../../features/automations/infra/PrismaAutomationRepository';
+import { PrismaAnalyticsRepository } from '../../features/analytics/infra/PrismaAnalyticsRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -16,6 +17,7 @@ import { ContactUseCases } from '../../features/contacts/application/ContactUseC
 import { CompanyUseCases } from '../../features/companies/application/CompanyUseCases';
 import { LeadUseCases } from '../../features/crm/application/LeadUseCases';
 import { AutomationUseCases } from '../../features/automations/application/AutomationUseCases';
+import { AnalyticsUseCases } from '../../features/analytics/application/AnalyticsUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -24,6 +26,7 @@ import { ContactController } from '../../features/contacts/presentation/ContactC
 import { CompanyController } from '../../features/companies/presentation/CompanyController';
 import { LeadController } from '../../features/crm/presentation/LeadController';
 import { AutomationController } from '../../features/automations/presentation/AutomationController';
+import { AnalyticsController } from '../../features/analytics/presentation/AnalyticsController';
 
 export function setupDI() {
     // 1. Shared
@@ -37,6 +40,7 @@ export function setupDI() {
     const companyRepository = new PrismaCompanyRepository();
     const leadRepository = new PrismaLeadRepository();
     const automationRepository = new PrismaAutomationRepository();
+    const analyticsRepository = new PrismaAnalyticsRepository();
 
     container.register('NoteRepository', noteRepository);
     container.register('ActivityRepository', activityRepository);
@@ -44,6 +48,7 @@ export function setupDI() {
     container.register('CompanyRepository', companyRepository);
     container.register('LeadRepository', leadRepository);
     container.register('AutomationRepository', automationRepository);
+    container.register('AnalyticsRepository', analyticsRepository);
 
     // 3. Use Cases
     const noteUseCases = new NoteUseCases(noteRepository);
@@ -52,6 +57,7 @@ export function setupDI() {
     const companyUseCases = new CompanyUseCases(companyRepository);
     const leadUseCases = new LeadUseCases(leadRepository);
     const automationUseCases = new AutomationUseCases(automationRepository);
+    const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
 
     container.register('NoteUseCases', noteUseCases);
     container.register('ActivityUseCases', activityUseCases);
@@ -59,6 +65,7 @@ export function setupDI() {
     container.register('CompanyUseCases', companyUseCases);
     container.register('LeadUseCases', leadUseCases);
     container.register('AutomationUseCases', automationUseCases);
+    container.register('AnalyticsUseCases', analyticsUseCases);
 
     // 4. Controllers
     container.register('NoteController', new NoteController(noteUseCases));
@@ -67,4 +74,5 @@ export function setupDI() {
     container.register('CompanyController', new CompanyController(companyUseCases));
     container.register('LeadController', new LeadController(leadUseCases));
     container.register('AutomationController', new AutomationController(automationUseCases));
+    container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
 }
