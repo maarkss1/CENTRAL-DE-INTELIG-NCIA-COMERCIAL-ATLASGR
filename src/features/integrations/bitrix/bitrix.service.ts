@@ -265,9 +265,14 @@ export async function importSelectedBitrixLeads(
     let imported = 0;
     let skipped = 0;
 
+    const existingLeads = await prisma.lead.findMany({
+        where: { organizationId, bitrixLeadId: { in: bitrixLeadIds } },
+        select: { bitrixLeadId: true },
+    });
+    const existingIds = new Set(existingLeads.map((l) => l.bitrixLeadId));
+
     for (const bitrixLeadId of bitrixLeadIds) {
-        const existing = await prisma.lead.findFirst({ where: { organizationId, bitrixLeadId }, select: { id: true } });
-        if (existing) {
+        if (existingIds.has(bitrixLeadId)) {
             skipped++;
             continue;
         }
@@ -512,9 +517,14 @@ export async function importSelectedBitrixDeals(
     let imported = 0;
     let skipped = 0;
 
+    const existingDeals = await prisma.lead.findMany({
+        where: { organizationId, bitrixDealId: { in: bitrixDealIds } },
+        select: { bitrixDealId: true },
+    });
+    const existingIds = new Set(existingDeals.map((l) => l.bitrixDealId));
+
     for (const bitrixDealId of bitrixDealIds) {
-        const existing = await prisma.lead.findFirst({ where: { organizationId, bitrixDealId }, select: { id: true } });
-        if (existing) {
+        if (existingIds.has(bitrixDealId)) {
             skipped++;
             continue;
         }
