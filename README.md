@@ -44,7 +44,14 @@ Variáveis principais:
 - `GROQ_API_KEY`: contingência direta dos motores de texto quando o LiteLLM estiver indisponível.
 - `LITELLM_URL` e `LITELLM_KEY`: gateway principal para roteamento dos modelos.
 - `GEMINI_API_KEY`: opcional, usada pelo caminho legado de embeddings Gemini.
+- `PROSPECTING_PROVIDER_MODE`: use `hybrid` para liberar provedores pagos configurados por chave.
+- `GOOGLE_MAPS_API_KEY`, `APOLLO_API_KEY` e `HUNTER_API_KEY`: chaves de prospecção usadas somente quando o modo está em `hybrid`.
+- `BITRIX24_WEBHOOK_URL`: webhook de entrada do Bitrix24 usado como conexão padrão quando não houver conexão salva.
 - `AI_GATEWAY_TIMEOUT_MS`, `AI_FALLBACK_TIMEOUT_MS` e `AI_EMBEDDING_TIMEOUT_MS`: limites configuráveis das solicitações de IA.
+
+## Deploy no Render
+
+O blueprint `render.yaml` declara o serviço web, o banco PostgreSQL e as variáveis necessárias para produção. Valores sensíveis ficam com `sync: false` e devem ser preenchidos diretamente no dashboard do Render. Consulte `docs/deploy/render.md` para o checklist das chaves Apollo, Google Maps/Places, Hunter, Groq e Bitrix24.
 
 ## Scripts Disponíveis
 - `npm run dev`: Inicia o servidor backend (que injeta o Vite para HMR/middleware).

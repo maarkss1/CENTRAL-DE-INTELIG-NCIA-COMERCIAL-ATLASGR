@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX, ArrowRight, Sparkles } from 'lucide-react';
+import { clientLogger } from '../../../lib/clientLogger';
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export function WelcomeScreen() {
     if (audioRef.current && !isMuted) {
       audioRef.current.play().catch(() => {
         // Autoplay policy prevented it, we just swallow the error
-        console.log('Autoplay blocked');
+        clientLogger.info('Autoplay blocked');
       });
     } else if (audioRef.current && isMuted) {
       audioRef.current.pause();

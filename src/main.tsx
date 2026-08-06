@@ -17,8 +17,7 @@ let audioCtx: AudioContext | null = null;
 
 const playClickSound = () => {
   if (!audioCtx) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) audioCtx = new AudioContextClass();
   }
   

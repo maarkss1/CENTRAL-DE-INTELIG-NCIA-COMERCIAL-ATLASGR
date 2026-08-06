@@ -200,4 +200,32 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         const { exportLeadToBitrixNow } = await import('../../integrations/bitrix/bitrix.service.js');
         return exportLeadToBitrixNow(organizationId, leadId);
     }
+
+    async importRecentBitrixLeads(organizationId: string) {
+        const { prisma } = await import('../../../lib/prisma.js');
+        const { listBitrixLeads, importSelectedBitrixLeads, connectBitrix } = await import('../../integrations/bitrix/bitrix.service.js');
+
+        let connection = await prisma.bitrixConnection.findFirst({
+            where: { organizationId },
+            orderBy: { createdAt: 'asc' },
+        });
+
+        if (!connection && process.env.BITRIX24_WEBHOOK_URL) {
+            const { id } = await connectBitrix(organizationId, process.env.BITRIX24_WEBHOOK_URL, "Bitrix Principal");
+            connection = await prisma.bitrixConnection.findUnique({ where: { id } });
+        }
+
+        if (!connection) {
+            throw new Error('Nenhuma conexão Bitrix24 configurada.');
+        }
+
+        const { leads } = await listBitrixLeads(organizationId, connection.id, 0);
+        const unimportedIds = leads.filter(l => !l.alreadyImported).map(l => l.id).slice(0, 25);
+        
+        if (unimportedIds.length === 0) {
+            return { imported: 0, skipped: 0 };
+        }
+
+        return await importSelectedBitrixLeads(organizationId, connection.id, unimportedIds);
+    }
 }

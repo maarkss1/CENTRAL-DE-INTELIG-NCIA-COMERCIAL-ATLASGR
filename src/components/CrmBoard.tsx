@@ -10,6 +10,7 @@ import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
+import { clientLogger } from '../lib/clientLogger';
 import { 
     DndContext, 
     closestCenter, 
@@ -17,7 +18,9 @@ import {
     PointerSensor, 
     useSensor, 
     useSensors, 
-    DragOverlay 
+    DragOverlay,
+    DragStartEvent,
+    DragEndEvent
 } from '@dnd-kit/core';
 
 const COLUMNS: LeadStatus[] = [
@@ -64,7 +67,7 @@ export function CrmBoard() {
                 setLeads(response.data);
             }
         } catch (err) {
-            console.error('Error fetching leads:', err);
+            clientLogger.error({ err }, 'Error fetching leads');
             setError(err instanceof Error ? err.message : 'Não foi possível carregar o pipeline comercial.');
         } finally {
             setLoading(false);
@@ -75,8 +78,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragStart = useCallback((event: any) => {
+    const handleDragStart = useCallback((event: DragStartEvent) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
@@ -84,8 +86,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragEnd = useCallback(async (event: any) => {
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveLead(null);
 
@@ -94,7 +95,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (COLUMNS.includes(over.id)) {
+        if (typeof over.id === 'string' && COLUMNS.includes(over.id as LeadStatus)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);
@@ -112,7 +113,7 @@ export function CrmBoard() {
             try {
                 await leadsDB.updateStatus(leadId as string, targetStatus);
             } catch (error) {
-                console.error('Error updating lead status:', error);
+                clientLogger.error({ err: error }, 'Error updating lead status');
                 fetchLeads();
             }
         }
@@ -128,7 +129,7 @@ export function CrmBoard() {
             await fetchLeads();
             toast.success('Lead enriquecido com sucesso.');
         } catch (error) {
-            console.error('Error enriching lead:', error);
+            clientLogger.error({ err: error }, 'Error enriching lead');
             toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);
@@ -177,6 +178,27 @@ export function CrmBoard() {
         return grouped;
     }, [leads]);
 
+    const handleImportBitrix = async () => {
+        setLoading(true);
+        try {
+            const response = await api.post<{ data: { imported: number, skipped: number } }>('/api/leads/import/bitrix24');
+            const data = response.data;
+            if (data.imported > 0) {
+                toast.success(`${data.imported} novos leads importados do Bitrix24!`);
+                await fetchLeads();
+            } else if (data.skipped > 0) {
+                toast.info(`Nenhum novo lead. ${data.skipped} leads recentes já estavam no sistema.`);
+            } else {
+                toast.info('Nenhum lead novo encontrado no Bitrix24.');
+            }
+        } catch (err) {
+            console.error('Error importing from Bitrix24:', err);
+            toast.error(err instanceof Error ? err.message : 'Falha ao importar do Bitrix24.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="flex-1 flex flex-col h-full bg-bg text-ink animate-in fade-in duration-500 overflow-hidden">
             {/* Header com estilo moderno */}
@@ -189,11 +211,12 @@ export function CrmBoard() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => toast.info('Importação direta do Bitrix24 ainda não está disponível — chegando em breve.')}
-                        className="flex items-center gap-2 bg-surface-2 border border-line text-ink-2 px-4 py-2 rounded-xl font-bold text-xs hover:bg-surface transition-colors"
-                        title="Importar leads do Bitrix24 (em breve)"
+                        onClick={handleImportBitrix}
+                        disabled={loading}
+                        className="flex items-center gap-2 bg-surface-2 border border-line text-ink-2 px-4 py-2 rounded-xl font-bold text-xs hover:bg-surface transition-colors disabled:opacity-50"
+                        title="Importar leads recentes do Bitrix24"
                     >
-                        <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 Importar do Bitrix24 (em breve)
+                        <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 {loading ? 'Importando...' : 'Sincronizar Bitrix24'}
                     </button>
                     <button
                         onClick={handleExportCsv}

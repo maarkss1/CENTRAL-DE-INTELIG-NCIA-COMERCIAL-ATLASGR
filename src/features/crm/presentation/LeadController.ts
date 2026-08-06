@@ -139,4 +139,14 @@ export class LeadController {
             next(error);
         }
     };
+
+    importFromBitrix24 = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const result = await this.leadUseCases.importRecentBitrixLeads(orgId);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

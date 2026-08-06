@@ -9,6 +9,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
+import { clientLogger } from '../../../lib/clientLogger';
 
 export function CompanyList() {
     const [searchTerm, setSearchTerm] = useState('');
@@ -35,7 +36,7 @@ export function CompanyList() {
         try {
             await deleteCompany(id);
         } catch (error) {
-            console.error('Error deleting company:', error);
+            clientLogger.error({ err: error }, 'Error deleting company');
         }
     };
 
@@ -50,7 +51,7 @@ export function CompanyList() {
             await companiesDB.enrich(id);
             await refetch();
         } catch (error) {
-            console.error('Error enriching company:', error);
+            clientLogger.error({ err: error }, 'Error enriching company');
         } finally {
             setEnrichingId(null);
         }
@@ -88,7 +89,7 @@ export function CompanyList() {
                     await companiesDB.enrich(company.id);
                     succeeded += 1;
                 } catch (error) {
-                    console.error(`Error enriching company ${company.id}:`, error);
+                    clientLogger.error({ err: error }, `Error enriching company ${company.id}`);
                     failed += 1;
                 }
             }

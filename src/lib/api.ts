@@ -2,12 +2,6 @@ export interface ApiRequestOptions extends RequestInit {
     timeoutMs?: number;
 }
 
-type ViteImportMeta = ImportMeta & {
-    env?: {
-        VITE_API_TIMEOUT_MS?: string;
-    };
-};
-
 export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions): Promise<T> {
     // FormData (upload de arquivo) precisa que o navegador defina o Content-Type sozinho, com o
     // boundary do multipart — forçar 'application/json' aqui quebraria o parse no servidor.
@@ -24,7 +18,7 @@ export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions)
 
     const controller = new AbortController();
     const timeoutMs = options?.timeoutMs
-        ?? Number((import.meta as ViteImportMeta).env?.VITE_API_TIMEOUT_MS || 15_000);
+        ?? Number(import.meta.env.VITE_API_TIMEOUT_MS || 15_000);
     const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
     const signal = options?.signal
         ? AbortSignal.any([options.signal, controller.signal])
