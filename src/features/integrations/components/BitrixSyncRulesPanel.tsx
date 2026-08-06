@@ -28,7 +28,7 @@ interface BitrixSyncRule {
     lastImportedCount: number;
 }
 
-const selectClass = 'text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2 py-1.5 disabled:opacity-40';
+const selectClass = 'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none cursor-pointer';
 
 /**
  * Regras de sincronização automática Bitrix → Atlas: diferente do BitrixImportPanel (sempre
@@ -138,12 +138,12 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
     const newStageOptions = newSource === 'lead' ? leadStatuses : dealStages;
 
     return (
-        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10 space-y-3">
+        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-white/10 space-y-4">
             <div>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-                    <Zap className="w-4 h-4 text-orange-500" /> Sincronização automática
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-orange-500" /> Sincronização automática
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
                     O Atlas verifica cada regra a cada 15 minutos e importa sozinho só o que bater com o filtro — sem regra ativa, nada é trazido automaticamente.
                 </p>
             </div>
@@ -157,7 +157,7 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                     {rules.length > 0 && (
                         <div className="space-y-2">
                             {rules.map((rule) => (
-                                <div key={rule.id} className="flex items-center gap-3 p-3 text-xs rounded-lg border border-gray-100 dark:border-white/10">
+                                <div key={rule.id} className="flex items-center gap-4 p-4 text-sm rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm transition-all hover:border-gray-200">
                                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
                                         <input type="checkbox" checked={rule.active} onChange={() => toggleRule(rule)} className="sr-only peer" />
                                         <div className="w-8 h-4.5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-orange-600 transition-colors" />
@@ -176,8 +176,8 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                                                 : 'Ainda não rodou'}
                                         </p>
                                     </div>
-                                    <button onClick={() => removeRule(rule.id)} className="shrink-0 p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400" title="Remover regra">
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                    <button onClick={() => removeRule(rule.id)} className="shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors dark:hover:text-red-400" title="Remover regra">
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             ))}
@@ -185,23 +185,23 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                     )}
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-lg">
+                        <div className="flex gap-1 p-1.5 bg-gray-100/80 dark:bg-white/5 rounded-xl">
                             <button
                                 onClick={() => setNewSource('lead')}
-                                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${newSource === 'lead' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${newSource === 'lead' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                             >
                                 Lead
                             </button>
                             <button
                                 onClick={() => setNewSource('deal')}
-                                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors ${newSource === 'deal' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${newSource === 'deal' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                             >
                                 Negócio
                             </button>
                         </div>
                         {newSource === 'deal' && (
                             pipelines.length > 0 ? (
-                                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-xs font-bold whitespace-nowrap">
+                                <span className="flex items-center gap-1.5 px-4 h-9 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-sm font-bold whitespace-nowrap">
                                     {pipelines[0].name}
                                 </span>
                             ) : (
@@ -226,9 +226,9 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                         <button
                             onClick={addRule}
                             disabled={(newSource === 'deal' && !newCategoryId) || creating}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
+                            className="flex items-center gap-2 h-9 px-4 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
                         >
-                            {creating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                             Nova regra
                         </button>
                     </div>

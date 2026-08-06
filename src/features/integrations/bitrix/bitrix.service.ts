@@ -299,7 +299,7 @@ export async function importSelectedBitrixLeads(
 
         await prisma.lead.create({
             data: {
-                status: LeadStatus.Novo_Lead,
+                status: LeadStatus.Lead_Recebido,
                 source: 'Bitrix24 (importado)',
                 companyId: company.id,
                 contactId: contact?.id,
@@ -572,7 +572,7 @@ export async function importSelectedBitrixDeals(
 
         await prisma.lead.create({
             data: {
-                status: 'Novo_Lead',
+                status: LeadStatus.Lead_Recebido,
                 source: 'Bitrix24 (importado via Negócio)',
                 companyId: company.id,
                 contactId: contact?.id,

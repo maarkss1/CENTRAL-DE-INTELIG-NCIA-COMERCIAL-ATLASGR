@@ -30,8 +30,9 @@ export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade
 
 /** Etapas do funil, para o filtro de condição do gatilho de status. */
 export const LEAD_STATUSES = [
-    'Novo Lead', 'Qualificação', 'Primeiro Contato', 'Diagnóstico',
-    'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido',
+    'Lead Recebido', 'Cadência Iniciada', 'Qualificação (SDR)', 'Reunião Agendada', 'Lead Desqualificado',
+    'Convertido em Oportunidade', 'Nova Oportunidade', 'Proposta Enviada', 'Call/Visita Agendada',
+    'Negócios Perdidos', 'Negócios Ganhos'
 ];
 
 export const automationsApi = {

@@ -5,14 +5,17 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 
 const STATUS_EMOJI: Record<LeadStatus, string> = {
-    'Novo Lead': '🆕',
-    'Qualificação': '🔎',
-    'Primeiro Contato': '☎️',
-    'Diagnóstico': '🩺',
-    'Proposta': '📄',
-    'Negociação': '🤝',
-    'Fechado Ganho': '🏆',
-    'Fechado Perdido': '❌',
+    'Lead Recebido': '🆕',
+    'Cadência Iniciada': '📣',
+    'Qualificação (SDR)': '🔎',
+    'Reunião Agendada': '📅',
+    'Lead Desqualificado': '🚫',
+    'Convertido em Oportunidade': '⭐',
+    'Nova Oportunidade': '💡',
+    'Proposta Enviada': '📄',
+    'Call/Visita Agendada': '🤝',
+    'Negócios Perdidos': '❌',
+    'Negócios Ganhos': '🏆',
 };
 
 interface KanbanColumnProps {

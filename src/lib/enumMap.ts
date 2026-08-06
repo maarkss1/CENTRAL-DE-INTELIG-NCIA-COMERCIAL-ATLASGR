@@ -5,14 +5,17 @@ import type { LeadStatus, CompanyStatus, ActivityType, ActivityStatus } from './
 // o resto do sistema (zod, frontend, rotas) só conhece o texto exibido.
 
 const LEAD_STATUS_TO_PRISMA: Record<LeadStatus, string> = {
-    'Novo Lead': 'Novo_Lead',
-    'Qualificação': 'Qualificacao',
-    'Primeiro Contato': 'Primeiro_Contato',
-    'Diagnóstico': 'Diagnostico',
-    'Proposta': 'Proposta',
-    'Negociação': 'Negociacao',
-    'Fechado Ganho': 'Fechado_Ganho',
-    'Fechado Perdido': 'Fechado_Perdido',
+    'Lead Recebido': 'Lead_Recebido',
+    'Cadência Iniciada': 'Cadencia_Iniciada',
+    'Qualificação (SDR)': 'Qualificacao_SDR',
+    'Reunião Agendada': 'Reuniao_Agendada',
+    'Lead Desqualificado': 'Lead_Desqualificado',
+    'Convertido em Oportunidade': 'Convertido_em_Oportunidade',
+    'Nova Oportunidade': 'Nova_Oportunidade',
+    'Proposta Enviada': 'Proposta_Enviada',
+    'Call/Visita Agendada': 'Call_Visita_Agendada',
+    'Negócios Perdidos': 'Negocios_Perdidos',
+    'Negócios Ganhos': 'Negocios_Ganhos',
 };
 
 const COMPANY_STATUS_TO_PRISMA: Record<CompanyStatus, string> = {

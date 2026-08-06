@@ -30,14 +30,17 @@ enum ContactStatus {
 }
 
 enum LeadStatus {
-  Novo_Lead        @map("Novo Lead")
-  Qualificacao     @map("Qualificação")
-  Primeiro_Contato @map("Primeiro Contato")
-  Diagnostico      @map("Diagnóstico")
-  Proposta
-  Negociacao       @map("Negociação")
-  Fechado_Ganho    @map("Fechado Ganho")
-  Fechado_Perdido  @map("Fechado Perdido")
+  Lead_Recebido              @map("Lead Recebido")
+  Cadencia_Iniciada          @map("Cadência Iniciada")
+  Qualificacao_SDR           @map("Qualificação (SDR)")
+  Reuniao_Agendada           @map("Reunião Agendada")
+  Lead_Desqualificado        @map("Lead Desqualificado")
+  Convertido_em_Oportunidade @map("Convertido em Oportunidade")
+  Nova_Oportunidade          @map("Nova Oportunidade")
+  Proposta_Enviada           @map("Proposta Enviada")
+  Call_Visita_Agendada       @map("Call/Visita Agendada")
+  Negocios_Perdidos          @map("Negócios Perdidos")
+  Negocios_Ganhos            @map("Negócios Ganhos")
 }
 
 enum LeadTemperature {
@@ -168,12 +171,12 @@ model Contact {
   seniority    String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
   emailStatus  String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
 
-  companyId      String
-  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leads          Lead[]
+  companyId        String
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leads            Lead[]
   whatsAppMessages WhatsAppMessage[]
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId   String?
+  organization     Organization?     @relation(fields: [organizationId], references: [id])
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -189,7 +192,7 @@ model Lead {
   id String @id @default(cuid())
 
   // New CRM fields
-  status          LeadStatus       @default(Novo_Lead)
+  status          LeadStatus       @default(Lead_Recebido)
   source          String?
   channel         String?
   temperature     LeadTemperature?
@@ -212,12 +215,12 @@ model Lead {
   // (não há outra chave natural: nome de empresa se repete, telefone pode faltar). Não é @unique
   // "hard" porque cada organização fala com o SEU PRÓPRIO portal Bitrix — múltiplos tenants nunca
   // colidem no mesmo ID na prática, mas travar isso com constraint global é desnecessário.
-  bitrixLeadId String?
+  bitrixLeadId     String?
   // Mesma ideia de bitrixLeadId, mas para importação a partir do objeto Deal (Negócio) do Bitrix
   // — usado quando a organização importa pelo funil de vendas real (com pipeline/etapa), não pelo
   // objeto Lead cru. Campo separado porque IDs de Lead e Deal são namespaces distintos no Bitrix
   // (podem colidir numericamente sem ter nenhuma relação entre si).
-  bitrixDealId String?
+  bitrixDealId     String?
   // Nome da etapa como está no Bitrix (ex: "Novo Lead (Distribuidoras)" para Lead, ou "Proposta
   // Enviada" para Deal) — preservado à parte do `status` mapeado pro enum interno, porque o
   // Bitrix tem estágios/categorias específicas do negócio do cliente que não têm equivalente 1:1
@@ -229,13 +232,13 @@ model Lead {
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
-  activities     Activity[]
-  timeline       TimelineEvent[]
-  internalNotes  Note[]
-  whatsAppMessages WhatsAppMessage[]
+  activities          Activity[]
+  timeline            TimelineEvent[]
+  internalNotes       Note[]
+  whatsAppMessages    WhatsAppMessage[]
   conversationSignals ConversationSignal[]
-  organizationId String?
-  organization   Organization?   @relation(fields: [organizationId], references: [id])
+  organizationId      String?
+  organization        Organization?        @relation(fields: [organizationId], references: [id])
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -311,56 +314,56 @@ model AuditLog {
 }
 
 model User {
-  id             String       @id @default(cuid())
-  name           String
-  email          String       @unique
+  id                 String       @id @default(cuid())
+  name               String
+  email              String       @unique
   // Better Auth guarda a senha em Account.password (provider "credential"), não aqui — este
   // campo é resquício de um fluxo de auth anterior e não é mais escrito por ninguém no app real.
   // Precisa ser opcional para não quebrar `prisma.user.create()` do adapter do Better Auth.
-  passwordHash   String?
-  role           String       @default("VISUALIZADOR")
+  passwordHash       String?
+  role               String       @default("VISUALIZADOR")
   // Força a troca de senha no próximo login — usado quando um admin define uma senha
   // temporária/padrão pra outra pessoa (ver POST /api/auth-extra/change-password).
-  mustChangePassword Boolean  @default(false)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  emailVerified  Boolean      @default(false)
-  image          String?
-  sessions       Session[]
-  accounts       Account[]
+  mustChangePassword Boolean      @default(false)
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  emailVerified      Boolean      @default(false)
+  image              String?
+  sessions           Session[]
+  accounts           Account[]
 
   @@index([organizationId])
   @@map("user")
 }
 
 model Organization {
-  id               String            @id @default(cuid())
-  name             String            @unique
-  users            User[]
-  companies        Company[]
-  contacts         Contact[]
-  leads            Lead[]
-  prospects        Prospect[]
-  activities       Activity[]
-  documents        Document[]
-  notifications    Notification[]
-  automations      Automation[]
-  aiLogs           AILog[]
-  aiPendingActions AIPendingAction[]
-  knowledgeChunks  KnowledgeChunk[]
-  prompts          Prompt[]
-  agentMemories    AgentMemory[]
-  callSuppressions CallSuppression[]
-  coldCallRuns     ColdCallRun[]
-  whatsAppMessages WhatsAppMessage[]
-  conversationSignals ConversationSignal[]
+  id                        String                     @id @default(cuid())
+  name                      String                     @unique
+  users                     User[]
+  companies                 Company[]
+  contacts                  Contact[]
+  leads                     Lead[]
+  prospects                 Prospect[]
+  activities                Activity[]
+  documents                 Document[]
+  notifications             Notification[]
+  automations               Automation[]
+  aiLogs                    AILog[]
+  aiPendingActions          AIPendingAction[]
+  knowledgeChunks           KnowledgeChunk[]
+  prompts                   Prompt[]
+  agentMemories             AgentMemory[]
+  callSuppressions          CallSuppression[]
+  coldCallRuns              ColdCallRun[]
+  whatsAppMessages          WhatsAppMessage[]
+  conversationSignals       ConversationSignal[]
   googleWorkspaceConnection GoogleWorkspaceConnection?
-  bitrixConnections BitrixConnection[]
-  bitrixSyncRules  BitrixSyncRule[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  bitrixConnections         BitrixConnection[]
+  bitrixSyncRules           BitrixSyncRule[]
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
 }
 
 model KnowledgeChunk {
@@ -504,17 +507,17 @@ model AgentMemory {
 }
 
 model AILog {
-  id        String   @id @default(cuid())
-  tokens    Int
-  cost      Float
-  latencyMs Int
-  model     String
-  promptId  String?
+  id             String        @id @default(cuid())
+  tokens         Int
+  cost           Float
+  latencyMs      Int
+  model          String
+  promptId       String?
   // Sem esta coluna não dá para dizer quanto CADA organização consumiu — é o que a tela de
   // Consumo precisa. Opcional porque os registros anteriores a ela não têm como ser atribuídos.
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
+  createdAt      DateTime      @default(now())
 
   @@index([organizationId, createdAt])
 }
@@ -552,9 +555,9 @@ model Notification {
 
 /// Evento que dispara uma automação.
 enum AutomationTrigger {
-  Lead_Criado          @map("Lead criado")
-  Lead_Mudou_Status    @map("Lead mudou de status")
-  Atividade_Concluida  @map("Atividade concluída")
+  Lead_Criado         @map("Lead criado")
+  Lead_Mudou_Status   @map("Lead mudou de status")
+  Atividade_Concluida @map("Atividade concluída")
 }
 
 /// O que a automação faz quando dispara.
@@ -569,11 +572,11 @@ model Automation {
   name    String
   enabled Boolean @default(true)
 
-  trigger AutomationTrigger
+  trigger    AutomationTrigger
   /// Filtro opcional do gatilho (ex: `{ "status": "Proposta" }`). Vazio = dispara sempre.
   conditions Json?
 
-  action AutomationAction
+  action       AutomationAction
   /// Parâmetros da ação (ex: título da notificação, tipo/prazo da atividade a criar).
   actionConfig Json
 
@@ -603,9 +606,9 @@ model CallSuppression {
   /// Telefone normalizado em E.164 (`+5511999998888`) — é a chave real do bloqueio.
   phoneE164 String
   /// De onde veio o bloqueio: `call-opt-out` (pedido na própria ligação), `manual`, `import`.
-  source String
+  source    String
   /// Texto livre para auditoria (ex: trecho da transcrição em que o lead pediu para não ligar).
-  reason String?
+  reason    String?
 
   /// Lead em que o pedido aconteceu, quando houve um. Fica nulo em bloqueios importados de uma
   /// lista externa, e SET NULL na exclusão: apagar o lead não pode reabilitar a discagem.
@@ -671,9 +674,9 @@ model ConversationSignal {
   intent          String? // ex: "alta_intencao_compra" | "duvida_tecnica" | "objecao_preco" | "sem_interesse" | "neutro"
   urgency         String? // "alta" | "media" | "baixa"
   objections      String[]
-  budgetMentioned Boolean @default(false)
-  nextStep        String? @db.Text
-  summary         String? @db.Text
+  budgetMentioned Boolean  @default(false)
+  nextStep        String?  @db.Text
+  summary         String?  @db.Text
   /// Confiança do próprio modelo na classificação (0-1), quando ele reporta — usado para não tratar
   /// leituras incertas como se fossem fato.
   confidence      Float?
@@ -764,16 +767,16 @@ model BitrixSyncRule {
 
   /// CATEGORY_ID do pipeline de Negócio a observar (ex: "28" = Comercial) — obrigatório quando
   /// source="deal", ignorado quando source="lead" (Lead não tem pipeline).
-  categoryId String?
+  categoryId   String?
   /// STAGE_ID (Deal) ou STATUS_ID (Lead) opcional — sem isso, a regra observa todas as etapas/status.
-  stageId String?
+  stageId      String?
   /// ASSIGNED_BY_ID opcional — sem isso, a regra observa registros de qualquer vendedor.
   assignedById String?
 
   active Boolean @default(true)
 
-  lastRunAt          DateTime?
-  lastImportedCount  Int       @default(0)
+  lastRunAt         DateTime?
+  lastImportedCount Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -792,15 +795,15 @@ model ColdCallRun {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  scanned           Int
-  called            Int
-  skippedMaxAttempts Int @default(0)
-  skippedCooldown    Int @default(0)
-  skippedNoPhone     Int @default(0)
-  skippedSuppressed  Int @default(0)
-  skippedError       Int @default(0)
+  scanned            Int
+  called             Int
+  skippedMaxAttempts Int     @default(0)
+  skippedCooldown    Int     @default(0)
+  skippedNoPhone     Int     @default(0)
+  skippedSuppressed  Int     @default(0)
+  skippedError       Int     @default(0)
   /// Preenchido quando a execução nem chegou a examinar leads (ex: fora da janela de discagem).
-  haltedBy String?
+  haltedBy           String?
 
   runAt DateTime @default(now())
 

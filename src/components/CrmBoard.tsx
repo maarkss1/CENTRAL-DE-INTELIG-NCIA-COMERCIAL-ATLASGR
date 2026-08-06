@@ -21,14 +21,17 @@ import {
 } from '@dnd-kit/core';
 
 const COLUMNS: LeadStatus[] = [
-    'Novo Lead',
-    'Qualificação',
-    'Primeiro Contato',
-    'Diagnóstico',
-    'Proposta',
-    'Negociação',
-    'Fechado Ganho',
-    'Fechado Perdido'
+    'Lead Recebido',
+    'Cadência Iniciada',
+    'Qualificação (SDR)',
+    'Reunião Agendada',
+    'Lead Desqualificado',
+    'Convertido em Oportunidade',
+    'Nova Oportunidade',
+    'Proposta Enviada',
+    'Call/Visita Agendada',
+    'Negócios Perdidos',
+    'Negócios Ganhos'
 ];
 
 export function CrmBoard() {
@@ -152,14 +155,17 @@ export function CrmBoard() {
 
     const groupedLeads = useMemo(() => {
         const grouped: Record<LeadStatus, Lead[]> = {
-            'Novo Lead': [],
-            'Qualificação': [],
-            'Primeiro Contato': [],
-            'Diagnóstico': [],
-            'Proposta': [],
-            'Negociação': [],
-            'Fechado Ganho': [],
-            'Fechado Perdido': []
+            'Lead Recebido': [],
+            'Cadência Iniciada': [],
+            'Qualificação (SDR)': [],
+            'Reunião Agendada': [],
+            'Lead Desqualificado': [],
+            'Convertido em Oportunidade': [],
+            'Nova Oportunidade': [],
+            'Proposta Enviada': [],
+            'Call/Visita Agendada': [],
+            'Negócios Perdidos': [],
+            'Negócios Ganhos': []
         };
         leads.forEach(lead => {
             if (grouped[lead.status]) {

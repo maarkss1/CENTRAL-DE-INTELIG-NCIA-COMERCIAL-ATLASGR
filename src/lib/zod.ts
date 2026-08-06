@@ -7,14 +7,17 @@ import { z } from 'zod';
 
 export const COMPANY_STATUS = ['Ativo', 'Inativo', 'Em análise'] as const;
 export const LEAD_STATUS = [
-    'Novo Lead',
-    'Qualificação',
-    'Primeiro Contato',
-    'Diagnóstico',
-    'Proposta',
-    'Negociação',
-    'Fechado Ganho',
-    'Fechado Perdido',
+    'Lead Recebido',
+    'Cadência Iniciada',
+    'Qualificação (SDR)',
+    'Reunião Agendada',
+    'Lead Desqualificado',
+    'Convertido em Oportunidade',
+    'Nova Oportunidade',
+    'Proposta Enviada',
+    'Call/Visita Agendada',
+    'Negócios Perdidos',
+    'Negócios Ganhos',
 ] as const;
 export const ACTIVITY_TYPE = ['Ligação', 'WhatsApp', 'E-mail', 'Reunião', 'Follow-up', 'Visita', 'Tarefa'] as const;
 export const ACTIVITY_STATUS = ['Pendente', 'Em andamento', 'Concluída', 'Cancelada'] as const;
@@ -72,7 +75,7 @@ export const contactSchema = z.object({
 
 export const leadSchema = z.object({
     // Core CRM fields
-    status: z.enum(LEAD_STATUS).default('Novo Lead'),
+    status: z.enum(LEAD_STATUS).default('Lead Recebido'),
     source: z.string().optional().nullable(),
     channel: z.string().optional().nullable(),
     temperature: z.enum(LEAD_TEMPERATURE).optional().nullable(),

@@ -45,7 +45,7 @@ const MONTHS = [
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
-const selectClass = 'h-[30px] text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-2.5 disabled:opacity-40 min-w-[9rem]';
+const selectClass = 'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 min-w-[9rem] focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none cursor-pointer';
 const filterLabelClass = 'text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 flex items-center gap-1';
 
 interface BitrixImportPanelProps {
@@ -213,22 +213,22 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 </button>
             </div>
 
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-lg w-fit">
+            <div className="flex gap-1 p-1.5 bg-gray-100/80 dark:bg-white/5 rounded-xl w-fit">
                 <button
                     onClick={() => setMode('deals')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${mode === 'deals' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'deals' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                 >
                     Negócios (Comercial)
                 </button>
                 <button
                     onClick={() => setMode('leads')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-colors ${mode === 'leads' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'}`}
+                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'leads' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                 >
                     Leads (todos)
                 </button>
             </div>
 
-            <div className="rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50/60 dark:bg-white/[0.03] p-3 space-y-3">
+            <div className="rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 p-5 shadow-sm space-y-4">
                 <div className="relative w-full sm:max-w-sm">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
                     <input
@@ -236,7 +236,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder={mode === 'deals' ? 'Pesquisar por nome da empresa/negócio…' : 'Pesquisar por nome do lead/empresa…'}
-                        className="w-full h-[30px] text-xs rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white pl-8 pr-7 placeholder:text-gray-400"
+                        className="w-full h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white pl-9 pr-8 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
                     />
                     {search && (
                         <button
@@ -259,7 +259,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                         <div className="flex flex-wrap items-end gap-3">
                             <div className="flex flex-col gap-1">
                                 <span className={filterLabelClass}><Filter className="w-3 h-3" /> Pipeline</span>
-                                <span className="flex items-center gap-1.5 h-[30px] px-3 rounded-lg bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-xs font-bold whitespace-nowrap">
+                                <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-sm font-bold whitespace-nowrap">
                                     {pipelines[0].name}
                                 </span>
                             </div>
@@ -312,11 +312,11 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             {loading ? (
                 <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
             ) : (
-                <div className="max-h-80 overflow-y-auto rounded-lg border border-gray-100 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/10">
+                <div className="max-h-[22rem] overflow-y-auto rounded-2xl border border-gray-100 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/10 shadow-sm bg-white">
                     {mode === 'deals' ? deals.map((deal) => (
                         <label
                             key={deal.id}
-                            className={`flex items-start gap-3 p-3 text-xs cursor-pointer ${deal.alreadyImported ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                            className={`flex items-start gap-4 p-4 text-sm cursor-pointer transition-colors ${deal.alreadyImported ? 'opacity-50 bg-gray-50' : 'hover:bg-orange-50/50 dark:hover:bg-white/5'}`}
                         >
                             <input type="checkbox" checked={selected.has(deal.id)} disabled={deal.alreadyImported} onChange={() => toggle(deal.id)} className="mt-0.5" />
                             <div className="min-w-0 flex-1">
@@ -333,7 +333,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                     )) : leads.map((lead) => (
                         <label
                             key={lead.id}
-                            className={`flex items-start gap-3 p-3 text-xs cursor-pointer ${lead.alreadyImported ? 'opacity-50' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                            className={`flex items-start gap-4 p-4 text-sm cursor-pointer transition-colors ${lead.alreadyImported ? 'opacity-50 bg-gray-50' : 'hover:bg-orange-50/50 dark:hover:bg-white/5'}`}
                         >
                             <input type="checkbox" checked={selected.has(lead.id)} disabled={lead.alreadyImported} onChange={() => toggle(lead.id)} className="mt-0.5" />
                             <div className="min-w-0 flex-1">

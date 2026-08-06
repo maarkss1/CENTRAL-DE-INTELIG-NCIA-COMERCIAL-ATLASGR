@@ -108,7 +108,7 @@ export const updateLeadQualificationTool = tool(
             leadId: z.string().describe('O ID do Lead'),
             score: z.number().min(0).max(100).describe('A nota de propensão de 0 a 100'),
             summary: z.string().describe('O resumo de 1 ou 2 frases da análise da IA'),
-            status: z.enum(['Novo_Lead', 'Qualificacao', 'Primeiro_Contato', 'Fechado_Perdido']).describe('O novo status sugerido para o lead baseado na nota (ex: se > 70, Primeiro_Contato; senão Qualificacao ou Fechado_Perdido)'),
+            status: z.enum(['Lead_Recebido', 'Qualificacao_SDR', 'Reuniao_Agendada', 'Lead_Desqualificado']).describe('O novo status sugerido para o lead baseado na nota (ex: se > 70, Reuniao_Agendada; senão Qualificacao_SDR ou Lead_Desqualificado)'),
         }),
     }
 );

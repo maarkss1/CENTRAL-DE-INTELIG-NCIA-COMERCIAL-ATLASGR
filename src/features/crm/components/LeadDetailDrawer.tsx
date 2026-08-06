@@ -12,15 +12,17 @@ import { useBrand } from '../../../contexts/BrandContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 
 const STATUS_EMOJI: Record<string, string> = {
-    'Novo Lead': '🆕', 'Qualificação': '🔎', 'Primeiro Contato': '☎️', 'Diagnóstico': '🩺',
-    'Proposta': '📄', 'Negociação': '🤝', 'Fechado Ganho': '🏆', 'Fechado Perdido': '❌',
+    'Lead Recebido': '🆕', 'Cadência Iniciada': '📣', 'Qualificação (SDR)': '🔎', 'Reunião Agendada': '📅',
+    'Lead Desqualificado': '🚫', 'Convertido em Oportunidade': '⭐', 'Nova Oportunidade': '💡',
+    'Proposta Enviada': '📄', 'Call/Visita Agendada': '🤝', 'Negócios Perdidos': '❌', 'Negócios Ganhos': '🏆',
 };
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
 const LEAD_STATUSES: LeadStatus[] = [
-    'Novo Lead', 'Qualificação', 'Primeiro Contato', 'Diagnóstico',
-    'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido',
+    'Lead Recebido', 'Cadência Iniciada', 'Qualificação (SDR)', 'Reunião Agendada', 'Lead Desqualificado',
+    'Convertido em Oportunidade', 'Nova Oportunidade', 'Proposta Enviada', 'Call/Visita Agendada',
+    'Negócios Perdidos', 'Negócios Ganhos'
 ];
 void ({} as typeof LEAD_STATUS); // mantém o import de tipo referenciado
 

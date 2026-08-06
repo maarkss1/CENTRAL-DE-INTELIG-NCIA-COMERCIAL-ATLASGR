@@ -9,7 +9,7 @@ import { isWithinCallWindow, evaluateLead, type CallWindow, type DialPolicy } fr
  * Etapa do funil que a campanha fria ataca. Leads mais adiante já têm um humano conduzindo — uma
  * ligação automática no meio de uma negociação atrapalha em vez de ajudar.
  */
-const COLD_STATUS = 'Novo_Lead';
+const COLD_STATUS = 'Lead_Recebido';
 
 /**
  * Quantos leads são examinados por execução. Maior que o limite de ligações porque a maioria dos
