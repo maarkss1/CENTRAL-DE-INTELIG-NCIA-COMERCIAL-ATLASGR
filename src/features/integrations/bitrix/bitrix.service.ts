@@ -1,4 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
+import { LeadStatus } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
@@ -298,7 +299,7 @@ export async function importSelectedBitrixLeads(
 
         await prisma.lead.create({
             data: {
-                status: 'Novo_Lead',
+                status: LeadStatus.Novo_Lead,
                 source: 'Bitrix24 (importado)',
                 companyId: company.id,
                 contactId: contact?.id,
