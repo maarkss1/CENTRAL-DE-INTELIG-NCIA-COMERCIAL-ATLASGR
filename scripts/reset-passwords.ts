@@ -1,35 +1,52 @@
+import { hashPassword } from 'better-auth/crypto';
 import { prisma } from '../src/lib/prisma.js';
-import bcrypt from 'bcrypt';
+import { requestContext } from '../src/lib/async-context.js';
+
+const DEFAULT_TEMP_PASSWORD = '00000000';
 
 async function main() {
-  const password = '00000000';
-  // Better Auth padroniza bcrypt com custo 10 ou usa lib nativa.
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const targetEmail = process.argv[2]?.trim().toLowerCase();
+  const password = process.argv[3] ?? DEFAULT_TEMP_PASSWORD;
 
-  // Atualiza as senhas na tabela account onde a conta for do tipo credential
-  const resultAccounts = await prisma.account.updateMany({
-    where: {
-      providerId: 'credential',
-    },
-    data: {
-      password: hashedPassword,
-    },
+  requestContext.enterWith({ bypassRls: true });
+
+  const users = await prisma.user.findMany({
+    where: targetEmail ? { email: targetEmail } : undefined,
+    select: { id: true, email: true },
   });
 
-  // Marca para trocar a senha no próximo login
-  const resultUsers = await prisma.user.updateMany({
-    data: {
-      mustChangePassword: true,
-    },
-  });
+  if (users.length === 0) {
+    console.log(targetEmail ? `No user found for ${targetEmail}.` : 'No users found.');
+    return;
+  }
 
-  console.log(`Updated ${resultAccounts.count} accounts with new password.`);
-  console.log(`Updated ${resultUsers.count} users with mustChangePassword = true.`);
+  const passwordHash = await hashPassword(password);
+
+  for (const user of users) {
+    await prisma.account.upsert({
+      where: { id: `${user.id}:credential` },
+      update: { password: passwordHash },
+      create: {
+        id: `${user.id}:credential`,
+        userId: user.id,
+        accountId: user.id,
+        providerId: 'credential',
+        password: passwordHash,
+      },
+    });
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mustChangePassword: true },
+    });
+
+    console.log(`Password reset to ${password} and mustChangePassword set for user: ${user.email}`);
+  }
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error(error);
     process.exit(1);
   })
   .finally(async () => {
