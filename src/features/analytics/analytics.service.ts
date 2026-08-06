@@ -18,7 +18,6 @@ export const FUNNEL_STAGES = [
 
 const WON = 'Negocios_Ganhos';
 const LOST = 'Negocios_Perdidos';
-const DESQUALIFICADO = 'Lead_Desqualificado';
 
 export interface OverviewMetrics {
     totalCompanies: number;

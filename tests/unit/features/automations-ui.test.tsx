@@ -122,13 +122,13 @@ describe('Automações', () => {
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
         await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta');
-        await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta');
+        await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
 
         await waitFor(() => expect(createCalledWith).toBeTruthy());
         const enviado = createCalledWith as { name: string; conditions: unknown; trigger: string };
         expect(enviado.name).toBe('Avisar em Proposta');
-        expect(enviado.conditions).toEqual({ status: 'Proposta' });
+        expect(enviado.conditions).toEqual({ status: 'Proposta Enviada' });
         expect(enviado.trigger).toBe('Lead mudou de status');
     });
 

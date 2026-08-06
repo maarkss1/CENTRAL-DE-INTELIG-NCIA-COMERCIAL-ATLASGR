@@ -1,7 +1,7 @@
 import { faker } from '@faker-js/faker';
 
 export const CompanyFactory = {
-  build: (overrides?: any): any => ({
+  build: <T extends Record<string, unknown>>(overrides?: T) => ({
     legalName: faker.company.name(),
     tradeName: faker.company.name(),
     cnpj: faker.string.numeric(14),
@@ -20,7 +20,7 @@ export const CompanyFactory = {
 };
 
 export const ContactFactory = {
-  build: (overrides?: any): any => {
+  build: <T extends Record<string, unknown>>(overrides?: T) => {
     return {
       name: faker.person.fullName(),
       email: faker.internet.email(),
@@ -37,7 +37,7 @@ export const ContactFactory = {
 };
 
 export const LeadFactory = {
-  build: (overrides?: any): any => ({
+  build: <T extends Record<string, unknown>>(overrides?: T) => ({
     status: 'Novo_Lead',
     source: faker.helpers.arrayElement(['Inbound', 'Outbound', 'Referral']),
     temperature: faker.helpers.arrayElement(['Frio', 'Morno', 'Quente']),
@@ -49,7 +49,7 @@ export const LeadFactory = {
 };
 
 export const ActivityFactory = {
-  build: (overrides?: any): any => ({
+  build: <T extends Record<string, unknown>>(overrides?: T) => ({
     type: faker.helpers.arrayElement(['Ligacao', 'WhatsApp', 'Email', 'Reuniao', 'Follow_up', 'Visita', 'Tarefa']),
     owner: faker.person.fullName(),
     date: faker.date.recent().toISOString(),
@@ -63,7 +63,7 @@ export const ActivityFactory = {
 };
 
 export const NoteFactory = {
-  build: (overrides?: any): any => ({
+  build: <T extends Record<string, unknown>>(overrides?: T) => ({
     content: faker.lorem.paragraph(),
     author: faker.person.fullName(),
     lead: overrides?.lead || {
@@ -74,7 +74,7 @@ export const NoteFactory = {
 };
 
 export const TimelineEventFactory = {
-  build: (overrides?: any): any => ({
+  build: <T extends Record<string, unknown>>(overrides?: T) => ({
     type: 'creation',
     description: faker.lorem.sentence(),
     lead: overrides?.lead || {
