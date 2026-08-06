@@ -10,6 +10,7 @@ import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
+import { clientLogger } from '../lib/clientLogger';
 import { 
     DndContext, 
     closestCenter, 
@@ -17,7 +18,9 @@ import {
     PointerSensor, 
     useSensor, 
     useSensors, 
-    DragOverlay 
+    DragOverlay,
+    DragStartEvent,
+    DragEndEvent
 } from '@dnd-kit/core';
 
 const COLUMNS: LeadStatus[] = [
@@ -64,7 +67,7 @@ export function CrmBoard() {
                 setLeads(response.data);
             }
         } catch (err) {
-            console.error('Error fetching leads:', err);
+            clientLogger.error({ err }, 'Error fetching leads');
             setError(err instanceof Error ? err.message : 'Não foi possível carregar o pipeline comercial.');
         } finally {
             setLoading(false);
@@ -75,8 +78,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragStart = useCallback((event: any) => {
+    const handleDragStart = useCallback((event: DragStartEvent) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
@@ -84,8 +86,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragEnd = useCallback(async (event: any) => {
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveLead(null);
 
@@ -94,7 +95,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (COLUMNS.includes(over.id)) {
+        if (typeof over.id === 'string' && COLUMNS.includes(over.id as LeadStatus)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);
@@ -112,7 +113,7 @@ export function CrmBoard() {
             try {
                 await leadsDB.updateStatus(leadId as string, targetStatus);
             } catch (error) {
-                console.error('Error updating lead status:', error);
+                clientLogger.error({ err: error }, 'Error updating lead status');
                 fetchLeads();
             }
         }
@@ -128,7 +129,7 @@ export function CrmBoard() {
             await fetchLeads();
             toast.success('Lead enriquecido com sucesso.');
         } catch (error) {
-            console.error('Error enriching lead:', error);
+            clientLogger.error({ err: error }, 'Error enriching lead');
             toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);

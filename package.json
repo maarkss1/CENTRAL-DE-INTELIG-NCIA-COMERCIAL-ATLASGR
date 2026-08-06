@@ -105,7 +105,8 @@
     "zod": "^4.4.3"
   },
   "overrides": {
-    "protobufjs": "7.6.5"
+    "protobufjs": "7.6.5",
+    "lodash": "^4.17.24"
   },
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",

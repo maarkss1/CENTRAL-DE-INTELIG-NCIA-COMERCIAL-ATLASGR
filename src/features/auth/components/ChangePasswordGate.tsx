@@ -34,8 +34,7 @@ export function ChangePasswordGate() {
             return;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const clearResult = await (authClient.updateUser as any)({ mustChangePassword: false });
+        const clearResult = await authClient.updateUser({ mustChangePassword: false });
         if (clearResult?.error) {
             setError('Senha trocada, mas não consegui liberar o acesso automaticamente. Recarregue a página.');
             setIsSubmitting(false);

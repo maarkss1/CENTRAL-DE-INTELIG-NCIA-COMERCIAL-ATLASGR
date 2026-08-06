@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, Zap, ShieldAlert, Database, Wrench, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { SWARM_BRAND } from '../agents/swarm.constants';
+import { clientLogger } from '../../../lib/clientLogger';
 
 type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'crm' | 'ops';
 type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
@@ -184,7 +185,7 @@ export function SwarmDashboard() {
                         const event = JSON.parse(dataStr) as SwarmEvent;
                         applyEvent(event);
                     } catch (e) {
-                        console.error('Erro ao fazer parse SSE data', e);
+                        clientLogger.error({ err: e }, 'Erro ao fazer parse SSE data');
                     }
                 }
             }
@@ -210,7 +211,7 @@ export function SwarmDashboard() {
                     }
                 ]);
             } else {
-                console.error('Falha ao executar Enxame via Stream:', error);
+                clientLogger.error({ err: error }, 'Falha ao executar Enxame via Stream');
                 resolvePendingThinking('Falha de comunicação com o enxame.');
                 setMessages(prev => [
                     ...prev,

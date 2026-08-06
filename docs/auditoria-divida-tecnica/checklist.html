@@ -401,7 +401,7 @@
           <input type="checkbox" data-id="s1-db002"><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Confirmar RLS ativo em Prospect e AIPendingAction no banco real</span>
-            <span class="check-desc">Não confirmável por leitura estática do schema — validar via \d+ no Postgres ou teste de integração dedicado.</span>
+            <span class="check-desc">Confirmado em 2026-08-06: pg_class.relrowsecurity/relforcerowsecurity = true e tenant_isolation_policy (cmd ALL) presentes em ambas as tabelas, aplicando todas as migrations num Postgres real (prospectordb_test). Falta apenas confirmar que o ambiente de produção tem as mesmas migrations aplicadas (esperado via pipeline de deploy, não verificável a partir daqui).</span>
             <span class="badges"><span class="badge id">DB-002</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço S</span></span>
           </span>
         </label></li>
@@ -485,7 +485,7 @@
           <input type="checkbox" data-id="s3-xlsx"><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Planejar migração de xlsx → exceljs</span>
-            <span class="check-desc">xlsx tem 2 CVEs altas sem correção publicada (Prototype Pollution + ReDoS).</span>
+            <span class="check-desc">xlsx tem 2 CVEs altas sem correção publicada (Prototype Pollution + ReDoS). Plano concluído em 2026-08-06: DEP-008-plano-migracao-exceljs.md — só existe 1 ponto de uso no repo inteiro (ProspectingHub.tsx::exportToExcel), menor do que a estimativa original de Esforço L.</span>
             <span class="badges"><span class="badge id">DEP-008</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>

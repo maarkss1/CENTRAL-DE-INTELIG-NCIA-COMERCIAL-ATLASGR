@@ -1,31 +1,6 @@
-export interface SpeechRecognitionEventLike {
-    results: {
-        [index: number]: {
-            [index: number]: { transcript: string };
-        };
-    };
-}
-
-export interface SpeechRecognitionLike {
-    continuous: boolean;
-    lang: string;
-    onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-    onerror: (() => void) | null;
-    onend: (() => void) | null;
-    start(): void;
-    stop(): void;
-}
-
-export interface SpeechRecognitionConstructorLike {
-    new(): SpeechRecognitionLike;
-}
-
-declare global {
-    interface Window {
-        webkitSpeechRecognition?: SpeechRecognitionConstructorLike;
-        SpeechRecognition?: SpeechRecognitionConstructorLike;
-    }
-}
+// SpeechRecognitionLike/SpeechRecognitionEventLike/Window.SpeechRecognition agora são tipos
+// ambient globais definidos em src/types/speech-recognition.d.ts (sem import necessário) — movidos
+// de volta pra lá pra não colidir com a mesma declaração global usada por VoiceCommandWidget.tsx.
 
 export interface CallMessage {
     id: string;

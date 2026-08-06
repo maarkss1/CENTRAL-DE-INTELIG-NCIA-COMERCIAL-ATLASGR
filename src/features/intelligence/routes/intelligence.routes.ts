@@ -294,6 +294,11 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
 
 
 // AI Toolkit Endpoints (Expose the 20 functionalities to frontend via single proxy or discrete endpoints)
+// `any[]` é deliberado aqui (COD-004): as 20 funções abaixo têm aridades e tipos de parâmetro
+// diferentes entre si. `unknown[]` faria o TS rejeitar a atribuição de cada função concreta a este
+// Record (contravariância de parâmetros — `unknown` não é atribuível a `string`), e não há um tipo
+// de união prático que descreva "uma função de N parâmetros de texto, N variando por chave". A
+// aridade real de cada uma é validada em runtime contra AI_TOOLKIT_ARITY logo abaixo.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const aiToolkitFunctions: Record<string, (...args: any[]) => Promise<unknown>> = {
     summarizeLead, generateEmailDraft, predictConversionScore, generateMeetingAgenda,

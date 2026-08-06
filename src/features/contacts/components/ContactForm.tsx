@@ -7,6 +7,7 @@ import { Contact, Company } from '../../../types';
 import { Button } from '../../../components/ui/Button';
 import { contactSchema } from '../../../lib/zod';
 import { companiesDB, contactsDB } from '../../../lib/db';
+import { clientLogger } from '../../../lib/clientLogger';
 
 interface ContactFormProps {
     contact?: Contact | null;
@@ -55,7 +56,7 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
 
         companiesDB.list({ limit: 200 })
             .then((res) => setCompanies(res.data))
-            .catch((error) => console.error('Error fetching companies for contact form:', error));
+            .catch((error) => clientLogger.error({ err: error }, 'Error fetching companies for contact form'));
     }, [contact, reset]);
 
     const onSubmit = async (data: ContactFormOutput) => {
@@ -67,7 +68,7 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
             }
             onSave();
         } catch (error) {
-            console.error('Error saving contact:', error);
+            clientLogger.error({ err: error }, 'Error saving contact');
         }
     };
 
