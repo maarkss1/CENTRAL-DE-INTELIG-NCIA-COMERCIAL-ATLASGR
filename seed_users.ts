@@ -36,10 +36,6 @@ interface SeedUserDefinition {
 
 const USERS: SeedUserDefinition[] = [
     { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'admin', passwordEnvVar: 'SEED_PASSWORD_MARCELO' },
-    { name: 'João Reis', email: 'joao.reis@atlasgr.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_JOAO' },
-    { name: 'Comercial', email: 'comercial@atlas.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_COMERCIAL' },
-    { name: 'Ronan', email: 'ronan@totaltrac.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_RONAN' },
-    { name: 'Kauê Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'user', passwordEnvVar: 'SEED_PASSWORD_KAUE' },
 ];
 
 async function seed() {
