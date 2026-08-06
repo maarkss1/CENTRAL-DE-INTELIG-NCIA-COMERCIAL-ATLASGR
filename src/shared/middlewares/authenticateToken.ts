@@ -23,41 +23,21 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         // Assim como as rotas /api/auth/* (server.ts), esta busca de sessão roda antes de
         // sabermos o tenant do usuário — getSession() precisa localizar Session/User por conta
         // própria, e essas tabelas têm FORCE ROW LEVEL SECURITY. Sem o bypass aqui, toda requisição
-        // com sessão seria rejeitada como sessão inválida sob RLS. Se não houver sessão, o
-        // middleware cria uma identidade pública abaixo para remover a necessidade de cadastro/login.
+        // com sessão seria rejeitada como sessão inválida sob RLS.
         const session = await requestContext.run({ bypassRls: true }, () =>
             auth.api.getSession({
                 headers: fromNodeHeaders(req.headers)
             })
         );
 
-        let user: { id: string, email: string, role?: string, organizationId?: string };
-        let isPublicAccess = false;
-        if (!session || !session.user) {
-            const { prisma } = await import('../../lib/prisma.js');
-            const org = await requestContext.run({ bypassRls: true }, async () => {
-                const existingOrg = await prisma.organization.findFirst();
-                if (existingOrg) return existingOrg;
-
-                return prisma.organization.create({
-                    data: {
-                        name: 'Atlas Public Org'
-                    }
-                });
-            });
-
-            user = {
-                id: 'public-access-user',
-                email: 'visitante@atlasgr.com.br',
-                role: 'SUPER_ADMIN',
-                organizationId: org.id
-            };
-            isPublicAccess = true;
-        } else {
-            user = session.user as unknown as { id: string, email: string, role: string, organizationId: string };
+        if (!session?.user) {
+            res.status(401).json({ success: false, error: 'Autenticação necessária.' });
+            return;
         }
 
-        if (!isPublicAccess && !isAuthorizedLoginEmail(user.email)) {
+        const user = session.user as unknown as { id: string, email: string, role: string, organizationId: string };
+
+        if (!isAuthorizedLoginEmail(user.email)) {
             res.status(403).json({ success: false, error: 'Acesso restrito ao e-mail autorizado.' });
             return;
         }
