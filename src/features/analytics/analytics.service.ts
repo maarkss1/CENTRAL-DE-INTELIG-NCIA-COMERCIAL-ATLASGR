@@ -129,7 +129,7 @@ export class AnalyticsService {
         ] = await Promise.all([
             prisma.company.count({ where: scope }),
             prisma.contact.count({ where: scope }),
-            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, LOST] } } }),
+            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, LOST, DESQUALIFICADO] } } }),
             prisma.lead.count({ where: scope }),
             prisma.activity.count({ where: scope }),
             prisma.activity.count({ where: { ...scope, status: 'Pendente' } }),
@@ -138,10 +138,10 @@ export class AnalyticsService {
             // closedAt (não updatedAt: esse é @updatedAt e sobe em QUALQUER update do lead — sync do
             // Bitrix, uma ligação do SDR de voz tocando só lastInteraction — não só em fechamento).
             prisma.lead.count({ where: { ...scope, status: WON, closedAt: { gte: monthStart } } }),
-            prisma.lead.count({ where: { ...scope, status: LOST, closedAt: { gte: monthStart } } }),
+            prisma.lead.count({ where: { ...scope, status: { in: [LOST, DESQUALIFICADO] }, closedAt: { gte: monthStart } } }),
             prisma.lead.count({ where: { ...scope, status: WON } }),
             prisma.lead.aggregate({
-                where: { ...scope, status: { notIn: [WON, LOST] }, score: { not: null } },
+                where: { ...scope, status: { notIn: [WON, LOST, DESQUALIFICADO] }, score: { not: null } },
                 _avg: { score: true },
             }),
         ]);
@@ -204,7 +204,7 @@ export class AnalyticsService {
                 select: { createdAt: true },
             }),
             prisma.lead.findMany({
-                where: { ...scope, status: { in: [WON, LOST] }, closedAt: { gte: since } },
+                where: { ...scope, status: { in: [WON, LOST, DESQUALIFICADO] }, closedAt: { gte: since } },
                 select: { closedAt: true, status: true },
             }),
         ]);

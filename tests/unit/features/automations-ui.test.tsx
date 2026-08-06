@@ -17,7 +17,7 @@ function render(ui: React.ReactElement) {
 
 const regra = {
     id: 'a1',
-    name: 'Avisar em Proposta',
+    name: 'Avisar em Proposta Enviada',
     enabled: true,
     trigger: 'Lead mudou de status' as const,
     conditions: { status: 'Proposta Enviada' },
@@ -69,7 +69,7 @@ describe('Automações', () => {
         mockList([regra]);
         render(<Automations />);
 
-        expect(await screen.findByText('Avisar em Proposta')).toBeTruthy();
+        expect(await screen.findByText('Avisar em Proposta Enviada')).toBeTruthy();
         expect(screen.getByText(/Quando "Lead mudou de status"/)).toBeTruthy();
         expect(screen.getByText('ainda não disparou')).toBeTruthy();
         expect(screen.getByText('1 regra · 1 ativa(s)')).toBeTruthy();
@@ -121,13 +121,13 @@ describe('Automações', () => {
         render(<Automations />);
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
-        await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta');
+        await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta Enviada');
         await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
 
         await waitFor(() => expect(createCalledWith).toBeTruthy());
         const enviado = createCalledWith as { name: string; conditions: unknown; trigger: string };
-        expect(enviado.name).toBe('Avisar em Proposta');
+        expect(enviado.name).toBe('Avisar em Proposta Enviada');
         expect(enviado.conditions).toEqual({ status: 'Proposta Enviada' });
         expect(enviado.trigger).toBe('Lead mudou de status');
     });
