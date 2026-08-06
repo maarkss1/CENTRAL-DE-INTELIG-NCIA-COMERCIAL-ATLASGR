@@ -20,7 +20,7 @@ const regra = {
     name: 'Avisar em Proposta',
     enabled: true,
     trigger: 'Lead mudou de status' as const,
-    conditions: { status: 'Proposta' },
+    conditions: { status: 'Proposta Enviada' },
     action: 'Notificar equipe' as const,
     actionConfig: {},
     lastRunAt: null,
@@ -41,7 +41,7 @@ afterEach(() => { cleanup(); server.resetHandlers(); });
 describe('describeAutomation', () => {
     it('descreve gatilho, condição e ação numa frase', () => {
         expect(describeAutomation(regra)).toBe(
-            'Quando "Lead mudou de status" (status = Proposta) → Notificar equipe',
+            'Quando "Lead mudou de status" (status = Proposta Enviada) → Notificar equipe',
         );
     });
 
@@ -122,13 +122,13 @@ describe('Automações', () => {
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
         await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta');
-        await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta');
+        await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
 
         await waitFor(() => expect(createCalledWith).toBeTruthy());
         const enviado = createCalledWith as { name: string; conditions: unknown; trigger: string };
         expect(enviado.name).toBe('Avisar em Proposta');
-        expect(enviado.conditions).toEqual({ status: 'Proposta' });
+        expect(enviado.conditions).toEqual({ status: 'Proposta Enviada' });
         expect(enviado.trigger).toBe('Lead mudou de status');
     });
 
