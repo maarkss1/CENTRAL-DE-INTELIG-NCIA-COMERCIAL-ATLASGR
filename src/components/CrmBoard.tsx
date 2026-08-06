@@ -192,7 +192,7 @@ export function CrmBoard() {
                 toast.info('Nenhum lead novo encontrado no Bitrix24.');
             }
         } catch (err) {
-            console.error('Error importing from Bitrix24:', err);
+            clientLogger.error({ err }, 'Error importing from Bitrix24');
             toast.error(err instanceof Error ? err.message : 'Falha ao importar do Bitrix24.');
         } finally {
             setLoading(false);

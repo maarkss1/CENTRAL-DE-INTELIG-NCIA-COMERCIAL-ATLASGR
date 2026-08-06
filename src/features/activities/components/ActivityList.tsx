@@ -8,6 +8,7 @@ import {
 import { useActivities } from '../../../hooks/useDatabase';
 import { Activity } from '../../../types';
 import { toast } from '../../../lib/toast';
+import { clientLogger } from '../../../lib/clientLogger';
 import React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
@@ -104,7 +105,7 @@ export function ActivityList() {
       await deleteActivity(id);
       toast.success('Atividade excluída.');
     } catch (error) {
-      console.error('Error deleting activity:', error);
+      clientLogger.error({ err: error }, 'Error deleting activity');
       toast.error(error instanceof Error ? error.message : 'Falha ao excluir a atividade.');
     }
   };
