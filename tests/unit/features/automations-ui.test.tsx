@@ -17,10 +17,10 @@ function render(ui: React.ReactElement) {
 
 const regra = {
     id: 'a1',
-    name: 'Avisar em Proposta',
+    name: 'Avisar em Proposta Enviada',
     enabled: true,
     trigger: 'Lead mudou de status' as const,
-    conditions: { status: 'Proposta' },
+    conditions: { status: 'Proposta Enviada' },
     action: 'Notificar equipe' as const,
     actionConfig: {},
     lastRunAt: null,
@@ -41,7 +41,7 @@ afterEach(() => { cleanup(); server.resetHandlers(); });
 describe('describeAutomation', () => {
     it('descreve gatilho, condição e ação numa frase', () => {
         expect(describeAutomation(regra)).toBe(
-            'Quando "Lead mudou de status" (status = Proposta) → Notificar equipe',
+            'Quando "Lead mudou de status" (status = Proposta Enviada) → Notificar equipe',
         );
     });
 
@@ -69,7 +69,7 @@ describe('Automações', () => {
         mockList([regra]);
         render(<Automations />);
 
-        expect(await screen.findByText('Avisar em Proposta')).toBeTruthy();
+        expect(await screen.findByText('Avisar em Proposta Enviada')).toBeTruthy();
         expect(screen.getByText(/Quando "Lead mudou de status"/)).toBeTruthy();
         expect(screen.getByText('ainda não disparou')).toBeTruthy();
         expect(screen.getByText('1 regra · 1 ativa(s)')).toBeTruthy();
@@ -87,7 +87,7 @@ describe('Automações', () => {
         const user = userEvent.setup();
         render(<Automations />);
 
-        await user.click(await screen.findByRole('switch', { name: /Pausar Avisar em Proposta/ }));
+        await user.click(await screen.findByRole('switch', { name: /Pausar Avisar em Proposta Enviada/ }));
         await waitFor(() => expect(updateCalledWith).toEqual({ id: 'a1', patch: { enabled: false } }));
     });
 
@@ -103,7 +103,7 @@ describe('Automações', () => {
         const user = userEvent.setup();
         render(<Automations />);
 
-        const sw = await screen.findByRole('switch', { name: /Pausar Avisar em Proposta/ });
+        const sw = await screen.findByRole('switch', { name: /Pausar Avisar em Proposta Enviada/ });
         await user.click(sw);
         await waitFor(() => expect(updateCalled).toBe(true));
         await waitFor(() => expect(screen.getByRole('switch').getAttribute('aria-checked')).toBe('true'));
@@ -121,13 +121,13 @@ describe('Automações', () => {
         render(<Automations />);
 
         await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
-        await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta');
+        await user.type(screen.getByLabelText('Nome'), 'Avisar em Proposta Enviada');
         await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
         await user.click(screen.getByRole('button', { name: 'Criar' }));
 
         await waitFor(() => expect(createCalledWith).toBeTruthy());
         const enviado = createCalledWith as { name: string; conditions: unknown; trigger: string };
-        expect(enviado.name).toBe('Avisar em Proposta');
+        expect(enviado.name).toBe('Avisar em Proposta Enviada');
         expect(enviado.conditions).toEqual({ status: 'Proposta Enviada' });
         expect(enviado.trigger).toBe('Lead mudou de status');
     });

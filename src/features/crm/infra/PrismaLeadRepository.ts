@@ -102,7 +102,7 @@ export class PrismaLeadRepository implements LeadRepository {
         // Mesmo cast de conveniência da linha de baixo (toPrismaLeadStatus(data.status as LeadStatus)):
         // o tipo de domínio de Lead.status não bate 1:1 com o LeadStatus "rótulo legível" do zod.
         const statusLabel = data.status as LeadStatus | undefined;
-        const isClosingNow = statusLabel === 'Fechado Ganho' || statusLabel === 'Fechado Perdido';
+        const isClosingNow = statusLabel === 'Negócios Ganhos' || statusLabel === 'Negócios Perdidos';
         const lead = await prisma.lead.update({
             where: { id, organizationId },
             data: {
@@ -138,7 +138,7 @@ export class PrismaLeadRepository implements LeadRepository {
         // disso pra "ganho/perdido no mês" não contar como fechamento qualquer update posterior do
         // lead (sync do Bitrix, uma ligação tocando só lastInteraction, etc.). Volta a null se o
         // lead for reaberto pra uma etapa que não é final.
-        const isClosingNow = newStatus === 'Fechado Ganho' || newStatus === 'Fechado Perdido';
+        const isClosingNow = newStatus === 'Negócios Ganhos' || newStatus === 'Negócios Perdidos';
         // O `where` inclui organizationId para garantir isolamento de tenant no update.
         const lead = await prisma.lead.update({
             where: { id, organizationId },
@@ -183,8 +183,8 @@ export class PrismaLeadRepository implements LeadRepository {
             orderBy: { createdAt: 'desc' },
         });
         // CORREÇÃO: Aplicar serializeLead para converter enums internos do Prisma
-        // (ex: 'Novo_Lead') para os rótulos legíveis usados na UI e no CSV
-        // (ex: 'Novo Lead'). Sem isso, o Bitrix24 recebia valores ilegíveis.
+        // (ex: 'Lead_Recebido') para os rótulos legíveis usados na UI e no CSV
+        // (ex: 'Lead Recebido'). Sem isso, o Bitrix24 recebia valores ilegíveis.
         return leads.map(serializeLead) as unknown as Lead[];
     }
 }

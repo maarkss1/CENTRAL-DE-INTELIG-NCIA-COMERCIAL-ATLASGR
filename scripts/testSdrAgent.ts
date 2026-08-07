@@ -27,7 +27,7 @@ async function runEndToEndTest() {
                 tradeName: 'TransTest Logística',
                 domain: 'transtest-logistica-ficticia.com.br',
                 organizationId: tenantId,
-                status: 'NOVO',
+                status: 'Ativo',
                 enrichmentStatus: 'Pendente'
             }
         });
@@ -39,7 +39,7 @@ async function runEndToEndTest() {
                 title: 'Oportunidade TransTest',
                 organizationId: tenantId,
                 companyId: company.id,
-                status: 'Novo_Lead',
+                status: 'Lead_Recebido',
                 source: 'Outbound',
             }
         });

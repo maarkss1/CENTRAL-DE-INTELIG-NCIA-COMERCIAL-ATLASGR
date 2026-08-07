@@ -45,13 +45,13 @@ describe('AnalyticsService.overview — janela de fechamento do mês', () => {
     it('conta "ganho no mês" e "perdido no mês" filtrando por closedAt, não updatedAt', async () => {
         await analyticsService.overview(ORG, new Date('2026-08-15T12:00:00Z'));
 
-        const wonCall = lead.count.mock.calls.find(([args]) => args.where.status === 'Negocios_Ganhos');
-        const lostCall = lead.count.mock.calls.find(([args]) => args.where.status === 'Negocios_Perdidos');
+        const wonCall = lead.count.mock.calls.find(([args]) => typeof args.where.status === 'string' && args.where.status.includes('Ganho'));
+        const lostCall = lead.count.mock.calls.find(([args]) => typeof args.where.status === 'string' && args.where.status.includes('Perdido'));
 
-        expect(wonCall?.[0].where).toHaveProperty('closedAt');
-        expect(wonCall?.[0].where).not.toHaveProperty('updatedAt');
-        expect(lostCall?.[0].where).toHaveProperty('closedAt');
-        expect(lostCall?.[0].where).not.toHaveProperty('updatedAt');
+        expect(wonCall?.[0]?.where).toHaveProperty('closedAt');
+        expect(wonCall?.[0]?.where).not.toHaveProperty('updatedAt');
+        expect(lostCall?.[0]?.where).toHaveProperty('closedAt');
+        expect(lostCall?.[0]?.where).not.toHaveProperty('updatedAt');
     });
 });
 
