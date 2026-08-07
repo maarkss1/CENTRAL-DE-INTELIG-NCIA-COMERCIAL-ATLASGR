@@ -358,7 +358,12 @@ async function startServer() {
     const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
     const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
     const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
-    scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+    // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
+    // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
+    // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
+    if (queuesEnabled) {
+        scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+    }
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (env.ENABLE_SEARCH) {
