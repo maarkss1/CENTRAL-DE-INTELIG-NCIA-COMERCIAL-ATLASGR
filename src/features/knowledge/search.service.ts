@@ -128,7 +128,7 @@ export class SearchService {
      */
     private async keywordSearch(organizationId: string, query: string): Promise<RawRow[]> {
         try {
-            return await prisma.$queryRaw<RawRow[]>`
+            return await withRlsContext((tx) => tx.$queryRaw<RawRow[]>`
                 SELECT
                     c."id"         AS "chunkId",
                     c."documentId" AS "documentId",
@@ -145,11 +145,11 @@ export class SearchService {
                     websearch_to_tsquery('portuguese', ${query})
                 ) DESC
                 LIMIT ${CANDIDATES_PER_STRATEGY}
-            `;
+            `);
         } catch (err) {
             logger.warn({ err }, 'Full-text search falhou; caindo para ILIKE');
             try {
-                return await prisma.$queryRaw<RawRow[]>`
+                return await withRlsContext((tx) => tx.$queryRaw<RawRow[]>`
                     SELECT
                         c."id"         AS "chunkId",
                         c."documentId" AS "documentId",
@@ -161,7 +161,7 @@ export class SearchService {
                     WHERE d."organizationId" = ${organizationId}
                       AND (c."content" ILIKE ${'%' + query + '%'} OR d."title" ILIKE ${'%' + query + '%'})
                     LIMIT ${CANDIDATES_PER_STRATEGY}
-                `;
+                `);
             } catch (fallbackErr) {
                 logger.error({ err: fallbackErr }, 'Busca por palavra-chave falhou');
                 return [];
