@@ -115,32 +115,34 @@ export class IngestionService {
             : chunks.map(() => null);
 
         let embeddingFailures = 0;
-        for (let i = 0; i < chunks.length; i++) {
-            const embedding = embeddings[i];
-            if (vectorReady && !embedding) embeddingFailures++;
+        await withRlsContext(async (tx) => {
+            for (let i = 0; i < chunks.length; i++) {
+                const embedding = embeddings[i];
+                if (vectorReady && !embedding) embeddingFailures++;
 
-            // `Unsupported("vector")` não é expressável no client tipado do Prisma, então a coluna
-            // vector só pode ser escrita por SQL cru. Os valores seguem parametrizados.
-            if (vectorReady) {
-                await prisma.$executeRaw`
-                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
-                    VALUES (
-                        gen_random_uuid()::text,
-                        ${document.id},
-                        ${chunks[i]},
-                        ${i},
-                        ${embedding ? toVectorLiteral(embedding) : null}::vector
-                    )
-                `;
-            } else {
-                // Sem a extensão, o cast `::vector` é um erro de sintaxe no Postgres: grava-se só o
-                // texto, que continua pesquisável por palavra-chave.
-                await prisma.$executeRaw`
-                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
-                    VALUES (gen_random_uuid()::text, ${document.id}, ${chunks[i]}, ${i})
-                `;
+                // `Unsupported("vector")` não é expressável no client tipado do Prisma, então a coluna
+                // vector só pode ser escrita por SQL cru. Os valores seguem parametrizados.
+                if (vectorReady) {
+                    await tx.$executeRaw`
+                        INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
+                        VALUES (
+                            gen_random_uuid()::text,
+                            ${document.id},
+                            ${chunks[i]},
+                            ${i},
+                            ${embedding ? toVectorLiteral(embedding) : null}::vector
+                        )
+                    `;
+                } else {
+                    // Sem a extensão, o cast `::vector` é um erro de sintaxe no Postgres: grava-se só o
+                    // texto, que continua pesquisável por palavra-chave.
+                    await tx.$executeRaw`
+                        INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
+                        VALUES (gen_random_uuid()::text, ${document.id}, ${chunks[i]}, ${i})
+                    `;
+                }
             }
-        }
+        });
 
         const updated = await prisma.document.update({
             where: { id: document.id },
@@ -208,28 +210,30 @@ export class IngestionService {
 
         // Só apaga os trechos antigos depois de ter os novos embeddings em mãos: se o provedor
         // estivesse fora, o documento ficaria sem nenhum trecho pesquisável.
-        await prisma.$executeRaw`DELETE FROM "DocumentChunk" WHERE "documentId" = ${documentId}`;
-
         let embeddingFailures = 0;
-        for (let i = 0; i < chunks.length; i++) {
-            const embedding = embeddings[i];
-            if (vectorReady && !embedding) embeddingFailures++;
+        await withRlsContext(async (tx) => {
+            await tx.$executeRaw`DELETE FROM "DocumentChunk" WHERE "documentId" = ${documentId}`;
 
-            if (vectorReady) {
-                await prisma.$executeRaw`
-                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
-                    VALUES (
-                        gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i},
-                        ${embedding ? toVectorLiteral(embedding) : null}::vector
-                    )
-                `;
-            } else {
-                await prisma.$executeRaw`
-                    INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
-                    VALUES (gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i})
-                `;
+            for (let i = 0; i < chunks.length; i++) {
+                const embedding = embeddings[i];
+                if (vectorReady && !embedding) embeddingFailures++;
+
+                if (vectorReady) {
+                    await tx.$executeRaw`
+                        INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex", "vector")
+                        VALUES (
+                            gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i},
+                            ${embedding ? toVectorLiteral(embedding) : null}::vector
+                        )
+                    `;
+                } else {
+                    await tx.$executeRaw`
+                        INSERT INTO "DocumentChunk" ("id", "documentId", "content", "chunkIndex")
+                        VALUES (gen_random_uuid()::text, ${documentId}, ${chunks[i]}, ${i})
+                    `;
+                }
             }
-        }
+        });
 
         const updated = await prisma.document.update({
             where: { id: documentId },
@@ -289,21 +293,25 @@ export class IngestionService {
             );
         }
 
-        const pending = await prisma.$queryRaw<Array<{ id: string; content: string }>>`
-            SELECT "id", "content" FROM "DocumentChunk"
-            WHERE "documentId" = ${documentId} AND "vector" IS NULL
-            ORDER BY "chunkIndex" ASC
-        `;
+        const pending = await withRlsContext((tx) =>
+            tx.$queryRaw<Array<{ id: string; content: string }>>`
+                SELECT "id", "content" FROM "DocumentChunk"
+                WHERE "documentId" = ${documentId} AND "vector" IS NULL
+                ORDER BY "chunkIndex" ASC
+            `,
+        );
 
         let repaired = 0;
         await mapWithConcurrency(pending, EMBEDDING_CONCURRENCY, async (chunk) => {
             try {
                 const embedding = await generateEmbedding(`${document.title}\n\n${chunk.content}`, 'passage');
-                await prisma.$executeRaw`
-                    UPDATE "DocumentChunk"
-                    SET "vector" = ${toVectorLiteral(embedding)}::vector
-                    WHERE "id" = ${chunk.id}
-                `;
+                await withRlsContext(
+                    (tx) => tx.$executeRaw`
+                        UPDATE "DocumentChunk"
+                        SET "vector" = ${toVectorLiteral(embedding)}::vector
+                        WHERE "id" = ${chunk.id}
+                    `,
+                );
                 repaired++;
             } catch (err) {
                 logger.error({ err, chunkId: chunk.id }, 'Falha ao revetorizar trecho');
