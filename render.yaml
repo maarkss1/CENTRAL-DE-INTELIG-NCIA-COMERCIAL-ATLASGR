@@ -7,7 +7,11 @@ services:
     # no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
     # o free dorme após inatividade e tem menos CPU/RAM, não é para uso real com clientes.
     plan: free
-    buildCommand: npm ci && npm run build
+    # --include=dev: NODE_ENV=production (definido abaixo, também injetado no build) faz o
+    # `npm ci` pular devDependencies por padrão — mas vite, @vitejs/plugin-react, esbuild e
+    # typescript (usados só no build, nunca em runtime) estão todos lá. Sem essa flag o build
+    # falha com ERR_MODULE_NOT_FOUND ao carregar vite.config.ts.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
