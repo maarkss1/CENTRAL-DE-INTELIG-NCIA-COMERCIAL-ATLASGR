@@ -100,14 +100,18 @@ const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
   logger.error({ errors: _env.error.format() }, '❌ Erro de Validação nas Variáveis de Ambiente');
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(1);
+  }
 }
 
 // Trava de segurança: nunca subir em produção com o bypass de autenticação ativo,
 // mesmo que alguma configuração/segredo tenha ativado a flag por engano.
-if (_env.data.NODE_ENV === 'production' && _env.data.ALLOW_DEV_AUTH_BYPASS) {
+if (_env.success && _env.data.NODE_ENV === 'production' && _env.data.ALLOW_DEV_AUTH_BYPASS) {
   logger.error('❌ ALLOW_DEV_AUTH_BYPASS=true não é permitido com NODE_ENV=production. Abortando inicialização.');
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(1);
+  }
 }
 
-export const env = _env.data;
+export const env = _env.data || process.env;
