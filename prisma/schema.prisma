@@ -30,17 +30,33 @@ enum ContactStatus {
 }
 
 enum LeadStatus {
-  Lead_Recebido              @map("Lead Recebido")
-  Cadencia_Iniciada          @map("Cadência Iniciada")
-  Qualificacao_SDR           @map("Qualificação (SDR)")
-  Reuniao_Agendada           @map("Reunião Agendada")
-  Lead_Desqualificado        @map("Lead Desqualificado")
-  Convertido_em_Oportunidade @map("Convertido em Oportunidade")
-  Nova_Oportunidade          @map("Nova Oportunidade")
-  Proposta_Enviada           @map("Proposta Enviada")
-  Call_Visita_Agendada       @map("Call/Visita Agendada")
-  Negocios_Perdidos          @map("Negócios Perdidos")
-  Negocios_Ganhos            @map("Negócios Ganhos")
+  Lead_Recebido                  @map("Lead Recebido")
+  Cadencia_Iniciada              @map("Cadência Iniciada")
+  Qualificacao_SDR               @map("Qualificação (SDR)")
+  Reuniao_Agendada               @map("Reunião Agendada")
+  Lead_Desqualificado            @map("Lead Desqualificado")
+  Convertido_em_Oportunidade     @map("Convertido em Oportunidade")
+  Nova_Oportunidade              @map("Nova Oportunidade")
+  Proposta_Enviada               @map("Proposta Enviada")
+  Call_Visita_Agendada           @map("Call/Visita Agendada")
+  // Etapas do funil Negócio adicionadas pela migration 20260805220000_two_funnels_and_bitrix_fields
+  // (pipeline de pilotos comerciais) — não têm mapeamento de UI ainda, só refletem o que já está no banco.
+  Piloto_VTECH                   @map("Piloto VTECH")
+  Piloto_Atlas_Profile           @map("Piloto Atlas Profile")
+  Piloto_Atlas_Profile_Concluido @map("Piloto Atlas Profile - Concluído")
+  Piloto_Atlas_Profile_Cancelado @map("Piloto Atlas Profile - Cancelado")
+  Piloto_Logistica               @map("Piloto Logística")
+  Piloto_Logistico_Concluido     @map("Piloto Logístico - Concluído")
+  Piloto_Logistico_Cancelado     @map("Piloto Logístico - Cancelado")
+  Negocios_Perdidos              @map("Negócios Perdidos")
+  Negocios_Ganhos                @map("Negócios Ganhos")
+}
+
+// Funil do objeto Lead x funil do objeto Negócio no Bitrix24 (ver migration
+// 20260805220000_two_funnels_and_bitrix_fields) — cada Lead pertence a um dos dois.
+enum LeadFunnel {
+  Lead
+  Negocio
 }
 
 enum LeadTemperature {
@@ -217,6 +233,21 @@ model Lead {
   // como JSON (ver LeadQualification no frontend) em vez de ~20 colunas separadas.
   qualification   Json?
 
+  // Funil do Lead (objeto Lead x objeto Negócio do Bitrix24) e campos comerciais que só existiam
+  // no Bitrix — ver migration 20260805220000_two_funnels_and_bitrix_fields para o remapeamento
+  // dos dados existentes. Ainda não lidos/escritos pelo PrismaLeadRepository (fora do escopo desta
+  // sincronização de schema).
+  funnel                     LeadFunnel @default(Lead)
+  resumeDate                 DateTime?
+  cadenceStage               String?
+  lossReason                 String?
+  dealPackage                String?
+  dealStatus                 String?
+  relationshipLevel          String?
+  commissionPercent          String?
+  partnerBroker              String?
+  qualificationValidatedByAM Boolean?
+
   // Sincronização bidirecional com o Bitrix24 (ver bitrix.service.ts) — o ID do Lead lá no
   // portal do cliente. Sem isso, cada rodada de importação recriaria os mesmos 99+ leads de novo
   // (não há outra chave natural: nome de empresa se repete, telefone pode faltar). Não é @unique
@@ -255,6 +286,7 @@ model Lead {
 
   @@index([organizationId])
   @@index([organizationId, status])
+  @@index([organizationId, funnel])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
 }
