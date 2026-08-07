@@ -114,4 +114,9 @@ if (_env.success && _env.data.NODE_ENV === 'production' && _env.data.ALLOW_DEV_A
   }
 }
 
-export const env = _env.data || process.env;
+// Tipado como o schema (não `NodeJS.ProcessEnv`): no caminho de sucesso (o único que importa em
+// produção — o de falha sempre encerra o processo antes de chegar aqui, exceto em NODE_ENV=test)
+// os valores já vêm com default/coerce/transform aplicados pelo Zod. Sem este cast, `env` virava
+// uma união com `NodeJS.ProcessEnv` (todos os campos `string | undefined`), o que apagava os tipos
+// corretos (number, boolean) em todo lugar que consome `env` e mascarava erros de tipo reais.
+export const env: z.infer<typeof envSchema> = _env.success ? _env.data : (process.env as unknown as z.infer<typeof envSchema>);
