@@ -16,7 +16,7 @@ services:
     # com a instância antiga ainda no ar — é o ponto certo para `prisma migrate deploy`: zero
     # downtime, e um deploy nunca serve tráfego contra um schema desatualizado. Ver
     # docs/deploy/render.md para o fluxo completo de deploy automático.
-    preDeployCommand: npx prisma migrate deploy
+    # preDeployCommand: npx prisma migrate deploy # Comentado porque não é suportado no free tier
     startCommand: npm run start
     # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
     # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
