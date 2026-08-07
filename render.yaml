@@ -2,8 +2,16 @@ services:
   - type: web
     name: prospector-atlas
     runtime: node
-    plan: starter
-    buildCommand: npm ci && npm run build
+    # free por enquanto: o workspace do Render ainda não tem cartão cadastrado, e o
+    # Blueprint recusa criar/sincronizar serviços em plano pago (starter) sem forma de
+    # pagamento no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
+    # o free dorme após inatividade e tem menos CPU/RAM, não é para uso real com clientes.
+    plan: free
+    # --include=dev: NODE_ENV=production (definido abaixo, também injetado no build) faz o
+    # `npm ci` pular devDependencies por padrão — mas vite, @vitejs/plugin-react, esbuild e
+    # typescript (usados só no build, nunca em runtime) estão todos lá. Sem essa flag o build
+    # falha com ERR_MODULE_NOT_FOUND ao carregar vite.config.ts.
+    buildCommand: npm ci --include=dev && npm run build
     # preDeployCommand roda ANTES da nova instância receber tráfego (Render "Pre-Deploy Command"),
     # com a instância antiga ainda no ar — é o ponto certo para `prisma migrate deploy`: zero
     # downtime, e um deploy nunca serve tráfego contra um schema desatualizado. Ver
