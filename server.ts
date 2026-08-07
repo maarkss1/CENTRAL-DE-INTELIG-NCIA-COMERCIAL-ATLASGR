@@ -146,7 +146,13 @@ async function startServer() {
         max: env.API_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Sem queuesEnabled (nenhum Redis configurado), a conexão já esgotou as retries e fica
+        // permanentemente "closed" — usar RedisStore nesse estado faz TODA requisição rejeitar
+        // com throw em vez de aplicar o limite, derrubando a rota inteira (inclusive health
+        // checks) com 500. Cai pro store em memória do próprio express-rate-limit, igual ao que
+        // já acontece fora de produção — limite por processo em vez de compartilhado entre
+        // instâncias, mas funcional, que é estritamente melhor do que a API inteira fora do ar.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Too many requests from this IP, please try again after 15 minutes' }
@@ -168,7 +174,8 @@ async function startServer() {
         // v8 recusa a config na subida: "Custom keyGenerator appears to use request IP without
         // calling the ipKeyGenerator helper... could allow IPv6 users to bypass limits").
         keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Too many requests to AI services from this organization, please try again after 15 minutes' }
@@ -196,7 +203,8 @@ async function startServer() {
         // de força bruta que este limiter existe para conter. Só POST (sign-in/sign-up/social)
         // consome a cota.
         skip: (req) => req.method === 'GET',
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
