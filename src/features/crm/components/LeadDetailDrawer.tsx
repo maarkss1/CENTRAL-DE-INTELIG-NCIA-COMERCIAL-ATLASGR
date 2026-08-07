@@ -9,6 +9,7 @@ import { toast } from '../../../lib/toast';
 import { PIC_OPTIONS } from '../../../shared/constants/icp-options';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 
 const STATUS_EMOJI: Record<string, string> = {
@@ -63,6 +64,19 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     useEffect(() => {
         fetchLead();
     }, [fetchLead]);
+
+    // Torna o copiloto de IA global ciente de qual negócio está aberto na tela.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (!lead) return;
+        setActiveRecord({
+            type: 'lead',
+            id: lead.id,
+            label: lead.company?.tradeName || lead.contact?.name || 'Negócio sem empresa vinculada',
+            summary: [lead.status, lead.temperature ?? undefined].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(lead.id);
+    }, [lead, setActiveRecord, clearActiveRecord]);
 
     useEffect(() => {
         api.get<{ owners: { id: string; name: string }[] }>('/api/team/assignable')
@@ -215,7 +229,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                 {loading || !lead ? (
                     <div className="flex-1 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-atlas-orange" />
+                        <Loader2 className="w-8 h-8 animate-spin text-brand" />
                     </div>
                 ) : (
                     <div className="flex-1 overflow-y-auto p-5 space-y-6">
@@ -224,7 +238,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <select
                                 value={lead.status}
                                 onChange={(e) => handleStatusChange(e.target.value)}
-                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange"
+                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-brand"
                             >
                                 {LEAD_STATUSES.map((s) => (
                                     <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>
@@ -238,7 +252,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <button
                                 onClick={handleEnrich}
                                 disabled={enriching || !lead.companyId}
-                                className="flex items-center gap-1.5 bg-gradient-to-r from-atlas-orange to-amber-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:opacity-90 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 bg-gradient-to-r from-brand to-amber-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:opacity-90 transition-all disabled:opacity-50"
                             >
                                 {enriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                                 {enriching ? 'Enriquecendo...' : '✨ Enriquecer'}
@@ -253,7 +267,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     value={lead.owner || ''}
                                     onChange={(e) => handleReassignOwner(e.target.value)}
                                     disabled={savingOwner}
-                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-atlas-orange disabled:opacity-50"
+                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-brand disabled:opacity-50"
                                 >
                                     <option value="">Sem responsável</option>
                                     {owners.map((o) => (
@@ -370,7 +384,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         <section>
                             <button
                                 onClick={() => setQualOpen((v) => !v)}
-                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 hover:text-atlas-orange transition-colors"
+                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 hover:text-brand transition-colors"
                             >
                                 <span className="flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Checklist de Qualificação (Playbook)</span>
                                 {qualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -443,7 +457,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     onChange={(e) => setNoteText(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
                                     placeholder="Escreva uma nota e pressione Enter..."
-                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm outline-none focus:border-atlas-orange"
+                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm outline-none focus:border-brand"
                                 />
                                 <button
                                     onClick={handleAddNote}
@@ -471,7 +485,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <div className="space-y-0 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-line">
                                 {(lead.timeline || []).map((event) => (
                                     <div key={event.id} className="relative pl-6 pb-4">
-                                        <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full bg-surface border-2 border-atlas-orange" />
+                                        <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full bg-surface border-2 border-brand" />
                                         <p className="text-sm text-ink-2">{event.description}</p>
                                         <p className="text-[10px] text-ink-2 flex items-center gap-1 mt-0.5">
                                             <Clock className="w-3 h-3" /> {new Date(event.createdAt).toLocaleString('pt-BR')}
@@ -516,7 +530,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 function QualGroup({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <div>
-            <p className="text-[9px] tracking-wider font-bold uppercase text-atlas-orange mb-1.5">{title}</p>
+            <p className="text-[9px] tracking-wider font-bold uppercase text-brand mb-1.5">{title}</p>
             <div className="grid grid-cols-2 gap-2">{children}</div>
         </div>
     );
@@ -530,7 +544,7 @@ function QualInput({ label, value, onChange, full }: { label: string; value?: st
                 type="text"
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-atlas-orange"
+                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-brand"
             />
         </label>
     );
@@ -543,7 +557,7 @@ function QualSelect({ label, value, options, onChange }: { label: string; value?
             <select
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-atlas-orange"
+                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-brand"
             >
                 {options.map((o) => <option key={o} value={o}>{o || '—'}</option>)}
             </select>

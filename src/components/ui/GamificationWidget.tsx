@@ -45,15 +45,15 @@ export function GamificationWidget({
 
   return (
     <div className="glass-panel p-5 rounded-card-lg border border-line relative overflow-hidden bg-surface backdrop-blur-xl shadow-2xl">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-atlas-orange via-orange-300 to-white" />
-      <div className="absolute top-0 right-0 w-32 h-32 bg-atlas-orange/10 rounded-full blur-2xl pointer-events-none" />
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-orange-300 to-white" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-brand/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         
         {/* Level Badge */}
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-atlas-yellow via-atlas-orange to-red-600 flex items-center justify-center font-extrabold text-white text-xl shadow-lg shadow-atlas-orange/30 border border-atlas-yellow/30">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-atlas-yellow via-brand to-red-600 flex items-center justify-center font-extrabold text-white text-xl shadow-lg shadow-brand/30 border border-atlas-yellow/30">
               Lvl {level}
             </div>
             <div className="absolute -bottom-1 -right-1 bg-atlas-yellow text-slate-950 p-1 rounded-full text-xs font-black flex items-center shadow">
@@ -77,7 +77,7 @@ export function GamificationWidget({
         {/* Action Button */}
         <button
           onClick={() => setShowMissions(!showMissions)}
-          className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-line text-ink-2 border border-line transition-all active:scale-95 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-atlas-orange"
+          className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-line text-ink-2 border border-line transition-all active:scale-95 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
           aria-label="Ver Missões Diárias"
         >
           <Zap className="w-4 h-4 text-atlas-yellow" />
@@ -93,7 +93,7 @@ export function GamificationWidget({
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="h-full bg-gradient-to-r from-atlas-orange via-orange-400 to-white rounded-full shadow-inner"
+            className="h-full bg-gradient-to-r from-brand via-orange-400 to-white rounded-full shadow-inner"
           />
         </div>
       </div>

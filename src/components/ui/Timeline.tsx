@@ -32,7 +32,7 @@ export function Timeline({ items, emptyMessage = 'Nenhuma atividade registrada a
       case 'alert':
         return <AlertCircle className="w-3.5 h-3.5 text-amber-400" />;
       default:
-        return <Clock className="w-3.5 h-3.5 text-atlas-orange" />;
+        return <Clock className="w-3.5 h-3.5 text-brand" />;
     }
   };
 
@@ -53,7 +53,7 @@ export function Timeline({ items, emptyMessage = 'Nenhuma atividade registrada a
             )}
             {item.author && (
               <div className="flex items-center gap-1 text-[10px] text-ink-2 pt-1 border-t border-line">
-                <User className="w-3 h-3 text-atlas-orange" />
+                <User className="w-3 h-3 text-brand" />
                 <span>{item.author}</span>
               </div>
             )}

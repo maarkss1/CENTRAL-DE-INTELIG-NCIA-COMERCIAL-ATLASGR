@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from '../../lib/prisma.js';
+import { prisma, withRlsContext } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
 import { generateEmbedding } from '../../lib/ai/gateway.js';
 import { chunkText } from './chunking.js';

@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Bot, Sparkles } from 'lucide-react';
 import { useBrand } from '../../contexts/BrandContext';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
+import { OPEN_AI_CHAT_EVENT } from '../../lib/paletteIntent';
 
 const FloatingChatbook = lazy(() =>
   import('../../features/chatbook/components/FloatingChatbook')
@@ -12,6 +13,13 @@ export function AtlasChatbotTrigger() {
   const [isOpen, setIsOpen] = useState(false);
   const { brandInfo } = useBrand();
   const accent = useBrandAccent();
+
+  // Permite que o Command Palette (⌘K) abra o copiloto a partir de qualquer tela.
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener(OPEN_AI_CHAT_EVENT, handleOpen);
+    return () => window.removeEventListener(OPEN_AI_CHAT_EVENT, handleOpen);
+  }, []);
 
   return (
     <>
@@ -41,7 +49,10 @@ export function AtlasChatbotTrigger() {
       {/* Slide-Over Drawer do Chatbot */}
       {isOpen && (
         <Suspense fallback={null}>
-          <FloatingChatbook isOpen={isOpen} onClose={() => setIsOpen(false)} />
+          <FloatingChatbook
+            isOpen={isOpen}
+            onClose={() => setIsOpen(false)}
+          />
         </Suspense>
       )}
     </>

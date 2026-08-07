@@ -172,7 +172,6 @@
   --brand-2: #FF8008;
   --warn: #FFC500;
   --ok: #0F9D64;
-  --info-token: #0088CC;
   --soft: rgba(255, 86, 24, .08);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
 }
@@ -201,8 +200,6 @@
 
   --color-totaltrack-blue: #0088CC;
 
-  --bg-base: #ffffff;
-  --bg-card: #ffffff;
   --brand-primary: #FF5618;
   --brand-accent: #FF6B10;
 
@@ -220,6 +217,11 @@
   --color-line: var(--line);
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
+  /* Versão escurecida de --brand pra texto branco em cima (ex.: item ativo da Sidebar) atingir
+     4.5:1 de contraste (WCAG AA) — achado real do axe-core (tests/e2e/accessibility.spec.ts):
+     branco sobre --brand puro dá só ~3.2:1 (AtlasGR) / ~3.9:1 (TotalTrac), abaixo do mínimo.
+     color-mix com preto escala os 3 canais igualmente, então funciona pras duas marcas sem hardcodear cor. */
+  --color-brand-active: color-mix(in srgb, var(--brand) 75%, black);
   --color-warn: var(--warn);
   --color-ok: var(--ok);
   --color-soft: var(--soft);
@@ -289,9 +291,17 @@
   button, a, [role="button"] {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   button:active, a:active, [role="button"]:active {
     transform: scale(0.97);
+  }
+
+  /* Baseline de foco visível — rede de segurança para elementos interativos que não definem seu
+     próprio anel de foco. Regras mais específicas (ex.: focus-visible:ring-* dos componentes)
+     continuam vencendo por especificidade. */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
   }
 
   /* Clean Premium Glassmorphism & Elevation utilities */
@@ -378,3 +388,16 @@
   }
 }
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Respeita a preferência do usuário por menos movimento (WCAG 2.3.3) — reduz para o mínimo
+   perceptível todas as animações e transições CSS (keyframes customizados, .glass-card,
+   .hover-lift, transition-all etc). Não cobre animações do Framer Motion, que precisam de
+   MotionConfig reducedMotion="user" no provider raiz — ver backlog Tier 2 no relatório de QA. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -183,7 +183,7 @@ export function Editor() {
                                     onChange={(e) => setFilter(e.target.value)}
                                     placeholder="Filtrar…"
                                     aria-label="Filtrar documentos"
-                                    className="w-full bg-surface-2 border border-line rounded-lg pl-8 pr-2 py-1.5 text-xs text-ink placeholder-ink-2 outline-none focus:border-atlas-orange"
+                                    className="w-full bg-surface-2 border border-line rounded-lg pl-8 pr-2 py-1.5 text-xs text-ink placeholder-ink-2 outline-none focus:border-brand"
                                 />
                             </div>
 
@@ -223,14 +223,14 @@ export function Editor() {
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
                                         aria-label="Título do documento"
-                                        className="w-full bg-transparent text-lg font-bold text-ink outline-none border-b border-line focus:border-atlas-orange pb-2 mb-3 transition-colors"
+                                        className="w-full bg-transparent text-lg font-bold text-ink outline-none border-b border-line focus:border-brand pb-2 mb-3 transition-colors"
                                     />
                                     <textarea
                                         value={content}
                                         onChange={(e) => setContent(e.target.value)}
                                         aria-label="Conteúdo do documento"
                                         spellCheck
-                                        className="flex-1 w-full bg-surface-2 border border-line rounded-xl p-3 text-sm text-ink leading-relaxed outline-none focus:border-atlas-orange transition-colors resize-none min-h-[320px]"
+                                        className="flex-1 w-full bg-surface-2 border border-line rounded-xl p-3 text-sm text-ink leading-relaxed outline-none focus:border-brand transition-colors resize-none min-h-[320px]"
                                     />
                                     <div className="flex items-center justify-between mt-2 text-[11px] text-ink-2">
                                         <span>

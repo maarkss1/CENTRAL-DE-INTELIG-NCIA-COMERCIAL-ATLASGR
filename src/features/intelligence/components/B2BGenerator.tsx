@@ -224,13 +224,13 @@ export function B2BGenerator() {
                                             <p className="text-[10px] uppercase font-black tracking-widest text-amber-500 mb-2 flex items-center gap-1.5">
                                                 <Compass size={12} /> Objeção Provável
                                             </p>
-                                            <p className="text-sm font-bold text-gray-900 leading-relaxed bg-gray-50 p-4 rounded-xl">"{obj.objection}"</p>
+                                            <p className="text-sm font-bold text-gray-900 leading-relaxed bg-gray-50 p-4 rounded-xl">&quot;{obj.objection}&quot;</p>
                                         </div>
                                         <div>
                                             <p className="text-[10px] uppercase font-black tracking-widest text-emerald-500 mb-2 flex items-center gap-1.5">
                                                 <Sparkles size={12} /> Argumento de Contorno
                                             </p>
-                                            <p className="text-sm text-gray-700 font-medium leading-relaxed bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">"{obj.rebuttal}"</p>
+                                            <p className="text-sm text-gray-700 font-medium leading-relaxed bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50">&quot;{obj.rebuttal}&quot;</p>
                                         </div>
                                     </motion.div>
                                 ))}

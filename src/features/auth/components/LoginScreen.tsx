@@ -62,7 +62,7 @@ export function LoginScreen() {
       <motion.div
         animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}
         transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-atlas-orange/15 rounded-full blur-[120px] pointer-events-none"
+        className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand/15 rounded-full blur-[120px] pointer-events-none"
       />
       <motion.div
         animate={{ scale: [1, 1.2, 1], rotate: [0, -90, 0] }}
@@ -136,7 +136,7 @@ export function LoginScreen() {
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                   placeholder="Ex: Marcelo Nascimento"
                   required={isSignUp}
                 />
@@ -149,7 +149,7 @@ export function LoginScreen() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                 placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                 required
               />
@@ -161,7 +161,7 @@ export function LoginScreen() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                 placeholder="••••••••"
                 required
               />
@@ -170,7 +170,7 @@ export function LoginScreen() {
             <button
               type="submit"
               disabled={isSubmitting || !email || !password}
-              className="w-full mt-2 bg-gradient-to-r from-atlas-orange to-amber-500 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-atlas-orange/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-brand/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <Loader2 className="animate-spin" size={18} />
@@ -189,7 +189,7 @@ export function LoginScreen() {
                 setIsSignUp(!isSignUp);
                 setError('');
               }}
-              className="text-xs text-ink-2 hover:text-atlas-orange font-bold transition-colors cursor-pointer"
+              className="text-xs text-ink-2 hover:text-brand font-bold transition-colors cursor-pointer"
             >
               {isSignUp ? 'Já possui conta? Fazer Login' : 'Não possui conta? Registrar Novo Acesso'}
             </button>

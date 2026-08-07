@@ -1,8 +1,9 @@
 
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
     Radar, KanbanSquare, TrendingUp, Handshake, Clock,
-    Phone, Mail, MessageCircle, Users, MapPin, RefreshCw, CheckSquare, Activity as ActivityIcon,
+    Phone, Mail, MessageCircle, Users, MapPin, RefreshCw, CheckSquare, Activity as ActivityIcon, AlertTriangle,
 } from 'lucide-react';
 import { ClockCalendarWidget } from '../../../components/ui/ClockCalendarWidget';
 import { LiveStatsWidget } from '../../../components/ui/LiveStatsWidget';
@@ -27,19 +28,20 @@ function greeting() {
     return 'Boa noite';
 }
 
-export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab: string) => void }) {
+export function SinglePageDashboard() {
+    const navigate = useNavigate();
     const { activeBrand } = useBrand();
     const { currentUser } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
 
-    const { data: stats, loading: statsLoading } = useAnalytics();
+    const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useAnalytics();
 
     const today = new Date().toISOString().split('T')[0];
     // `to` é exclusivo em /api/activities (ver findRange em activity.service.ts) — passar a mesma
     // data em from/to sempre falhava com 500 ("data inicial deve ser anterior à final"), então o
     // widget "Agenda de hoje" nunca carregava nada. Amanhã aqui cobre o dia de hoje inteiro.
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const { activities: todayActivities, loading: agendaLoading } = useActivities({ from: today, to: tomorrow, limit: 20 });
+    const { activities: todayActivities, loading: agendaLoading, error: agendaError, refetch: refetchAgenda } = useActivities({ from: today, to: tomorrow, limit: 20 });
     const sortedAgenda = [...todayActivities].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
     const todayLabel = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase();
@@ -80,13 +82,13 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
                     </div>
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => onSelectModule?.('prospect')}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-brand text-white shadow-card hover:brightness-105 transition-all cursor-pointer"
+                            onClick={() => navigate('/app/prospect')}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-brand-active text-white shadow-card hover:brightness-105 transition-all cursor-pointer"
                         >
                             <Radar className="w-4 h-4" /> Nova varredura
                         </button>
                         <button
-                            onClick={() => onSelectModule?.('crm')}
+                            onClick={() => navigate('/app/crm')}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-surface border border-line text-ink hover:bg-surface-2 transition-all cursor-pointer"
                         >
                             <KanbanSquare className="w-4 h-4" /> Abrir pipeline
@@ -95,29 +97,44 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
                 </div>
 
                 {/* Tiras de KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {kpis.map((kpi) => (
-                        <motion.div
-                            key={kpi.label}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="p-5 rounded-card border border-line bg-surface shadow-card"
+                {statsError ? (
+                    <div className="p-4 rounded-card border border-red-500/30 bg-red-500/10 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 text-sm text-red-300">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            Não foi possível carregar as métricas agora.
+                        </div>
+                        <button
+                            onClick={() => refetchStats()}
+                            className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
                         >
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="p-2 rounded-xl bg-soft text-brand">{kpi.icon}</div>
-                            </div>
-                            <p className="text-xl font-black text-ink">{statsLoading ? '—' : kpi.value}</p>
-                            <p className="text-[11px] font-semibold text-ink-2 mt-1 uppercase tracking-wide">{kpi.label}</p>
-                        </motion.div>
-                    ))}
-                </div>
+                            Tentar novamente
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {kpis.map((kpi) => (
+                            <motion.div
+                                key={kpi.label}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-5 rounded-card border border-line bg-surface shadow-card"
+                            >
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="p-2 rounded-xl bg-soft text-brand">{kpi.icon}</div>
+                                </div>
+                                <p className="text-xl font-black text-ink">{statsLoading ? '—' : kpi.value}</p>
+                                <p className="text-[11px] font-semibold text-ink-2 mt-1 uppercase tracking-wide">{kpi.label}</p>
+                            </motion.div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Agenda de hoje */}
                 <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-black text-ink">Agenda de hoje</h3>
                         <button
-                            onClick={() => onSelectModule?.('activities')}
+                            onClick={() => navigate('/app/activities')}
                             className="text-xs font-bold text-brand hover:underline cursor-pointer"
                         >
                             Ver agenda completa
@@ -126,6 +143,19 @@ export function SinglePageDashboard({ onSelectModule }: { onSelectModule?: (tab:
 
                     {agendaLoading ? (
                         <p className="text-sm text-ink-2">Carregando compromissos...</p>
+                    ) : agendaError ? (
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 text-sm text-red-300">
+                                <AlertTriangle className="w-4 h-4 shrink-0" />
+                                Não foi possível carregar a agenda de hoje.
+                            </div>
+                            <button
+                                onClick={() => refetchAgenda()}
+                                className="text-xs font-bold text-red-300 hover:underline cursor-pointer shrink-0"
+                            >
+                                Tentar novamente
+                            </button>
+                        </div>
                     ) : sortedAgenda.length === 0 ? (
                         <p className="text-sm text-ink-2">Nenhum compromisso agendado para hoje.</p>
                     ) : (

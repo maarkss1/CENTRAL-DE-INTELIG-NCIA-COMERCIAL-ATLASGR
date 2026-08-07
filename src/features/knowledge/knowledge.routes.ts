@@ -36,15 +36,51 @@ const searchSchema = z.object({
 
 /** Extensões que sabemos transformar em texto puro. */
 const TEXT_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json'];
+const HTML_EXTENSIONS = ['.html', '.htm'];
 
 function extensionOf(fileName: string): string {
     const dot = fileName.lastIndexOf('.');
     return dot === -1 ? '' : fileName.slice(dot).toLowerCase();
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+};
+
+/**
+ * Extrai o texto visível de um HTML, descartando script/style/comentários e tags.
+ * Não é um sanitizador de segurança (o resultado nunca é re-renderizado como HTML) — serve só
+ * para não indexar markup/JS/CSS junto do conteúdo na busca semântica.
+ */
+function htmlToPlainText(html: string): string {
+    return html
+        .replace(/<!--[\s\S]*?-->/g, ' ')
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+        .replace(/<\/(p|div|li|tr|h[1-6]|br)\s*>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (match, code: string) => {
+            if (code[0] === '#') {
+                const codePoint =
+                    code[1]?.toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+                return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+            }
+            return HTML_ENTITIES[code.toLowerCase()] ?? match;
+        })
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n\s*\n+/g, '\n\n')
+        .trim();
+}
+
 /**
  * Converte o arquivo enviado em texto.
- * `.docx` passa pelo mammoth; formatos de texto são decodificados direto como UTF-8.
+ * `.docx` passa pelo mammoth; `.html`/`.htm` tem as tags removidas; formatos de texto são
+ * decodificados direto como UTF-8.
  */
 async function extractText(fileName: string, base64: string): Promise<string> {
     const buffer = Buffer.from(base64, 'base64');
@@ -57,6 +93,10 @@ async function extractText(fileName: string, base64: string): Promise<string> {
         return value;
     }
 
+    if (HTML_EXTENSIONS.includes(ext)) {
+        return htmlToPlainText(buffer.toString('utf-8'));
+    }
+
     if (TEXT_EXTENSIONS.includes(ext)) {
         return buffer.toString('utf-8');
     }
@@ -64,7 +104,7 @@ async function extractText(fileName: string, base64: string): Promise<string> {
     // `.doc` (binário antigo) e `.pdf` exigem dependências que o projeto não tem hoje; recusamos
     // explicitamente em vez de gravar um documento com texto ilegível.
     throw new Error(
-        `Formato ${ext || 'desconhecido'} não suportado. Envie .txt, .md, .csv, .json ou .docx.`,
+        `Formato ${ext || 'desconhecido'} não suportado. Envie .txt, .md, .csv, .json, .html ou .docx.`,
     );
 }
 

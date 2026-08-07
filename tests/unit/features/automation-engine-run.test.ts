@@ -152,7 +152,7 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(logger.error).toHaveBeenCalled();
     });
 
-    it('recusa "Criar atividade" em evento que não é de lead, sem derrubar o motor', async () => {
+    it('recusa "Criar atividade" em evento de atividade sem lead vinculado, sem derrubar o motor', async () => {
         automationMock.findMany.mockResolvedValue([regra({ action: 'Criar atividade' })]);
 
         const executadas = await automationEngine.handle({
@@ -166,6 +166,27 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(executadas).toBe(0);
         expect(activityMock.create).not.toHaveBeenCalled();
         expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('cria "Criar atividade" a partir de um evento de atividade concluída, usando o leadId do evento', async () => {
+        automationMock.findMany.mockResolvedValue([
+            regra({ action: 'Criar atividade', actionConfig: { dueInDays: 2, type: 'Follow_up' } }),
+        ]);
+
+        const executadas = await automationEngine.handle({
+            organizationId: ORG,
+            trigger: 'Atividade concluída',
+            entity: 'Activity',
+            entityId: 'act-7',
+            data: { type: 'Reunião', owner: 'Marcelo', leadId: 'lead-42' },
+        });
+
+        expect(executadas).toBe(1);
+        expect(activityMock.create).toHaveBeenCalledTimes(1);
+        const { data } = activityMock.create.mock.calls[0][0];
+        expect(data.leadId).toBe('lead-42');
+        expect(data.organizationId).toBe(ORG);
+        expect(data.owner).toBe('Marcelo');
     });
 
     it('não propaga erro quando o banco cai: automação não pode derrubar o fluxo principal', async () => {

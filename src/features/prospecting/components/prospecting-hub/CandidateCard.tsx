@@ -43,12 +43,12 @@ export function CandidateCard({
     const [chatTarget, setChatTarget] = useState<{ phone: string; name: string } | null>(null);
 
     return (
-        <div className="bg-surface p-6 rounded-2xl border border-line hover:border-atlas-orange/40 transition-all shadow-sm group">
+        <div className="bg-surface p-6 rounded-2xl border border-line hover:border-brand/40 transition-all shadow-sm group">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-line text-atlas-orange focus:ring-atlas-orange w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
+                <div className="mt-1 mr-3"><input type="checkbox" className="rounded border-line text-brand focus:ring-brand w-5 h-5 cursor-pointer" checked={isSelected} onChange={onToggleSelect} /></div>
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="font-black text-lg text-ink group-hover:text-atlas-orange transition-colors">{candidate.tradeName}</h3>
+                        <h3 className="font-black text-lg text-ink group-hover:text-brand transition-colors">{candidate.tradeName}</h3>
                         <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-atlas-yellow/20 text-atlas-yellow'}`}>
                             <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
@@ -126,7 +126,7 @@ export function CandidateCard({
                     )}
 
                     {!enrichment && candidate.rationale && (
-                        <p className="text-xs text-ink-2 italic mb-2">"{candidate.rationale}"</p>
+                        <p className="text-xs text-ink-2 italic mb-2">&quot;{candidate.rationale}&quot;</p>
                     )}
 
                     {!enrichment && candidate.decisionMakers && candidate.decisionMakers.length > 0 && (
@@ -247,7 +247,7 @@ export function CandidateCard({
                     <button
                         onClick={onPromote}
                         disabled={isPromoting}
-                        className="bg-surface-2 text-ink px-6 py-2.5 rounded-full font-bold text-sm hover:bg-atlas-orange hover:text-white transition-colors flex items-center gap-2 border border-line hover:border-atlas-orange w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
+                        className="bg-surface-2 text-ink px-6 py-2.5 rounded-full font-bold text-sm hover:bg-brand hover:text-white transition-colors flex items-center gap-2 border border-line hover:border-brand w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
                     >
                         {isPromoting ? <Loader2 className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
                         {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer e Adicionar'}

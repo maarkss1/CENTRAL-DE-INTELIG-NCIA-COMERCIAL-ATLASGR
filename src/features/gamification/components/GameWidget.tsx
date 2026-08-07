@@ -35,14 +35,14 @@ export function GameWidget() {
             {/* Overlay 2D (UI) */}
             <div className="absolute top-0 left-0 right-0 p-6 flex items-start justify-between z-10 pointer-events-none">
                 <div className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-3">
-                    <Trophy className="w-5 h-5 text-atlas-orange" />
+                    <Trophy className="w-5 h-5 text-brand" />
                     <span className="text-white font-bold text-xl">{score}</span>
                 </div>
 
                 {!isPlaying && (
                     <button 
                         onClick={() => { setIsPlaying(true); setScore(0); }}
-                        className="pointer-events-auto bg-atlas-orange hover:bg-orange-600 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-atlas-orange/20 flex items-center gap-2 transition-all active:scale-95"
+                        className="pointer-events-auto bg-brand hover:bg-orange-600 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-brand/20 flex items-center gap-2 transition-all active:scale-95"
                     >
                         {score > 0 ? <RotateCcw className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                         {score > 0 ? "Jogar Novamente" : "Iniciar Missão"}
@@ -60,7 +60,7 @@ export function GameWidget() {
                         className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 pointer-events-none w-3/4 max-w-md"
                     >
                         <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-4 rounded-2xl text-center shadow-2xl">
-                            <span className="text-xs font-black uppercase tracking-widest text-atlas-orange mb-2 block">Dica AtlasGR</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-brand mb-2 block">Dica AtlasGR</span>
                             <p className="text-white font-medium">{currentFact}</p>
                         </div>
                     </motion.div>

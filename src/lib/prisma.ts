@@ -217,6 +217,30 @@ export const prisma = basePrisma.$extends({
   }
 }) as unknown as PrismaClient; // Cast needed due to complex extension types
 
+/**
+ * Executa `fn` dentro de uma transação com `app.current_tenant_id`/`app.bypass_rls` já setados.
+ *
+ * Necessário para SQL cru (`$executeRaw`/`$queryRaw`): esses métodos não passam pela extensão
+ * `$allOperations` acima (ela só intercepta operações de model), então uma query crua na tabela
+ * "prisma" exportada nunca teria o contexto de tenant setado — e bateria na RLS mesmo com um
+ * usuário autenticado normal (ver DocumentChunk em ingestion.service.ts).
+ */
+export async function withRlsContext<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  const store = requestContext.getStore();
+  const tenantId = store?.tenantId ?? '';
+  const bypassRls = Boolean((store as Record<string, unknown>)?.bypassRls);
+  return basePrisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
+      bypassRls ? 'on' : 'off',
+      tenantId,
+    );
+    return fn(tx);
+  });
+}
+
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
 
 // Graceful shutdown handling

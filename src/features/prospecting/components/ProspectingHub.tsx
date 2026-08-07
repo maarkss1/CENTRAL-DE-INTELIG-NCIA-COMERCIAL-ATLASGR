@@ -411,7 +411,7 @@ export function ProspectingHub() {
                     </button>
                     <button
                         onClick={() => setTab('discovery')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-atlas-orange to-[#ff6b3d] text-white shadow-lg shadow-atlas-orange/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-brand to-[#ff6b3d] text-white shadow-lg shadow-brand/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
                     >
                         <Database size={18} /> Radar Discovery (Fontes abertas)
                     </button>

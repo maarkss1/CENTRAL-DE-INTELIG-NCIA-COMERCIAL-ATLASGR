@@ -135,7 +135,7 @@ export const AIConfigCenter: React.FC = () => {
     <Card variant="default" padding="lg" className="font-sans" accentBar>
       <CardHeader className="flex-row items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-atlas-orange/15 border border-atlas-orange/30 flex items-center justify-center text-atlas-orange shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
             <Cpu size={22} />
           </div>
           <div>
@@ -181,7 +181,7 @@ export const AIConfigCenter: React.FC = () => {
                       <select
                         value={setting.model}
                         onChange={(e) => handleModelChange(tool.key, e.target.value)}
-                        className="bg-surface-2 border border-line rounded-lg px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-atlas-orange"
+                        className="bg-surface-2 border border-line rounded-lg px-2 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-brand"
                       >
                         {MODEL_OPTIONS.map((m) => (
                           <option key={m.value} value={m.value}>
@@ -200,7 +200,7 @@ export const AIConfigCenter: React.FC = () => {
                         step={0.05}
                         value={setting.temperature}
                         onChange={(e) => updateTool(tool.key, { temperature: Number(e.target.value) })}
-                        className="accent-atlas-orange mt-2"
+                        className="accent-brand mt-2"
                       />
                     </label>
                   </div>

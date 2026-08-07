@@ -1,21 +1,42 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AppTopbar } from './AppTopbar';
-import { TabType } from './Header';
+import { TabType } from './tabMeta';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
+import { CommandPalette } from '../ui/CommandPalette';
 import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
 
 interface MainLayoutProps {
     children: ReactNode;
-    activeTab: TabType;
-    onTabChange: (tab: TabType) => void;
 }
 
-export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps) {
+export function MainLayout({ children }: MainLayoutProps) {
     const { isAtlas } = useBrandAccent();
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const location = useLocation();
+    // "/app" (dashboard) ou "/app/prospect" etc — o segmento logo após "/app" é o módulo ativo.
+    // TabType assumido aqui porque toda rota é registrada em App.tsx com um valor de TabType como
+    // path; qualquer path desconhecido já é redirecionado pra "/app" antes de chegar aqui.
+    const activeTab = (location.pathname.split('/')[2] as TabType) || 'dashboard';
+
+    // Fecha a navegação mobile sempre que o módulo ativo muda (ex.: usuário tocou num item do menu).
+    useEffect(() => {
+        setMobileNavOpen(false);
+    }, [activeTab]);
+
+    // Fecha com Escape, igual ao comportamento do Drawer/Dialog compartilhados.
+    useEffect(() => {
+        if (!mobileNavOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMobileNavOpen(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [mobileNavOpen]);
 
     return (
         <div className="h-screen w-full flex flex-col bg-bg text-ink font-sans overflow-hidden relative transition-colors duration-500">
@@ -28,9 +49,21 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
 
             <div className="relative z-10 flex h-full w-full">
                 {/* Removemos o Header global antigo, injetamos a Sidebar contínua */}
-                <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
+                <Sidebar
+                    activeTab={activeTab}
+                    mobileOpen={mobileNavOpen}
+                    onCloseMobile={() => setMobileNavOpen(false)}
+                />
+                {/* Backdrop da navegação mobile — some em telas lg+, onde a Sidebar é estática */}
+                {mobileNavOpen && (
+                    <div
+                        className="fixed inset-0 z-30 bg-ink/50 backdrop-blur-sm lg:hidden"
+                        onClick={() => setMobileNavOpen(false)}
+                        aria-hidden="true"
+                    />
+                )}
                 <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-                <AppTopbar activeTab={activeTab} />
+                <AppTopbar activeTab={activeTab} onOpenMobileNav={() => setMobileNavOpen(true)} />
                 <main className="flex-1 flex flex-col min-h-0 overflow-hidden relative bg-transparent">
                     <motion.div
                         key={activeTab}
@@ -45,6 +78,7 @@ export function MainLayout({ children, activeTab, onTabChange }: MainLayoutProps
             <Toaster />
             <VoiceCommandWidget />
             <AtlasChatbotTrigger />
+            <CommandPalette />
             </div>
             </div>
         </div>

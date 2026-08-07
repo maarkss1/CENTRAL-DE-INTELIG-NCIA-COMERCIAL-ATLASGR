@@ -118,7 +118,7 @@ export function VoiceCommandWidget() {
           className={`flex items-center justify-center w-14 h-14 rounded-2xl text-white shadow-2xl transition-all duration-300 border border-line cursor-pointer ${
             isListening
               ? 'bg-red-600 animate-pulse ring-4 ring-red-500/40'
-              : 'bg-gradient-to-br from-atlas-orange via-orange-400 to-white hover:scale-110 active:scale-95 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_10px_30px_rgba(255,86,24,0.5)]'
+              : 'bg-gradient-to-br from-brand via-orange-400 to-white hover:scale-110 active:scale-95 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_10px_30px_rgba(255,86,24,0.5)]'
           }`}
         >
           {isListening ? (
@@ -130,7 +130,7 @@ export function VoiceCommandWidget() {
 
         {/* Tooltip Hover */}
         <div className="absolute right-16 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-xl bg-surface text-ink text-xs font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl border border-line flex items-center gap-1.5">
-          <Command className="w-3.5 h-3.5 text-atlas-orange" />
+          <Command className="w-3.5 h-3.5 text-brand" />
           <span>Comando por Voz ({isListening ? 'Ouvindo...' : 'Clique para Falar'})</span>
         </div>
       </div>
@@ -142,11 +142,11 @@ export function VoiceCommandWidget() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className="absolute bottom-16 right-0 w-72 p-4 rounded-2xl bg-surface border border-atlas-orange/30 shadow-2xl backdrop-blur-xl text-xs space-y-2 z-50"
+            className="absolute bottom-16 right-0 w-72 p-4 rounded-2xl bg-surface border border-brand/30 shadow-2xl backdrop-blur-xl text-xs space-y-2 z-50"
           >
             <div className="flex items-center justify-between border-b border-line pb-2">
-              <span className="font-extrabold text-atlas-orange flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-atlas-orange animate-pulse" /> Assistente de Voz B2B
+              <span className="font-extrabold text-brand flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse" /> Assistente de Voz B2B
               </span>
               <button onClick={() => { setTranscript(''); setLastAction(null); }} className="text-[10px] text-ink-2 hover:text-ink">
                 Limpar
@@ -155,7 +155,7 @@ export function VoiceCommandWidget() {
 
             {isListening && (
               <div className="space-y-1 text-center py-2">
-                <p className="text-ink-2 italic animate-pulse">"Diga: CRM, Prospector, TotalTrac, Atlas..."</p>
+                <p className="text-ink-2 italic animate-pulse">&quot;Diga: CRM, Prospector, TotalTrac, Atlas...&quot;</p>
                 {transcript && <p className="text-ink font-bold bg-surface-2 p-2 rounded-xl border border-line">{transcript}</p>}
               </div>
             )}

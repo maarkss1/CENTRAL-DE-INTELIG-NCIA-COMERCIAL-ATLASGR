@@ -18,9 +18,9 @@ export function DiscoveryFilterPanel({
 }) {
     return (
         <div className="xl:col-span-4 bg-surface p-6 sm:p-8 rounded-2xl border border-line shadow-sm relative overflow-hidden flex flex-col h-full max-h-[800px]">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-atlas-orange opacity-5 transform rotate-45 translate-x-20 -translate-y-20" />
+            <div className="absolute top-0 right-0 w-40 h-40 bg-brand opacity-5 transform rotate-45 translate-x-20 -translate-y-20" />
             <div className="flex items-center gap-2 mb-6 relative z-10">
-                <div className="w-8 h-8 rounded-lg bg-atlas-orange/10 flex items-center justify-center text-atlas-orange">
+                <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
                     <Database size={18} />
                 </div>
                 <h2 className="font-black text-xl text-ink">🗺️ Motor de Busca Turbo</h2>
@@ -34,7 +34,7 @@ export function DiscoveryFilterPanel({
                         type="text"
                         list="segmento-suggestions"
                         placeholder="Ex: Transportadora / Frotista, Logística..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink placeholder-ink-2"
+                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                         value={criteria.segmento || ''}
                         onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
                     />
@@ -50,7 +50,7 @@ export function DiscoveryFilterPanel({
                             type="text"
                             list="estado-suggestions"
                             placeholder="Ex: São Paulo, SP, Sul..."
-                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink placeholder-ink-2"
+                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                             value={criteria.estado || ''}
                             onChange={(e) => {
                                 const estado = e.target.value;
@@ -71,7 +71,7 @@ export function DiscoveryFilterPanel({
                             type="text"
                             list="cidade-suggestions"
                             placeholder="Ex: Campinas, Santos..."
-                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink placeholder-ink-2"
+                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                             value={criteria.cidade || ''}
                             onChange={(e) => {
                                 const cidade = e.target.value;
@@ -100,7 +100,7 @@ export function DiscoveryFilterPanel({
                             value={criteria.nomeEmpresa || ''}
                             onChange={(e) => setCriteria({ ...criteria, nomeEmpresa: e.target.value || undefined })}
                             onKeyDown={(e) => e.key === 'Enter' && onDiscover()}
-                            className="w-full py-3 pl-9 pr-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                            className="w-full py-3 pl-9 pr-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                         />
                     </div>
                     <p className="text-[10px] text-ink-2 mt-1">Refina Google Maps, Apollo e OpenStreetMap pelo nome informado.</p>
@@ -113,7 +113,7 @@ export function DiscoveryFilterPanel({
                         min={1}
                         max={500}
                         placeholder="Ex: 10, 25, 50..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink placeholder-ink-2"
+                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                         value={criteria.quantidade ?? 10}
                         onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) || 10 })}
                     />
@@ -121,7 +121,7 @@ export function DiscoveryFilterPanel({
 
                 <button
                     onClick={() => setShowAdvanced((v) => !v)}
-                    className="flex items-center justify-between w-full text-[10px] tracking-wider font-bold uppercase text-ink-2 hover:text-atlas-orange transition-colors pt-2"
+                    className="flex items-center justify-between w-full text-[10px] tracking-wider font-bold uppercase text-ink-2 hover:text-brand transition-colors pt-2"
                 >
                     <span className="flex items-center gap-1.5"><SlidersHorizontal size={12} /> Filtros Avançados (Apollo.io)</span>
                     {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -132,7 +132,7 @@ export function DiscoveryFilterPanel({
                         <div>
                             <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Porte (nº de funcionários)</label>
                             <select
-                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 value={criteria.porte || ''}
                                 onChange={(e) => setCriteria({ ...criteria, porte: e.target.value || undefined })}
                             >
@@ -147,14 +147,14 @@ export function DiscoveryFilterPanel({
                                     placeholder="Mínimo"
                                     value={criteria.faturamentoMin ?? ''}
                                     onChange={(e) => setCriteria({ ...criteria, faturamentoMin: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 />
                                 <input
                                     type="number"
                                     placeholder="Máximo"
                                     value={criteria.faturamentoMax ?? ''}
                                     onChange={(e) => setCriteria({ ...criteria, faturamentoMax: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 />
                             </div>
                             <p className="text-[10px] text-ink-2 mt-1">Dado da Apollo é normalizado em dólar, independente do mercado.</p>
@@ -166,7 +166,7 @@ export function DiscoveryFilterPanel({
                                 placeholder="Ex: refrigerated, cargo, fleet"
                                 value={criteria.palavrasChave || ''}
                                 onChange={(e) => setCriteria({ ...criteria, palavrasChave: e.target.value || undefined })}
-                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                             />
                             <p className="text-[10px] text-ink-2 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
                         </div>
@@ -178,14 +178,14 @@ export function DiscoveryFilterPanel({
                                     placeholder="De"
                                     value={criteria.anoFundacaoMin ?? ''}
                                     onChange={(e) => setCriteria({ ...criteria, anoFundacaoMin: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 />
                                 <input
                                     type="number"
                                     placeholder="Até"
                                     value={criteria.anoFundacaoMax ?? ''}
                                     onChange={(e) => setCriteria({ ...criteria, anoFundacaoMax: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 />
                             </div>
                             <p className="text-[10px] text-ink-2 mt-1">A Apollo não filtra por ano nativamente — buscamos mais candidatos e filtramos localmente por fundação real.</p>
@@ -204,7 +204,7 @@ export function DiscoveryFilterPanel({
                                                 const next = selected ? current.filter((v) => v !== opt.value) : [...current, opt.value];
                                                 setCriteria({ ...criteria, tecnologias: next.length ? next.join(',') : undefined });
                                             }}
-                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-atlas-orange border-atlas-orange text-white' : 'bg-surface border-line text-ink-2 hover:border-atlas-orange/40'}`}
+                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-brand border-brand text-white' : 'bg-surface border-line text-ink-2 hover:border-brand/40'}`}
                                         >
                                             {opt.label}
                                         </button>
@@ -243,7 +243,7 @@ export function DiscoveryFilterPanel({
                                 placeholder="Ex: São Paulo, Minas Gerais"
                                 value={criteria.localizacaoExcluir || ''}
                                 onChange={(e) => setCriteria({ ...criteria, localizacaoExcluir: e.target.value || undefined })}
-                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink"
+                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                             />
                             <p className="text-[10px] text-ink-2 mt-1">Cidades/estados a descartar, separados por vírgula.</p>
                         </div>
@@ -252,7 +252,7 @@ export function DiscoveryFilterPanel({
                                 type="checkbox"
                                 checked={!!criteria.apenasCapitalAberto}
                                 onChange={(e) => setCriteria({ ...criteria, apenasCapitalAberto: e.target.checked || undefined })}
-                                className="rounded border-line text-atlas-orange focus:ring-atlas-orange"
+                                className="rounded border-line text-brand focus:ring-brand"
                             />
                             Somente empresas de capital aberto (B3/bolsa)
                         </label>
@@ -265,7 +265,7 @@ export function DiscoveryFilterPanel({
                     id="btn-discover"
                     onClick={onDiscover}
                     disabled={isSearching}
-                    className="w-full bg-atlas-orange text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-atlas-orange/20"
+                    className="w-full bg-brand text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (
                         <><Loader2 className="animate-spin" size={20} /> <span>⏳ Buscando...</span></>

@@ -6,7 +6,7 @@ export function Reports() {
         <div className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="max-w-6xl mx-auto space-y-6">
                 <div className="flex items-center gap-4 border-b border-line pb-6">
-                    <div className="w-12 h-12 bg-surface rounded-xl flex items-center justify-center shadow-sm text-atlas-orange">
+                    <div className="w-12 h-12 bg-surface rounded-xl flex items-center justify-center shadow-sm text-brand">
                         <IconLandmark className="w-6 h-6" />
                     </div>
                     <div>

@@ -12,15 +12,23 @@ import {
 import { ColdCallStatusCard } from './ColdCallStatusCard';
 
 const inputClass =
-    'w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors';
+    'w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors';
 
 const labelClass = 'block text-[11px] uppercase tracking-wide text-ink-2 font-semibold mb-1';
+
+// "Ligar via SDR de Voz" só faz sentido partindo de um evento de lead — em "Atividade concluída" o
+// motor não tem como ligar de volta para um número (ver automation.engine.ts). Sem esse filtro o
+// formulário deixaria o usuário criar uma regra que nunca vai disparar com sucesso.
+const ACTIONS_INDISPONIVEIS_POR_GATILHO: Partial<Record<AutomationTrigger, AutomationAction[]>> = {
+    'Atividade concluída': ['Ligar via SDR de Voz'],
+};
 
 function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: () => void }) {
     const [name, setName] = useState('');
     const [trigger, setTrigger] = useState<AutomationTrigger>('Lead mudou de status');
     const [statusCondition, setStatusCondition] = useState('');
     const [action, setAction] = useState<AutomationAction>('Notificar equipe');
+    const acoesDisponiveis = ACTIONS.filter((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[trigger]?.includes(a));
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
     const [dueInDays, setDueInDays] = useState('1');
@@ -82,7 +90,14 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                         <label className={labelClass} htmlFor="auto-gatilho">Quando</label>
                         <select
                             id="auto-gatilho" value={trigger}
-                            onChange={(e) => setTrigger(e.target.value as AutomationTrigger)}
+                            onChange={(e) => {
+                                const novoGatilho = e.target.value as AutomationTrigger;
+                                setTrigger(novoGatilho);
+                                // Evita deixar selecionada uma ação que não se aplica mais ao novo gatilho.
+                                if (ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(action)) {
+                                    setAction(ACTIONS.find((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(a)) ?? 'Notificar equipe');
+                                }
+                            }}
                             className={inputClass}
                         >
                             {TRIGGERS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -110,7 +125,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                             onChange={(e) => setAction(e.target.value as AutomationAction)}
                             className={inputClass}
                         >
-                            {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+                            {acoesDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
                         </select>
                     </div>
 

@@ -125,7 +125,7 @@ export function AIEmailGenerator({
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-line">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-atlas-orange flex items-center justify-center text-white shadow-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-brand flex items-center justify-center text-white shadow-md">
             <Bot className="w-5 h-5" />
           </div>
           <div>
@@ -151,7 +151,7 @@ export function AIEmailGenerator({
               key={value}
               onClick={() => setTone(value)}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                tone === value ? 'bg-atlas-orange text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
+                tone === value ? 'bg-brand text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
               }`}
             >
               {label}
@@ -169,7 +169,7 @@ export function AIEmailGenerator({
               key={c}
               onClick={() => { setChannel(c); setError(''); setCopied(false); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                channel === c ? 'bg-atlas-orange text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                channel === c ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Icon className="w-3.5 h-3.5" /> {CHANNEL_META[c].label}
@@ -196,7 +196,7 @@ export function AIEmailGenerator({
               O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>, os dados do segmento <strong className="text-indigo-300">{sector}</strong> e as ferramentas detectadas (<strong className="text-indigo-300">{technologies.join(', ')}</strong>).
             </p>
           </div>
-          <Button onClick={generate} disabled={generating} className="w-full sm:w-auto shadow-lg shadow-atlas-orange/20 cursor-pointer">
+          <Button onClick={generate} disabled={generating} className="w-full sm:w-auto shadow-lg shadow-brand/20 cursor-pointer">
             {generating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Zap className="w-4 h-4 mr-2 text-amber-400" />}
             {generating ? meta.ctaLoading : meta.cta}
           </Button>
@@ -227,7 +227,7 @@ export function AIEmailGenerator({
               {channel === 'email' && emailResult && (
                 <a
                   href={`mailto:?subject=${encodeURIComponent(emailResult.subject)}&body=${encodeURIComponent(emailResult.body)}`}
-                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-atlas-orange text-white hover:bg-atlas-orange/90 transition-colors shadow-md"
+                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-brand text-white hover:bg-brand/90 transition-colors shadow-md"
                 >
                   <Send className="w-3.5 h-3.5 mr-1.5" /> Enviar
                 </a>
@@ -235,7 +235,7 @@ export function AIEmailGenerator({
               {channel === 'call' && phone && (
                 <a
                   href={`tel:${phone}`}
-                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-atlas-orange text-white hover:bg-atlas-orange/90 transition-colors shadow-md"
+                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-brand text-white hover:bg-brand/90 transition-colors shadow-md"
                 >
                   <Phone className="w-3.5 h-3.5 mr-1.5" /> Ligar para {phone}
                 </a>
@@ -245,7 +245,7 @@ export function AIEmailGenerator({
                   href={`https://wa.me/${toWhatsAppDigits(phone)}?text=${encodeURIComponent(messageResult.body)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-atlas-orange text-white hover:bg-atlas-orange/90 transition-colors shadow-md"
+                  className="inline-flex items-center justify-center text-xs font-bold px-3.5 py-1.5 rounded-md bg-brand text-white hover:bg-brand/90 transition-colors shadow-md"
                 >
                   <Send className="w-3.5 h-3.5 mr-1.5" /> Enviar WhatsApp
                 </a>
@@ -279,7 +279,7 @@ function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: E
           type="text"
           value={result.subject}
           onChange={(e) => onChange({ ...result, subject: e.target.value })}
-          className="w-full text-xs font-bold px-3 py-2 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+          className="w-full text-xs font-bold px-3 py-2 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
         />
       </div>
       <div>
@@ -290,7 +290,7 @@ function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: E
           rows={7}
           value={result.body}
           onChange={(e) => onChange({ ...result, body: e.target.value })}
-          className="w-full text-xs px-3 py-2.5 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange leading-relaxed font-sans"
+          className="w-full text-xs px-3 py-2.5 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand leading-relaxed font-sans"
         />
       </div>
     </>
@@ -319,7 +319,7 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
           <div className="space-y-1.5">
             {result.objectionTips.map((o, i) => (
               <div key={i} className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed">
-                <p className="text-ink-2 italic">"{o.objection}"</p>
+                <p className="text-ink-2 italic">&quot;{o.objection}&quot;</p>
                 <p className="mt-1">→ {o.response}</p>
               </div>
             ))}
@@ -346,7 +346,7 @@ function MessagePanel({ result, onChange }: { result: MessageResult; onChange: (
           rows={4}
           value={result.body}
           onChange={(e) => onChange({ ...result, body: e.target.value })}
-          className="w-full text-xs px-3 py-2.5 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange leading-relaxed font-sans"
+          className="w-full text-xs px-3 py-2.5 rounded-lg bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand leading-relaxed font-sans"
         />
       </div>
       <div>

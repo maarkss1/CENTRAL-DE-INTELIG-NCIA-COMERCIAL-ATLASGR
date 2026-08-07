@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   User, Building, Mail, Phone, Plus, Search, Edit, Trash2,
-  Sparkles, Loader2, AlertCircle, ChevronLeft, ChevronRight, Linkedin, WifiOff, MessageCircle
+  Sparkles, Loader2, Linkedin, WifiOff, MessageCircle
 } from 'lucide-react';
 import { Contact } from '../../../types';
 import { ContactForm } from './ContactForm';
@@ -11,6 +12,9 @@ import { contactsDB } from '../../../lib/db';
 import { getWhatsAppLink } from '../../../shared/utils/contact-links';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
+import type { PaletteIntent } from '../../../lib/paletteIntent';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import { Pagination } from '../../../components/ui/Pagination';
 
 const SENIORITY_COLORS: Record<string, string> = {
   'C-Level': 'bg-purple-100 text-purple-700 border-purple-200',
@@ -38,6 +42,21 @@ export function ContactList() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Se o Command Palette navegou aqui com um termo de busca, aplica antes do primeiro fetch.
+  // Limpa o state da entrada de histórico logo em seguida (replace) pra um F5 nesta tela não
+  // reaplicar a mesma busca de novo — location.state, ao contrário do singleton antigo, sobrevive
+  // a reload porque é persistido pelo próprio navegador junto da entrada de histórico.
+  useEffect(() => {
+    const intent = location.state as PaletteIntent | null;
+    if (intent?.type === 'prefill-search') {
+      setSearchTerm(intent.value);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { contacts, meta, loading, error, refetch, deleteContact } = useContacts({
     page,
@@ -101,26 +120,17 @@ export function ContactList() {
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 placeholder="Buscar por nome, cargo, e-mail..."
-                className="bg-surface/90 backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
+                className="bg-surface/90 backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none shadow-md w-56"
               />
             </div>
             <button
               onClick={() => { setSelectedContact(null); setIsFormOpen(true); }}
-              className="flex items-center gap-2 bg-gradient-to-r from-atlas-orange to-amber-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-atlas-orange/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-brand to-amber-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-brand/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Novo Contato
             </button>
           </div>
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-center gap-3 text-red-700 text-sm font-semibold">
-            <AlertCircle className="w-5 h-5 shrink-0" />
-            <span>{error}</span>
-            <button onClick={refetch} className="ml-auto text-xs underline cursor-pointer">Tentar novamente</button>
-          </div>
-        )}
 
         {/* Table */}
         <div className="bg-surface/95 backdrop-blur-2xl rounded-[2rem] border border-line shadow-xl overflow-hidden">
@@ -141,30 +151,28 @@ export function ContactList() {
                   : error
                   ? (
                     <tr>
-                      <td colSpan={5} className="p-16 text-center">
-                        <div className="flex flex-col items-center gap-2 text-ink-2">
-                          <WifiOff className="w-8 h-8 text-ink-2" />
-                          <p className="text-xs text-ink-2">Não foi possível carregar os contatos. Veja o aviso acima.</p>
-                        </div>
+                      <td colSpan={5}>
+                        <EmptyState
+                          icon={<WifiOff className="w-8 h-8 text-brand" />}
+                          title="Não foi possível carregar os contatos"
+                          description={error}
+                          actionLabel="Tentar novamente"
+                          onAction={refetch}
+                        />
                       </td>
                     </tr>
                   )
                   : contacts.length === 0
                   ? (
                     <tr>
-                      <td colSpan={5} className="p-16 text-center">
-                        <div className="flex flex-col items-center gap-3 text-ink-2">
-                          <div className="w-16 h-16 rounded-full bg-surface-2 flex items-center justify-center">
-                            <User className="w-8 h-8 text-ink-2" />
-                          </div>
-                          <p className="font-bold text-ink-2">Nenhum contato encontrado</p>
-                          <button
-                            onClick={() => { setSelectedContact(null); setIsFormOpen(true); }}
-                            className="flex items-center gap-2 bg-atlas-orange text-white font-bold text-xs px-4 py-2 rounded-xl cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" /> Adicionar Primeiro Contato
-                          </button>
-                        </div>
+                      <td colSpan={5}>
+                        <EmptyState
+                          icon={<User className="w-8 h-8 text-brand" />}
+                          title="Nenhum contato encontrado"
+                          description="Cadastre o primeiro decisor pra começar a acompanhar essa conta."
+                          actionLabel="Adicionar Primeiro Contato"
+                          onAction={() => { setSelectedContact(null); setIsFormOpen(true); }}
+                        />
                       </td>
                     </tr>
                   )
@@ -199,7 +207,7 @@ export function ContactList() {
                         <div className="space-y-0.5">
                           {contact.email && (
                             <div className="flex items-center gap-1.5 text-[11px] text-ink-2">
-                              <Mail className="w-3 h-3 text-atlas-orange shrink-0" />
+                              <Mail className="w-3 h-3 text-brand shrink-0" />
                               <span className="truncate max-w-[160px] font-medium">{contact.email}</span>
                             </div>
                           )}
@@ -241,7 +249,7 @@ export function ContactList() {
                           <button
                             onClick={() => handleEnrich(contact.id)}
                             disabled={!!enrichingId}
-                            className="p-2 rounded-xl bg-orange-50 text-atlas-orange border border-orange-100 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-40"
+                            className="p-2 rounded-xl bg-orange-50 text-brand border border-orange-100 hover:bg-orange-100 transition-all cursor-pointer disabled:opacity-40"
                             title="Validar e enriquecer contato"
                           >
                             {enrichingId === contact.id
@@ -271,29 +279,14 @@ export function ContactList() {
             </table>
           </div>
 
-          {/* Pagination */}
-          {!loading && totalPages > 1 && (
-            <div className="p-4 border-t border-line bg-surface-2/50 flex items-center justify-between">
-              <span className="text-xs text-ink-2 font-semibold">
-                Página {page} de {totalPages} · {meta?.total ?? 0} contatos
-              </span>
-              <div className="flex gap-2">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="p-2 rounded-xl bg-surface border border-line text-ink-2 hover:bg-surface-2 disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-2 rounded-xl bg-surface border border-line text-ink-2 hover:bg-surface-2 disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          {!loading && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              totalItems={meta?.total}
+              itemLabel="contatos"
+            />
           )}
         </div>
       </div>

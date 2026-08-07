@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bot, X, Globe, Send, RefreshCw, User, Target,
   AlertTriangle,
-  Play, StopCircle, Award, Database, Flame, Copy, Check, Filter
+  Play, StopCircle, Award, Database, Flame, Copy, Check, Filter, Mic, ArrowUpRight
 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { Button } from '../../../components/ui/Button';
@@ -11,7 +12,13 @@ import { useAssistantChat } from '../../../hooks/useAssistantChat';
 import { useRoleplaySimulator } from '../../../hooks/useRoleplaySimulator';
 import { usePlaybookMatrixFilters } from '../../../hooks/usePlaybookMatrixFilters';
 
-export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+interface FloatingChatbookProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
+  const navigate = useNavigate();
   const { activeBrand, brandInfo } = useBrand();
   const [activeTab, setActiveTab] = useState<'assistant' | 'roleplay' | 'playbook'>('assistant');
 
@@ -68,7 +75,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
             {/* Header Superior */}
             <div className="p-5 border-b border-line bg-surface backdrop-blur-md flex items-center justify-between sticky top-0 z-10">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-atlas-orange to-amber-500 flex items-center justify-center text-white shadow-lg shadow-atlas-orange/20">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-brand to-amber-500 flex items-center justify-center text-white shadow-lg shadow-brand/20">
                   <Bot className="w-6 h-6" />
                 </div>
                 <div>
@@ -85,7 +92,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
               <button
                 onClick={onClose}
                 aria-label="Fechar assistente"
-                className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-atlas-orange"
+                className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-xl transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -96,7 +103,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
               <button
                 onClick={() => setActiveTab('assistant')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'assistant' ? 'bg-atlas-orange text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'assistant' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <Globe className="w-4 h-4" /> Assistente IA
@@ -104,7 +111,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
               <button
                 onClick={() => setActiveTab('roleplay')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'roleplay' ? 'bg-atlas-orange text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'roleplay' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <User className="w-4 h-4" /> Roleplay Simulator
@@ -112,7 +119,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
               <button
                 onClick={() => setActiveTab('playbook')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'playbook' ? 'bg-atlas-orange text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'playbook' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <Target className="w-4 h-4" /> Matrizes & Objeções
@@ -155,7 +162,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       <div
                         className={`max-w-[88%] p-4 rounded-2xl text-xs space-y-2 leading-relaxed shadow-md ${
                           msg.sender === 'user'
-                            ? 'bg-atlas-orange text-white rounded-br-none font-medium'
+                            ? 'bg-brand text-white rounded-br-none font-medium'
                             : 'bg-surface-2 text-ink-2 border border-line rounded-bl-none'
                         }`}
                       >
@@ -189,9 +196,9 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                     placeholder={searchMode === 'web_search' ? 'Pergunte à IA geral (sem dados da web em tempo real)...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
                     value={inputQuery}
                     onChange={(e) => setInputQuery(e.target.value)}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                   />
-                  <Button type="submit" disabled={isSearching} size="sm" className="px-4 py-2.5 bg-atlas-orange text-white font-bold cursor-pointer">
+                  <Button type="submit" disabled={isSearching} size="sm" className="px-4 py-2.5 bg-brand text-white font-bold cursor-pointer">
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
@@ -201,6 +208,21 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
             {/* CONTEÚDO DA ABA 2: ROLEPLAY SANDBOX (COMPRADOR B2B) */}
             {activeTab === 'roleplay' && (
               <div className="flex-1 flex flex-col min-h-0 bg-surface p-4 space-y-4 overflow-y-auto">
+                {/* Esta aba é a prática rápida por texto — a simulação completa por voz, com nota final
+                    detalhada, fica no módulo dedicado "Roleplay" (Sidebar → Inteligência). */}
+                <button
+                  onClick={() => { navigate('/app/roleplay'); onClose(); }}
+                  className="w-full p-3 rounded-2xl bg-surface-2 border border-line flex items-center justify-between gap-3 text-left hover:border-amber-500/40 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5 text-xs">
+                    <Mic className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="text-ink-2">
+                      Isto é a prática rápida por texto. Para simulação completa por voz e nota final, abra o{' '}
+                      <span className="font-bold text-ink">Roleplay dedicado</span>.
+                    </span>
+                  </div>
+                  <ArrowUpRight className="w-4 h-4 text-ink-2 shrink-0 group-hover:text-amber-400 transition-colors" />
+                </button>
                 <div className="p-4 rounded-2xl bg-surface-2 border border-line space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-ink text-sm flex items-center gap-2">
@@ -299,7 +321,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       value={roleplayInput}
                       onChange={(e) => setRoleplayInput(e.target.value)}
                       disabled={isRoleplayThinking}
-                      className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                     />
                     <Button type="submit" size="sm" disabled={isRoleplayThinking} className="px-4 py-2.5 bg-amber-500 text-slate-950 font-bold cursor-pointer">
                       <Send className="w-4 h-4" />
@@ -316,13 +338,13 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                 <div className="glass-card p-4 rounded-2xl border border-line bg-surface-2 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-ink flex items-center gap-1.5">
-                      <Filter className="w-4 h-4 text-atlas-orange" /> Filtros Avançados de Playbook
+                      <Filter className="w-4 h-4 text-brand" /> Filtros Avançados de Playbook
                     </span>
                     <div className="flex items-center gap-1 bg-surface p-1 rounded-xl border border-line text-xs">
                       <button
                         onClick={() => setPlaybookView('objections')}
                         className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                          playbookView === 'objections' ? 'bg-atlas-orange text-white' : 'text-ink-2 hover:text-ink'
+                          playbookView === 'objections' ? 'bg-brand text-white' : 'text-ink-2 hover:text-ink'
                         }`}
                       >
                         Objeções
@@ -330,7 +352,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       <button
                         onClick={() => setPlaybookView('qualifications')}
                         className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                          playbookView === 'qualifications' ? 'bg-atlas-orange text-white' : 'text-ink-2 hover:text-ink'
+                          playbookView === 'qualifications' ? 'bg-brand text-white' : 'text-ink-2 hover:text-ink'
                         }`}
                       >
                         Qualificação
@@ -345,7 +367,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       <select
                         value={selectedBrand}
                         onChange={(e) => setSelectedBrand(e.target.value as 'atlasgr' | 'totaltrac')}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink font-bold border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink font-bold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                       >
                         <option value="atlasgr">AtlasGR (SaaS B2B)</option>
                         <option value="totaltrac">TotalTrac (Frotas/Risco)</option>
@@ -358,7 +380,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       <select
                         value={selectedSegment}
                         onChange={(e) => setSelectedSegment(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                       >
                         <option value="todos">Todos os Segmentos</option>
                         {selectedBrand === 'atlasgr' ? (
@@ -385,7 +407,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                       <select
                         value={selectedPersona}
                         onChange={(e) => setSelectedPersona(e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                       >
                         <option value="todos">Todas as Personas</option>
                         {selectedBrand === 'atlasgr' ? (
@@ -443,8 +465,8 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                           </div>
 
                           <div>
-                            <h5 className="font-bold text-ink text-xs mb-1">❓ Objeção: "{item.objectionTitle}"</h5>
-                            <p className="text-ink-2 text-xs italic">"{item.objectionText}"</p>
+                            <h5 className="font-bold text-ink text-xs mb-1">❓ Objeção: &quot;{item.objectionTitle}&quot;</h5>
+                            <p className="text-ink-2 text-xs italic">&quot;{item.objectionText}&quot;</p>
                           </div>
 
                           <div className="p-3 rounded-xl bg-surface border border-line space-y-1">
@@ -464,7 +486,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-ink text-xs flex items-center gap-2">
-                        <Target className="w-4 h-4 text-atlas-orange" /> Matriz de Qualificação ({filteredQualifications.length})
+                        <Target className="w-4 h-4 text-brand" /> Matriz de Qualificação ({filteredQualifications.length})
                       </h4>
                       <span className="text-[10px] text-ink-2">Marca: {selectedBrand.toUpperCase()}</span>
                     </div>
@@ -478,7 +500,7 @@ export function FloatingChatbook({ isOpen, onClose }: { isOpen: boolean; onClose
                         <div key={item.id} className="glass-card p-4 rounded-2xl border border-line space-y-3 bg-surface-2">
                           <div className="flex items-center justify-between pb-2 border-b border-line">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] px-2 py-0.5 rounded bg-atlas-orange/20 text-atlas-orange font-bold border border-atlas-orange/30">
+                              <span className="text-[10px] px-2 py-0.5 rounded bg-brand/20 text-brand font-bold border border-brand/30">
                                 {item.framework} · {item.questionCategory}
                               </span>
                               <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold border border-indigo-500/30">

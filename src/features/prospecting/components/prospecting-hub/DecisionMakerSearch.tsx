@@ -300,7 +300,7 @@ export function DecisionMakerSearch({
                         );
                     })}
                 </div>
-                <p className="text-[10px] text-ink-2 mt-1">Direto da tabela "Contatos ideais" do Playbook — cada clique já ajusta cargo e senioridade.</p>
+                <p className="text-[10px] text-ink-2 mt-1">Direto da tabela &quot;Contatos ideais&quot; do Playbook — cada clique já ajusta cargo e senioridade.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">

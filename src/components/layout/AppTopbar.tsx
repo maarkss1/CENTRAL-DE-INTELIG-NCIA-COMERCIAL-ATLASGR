@@ -1,46 +1,17 @@
-import {
-    Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
-    Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell, Sun, Moon,
-    BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog,
-} from 'lucide-react';
-import { TabType } from './Header';
+import { Search, Bell, Sun, Moon, Menu } from 'lucide-react';
+import { TabType, TAB_META } from './tabMeta';
 import { useLiveClock } from '../../hooks/useLiveClock';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-
-const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
-    dashboard: { label: 'Painel Central', icon: Home },
-    prospect: { label: 'Prospecção', icon: Search },
-    crm: { label: 'Pipeline CRM', icon: LayoutTemplate },
-    contacts: { label: 'Decisores', icon: Users },
-    companies: { label: 'Empresas', icon: Building2 },
-    activities: { label: 'Agenda', icon: Activity },
-    roleplay: { label: 'Roleplay', icon: PhoneCall },
-    qualification_matrix: { label: 'Matriz de Qualificação', icon: Target },
-    objections_matrix: { label: 'Matriz de Objeções', icon: Shield },
-    intelligence: { label: 'Hub de IA', icon: Zap },
-    topic_training: { label: 'Academy', icon: BookOpen },
-    bitrix: { label: 'Bitrix24', icon: Layers },
-    reports: { label: 'Relatórios IA', icon: FileBarChart },
-    enrich: { label: 'Enriquecer', icon: Sparkles },
-    chatbook: { label: 'Chatbook', icon: MessageSquare },
-    prompts: { label: 'Commercial OS', icon: Wand2 },
-    integrations: { label: 'Integrações', icon: Globe },
-    knowledge: { label: 'Base de Conhecimento', icon: Database },
-    analytics: { label: 'Analytics', icon: BarChart3 },
-    calendar: { label: 'Calendário', icon: CalendarDays },
-    notifications: { label: 'Notificações', icon: Bell },
-    automations: { label: 'Automações', icon: Cpu },
-    usage: { label: 'Consumo de IA', icon: Wallet },
-    editor: { label: 'Editor de Documentos', icon: FileText },
-    team: { label: 'Equipe', icon: UserCog },
-};
+import { OPEN_COMMAND_PALETTE_EVENT } from '../../lib/paletteIntent';
 
 interface AppTopbarProps {
     activeTab: TabType;
+    /** Abre a Sidebar off-canvas em telas < lg. */
+    onOpenMobileNav?: () => void;
 }
 
-export function AppTopbar({ activeTab }: AppTopbarProps) {
+export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
     const now = useLiveClock();
     const { currentUser } = useAuth();
     const { theme, toggleTheme } = useTheme();
@@ -53,18 +24,31 @@ export function AppTopbar({ activeTab }: AppTopbarProps) {
 
     return (
         <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 border-b border-line bg-surface/90 backdrop-blur-xl px-4 sm:px-6">
+            <button
+                type="button"
+                onClick={onOpenMobileNav}
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 lg:hidden"
+                aria-label="Abrir menu de navegação"
+            >
+                <Menu className="h-5 w-5" />
+            </button>
+
             <div className="flex min-w-0 items-center gap-2.5">
                 <Icon className="h-[18px] w-[18px] shrink-0 text-brand" />
                 <h1 className="truncate text-sm font-bold uppercase tracking-wide text-ink">{meta.label}</h1>
             </div>
 
-            <div className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink-2 lg:flex">
+            <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))}
+                className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink-2 transition-colors hover:border-brand/40 hover:text-ink lg:flex"
+            >
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="text-sm">Buscar empresa, decisor ou comando…</span>
                 <kbd className="ml-auto rounded-md border border-line bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-ink-2">
                     ⌘K
                 </kbd>
-            </div>
+            </button>
 
             <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
                 <div className="hidden text-right leading-tight sm:block">

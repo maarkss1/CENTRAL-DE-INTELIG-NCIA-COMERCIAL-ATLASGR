@@ -1,11 +1,12 @@
-import { useState, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
-import { TabType } from './components/layout/Header';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ActiveRecordProvider } from './contexts/ActiveRecordContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Skeleton } from './components/ui/Skeleton';
 import { ClickSpark } from './components/ui/ClickSpark';
@@ -35,7 +36,7 @@ const Automations = lazy(() => import('./features/automations/components/Automat
 const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
 const DocumentEditor = lazy(() => import('./features/document-editor/components/Editor').then(m => ({ default: m.Editor })));
 const Team = lazy(() => import('./features/team/components/Team').then(m => ({ default: m.Team })));
-const AIDockWidget = lazy(() => import('./features/intelligence/components/AIDockWidget').then(m => ({ default: m.AIDockWidget })));
+const Settings = lazy(() => import('./features/settings/components/Settings').then(m => ({ default: m.Settings })));
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
@@ -58,40 +59,43 @@ function PageFallback() {
 }
 
 function AppLayout() {
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-
   return (
-    <MainLayout activeTab={activeTab} onTabChange={setActiveTab}>
+    <MainLayout>
+      {/* Rotas relativas a /app — a wildcard "/app/*" na Route pai (mais abaixo) faz o React
+          Router casar estes paths aninhados contra o restante da URL automaticamente. */}
       <Suspense fallback={<PageFallback />}>
-        {activeTab === 'dashboard' && <SinglePageDashboard onSelectModule={(tab: TabType | string) => setActiveTab(tab as TabType)} />}
-        {activeTab === 'prospect' && <ProspectingHub />}
-        {activeTab === 'crm' && <CrmBoard />}
-        {activeTab === 'intelligence' && <IntelligenceHub />}
-        {activeTab === 'companies' && <CompanyList />}
-        {activeTab === 'contacts' && <ContactList />}
-        {activeTab === 'activities' && <ActivityList />}
-        {activeTab === 'chatbook' && <ChatbookHub />}
-        {activeTab === 'roleplay' && <RoleplayHub />}
-        {activeTab === 'qualification_matrix' && <QualificationMatrixPage />}
-        {activeTab === 'objections_matrix' && <ObjectionsMatrixPage />}
-        {activeTab === 'topic_training' && <TopicTrainingAcademy />}
-        {activeTab === 'bitrix' && <BitrixGuideHub />}
-        {activeTab === 'reports' && <ReportsHub />}
-        {activeTab === 'integrations' && <Integrations />}
-        {activeTab === 'knowledge' && <KnowledgeBase />}
-        {activeTab === 'analytics' && <Analytics />}
-        {activeTab === 'calendar' && <Calendar />}
-        {activeTab === 'notifications' && <Notifications />}
-        {activeTab === 'automations' && <Automations />}
-        {activeTab === 'usage' && <Usage />}
-        {activeTab === 'editor' && <DocumentEditor />}
-        {activeTab === 'team' && <Team />}
+        <Routes>
+          <Route index element={<SinglePageDashboard />} />
+          <Route path="prospect" element={<ProspectingHub />} />
+          <Route path="crm" element={<CrmBoard />} />
+          <Route path="intelligence" element={<IntelligenceHub />} />
+          <Route path="companies" element={<CompanyList />} />
+          <Route path="contacts" element={<ContactList />} />
+          <Route path="activities" element={<ActivityList />} />
+          <Route path="chatbook" element={<ChatbookHub />} />
+          <Route path="roleplay" element={<RoleplayHub />} />
+          <Route path="qualification_matrix" element={<QualificationMatrixPage />} />
+          <Route path="objections_matrix" element={<ObjectionsMatrixPage />} />
+          <Route path="topic_training" element={<TopicTrainingAcademy />} />
+          <Route path="bitrix" element={<BitrixGuideHub />} />
+          <Route path="reports" element={<ReportsHub />} />
+          <Route path="integrations" element={<Integrations />} />
+          <Route path="knowledge" element={<KnowledgeBase />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="calendar" element={<Calendar />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="automations" element={<Automations />} />
+          <Route path="usage" element={<Usage />} />
+          <Route path="editor" element={<DocumentEditor />} />
+          <Route path="team" element={<Team />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/app" replace />} />
+        </Routes>
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}
       <Suspense fallback={null}>
         <OnboardingTour />
-        <AIDockWidget />
       </Suspense>
     </MainLayout>
   );
@@ -99,9 +103,14 @@ function AppLayout() {
 
 export default function App() {
   return (
+    // reducedMotion="user" faz o framer-motion respeitar prefers-reduced-motion do SO/navegador,
+    // complementando o @media (prefers-reduced-motion: reduce) já aplicado às animações CSS puras
+    // em globals.css (que não cobre transitions/animate props do framer-motion).
+    <MotionConfig reducedMotion="user">
     <ThemeProvider>
       <BrandProvider>
         <AuthProvider>
+        <ActiveRecordProvider>
           <ClickSpark />
           <Suspense fallback={<PageFallback />}>
             <Routes>
@@ -122,8 +131,10 @@ export default function App() {
               <Route path="*" element={<Navigate to="/welcome" replace />} />
             </Routes>
           </Suspense>
+        </ActiveRecordProvider>
         </AuthProvider>
       </BrandProvider>
     </ThemeProvider>
+    </MotionConfig>
   );
 }

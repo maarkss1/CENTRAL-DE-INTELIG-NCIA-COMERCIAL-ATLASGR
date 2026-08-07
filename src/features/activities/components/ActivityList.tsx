@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Calendar, CheckCircle2, Clock, Phone, Mail, MessageCircle, Users,
@@ -9,6 +10,7 @@ import { useActivities } from '../../../hooks/useDatabase';
 import { Activity } from '../../../types';
 import { toast } from '../../../lib/toast';
 import { clientLogger } from '../../../lib/clientLogger';
+import type { PaletteIntent } from '../../../lib/paletteIntent';
 import React from 'react';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
@@ -75,6 +77,20 @@ export function ActivityList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Se o Command Palette navegou aqui pedindo "Nova atividade", abre o formulário direto.
+  // Limpa o state em seguida (replace) pra um F5 nesta tela não reabrir o formulário sozinho.
+  useEffect(() => {
+    const intent = location.state as PaletteIntent | null;
+    if (intent?.type === 'open-create') {
+      setIsFormOpen(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [form, setForm] = useState<NewActivityForm>({
     type: 'Ligação',
     date: new Date().toISOString().split('T')[0],
@@ -156,14 +172,14 @@ export function ActivityList() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar por tipo, responsável..."
-                className="bg-surface backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none shadow-md w-56"
+                className="bg-surface backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none shadow-md w-56"
               />
             </div>
 
             {/* Nova Atividade */}
             <button
               onClick={() => setIsFormOpen(true)}
-              className="flex items-center gap-2 bg-gradient-to-r from-atlas-orange to-amber-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-atlas-orange/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-2 bg-gradient-to-r from-brand to-amber-500 text-white font-black text-xs px-5 py-2.5 rounded-2xl shadow-lg shadow-brand/20 hover:scale-105 active:scale-95 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Nova Atividade
             </button>
@@ -197,10 +213,10 @@ export function ActivityList() {
               <Calendar className="w-10 h-10 text-ink-2" />
             </div>
             <p className="font-extrabold text-ink-2 text-base">Nenhuma atividade encontrada</p>
-            <p className="text-xs text-ink-2">Clique em "Nova Atividade" para começar a agendar compromissos.</p>
+            <p className="text-xs text-ink-2">Clique em &quot;Nova Atividade&quot; para começar a agendar compromissos.</p>
             <button
               onClick={() => setIsFormOpen(true)}
-              className="mt-2 flex items-center gap-2 bg-atlas-orange text-white font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer"
+              className="mt-2 flex items-center gap-2 bg-brand text-white font-bold text-xs px-5 py-2.5 rounded-xl cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Criar Primeira Atividade
             </button>
@@ -298,7 +314,7 @@ export function ActivityList() {
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
                 >
                   {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -311,7 +327,7 @@ export function ActivityList() {
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
-                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
                     required
                   />
                 </div>
@@ -321,7 +337,7 @@ export function ActivityList() {
                     type="time"
                     value={form.time}
                     onChange={(e) => setForm({ ...form, time: e.target.value })}
-                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                    className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
                   />
                 </div>
               </div>
@@ -333,7 +349,7 @@ export function ActivityList() {
                   value={form.owner}
                   onChange={(e) => setForm({ ...form, owner: e.target.value })}
                   placeholder="Nome do responsável"
-                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
                   required
                 />
               </div>
@@ -345,14 +361,14 @@ export function ActivityList() {
                   onChange={(e) => setForm({ ...form, observations: e.target.value })}
                   placeholder="Detalhes da atividade..."
                   rows={3}
-                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-atlas-orange focus:outline-none resize-none"
+                  className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSaving}
-                className="w-full bg-gradient-to-r from-atlas-orange to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-atlas-orange/30 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-brand to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:brightness-110 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {isSaving ? 'Salvando...' : 'Salvar Atividade'}

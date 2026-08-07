@@ -8,6 +8,7 @@ import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { api } from '../../../lib/api';
+import { SINGLE, INK, tooltipStyle } from '../../../shared/constants/chartPalette';
 
 interface UsageByModel {
     model: string; tokens: number; cost: number; calls: number; avgLatencyMs: number;
@@ -20,18 +21,6 @@ interface UsageSummary {
 }
 
 const PERIODS = [7, 30, 90];
-
-/** Uma medida só por gráfico ⇒ uma cor só (slot 1 do tema categórico, validado no tema escuro). */
-const SINGLE = '#3987e5';
-const INK = { muted: '#898781', grid: '#2c2c2a', axis: '#383835' };
-
-const tooltipStyle = {
-    backgroundColor: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.10)',
-    borderRadius: 12,
-    fontSize: 12,
-    color: '#ffffff',
-};
 
 const usd = (v: number) => `US$ ${v.toFixed(v < 1 ? 4 : 2)}`;
 const compact = (v: number) => v.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });

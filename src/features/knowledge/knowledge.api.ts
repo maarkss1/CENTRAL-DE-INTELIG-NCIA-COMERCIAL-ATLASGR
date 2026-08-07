@@ -35,7 +35,7 @@ export interface IngestResult {
 }
 
 /** Extensões aceitas pelo backend (ver `extractText` em knowledge.routes.ts). */
-export const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json', '.docx'];
+export const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json', '.docx', '.html', '.htm'];
 
 export const knowledgeApi = {
     list: () => api.get<KnowledgeDocumentSummary[]>('/api/knowledge'),

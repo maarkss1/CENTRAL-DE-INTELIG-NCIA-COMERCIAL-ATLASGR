@@ -20,7 +20,7 @@ function renderReportMarkdown(markdown: string) {
     if (trimmed.startsWith('# ')) return <h2 key={idx} className="font-black text-ink text-lg mt-5 mb-2">{trimmed.slice(2)}</h2>;
     if (/^[-*]\s/.test(trimmed)) {
       return (
-        <p key={idx} className="text-sm text-ink-2 leading-relaxed pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-atlas-orange">
+        <p key={idx} className="text-sm text-ink-2 leading-relaxed pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-brand">
           {trimmed.replace(/^[-*]\s/, '')}
         </p>
       );
@@ -74,7 +74,7 @@ export function ReportsHub() {
     <Card variant="default" padding="lg" className="font-sans" accentBar>
       <CardHeader className="flex-row items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-atlas-orange/15 border border-atlas-orange/30 flex items-center justify-center text-atlas-orange shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
             <FileBarChart size={22} />
           </div>
           <div>
@@ -113,7 +113,7 @@ export function ReportsHub() {
               <div><span className="text-ink-2 block">Fechados no Mês</span><span className="font-black text-success">{metrics.closedThisMonth}</span></div>
               {/* Não existe campo de valor no modelo Lead: exibimos "—" em vez de "R$ 0", que
                   seria lido como "pipeline zerado" e não como "métrica indisponível". */}
-              <div><span className="text-ink-2 block">Valor em Pipeline</span><span className="font-black text-atlas-orange">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
+              <div><span className="text-ink-2 block">Valor em Pipeline</span><span className="font-black text-brand">{metrics.pipelineValue == null ? '—' : `R$ ${metrics.pipelineValue.toLocaleString('pt-BR')}`}</span></div>
               <div><span className="text-ink-2 block">Conversão</span><span className="font-black text-info">{metrics.conversionRate.toFixed(1)}%</span></div>
               <div><span className="text-ink-2 block">Pendentes</span><span className="font-black text-danger">{metrics.pendingActivities}</span></div>
             </div>
@@ -123,7 +123,7 @@ export function ReportsHub() {
         </div>
 
         {/* Relatório Gerado */}
-        <div className="rounded-card border border-atlas-orange/15 bg-surface-2 p-5 min-h-[160px]">
+        <div className="rounded-card border border-brand/15 bg-surface-2 p-5 min-h-[160px]">
           {generating ? (
             <div className="flex items-center justify-center gap-2 text-ink-2 text-sm py-10">
               <Loader2 size={18} className="animate-spin" /> A IA está lendo os dados e escrevendo o relatório…
@@ -132,7 +132,7 @@ export function ReportsHub() {
             <div>{renderReportMarkdown(report)}</div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-10">
-              <Sparkles className="w-8 h-8 text-atlas-orange/50 mb-3" />
+              <Sparkles className="w-8 h-8 text-brand/50 mb-3" />
               <p className="text-sm text-ink-2 max-w-md">
                 Clique no botão acima para que a nossa IA analise as métricas atuais e construa um diagnóstico executivo automático.
               </p>

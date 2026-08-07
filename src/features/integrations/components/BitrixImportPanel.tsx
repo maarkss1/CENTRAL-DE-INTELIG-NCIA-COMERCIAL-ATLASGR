@@ -253,7 +253,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                     pipelines.length === 0 ? (
                         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                             <Info className="w-3.5 h-3.5 shrink-0" />
-                            Este portal não tem um pipeline "Comercial" — as vendas dele provavelmente ficam na aba Leads, não em Negócios.
+                            Este portal não tem um pipeline &quot;Comercial&quot; — as vendas dele provavelmente ficam na aba Leads, não em Negócios.
                         </p>
                     ) : (
                         <div className="flex flex-wrap items-end gap-3">
@@ -297,7 +297,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 {mode === 'deals' && pipelines.length > 0 && users.length === 0 && (
                     <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
                         <Info className="w-3 h-3 shrink-0" />
-                        O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo "user" ao webhook para ver nomes.
+                        O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo &quot;user&quot; ao webhook para ver nomes.
                     </p>
                 )}
             </div>
