@@ -4,17 +4,31 @@ services:
     runtime: node
     plan: starter
     buildCommand: npm ci && npm run build
+    # preDeployCommand roda ANTES da nova instância receber tráfego (Render "Pre-Deploy Command"),
+    # com a instância antiga ainda no ar — é o ponto certo para `prisma migrate deploy`: zero
+    # downtime, e um deploy nunca serve tráfego contra um schema desatualizado. Ver
+    # docs/deploy/render.md para o fluxo completo de deploy automático.
+    preDeployCommand: npx prisma migrate deploy
     startCommand: npm run start
-    healthCheckPath: /api/health
+    # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
+    # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
+    # /health/ready.
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
         value: production
       - key: HOST
         value: 0.0.0.0
+      # Banco Postgres gerenciado externamente (Supabase). Cole a Session Pooler connection string
+      # (porta 5432, aws-0-<region>.pooler.supabase.com) — funciona tanto para o tráfego da
+      # aplicação quanto para o preDeployCommand acima. Ver docs/deploy/producao.md secao 1.
       - key: DATABASE_URL
-        fromDatabase:
-          name: prospector-atlas-db
-          property: connectionString
+        sync: false
+      # Opcional: só necessária se a Session Pooler apresentar problema com advisory locks do
+      # Prisma migrate — aponte para a Direct Connection (db.<ref>.supabase.co:5432) nesse caso.
+      # Sem esta variável, prisma.config.ts cai automaticamente para DATABASE_URL.
+      - key: DIRECT_URL
+        sync: false
       - key: ALLOWED_ORIGINS
         sync: false
       - key: BETTER_AUTH_URL
@@ -43,7 +57,24 @@ services:
         value: "false"
       - key: ENABLE_QUEUES
         value: "false"
+      # Redis é opcional (liga filas BullMQ/rate-limit distribuído — ver src/lib/queue/redis.ts).
+      # Defina REDIS_URL (ex.: Render Key Value ou Upstash) e ENABLE_QUEUES=true para habilitar.
+      - key: REDIS_URL
+        sync: false
+      # Storage de objetos (uploads) S3-compatível — ver src/lib/storage/index.ts e
+      # docs/deploy/producao.md secao 1.2. Sem estas variáveis o storage de objetos fica inerte
+      # (getUploadUrl/getDownloadUrl lançam erro explícito), sem impedir o resto da aplicação de
+      # subir.
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
 
-databases:
-  - name: prospector-atlas-db
-    plan: starter
+# Sem bloco `databases:` de propósito — o Postgres é externo (Supabase), não provisionado pelo
+# Render. Ver docs/deploy/producao.md secao 1 para criar o projeto e obter as connection strings.
