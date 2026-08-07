@@ -50,8 +50,11 @@ export class SearchService {
      * embedding costuma errar.
      *
      * Importante: as queries abaixo são cruas, e a extensão de RLS do Prisma só intercepta operações
-     * de model — por isso o `organizationId` entra explicitamente no WHERE de cada uma. Sem isso a
-     * busca vazaria documentos entre organizações.
+     * de model — por isso rodam via `withRlsContext` (seta app.current_tenant_id na transação) E
+     * também filtram `organizationId` explicitamente no WHERE. As duas camadas são redundantes de
+     * propósito: sem a primeira, a RLS com FORCE simplesmente devolve zero linhas sempre (silencioso,
+     * sem erro) mesmo com o WHERE certo; sem a segunda, um bug futuro no contexto de tenant vazaria
+     * documentos entre organizações.
      */
     async hybridSearch(organizationId: string, query: string, limit = 8): Promise<SearchResponse> {
         const trimmed = query.trim();
@@ -95,7 +98,7 @@ export class SearchService {
         try {
             // `<=>` é a distância de cosseno do pgvector (0 = idêntico, 2 = oposto), então a
             // similaridade é `1 - distância`.
-            return await prisma.$queryRaw<RawRow[]>`
+            return await withRlsContext((tx) => tx.$queryRaw<RawRow[]>`
                 SELECT
                     c."id"         AS "chunkId",
                     c."documentId" AS "documentId",
@@ -109,7 +112,7 @@ export class SearchService {
                   AND c."vector" IS NOT NULL
                 ORDER BY c."vector" <=> ${toVectorLiteral(embedding)}::vector
                 LIMIT ${CANDIDATES_PER_STRATEGY}
-            `;
+            `);
         } catch (err) {
             logger.error({ err }, 'Falha na consulta vetorial da Base de Conhecimento');
             return null;
