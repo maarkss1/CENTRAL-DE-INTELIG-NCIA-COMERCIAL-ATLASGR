@@ -2,7 +2,11 @@ services:
   - type: web
     name: prospector-atlas
     runtime: node
-    plan: starter
+    # free por enquanto: o workspace do Render ainda não tem cartão cadastrado, e o
+    # Blueprint recusa criar serviços em plano pago (starter) sem forma de pagamento
+    # no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
+    # o free dorme após inatividade e tem menos CPU/RAM, não é para uso real com clientes.
+    plan: free
     buildCommand: npm ci && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
