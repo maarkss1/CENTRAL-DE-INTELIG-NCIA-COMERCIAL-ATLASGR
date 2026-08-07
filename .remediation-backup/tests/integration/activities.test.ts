@@ -17,7 +17,7 @@ describe('ActivityService Integration', () => {
       delete companyData.id;
       const company = await prisma.company.create({ data: companyData as any });
 
-      const leadData = LeadFactory.build({ companyId: company.id, organizationId: 'test-org-id', status: 'Lead_Recebido' });
+      const leadData = LeadFactory.build({ companyId: company.id, organizationId: 'test-org-id', status: 'Novo_Lead' });
       const lead = await prisma.lead.create({ data: leadData as never });
       
       const data = ActivityFactory.build({ leadId: lead.id, date: new Date().toISOString() as never });

@@ -1,7 +1,7 @@
 import type { LeadStatus, CompanyStatus, ActivityType, ActivityStatus } from './zod';
 
-// O schema.prisma usa identificadores de enum (ex: Lead_Recebido) com @map para o texto
-// exibido na UI (ex: "Lead Recebido"). Este módulo faz a ponte entre os dois mundos:
+// O schema.prisma usa identificadores de enum (ex: Novo_Lead) com @map para o texto
+// exibido na UI (ex: "Novo Lead"). Este módulo faz a ponte entre os dois mundos:
 // o resto do sistema (zod, frontend, rotas) só conhece o texto exibido.
 
 const LEAD_STATUS_TO_PRISMA: Record<LeadStatus, string> = {

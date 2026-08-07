@@ -38,7 +38,7 @@ export const ContactFactory = {
 
 export const LeadFactory = {
   build: <T extends Record<string, unknown>>(overrides?: T) => ({
-    status: 'Lead_Recebido',
+    status: 'Novo_Lead',
     source: faker.helpers.arrayElement(['Inbound', 'Outbound', 'Referral']),
     temperature: faker.helpers.arrayElement(['Frio', 'Morno', 'Quente']),
     score: faker.number.int({ min: 0, max: 100 }),

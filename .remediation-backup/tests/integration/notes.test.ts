@@ -12,7 +12,7 @@ describe('Note Operations Integration', () => {
 
   it('should create a note and associate it with a lead', async () => {
     const company = await prisma.company.create({ data: CompanyFactory.build({ organizationId: 'test-org-id' }) });
-    const leadData = LeadFactory.build({ companyId: company.id, organizationId: 'test-org-id', status: 'Lead_Recebido' });
+    const leadData = LeadFactory.build({ companyId: company.id, organizationId: 'test-org-id', status: 'Novo_Lead' });
     const lead = await prisma.lead.create({ data: leadData as never });
     
     const noteData = NoteFactory.build({ leadId: lead.id });

@@ -1805,17 +1805,14 @@ components:
     LeadStatus:
       type: string
       enum:
-        - Lead Recebido
-        - Cadência Iniciada
-        - Qualificação (SDR)
-        - Reunião Agendada
-        - Lead Desqualificado
-        - Convertido em Oportunidade
-        - Nova Oportunidade
-        - Proposta Enviada
-        - Call/Visita Agendada
-        - Negócios Perdidos
-        - Negócios Ganhos
+        - Novo Lead
+        - Qualificação
+        - Primeiro Contato
+        - Diagnóstico
+        - Proposta
+        - Negociação
+        - Fechado Ganho
+        - Fechado Perdido
     ActivityType:
       type: string
       enum: [Ligação, WhatsApp, E-mail, Reunião, Follow-up, Visita, Tarefa]
@@ -1970,7 +1967,7 @@ components:
       properties:
         status:
           allOf: [{ $ref: '#/components/schemas/LeadStatus' }]
-          default: Lead Recebido
+          default: Novo Lead
         source: { type: string, nullable: true }
         channel: { type: string, nullable: true }
         temperature:

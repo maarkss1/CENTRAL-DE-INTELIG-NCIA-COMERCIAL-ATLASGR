@@ -14,12 +14,12 @@ test.describe('CRUD de lead', () => {
 
   test('cria, lê, atualiza e (tenta) excluir um lead', async ({ page }) => {
     const createRes = await page.request.post('/api/leads', {
-      data: { status: 'Lead Recebido', source: 'e2e-test', channel: 'Teste automatizado' },
+      data: { status: 'Novo Lead', source: 'e2e-test', channel: 'Teste automatizado' },
     });
     expect(createRes.status()).toBe(201);
     const created = (await createRes.json()).data;
     expect(created).toHaveProperty('id');
-    expect(created.status).toBe('Lead Recebido');
+    expect(created.status).toBe('Novo Lead');
 
     const leadId = created.id;
 
@@ -30,16 +30,16 @@ test.describe('CRUD de lead', () => {
     expect(read.source).toBe('e2e-test');
 
     const updateRes = await page.request.put(`/api/leads/${leadId}`, {
-      data: { status: 'Qualificação (SDR)', temperature: 'Quente' },
+      data: { status: 'Qualificação', temperature: 'Quente' },
     });
     expect(updateRes.ok()).toBeTruthy();
     const updated = (await updateRes.json()).data;
-    expect(updated.status).toBe('Qualificação (SDR)');
+    expect(updated.status).toBe('Qualificação');
     expect(updated.temperature).toBe('Quente');
 
     const readAgainRes = await page.request.get(`/api/leads/${leadId}`);
     const readAgain = (await readAgainRes.json()).data;
-    expect(readAgain.status).toBe('Qualificação (SDR)');
+    expect(readAgain.status).toBe('Qualificação');
 
     // lead.routes.ts:19 exige role ADMIN/GESTOR para DELETE — usuário recém-cadastrado nasce
     // VISUALIZADOR (better-auth additionalFields.role default), então isto documenta o RBAC real
@@ -61,7 +61,7 @@ test.describe('CRUD de lead', () => {
 
   test('lead recém-criado aparece na listagem paginada de leads', async ({ page }) => {
     const createRes = await page.request.post('/api/leads', {
-      data: { status: 'Lead Recebido', source: 'e2e-listagem' },
+      data: { status: 'Novo Lead', source: 'e2e-listagem' },
     });
     const created = (await createRes.json()).data;
 
