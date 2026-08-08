@@ -163,7 +163,7 @@ export const crm360Service = {
                 take: 8,
                 include: { company: true, contact: true, pipelineStage: true },
             }),
-            prisma.lead.groupBy({ where: { organizationId }, by: ['funnel', 'status'], _count: { _all: true }, _sum: { amount: true } }),
+            prisma.lead.groupBy({ where: { organizationId }, by: ['funnel', 'status'], _count: { _all: true }, _sum: { amount: true }, orderBy: { funnel: 'asc' } }),
         ]);
 
         const totalPipeline = pipelineValue.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
@@ -192,8 +192,8 @@ export const crm360Service = {
             stageCounts: stageCounts.map((row) => ({
                 funnel: row.funnel,
                 status: fromPrismaLeadStatus(row.status),
-                count: row._count._all,
-                amount: row._sum.amount ?? 0,
+                count: (row._count as any)._all ?? 0,
+                amount: (row._sum as any).amount ?? 0,
             })),
         };
     },
@@ -325,7 +325,7 @@ export const crm360Service = {
                 expectedCloseAt: input.expectedCloseAt ? new Date(input.expectedCloseAt) : null,
                 pipelineId,
                 pipelineStageId: stage.id,
-                customFields: input.customFields as Prisma.InputJsonValue | undefined,
+                customFields: input.customFields as any,
                 organizationId,
                 timeline: { create: { type: 'creation', description: `Negócio criado em ${pipeline.name} › ${stage.name}` } },
             },
@@ -382,7 +382,7 @@ export const crm360Service = {
                 ...input,
                 type: CrmProductType[input.type],
                 currency: input.currency.toUpperCase(),
-                customFields: input.customFields as Prisma.InputJsonValue | undefined,
+                customFields: input.customFields as any,
                 organizationId,
             },
         });
@@ -409,7 +409,7 @@ export const crm360Service = {
                 ...input,
                 ...(input.type ? { type: CrmProductType[input.type] } : {}),
                 ...(input.currency ? { currency: input.currency.toUpperCase() } : {}),
-                ...(input.customFields !== undefined ? { customFields: input.customFields as Prisma.InputJsonValue } : {}),
+                ...(input.customFields !== undefined ? { customFields: input.customFields as any } : {}),
             },
         });
     },
