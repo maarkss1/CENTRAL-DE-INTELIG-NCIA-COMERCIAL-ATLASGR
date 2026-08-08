@@ -122,7 +122,7 @@ export function Drawer({
                 ref={closeButtonRef}
                 onClick={onClose}
                 aria-label="Fechar gaveta"
-                className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors focus-visible:ring-2 focus-visible:ring-atlas-orange outline-none"
+                className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors focus-visible:ring-2 focus-visible:ring-brand outline-none"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -131,9 +131,14 @@ export class AutomationEngine {
         }
 
         if (automation.action === 'Criar atividade') {
-            // Só faz sentido pendurar atividade em lead; um evento de atividade não gera outra.
-            if (event.entity !== 'Lead') {
-                throw new Error('A ação "Criar atividade" só se aplica a eventos de lead.');
+            // Em evento de Lead, o próprio evento É o lead. Em evento de Activity (ex.: "Atividade
+            // concluída"), o lead vem em event.data.leadId — permite regras como "toda vez que uma
+            // atividade for concluída, agende um follow-up no mesmo lead".
+            const leadId = event.entity === 'Lead'
+                ? event.entityId
+                : (typeof event.data.leadId === 'string' ? event.data.leadId : null);
+            if (!leadId) {
+                throw new Error('A ação "Criar atividade" precisa de um lead vinculado ao evento.');
             }
             const c = config as CreateActivityConfig;
             const date = new Date();
@@ -142,7 +147,7 @@ export class AutomationEngine {
             await prisma.activity.create({
                 data: {
                     organizationId: event.organizationId,
-                    leadId: event.entityId,
+                    leadId,
                     type: (c.type || 'Follow_up') as never,
                     owner: c.owner || String(event.data.owner ?? 'Não atribuído'),
                     date,

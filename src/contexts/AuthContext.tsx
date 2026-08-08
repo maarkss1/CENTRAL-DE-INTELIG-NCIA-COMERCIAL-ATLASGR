@@ -87,18 +87,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await authClient.signOut();
-    window.location.href = '/login';
+    window.location.href = '/app';
   };
 
-  const isAdmin = !!currentUser && ADMIN_ROLES.includes(currentUser.role);
+  const isAdmin = currentUser ? ADMIN_ROLES.includes(currentUser.role) : false;
 
   const canAccessAdminPanel = () =>
-    !!currentUser && (isAdmin || currentUser.permissions.includes('settings.manage'));
+    isAdmin || !!currentUser?.permissions.includes('settings.manage');
 
   const canAccessBrand = (brand: 'atlasgr' | 'totaltrac') => {
-    if (!currentUser) return false;
     // Papéis administrativos de conta cruzam marcas; os demais ficam restritos
     // à marca associada ao domínio do próprio e-mail corporativo.
+    if (!currentUser) return false;
     if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'TENANT_OWNER') return true;
     return getBrandFromEmail(currentUser.email) === brand;
   };

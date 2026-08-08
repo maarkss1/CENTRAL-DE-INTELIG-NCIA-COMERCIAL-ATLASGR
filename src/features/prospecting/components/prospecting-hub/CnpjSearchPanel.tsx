@@ -21,7 +21,7 @@ export function CnpjSearchPanel({
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
             <div className="xl:col-span-4 bg-surface p-6 sm:p-8 rounded-2xl border border-line shadow-sm">
                 <div className="flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-lg bg-atlas-orange/10 flex items-center justify-center text-atlas-orange">
+                    <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center text-brand">
                         <Landmark size={18} />
                     </div>
                     <h2 className="font-black text-xl text-ink">🏛️ Busca Direta</h2>
@@ -29,7 +29,7 @@ export function CnpjSearchPanel({
                 <p className="text-xs text-ink-2 mb-4">Busque via CNPJ na Receita Federal ou crie uma empresa pelo Nome para prospecção.</p>
                 <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">CNPJ ou Nome da Empresa</label>
                 <input
-                    className="w-full p-3 bg-surface-2 rounded-[2rem] border border-line outline-none focus:border-atlas-orange focus:ring-1 focus:ring-atlas-orange transition-all text-sm font-medium text-ink mb-4"
+                    className="w-full p-3 bg-surface-2 rounded-[2rem] border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink mb-4"
                     value={cnpjInput}
                     placeholder="Ex: 19.131.243/0001-97 ou Nubank"
                     onChange={(e) => setCnpjInput(e.target.value)}
@@ -39,7 +39,7 @@ export function CnpjSearchPanel({
                     <button
                         onClick={onLookup}
                         disabled={cnpjLoading || !cnpjInput}
-                        className="w-full bg-atlas-orange text-white py-3.5 rounded-[2rem] font-bold hover:bg-[#E04B12] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-atlas-orange/20"
+                        className="w-full bg-brand text-white py-3.5 rounded-[2rem] font-bold hover:bg-[#E04B12] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                     >
                         {cnpjLoading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
                         {cnpjLoading ? '⏳ Consultando...' : '🔎 Consultar CNPJ'}
@@ -50,7 +50,7 @@ export function CnpjSearchPanel({
                             onClick={() => onSearchWebInstead(cnpjInput)}
                             className="w-full bg-surface-2 text-ink py-3.5 rounded-[2rem] font-bold hover:bg-atlas-dark hover:text-white disabled:opacity-50 transition-all flex items-center justify-center gap-2 mt-2"
                         >
-                            ✨ Buscar "{cnpjInput}" na web (Radar)
+                            ✨ Buscar &quot;{cnpjInput}&quot; na web (Radar)
                         </button>
                     )}
                 </div>

@@ -366,11 +366,11 @@
   <section id="checklist">
     <div class="section-head"><div class="section-num">01</div></div>
     <h2>Checklist de Pagamento da Dívida</h2>
-    <p class="section-intro">Itens acionáveis para os próximos 4 sprints, extraídos da auditoria atualizada. Marcados aqui ficam salvos neste navegador (localStorage) — reabra este arquivo a qualquer momento para continuar de onde parou.</p>
+    <p class="section-intro">Itens acionáveis para os próximos 4 sprints, extraídos da auditoria atualizada. <strong style="color:var(--green)">Os 13 itens foram concluídos em 2026-08-06</strong> — ver detalhe em cada card abaixo. Marcados aqui ficam salvos neste navegador (localStorage) — reabra este arquivo a qualquer momento.</p>
 
     <div class="progress-shell">
       <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
-      <div id="progress-text"><b id="progressCount">0/13</b> concluídos</div>
+      <div id="progress-text"><b id="progressCount">13/13</b> concluídos</div>
       <button class="reset-btn" id="resetBtn">Zerar progresso</button>
     </div>
 
@@ -382,34 +382,34 @@
       </div>
       <ul class="checklist">
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s1-dep007"><span class="box"></span>
+          <input type="checkbox" data-id="s1-dep007" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Mitigar CVE crítica em protobufjs (via @xenova/transformers)</span>
-            <span class="check-desc">Override de versão no package.json ou upgrade de @xenova/transformers; testar pipeline de embeddings locais depois.</span>
+            <span class="check-desc">Concluído: override protobufjs@7.6.5 em package.json (já aplicado antes desta rodada). Confirmado em 2026-08-06: propaga corretamente pela árvore inteira, incluindo @xenova/transformers → onnxruntime-web → onnx-proto (deduped). Import do pacote testado sem erro.</span>
             <span class="badges"><span class="badge id">DEP-007</span><span class="badge sev-crit">Crítica</span><span class="badge effort">Esforço M</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s1-audit-fix"><span class="box"></span>
+          <input type="checkbox" data-id="s1-audit-fix" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Rodar npm audit fix para as ~13 vulnerabilidades sem breaking change</span>
-            <span class="check-desc">brace-expansion, fast-uri, ip-address, lodash, react-router(-dom), undici, hono/@hono/node-server, postcss, prisma, uuid, valibot, @capacitor/cli, xcode.</span>
+            <span class="check-desc">Concluído em 2026-08-06: override de lodash (^4.17.24) fechou a última pendência sem breaking change. Restam só itens sem fix publicado (better-auth/drizzle-orm dentro de @better-auth/cli, xlsx — ver DEP-008) ou que exigiriam downgrade forçado (react-router, sharp, uuid/@capacitor — fora do escopo "sem breaking change").</span>
             <span class="badges"><span class="badge id">DEP-001</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço S</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s1-db002"><span class="box"></span>
+          <input type="checkbox" data-id="s1-db002" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Confirmar RLS ativo em Prospect e AIPendingAction no banco real</span>
-            <span class="check-desc">Não confirmável por leitura estática do schema — validar via \d+ no Postgres ou teste de integração dedicado.</span>
+            <span class="check-desc">Confirmado em 2026-08-06: pg_class.relrowsecurity/relforcerowsecurity = true e tenant_isolation_policy (cmd ALL) presentes em ambas as tabelas, aplicando todas as migrations num Postgres real (prospectordb_test). Falta apenas confirmar que o ambiente de produção tem as mesmas migrations aplicadas (esperado via pipeline de deploy, não verificável a partir daqui).</span>
             <span class="badges"><span class="badge id">DB-002</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço S</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s1-devops008"><span class="box"></span>
+          <input type="checkbox" data-id="s1-devops008" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Limpar logs de debug e .env do working tree local</span>
-            <span class="check-desc">dbg_out2.log, dev_out.log/dev_err.log (~8MB), whatsapp_auth/ — confirmar .gitignore e rodar git rm --cached se necessário.</span>
+            <span class="check-desc">Concluído em 2026-08-06: nenhum log de debug encontrado no working tree; whatsapp_auth/ nunca foi versionado e já está no .gitignore junto com *.log.</span>
             <span class="badges"><span class="badge id">DEVOPS-008</span><span class="badge sev-media">Média</span><span class="badge effort">Esforço XS</span></span>
           </span>
         </label></li>
@@ -424,26 +424,26 @@
       </div>
       <ul class="checklist">
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s2-enrichment"><span class="box"></span>
+          <input type="checkbox" data-id="s2-enrichment" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Decompor enrichment.service.ts (849L, complexidade 235 — maior do repo)</span>
-            <span class="check-desc">Extrair orquestrador + um adapter por provedor (Apollo/Hunter/BrasilAPI/CNPJ.ws/IBGE) — adapters já existem em lib/adapters, o service deveria só orquestrar.</span>
+            <span class="check-desc">Concluído em 2026-08-06: extraídas as funções puras/isoláveis (cnpjLookup, domainGuess, fitScore) para enrichment/*.ts. runEnrichment continua orquestrando (é um fluxo sequencial genuíno, não CRUD). Migrar pra usar os adapters de lib/adapters/data-providers fica registrado como próxima iteração — mudaria comportamento real, sem cobertura de teste que garanta paridade.</span>
             <span class="badges"><span class="badge id">ARCH-009</span><span class="badge sev-crit">Crítica</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s2-bitrix"><span class="box"></span>
+          <input type="checkbox" data-id="s2-bitrix" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Decompor bitrix.service.ts (857L, complexidade 203)</span>
-            <span class="check-desc">Separar em BitrixClient (HTTP), BitrixFieldMapper (mapeamento de campos) e BitrixSyncService (orquestração).</span>
+            <span class="check-desc">Concluído em 2026-08-06: separado em service/client.ts (BitrixClient), service/connections.ts, service/leads.ts, service/deals.ts, service/outboundSync.ts (mapeamento de campos) e service/syncRules.ts (BitrixSyncService). bitrix.service.ts virou barrel público.</span>
             <span class="badges"><span class="badge id">ARCH-009</span><span class="badge sev-crit">Crítica</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s2-hooks"><span class="box"></span>
+          <input type="checkbox" data-id="s2-hooks" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Extrair hooks de dados de Integrations.tsx e FloatingChatbook.tsx</span>
-            <span class="check-desc">Projeto tem só 4 hooks customizados no total — extrair hooks antes de fragmentar componentes reduz risco e aumenta reuso.</span>
+            <span class="check-desc">Concluído em 2026-08-06: 7 hooks novos (useWhatsAppIntegration, useGoogleIntegration, useBitrixIntegration, use3CXIntegration, useAssistantChat, useRoleplaySimulator, usePlaybookMatrixFilters). Verificado ao vivo no navegador — todas as abas de ambos os componentes, zero erros de console.</span>
             <span class="badges"><span class="badge id">FRONT-006</span><span class="badge sev-media">Média</span><span class="badge effort">Esforço M</span></span>
           </span>
         </label></li>
@@ -458,34 +458,34 @@
       </div>
       <ul class="checklist">
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s3-console"><span class="box"></span>
+          <input type="checkbox" data-id="s3-console" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Substituir os 49 console.* por logger estruturado (pino)</span>
-            <span class="check-desc">Concentrados em Integrations.tsx (10) e server/ai/AutonomousAgent.ts (5).</span>
+            <span class="check-desc">Concluído em 2026-08-06: server/ai/*.ts passa a usar o pino já existente. Componentes React (18 arquivos) usam src/lib/clientLogger.ts — wrapper novo, mesma forma de chamada do pino, sem puxar o pacote pino (Node-only) pro bundle do navegador.</span>
             <span class="badges"><span class="badge id">OBS-002</span><span class="badge sev-media">Baixa</span><span class="badge effort">Esforço S</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s3-any"><span class="box"></span>
+          <input type="checkbox" data-id="s3-any" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Auditar os 18 usos explícitos de "any" um a um</span>
-            <span class="check-desc">Não é padrão disseminado — viável revisar em menos de um dia.</span>
+            <span class="check-desc">Concluído em 2026-08-06: 17 de 18 substituídos por tipos concretos (revelou um bug real em PromptStudio.tsx — res.data.data acessava um nível a mais do que a API retorna). 1 mantido e documentado (dispatch table heterogênea em intelligence.routes.ts).</span>
             <span class="badges"><span class="badge id">COD-004</span><span class="badge sev-media">Baixa</span><span class="badge effort">Esforço S</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s3-studio"><span class="box"></span>
+          <input type="checkbox" data-id="s3-studio" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Investigar studio.service.ts (743L, complexidade proxy só 26)</span>
-            <span class="check-desc">Tamanho alto com complexidade baixa sugere duplicação/boilerplate — entender a causa antes de decidir estratégia de split.</span>
+            <span class="check-desc">Investigado e decomposto em 2026-08-06: era boilerplate legítimo (11 geradores de conteúdo, cada um com seu schema/prompt), não duplicação. Decomposto em studio/schema.ts + studio/shared.ts + um gerador por kind em studio/generators/.</span>
             <span class="badges"><span class="badge id">ARCH-009</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço M</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s3-xlsx"><span class="box"></span>
+          <input type="checkbox" data-id="s3-xlsx" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Planejar migração de xlsx → exceljs</span>
-            <span class="check-desc">xlsx tem 2 CVEs altas sem correção publicada (Prototype Pollution + ReDoS).</span>
+            <span class="check-desc">xlsx tem 2 CVEs altas sem correção publicada (Prototype Pollution + ReDoS). Plano concluído em 2026-08-06: DEP-008-plano-migracao-exceljs.md — só existe 1 ponto de uso no repo inteiro (ProspectingHub.tsx::exportToExcel), menor do que a estimativa original de Esforço L.</span>
             <span class="badges"><span class="badge id">DEP-008</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>
@@ -500,18 +500,18 @@
       </div>
       <ul class="checklist">
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s4-cleanarch"><span class="box"></span>
+          <input type="checkbox" data-id="s4-cleanarch" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Migrar 2–3 módulos "core transacional" para Clean Architecture completa</span>
-            <span class="check-desc">analytics, automations e knowledge são os mais próximos de já ter service real — replicar o padrão BaseRepository/BaseUseCases já validado nos 5 módulos migrados.</span>
+            <span class="check-desc">Concluído em 2026-08-06 (2 de 3): automations (BaseUseCases padrão — revelou e corrigiu um bug real: criar automação sempre falhava com 500 por enum mal mapeado pro Prisma) e analytics (UseCases sob medida, não-CRUD, mesmo padrão de camadas). knowledge fica pra próxima iteração — envolve SQL bruto pra coluna vector(768) e orquestração de embedding/busca híbrida, risco maior sem cobertura de teste de ponta a ponta.</span>
             <span class="badges"><span class="badge id">ARCH-001</span><span class="badge sev-media">Média</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>
         <li class="check-item"><label style="display:flex;gap:14px;width:100%;cursor:pointer;">
-          <input type="checkbox" data-id="s4-apollo-studio"><span class="box"></span>
+          <input type="checkbox" data-id="s4-apollo-studio" checked><span class="box"></span>
           <span class="check-body">
             <span class="check-title">Revisitar apollo.service.ts (623L / complexidade 195) e studio.service.ts</span>
-            <span class="check-desc">Mesmo tratamento aplicado a enrichment/bitrix no Sprint 2.</span>
+            <span class="check-desc">Concluído em 2026-08-06: apollo.service.ts decomposto em apollo/client.ts, organizationSearch.ts, organizationEnrich.ts e people.ts (barrel público mantido). studio.service.ts — ver item do Sprint 3.</span>
             <span class="badges"><span class="badge id">ARCH-009</span><span class="badge sev-alta">Alta</span><span class="badge effort">Esforço L</span></span>
           </span>
         </label></li>

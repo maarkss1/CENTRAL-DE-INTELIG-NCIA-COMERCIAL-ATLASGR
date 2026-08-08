@@ -4,9 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 async function runSimulation() {
-    console.log("==========================================");
     console.log("🐝 INICIANDO SIMULAÇÃO DO ENXAME (SWARM) 🐝");
-    console.log("==========================================\n");
 
     const swarm = new SwarmOrchestrator();
     
@@ -20,9 +18,7 @@ Eles têm frota de 50 caminhões e faturamento alto, mas não sei como abordá-l
     try {
         const messages = await swarm.executeMission(mission, 'simulation-123');
         
-        console.log("==========================================");
         console.log("📜 TRILHA DE EXECUÇÃO DOS AGENTES");
-        console.log("==========================================");
 
         messages.forEach((m: any, i: number) => {
             const role = m._getType().toUpperCase();

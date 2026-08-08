@@ -34,8 +34,7 @@ export function ChangePasswordGate() {
             return;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const clearResult = await (authClient.updateUser as any)({ mustChangePassword: false });
+        const clearResult = await authClient.updateUser({ mustChangePassword: false });
         if (clearResult?.error) {
             setError('Senha trocada, mas não consegui liberar o acesso automaticamente. Recarregue a página.');
             setIsSubmitting(false);
@@ -50,7 +49,7 @@ export function ChangePasswordGate() {
             <div className="w-full max-w-md relative z-10">
                 <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-line bg-surface/95 shadow-2xl">
                     <div className="flex flex-col items-center mb-6 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-atlas-orange/10 flex items-center justify-center text-atlas-orange mb-4">
+                        <div className="w-14 h-14 rounded-2xl bg-brand/10 flex items-center justify-center text-brand mb-4">
                             <KeyRound size={24} />
                         </div>
                         <h1 className="text-xl font-black text-ink">Troque sua senha para continuar</h1>
@@ -77,7 +76,7 @@ export function ChangePasswordGate() {
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                                 placeholder="A senha que você recebeu"
                                 required
                             />
@@ -89,7 +88,7 @@ export function ChangePasswordGate() {
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                                 placeholder="Mínimo 8 caracteres"
                                 required
                             />
@@ -101,7 +100,7 @@ export function ChangePasswordGate() {
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-atlas-orange transition-all"
+                                className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                                 placeholder="Repita a nova senha"
                                 required
                             />
@@ -110,7 +109,7 @@ export function ChangePasswordGate() {
                         <button
                             type="submit"
                             disabled={isSubmitting || !currentPassword || !newPassword || !confirmPassword}
-                            className="w-full mt-2 bg-gradient-to-r from-atlas-orange to-amber-500 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-atlas-orange/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                            className="w-full mt-2 bg-gradient-to-r from-brand to-brand-2 text-white py-3.5 rounded-2xl font-extrabold text-xs shadow-lg shadow-brand/30 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                         >
                             {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : (
                                 <>Trocar senha e entrar <ArrowRight size={16} /></>

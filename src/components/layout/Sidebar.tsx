@@ -2,26 +2,37 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
-import { TabType } from './Header';
+import { TabType } from './tabMeta';
 
 interface SidebarProps {
     activeTab: TabType;
-    onTabChange: (tab: TabType) => void;
+    /** Controla a visibilidade em telas < lg, onde a Sidebar vira um painel off-canvas. */
+    mobileOpen?: boolean;
+    /** Chamado ao fechar a navegação mobile (backdrop, Escape ou seleção de item). */
+    onCloseMobile?: () => void;
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
     const { activeBrand, setActiveBrand } = useBrand();
     const { isAdmin } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
+    const navigate = useNavigate();
+
+    const selectTab = (tab: TabType) => {
+        navigate(`/app/${tab}`);
+        onCloseMobile?.();
+    };
 
     const adminTools = [
         { id: 'team' as TabType, label: 'Equipe', icon: <UserCog size={20} /> },
+        { id: 'settings' as TabType, label: 'Configurações', icon: <SettingsIcon size={20} /> },
     ];
 
     const coreTools = [
@@ -43,7 +54,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         { id: 'chatbook' as TabType, label: 'Chatbook', icon: <MessageSquare size={20} /> },
         { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
-        { id: 'bitrix' as TabType, label: 'Bitrix24', icon: <Layers size={20} /> },
+        { id: 'bitrix' as TabType, label: 'Guia Bitrix24', icon: <Layers size={20} /> },
         { id: 'integrations' as TabType, label: 'Integrações', icon: <Plug size={20} /> },
         { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
         { id: 'knowledge' as TabType, label: 'Base de Conhecimento', icon: <Database size={20} /> },
@@ -53,7 +64,11 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
     ];
 
     return (
-        <aside className="w-64 h-full flex flex-col transition-colors bg-surface border-r border-line">
+        <aside
+            className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex flex-col transition-transform duration-300 bg-surface border-r border-line lg:static lg:translate-x-0 ${
+                mobileOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+        >
             {/* Context Switcher */}
             <div className="p-4 border-b border-line">
                 <div className="flex items-center gap-2 mb-3">
@@ -96,10 +111,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                         return (
                             <button
                                 key={tool.id}
-                                onClick={() => onTabChange(tool.id)}
+                                onClick={() => selectTab(tool.id)}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
                                     isActive
-                                        ? 'bg-brand text-white shadow-md'
+                                        ? 'bg-brand-active text-white shadow-md'
                                         : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
@@ -120,10 +135,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                         return (
                             <button
                                 key={tool.id}
-                                onClick={() => onTabChange(tool.id)}
+                                onClick={() => selectTab(tool.id)}
                                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
                                     isActive
-                                        ? 'bg-brand text-white shadow-md'
+                                        ? 'bg-brand-active text-white shadow-md'
                                         : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
@@ -145,10 +160,10 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                             return (
                                 <button
                                     key={tool.id}
-                                    onClick={() => onTabChange(tool.id)}
+                                    onClick={() => selectTab(tool.id)}
                                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
                                         isActive
-                                            ? 'bg-brand text-white shadow-md'
+                                            ? 'bg-brand-active text-white shadow-md'
                                             : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                     }`}
                                 >

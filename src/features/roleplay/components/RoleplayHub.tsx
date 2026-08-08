@@ -7,7 +7,7 @@ import { QUALIFICATION_CRITERIA, OBJECTIONS_DATA } from '../../chatbook/componen
 import { CallSetup } from './roleplay-hub/CallSetup';
 import { ActiveCallView } from './roleplay-hub/ActiveCallView';
 import { CallAnalysisReport } from './roleplay-hub/CallAnalysisReport';
-import type { CallAnalysisResult, CallMessage, SpeechRecognitionEventLike, SpeechRecognitionLike } from './roleplay-hub/types';
+import type { CallAnalysisResult, CallMessage } from './roleplay-hub/types';
 
 export function RoleplayHub() {
     const { activeBrand, brandInfo } = useBrand();

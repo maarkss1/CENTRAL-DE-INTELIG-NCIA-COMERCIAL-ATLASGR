@@ -11,10 +11,12 @@ import {
     analyticsApi, formatMonthLabel, PERIOD_OPTIONS,
     type AnalyticsDashboard,
 } from '../analytics.api';
+import { SINGLE, INK, tooltipStyle } from '../../../shared/constants/chartPalette';
 
 /**
  * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
- * (#0a1022, que é o slate-900/60 sobre slate-950).
+ * (#0a1022, que é o slate-900/60 sobre slate-950). SINGLE/INK/tooltipStyle são compartilhados
+ * com Billing.tsx via shared/constants/chartPalette — ver esse arquivo para o racional completo.
  *
  * - SERIES: slots 1–3 do tema categórico. Passa todos os pares em CVD (pior ΔE 9.4) e visão
  *   normal (pior ΔE 20.9). Usada só no gráfico de linhas, que é o único com múltiplas séries.
@@ -29,19 +31,6 @@ const SERIES = {
 } as const;
 
 const FUNNEL_RAMP = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95'];
-
-const SINGLE = '#3987e5';
-
-/** Tinta e chrome recessivos, conforme o guia. */
-const INK = { muted: '#898781', grid: '#2c2c2a', axis: '#383835' };
-
-const tooltipStyle = {
-    backgroundColor: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.10)',
-    borderRadius: 12,
-    fontSize: 12,
-    color: '#ffffff',
-};
 
 function StatTile({ label, value, hint, tone }: {
     label: string; value: string; hint?: string; tone?: 'good' | 'critical';
@@ -137,7 +126,7 @@ export function Analytics() {
                 {/* Cabeçalho + filtro único acima de tudo que ele afeta */}
                 <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-atlas-orange/15 text-atlas-orange">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-brand/15 text-brand">
                             <BarChart3 className="w-6 h-6" />
                         </div>
                         <div>
@@ -155,7 +144,7 @@ export function Analytics() {
                                     aria-pressed={months === option}
                                     className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
                                         months === option
-                                            ? 'bg-atlas-orange text-white'
+                                            ? 'bg-brand text-white'
                                             : 'text-ink-2 hover:text-ink hover:bg-surface-2'
                                     }`}
                                 >

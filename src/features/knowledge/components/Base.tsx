@@ -259,7 +259,7 @@ export function Base() {
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Pergunte em linguagem natural: como reduzir sinistro de carga?"
-                            className="w-full bg-surface border border-line rounded-2xl pl-12 pr-32 py-4 text-sm text-ink placeholder-ink-2 outline-none transition-all focus:border-atlas-orange"
+                            className="w-full bg-surface border border-line rounded-2xl pl-12 pr-32 py-4 text-sm text-ink placeholder-ink-2 outline-none transition-all focus:border-brand"
                         />
                         <Button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2" disabled={searching}>
                             {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
@@ -441,14 +441,14 @@ export function Base() {
                                 value={pasteTitle}
                                 onChange={(e) => setPasteTitle(e.target.value)}
                                 placeholder="Título — ex: Playbook de objeções 2026"
-                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors"
+                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors"
                             />
                             <textarea
                                 value={pasteContent}
                                 onChange={(e) => setPasteContent(e.target.value)}
                                 rows={12}
                                 placeholder="Cole aqui o conteúdo que a equipe precisa consultar…"
-                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-atlas-orange transition-colors resize-none"
+                                className="w-full bg-surface-2 border border-line rounded-xl px-4 py-3 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors resize-none"
                             />
                             <p className="text-xs text-ink-2">
                                 {pasteContent.length.toLocaleString('pt-BR')} caracteres

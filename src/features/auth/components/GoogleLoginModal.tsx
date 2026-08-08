@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 import { authClient } from '../../../lib/auth-client';
+import { clientLogger } from '../../../lib/clientLogger';
 
 interface GoogleLoginModalProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
       });
       // The page will redirect to Google, so we just wait
     } catch (err) {
-      console.error(err);
+      clientLogger.error({ err }, 'Falha ao iniciar login com Google');
       setStep('button');
       setIsLoading(false);
     }

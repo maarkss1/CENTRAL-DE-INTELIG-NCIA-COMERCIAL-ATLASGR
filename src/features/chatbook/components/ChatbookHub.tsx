@@ -121,7 +121,7 @@ export function ChatbookHub() {
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-surface/70 backdrop-blur-2xl rounded-[2.5rem] p-8 border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex items-center gap-4 relative overflow-hidden"
                 >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-atlas-orange to-amber-500 flex items-center justify-center text-white shadow-lg shadow-atlas-orange/20 shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-brand to-amber-500 flex items-center justify-center text-white shadow-lg shadow-brand/20 shrink-0">
                         <Bot className="w-7 h-7" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -166,7 +166,7 @@ export function ChatbookHub() {
                                 <div
                                     className={`max-w-[85%] p-4 rounded-2xl text-sm space-y-2 leading-relaxed shadow-md ${
                                         msg.sender === 'user'
-                                            ? 'bg-atlas-orange text-white rounded-br-none font-medium'
+                                            ? 'bg-brand text-white rounded-br-none font-medium'
                                             : 'bg-surface-2 text-ink border border-line rounded-bl-none'
                                     }`}
                                 >
@@ -196,12 +196,12 @@ export function ChatbookHub() {
                             placeholder={searchMode === 'web_search' ? 'Pergunte à IA geral (sem dados da web em tempo real)...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
                             value={inputQuery}
                             onChange={(e) => setInputQuery(e.target.value)}
-                            className="flex-1 px-4 py-3 rounded-xl bg-surface-2 text-ink text-sm border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                            className="flex-1 px-4 py-3 rounded-xl bg-surface-2 text-ink text-sm border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                         />
                         <button
                             type="submit"
                             disabled={isSearching || !inputQuery.trim()}
-                            className="p-3 rounded-xl bg-atlas-orange text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors shrink-0"
+                            className="p-3 rounded-xl bg-brand text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors shrink-0"
                         >
                             <Send className="w-5 h-5" />
                         </button>

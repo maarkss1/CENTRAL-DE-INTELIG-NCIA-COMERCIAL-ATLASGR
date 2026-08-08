@@ -44,7 +44,7 @@ export function ObjectionsMatrixPage() {
             <div className="max-w-5xl mx-auto space-y-8">
                 <div className="space-y-3">
                     <h1 className="text-4xl font-black tracking-tight text-ink flex items-center gap-3">
-                        <Shield className="text-atlas-orange" size={32} /> Matriz de Objeções
+                        <Shield className="text-brand" size={32} /> Matriz de Objeções
                     </h1>
                     <p className="text-ink-2 text-sm font-medium">
                         {brandObjections.length} objeções mapeadas para {brandInfo.name} com script de contorno recomendado e diferencial-chave.
@@ -53,7 +53,7 @@ export function ObjectionsMatrixPage() {
 
                 <div className="bg-surface/80 p-4 rounded-2xl border border-line flex flex-wrap items-center gap-3">
                     <span className="text-xs font-bold text-ink flex items-center gap-1.5 shrink-0">
-                        <Filter size={14} className="text-atlas-orange" /> Filtros
+                        <Filter size={14} className="text-brand" /> Filtros
                     </span>
                     <div className="relative flex-1 min-w-[200px]">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-2 pointer-events-none" />
@@ -62,13 +62,13 @@ export function ObjectionsMatrixPage() {
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Buscar por palavra-chave..."
-                            className="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                            className="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                         />
                     </div>
                     <select
                         value={selectedSegment}
                         onChange={(e) => setSelectedSegment(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                        className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                     >
                         <option value="todos">Todos os Segmentos</option>
                         {segments.map((seg) => <option key={seg} value={seg}>{seg}</option>)}
@@ -76,7 +76,7 @@ export function ObjectionsMatrixPage() {
                     <select
                         value={selectedPersona}
                         onChange={(e) => setSelectedPersona(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                        className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                     >
                         <option value="todos">Todas as Personas</option>
                         {personas.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -108,9 +108,9 @@ export function ObjectionsMatrixPage() {
 
                                 <div>
                                     <h3 className="font-black text-sm text-ink mb-1 flex items-center gap-1.5">
-                                        <AlertTriangle size={14} className="text-amber-500" /> "{item.objectionTitle}"
+                                        <AlertTriangle size={14} className="text-amber-500" /> &quot;{item.objectionTitle}&quot;
                                     </h3>
-                                    <p className="text-ink-2 text-sm italic">"{item.objectionText}"</p>
+                                    <p className="text-ink-2 text-sm italic">&quot;{item.objectionText}&quot;</p>
                                 </div>
 
                                 <div className="p-4 rounded-xl bg-surface-2 border border-line">

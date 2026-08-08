@@ -11,6 +11,7 @@ import { PIC_OPTIONS } from '../shared/constants/icp-options';
 import { AIPendingActions } from '../features/intelligence/components/AIPendingActions';
 import { useBrandAccent } from '../hooks/useBrandAccent';
 import { useBrand } from '../contexts/BrandContext';
+import { clientLogger } from '../lib/clientLogger';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
@@ -69,7 +70,7 @@ export function Intelligence() {
         setLeadsLoading(true);
         api.get<{ data: Lead[] }>('/api/leads?limit=100')
             .then((res) => setLeads(res.data))
-            .catch((e) => console.error('Error loading leads:', e))
+            .catch((e) => clientLogger.error({ err: e }, 'Error loading leads'))
             .finally(() => setLeadsLoading(false));
     }, []);
 
@@ -93,7 +94,7 @@ export function Intelligence() {
             setSelectedLead(updated);
             setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? { ...l, pic: nextPic as Lead['pic'] } : l)));
         } catch (e) {
-            console.error('Error setting PIC:', e);
+            clientLogger.error({ err: e }, 'Error setting PIC');
         }
     };
 
@@ -132,7 +133,7 @@ export function Intelligence() {
             }, { timeoutMs: 90_000 });
             setResult(response.result);
         } catch (error) {
-            console.error('Error generating intelligence:', error);
+            clientLogger.error({ err: error }, 'Error generating intelligence');
             setResult(error instanceof Error ? `Não foi possível gerar o conteúdo: ${error.message}` : 'Não foi possível gerar o conteúdo.');
         } finally {
             setIsGenerating(false);
@@ -171,7 +172,7 @@ export function Intelligence() {
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-atlas-orange/10 border border-atlas-orange/20 text-atlas-orange mb-3"
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand mb-3"
                         >
                             <Sparkles className="w-4 h-4" />
                             <span className="text-xs font-bold uppercase tracking-wider">Premium AI Suite</span>
@@ -186,11 +187,11 @@ export function Intelligence() {
                             <motion.div 
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="p-4 rounded-2xl border border-atlas-orange/30 bg-gradient-to-br from-surface to-orange-50/30 shadow-[0_8px_30px_rgb(234,88,12,0.12)] relative overflow-hidden group"
+                                className="p-4 rounded-2xl border border-brand/30 bg-gradient-to-br from-surface to-orange-50/30 shadow-[0_8px_30px_rgb(234,88,12,0.12)] relative overflow-hidden group"
                             >
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-atlas-orange/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-brand/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
                                 <div className="flex items-start gap-4 relative z-10">
-                                    <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-atlas-orange to-orange-600 text-white flex items-center justify-center shadow-inner relative">
+                                    <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-brand to-orange-600 text-white flex items-center justify-center shadow-inner relative">
                                         <Building2 size={20} />
                                         <div className="absolute inset-0 rounded-xl border border-white/20"></div>
                                     </div>
@@ -226,7 +227,7 @@ export function Intelligence() {
                                     </div>
                                     <button 
                                         onClick={() => setPickerOpen(true)} 
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-atlas-orange hover:text-white transition-colors shrink-0"
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-brand hover:text-white transition-colors shrink-0"
                                         title="Trocar Lead"
                                     >
                                         <RefreshCw size={14} />
@@ -236,13 +237,13 @@ export function Intelligence() {
                         ) : (
                             <button
                                 onClick={() => setPickerOpen(true)}
-                                className="w-full p-5 rounded-2xl border-2 border-dashed border-line hover:border-atlas-orange/60 hover:bg-orange-50/50 text-ink-2 hover:text-atlas-orange transition-all flex flex-col items-center justify-center gap-3 group"
+                                className="w-full p-5 rounded-2xl border-2 border-dashed border-line hover:border-brand/60 hover:bg-orange-50/50 text-ink-2 hover:text-brand transition-all flex flex-col items-center justify-center gap-3 group"
                             >
                                 <div className="w-10 h-10 rounded-full bg-surface-2 group-hover:bg-orange-100 flex items-center justify-center transition-colors">
-                                    <Search size={18} className="text-ink-2 group-hover:text-atlas-orange" />
+                                    <Search size={18} className="text-ink-2 group-hover:text-brand" />
                                 </div>
                                 <div className="text-center">
-                                    <p className="font-bold text-sm text-ink-2 group-hover:text-atlas-orange">Vincular Lead Alvo (Recomendado)</p>
+                                    <p className="font-bold text-sm text-ink-2 group-hover:text-brand">Vincular Lead Alvo (Recomendado)</p>
                                     <p className="text-[11px] text-ink-2 mt-1 max-w-xs mx-auto">Para hiper-personalização, a IA analisará segmento, porte e stack tecnológico do lead.</p>
                                 </div>
                             </button>
@@ -272,7 +273,7 @@ export function Intelligence() {
                                         placeholder="Pesquisar por empresa ou contato..."
                                         value={leadQuery}
                                         onChange={(e) => setLeadQuery(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2.5 bg-surface-2 border border-line/80 rounded-xl text-sm font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                        className="w-full pl-9 pr-4 py-2.5 bg-surface-2 border border-line/80 rounded-xl text-sm font-medium outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all"
                                     />
                                 </div>
                                 <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-gray-200">
@@ -284,13 +285,13 @@ export function Intelligence() {
                                         <button
                                             key={l.id}
                                             onClick={() => { setSelectedLead(l); setPickerOpen(false); setLeadQuery(''); }}
-                                            className="w-full text-left p-3 rounded-xl hover:bg-orange-50 flex items-center gap-3 transition-colors group border border-transparent hover:border-atlas-orange/20"
+                                            className="w-full text-left p-3 rounded-xl hover:bg-orange-50 flex items-center gap-3 transition-colors group border border-transparent hover:border-brand/20"
                                         >
                                             <div className="w-8 h-8 rounded-lg bg-surface-2 group-hover:bg-surface flex items-center justify-center shrink-0">
-                                                <Building2 size={14} className="text-ink-2 group-hover:text-atlas-orange" />
+                                                <Building2 size={14} className="text-ink-2 group-hover:text-brand" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-sm text-ink truncate group-hover:text-atlas-orange">{l.company?.tradeName || 'Sem empresa'}</p>
+                                                <p className="font-bold text-sm text-ink truncate group-hover:text-brand">{l.company?.tradeName || 'Sem empresa'}</p>
                                                 {l.contact?.name && <p className="text-[11px] text-ink-2 truncate">{l.contact.name}</p>}
                                             </div>
                                         </button>
@@ -303,7 +304,7 @@ export function Intelligence() {
                     {/* PARÂMETROS DE NEURO-GERAÇÃO (Custom Dropdowns) */}
                     <div className="bg-surface p-5 rounded-2xl border border-line/60 shadow-sm relative z-40">
                         <h3 className="text-[10px] font-black uppercase tracking-widest text-ink-2 mb-4 flex items-center gap-1.5">
-                            <BrainCircuit size={14} className="text-atlas-orange" /> Parâmetros Neurais
+                            <BrainCircuit size={14} className="text-brand" /> Parâmetros Neurais
                         </h3>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -325,9 +326,9 @@ export function Intelligence() {
                                             {TONES.map(t => (
                                                 <div
                                                     key={t} onClick={() => { setTone(t); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                 >
-                                                    {t} {tone === t && <Check size={14} className="text-atlas-orange" />}
+                                                    {t} {tone === t && <Check size={14} className="text-brand" />}
                                                 </div>
                                             ))}
                                         </motion.div>
@@ -353,9 +354,9 @@ export function Intelligence() {
                                             {OBJECTIVES.map(o => (
                                                 <div
                                                     key={o} onClick={() => { setObjective(o); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                 >
-                                                    {o} {objective === o && <Check size={14} className="text-atlas-orange" />}
+                                                    {o} {objective === o && <Check size={14} className="text-brand" />}
                                                 </div>
                                             ))}
                                         </motion.div>
@@ -382,9 +383,9 @@ export function Intelligence() {
                                                 {personas.map(p => (
                                                     <div
                                                         key={p} onClick={() => { setPersonaFallback(p); setActiveDropdown(null); }}
-                                                        className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-atlas-orange cursor-pointer flex justify-between items-center"
+                                                        className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                     >
-                                                        {p} {personaFallback === p && <Check size={14} className="text-atlas-orange" />}
+                                                        {p} {personaFallback === p && <Check size={14} className="text-brand" />}
                                                     </div>
                                                 ))}
                                             </motion.div>
@@ -402,10 +403,10 @@ export function Intelligence() {
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
-                                className="absolute z-50 inset-x-0 mt-4 p-5 border border-atlas-orange/30 rounded-2xl bg-surface/90 backdrop-blur-2xl shadow-2xl shadow-atlas-orange/10"
+                                className="absolute z-50 inset-x-0 mt-4 p-5 border border-brand/30 rounded-2xl bg-surface/90 backdrop-blur-2xl shadow-2xl shadow-brand/10"
                             >
                                 <div className="flex items-center justify-between mb-4">
-                                    <span className="text-[10px] tracking-widest font-black uppercase text-atlas-orange flex items-center gap-1.5">
+                                    <span className="text-[10px] tracking-widest font-black uppercase text-brand flex items-center gap-1.5">
                                         <Swords size={14} /> {suggestedCompetitors.length ? 'Selecione o Concorrente' : 'Informe o Concorrente'}
                                     </span>
                                     <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
@@ -415,7 +416,7 @@ export function Intelligence() {
                                         <button
                                             key={c}
                                             onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-line bg-surface text-ink-2 hover:border-atlas-orange hover:bg-atlas-orange hover:text-white transition-all shadow-sm"
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-line bg-surface text-ink-2 hover:border-brand hover:bg-brand hover:text-white transition-all shadow-sm"
                                         >
                                             {c}
                                         </button>
@@ -427,7 +428,7 @@ export function Intelligence() {
                                         placeholder="Ou digite o nome de outro concorrente..."
                                         value={customCompetitor}
                                         onChange={(e) => setCustomCompetitor(e.target.value)}
-                                        className="flex-1 p-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium outline-none focus:border-atlas-orange focus:ring-4 focus:ring-atlas-orange/10 transition-all"
+                                        className="flex-1 p-2.5 bg-surface-2 border border-line rounded-xl text-xs font-medium outline-none focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all"
                                     />
                                     <button
                                         onClick={() => customCompetitor.trim() && handleGenerate('competitor_battlecard', customCompetitor.trim())}
@@ -460,32 +461,32 @@ export function Intelligence() {
                                     onClick={() => handleGenerate(tool.id as ToolType)}
                                     className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 group flex flex-col justify-between h-[140px] relative overflow-hidden
                                         ${activeTool === tool.id
-                                            ? 'border-atlas-orange bg-gradient-to-br from-orange-50 to-surface shadow-lg shadow-atlas-orange/20 ring-1 ring-atlas-orange/50'
-                                            : 'border-line/60 bg-surface hover:border-atlas-orange/40 hover:shadow-xl hover:shadow-gray-200/50'
+                                            ? 'border-brand bg-gradient-to-br from-orange-50 to-surface shadow-lg shadow-brand/20 ring-1 ring-brand/50'
+                                            : 'border-line/60 bg-surface hover:border-brand/40 hover:shadow-xl hover:shadow-gray-200/50'
                                         }`}
                                 >
                                     {/* Efeito Glow Interno */}
                                     {activeTool === tool.id && (
-                                        <div className="absolute inset-0 bg-gradient-to-br from-atlas-orange/5 to-transparent pointer-events-none"></div>
+                                        <div className="absolute inset-0 bg-gradient-to-br from-brand/5 to-transparent pointer-events-none"></div>
                                     )}
                                     
                                     <div className="flex items-start justify-between relative z-10">
                                         <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors
                                             ${activeTool === tool.id 
-                                                ? 'bg-gradient-to-br from-atlas-orange to-orange-500 text-white shadow-md' 
-                                                : 'bg-surface-2 border border-line text-ink-2 group-hover:bg-orange-50 group-hover:text-atlas-orange group-hover:border-orange-100'
+                                                ? 'bg-gradient-to-br from-brand to-orange-500 text-white shadow-md' 
+                                                : 'bg-surface-2 border border-line text-ink-2 group-hover:bg-orange-50 group-hover:text-brand group-hover:border-orange-100'
                                             }`}
                                         >
                                             <tool.icon size={18} />
                                         </div>
                                         {activeTool === tool.id && (
-                                            <span className="w-2 h-2 rounded-full bg-atlas-orange animate-ping absolute right-1 top-1"></span>
+                                            <span className="w-2 h-2 rounded-full bg-brand animate-ping absolute right-1 top-1"></span>
                                         )}
                                     </div>
                                     
                                     <div className="relative z-10 mt-3">
                                         <h3 className={`font-black text-sm mb-1 leading-tight transition-colors line-clamp-1
-                                            ${activeTool === tool.id ? 'text-atlas-orange' : 'text-ink group-hover:text-atlas-orange'}`}
+                                            ${activeTool === tool.id ? 'text-brand' : 'text-ink group-hover:text-brand'}`}
                                         >
                                             {tool.title}
                                         </h3>
@@ -501,7 +502,7 @@ export function Intelligence() {
                 <div className="xl:col-span-7 flex flex-col" ref={resultRef}>
                     <div className="bg-gray-900 rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-2xl relative ring-1 ring-white/10 sticky top-24">
                         {/* BACKGROUND GLOW */}
-                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-atlas-orange/20 rounded-full blur-[100px] pointer-events-none"></div>
+                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand/20 rounded-full blur-[100px] pointer-events-none"></div>
                         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
 
                         {/* Top Bar MacOS Style */}
@@ -512,7 +513,7 @@ export function Intelligence() {
                                 <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
                             </div>
                             <div className="flex items-center gap-3">
-                                {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-atlas-orange animate-pulse">Sintetizando...</span>}
+                                {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-brand animate-pulse">Sintetizando...</span>}
                                 <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10 flex items-center gap-2">
                                     <Bot size={12} className="text-gray-400" />
                                     <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">{accent.brandName} Engine v2.0</span>
@@ -530,7 +531,7 @@ export function Intelligence() {
                                         transition={{ duration: 0.8, ease: "easeOut" }}
                                         className="relative"
                                     >
-                                        <div className="absolute inset-0 bg-atlas-orange/20 blur-2xl rounded-full"></div>
+                                        <div className="absolute inset-0 bg-brand/20 blur-2xl rounded-full"></div>
                                         <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-2xl">
                                             <BrainCircuit size={40} className="text-gray-400" />
                                         </div>
@@ -548,17 +549,17 @@ export function Intelligence() {
                                         {/* Orbital Rings */}
                                         <motion.div 
                                             animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                                            className="absolute inset-0 border-t-2 border-r-2 border-atlas-orange/50 rounded-full"
+                                            className="absolute inset-0 border-t-2 border-r-2 border-brand/50 rounded-full"
                                         ></motion.div>
                                         <motion.div 
                                             animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
                                             className="absolute inset-2 border-b-2 border-l-2 border-white/30 rounded-full"
                                         ></motion.div>
-                                        <div className="absolute inset-4 bg-atlas-orange/10 rounded-full blur-md animate-pulse"></div>
-                                        <Zap size={32} className="text-atlas-orange relative z-10 animate-pulse" />
+                                        <div className="absolute inset-4 bg-brand/10 rounded-full blur-md animate-pulse"></div>
+                                        <Zap size={32} className="text-brand relative z-10 animate-pulse" />
                                     </div>
                                     <h3 className="font-black text-2xl text-white mb-2 tracking-tight">Gerando Inteligência</h3>
-                                    <p className="font-bold text-xs uppercase tracking-[0.2em] text-atlas-orange">Processando algoritmos cognitivos...</p>
+                                    <p className="font-bold text-xs uppercase tracking-[0.2em] text-brand">Processando algoritmos cognitivos...</p>
                                     
                                     {/* Progress Bar Fake */}
                                     <div className="w-48 h-1 bg-white/10 rounded-full mt-6 overflow-hidden">
@@ -566,7 +567,7 @@ export function Intelligence() {
                                             initial={{ width: 0 }} 
                                             animate={{ width: "100%" }} 
                                             transition={{ duration: 15 }} 
-                                            className="h-full bg-atlas-orange"
+                                            className="h-full bg-brand"
                                         />
                                     </div>
                                 </div>
@@ -580,7 +581,7 @@ export function Intelligence() {
                                 >
                                     <div className="flex justify-between items-end mb-6">
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-atlas-orange mb-1 flex items-center gap-1.5">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-1 flex items-center gap-1.5">
                                                 <CheckCircle2 size={12} /> Síntese Concluída
                                             </p>
                                             <h3 className="text-xl font-bold text-white">
@@ -602,10 +603,10 @@ export function Intelligence() {
                                     
                                     <div className="flex-1 bg-black/40 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-white/10 shadow-inner overflow-y-auto relative scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
                                         {/* Decoration Corners */}
-                                        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-atlas-orange/50 rounded-tl-lg"></div>
-                                        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-atlas-orange/50 rounded-tr-lg"></div>
-                                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-atlas-orange/50 rounded-bl-lg"></div>
-                                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-atlas-orange/50 rounded-br-lg"></div>
+                                        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-brand/50 rounded-tl-lg"></div>
+                                        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-brand/50 rounded-tr-lg"></div>
+                                        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-brand/50 rounded-bl-lg"></div>
+                                        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-brand/50 rounded-br-lg"></div>
                                         
                                         <motion.div 
                                             initial={{ opacity: 0 }} 

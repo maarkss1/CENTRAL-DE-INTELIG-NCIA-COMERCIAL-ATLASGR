@@ -100,14 +100,23 @@ const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
   logger.error({ errors: _env.error.format() }, '❌ Erro de Validação nas Variáveis de Ambiente');
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(1);
+  }
 }
 
 // Trava de segurança: nunca subir em produção com o bypass de autenticação ativo,
 // mesmo que alguma configuração/segredo tenha ativado a flag por engano.
-if (_env.data.NODE_ENV === 'production' && _env.data.ALLOW_DEV_AUTH_BYPASS) {
+if (_env.success && _env.data.NODE_ENV === 'production' && _env.data.ALLOW_DEV_AUTH_BYPASS) {
   logger.error('❌ ALLOW_DEV_AUTH_BYPASS=true não é permitido com NODE_ENV=production. Abortando inicialização.');
-  process.exit(1);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(1);
+  }
 }
 
-export const env = _env.data;
+// Tipado como o schema (não `NodeJS.ProcessEnv`): no caminho de sucesso (o único que importa em
+// produção — o de falha sempre encerra o processo antes de chegar aqui, exceto em NODE_ENV=test)
+// os valores já vêm com default/coerce/transform aplicados pelo Zod. Sem este cast, `env` virava
+// uma união com `NodeJS.ProcessEnv` (todos os campos `string | undefined`), o que apagava os tipos
+// corretos (number, boolean) em todo lugar que consome `env` e mascarava erros de tipo reais.
+export const env: z.infer<typeof envSchema> = _env.success ? _env.data : (process.env as unknown as z.infer<typeof envSchema>);

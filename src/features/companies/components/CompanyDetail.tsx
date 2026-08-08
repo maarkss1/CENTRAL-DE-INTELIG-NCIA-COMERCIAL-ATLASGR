@@ -5,6 +5,8 @@ import { api } from '../../../lib/api';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
+import { clientLogger } from '../../../lib/clientLogger';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 
 interface CompanyDetailProps {
     companyId: string;
@@ -22,7 +24,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             const data = await api.get<Company>(`/api/companies/${companyId}`);
             setCompany(data);
         } catch (error) {
-            console.error('Error fetching company details:', error);
+            clientLogger.error({ err: error }, 'Error fetching company details');
         } finally {
             setLoading(false);
         }
@@ -32,6 +34,19 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         fetchCompany();
     }, [fetchCompany]);
 
+    // Torna o copiloto de IA global ciente de qual empresa está aberta na tela.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (!company) return;
+        setActiveRecord({
+            type: 'company',
+            id: company.id,
+            label: company.tradeName || company.legalName,
+            summary: [company.segment, company.city].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(company.id);
+    }, [company, setActiveRecord, clearActiveRecord]);
+
     const handleEnrich = async () => {
         setEnriching(true);
         try {
@@ -40,7 +55,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             await api.post(`/api/companies/${companyId}/enrich`, undefined, { timeoutMs: 60_000 });
             await fetchCompany();
         } catch (error) {
-            console.error('Error enriching company:', error);
+            clientLogger.error({ err: error }, 'Error enriching company');
         } finally {
             setEnriching(false);
         }

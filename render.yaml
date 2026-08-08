@@ -1,0 +1,88 @@
+services:
+  - type: web
+    name: prospector-atlas
+    runtime: node
+    # free por enquanto: o workspace do Render ainda não tem cartão cadastrado, e o
+    # Blueprint recusa criar/sincronizar serviços em plano pago (starter) sem forma de
+    # pagamento no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
+    # o free dorme após inatividade e tem menos CPU/RAM, não é para uso real com clientes.
+    plan: free
+    # --include=dev: NODE_ENV=production (definido abaixo, também injetado no build) faz o
+    # `npm ci` pular devDependencies por padrão — mas vite, @vitejs/plugin-react, esbuild e
+    # typescript (usados só no build, nunca em runtime) estão todos lá. Sem essa flag o build
+    # falha com ERR_MODULE_NOT_FOUND ao carregar vite.config.ts.
+    buildCommand: npm ci --include=dev && npm run build
+    # preDeployCommand roda ANTES da nova instância receber tráfego (Render "Pre-Deploy Command"),
+    # com a instância antiga ainda no ar — é o ponto certo para `prisma migrate deploy`: zero
+    # downtime, e um deploy nunca serve tráfego contra um schema desatualizado. Ver
+    # docs/deploy/render.md para o fluxo completo de deploy automático.
+    # preDeployCommand: npx prisma migrate deploy # Comentado porque não é suportado no free tier
+    startCommand: npm run start
+    # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
+    # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
+    # /health/ready.
+    healthCheckPath: /health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # Banco Postgres gerenciado externamente (Supabase). Cole a Session Pooler connection string
+      # (porta 5432, aws-0-<region>.pooler.supabase.com) — funciona tanto para o tráfego da
+      # aplicação quanto para o preDeployCommand acima. Ver docs/deploy/producao.md secao 1.
+      - key: DATABASE_URL
+        sync: false
+      # Opcional: só necessária se a Session Pooler apresentar problema com advisory locks do
+      # Prisma migrate — aponte para a Direct Connection (db.<ref>.supabase.co:5432) nesse caso.
+      # Sem esta variável, prisma.config.ts cai automaticamente para DATABASE_URL.
+      - key: DIRECT_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: BETTER_AUTH_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: TRUST_PROXY
+        value: "true"
+      - key: PROSPECTING_PROVIDER_MODE
+        value: hybrid
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: APOLLO_API_KEY
+        sync: false
+      - key: HUNTER_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: BITRIX24_WEBHOOK_URL
+        sync: false
+      - key: BIRTH_VOICES_WEBHOOK_SECRET
+        sync: false
+      - key: ENABLE_SEARCH
+        value: "false"
+      - key: ENABLE_QUEUES
+        value: "false"
+      # Redis é opcional (liga filas BullMQ/rate-limit distribuído — ver src/lib/queue/redis.ts).
+      # Defina REDIS_URL (ex.: Render Key Value ou Upstash) e ENABLE_QUEUES=true para habilitar.
+      - key: REDIS_URL
+        sync: false
+      # Storage de objetos (uploads) S3-compatível — ver src/lib/storage/index.ts e
+      # docs/deploy/producao.md secao 1.2. Sem estas variáveis o storage de objetos fica inerte
+      # (getUploadUrl/getDownloadUrl lançam erro explícito), sem impedir o resto da aplicação de
+      # subir.
+      - key: STORAGE_ENDPOINT
+        sync: false
+      - key: STORAGE_REGION
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_SECRET_ACCESS_KEY
+        sync: false
+
+# Sem bloco `databases:` de propósito — o Postgres é externo (Supabase), não provisionado pelo
+# Render. Ver docs/deploy/producao.md secao 1 para criar o projeto e obter as connection strings.

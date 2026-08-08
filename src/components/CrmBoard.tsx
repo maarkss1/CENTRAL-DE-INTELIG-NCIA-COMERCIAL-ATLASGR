@@ -8,8 +8,10 @@ import { api } from '../lib/api';
 import { leadsDB } from '../lib/db';
 import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
+import { Button } from './ui/Button';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
+import { clientLogger } from '../lib/clientLogger';
 import { 
     DndContext, 
     closestCenter, 
@@ -17,7 +19,9 @@ import {
     PointerSensor, 
     useSensor, 
     useSensors, 
-    DragOverlay 
+    DragOverlay,
+    DragStartEvent,
+    DragEndEvent
 } from '@dnd-kit/core';
 
 const COLUMNS: LeadStatus[] = [
@@ -64,7 +68,7 @@ export function CrmBoard() {
                 setLeads(response.data);
             }
         } catch (err) {
-            console.error('Error fetching leads:', err);
+            clientLogger.error({ err }, 'Error fetching leads');
             setError(err instanceof Error ? err.message : 'Não foi possível carregar o pipeline comercial.');
         } finally {
             setLoading(false);
@@ -75,8 +79,7 @@ export function CrmBoard() {
         fetchLeads();
     }, [fetchLeads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragStart = useCallback((event: any) => {
+    const handleDragStart = useCallback((event: DragStartEvent) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
@@ -84,8 +87,7 @@ export function CrmBoard() {
         }
     }, [leads]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleDragEnd = useCallback(async (event: any) => {
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveLead(null);
 
@@ -94,7 +96,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (COLUMNS.includes(over.id)) {
+        if (typeof over.id === 'string' && COLUMNS.includes(over.id as LeadStatus)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);
@@ -112,7 +114,7 @@ export function CrmBoard() {
             try {
                 await leadsDB.updateStatus(leadId as string, targetStatus);
             } catch (error) {
-                console.error('Error updating lead status:', error);
+                clientLogger.error({ err: error }, 'Error updating lead status');
                 fetchLeads();
             }
         }
@@ -128,7 +130,7 @@ export function CrmBoard() {
             await fetchLeads();
             toast.success('Lead enriquecido com sucesso.');
         } catch (error) {
-            console.error('Error enriching lead:', error);
+            clientLogger.error({ err: error }, 'Error enriching lead');
             toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);
@@ -191,7 +193,7 @@ export function CrmBoard() {
                 toast.info('Nenhum lead novo encontrado no Bitrix24.');
             }
         } catch (err) {
-            console.error('Error importing from Bitrix24:', err);
+            clientLogger.error({ err }, 'Error importing from Bitrix24');
             toast.error(err instanceof Error ? err.message : 'Falha ao importar do Bitrix24.');
         } finally {
             setLoading(false);
@@ -209,21 +211,23 @@ export function CrmBoard() {
                     <p className="text-ink-2 text-xs mt-1">Arraste os cards para avançar no funil comercial e veja as ferramentas mapeadas em cada conta</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
+                    <Button
                         onClick={handleImportBitrix}
                         disabled={loading}
-                        className="flex items-center gap-2 bg-surface-2 border border-line text-ink-2 px-4 py-2 rounded-xl font-bold text-xs hover:bg-surface transition-colors disabled:opacity-50"
+                        variant="secondary"
+                        className="text-xs"
                         title="Importar leads recentes do Bitrix24"
                     >
-                        <Download className="w-4 h-4 rotate-180 text-blue-400" /> 📥 {loading ? 'Importando...' : 'Sincronizar Bitrix24'}
-                    </button>
-                    <button
+                        <Download className="w-4 h-4 rotate-180" /> 📥 {loading ? 'Importando...' : 'Sincronizar Bitrix24'}
+                    </Button>
+                    <Button
                         onClick={handleExportCsv}
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl font-bold text-xs transition-colors shadow-md"
+                        variant="secondary"
+                        className="text-xs"
                         title="Exportar todos os leads para uma planilha CSV"
                     >
                         <Download className="w-4 h-4" /> 💾 Exportar CSV
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -236,7 +240,12 @@ export function CrmBoard() {
                 />
             </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-surface-2/50">
+            {/* Região com scroll horizontal precisa estar no tab order pra ser rolável via teclado
+                (axe-core: scrollable-region-focusable). jsx-a11y trata todo tabIndex em <div> como
+                suspeito por padrão, mas essa é a correção recomendada pelas ARIA Authoring Practices
+                pra containers de scroll não-interativos — daí o disable pontual logo abaixo. */}
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-surface-2/50" tabIndex={0} aria-label="Colunas do pipeline — role o conteúdo horizontalmente">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
@@ -246,7 +255,7 @@ export function CrmBoard() {
                     </div>
                 ) : error ? (
                     <EmptyState
-                        icon={<WifiOff className="w-8 h-8 text-atlas-orange" />}
+                        icon={<WifiOff className="w-8 h-8 text-brand" />}
                         title="Não foi possível carregar o pipeline"
                         description={error}
                         actionLabel="Tentar novamente"

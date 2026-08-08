@@ -103,7 +103,7 @@ export function AIDockWidget() {
   };
 
   const tools = [
-      { id: 'copilot', icon: <Bot className="w-5 h-5" />, label: 'Atlas Copilot', color: 'bg-atlas-orange' },
+      { id: 'copilot', icon: <Bot className="w-5 h-5" />, label: 'Atlas Copilot', color: 'bg-brand' },
       { id: 'groq', icon: <Zap className="w-5 h-5" />, label: 'Groq IA', color: 'bg-indigo-500' },
       { id: 'objections', icon: <MessageSquareWarning className="w-5 h-5" />, label: 'Objeções', color: 'bg-rose-500' },
       { id: 'qualification', icon: <Target className="w-5 h-5" />, label: 'Qualificação', color: 'bg-emerald-500' },
@@ -196,7 +196,7 @@ export function AIDockWidget() {
                   value={inputs[activeTool] || ''}
                   onChange={(e) => setInputs(prev => ({ ...prev, [activeTool]: e.target.value }))}
                   placeholder={`Mensagem para ${activeToolData.label}...`}
-                  className="flex-1 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-atlas-orange transition-colors dark:text-white"
+                  className="flex-1 bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand transition-colors dark:text-white"
                 />
                 <button
                   type="submit"

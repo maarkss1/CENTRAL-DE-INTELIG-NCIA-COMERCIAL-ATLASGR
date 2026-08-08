@@ -8,7 +8,7 @@ import cors from 'cors';
 import compression from 'compression';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
-import { rateLimiterConnection } from './src/lib/queue/redis.js';
+import { rateLimiterConnection, queuesEnabled } from './src/lib/queue/redis.js';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
@@ -35,7 +35,7 @@ import { teamRoutes } from './src/features/team/routes/team.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
-import { automationRoutes } from './src/features/automations/automation.routes.js';
+import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
@@ -146,7 +146,13 @@ async function startServer() {
         max: env.API_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Sem queuesEnabled (nenhum Redis configurado), a conexão já esgotou as retries e fica
+        // permanentemente "closed" — usar RedisStore nesse estado faz TODA requisição rejeitar
+        // com throw em vez de aplicar o limite, derrubando a rota inteira (inclusive health
+        // checks) com 500. Cai pro store em memória do próprio express-rate-limit, igual ao que
+        // já acontece fora de produção — limite por processo em vez de compartilhado entre
+        // instâncias, mas funcional, que é estritamente melhor do que a API inteira fora do ar.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Too many requests from this IP, please try again after 15 minutes' }
@@ -168,7 +174,8 @@ async function startServer() {
         // v8 recusa a config na subida: "Custom keyGenerator appears to use request IP without
         // calling the ipKeyGenerator helper... could allow IPv6 users to bypass limits").
         keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Too many requests to AI services from this organization, please try again after 15 minutes' }
@@ -196,7 +203,8 @@ async function startServer() {
         // de força bruta que este limiter existe para conter. Só POST (sign-in/sign-up/social)
         // consome a cota.
         skip: (req) => req.method === 'GET',
-        store: env.NODE_ENV === 'production' ? new RedisStore({
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
         message: { success: false, error: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
@@ -350,12 +358,20 @@ async function startServer() {
         logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
     });
 
-    const leadsWorker = createLeadsWorker();
-    const agentWorker = createAgentWorker();
-    const enrichmentWorker = createEnrichmentWorker();
-    const whatsappSignalWorker = createWhatsAppSignalWorker();
-    const bitrixSyncWorker = createBitrixSyncWorker();
-    scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+    // Gated por ENABLE_QUEUES: um BullMQ Worker (diferente de uma Queue) conecta no Redis
+    // avidamente ao ser criado — sem Redis disponível, isso derruba o processo com um
+    // AggregateError [ECONNREFUSED] não tratado em vez de degradar como o restante da app.
+    const leadsWorker = queuesEnabled ? createLeadsWorker() : null;
+    const agentWorker = queuesEnabled ? createAgentWorker() : null;
+    const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
+    const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
+    const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
+    // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
+    // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
+    // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
+    if (queuesEnabled) {
+        scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+    }
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (env.ENABLE_SEARCH) {
@@ -370,7 +386,7 @@ async function startServer() {
     let swarmSchedulerWorker: ReturnType<typeof createSwarmSchedulerWorker> | null = null;
 
     enabledOrganizations().then((coldCallOrgs) => {
-        coldCallWorker = coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        coldCallWorker = queuesEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
         if (coldCallWorker) {
             scheduleColdCallCampaigns().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
@@ -379,7 +395,7 @@ async function startServer() {
     }).catch(() => null);
 
     swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
-        swarmSchedulerWorker = swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        swarmSchedulerWorker = queuesEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
         if (swarmSchedulerWorker) {
             scheduleSwarmScheduler().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
@@ -390,12 +406,12 @@ async function startServer() {
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
-        await leadsWorker.close();
-        await agentWorker.close();
+        await leadsWorker?.close();
+        await agentWorker?.close();
         await searchWorker?.close();
-        await enrichmentWorker.close();
-        await whatsappSignalWorker.close();
-        await bitrixSyncWorker.close();
+        await enrichmentWorker?.close();
+        await whatsappSignalWorker?.close();
+        await bitrixSyncWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
         await prisma.$disconnect();

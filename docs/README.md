@@ -14,6 +14,11 @@
 - [Modelo de ameaças](security/THREAT_MODEL.md)
 - [Resposta a incidentes](security/runbooks/INCIDENT_RESPONSE.md)
 
+## Deploy / Produção
+
+- [Guia de produção completo](deploy/producao.md) — Supabase, Render, Cloudflare, CI/CD, checklist e roadmap
+- [Deploy no Render](deploy/render.md)
+
 ## Compliance
 
 - [Matriz de compliance](compliance/COMPLIANCE_MATRIX.md)

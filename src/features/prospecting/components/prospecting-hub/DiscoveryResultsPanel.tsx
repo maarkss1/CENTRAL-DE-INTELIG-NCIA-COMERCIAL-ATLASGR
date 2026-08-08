@@ -47,7 +47,7 @@ export function DiscoveryResultsPanel({
                         <button
                             onClick={onSaveAll}
                             disabled={isSavingBatch}
-                            className="bg-atlas-orange text-white px-4 py-2 rounded-[2rem] text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
+                            className="bg-brand text-white px-4 py-2 rounded-[2rem] text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
                         >
                             <UserPlus size={14} /> {isSavingBatch ? 'Salvando Lista...' : 'Salvar Lista de Leads'}
                         </button>
@@ -70,7 +70,7 @@ export function DiscoveryResultsPanel({
                         placeholder="⚡ Filtrar resultados instantaneamente por nome, segmento, cidade..."
                         value={resultFilter}
                         onChange={(e) => setResultFilter(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-xl text-sm focus:ring-2 focus:ring-atlas-orange/20 focus:border-atlas-orange transition-all outline-none"
+                        className="w-full pl-9 pr-4 py-2.5 bg-surface border border-line rounded-xl text-sm focus:ring-2 focus:ring-brand/20 focus:border-brand transition-all outline-none"
                     />
                 </div>
             )}
@@ -86,15 +86,15 @@ export function DiscoveryResultsPanel({
                 <div className="flex-1 bg-surface rounded-2xl border border-line shadow-sm flex flex-col items-center justify-center p-10 min-h-[400px]">
                     <div className="w-24 h-24 relative mb-8">
                         <div className="absolute inset-0 border-4 border-line rounded-full" />
-                        <div className="absolute inset-0 border-4 border-atlas-orange rounded-full border-t-transparent animate-spin" />
-                        <div className="absolute inset-0 flex items-center justify-center text-atlas-orange">
+                        <div className="absolute inset-0 border-4 border-brand rounded-full border-t-transparent animate-spin" />
+                        <div className="absolute inset-0 flex items-center justify-center text-brand">
                             <Globe size={32} className="animate-pulse" />
                         </div>
                     </div>
                     <h3 className="font-black text-xl text-ink mb-4 text-center">🌎 Mapeando Mercado...</h3>
                     <div className="space-y-3 w-full max-w-sm">
                         {loadingSteps.map((step, idx) => (
-                            <div key={idx} className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-atlas-orange' : idx < loadingStepIdx ? 'text-ink-2' : 'text-ink opacity-50'}`}>
+                            <div key={idx} className={`flex items-center gap-3 text-sm font-medium ${idx === loadingStepIdx ? 'text-brand' : idx < loadingStepIdx ? 'text-ink-2' : 'text-ink opacity-50'}`}>
                                 {idx < loadingStepIdx ? <CheckCircle2 size={16} /> : idx === loadingStepIdx ? <Loader2 size={16} className="animate-spin" /> : <div className="w-4 h-4 rounded-full border-2 border-current" />}
                                 {step}
                             </div>
@@ -105,7 +105,7 @@ export function DiscoveryResultsPanel({
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
                     <div className="flex items-center gap-3 bg-surface p-3 rounded-xl border border-line mb-4">
-                        <input type="checkbox" className="rounded border-line text-atlas-orange focus:ring-atlas-orange" checked={selectedCandidates.size > 0 && selectedCandidates.size === filteredCandidates.length} onChange={toggleSelectAll} />
+                        <input type="checkbox" className="rounded border-line text-brand focus:ring-brand" checked={selectedCandidates.size > 0 && selectedCandidates.size === filteredCandidates.length} onChange={toggleSelectAll} />
                         <span className="text-xs text-ink-2 font-bold">{selectedCandidates.size} selecionados</span>
 
                         <div className="h-4 w-px bg-line mx-2" />
@@ -113,14 +113,14 @@ export function DiscoveryResultsPanel({
                         <button onClick={onBulkSave} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-surface-2 hover:bg-line text-ink px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
                             Salvar em Massa
                         </button>
-                        <button onClick={onBulkEnrich} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-atlas-orange hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
+                        <button onClick={onBulkEnrich} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-brand hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
                             Enriquecer em Massa
                         </button>
                     </div>
 
                     {filteredCandidates.length === 0 && (
                         <div className="bg-surface backdrop-blur-xl rounded-2xl border border-dashed border-line p-8 text-center text-sm text-ink-2">
-                            🔍 Nenhum candidato bate com "{resultFilter}".
+                            🔍 Nenhum candidato bate com &quot;{resultFilter}&quot;.
                         </div>
                     )}
                     {filteredCandidates.map(({ c, i }) => (

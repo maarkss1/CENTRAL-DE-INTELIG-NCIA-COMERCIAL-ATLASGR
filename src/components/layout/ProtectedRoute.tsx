@@ -16,7 +16,6 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
         );
     }
 
-    // Se o usuário não está autenticado, redireciona estritamente para a Tela de Login
     if (!currentUser) {
         return <Navigate to="/login" replace />;
     }

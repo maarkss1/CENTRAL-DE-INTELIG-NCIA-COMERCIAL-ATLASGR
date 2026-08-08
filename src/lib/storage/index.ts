@@ -2,26 +2,34 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { logger } from '../logger.js';
 
-const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'http://localhost:9000';
-const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY;
-const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY;
+// Client S3-compatível genérico: funciona sem nenhuma mudança de código contra MinIO (dev local,
+// docker-compose), Cloudflare R2 ou Supabase Storage (S3-compatible, ver
+// https://supabase.com/docs/guides/storage/s3/authentication) — só troca o endpoint/credenciais via
+// env. STORAGE_* é o nome canônico; MINIO_* continua aceito como alias (compat com quem já tinha
+// essas vars configuradas) e é usado só se STORAGE_* não estiver definido.
+const STORAGE_ENDPOINT = process.env.STORAGE_ENDPOINT || process.env.MINIO_ENDPOINT || 'http://localhost:9000';
+const STORAGE_ACCESS_KEY = process.env.STORAGE_ACCESS_KEY_ID || process.env.MINIO_ACCESS_KEY;
+const STORAGE_SECRET_KEY = process.env.STORAGE_SECRET_ACCESS_KEY || process.env.MINIO_SECRET_KEY;
+// Supabase Storage exige a region do projeto (ver dashboard Storage > S3 Connection); R2 aceita
+// 'auto'; MinIO ignora o valor mas o SDK exige que a option esteja presente.
+const STORAGE_REGION = process.env.STORAGE_REGION || 'us-east-1';
 const BUCKET_NAME = process.env.STORAGE_BUCKET || 'prospector-assets';
 
 // Sem fallback para credenciais padrão (ex.: minioadmin/minioadmin) — um serviço de
 // armazenamento configurado com credenciais públicas conhecidas é uma armadilha de
 // segurança latente assim que alguma rota passar a usá-lo. Falha explícita em vez disso.
 function getS3Client(): S3Client {
-    if (!MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
-        throw new Error('MINIO_ACCESS_KEY e MINIO_SECRET_KEY precisam ser configurados para usar o storage de objetos.');
+    if (!STORAGE_ACCESS_KEY || !STORAGE_SECRET_KEY) {
+        throw new Error('STORAGE_ACCESS_KEY_ID e STORAGE_SECRET_ACCESS_KEY precisam ser configurados para usar o storage de objetos.');
     }
     return new S3Client({
-        endpoint: MINIO_ENDPOINT,
-        region: 'us-east-1', // MinIO default
+        endpoint: STORAGE_ENDPOINT,
+        region: STORAGE_REGION,
         credentials: {
-            accessKeyId: MINIO_ACCESS_KEY,
-            secretAccessKey: MINIO_SECRET_KEY,
+            accessKeyId: STORAGE_ACCESS_KEY,
+            secretAccessKey: STORAGE_SECRET_KEY,
         },
-        forcePathStyle: true, // Crucial for MinIO
+        forcePathStyle: true, // Necessário para MinIO/R2/Supabase Storage (path-style, não virtual-hosted-style).
     });
 }
 

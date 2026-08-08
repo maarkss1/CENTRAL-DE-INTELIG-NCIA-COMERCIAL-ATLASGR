@@ -31,7 +31,8 @@
     "setup:db:check": "tsx scripts/setup-vector-db.ts --check",
     "verify:integrations": "tsx scripts/verify-integrations.ts",
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
-    "docs": "typedoc"
+    "docs": "typedoc",
+    "reset:passwords": "tsx scripts/reset-passwords.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1090.0",
@@ -71,6 +72,7 @@
     "date-fns": "^4.4.0",
     "disposable-email-domains": "^1.0.62",
     "dotenv": "^17.4.2",
+    "exceljs": "^3.10.0",
     "express": "^4.21.2",
     "express-rate-limit": "^8.6.0",
     "framer-motion": "^12.42.2",
@@ -100,15 +102,19 @@
     "tesseract.js": "^7.0.0",
     "three": "^0.185.1",
     "uuid": "^14.0.1",
-    "xlsx": "^0.18.5",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "overrides": {
-    "protobufjs": "7.6.5"
+    "protobufjs": "7.6.5",
+    "lodash": "^4.17.24",
+    "react-router": ">=7.18.0",
+    "xcode": {
+      "uuid": ">=11.1.1"
+    }
   },
   "devDependencies": {
-    "@better-auth/cli": "^1.4.21",
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.5",
     "@faker-js/faker": "^10.5.0",
     "@playwright/test": "^1.61.1",
@@ -141,6 +147,7 @@
     "esbuild": "^0.25.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.5.3",

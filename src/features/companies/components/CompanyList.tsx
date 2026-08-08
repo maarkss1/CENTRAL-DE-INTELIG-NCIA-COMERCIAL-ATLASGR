@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Plus, Building2, MapPin, Building, Edit, Trash, Sparkles, Loader2, LayoutGrid, LayoutList, Wrench, ExternalLink, WifiOff } from 'lucide-react';
 import { Company } from '../../../types';
 import { CompanyForm } from './CompanyForm';
@@ -6,12 +7,30 @@ import { CompanyDetail } from './CompanyDetail';
 import { useCompanies } from '../../../hooks/useDatabase';
 import { companiesDB } from '../../../lib/db';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { Pagination } from '../../../components/ui/Pagination';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
 import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
+import { clientLogger } from '../../../lib/clientLogger';
+import type { PaletteIntent } from '../../../lib/paletteIntent';
+import { toast } from '../../../lib/toast';
 
 export function CompanyList() {
     const [searchTerm, setSearchTerm] = useState('');
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Se o Command Palette navegou aqui com um termo de busca, aplica antes do primeiro fetch.
+    // Limpa o state em seguida (replace) pra um F5 nesta tela não reaplicar a mesma busca.
+    useEffect(() => {
+        const intent = location.state as PaletteIntent | null;
+        if (intent?.type === 'prefill-search') {
+            setSearchTerm(intent.value);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const [page, setPage] = useState(1);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -34,8 +53,10 @@ export function CompanyList() {
         if (!confirm('Tem certeza que deseja excluir esta empresa?')) return;
         try {
             await deleteCompany(id);
+            toast.success('Empresa excluída.');
         } catch (error) {
-            console.error('Error deleting company:', error);
+            clientLogger.error({ err: error }, 'Error deleting company');
+            toast.error(error instanceof Error ? error.message : 'Falha ao excluir a empresa.');
         }
     };
 
@@ -50,7 +71,7 @@ export function CompanyList() {
             await companiesDB.enrich(id);
             await refetch();
         } catch (error) {
-            console.error('Error enriching company:', error);
+            clientLogger.error({ err: error }, 'Error enriching company');
         } finally {
             setEnrichingId(null);
         }
@@ -88,7 +109,7 @@ export function CompanyList() {
                     await companiesDB.enrich(company.id);
                     succeeded += 1;
                 } catch (error) {
-                    console.error(`Error enriching company ${company.id}:`, error);
+                    clientLogger.error({ err: error }, `Error enriching company ${company.id}`);
                     failed += 1;
                 }
             }
@@ -206,7 +227,7 @@ export function CompanyList() {
                             description={error}
                             actionLabel="Tentar novamente"
                             onAction={refetch}
-                            icon={<WifiOff className="w-10 h-10 text-atlas-orange" />}
+                            icon={<WifiOff className="w-10 h-10 text-brand" />}
                         />
                     </div>
                 ) : companies.length === 0 ? (
@@ -216,7 +237,7 @@ export function CompanyList() {
                             description="Não encontramos empresas cadastradas com os filtros atuais."
                             actionLabel="Cadastrar Nova Empresa"
                             onAction={() => { setSelectedCompany(null); setIsFormOpen(true); }}
-                            icon={<Building className="w-10 h-10 text-atlas-orange" />}
+                            icon={<Building className="w-10 h-10 text-brand" />}
                         />
                     </div>
                 ) : layoutMode === 'grid' ? (
@@ -471,30 +492,13 @@ export function CompanyList() {
                     </div>
                 )}
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="p-4 bg-surface border border-line rounded-2xl flex justify-between items-center text-sm">
-                        <span className="text-ink-2">
-                            Página <strong className="text-ink">{page}</strong> de <strong className="text-ink">{totalPages}</strong>
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                disabled={page === 1}
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                className="px-4 py-2 bg-surface-2 border border-line text-ink-2 rounded-xl hover:bg-surface disabled:opacity-50 transition-colors font-medium cursor-pointer"
-                            >
-                                Anterior
-                            </button>
-                            <button
-                                disabled={page === totalPages}
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                className="px-4 py-2 bg-surface-2 border border-line text-ink-2 rounded-xl hover:bg-surface disabled:opacity-50 transition-colors font-medium cursor-pointer"
-                            >
-                                Próxima
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                    totalItems={meta?.total}
+                    itemLabel="empresas"
+                />
             </div>
 
             {isFormOpen && (

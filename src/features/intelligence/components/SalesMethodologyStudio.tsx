@@ -124,11 +124,11 @@ export function SalesMethodologyStudio() {
       
       {/* Header Studio */}
       <div className="glass-panel p-6 sm:p-8 rounded-[2.5rem] border border-line relative overflow-hidden bg-surface backdrop-blur-xl shadow-2xl">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/10 via-atlas-orange/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/10 via-brand/10 to-transparent rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-atlas-orange via-amber-500 to-red-600 flex items-center justify-center text-white shadow-xl shadow-atlas-orange/20">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand via-amber-500 to-red-600 flex items-center justify-center text-white shadow-xl shadow-brand/20">
               <BookOpen className="w-7 h-7" />
             </div>
             <div>
@@ -149,7 +149,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('spin'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'spin' ? 'bg-atlas-orange text-white shadow-lg shadow-atlas-orange/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'spin' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Target className="w-3.5 h-3.5" /> SPIN
@@ -157,7 +157,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('snap'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'snap' ? 'bg-atlas-orange text-white shadow-lg shadow-atlas-orange/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'snap' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Zap className="w-3.5 h-3.5" /> SNAP
@@ -165,7 +165,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('aida'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'aida' ? 'bg-atlas-orange text-white shadow-lg shadow-atlas-orange/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'aida' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Flame className="w-3.5 h-3.5" /> AIDA
@@ -173,7 +173,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('meddpicc'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'meddpicc' ? 'bg-atlas-orange text-white shadow-lg shadow-atlas-orange/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'meddpicc' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <FileText className="w-3.5 h-3.5" /> MEDDPICC
@@ -181,7 +181,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('challenger'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'challenger' ? 'bg-atlas-orange text-white shadow-lg shadow-atlas-orange/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'challenger' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Compass className="w-3.5 h-3.5" /> Challenger
@@ -197,10 +197,10 @@ export function SalesMethodologyStudio() {
         <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-line">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-atlas-orange" />
+              <Sparkles className="w-5 h-5 text-brand" />
               <h3 className="font-bold text-ink text-base">Parâmetros ICP & Persona Target</h3>
             </div>
-            <span className="text-[10px] bg-atlas-orange/10 text-atlas-orange font-bold px-2 py-0.5 rounded border border-atlas-orange/20">
+            <span className="text-[10px] bg-brand/10 text-brand font-bold px-2 py-0.5 rounded border border-brand/20">
               Rascunho para revisão
             </span>
           </div>
@@ -212,7 +212,7 @@ export function SalesMethodologyStudio() {
                 type="text"
                 value={form.targetPersona}
                 onChange={(e) => setForm({ ...form, targetPersona: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
 
@@ -222,7 +222,7 @@ export function SalesMethodologyStudio() {
                 <select
                   value={form.icpSize}
                   onChange={(e) => setForm({ ...form, icpSize: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                  className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                 >
                   <option value="Enterprise (+500 colaboradores)">Enterprise (+500 colab.)</option>
                   <option value="Mid-Market (50 a 500 colaboradores)">Mid-Market (50-500 colab.)</option>
@@ -236,7 +236,7 @@ export function SalesMethodologyStudio() {
                   type="text"
                   value={form.companySegment}
                   onChange={(e) => setForm({ ...form, companySegment: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                  className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
             </div>
@@ -247,7 +247,7 @@ export function SalesMethodologyStudio() {
                 type="text"
                 value={form.techStack}
                 onChange={(e) => setForm({ ...form, techStack: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
 
@@ -257,7 +257,7 @@ export function SalesMethodologyStudio() {
                 type="text"
                 value={form.solutionName}
                 onChange={(e) => setForm({ ...form, solutionName: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
 
@@ -267,7 +267,7 @@ export function SalesMethodologyStudio() {
                 rows={2}
                 value={form.mainPainPoint}
                 onChange={(e) => setForm({ ...form, mainPainPoint: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
 
@@ -277,14 +277,14 @@ export function SalesMethodologyStudio() {
                 rows={2}
                 value={form.mainBenefit}
                 onChange={(e) => setForm({ ...form, mainBenefit: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-atlas-orange"
+                className="w-full px-3.5 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
 
             <Button
               onClick={handleGenerate}
               disabled={generating}
-              className="w-full py-3 text-sm font-bold shadow-lg shadow-atlas-orange/20 cursor-pointer"
+              className="w-full py-3 text-sm font-bold shadow-lg shadow-brand/20 cursor-pointer"
             >
               {generating ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
               {generating ? 'Sintetizando Roteiro ICP...' : `Gerar Estratégia ${activeTab.toUpperCase()} com Precisão`}
@@ -296,7 +296,7 @@ export function SalesMethodologyStudio() {
         <div className="lg:col-span-7 space-y-6">
           {!result && !generating && (
             <div className="glass-panel p-12 rounded-3xl border border-line text-center bg-surface flex flex-col items-center justify-center min-h-[440px]">
-              <div className="w-16 h-16 rounded-2xl bg-atlas-orange/10 flex items-center justify-center text-atlas-orange mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center text-brand mb-4">
                 <Lightbulb className="w-8 h-8 animate-bounce" />
               </div>
               <h3 className="text-xl font-bold text-ink mb-2">Motor de Engenharia Comercial Pronto</h3>
@@ -308,7 +308,7 @@ export function SalesMethodologyStudio() {
 
           {generating && (
             <div className="glass-panel p-12 rounded-3xl border border-line text-center bg-surface flex flex-col items-center justify-center min-h-[440px]">
-              <RefreshCw className="w-10 h-10 text-atlas-orange animate-spin mb-4" />
+              <RefreshCw className="w-10 h-10 text-brand animate-spin mb-4" />
               <h3 className="text-lg font-bold text-ink mb-1">Processando Metodologia {activeTab.toUpperCase()}</h3>
               <p className="text-xs text-ink-2">Modelando dados para a persona <strong className="text-ink">{form.targetPersona}</strong> ({form.icpSize})...</p>
             </div>
@@ -367,7 +367,7 @@ export function SalesMethodologyStudio() {
                 <div className="glass-panel p-6 rounded-3xl border border-line bg-surface space-y-6">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
-                      <Flame className="w-5 h-5 text-atlas-orange" /> Copywriter AIDA Hiper-personalizado
+                      <Flame className="w-5 h-5 text-brand" /> Copywriter AIDA Hiper-personalizado
                     </h3>
                     <Button variant="outline" size="sm" onClick={() => handleCopy(`${result.attention.hook}\n\n${result.attention.opening}\n\n${result.interest.body}\n\n${result.desire.proof}\n\n${result.action.cta}`, 'aida_all')} className="text-xs">
                       {copiedKey === 'aida_all' ? <Check className="w-3.5 h-3.5 text-green-400 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
@@ -488,7 +488,7 @@ function SpinBlock({ title, items, onCopy, copied, color, icon }: { title: strin
       <ul className="space-y-2 text-xs text-gray-300">
         {items.map((item, i) => (
           <li key={i} className="flex items-start gap-2 bg-slate-900/50 p-2.5 rounded-xl border border-white/5">
-            <span className="font-bold text-atlas-orange">{i + 1}.</span>
+            <span className="font-bold text-brand">{i + 1}.</span>
             <span className="leading-relaxed">{item}</span>
           </li>
         ))}
@@ -512,7 +512,7 @@ function SnapCard({ title, subtitle, content, checklist, extra, onCopy, copied }
         </button>
       </div>
       <p className="text-xs text-ink-2 leading-relaxed font-medium">{content}</p>
-      {extra && <p className="text-xs text-atlas-orange font-bold pt-1 border-t border-line">💡 {extra}</p>}
+      {extra && <p className="text-xs text-brand font-bold pt-1 border-t border-line">💡 {extra}</p>}
       {checklist && (
         <ul className="space-y-1 text-xs text-ink-2 pt-2 border-t border-line">
           {checklist.map((item, idx) => (

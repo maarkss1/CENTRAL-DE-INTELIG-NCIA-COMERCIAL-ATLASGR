@@ -11,7 +11,7 @@ const cardVariants = cva(
         default: "bg-surface backdrop-blur-xl border border-line shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
         stat: "bg-gradient-to-br from-white/[0.06] to-white/[0.01] backdrop-blur-xl border border-line shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
         outline: "border border-line bg-transparent",
-        accent: "bg-surface backdrop-blur-xl border border-atlas-orange/30 shadow-[0_0_30px_-10px_rgba(255,86,24,0.4)]",
+        accent: "bg-surface backdrop-blur-xl border border-brand/30 shadow-[0_0_30px_-10px_rgba(255,86,24,0.4)]",
       },
       padding: {
         default: "p-6",
@@ -38,7 +38,7 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, padding, accentBar, children, ...props }, ref) => (
     <div ref={ref} className={cn(cardVariants({ variant, padding, className }))} {...props}>
       {accentBar && (
-        <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-atlas-orange via-orange-300 to-white" />
+        <span className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-brand via-brand-2 to-white" />
       )}
       {children}
     </div>
@@ -55,6 +55,7 @@ CardHeader.displayName = "CardHeader"
 
 const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
   ({ className, ...props }, ref) => (
+    // eslint-disable-next-line jsx-a11y/heading-has-content -- children chega via {...props} (wrapper genérico), o lint não enxerga isso estaticamente
     <h3 ref={ref} className={cn("font-display text-lg font-bold text-ink tracking-tight", className)} {...props} />
   )
 )

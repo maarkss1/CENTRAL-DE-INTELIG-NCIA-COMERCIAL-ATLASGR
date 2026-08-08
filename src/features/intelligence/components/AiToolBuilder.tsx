@@ -31,7 +31,7 @@ export function AiToolBuilder() {
     <div className="bg-surface/95 backdrop-blur-3xl p-8 rounded-[3rem] border border-line/90 shadow-2xl space-y-6 text-ink">
       <div className="flex items-center justify-between border-b border-line pb-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-2xl bg-orange-100 text-atlas-orange border border-orange-200">
+          <div className="p-3 rounded-2xl bg-orange-100 text-brand border border-orange-200">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
@@ -39,7 +39,7 @@ export function AiToolBuilder() {
             <p className="text-xs text-ink-2 font-medium">Crie e publique seus próprios geradores e copilotos comerciais customizados</p>
           </div>
         </div>
-        <span className="px-3 py-1 bg-orange-50 text-atlas-orange text-xs font-black rounded-full border border-orange-200">
+        <span className="px-3 py-1 bg-orange-50 text-brand text-xs font-black rounded-full border border-orange-200">
           AI Engine Studio 2026
         </span>
       </div>
@@ -48,7 +48,7 @@ export function AiToolBuilder() {
         {/* Formulário de Criação */}
         <form onSubmit={handleCreate} className="lg:col-span-7 space-y-4 bg-surface-2/80 p-6 rounded-3xl border border-line">
           <h3 className="font-extrabold text-sm text-ink-2 flex items-center gap-2">
-            <Plus className="w-4 h-4 text-atlas-orange" /> Configurar Nova Ferramenta Customizada
+            <Plus className="w-4 h-4 text-brand" /> Configurar Nova Ferramenta Customizada
           </h3>
 
           <div>
@@ -58,7 +58,7 @@ export function AiToolBuilder() {
               value={toolName}
               onChange={(e) => setToolName(e.target.value)}
               placeholder="Ex: Gerador de Proposta Comercial para Frotas de Carga"
-              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none"
               required
             />
           </div>
@@ -68,7 +68,7 @@ export function AiToolBuilder() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none"
             >
               <option value="Outbound SDR">Outbound SDR & Cadência</option>
               <option value="Qualificação B2B">Qualificação B2B & MEDDPICC</option>
@@ -84,14 +84,14 @@ export function AiToolBuilder() {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="Digite o comportamento e instruções para o modelo de inteligência artificial..."
-              className="w-full bg-surface border border-line rounded-2xl p-4 text-xs text-ink font-medium focus:ring-2 focus:ring-atlas-orange focus:outline-none"
+              className="w-full bg-surface border border-line rounded-2xl p-4 text-xs text-ink font-medium focus:ring-2 focus:ring-brand focus:outline-none"
               required
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-atlas-orange to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-atlas-orange/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full bg-gradient-to-r from-brand to-amber-500 text-white font-extrabold py-3.5 rounded-2xl text-xs shadow-lg shadow-brand/30 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             {saved ? <Check className="w-4 h-4 animate-bounce" /> : <Save className="w-4 h-4" />}
             <span>{saved ? 'Ferramenta de IA Criada com Sucesso!' : 'Salvar & Publicar Ferramenta'}</span>

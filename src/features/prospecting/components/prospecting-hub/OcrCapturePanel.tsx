@@ -143,7 +143,7 @@ export function OcrCapturePanel() {
                     <div className="absolute inset-x-0 bottom-0 p-4 flex items-center justify-center gap-3 bg-gradient-to-t from-black/70 to-transparent">
                         <button
                             onClick={capturePhoto}
-                            className="flex items-center gap-2 bg-atlas-orange text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg hover:bg-orange-600 transition-colors"
+                            className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-lg hover:bg-orange-600 transition-colors"
                         >
                             <Aperture className="w-4 h-4" /> Capturar Foto
                         </button>
@@ -160,14 +160,14 @@ export function OcrCapturePanel() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-atlas-orange hover:bg-surface-2/50 transition-all bg-surface"
+                    className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-brand hover:bg-surface-2/50 transition-all bg-surface"
                 >
                     <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={onFileInputChange} />
                     {previewUrl ? (
                         <img src={previewUrl} alt="Pré-visualização" className="max-h-64 mx-auto rounded-xl object-contain" />
                     ) : (
                         <div className="space-y-3">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-atlas-orange flex items-center justify-center text-white mx-auto shadow-lg">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-600 to-brand flex items-center justify-center text-white mx-auto shadow-lg">
                                 <Camera className="w-7 h-7" />
                             </div>
                             <div>
@@ -175,7 +175,7 @@ export function OcrCapturePanel() {
                                 <p className="text-xs text-ink-2 mt-1">Arraste uma foto aqui ou clique para escolher (JPEG, PNG ou WebP, até 8MB)</p>
                             </div>
                             <div className="flex items-center justify-center gap-2 flex-wrap">
-                                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-atlas-orange">
+                                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand">
                                     <UploadCloud className="w-4 h-4" /> Selecionar imagem
                                 </span>
                                 <span className="text-[11px] text-ink-2">ou</span>
@@ -227,7 +227,7 @@ export function OcrCapturePanel() {
                     <button
                         onClick={promote}
                         disabled={promoting}
-                        className="w-full flex items-center justify-center gap-2 bg-atlas-orange text-white py-2.5 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-2 bg-brand text-white py-2.5 rounded-xl font-bold text-sm hover:bg-orange-600 transition-colors disabled:opacity-50"
                     >
                         {promoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                         {promoting ? 'Cadastrando...' : 'Cadastrar no CRM'}
@@ -239,7 +239,7 @@ export function OcrCapturePanel() {
                 <div className="bg-success/10 border border-success/30 rounded-2xl p-5 text-center space-y-2">
                     <CheckCircle2 className="w-8 h-8 text-success mx-auto" />
                     <p className="font-bold text-sm text-ink">Cadastrado no CRM com sucesso!</p>
-                    <button onClick={reset} className="text-xs font-bold text-atlas-orange hover:underline">Ler outra imagem</button>
+                    <button onClick={reset} className="text-xs font-bold text-brand hover:underline">Ler outra imagem</button>
                 </div>
             )}
         </div>

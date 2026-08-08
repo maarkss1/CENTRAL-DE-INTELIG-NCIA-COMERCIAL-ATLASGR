@@ -44,7 +44,7 @@ export function IntelligenceHub({ initialTab = 'swarm' }: IntelligenceHubProps) 
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <Card variant="default" padding="lg" accentBar>
                         <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-atlas-orange/15 border border-atlas-orange/30 flex items-center justify-center text-atlas-orange shrink-0">
+                            <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
                                 <Database size={22} />
                             </div>
                             <div>

@@ -16,7 +16,8 @@ export const companiesDB = {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
-    if (params?.search) qs.set('search', params.search);
+    // O backend (CompanyController.getCompanies) lê `q`, não `search` — ver PrismaCompanyRepository.findAllWithFilters.
+    if (params?.search) qs.set('q', params.search);
     if (params?.status) qs.set('status', params.status);
     if (params?.segment) qs.set('segment', params.segment);
     if (params?.city) qs.set('city', params.city);
@@ -49,7 +50,8 @@ export const contactsDB = {
     const qs = new URLSearchParams();
     if (params?.page) qs.set('page', String(params.page));
     if (params?.limit) qs.set('limit', String(params.limit));
-    if (params?.search) qs.set('search', params.search);
+    // O backend (ContactController.getContacts) lê `q`, não `search` — ver PrismaContactRepository.findAllWithFilters.
+    if (params?.search) qs.set('q', params.search);
     if (params?.companyId) qs.set('companyId', params.companyId);
     if (params?.status) qs.set('status', params.status);
     return api.get<PaginatedResponse<Contact>>(`/api/contacts?${qs.toString()}`);
