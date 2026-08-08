@@ -9,8 +9,8 @@ function OrbCore() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const materialRef = useRef<any>(null);
 
-  const color = isAtlas ? '#FF5618' : '#0088CC';
-  const emissive = isAtlas ? '#ff8c61' : '#4dc4ff';
+  const color = isAtlas ? '#FF5618' : '#008FCE';
+  const emissive = isAtlas ? '#ff8c61' : '#93DBF2';
 
   return (
     <Float speed={2} rotationIntensity={1.5} floatIntensity={2}>
@@ -34,7 +34,7 @@ function OrbCore() {
         size={4}
         speed={0.4}
         opacity={0.8}
-        color={isAtlas ? '#FFB085' : '#85D6FF'}
+        color={isAtlas ? '#FFB085' : '#93DBF2'}
       />
     </Float>
   );

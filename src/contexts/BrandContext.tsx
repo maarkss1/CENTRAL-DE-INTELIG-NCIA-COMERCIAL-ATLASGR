@@ -29,14 +29,14 @@ export const BRAND_CONFIGS: Record<Brand, BrandInfo> = {
     },
     totaltrac: {
         id: 'totaltrac',
-        name: 'TotalTrac',
+        name: 'Total Trac',
         operatingSystemName: 'Fleet OS',
         slogan: 'Conectar para Cuidar',
         description: 'Telemetria CAN, videotelemetria com IA, controle de jornada, iscas RF e imobilizadores.',
-        primaryColor: '#0088CC',
-        accentColor: '#0284c7',
-        badgeBg: 'bg-sky-100 text-sky-800 border-sky-200',
-        badgeText: 'TotalTrac',
+        primaryColor: '#374898',
+        accentColor: '#008FCE',
+        badgeBg: 'bg-blue-100 text-blue-900 border-blue-200',
+        badgeText: 'Total Trac',
     }
 };
 
@@ -48,8 +48,13 @@ interface BrandContextType {
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
+function getInitialBrand(): Brand {
+    if (typeof window === 'undefined') return 'atlasgr';
+    return window.localStorage.getItem('selectedBrand') === 'totaltrac' ? 'totaltrac' : 'atlasgr';
+}
+
 export function BrandProvider({ children }: { children: ReactNode }) {
-    const [activeBrand, setActiveBrand] = useState<Brand>('atlasgr');
+    const [activeBrand, setActiveBrand] = useState<Brand>(getInitialBrand);
     const brandInfo = BRAND_CONFIGS[activeBrand];
 
     useEffect(() => {
@@ -62,6 +67,8 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         // (cor da AtlasGR) mesmo com a TotalTrac selecionada.
         document.documentElement.style.setProperty('--brand', brandInfo.primaryColor);
         document.documentElement.style.setProperty('--brand-2', brandInfo.accentColor);
+        document.documentElement.dataset.brand = activeBrand;
+        window.localStorage.setItem('selectedBrand', activeBrand);
     }, [activeBrand, brandInfo]);
 
     return (

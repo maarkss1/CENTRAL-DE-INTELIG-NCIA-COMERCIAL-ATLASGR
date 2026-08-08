@@ -22,6 +22,7 @@ import { prisma } from './src/lib/prisma.js';
 import { companyRoutes } from './src/features/companies/routes/company.routes.js';
 import { contactRoutes } from './src/features/contacts/routes/contact.routes.js';
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
+import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
@@ -303,6 +304,7 @@ async function startServer() {
     app.use('/api/companies', authenticateToken, requireTenant, companyRoutes);
     app.use('/api/contacts', authenticateToken, requireTenant, contactRoutes);
     app.use('/api/leads', authenticateToken, requireTenant, leadRoutes);
+    app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
     app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);

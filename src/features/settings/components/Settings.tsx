@@ -70,7 +70,7 @@ export function Settings() {
                                         >
                                             {brand === 'atlasgr'
                                                 ? <Logo variant="symbol" className="h-8 w-8 shrink-0" />
-                                                : <TotalTrackLogo className="h-8 w-8 shrink-0 text-ink" />}
+                                                : <TotalTrackLogo variant="symbol" className="h-8 w-8 shrink-0" />}
                                             <div className="min-w-0">
                                                 <p className="text-sm font-black text-ink">{info.name}</p>
                                                 <p className="text-xs text-ink-2 truncate">{info.operatingSystemName}</p>

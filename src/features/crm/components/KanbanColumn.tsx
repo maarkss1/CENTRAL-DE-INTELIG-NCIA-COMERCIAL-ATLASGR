@@ -14,6 +14,13 @@ const STATUS_EMOJI: Record<LeadStatus, string> = {
     'Nova Oportunidade': '💡',
     'Proposta Enviada': '📄',
     'Call/Visita Agendada': '🤝',
+    'Piloto VTECH': '🧪',
+    'Piloto Atlas Profile': '🧪',
+    'Piloto Atlas Profile - Concluído': '✅',
+    'Piloto Atlas Profile - Cancelado': '⛔',
+    'Piloto Logística': '🚚',
+    'Piloto Logístico - Concluído': '✅',
+    'Piloto Logístico - Cancelado': '⛔',
     'Negócios Perdidos': '❌',
     'Negócios Ganhos': '🏆',
 };
@@ -23,9 +30,10 @@ interface KanbanColumnProps {
     leads: Lead[];
     onCardClick: (lead: Lead) => void;
     onCardEnrich?: (leadId: string) => Promise<void>;
+    onConvert?: (leadId: string) => Promise<void>;
 }
 
-export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, onCardClick, onCardEnrich }: KanbanColumnProps) {
+export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, onCardClick, onCardEnrich, onConvert }: KanbanColumnProps) {
     const { setNodeRef, isOver } = useDroppable({
         id: status,
         data: {
@@ -57,6 +65,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
                             lead={lead}
                             onClick={onCardClick}
                             onEnrich={onCardEnrich}
+                            onConvert={onConvert}
                         />
                     ))}
                 </SortableContext>

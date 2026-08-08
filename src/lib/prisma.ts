@@ -52,8 +52,14 @@ export const prisma = basePrisma.$extends({
         const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
-        const tenantModels = ['Company', 'Contact', 'Lead', 'Activity', 'User'];
-        const auditableModels = ['Company', 'Contact', 'Lead', 'Activity'];
+        const tenantModels = [
+          'Company', 'Contact', 'Lead', 'Activity', 'User',
+          'CrmPipeline', 'CrmProduct', 'CrmDealItem', 'CrmCommercialDocument',
+        ];
+        const auditableModels = [
+          'Company', 'Contact', 'Lead', 'Activity',
+          'CrmPipeline', 'CrmProduct', 'CrmDealItem', 'CrmCommercialDocument',
+        ];
         const isAuditable = auditableModels.includes(model as string);
 
         if (tenantId && tenantModels.includes(model as string)) {

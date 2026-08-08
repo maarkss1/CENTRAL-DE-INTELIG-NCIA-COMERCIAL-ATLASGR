@@ -33,7 +33,7 @@ export function LoginScreen() {
     setError('');
 
     if (!isAuthorizedLoginEmail(email)) {
-      setError('Acesso restrito. Utilize um e-mail corporativo autorizado da AtlasGR (@atlasgr.com.br) ou TotalTrac (@totaltrac.com.br).');
+      setError('Acesso restrito. Utilize um e-mail corporativo autorizado da AtlasGR (@atlasgr.com.br) ou Total Trac (@totaltrac.com.br).');
       setIsSubmitting(false);
       return;
     }
@@ -103,8 +103,10 @@ export function LoginScreen() {
                       {BRAND_CONFIGS[brand].name}
                     </>
                   ) : (
-                    // TotalTrackLogo já é a marca completa (com o nome escrito) — não repete o texto do lado.
-                    <TotalTrackLogo className="h-4 w-auto shrink-0" />
+                    <>
+                      <TotalTrackLogo variant="symbol" className="h-5 w-5 shrink-0" />
+                      {BRAND_CONFIGS[brand].name}
+                    </>
                   )}
                 </button>
               ))}
@@ -112,7 +114,7 @@ export function LoginScreen() {
             {activeBrand === 'atlasgr' ? (
               <img src="/atlas-logo.svg" alt="AtlasGR" className="h-10 w-auto object-contain" />
             ) : (
-              <img src="/totaltrack-logo.png" alt="TotalTrac" className="h-10 w-auto object-contain" />
+              <TotalTrackLogo className="h-10 w-auto" />
             )}
             <p className="text-ink-2 text-xs mt-3 font-medium text-center">{brandInfo.slogan}</p>
           </div>

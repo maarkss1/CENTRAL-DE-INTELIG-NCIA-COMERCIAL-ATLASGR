@@ -21,7 +21,7 @@ const steps: TourStep[] = [
   },
   {
     id: 2,
-    message: "Aqui na página inicial, você deve escolher em qual operação deseja trabalhar: AtlasGR ou TotalTrac. Cada uma tem ferramentas e identidades próprias.",
+    message: "Aqui na página inicial, você deve escolher em qual operação deseja trabalhar: AtlasGR ou Total Trac. Cada uma tem ferramentas e identidades próprias.",
     position: 'left-center',
   },
   {

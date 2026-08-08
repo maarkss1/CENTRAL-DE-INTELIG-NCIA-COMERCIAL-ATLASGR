@@ -77,6 +77,14 @@ const envSchema = z.object({
   /** Ids de organização separados por vírgula. Vazio = ninguém, mesmo com a flag acima ligada. */
   SWARM_SCHEDULER_ORGANIZATIONS: z.string().optional(),
   SWARM_SCHEDULER_MAX_LEADS_PER_RUN: z.coerce.number().int().positive().default(5),
+  // supervised: analisa e deixa ações na caixa de aprovação. full: também pode executar o primeiro
+  // e-mail, mas somente com organização autorizada, score mínimo e dentro da janela comercial.
+  SWARM_AUTONOMY_MODE: z.enum(['supervised', 'full']).default('supervised'),
+  SWARM_AUTONOMOUS_MIN_SCORE: z.coerce.number().int().min(0).max(100).default(80),
+  SWARM_NEW_LEAD_GRACE_MINUTES: z.coerce.number().int().positive().default(30),
+  SWARM_STALE_PIPELINE_HOURS: z.coerce.number().int().positive().default(72),
+  SWARM_STALE_PROPOSAL_HOURS: z.coerce.number().int().positive().default(48),
+  SWARM_RECOMMENDATION_COOLDOWN_HOURS: z.coerce.number().int().positive().default(24),
 
   // ── Envio real de e-mail (executor de AIPendingAction) ───────────────────
   // Todas opcionais: sem SMTP_HOST, o mailer fica inerte — "aprovar" volta a só abrir o cliente

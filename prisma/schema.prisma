@@ -82,6 +82,35 @@ enum ActivityStatus {
   Cancelada
 }
 
+enum CrmPipelineEntity {
+  Lead
+  Negocio
+  SmartProcess
+}
+
+enum CrmProductType {
+  Produto
+  Servico
+}
+
+enum CrmDocumentType {
+  Orcamento
+  Proposta
+  Fatura
+  Contrato
+}
+
+enum CrmDocumentStatus {
+  Rascunho
+  Enviado
+  Visualizado
+  Aceito
+  Recusado
+  Vencido
+  Pago
+  Cancelado
+}
+
 model Company {
   id                String        @id @default(cuid())
   legalName         String
@@ -108,6 +137,7 @@ model Company {
   status            CompanyStatus @default(Ativo)
   tags              String[]
   observations      String?
+  customFields      Json?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -144,14 +174,15 @@ model Company {
   lookalikeScore      Float?
   lookalikeTopMatches Json?
 
-  contacts       Contact[]
-  leads          Lead[]
-  enrichmentLogs EnrichmentLog[]
-  organizationId String?
-  organization   Organization?   @relation(fields: [organizationId], references: [id])
-  deletedAt      DateTime?
-  deletedBy      String?
-  deleteReason   String?
+  contacts            Contact[]
+  leads               Lead[]
+  commercialDocuments CrmCommercialDocument[]
+  enrichmentLogs      EnrichmentLog[]
+  organizationId      String?
+  organization        Organization?           @relation(fields: [organizationId], references: [id])
+  deletedAt           DateTime?
+  deletedBy           String?
+  deleteReason        String?
 
   @@index([organizationId])
   @@index([cnpj])
@@ -186,6 +217,9 @@ model Contact {
   source       String? // ex: "Apollo", "Hunter"
   seniority    String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
   emailStatus  String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
+
+  customFields        Json?
+  commercialDocuments CrmCommercialDocument[]
 
   companyId        String
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -232,6 +266,12 @@ model Lead {
   // operacional, estrutura atual, dor mapeada, interesse/autoridade e próximo passo. Estruturado
   // como JSON (ver LeadQualification no frontend) em vez de ~20 colunas separadas.
   qualification   Json?
+  title           String?
+  amount          Float?
+  currency        String           @default("BRL")
+  probability     Int?
+  expectedCloseAt DateTime?
+  customFields    Json?
 
   // Funil do Lead (objeto Lead x objeto Negócio do Bitrix24) e campos comerciais que só existiam
   // no Bitrix — ver migration 20260805220000_two_funnels_and_bitrix_fields para o remapeamento
@@ -270,13 +310,20 @@ model Lead {
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  pipelineId      String?
+  pipeline        CrmPipeline?      @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  pipelineStageId String?
+  pipelineStage   CrmPipelineStage? @relation(fields: [pipelineStageId], references: [id], onDelete: SetNull)
+
   activities          Activity[]
   timeline            TimelineEvent[]
   internalNotes       Note[]
   whatsAppMessages    WhatsAppMessage[]
   conversationSignals ConversationSignal[]
+  dealItems           CrmDealItem[]
+  commercialDocuments CrmCommercialDocument[]
   organizationId      String?
-  organization        Organization?        @relation(fields: [organizationId], references: [id])
+  organization        Organization?           @relation(fields: [organizationId], references: [id])
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -287,6 +334,7 @@ model Lead {
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([organizationId, funnel])
+  @@index([organizationId, pipelineId, pipelineStageId])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
 }
@@ -401,8 +449,135 @@ model Organization {
   googleWorkspaceConnection GoogleWorkspaceConnection?
   bitrixConnections         BitrixConnection[]
   bitrixSyncRules           BitrixSyncRule[]
+  crmPipelines              CrmPipeline[]
+  crmProducts               CrmProduct[]
+  crmDealItems              CrmDealItem[]
+  crmCommercialDocuments    CrmCommercialDocument[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+}
+
+model CrmPipeline {
+  id             String             @id @default(cuid())
+  name           String
+  entity         CrmPipelineEntity
+  isDefault      Boolean            @default(false)
+  active         Boolean            @default(true)
+  sortOrder      Int                @default(0)
+  currency       String             @default("BRL")
+  organizationId String
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stages         CrmPipelineStage[]
+  leads          Lead[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId, entity, active])
+}
+
+model CrmPipelineStage {
+  id                  String      @id @default(cuid())
+  name                String
+  code                String
+  color               String      @default("#64748b")
+  sortOrder           Int         @default(0)
+  probability         Int         @default(0)
+  leadStatus          LeadStatus?
+  isWon               Boolean     @default(false)
+  isLost              Boolean     @default(false)
+  tunnelTargetStageId String?
+  automation          Json?
+  pipelineId          String
+  pipeline            CrmPipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  leads               Lead[]
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@unique([pipelineId, code])
+  @@index([pipelineId, sortOrder])
+}
+
+model CrmProduct {
+  id             String         @id @default(cuid())
+  name           String
+  description    String?
+  sku            String?
+  type           CrmProductType @default(Servico)
+  category       String?
+  unit           String         @default("un")
+  price          Float
+  cost           Float?
+  currency       String         @default("BRL")
+  taxPercent     Float          @default(0)
+  active         Boolean        @default(true)
+  stockQuantity  Float?
+  customFields   Json?
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dealItems      CrmDealItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, active, name])
+}
+
+model CrmDealItem {
+  id              String       @id @default(cuid())
+  name            String
+  sku             String?
+  quantity        Float        @default(1)
+  unitPrice       Float
+  discountPercent Float        @default(0)
+  taxPercent      Float        @default(0)
+  total           Float
+  sortOrder       Int          @default(0)
+  leadId          String
+  lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         CrmProduct?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId, leadId, sortOrder])
+  @@index([productId])
+}
+
+model CrmCommercialDocument {
+  id             String            @id @default(cuid())
+  number         String
+  type           CrmDocumentType
+  status         CrmDocumentStatus @default(Rascunho)
+  title          String
+  currency       String            @default("BRL")
+  issueDate      DateTime          @default(now())
+  validUntil     DateTime?
+  dueDate        DateTime?
+  subtotal       Float             @default(0)
+  discount       Float             @default(0)
+  tax            Float             @default(0)
+  total          Float             @default(0)
+  lineItems      Json
+  notes          String?
+  terms          String?
+  publicToken    String            @unique @default(uuid())
+  leadId         String?
+  lead           Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  companyId      String?
+  company        Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId      String?
+  contact        Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, type, status])
+  @@index([leadId])
 }
 
 model KnowledgeChunk {
@@ -868,7 +1043,17 @@ model AIPendingAction {
   entity         String
   action         String
   payload        Json
+  /// Papel que originou a decisão (SDR, BDR, CLOSER, CRM, OPS ou SUPERVISOR).
+  agentRole      String?
+  /// Classificação de risco operacional para a UI e para políticas de autoexecução.
+  riskLevel      String        @default("medium")
+  /// Confiança declarada/derivada da decisão, normalizada entre 0 e 1.
+  confidence     Float?
+  /// Chave de idempotência por tenant. Impede que um worker repetido proponha/envie a mesma ação.
+  idempotencyKey String?
   approved       Boolean       @default(false)
+  approvedAt     DateTime?
+  discardedAt    DateTime?
   /// Se a ação aprovada foi de fato executada (ex: e-mail enviado de verdade via SMTP). Sem este
   /// campo, "aprovar" só marcava um flag no banco e nada consumia isso depois (IA-005) — o
   /// executor real fica em src/features/intelligence/services/aiPendingAction.service.ts.
@@ -877,10 +1062,16 @@ model AIPendingAction {
   /// Preenchido quando a execução foi tentada e falhou (ex: SMTP fora do ar). `executed`
   /// continua false nesse caso — a tela usa isso para decidir se ainda oferece o fallback manual.
   executionError String?
+  attempts       Int           @default(0)
+  lastAttemptAt  DateTime?
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
+  @@unique([organizationId, idempotencyKey])
   @@index([organizationId, approved])
+  @@index([organizationId, discardedAt, approved, createdAt], map: "AIPendingAction_autonomy_queue_idx")
 }
 
 /// Modelo/provedor de IA escolhido para cada ferramenta (toolKey = chave em ContentTool, ex.

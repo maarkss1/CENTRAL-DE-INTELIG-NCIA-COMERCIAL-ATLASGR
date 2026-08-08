@@ -41,6 +41,17 @@ describe('supervisorDecisionSchema', () => {
         }
     });
 
+    it('aceita a ação closer para negociação e fechamento', () => {
+        const parsed = supervisorDecisionSchema.safeParse({
+            action: 'closer',
+            instruction: 'Trate a objeção de preço e defina o próximo compromisso da proposta.',
+            reasoning: 'O lead já está em negociação.',
+        });
+
+        expect(parsed.success).toBe(true);
+        if (parsed.success) expect(parsed.data.action).toBe('closer');
+    });
+
     it('rejeita uma ação fora do enum esperado', () => {
         const parsed = supervisorDecisionSchema.safeParse({ action: 'chutar-para-fora' });
         expect(parsed.success).toBe(false);
@@ -66,12 +77,12 @@ describe('fallbackDecision', () => {
     });
 
     it('sem leadId, pula direto para finish quando os demais especialistas já atuaram', () => {
-        const decision = fallbackDecision(['bdr', 'crm', 'ops'], false);
+        const decision = fallbackDecision(['bdr', 'closer', 'crm', 'ops'], false);
         expect(decision.action).toBe('finish');
     });
 
-    it('com leadId, só finaliza depois que os 4 especialistas atuaram', () => {
-        const decision = fallbackDecision(['sdr', 'bdr', 'crm', 'ops'], true);
+    it('com leadId, só finaliza depois que os 5 especialistas atuaram', () => {
+        const decision = fallbackDecision(['sdr', 'bdr', 'closer', 'crm', 'ops'], true);
         expect(decision.action).toBe('finish');
     });
 
@@ -110,7 +121,7 @@ describe('enforceLeadGuard', () => {
     it('finaliza a missão se sdr for a única opção restante e não houver leadId', () => {
         const decision = enforceLeadGuard(
             { action: 'sdr', instruction: '', reasoning: '' },
-            { leadId: '', completed: ['bdr', 'crm', 'ops'], mission: '' },
+            { leadId: '', completed: ['bdr', 'closer', 'crm', 'ops'], mission: '' },
         );
 
         expect(decision.action).toBe('finish');

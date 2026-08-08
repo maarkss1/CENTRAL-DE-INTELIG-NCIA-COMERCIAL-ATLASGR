@@ -78,7 +78,7 @@ export function SinglePageDashboard() {
                     <div>
                         <p className="text-[11px] font-black uppercase tracking-widest text-brand mb-1">{todayLabel}</p>
                         <h1 className="text-2xl font-black text-ink">{greeting()}, {currentUser?.name?.split(' ')[0] || 'Usuário'}</h1>
-                        <p className="text-sm text-ink-2 mt-1">Resumo da operação {isAtlas ? 'AtlasGR' : 'TotalTrac'} de hoje.</p>
+                        <p className="text-sm text-ink-2 mt-1">Resumo da operação {isAtlas ? 'AtlasGR' : 'Total Trac'} de hoje.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <button

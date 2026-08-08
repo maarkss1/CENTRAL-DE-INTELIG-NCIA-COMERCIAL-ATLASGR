@@ -16,8 +16,8 @@ export function GlowChart({ data }: GlowChartProps) {
   const { isAtlas } = useBrandAccent();
   const { theme } = useTheme();
 
-  const strokeColor = isAtlas ? '#FF5618' : '#0088CC';
-  const fillColor = isAtlas ? '#FF5618' : '#0088CC';
+  const strokeColor = isAtlas ? '#FF5618' : '#008FCE';
+  const fillColor = isAtlas ? '#FF5618' : '#008FCE';
   const chartData = data.map((point) => ({ ...point, name: formatMonthLabel(point.month) }));
 
   return (

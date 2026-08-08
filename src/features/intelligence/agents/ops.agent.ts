@@ -1,5 +1,4 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { ChatOpenAI } from '@langchain/openai';
 import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, searchLeadsTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
@@ -18,31 +17,18 @@ import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 const tools = [searchLeadsTool, getLeadContextTool, searchPlaybookTool, createFollowUpTaskTool, notifyTeamTool];
 const toolNode = new ToolNode(tools);
 
+import { buildModelWithFallbackAndTools } from './fallback.util.js';
+
 // Lazy + memoizado: monta o cliente só no primeiro uso real (dentro de callModel), nunca na carga
 // do módulo — process.env.GROQ_API_KEY lido numa const de topo de arquivo ficava congelado como
 // vazio se este módulo fosse importado antes de `dotenv/config` terminar de rodar. Motor local
 // (Ollama via LiteLLM) removido de propósito: processa uma completion por vez nesta máquina,
 // travando o enxame inteiro por vários segundos a cada etapa. Groq é rápido e não tem esse gargalo.
-let cachedModelWithTools: ReturnType<ChatOpenAI['bindTools']> | null = null;
+let cachedModelWithTools: any = null;
 function getModelWithTools() {
     if (cachedModelWithTools) return cachedModelWithTools;
 
-    const groqLlm = new ChatOpenAI({
-        modelName: 'llama-3.1-8b-instant',
-        temperature: 0,
-        apiKey: process.env.GROQ_API_KEY || '',
-        // 3, não 1: o tier gratuito do Groq tem TPM baixo (6000/min) e um enxame de 4 agentes
-        // facilmente bate nele no meio de uma missão — o SDK do OpenAI já respeita o header
-        // Retry-After do 429 automaticamente, então mais tentativas custam pouco e evitam derrubar
-        // a etapa inteira por um rate limit que se resolve em menos de 1s.
-        maxRetries: 3,
-        timeout: 30_000,
-        configuration: {
-            baseURL: 'https://api.groq.com/openai/v1',
-        },
-    });
-
-    cachedModelWithTools = groqLlm.bindTools(tools);
+    cachedModelWithTools = buildModelWithFallbackAndTools('llama-3.1-8b-instant', tools);
     return cachedModelWithTools;
 }
 

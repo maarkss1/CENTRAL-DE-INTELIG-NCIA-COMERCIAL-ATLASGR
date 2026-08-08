@@ -174,6 +174,12 @@
   --ok: #0F9D64;
   --soft: rgba(255, 86, 24, .08);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
+  --font-brand-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root[data-brand="totaltrac"] {
+  --soft: rgba(0, 143, 206, .10);
+  --font-brand-sans: "Fivo Sans", Arial, ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark {
@@ -187,9 +193,13 @@
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .6), 0 14px 34px -18px rgba(0, 0, 0, .9);
 }
 
+:root[data-brand="totaltrac"].dark {
+  --soft: rgba(0, 143, 206, .16);
+}
+
 @theme {
-  --font-sans: "Montserrat", "Outfit", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Montserrat", "Outfit", sans-serif;
+  --font-sans: var(--font-brand-sans);
+  --font-display: var(--font-brand-sans);
 
   --color-atlas-orange: #FF5618;
   --color-atlas-orange-medium: #FF6B10;
@@ -198,7 +208,10 @@
   --color-atlas-dark: #333333;
   --color-ring: #FF5618;
 
-  --color-totaltrack-blue: #0088CC;
+  --color-totaltrack-blue: #008FCE;
+  --color-totaltrac-navy: #374898;
+  --color-totaltrac-deep: #2D3B78;
+  --color-totaltrac-light: #93DBF2;
 
   --brand-primary: #FF5618;
   --brand-accent: #FF6B10;
@@ -248,8 +261,8 @@
     50% { transform: translateY(-12px); }
   }
   @keyframes pulse-glow {
-    0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 86, 24, 0.25)); }
-    50% { filter: drop-shadow(0 0 24px rgba(255, 86, 24, 0.55)); }
+    0%, 100% { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--brand) 25%, transparent)); }
+    50% { filter: drop-shadow(0 0 24px color-mix(in srgb, var(--brand) 55%, transparent)); }
   }
   @keyframes gradient-xy {
     0%, 100% { background-position: 0% 50%; }
@@ -337,8 +350,8 @@
 
   .glass-card-interactive:hover {
     transform: translateY(-3px);
-    border-color: rgba(255, 86, 24, 0.35);
-    box-shadow: 0 14px 32px -12px rgba(255, 86, 24, 0.2);
+    border-color: color-mix(in srgb, var(--brand) 35%, transparent);
+    box-shadow: 0 14px 32px -12px color-mix(in srgb, var(--brand) 20%, transparent);
   }
 
   .text-glow {
@@ -368,7 +381,7 @@
 
 @layer utilities {
   .text-gradient-brand {
-    background-image: linear-gradient(135deg, var(--brand), #FF8008);
+    background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;

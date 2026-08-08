@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render as rtlRender, screen, waitFor, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../mocks/server';
@@ -176,8 +176,8 @@ describe('Base de Conhecimento', () => {
         await screen.findByText('Nenhum documento ainda');
 
         await user.click(screen.getAllByRole('button', { name: /Colar texto/ })[0]);
-        await user.type(screen.getByPlaceholderText(/Título/), 'Tabela de Preços');
-        await user.type(screen.getByPlaceholderText(/Cole aqui o conteúdo/), 'Frota até 50 veículos: R$ 90/mês.');
+        fireEvent.change(screen.getByPlaceholderText(/Título/), { target: { value: 'Tabela de Preços' } });
+        fireEvent.change(screen.getByPlaceholderText(/Cole aqui o conteúdo/), { target: { value: 'Frota até 50 veículos: R$ 90/mês.' } });
         await user.click(screen.getByRole('button', { name: 'Indexar' }));
 
         await waitFor(() => expect(ingestCalledWith).toEqual({

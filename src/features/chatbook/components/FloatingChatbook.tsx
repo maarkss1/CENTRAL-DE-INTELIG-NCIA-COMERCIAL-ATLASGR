@@ -370,7 +370,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                         className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink font-bold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                       >
                         <option value="atlasgr">AtlasGR (SaaS B2B)</option>
-                        <option value="totaltrac">TotalTrac (Frotas/Risco)</option>
+                        <option value="totaltrac">Total Trac (Frotas/Risco)</option>
                       </select>
                     </div>
 

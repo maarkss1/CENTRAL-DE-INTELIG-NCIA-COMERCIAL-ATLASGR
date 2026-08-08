@@ -48,7 +48,7 @@ export function VoiceCommandWidget() {
           stopListening();
         } else if (textLower.includes('total track') || textLower.includes('totaltrac')) {
           setActiveBrand('totaltrac');
-          setLastAction('Alternou para operação TotalTrac');
+          setLastAction('Alternou para operação Total Trac');
           stopListening();
         } else if (textLower.includes('inteligência') || textLower.includes('metodologia')) {
           navigationBus.requestTool('intelligence');
@@ -155,7 +155,7 @@ export function VoiceCommandWidget() {
 
             {isListening && (
               <div className="space-y-1 text-center py-2">
-                <p className="text-ink-2 italic animate-pulse">&quot;Diga: CRM, Prospector, TotalTrac, Atlas...&quot;</p>
+                <p className="text-ink-2 italic animate-pulse">&quot;Diga: CRM, Prospector, Total Trac, Atlas...&quot;</p>
                 {transcript && <p className="text-ink font-bold bg-surface-2 p-2 rounded-xl border border-line">{transcript}</p>}
               </div>
             )}

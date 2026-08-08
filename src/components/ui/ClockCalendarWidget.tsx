@@ -22,7 +22,7 @@ export function ClockCalendarWidget() {
   // Eventos Comerciais Agendados
   const scheduledEvents = [
     { day: 24, title: 'Demo AtlasGR — Diretoria SaaS', time: '14:00', type: 'demo', badge: 'Alta Prioridade' },
-    { day: 24, title: 'Follow-up TotalTrac — Frota Sul', time: '16:30', type: 'followup', badge: 'Em Andamento' },
+    { day: 24, title: 'Follow-up Total Trac — Frota Sul', time: '16:30', type: 'followup', badge: 'Em Andamento' },
     { day: 25, title: 'Reunião de Fechamento de Meta', time: '10:00', type: 'meeting', badge: 'Estratégico' },
     { day: 28, title: 'Treinamento de Telemetria com SDRs', time: '15:00', type: 'training', badge: 'Interno' }
   ];

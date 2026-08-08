@@ -24,22 +24,38 @@ import {
     DragEndEvent
 } from '@dnd-kit/core';
 
-const COLUMNS: LeadStatus[] = [
+const LEAD_COLUMNS: LeadStatus[] = [
     'Lead Recebido',
     'Cadência Iniciada',
     'Qualificação (SDR)',
     'Reunião Agendada',
     'Lead Desqualificado',
     'Convertido em Oportunidade',
+];
+
+const DEAL_COLUMNS: LeadStatus[] = [
     'Nova Oportunidade',
     'Proposta Enviada',
     'Call/Visita Agendada',
+    'Piloto VTECH',
+    'Piloto Atlas Profile',
+    'Piloto Atlas Profile - Concluído',
+    'Piloto Atlas Profile - Cancelado',
+    'Piloto Logística',
+    'Piloto Logístico - Concluído',
+    'Piloto Logístico - Cancelado',
     'Negócios Perdidos',
     'Negócios Ganhos'
 ];
 
-export function CrmBoard() {
+interface CrmBoardProps {
+    funnel?: 'Lead' | 'Negocio';
+    embedded?: boolean;
+}
+
+export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
     const { brandInfo } = useBrand();
+    const columns = funnel === 'Lead' ? LEAD_COLUMNS : DEAL_COLUMNS;
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -59,7 +75,7 @@ export function CrmBoard() {
         setLoading(true);
         setError(null);
         try {
-            const url = `/api/leads?limit=1000`;
+            const url = `/api/leads?limit=1000&funnel=${funnel}`;
             const response = await api.get<{data: Lead[], meta?: { total: number, page: number, limit: number, totalPages: number }}>(url);
 
             if (Array.isArray(response)) {
@@ -73,7 +89,7 @@ export function CrmBoard() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [funnel]);
 
     useEffect(() => {
         fetchLeads();
@@ -96,7 +112,7 @@ export function CrmBoard() {
         const leadId = active.id;
         let targetStatus: LeadStatus | null = null;
 
-        if (typeof over.id === 'string' && COLUMNS.includes(over.id as LeadStatus)) {
+        if (typeof over.id === 'string' && columns.includes(over.id as LeadStatus)) {
             targetStatus = over.id as LeadStatus;
         } else {
             const overLead = leads.find(l => l.id === over.id);
@@ -118,7 +134,7 @@ export function CrmBoard() {
                 fetchLeads();
             }
         }
-    }, [leads, fetchLeads]);
+    }, [leads, fetchLeads, columns]);
 
     const handleCardClick = useCallback((lead: Lead) => {
         setSelectedLeadId(lead.id);
@@ -132,6 +148,17 @@ export function CrmBoard() {
         } catch (error) {
             clientLogger.error({ err: error }, 'Error enriching lead');
             toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
+        }
+    }, [fetchLeads]);
+
+    const handleConvert = useCallback(async (leadId: string) => {
+        try {
+            await api.post(`/api/crm/leads/${leadId}/convert`);
+            toast.success('Lead convertido em negócio e enviado ao pipeline comercial.');
+            await fetchLeads();
+        } catch (error) {
+            clientLogger.error({ err: error }, 'Error converting lead to deal');
+            toast.error(error instanceof Error ? error.message : 'Falha ao converter o lead.');
         }
     }, [fetchLeads]);
 
@@ -158,26 +185,14 @@ export function CrmBoard() {
     };
 
     const groupedLeads = useMemo(() => {
-        const grouped: Record<LeadStatus, Lead[]> = {
-            'Lead Recebido': [],
-            'Cadência Iniciada': [],
-            'Qualificação (SDR)': [],
-            'Reunião Agendada': [],
-            'Lead Desqualificado': [],
-            'Convertido em Oportunidade': [],
-            'Nova Oportunidade': [],
-            'Proposta Enviada': [],
-            'Call/Visita Agendada': [],
-            'Negócios Perdidos': [],
-            'Negócios Ganhos': []
-        };
+        const grouped: Partial<Record<LeadStatus, Lead[]>> = Object.fromEntries(
+            columns.map((status) => [status, [] as Lead[]]),
+        );
         leads.forEach(lead => {
-            if (grouped[lead.status]) {
-                grouped[lead.status].push(lead);
-            }
+            grouped[lead.status]?.push(lead);
         });
         return grouped;
-    }, [leads]);
+    }, [leads, columns]);
 
     const handleImportBitrix = async () => {
         setLoading(true);
@@ -201,14 +216,18 @@ export function CrmBoard() {
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-bg text-ink animate-in fade-in duration-500 overflow-hidden">
+        <div className={`flex-1 flex flex-col bg-bg text-ink animate-in fade-in duration-500 overflow-hidden ${embedded ? 'min-h-[680px] h-full' : 'h-full'}`}>
             {/* Header com estilo moderno */}
             <div className="p-6 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between bg-bg/90 backdrop-blur-xl shrink-0 gap-4">
                 <div>
                     <h2 className="font-extrabold text-2xl text-ink tracking-tight flex items-center gap-2">
-                        🎯 {brandInfo.name} Sales Cloud (Pipeline CRM)
+                        🎯 {funnel === 'Lead' ? 'Leads e pré-vendas' : 'Negócios e fechamento'}
                     </h2>
-                    <p className="text-ink-2 text-xs mt-1">Arraste os cards para avançar no funil comercial e veja as ferramentas mapeadas em cada conta</p>
+                    <p className="text-ink-2 text-xs mt-1">
+                        {funnel === 'Lead'
+                            ? 'Qualifique, nutra e converta os leads prontos para o pipeline de negócios.'
+                            : `Gerencie propostas, pilotos e receita do ${brandInfo.name} em um funil separado.`}
+                    </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Button
@@ -232,13 +251,13 @@ export function CrmBoard() {
             </div>
 
             {/* Contextual Tip Banner */}
-            <div className="px-6 pt-4 shrink-0">
+            {!embedded && <div className="px-6 pt-4 shrink-0">
                 <ContextualTip
                     id="tip-crm-pipeline"
                     title="💡 Dica de Gestão de Funil CRM"
                     description="Passe o cursor sobre os cards para ver as ferramentas da empresa e o score de engajamento antes de agendar a próxima call comercial!"
                 />
-            </div>
+            </div>}
 
             {/* Região com scroll horizontal precisa estar no tab order pra ser rolável via teclado
                 (axe-core: scrollable-region-focusable). jsx-a11y trata todo tabIndex em <div> como
@@ -269,13 +288,14 @@ export function CrmBoard() {
                         onDragEnd={handleDragEnd}
                     >
                         <div className="flex gap-6 h-full items-start">
-                            {COLUMNS.map(status => (
+                            {columns.map(status => (
                                 <KanbanColumn
                                     key={status}
                                     status={status}
-                                    leads={groupedLeads[status]}
+                                    leads={groupedLeads[status] ?? []}
                                     onCardClick={handleCardClick}
                                     onCardEnrich={handleCardEnrich}
+                                    onConvert={funnel === 'Lead' && status === 'Convertido em Oportunidade' ? handleConvert : undefined}
                                 />
                             ))}
                         </div>

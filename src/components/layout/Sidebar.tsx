@@ -75,20 +75,25 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                     {isAtlas ? <Logo className="h-8 text-ink" /> : <TotalTrackLogo className="h-8 text-ink" />}
                 </div>
 
-                <div className="relative group cursor-pointer" onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}>
+                <button
+                    type="button"
+                    className="relative group cursor-pointer w-full text-left"
+                    onClick={() => setActiveBrand(isAtlas ? 'totaltrac' : 'atlasgr')}
+                    aria-label={`Alternar para a operação ${isAtlas ? 'Total Trac' : 'AtlasGR'}`}
+                >
                     <div className="flex items-center justify-between p-2 rounded-xl border border-line bg-surface-2 hover:bg-brand/10 transition-all">
                         <div className="flex items-center gap-2">
                             {isAtlas ? (
                                 <Logo variant="symbol" className="h-6 w-6 shrink-0" />
                             ) : (
-                                <TotalTrackLogo className="h-6 w-6 shrink-0 text-ink" />
+                                <TotalTrackLogo variant="symbol" className="h-6 w-6 shrink-0" />
                             )}
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-bold uppercase tracking-wider text-brand">
                                     Operação Atual
                                 </span>
                                 <span className="text-sm font-black text-ink">
-                                    {isAtlas ? 'AtlasGR' : 'TotalTrac'}
+                                    {isAtlas ? 'AtlasGR' : 'Total Trac'}
                                 </span>
                             </div>
                         </div>
@@ -96,7 +101,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                             <ChevronRight size={14} className="group-hover:rotate-90 transition-transform" />
                         </div>
                     </div>
-                </div>
+                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar">

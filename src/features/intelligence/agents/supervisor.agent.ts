@@ -1,10 +1,10 @@
 import { StateGraph, Annotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { SDRQualificationAgent } from './sdr.agent.js';
 import { BDRAgent } from './bdr.agent.js';
+import { CloserAgent } from './closer.agent.js';
 import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
@@ -18,28 +18,17 @@ import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 // gargalo. Usar ChatOpenAI "cru" (em vez do wrapper AiChatModel do gateway) é o que habilita
 // tool-calling/structured output — o wrapper só devolve texto livre, e a decisão de roteamento
 // precisa ser JSON confiável.
-let cachedSupervisorLlm: ChatOpenAI | null = null;
+import { buildModelWithFallback } from './fallback.util.js';
+
+let cachedSupervisorLlm: any = null;
 function getSupervisorLlm() {
     if (cachedSupervisorLlm) return cachedSupervisorLlm;
 
-    cachedSupervisorLlm = new ChatOpenAI({
-        modelName: 'llama-3.1-8b-instant',
-        temperature: 0,
-        apiKey: process.env.GROQ_API_KEY || '',
-        // 3, não 1: o tier gratuito do Groq tem TPM baixo (6000/min) e um enxame de 4 agentes
-        // facilmente bate nele no meio de uma missão — o SDK do OpenAI já respeita o header
-        // Retry-After do 429 automaticamente, então mais tentativas custam pouco e evitam derrubar
-        // a etapa inteira por um rate limit que se resolve em menos de 1s.
-        maxRetries: 3,
-        timeout: 30_000,
-        configuration: {
-            baseURL: 'https://api.groq.com/openai/v1',
-        },
-    });
+    cachedSupervisorLlm = buildModelWithFallback('llama-3.1-8b-instant');
     return cachedSupervisorLlm;
 }
 
-export type SwarmAgentKey = 'sdr' | 'bdr' | 'crm' | 'ops';
+export type SwarmAgentKey = 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops';
 export type SwarmRoute = SwarmAgentKey | 'finish';
 export type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
 
@@ -54,7 +43,7 @@ export interface SwarmEvent {
 }
 
 // Limite de saltos entre especialistas antes de forçar a síntese final (evita loops infinitos).
-const MAX_STEPS = 4;
+const MAX_STEPS = 5;
 
 const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string; chooseWhen: string }> = {
     sdr: {
@@ -66,6 +55,11 @@ const AGENT_INFO: Record<SwarmAgentKey, { label: string; description: string; ch
         label: 'BDR (Outbound)',
         description: 'Avalia o fit outbound de um lead/empresa a partir de um resumo em texto (não precisa de cadastro no CRM) e sugere a linha de abordagem para o primeiro contato frio.',
         chooseWhen: 'A missão é sobre um lead/empresa NOVO, ainda sem contato feito, ou pede uma sugestão de abertura/primeira mensagem de prospecção.',
+    },
+    closer: {
+        label: 'Closer Autônomo',
+        description: 'Conduz estratégia de negociação para oportunidades qualificadas: objeções, prova de valor, compromisso de decisão e proteção de margem.',
+        chooseWhen: 'A missão envolve oportunidade qualificada, proposta enviada, reunião comercial, piloto, negociação, objeção, decisão ou fechamento. Não use para primeiro contato frio.',
     },
     crm: {
         label: 'Gestor de CRM',
@@ -136,7 +130,7 @@ function toAiMessage(event: SwarmEvent): AIMessage {
 
 // Exportado só para teste unitário direto da validação de forma da decisão do supervisor.
 export const supervisorDecisionSchema = z.object({
-    action: z.enum(['sdr', 'bdr', 'crm', 'ops', 'finish']).describe(
+    action: z.enum(['sdr', 'bdr', 'closer', 'crm', 'ops', 'finish']).describe(
         'Qual especialista deve atuar a seguir, ou "finish" se a missão já foi suficientemente atendida.',
     ),
     instruction: z.string().default('').describe(
@@ -156,7 +150,9 @@ export function fallbackDecision(completed: SwarmAgentKey[], hasLeadId: boolean,
     // Sem leadId o especialista 'sdr' sempre falharia (depende de um lead real do CRM) — nem
     // oferece ele como opção de contingência, senão o enxame queima uma rodada inteira só para
     // descobrir isso (ver enforceLeadGuard, que cobre o mesmo caso quando é o LLM que erra).
-    const order: SwarmAgentKey[] = hasLeadId ? ['sdr', 'bdr', 'crm', 'ops'] : ['bdr', 'crm', 'ops'];
+    const order: SwarmAgentKey[] = hasLeadId
+        ? ['sdr', 'bdr', 'closer', 'crm', 'ops']
+        : ['bdr', 'closer', 'crm', 'ops'];
     const pending = order.find((agent) => !completed.includes(agent));
     if (!pending) {
         return { action: 'finish', instruction: '', reasoning: 'Todos os especialistas relevantes já atuaram.' };
@@ -357,6 +353,31 @@ async function bdrNode(state: SwarmStateType) {
     }
 }
 
+async function closerNode(state: SwarmStateType) {
+    const instruction = state.instruction || state.mission;
+    try {
+        const agent = new CloserAgent();
+        const result = await agent.run(instruction, `swarm-closer-${state.step}`);
+        if (result.error) {
+            throw new Error(result.error);
+        }
+        const content = result.closePlan || 'Plano de fechamento concluído sem detalhamento textual.';
+        return {
+            completed: ['closer'] as SwarmAgentKey[],
+            results: { closer: content },
+            messages: [toAiMessage(buildEvent('agent_result', 'closer', content, state.step))],
+        };
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Falha desconhecida no Closer.';
+        logger.error({ err: error }, 'Swarm Closer node failed');
+        return {
+            completed: ['closer'] as SwarmAgentKey[],
+            results: { closer: `Erro: ${message}` },
+            messages: [toAiMessage(buildEvent('agent_error', 'closer', `O Closer encontrou um problema: ${message}`, state.step))],
+        };
+    }
+}
+
 async function crmNode(state: SwarmStateType) {
     const instruction = state.instruction || state.mission;
     try {
@@ -447,6 +468,7 @@ const workflow = new StateGraph(SwarmState)
     .addNode('supervisor', supervisorNode)
     .addNode('sdr', sdrNode)
     .addNode('bdr', bdrNode)
+    .addNode('closer', closerNode)
     .addNode('crm', crmNode)
     .addNode('ops', opsNode)
     .addNode('finish', finishNode)
@@ -454,12 +476,14 @@ const workflow = new StateGraph(SwarmState)
     .addConditionalEdges('supervisor', routerCondition, {
         sdr: 'sdr',
         bdr: 'bdr',
+        closer: 'closer',
         crm: 'crm',
         ops: 'ops',
         finish: 'finish',
     })
     .addEdge('sdr', 'supervisor')
     .addEdge('bdr', 'supervisor')
+    .addEdge('closer', 'supervisor')
     .addEdge('crm', 'supervisor')
     .addEdge('ops', 'supervisor')
     .addEdge('finish', '__end__');

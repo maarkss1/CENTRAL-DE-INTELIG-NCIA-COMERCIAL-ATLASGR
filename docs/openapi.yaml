@@ -846,14 +846,14 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { type: object }
+                items: { $ref: '#/components/schemas/AIPendingAction' }
 
   /intelligence/pending/{id}/approve:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     post:
       tags: [Intelligence]
-      summary: Aprova uma ação de IA pendente para execução downstream
+      summary: Aprova e executa uma ação de IA pendente (e-mail, nota de recomendação ou follow-up)
       responses:
         '200':
           description: Ação aprovada
@@ -869,7 +869,7 @@ paths:
       - $ref: '#/components/parameters/IdParam'
     delete:
       tags: [Intelligence]
-      summary: Descarta uma ação de IA pendente
+      summary: Descarta uma ação de IA pendente preservando o registro de auditoria
       responses:
         '204':
           description: Descartada
@@ -1797,6 +1797,37 @@ components:
         success: { type: boolean, example: true }
         data: {}
         meta: { type: object, description: 'Presente em listagens paginadas (page, limit, total, etc.)' }
+
+    AIPendingAction:
+      type: object
+      required: [id, entity, action, payload, riskLevel, approved, executed, attempts, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        entity: { type: string, example: Lead }
+        action:
+          type: string
+          enum: [send_email, swarm_recommendation, create_follow_up]
+        payload:
+          type: object
+          additionalProperties: true
+        agentRole:
+          type: string
+          nullable: true
+          enum: [SDR, BDR, CLOSER, CRM, OPS, SUPERVISOR]
+        riskLevel: { type: string, enum: [low, medium, high] }
+        confidence: { type: number, minimum: 0, maximum: 1, nullable: true }
+        idempotencyKey: { type: string, nullable: true }
+        approved: { type: boolean }
+        approvedAt: { type: string, format: date-time, nullable: true }
+        discardedAt: { type: string, format: date-time, nullable: true }
+        executed: { type: boolean }
+        executedAt: { type: string, format: date-time, nullable: true }
+        executionError: { type: string, nullable: true }
+        attempts: { type: integer, minimum: 0 }
+        lastAttemptAt: { type: string, format: date-time, nullable: true }
+        organizationId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
 
     # ── Enums de domínio (espelham src/lib/zod.ts) ──
     CompanyStatus:

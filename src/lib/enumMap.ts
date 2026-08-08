@@ -14,6 +14,13 @@ const LEAD_STATUS_TO_PRISMA: Record<LeadStatus, string> = {
     'Nova Oportunidade': 'Nova_Oportunidade',
     'Proposta Enviada': 'Proposta_Enviada',
     'Call/Visita Agendada': 'Call_Visita_Agendada',
+    'Piloto VTECH': 'Piloto_VTECH',
+    'Piloto Atlas Profile': 'Piloto_Atlas_Profile',
+    'Piloto Atlas Profile - Concluído': 'Piloto_Atlas_Profile_Concluido',
+    'Piloto Atlas Profile - Cancelado': 'Piloto_Atlas_Profile_Cancelado',
+    'Piloto Logística': 'Piloto_Logistica',
+    'Piloto Logístico - Concluído': 'Piloto_Logistico_Concluido',
+    'Piloto Logístico - Cancelado': 'Piloto_Logistico_Cancelado',
     'Negócios Perdidos': 'Negocios_Perdidos',
     'Negócios Ganhos': 'Negocios_Ganhos',
 };

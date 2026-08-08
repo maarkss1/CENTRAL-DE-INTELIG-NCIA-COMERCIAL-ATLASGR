@@ -93,7 +93,7 @@ export const auth = betterAuth({
                     // Create an organization if one isn't provided (during registration / Google OAuth)
                     if (!user.organizationId) {
                         const brand = getBrandFromEmail(user.email);
-                        const brandTitle = brand === 'totaltrac' ? 'TotalTrac Operações' : 'AtlasGR Operações';
+                        const brandTitle = brand === 'totaltrac' ? 'Total Trac Operações' : 'AtlasGR Operações';
                         // Este hook roda fora de qualquer requestContext (o signup ainda não tem sessão,
                         // então authenticateToken nunca chega a rodar pra esta rota) — sem contexto de
                         // tenant, o INSERT é bloqueado pela policy de RLS de Organization (e, logo em

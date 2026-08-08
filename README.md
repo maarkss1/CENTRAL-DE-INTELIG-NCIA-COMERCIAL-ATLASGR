@@ -1,5 +1,7 @@
 # PROSPECTOR-ATLAS
 
+> Operação autônoma: consulte [AUTONOMIA_COMERCIAL_24X7.md](./AUTONOMIA_COMERCIAL_24X7.md) para ativação, políticas, gatilhos e observabilidade de SDR/BDR/Closer.
+
 Prospector-Atlas é uma plataforma de inteligência logística focada em prospecção e gestão de leads no setor B2B, atuando como um CRM inteligente impulsionado por IA.
 
 ## Estrutura da Aplicação

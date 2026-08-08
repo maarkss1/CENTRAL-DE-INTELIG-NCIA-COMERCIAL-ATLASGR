@@ -1,6 +1,6 @@
 import { Lead, LeadRepository } from '../domain/Lead';
 import { prisma } from '../../../lib/prisma';
-import { Prisma } from '@prisma/client';
+import { LeadFunnel, Prisma } from '@prisma/client';
 import type { LeadStatus } from '../../../lib/zod';
 import {
     toPrismaLeadStatus,
@@ -34,11 +34,12 @@ function serializeLead<
 }
 
 export class PrismaLeadRepository implements LeadRepository {
-    async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50): Promise<{ data: Lead[], meta: unknown }> {
+    async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel): Promise<{ data: Lead[], meta: unknown }> {
         const where: Prisma.LeadWhereInput = { organizationId };
         if (status) {
             where.status = toPrismaLeadStatus(status as LeadStatus) as unknown as Prisma.LeadWhereInput['status'];
         }
+        if (funnel) where.funnel = funnel;
 
         const skip = (page - 1) * limit;
 
@@ -74,9 +75,13 @@ export class PrismaLeadRepository implements LeadRepository {
     }
 
     async create(organizationId: string, data: Partial<Lead> & { status: string }): Promise<Lead> {
+        const expectedCloseAt = data.expectedCloseAt
+            ? new Date(data.expectedCloseAt as unknown as string | Date)
+            : data.expectedCloseAt;
         const lead = await prisma.lead.create({
             data: {
                 ...data,
+                expectedCloseAt,
                 status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadCreateInput['status'],
                 organizationId,
                 company: undefined,
@@ -103,10 +108,14 @@ export class PrismaLeadRepository implements LeadRepository {
         // o tipo de domínio de Lead.status não bate 1:1 com o LeadStatus "rótulo legível" do zod.
         const statusLabel = data.status as LeadStatus | undefined;
         const isClosingNow = statusLabel === 'Negócios Ganhos' || statusLabel === 'Negócios Perdidos';
+        const expectedCloseAt = data.expectedCloseAt
+            ? new Date(data.expectedCloseAt as unknown as string | Date)
+            : data.expectedCloseAt;
         const lead = await prisma.lead.update({
             where: { id, organizationId },
             data: {
                 ...data,
+                expectedCloseAt,
                 ...(data.status ? { status: toPrismaLeadStatus(data.status as LeadStatus) as unknown as Prisma.LeadUpdateInput['status'] } : {}),
                 // Mesma lógica de closedAt de updateStatus (ver comentário lá) — este método também
                 // aceita `status` no payload, então precisa manter a mesma garantia.

@@ -3,6 +3,7 @@ import { LeadUseCases } from '../application/LeadUseCases';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import { automationEngine } from '../../automations/automation.engine';
 import { logger } from '../../../lib/logger';
+import type { LeadFunnel } from '@prisma/client';
 
 const UTF8_BOM = String.fromCharCode(0xfeff);
 
@@ -26,7 +27,11 @@ export class LeadController {
             const { organizationId: orgId } = (req as AuthRequest).user;
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 50;
-            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit);
+            const requestedFunnel = req.query.funnel;
+            const funnel: LeadFunnel | undefined = requestedFunnel === 'Lead' || requestedFunnel === 'Negocio'
+                ? requestedFunnel
+                : undefined;
+            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel);
             res.json({ success: true, data: result.data, meta: result.meta });
         } catch (error) {
             next(error);

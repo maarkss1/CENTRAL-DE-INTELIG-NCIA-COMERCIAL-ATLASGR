@@ -90,6 +90,7 @@ export interface Company {
     status: import('../lib/zod').CompanyStatus;
     tags: string[];
     observations?: string | null;
+    customFields?: Record<string, unknown> | null;
     organizationId?: string | null;
     createdAt: string;
     updatedAt: string;
@@ -129,6 +130,7 @@ export interface Contact {
     source?: string | null;
     seniority?: string | null;
     emailStatus?: string | null;
+    customFields?: Record<string, unknown> | null;
     companyId: string;
     company?: Company;
     organizationId?: string | null;
@@ -141,7 +143,16 @@ export interface Lead {
 
     // CRM Core
     status: import('../lib/zod').LeadStatus;
-        source?: string | null;
+    funnel?: 'Lead' | 'Negocio';
+    title?: string | null;
+    amount?: number | null;
+    currency?: string;
+    probability?: number | null;
+    expectedCloseAt?: string | null;
+    customFields?: Record<string, unknown> | null;
+    pipelineId?: string | null;
+    pipelineStageId?: string | null;
+    source?: string | null;
     channel?: string | null;
     temperature?: import('../lib/zod').LeadTemperature | null;
     score?: number | null;

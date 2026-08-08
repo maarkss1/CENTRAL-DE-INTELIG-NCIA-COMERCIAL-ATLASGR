@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Volume2, VolumeX, ArrowRight, Sparkles } from 'lucide-react';
 import { clientLogger } from '../../../lib/clientLogger';
+import { Logo } from '../../../components/Logo';
+import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
@@ -36,7 +38,7 @@ export function WelcomeScreen() {
       {/* Background Ambience - Split Gradients */}
       <div className="absolute inset-0 flex pointer-events-none z-0">
         <div className="w-1/2 h-full bg-gradient-to-r from-atlas-orange/30 via-atlas-orange/10 to-transparent blur-[120px]"></div>
-        <div className="w-1/2 h-full bg-gradient-to-l from-blue-500/30 via-blue-900/10 to-transparent blur-[120px]"></div>
+        <div className="w-1/2 h-full bg-gradient-to-l from-totaltrack-blue/30 via-totaltrac-navy/10 to-transparent blur-[120px]"></div>
       </div>
       
       {/* Sound Toggle */}
@@ -58,7 +60,7 @@ export function WelcomeScreen() {
         >
           <div className="flex flex-col items-center">
             <div className="w-48 h-20 mb-4 flex items-center justify-center">
-              <img src="/atlas-logo.svg" alt="AtlasGR" className="w-full h-full object-contain" />
+              <Logo variant="white" className="w-full h-full" />
             </div>
             <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
               AtlasGR
@@ -69,10 +71,10 @@ export function WelcomeScreen() {
 
           <div className="flex flex-col items-center">
             <div className="w-48 h-20 mb-4 flex items-center justify-center">
-              <img src="/totaltrack-logo.png" alt="Total Track" className="w-full h-full object-contain" />
+              <TotalTrackLogo tone="negative" className="w-full h-full" />
             </div>
             <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
-              Total Track
+              Total Trac
             </span>
           </div>
         </motion.div>
@@ -84,10 +86,10 @@ export function WelcomeScreen() {
           transition={{ duration: 0.8, delay: 0.3 }}
           className="mb-14 relative"
         >
-          <div className="absolute -inset-1 bg-gradient-to-r from-atlas-orange via-indigo-500 to-blue-500 rounded-3xl blur-2xl opacity-20"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-atlas-orange via-totaltrac-navy to-totaltrack-blue rounded-3xl blur-2xl opacity-20"></div>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight relative z-10">
             A sua nova <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-amber-400">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-totaltrack-blue">
               inteligência comercial
             </span>.
           </h1>
@@ -99,12 +101,12 @@ export function WelcomeScreen() {
               scale: [1, 1.05, 1],
               boxShadow: [
                 "0px 0px 15px rgba(255,86,24,0.6)",
-                "0px 0px 25px rgba(0,136,204,0.8)",
+                "0px 0px 25px rgba(0,143,206,0.8)",
                 "0px 0px 15px rgba(255,86,24,0.6)"
               ]
             }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="mt-10 mx-auto max-w-fit px-6 py-3 rounded-2xl bg-gradient-to-r from-atlas-orange/20 to-blue-500/20 border border-white/30 backdrop-blur-xl"
+            className="mt-10 mx-auto max-w-fit px-6 py-3 rounded-2xl bg-gradient-to-r from-atlas-orange/20 to-totaltrack-blue/20 border border-white/30 backdrop-blur-xl"
           >
             <p className="text-sm md:text-base font-black uppercase tracking-[0.2em] animate-pulse">
               <span className="text-white">🚀 Criado pelo coordenador comercial</span>
@@ -129,7 +131,7 @@ export function WelcomeScreen() {
             }}
             className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 bg-white text-slate-900 rounded-full font-black text-lg overflow-hidden transition-transform hover:scale-105 active:scale-95"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-atlas-orange via-amber-400 to-atlas-orange opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-atlas-orange via-totaltrac-navy to-totaltrack-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <span className="relative z-10 group-hover:text-white transition-colors duration-300 flex items-center gap-2">
               <Sparkles className="w-5 h-5" />
               Clique em Iniciar

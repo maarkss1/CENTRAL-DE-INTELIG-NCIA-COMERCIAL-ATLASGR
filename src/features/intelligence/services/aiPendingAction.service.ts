@@ -2,11 +2,13 @@ import type { AIPendingAction } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { sendEmail, MailerNotConfiguredError } from '../../../lib/email/mailer.js';
+import { noteService } from '../../notes/services/note.service.js';
+import { activityService } from '../../activities/services/activity.service.js';
+import type { ActivityType } from '../../../lib/zod.js';
 
 export interface ExecutionResult {
-    /** true = enviado de verdade agora. false = não enviado (não configurado, falhou, ou tipo de ação não suportado). */
+    /** Mantido como `sent` por compatibilidade com a API/UI: true significa que a ação foi executada. */
     sent: boolean;
-    /** Só relevante quando sent=false: 'not_configured' deixa a tela cair pro fallback manual (mailto:) sem soar como erro do usuário. */
     reason?: 'not_configured' | 'send_failed' | 'unsupported_action';
 }
 
@@ -16,45 +18,104 @@ interface SendEmailPayload {
     body?: string;
 }
 
+interface SwarmRecommendationPayload {
+    leadId?: string;
+    synthesis?: string;
+    triggerDetail?: string;
+}
+
+interface CreateFollowUpPayload {
+    leadId?: string;
+    date?: string;
+    type?: ActivityType;
+    observations?: string;
+    owner?: string;
+}
+
+type ExecutableAction = Pick<AIPendingAction, 'id' | 'action' | 'payload' | 'organizationId'>;
+
 /**
- * Executa de fato uma AIPendingAction já aprovada (IA-005). Hoje só existe um tipo de ação
- * produzido pelo sistema ('send_email', ver sdr-agent.ts) — tipos futuros que não tiverem um
- * dispatch aqui caem em 'unsupported_action', nunca em um "sucesso" fingido.
- *
- * Nunca lança: a falha (ou ausência de configuração) é reportada no retorno para o chamador
- * decidir o fallback, não interrompe o fluxo de aprovação em si.
+ * Executor central de ações aprovadas. Cada tipo só entra aqui quando existe uma implementação
+ * concreta, validada e auditável; tipos desconhecidos nunca retornam um sucesso fictício.
  */
-export async function executeAction(action: Pick<AIPendingAction, 'id' | 'action' | 'payload'>): Promise<ExecutionResult> {
-    if (action.action !== 'send_email') {
-        return { sent: false, reason: 'unsupported_action' };
-    }
-
-    const payload = action.payload as SendEmailPayload;
-    if (!payload.to || !payload.subject || !payload.body) {
-        return { sent: false, reason: 'unsupported_action' };
-    }
-
+export async function executeAction(action: ExecutableAction): Promise<ExecutionResult> {
     try {
-        await sendEmail({ to: payload.to, subject: payload.subject, text: payload.body });
-        return { sent: true };
+        if (action.action === 'send_email') {
+            const payload = action.payload as SendEmailPayload;
+            if (!payload.to || !payload.subject || !payload.body) {
+                return { sent: false, reason: 'unsupported_action' };
+            }
+            await sendEmail({ to: payload.to, subject: payload.subject, text: payload.body });
+            return { sent: true };
+        }
+
+        if (action.action === 'swarm_recommendation') {
+            const payload = action.payload as SwarmRecommendationPayload;
+            if (!action.organizationId || !payload.leadId || !payload.synthesis) {
+                return { sent: false, reason: 'unsupported_action' };
+            }
+            await noteService.create(action.organizationId, payload.leadId, {
+                author: 'Enxame de IA AtlasGR',
+                content: [
+                    'Recomendação autônoma aprovada',
+                    payload.triggerDetail ? `Gatilho: ${payload.triggerDetail}` : null,
+                    payload.synthesis,
+                ].filter(Boolean).join('\n\n'),
+            });
+            return { sent: true };
+        }
+
+        if (action.action === 'create_follow_up') {
+            const payload = action.payload as CreateFollowUpPayload;
+            if (!action.organizationId || !payload.leadId || !payload.date) {
+                return { sent: false, reason: 'unsupported_action' };
+            }
+            await activityService.create(action.organizationId, {
+                leadId: payload.leadId,
+                date: payload.date,
+                type: payload.type || 'Follow-up',
+                status: 'Pendente',
+                owner: payload.owner || 'Enxame de IA AtlasGR',
+                observations: payload.observations ?? null,
+            });
+            return { sent: true };
+        }
+
+        return { sent: false, reason: 'unsupported_action' };
     } catch (error) {
         if (error instanceof MailerNotConfiguredError) {
             return { sent: false, reason: 'not_configured' };
         }
-        logger.error({ err: error, actionId: action.id }, 'Falha ao executar AIPendingAction (envio de e-mail).');
+        logger.error({ err: error, actionId: action.id, action: action.action }, 'Falha ao executar AIPendingAction.');
         return { sent: false, reason: 'send_failed' };
     }
 }
 
-/** Executa a ação e persiste o resultado (executed/executedAt/executionError) na própria linha. */
-export async function executeAndRecord(action: Pick<AIPendingAction, 'id' | 'action' | 'payload'>): Promise<ExecutionResult> {
+/** Executa a ação e persiste tentativas, instante, sucesso e erro na própria linha do ledger. */
+export async function executeAndRecord(action: ExecutableAction): Promise<ExecutionResult> {
     const result = await executeAction(action);
 
+    const attemptData = {
+        attempts: { increment: 1 },
+        lastAttemptAt: new Date(),
+    };
     await prisma.aIPendingAction.update({
         where: { id: action.id },
         data: result.sent
-            ? { executed: true, executedAt: new Date(), executionError: null }
-            : { executionError: result.reason === 'send_failed' ? 'Falha ao enviar o e-mail via SMTP.' : null },
+            ? {
+                ...attemptData,
+                executed: true,
+                executedAt: new Date(),
+                executionError: null,
+            }
+            : {
+                ...attemptData,
+                executionError: result.reason === 'send_failed'
+                    ? 'Falha ao executar a ação autônoma.'
+                    : result.reason === 'unsupported_action'
+                        ? 'Tipo de ação ou payload ainda não suportado pelo executor.'
+                        : null,
+            },
     });
 
     return result;

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { leadSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';
+import type { LeadFunnel } from '@prisma/client';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 
 /** Shape of the company relation when Lead is fetched with `include: { company: true }` */
@@ -37,8 +38,8 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         super(leadRepository);
     }
 
-    async findLeads(organizationId: string, status?: string, page: number = 1, limit: number = 50) {
-        return this.findAll(organizationId, status, page, limit);
+    async findLeads(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel) {
+        return this.repository.findAllWithFilters(organizationId, status, page, limit, funnel);
     }
 
     async findLeadById(organizationId: string, id: string) {

@@ -9,8 +9,8 @@ type Db = typeof prisma | ReturnType<typeof getTenantPrisma>;
 
 export async function listPendingActions(db: Db, organizationId: string) {
     return db.aIPendingAction.findMany({
-        where: { approved: false, organizationId },
-        orderBy: { id: 'desc' },
+        where: { approved: false, discardedAt: null, organizationId },
+        orderBy: { createdAt: 'desc' },
     });
 }
 
@@ -21,23 +21,30 @@ export async function listPendingActions(db: Db, organizationId: string) {
  */
 export async function approvePendingAction(db: Db, organizationId: string, id: string): Promise<{ action: Awaited<ReturnType<typeof db.aIPendingAction.update>>; execution: ExecutionResult } | null> {
     const pendingAction = await db.aIPendingAction.findFirst({
-        where: { id, organizationId, approved: false },
+        where: { id, organizationId, approved: false, discardedAt: null },
     });
     if (!pendingAction) {
         return null;
     }
-    const action = await db.aIPendingAction.update({ where: { id }, data: { approved: true } });
+    const action = await db.aIPendingAction.update({
+        where: { id },
+        data: { approved: true, approvedAt: new Date() },
+    });
     const execution = await executeAndRecord(action);
     return { action, execution };
 }
 
 export async function discardPendingAction(db: Db, organizationId: string, id: string) {
     const pendingAction = await db.aIPendingAction.findFirst({
-        where: { id, organizationId, approved: false },
+        where: { id, organizationId, approved: false, discardedAt: null },
     });
     if (!pendingAction) {
         return false;
     }
-    await db.aIPendingAction.delete({ where: { id: pendingAction.id } });
+    // Preserva a decisão para auditoria e aprendizado; descartar não deve apagar o rastro da IA.
+    await db.aIPendingAction.update({
+        where: { id: pendingAction.id },
+        data: { discardedAt: new Date() },
+    });
     return true;
 }

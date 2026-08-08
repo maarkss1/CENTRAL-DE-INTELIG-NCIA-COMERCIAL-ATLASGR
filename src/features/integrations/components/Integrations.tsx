@@ -230,7 +230,7 @@ export function Integrations() {
                                         type="text"
                                         value={bitrixLabelInput}
                                         onChange={(e) => setBitrixLabelInput(e.target.value)}
-                                        placeholder="Nome pra identificar (ex.: AtlasGR, TotalTrac)"
+                                        placeholder="Nome pra identificar (ex.: AtlasGR, Total Trac)"
                                         className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                                     />
                                     <input
