@@ -1,7 +1,12 @@
+import { getPaidProspectingKey } from '../../../../config/prospecting-integrations.js';
+import { fetchWithTimeout } from '../../../../lib/http.js';
+
 export const APOLLO_SEARCH_URL = 'https://api.apollo.io/api/v1/organizations/search';
 export const APOLLO_ORG_ENRICH_URL = 'https://api.apollo.io/api/v1/organizations/enrich';
 export const APOLLO_PEOPLE_SEARCH_URL = 'https://api.apollo.io/api/v1/mixed_people/api_search';
 export const APOLLO_PEOPLE_MATCH_URL = 'https://api.apollo.io/api/v1/people/match';
+// Endpoint oficial de health-check da Apollo: valida a API key sem consumir créditos do plano.
+export const APOLLO_AUTH_HEALTH_URL = 'https://api.apollo.io/v1/auth/health';
 
 // limitamos aos N primeiros candidatos de cada busca para não estourar cota das APIs.
 export const MAX_DECISION_MAKER_LOOKUPS = 3;
@@ -39,5 +44,38 @@ export interface ApolloConnectionStatus {
 }
 
 export async function checkApolloConnection(): Promise<ApolloConnectionStatus> {
-    return { connected: true, configured: true, providerMode: 'apollo' };
+    const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
+    if (!apiKey) {
+        return {
+            connected: false,
+            configured: false,
+            providerMode: 'hunter',
+            message: 'APOLLO_API_KEY não configurada ou PROSPECTING_PROVIDER_MODE != hybrid — usando Hunter.io como fallback.',
+        };
+    }
+
+    try {
+        const res = await fetchWithTimeout(APOLLO_AUTH_HEALTH_URL, {
+            headers: { 'X-Api-Key': apiKey },
+        }, 8_000);
+
+        if (res.ok) {
+            return { connected: true, configured: true, providerMode: 'apollo' };
+        }
+
+        const text = await res.text().catch(() => '');
+        return {
+            connected: false,
+            configured: true,
+            providerMode: 'hunter',
+            message: `Apollo respondeu ${res.status} ao validar a API key: ${text.slice(0, 150)}`,
+        };
+    } catch (error) {
+        return {
+            connected: false,
+            configured: true,
+            providerMode: 'hunter',
+            message: error instanceof Error ? error.message : 'Falha desconhecida ao contatar a Apollo.',
+        };
+    }
 }

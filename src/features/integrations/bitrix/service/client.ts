@@ -14,12 +14,20 @@ export function normalizeWebhookUrl(rawUrl: string): string {
  * salvo como "conectado".
  */
 export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
     let response: Response;
     try {
-        response = await fetch(`${webhookUrl}profile.json`);
+        response = await fetch(`${webhookUrl}profile.json`, { signal: controller.signal });
     } catch (error) {
+        if (controller.signal.aborted) {
+            throw new AppError('Tempo limite esgotado ao testar essa URL (timeout 15s).', 504);
+        }
         logger.warn({ err: error }, '[bitrix] Falha de rede ao testar webhook');
         throw new AppError('Não foi possível conectar a essa URL. Confira o endereço do webhook.', 400);
+    } finally {
+        clearTimeout(timeout);
     }
 
     if (!response.ok) {

@@ -1,6 +1,8 @@
-import fetch from 'node-fetch';
 import { logger } from '../logger.js';
 import { getPaidProspectingKey } from '../../config/prospecting-integrations.js';
+import { fetchWithTimeout } from '../http.js';
+
+const APOLLO_ENRICH_TIMEOUT_MS = 15_000;
 
 export interface ApolloEnrichmentData {
     revenue?: string;
@@ -40,15 +42,17 @@ export class ApolloService {
 
     /**
      * Busca dados da empresa no Apollo.io
-     * Em ambiente de desenvolvimento sem API KEY válida, retorna dados Mockados para evitar custos.
+     * Sem API key válida (PROSPECTING_PROVIDER_MODE != hybrid ou APOLLO_API_KEY ausente), retorna
+     * dados Mockados para evitar custos — mesmo critério de opt-in usado pelos demais provedores
+     * pagos (config/prospecting-integrations.ts), independente do NODE_ENV.
      */
     async enrichCompany(domain: string, companyName: string): Promise<ApolloEnrichmentData> {
         const apiKey = this.getApiKey();
-        if (!apiKey || process.env.NODE_ENV !== 'production') {
+        if (!apiKey) {
             logger.debug({ domain, companyName }, '[Apollo Mock] Enriquecendo empresa...');
             // Simula delay de rede
             await new Promise(resolve => setTimeout(resolve, 1500));
-            
+
             return {
                 revenue: '$1M - $10M',
                 headcount: 45,
@@ -60,14 +64,14 @@ export class ApolloService {
 
         try {
             logger.debug({ domain }, '[Apollo Real] Buscando dados...');
-            const response = await fetch(`${this.baseUrl}/organizations/enrich?domain=${domain}`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/organizations/enrich?domain=${domain}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache',
-                    'x-api-key': apiKey
+                    'X-Api-Key': apiKey
                 }
-            });
+            }, APOLLO_ENRICH_TIMEOUT_MS);
 
             if (!response.ok) {
                 logger.error({ statusText: response.statusText }, 'Apollo API Error');

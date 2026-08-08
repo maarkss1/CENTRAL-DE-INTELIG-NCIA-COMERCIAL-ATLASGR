@@ -3,6 +3,45 @@ import { prisma } from '../prisma.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 import { cacheConnection } from '../queue/redis.js';
+import { getLangfuseClient } from '../langfuse.js';
+
+/**
+ * Envia um trace de observabilidade para o Langfuse (se LANGFUSE_PUBLIC_KEY/SECRET_KEY estiverem
+ * configurados — ver src/lib/langfuse.ts). Nunca lança: telemetria não pode derrubar uma resposta
+ * de IA que já foi entregue com sucesso ao chamador.
+ */
+function traceAiGeneration(params: {
+    provider: string;
+    model: string;
+    agentContext: string;
+    temperature: number;
+    input: ChatCompletionMessage[];
+    output: string;
+    usage?: ChatCompletionResponse['usage'];
+    startedAt: number;
+}): void {
+    const langfuse = getLangfuseClient();
+    if (!langfuse) return;
+    try {
+        langfuse.generation({
+            name: `ai-gateway:${params.agentContext}`,
+            model: params.model,
+            modelParameters: { temperature: params.temperature, provider: params.provider },
+            input: params.input,
+            output: params.output,
+            usage: params.usage && {
+                promptTokens: params.usage.prompt_tokens,
+                completionTokens: params.usage.completion_tokens,
+                totalTokens: params.usage.total_tokens,
+            },
+            startTime: new Date(params.startedAt),
+            endTime: new Date(),
+            metadata: { organizationId: requestContext.getStore()?.tenantId ?? null },
+        });
+    } catch (error) {
+        logger.warn({ err: error }, 'Falha ao registrar trace no Langfuse');
+    }
+}
 
 // Nome lógico mantido por compatibilidade com os serviços existentes. Renomeado de "gemini-pro"
 // (IA-001): esse nome sugeria o Gemini real do Google, mas o alias sempre resolveu, por padrão,
@@ -384,7 +423,9 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
     return {
         async invoke(messages: BaseMessage[]): Promise<AiInvokeResult> {
             const requestMessages = toChatCompletionMessages(messages);
+            const invokeStartedAt = Date.now();
             let response: ChatCompletionResponse | undefined;
+            let providerUsed = '';
 
             // Groq primeiro (rápido, sem o gargalo de concorrência do modelo local). LiteLLM entra
             // só como reserva mais abaixo, depois de Groq/OpenAI/Gemini — tentar o LiteLLM (que
@@ -405,6 +446,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                         fallbackTimeoutMs,
                         false,
                     ));
+                    providerUsed = 'groq';
                 } catch (error) {
                     groqError = error;
                 }
@@ -423,6 +465,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                         fallbackTimeoutMs,
                         false,
                     ));
+                    providerUsed = 'openai';
                 } catch (error) {
                     openaiError = error;
                 }
@@ -442,6 +485,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                         fallbackTimeoutMs,
                         false,
                     ));
+                    providerUsed = 'gemini';
                 } catch (error) {
                     geminiError = error;
                 }
@@ -465,6 +509,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                         fallbackTimeoutMs,
                         true,
                     ));
+                    providerUsed = 'litellm';
                 } catch (error) {
                     litellmError = error;
                 }
@@ -498,8 +543,21 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             }
 
             const usage = response.usage;
+            const content = response.choices?.[0]?.message?.content?.trim() ?? '';
+
+            traceAiGeneration({
+                provider: providerUsed,
+                model: response.model || resolvedModel,
+                agentContext,
+                temperature,
+                input: requestMessages,
+                output: content,
+                usage,
+                startedAt: invokeStartedAt,
+            });
+
             return {
-                content: response.choices?.[0]?.message?.content?.trim() ?? '',
+                content,
                 response_metadata: {
                     model: response.model || resolvedModel,
                     tokenUsage: {

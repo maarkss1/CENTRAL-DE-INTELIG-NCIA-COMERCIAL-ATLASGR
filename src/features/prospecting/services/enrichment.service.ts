@@ -330,7 +330,7 @@ async function runEnrichment(
                 companyId,
                 organizationId: company.organizationId
             })));
-            await prisma.contact.createMany({ data: contactsData as any });
+            await prisma.contact.createMany({ data: contactsData });
         }
     } else if (domainGuess.verified && domainGuess.domain) {
         const apolloRes = await enrichOrganizationWithContacts(domainGuess.domain);
@@ -365,7 +365,7 @@ async function runEnrichment(
                     companyId,
                     organizationId: company.organizationId
                 })));
-                await prisma.contact.createMany({ data: contactsData as any });
+                await prisma.contact.createMany({ data: contactsData });
             }
         }
     }

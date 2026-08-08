@@ -163,7 +163,13 @@ export const crm360Service = {
                 take: 8,
                 include: { company: true, contact: true, pipelineStage: true },
             }),
-            prisma.lead.groupBy({ where: { organizationId }, by: ['funnel', 'status'], _count: { _all: true }, _sum: { amount: true } }),
+            prisma.lead.groupBy({
+                where: { organizationId },
+                by: ['funnel', 'status'] as const,
+                orderBy: [{ funnel: 'asc' }, { status: 'asc' }],
+                _count: { _all: true },
+                _sum: { amount: true },
+            }),
         ]);
 
         const totalPipeline = pipelineValue.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
@@ -189,12 +195,19 @@ export const crm360Service = {
                 lead: activity.lead ? { ...activity.lead, status: fromPrismaLeadStatus(activity.lead.status) } : null,
             })),
             recentDeals: recentDeals.map((deal) => ({ ...deal, status: fromPrismaLeadStatus(deal.status) })),
-            stageCounts: stageCounts.map((row) => ({
-                funnel: row.funnel,
-                status: fromPrismaLeadStatus(row.status),
-                count: row._count._all,
-                amount: row._sum.amount ?? 0,
-            })),
+            // Prisma não especializa o tipo de retorno de groupBy() dentro de um array de
+            // $transaction heterogêneo — o shape real de _count/_sum aqui é garantido pelos
+            // parâmetros explícitos `_count: { _all: true }` e `_sum: { amount: true }` acima.
+            stageCounts: stageCounts.map((row) => {
+                const count = row._count as unknown as { _all: number };
+                const sum = row._sum as unknown as { amount: number | null };
+                return {
+                    funnel: row.funnel,
+                    status: fromPrismaLeadStatus(row.status),
+                    count: count._all,
+                    amount: sum.amount ?? 0,
+                };
+            }),
         };
     },
 
@@ -403,13 +416,16 @@ export const crm360Service = {
         stockQuantity: number | null;
         customFields: Record<string, unknown> | null;
     }>) {
+        const { customFields, ...rest } = input;
         return prisma.crmProduct.update({
             where: { id, organizationId },
             data: {
-                ...input,
-                ...(input.type ? { type: CrmProductType[input.type] } : {}),
-                ...(input.currency ? { currency: input.currency.toUpperCase() } : {}),
-                ...(input.customFields !== undefined ? { customFields: input.customFields as Prisma.InputJsonValue } : {}),
+                ...rest,
+                ...(rest.type ? { type: CrmProductType[rest.type] } : {}),
+                ...(rest.currency ? { currency: rest.currency.toUpperCase() } : {}),
+                ...(customFields !== undefined
+                    ? { customFields: customFields === null ? Prisma.JsonNull : (customFields as Prisma.InputJsonValue) }
+                    : {}),
             },
         });
     },
