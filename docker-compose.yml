@@ -2,7 +2,10 @@ version: '3.8'
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: atlasgr/postgres-intelligence:16
     container_name: atlas_postgres
     environment:
       # Superusuario de bootstrap — usado só pela inicialização do container (criar a extension
@@ -23,6 +26,8 @@ services:
       # oficial do Postgres). Volume já existente: rode scripts/db/bootstrap-app-role.sh manualmente.
       - ./scripts/db/create-app-role.sql:/docker-entrypoint-initdb.d/create-app-role.sql.tpl:ro
       - ./scripts/db/docker-init.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
+      - ./scripts/db/02-enable-extensions.sql:/docker-entrypoint-initdb.d/02-enable-extensions.sql:ro
+      - ./scripts/db/03-create-langfuse-db.sql:/docker-entrypoint-initdb.d/03-create-langfuse-db.sql:ro
     restart: unless-stopped
 
   redis:

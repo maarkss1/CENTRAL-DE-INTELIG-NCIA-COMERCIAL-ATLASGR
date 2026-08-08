@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Total Trac - preview da identidade visual</title>
+    <link rel="stylesheet" href="tokens/totaltrac.css" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f4f7fb; color: var(--totaltrac-cor-texto); font-family: var(--totaltrac-fonte); }
+      main { width: min(1160px, calc(100% - 32px)); margin: 32px auto 80px; }
+      h1, h2 { margin: 0; }
+      h1 { font-size: clamp(2.5rem, 7vw, 5.5rem); line-height: .94; font-weight: var(--totaltrac-peso-heavy); }
+      h2 { margin-bottom: 20px; font-size: 1.35rem; }
+      p { line-height: 1.65; }
+      section { margin-top: 24px; padding: clamp(24px, 4vw, 48px); border: 1px solid #dfe5f0; border-radius: 24px; background: white; }
+      .hero { min-height: 410px; display: grid; align-content: end; color: white; background: url("padroes/totaltrac-grafismo-aneis.svg") center/cover; }
+      .hero > * { max-width: 720px; }
+      .logos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      .logo-card { min-height: 220px; display: grid; place-items: center; padding: 28px; border-radius: 18px; background: #f4f7fb; }
+      .logo-card.dark { background: var(--totaltrac-cor-azul); }
+      .logo-card img { width: min(100%, 460px); max-height: 145px; object-fit: contain; }
+      .palette { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+      .swatch { min-height: 150px; display: flex; align-items: end; padding: 18px; border-radius: 18px; font-weight: 700; }
+      .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 18px; }
+      .rules article { padding: 20px; border-left: 4px solid var(--totaltrac-cor-ciano); background: #f7f9fd; }
+      code { color: var(--totaltrac-cor-ciano); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <p>Identidade visual oficial</p>
+        <h1>Total Trac</h1>
+        <p>Agilidade, segurança, eficiência, excelência e inovação.</p>
+      </section>
+      <section>
+        <h2>Logos</h2>
+        <div class="logos">
+          <div class="logo-card"><img src="logos/totaltrac-logo-principal-positivo.png" alt="Logo principal positiva Total Trac" /></div>
+          <div class="logo-card dark"><img src="logos/totaltrac-logo-principal-negativo-azul.png" alt="Logo principal negativa Total Trac" /></div>
+        </div>
+      </section>
+      <section>
+        <h2>Paleta</h2>
+        <div class="palette">
+          <div class="swatch" style="background:#374898;color:white">#374898</div>
+          <div class="swatch" style="background:#008fce;color:white">#008FCE</div>
+          <div class="swatch" style="background:#2d3b78;color:white">#2D3B78</div>
+          <div class="swatch" style="background:#1e2f37;color:white">#1E2F37</div>
+          <div class="swatch" style="background:#93dbf2">#93DBF2</div>
+          <div class="swatch" style="background:#fff;border:1px solid #ddd">#FFFFFF</div>
+        </div>
+      </section>
+      <section>
+        <h2>Regras essenciais</h2>
+        <div class="rules">
+          <article><strong>Proteção</strong><p>Reserve um módulo <code>X</code>, igual à altura do símbolo, entre a marca e outros elementos.</p></article>
+          <article><strong>Redução</strong><p>Principal: <code>140 px</code>. Sem tagline: <code>110 px</code>. Vertical: <code>70 px</code>. Símbolo: <code>20 px</code>.</p></article>
+          <article><strong>Integridade</strong><p>Não altere cor, proporção, composição, orientação ou efeitos do arquivo oficial.</p></article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+

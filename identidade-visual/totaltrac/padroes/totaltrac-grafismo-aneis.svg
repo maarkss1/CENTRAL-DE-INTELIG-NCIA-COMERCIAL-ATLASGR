@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Grafismo de anéis Total Trac">
+  <rect width="1600" height="900" fill="#374898"/>
+  <g fill="none" stroke-linecap="butt">
+    <circle cx="1520" cy="-40" r="230" stroke="#2D3B78" stroke-width="92"/>
+    <circle cx="1520" cy="-40" r="405" stroke="#008FCE" stroke-width="92" opacity=".92"/>
+    <circle cx="1520" cy="-40" r="580" stroke="#93DBF2" stroke-width="92" opacity=".34"/>
+  </g>
+</svg>
+

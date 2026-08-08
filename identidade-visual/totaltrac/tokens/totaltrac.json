@@ -1,0 +1,27 @@
+{
+  "brand": "Total Trac",
+  "source": "Manual de Identidade Visual - Total Trac, versão 1.0, 2026",
+  "colors": {
+    "primary": {
+      "blue": { "hex": "#374898", "rgb": [55, 72, 152], "cmyk": [90, 75, 0, 0], "pantone": "2747 C" },
+      "cyan": { "hex": "#008FCE", "rgb": [0, 143, 206], "cmyk": [80, 30, 0, 0], "pantone": "Medium Blue C" }
+    },
+    "secondary": {
+      "deepBlue": { "hex": "#2D3B78", "rgb": [45, 59, 120], "cmyk": [95, 85, 20, 5], "pantone": "2372 C" },
+      "graphite": { "hex": "#1E2F37", "rgb": [30, 47, 55], "cmyk": [85, 65, 55, 60], "pantone": "433 C" },
+      "lightBlue": { "hex": "#93DBF2", "rgb": [147, 219, 242], "cmyk": [45, 0, 5, 0], "pantone": "2975 C" },
+      "white": { "hex": "#FFFFFF", "rgb": [255, 255, 255], "cmyk": [0, 0, 0, 0] }
+    }
+  },
+  "typography": {
+    "family": "Fivo Sans",
+    "weights": { "regular": 400, "medium": 500, "bold": 700, "heavy": 800, "black": 900 },
+    "license": "free for personal and commercial use, according to the brand manual"
+  },
+  "logo": {
+    "clearSpace": "Um módulo X, equivalente à altura do símbolo, entre a marca e elementos externos.",
+    "minimumWidth": { "primary": 140, "withoutTagline": 110, "vertical": 70, "symbol": 20 },
+    "unit": "px"
+  }
+}
+
