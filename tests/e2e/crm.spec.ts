@@ -52,8 +52,11 @@ test.describe('Navegação principal', () => {
     await expect(page).toHaveURL(/\/app\/crm$/);
     await expect(page.getByRole('button', { name: 'Pipeline CRM' })).toBeVisible();
     // Pipeline CRM Sales Cloud é o h2 fixo do CrmBoard — confirma que renderizou o módulo certo,
-    // não o dashboard (fallback antigo antes da migração pra rotas).
-    await expect(page.getByText(/Sales Cloud \(Pipeline CRM\)/)).toBeVisible();
+    // não o dashboard (fallback antigo antes da migração pra rotas). Timeout maior que o default
+    // (5s): diferente da navegação por clique (SPA, já carregada), um reload é um cold start duplo
+    // — refaz o fetch da sessão (ProtectedRoute) E o carregamento do chunk lazy do CrmBoard — que
+    // em runner de CI compartilhado pode passar de 5s sem que nada esteja realmente quebrado.
+    await expect(page.getByText(/Sales Cloud \(Pipeline CRM\)/)).toBeVisible({ timeout: 15_000 });
   });
 
   test('botão Voltar do navegador retorna do CRM pro dashboard', async ({ page }) => {

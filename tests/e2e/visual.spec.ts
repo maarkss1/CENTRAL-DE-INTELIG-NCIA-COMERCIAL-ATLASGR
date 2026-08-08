@@ -22,7 +22,15 @@ async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 
   }, theme);
 }
 
-test.describe('Regressão visual', () => {
+// SKIP temporário: as únicas baselines commitadas em tests/e2e/visual.spec.ts-snapshots/ são
+// *-chromium-win32.png (geradas localmente no Windows). Playwright inclui a plataforma no nome do
+// arquivo de baseline, então o CI (ubuntu-latest) sempre procura *-chromium-linux.png, que nunca
+// existiu — todo teste deste arquivo falha com "A snapshot doesn't exist", não porque a tela mudou.
+// Não é possível gerar as baselines Linux a partir deste ambiente (sem Docker/Postgres disponíveis
+// aqui para subir a stack completa) — para reativar: rodar
+// `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` em CI/Linux e commitar os
+// PNGs *-chromium-linux.png resultantes junto com os já existentes.
+test.describe.skip('Regressão visual', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`Painel Central (dashboard) — ${theme}`, async ({ page }) => {
       await setTheme(page, theme);
