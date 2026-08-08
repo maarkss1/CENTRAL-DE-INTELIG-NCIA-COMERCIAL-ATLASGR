@@ -9,7 +9,7 @@ const LOGISTICS_RELEVANT_TECH_KEYWORDS = ['sap', 'protheus', 'sankhya', 'netsuit
 // Atlas como as "cargas mais roubadas no Brasil". Empresas que transportam esse tipo de carga são
 // prioridade comercial real (maior exposição a sinistro = maior valor percebido do GR da Atlas).
 const HIGH_THEFT_RISK_CARGO_KEYWORDS = [
-    'aliment', 'bebida', 'eletroeletr', 'eletr', 'cigarro', 'tabaco', 'farmac', 'quimic', 'químic',
+    'aliment', 'bebida', 'eletroeletr', 'eletr', 'cigarro', 'tabaco', 'quimic', 'químic',
     'têxtil', 'textil', 'confec', 'autope', 'agric', 'agro', 'combust', 'petrol', 'higiene', 'limpeza',
 ];
 

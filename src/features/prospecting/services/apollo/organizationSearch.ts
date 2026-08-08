@@ -61,7 +61,7 @@ function mapSegmentToKeyword(segmento: string): string {
  * mineradora, "Localiza" locadora, empresas de TI) que só citam logística tangencialmente.
  * Este allowlist filtra pelo campo `industry` real da Apollo — só aplicado para Transportadora/3PL,
  * porque Embarcadores (empresas que CONTRATAM transporte) legitimamente vêm de qualquer indústria
- * (alimentício, farmacêutico, químico etc.) e não devem ser filtrados por este critério.
+ * (alimentício, industrial, químico etc.) e não devem ser filtrados por este critério.
  */
 const ICP_TRANSPORT_INDUSTRY_KEYWORDS = [
     'logistics', 'trucking', 'transportation', 'railroad', 'warehousing',

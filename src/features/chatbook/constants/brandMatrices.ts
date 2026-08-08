@@ -30,7 +30,7 @@ const ATLAS_SEGMENTS = [
   'Varejo & E-commerce',
   'Fintech & Serviços Financeiros',
   'Educação & EdTech',
-  'Saúde & MedTech',
+  'Energia & Utilities',
   'Agrotech & Trading',
   'Imobiliário & Construtoras'
 ];
@@ -375,7 +375,7 @@ export const TRANSCRIBED_QUALIFICATIONS: QualificationItem[] = [
     persona: 'Diretor de Logística',
     framework: 'SPIN',
     questionCategory: 'Situação',
-    questionText: "Quais as regras de Gerenciamento de Risco (GR) exigidas pela sua apólice de seguro para este tipo de carga (Agro/Saúde)?",
+    questionText: "Quais as regras de Gerenciamento de Risco (GR) exigidas pela sua apólice de seguro para este tipo de carga (Agro/Eletrônicos)?",
     idealAnswer: 'Resposta baseada nas operações do cliente.'
   },
   {
