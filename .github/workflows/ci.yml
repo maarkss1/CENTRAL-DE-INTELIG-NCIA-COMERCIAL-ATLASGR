@@ -51,6 +51,12 @@ jobs:
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
+      # tests/e2e cria uma conta real por teste (ver tests/e2e/helpers.ts) e todos os 29 specs
+      # rodam sequencialmente a partir do mesmo IP — o default de produção (20 POSTs/15min em
+      # /api/auth, ver server.ts authLimiter) derrubava os testes depois dos ~19 primeiros com
+      # 429, sem nenhuma falha de asserção real por trás (só timeout esperando a navegação pro
+      # /app que o 429 nunca deixava acontecer).
+      AUTH_RATE_LIMIT_MAX: 500
 
     steps:
       - uses: actions/checkout@v4
@@ -108,6 +114,7 @@ jobs:
           MEILI_MASTER_KEY=$MEILI_MASTER_KEY
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+          AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
           EOF
 
       - name: Run Integration Tests

@@ -6,6 +6,8 @@ import { prisma } from "./prisma.js";
 import { requestContext } from "./async-context.js";
 import { parseAllowedOrigins } from "../config/network.js";
 import { isAuthorizedLoginEmail, getBrandFromEmail } from "../config/access-policy.js";
+import { sendEmail, MailerNotConfiguredError } from "./email/mailer.js";
+import { logger } from "./logger.js";
 
 const ACCESS_DENIED_MESSAGE = "Acesso restrito a e-mails corporativos autorizados (@atlasgr.com.br ou @totaltrac.com.br).";
 
@@ -37,6 +39,37 @@ export const auth = betterAuth({
     trustedOrigins: [...parseAllowedOrigins(process.env.ALLOWED_ORIGINS), "https://atlasgr-dev-server.loca.lt"],
     emailAndPassword: {
         enabled: true,
+        // Sem isto, POST /api/auth/request-password-reset responde "Reset password isn't enabled"
+        // (ver node_modules/better-auth/dist/api/routes/password.mjs) — o endpoint só existe de
+        // verdade quando um envio de e-mail é fornecido.
+        sendResetPassword: async ({ user, url }) => {
+            try {
+                await sendEmail({
+                    to: user.email,
+                    subject: "Redefinição de senha — Prospector Atlas",
+                    text: [
+                        `Olá${user.name ? `, ${user.name}` : ""},`,
+                        "",
+                        "Recebemos uma solicitação para redefinir a senha da sua conta no Prospector Atlas.",
+                        "",
+                        `Clique no link abaixo para escolher uma nova senha (válido por 1 hora):`,
+                        url,
+                        "",
+                        "Se você não solicitou essa alteração, ignore este e-mail — sua senha atual continua válida.",
+                    ].join("\n"),
+                });
+            } catch (error) {
+                // Sem SMTP configurado (ambiente local/preview), não derruba a requisição: o endpoint
+                // do better-auth já responde sempre com a mesma mensagem genérica (evita enumeração de
+                // e-mail), então só registramos o motivo real no log do servidor.
+                if (error instanceof MailerNotConfiguredError) {
+                    logger.warn({ email: user.email }, "Reset de senha solicitado, mas SMTP_HOST não está configurado — e-mail não enviado.");
+                    return;
+                }
+                logger.error({ err: error, email: user.email }, "Falha ao enviar e-mail de redefinição de senha.");
+                throw error;
+            }
+        },
     },
     socialProviders,
     plugins: [],

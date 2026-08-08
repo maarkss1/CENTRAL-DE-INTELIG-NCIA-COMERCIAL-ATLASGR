@@ -197,7 +197,7 @@ async function startServer() {
     // stuffing contra contas específicas.
     const authLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 20,
+        max: env.AUTH_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
         // get-session e o callback OAuth (GET) são checagens/redirecionamentos disparados

@@ -25,6 +25,11 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
   AI_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  // 20/15min por IP é apertado o bastante pra conter força bruta/credential stuffing, mas também
+  // apertado demais pra uma suíte E2E que cria uma conta real por teste sequencialmente a partir
+  // do mesmo IP (ver server.ts authLimiter) — configurável para o ambiente de CI poder abrir a
+  // cota sem enfraquecer o valor padrão de produção.
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
   JSON_BODY_LIMIT: z.string().default('2mb'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
