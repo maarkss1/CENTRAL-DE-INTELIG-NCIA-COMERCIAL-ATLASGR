@@ -57,6 +57,11 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      # Sem esta variável no Render, o gateway de IA (src/lib/ai/gateway.ts) nunca chega a tentar
+      # o Gemini: ele só entra como fallback depois de Groq/OpenAI, e sem a chave o fallback é
+      # pulado silenciosamente (mesmo comportamento em src/lib/ai/embeddings.ts).
+      - key: GEMINI_API_KEY
+        sync: false
       - key: BITRIX24_WEBHOOK_URL
         sync: false
       - key: BIRTH_VOICES_WEBHOOK_SECRET
