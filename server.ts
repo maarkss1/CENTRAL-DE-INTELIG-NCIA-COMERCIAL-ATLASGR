@@ -19,6 +19,7 @@ import { authenticateToken, type AuthRequest } from './src/shared/middlewares/au
 import { requestContext } from './src/lib/async-context.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { prisma } from './src/lib/prisma.js';
+import { shutdownLangfuse } from './src/lib/langfuse.js';
 import { companyRoutes } from './src/features/companies/routes/company.routes.js';
 import { contactRoutes } from './src/features/contacts/routes/contact.routes.js';
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
@@ -196,7 +197,7 @@ async function startServer() {
     // stuffing contra contas específicas.
     const authLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 20,
+        max: env.AUTH_RATE_LIMIT_MAX,
         standardHeaders: true,
         legacyHeaders: false,
         // get-session e o callback OAuth (GET) são checagens/redirecionamentos disparados
@@ -416,6 +417,7 @@ async function startServer() {
         await bitrixSyncWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
+        await shutdownLangfuse();
         await prisma.$disconnect();
         process.exit(0);
     };

@@ -249,8 +249,10 @@ export async function withRlsContext<T>(
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma;
 
-// Graceful shutdown handling
-process.on('beforeExit', async () => {
+// Graceful shutdown handling. `beforeExit` pode disparar mais de uma vez (o event loop pode
+// esvaziar de novo enquanto o handler async anterior ainda está rodando) — process.once garante
+// que $disconnect()/pool.end() só rodem uma vez, evitando "Called end on pool more than once".
+process.once('beforeExit', async () => {
   logger.info('Shutting down Prisma client and database connection pool...');
   await prisma.$disconnect();
   await pool.end();

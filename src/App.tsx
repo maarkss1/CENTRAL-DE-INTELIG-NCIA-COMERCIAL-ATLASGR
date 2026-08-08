@@ -14,6 +14,7 @@ import { ClickSpark } from './components/ui/ClickSpark';
 // Lazy loaded feature modules
 const SinglePageDashboard = lazy(() => import('./features/dashboard/components/SinglePageDashboard').then((m) => ({ default: m.SinglePageDashboard })));
 const LoginScreen = lazy(() => import('./features/auth/components/LoginScreen').then((m) => ({ default: m.LoginScreen })));
+const ResetPasswordScreen = lazy(() => import('./features/auth/components/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })));
 const ProspectingHub = lazy(() => import('./features/prospecting/components/ProspectingHub').then(m => ({ default: m.ProspectingHub })));
 const CrmBoard = lazy(() => import('./components/CrmBoard').then(m => ({ default: m.CrmBoard })));
 const IntelligenceHub = lazy(() => import('./features/intelligence/components/IntelligenceHub').then(m => ({ default: m.IntelligenceHub })));
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="/welcome" element={<WelcomeScreen />} />
               <Route path="/select-brand" element={<SelectionScreen />} />
               <Route path="/login" element={<LoginScreen />} />
+              <Route path="/reset-password" element={<ResetPasswordScreen />} />
               <Route
                 path="/app/*"
                 element={
