@@ -114,7 +114,7 @@ serviço a partir dele.
    | `ALLOWED_ORIGINS` | `https://app.atlasgr.com.br` (mais qualquer outro domínio real que sirva o frontend) |
    | `BETTER_AUTH_URL` | `https://app.atlasgr.com.br` |
    | `PUBLIC_BASE_URL` | `https://app.atlasgr.com.br` |
-   | `GOOGLE_MAPS_API_KEY`, `APOLLO_API_KEY`, `HUNTER_API_KEY`, `GROQ_API_KEY` | Chaves reais de cada provedor |
+   | `GOOGLE_MAPS_API_KEY`, `APOLLO_API_KEY`, `HUNTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY` | Chaves reais de cada provedor |
    | `BITRIX24_WEBHOOK_URL`, `BIRTH_VOICES_WEBHOOK_SECRET` | Se as integrações estiverem em uso |
    | `STORAGE_*` | Seção 1.2 |
    | `REDIS_URL` | Opcional — ver seção 2.4 |

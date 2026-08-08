@@ -38,5 +38,11 @@ export async function signUp(page: Page, { email, password = E2E_PASSWORD, name 
   await page.getByPlaceholder('seu.nome@atlasgr.com.br ou @totaltrac.com.br').fill(email);
   await page.getByPlaceholder('••••••••').fill(password);
   await page.getByRole('button', { name: /Criar Nova Conta/ }).click();
-  await page.waitForURL('**/app*', { timeout: 15_000 });
+  // 15s bastava numa suíte E2E curta, mas com dezenas de specs rodando em série (workers: 1) contra
+  // o mesmo servidor/Postgres de teste, o signup (POST /api/auth/sign-up/email + refetch de sessão,
+  // ver LoginScreen.tsx) ocasionalmente passa de 15s sob a carga do runner do CI — sem indício de
+  // travamento real (não achamos nenhuma mudança recente no fluxo de signup/RLS que explique um
+  // hang). 30s dá folga sem mascarar um hang de verdade (o timeout global do teste, abaixo, seria
+  // estourado de qualquer forma nesse caso).
+  await page.waitForURL('**/app*', { timeout: 30_000 });
 }
