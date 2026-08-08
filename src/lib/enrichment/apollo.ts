@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { logger } from '../logger.js';
+import { getPaidProspectingKey } from '../../config/prospecting-integrations.js';
 
 export interface ApolloEnrichmentData {
     revenue?: string;
@@ -26,11 +27,15 @@ interface ApolloApiResponse {
 }
 
 export class ApolloService {
-    private apiKey: string;
-    private baseUrl = 'https://api.apollo.io/v1';
+    // Apollo API real fica em /api/v1, não /v1 — usar /v1 devolve 404 e o enriquecimento
+    // falha silenciosamente (mesmo bug já corrigido para a busca de empresas/decisores, ver
+    // src/features/prospecting/services/apollo/client.ts).
+    private baseUrl = 'https://api.apollo.io/api/v1';
 
-    constructor() {
-        this.apiKey = process.env.APOLLO_API_KEY || '';
+    private getApiKey(): string {
+        // Mesma trava de opt-in dos demais provedores pagos: só usa a chave real quando
+        // PROSPECTING_PROVIDER_MODE=hybrid (ver config/prospecting-integrations.ts).
+        return getPaidProspectingKey('APOLLO_API_KEY') || '';
     }
 
     /**
@@ -38,7 +43,8 @@ export class ApolloService {
      * Em ambiente de desenvolvimento sem API KEY válida, retorna dados Mockados para evitar custos.
      */
     async enrichCompany(domain: string, companyName: string): Promise<ApolloEnrichmentData> {
-        if (!this.apiKey || process.env.NODE_ENV !== 'production') {
+        const apiKey = this.getApiKey();
+        if (!apiKey || process.env.NODE_ENV !== 'production') {
             logger.debug({ domain, companyName }, '[Apollo Mock] Enriquecendo empresa...');
             // Simula delay de rede
             await new Promise(resolve => setTimeout(resolve, 1500));
@@ -59,7 +65,7 @@ export class ApolloService {
                 headers: {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache',
-                    'x-api-key': this.apiKey
+                    'x-api-key': apiKey
                 }
             });
 
