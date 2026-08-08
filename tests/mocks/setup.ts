@@ -7,6 +7,22 @@ process.env.DATABASE_URL = 'postgresql://dummy:dummy@localhost:5432/dummy';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { server } from './server';
 
+// jsdom não implementa <dialog>.showModal()/close() (https://github.com/jsdom/jsdom/issues/3294),
+// então qualquer componente que use o elemento nativo `<dialog>` (ver src/components/ui/Dialog.tsx)
+// derruba os testes com "showModal is not a function" mesmo sem nenhum bug real de aplicação.
+if (typeof HTMLDialogElement !== 'undefined') {
+    if (!HTMLDialogElement.prototype.showModal) {
+        HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+            this.setAttribute('open', '');
+        };
+    }
+    if (!HTMLDialogElement.prototype.close) {
+        HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+            this.removeAttribute('open');
+        };
+    }
+}
+
 // `onUnhandledRequest: 'bypass'` (em vez de 'error') porque o interceptor de `msw/node` é global
 // no processo: alguns testes (ex.: tests/unit/features/companies/routes/company.routes.test.ts)
 // usam supertest para bater direto num servidor Express real via socket TCP local — não é HTTP
