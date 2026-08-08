@@ -1,15 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { RedisCache } from '@langchain/community/caches/ioredis';
-import { cacheConnection } from '../../../lib/queue/redis.js';
-
-// Inicializa o cache distribuído do LangChain apontando para a nossa conexão fail-fast
-const llmCache = new RedisCache(cacheConnection);
 
 export function buildModelWithFallback(modelName: string) {
     const groqLlm = new ChatOpenAI({
         modelName: modelName,
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.GROQ_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000,
@@ -19,7 +13,6 @@ export function buildModelWithFallback(modelName: string) {
     const geminiLlm = new ChatOpenAI({
         modelName: 'gemini-1.5-flash',
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000,
@@ -29,7 +22,6 @@ export function buildModelWithFallback(modelName: string) {
     const openaiLlm = new ChatOpenAI({
         modelName: 'gpt-4o-mini',
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.OPENAI_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000
@@ -50,14 +42,9 @@ export function buildModelWithFallback(modelName: string) {
 }
 
 export function buildModelWithFallbackAndTools(modelName: string, tools: any[]) {
-    // O LangChain withFallbacks internamente é um Runnable. Se for um ChatOpenAI puro,
-    // podemos dar bindTools direto. Se for um FallbackRunnable, temos que fazer fallback das tools.
-    // Para simplificar e garantir que todos da cadeia tenham as tools ligadas:
-    
     const groqLlm = new ChatOpenAI({
         modelName: modelName,
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.GROQ_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000,
@@ -67,7 +54,6 @@ export function buildModelWithFallbackAndTools(modelName: string, tools: any[]) 
     const geminiLlm = new ChatOpenAI({
         modelName: 'gemini-1.5-flash',
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000,
@@ -77,7 +63,6 @@ export function buildModelWithFallbackAndTools(modelName: string, tools: any[]) 
     const openaiLlm = new ChatOpenAI({
         modelName: 'gpt-4o-mini',
         temperature: 0,
-        cache: llmCache,
         apiKey: process.env.OPENAI_API_KEY || 'missing-key',
         maxRetries: 3,
         timeout: 30_000
