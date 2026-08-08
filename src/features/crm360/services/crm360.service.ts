@@ -163,7 +163,13 @@ export const crm360Service = {
                 take: 8,
                 include: { company: true, contact: true, pipelineStage: true },
             }),
-            prisma.lead.groupBy({ where: { organizationId }, by: ['funnel', 'status'], _count: { _all: true }, _sum: { amount: true } }),
+            prisma.lead.groupBy({
+                where: { organizationId },
+                by: ['funnel', 'status'],
+                orderBy: { funnel: 'asc' },
+                _count: true,
+                _sum: { amount: true },
+            }),
         ]);
 
         const totalPipeline = pipelineValue.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
@@ -192,8 +198,8 @@ export const crm360Service = {
             stageCounts: stageCounts.map((row) => ({
                 funnel: row.funnel,
                 status: fromPrismaLeadStatus(row.status),
-                count: row._count._all,
-                amount: row._sum.amount ?? 0,
+                count: row._count,
+                amount: row._sum?.amount ?? 0,
             })),
         };
     },
@@ -403,13 +409,14 @@ export const crm360Service = {
         stockQuantity: number | null;
         customFields: Record<string, unknown> | null;
     }>) {
+        const { customFields, ...rest } = input;
         return prisma.crmProduct.update({
             where: { id, organizationId },
             data: {
-                ...input,
+                ...rest,
                 ...(input.type ? { type: CrmProductType[input.type] } : {}),
                 ...(input.currency ? { currency: input.currency.toUpperCase() } : {}),
-                ...(input.customFields !== undefined ? { customFields: input.customFields as Prisma.InputJsonValue } : {}),
+                ...(customFields !== undefined ? { customFields: (customFields ?? Prisma.JsonNull) as Prisma.InputJsonValue } : {}),
             },
         });
     },

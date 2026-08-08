@@ -94,18 +94,26 @@ export const auth = betterAuth({
                     if (!user.organizationId) {
                         const brand = getBrandFromEmail(user.email);
                         const brandTitle = brand === 'totaltrac' ? 'Total Trac Operações' : 'AtlasGR Operações';
-                        // Este hook roda fora de qualquer requestContext (o signup ainda não tem sessão,
-                        // então authenticateToken nunca chega a rodar pra esta rota) — sem contexto de
-                        // tenant, o INSERT é bloqueado pela policy de RLS de Organization (e, logo em
-                        // seguida, de user), que exigem app.current_tenant_id = id/organizationId mesmo
-                        // pra criar a linha. Geramos o id aqui, antes do insert, e usamos ele mesmo como
-                        // tenantId do contexto (a organização "é dona de si mesma" nesse instante) — igual
-                        // ao padrão já usado em tests/helpers/integration-setup.ts pro seed de teste.
+                        // O middleware de /api/auth (server.ts) já roda toda esta rota sob
+                        // requestContext.run({ bypassRls: true }, ...) — sem tenant conhecido ainda,
+                        // o INSERT nesta Organization (e, logo em seguida, o de User) só passa pela
+                        // policy de RLS via esse bypass ou via app.current_tenant_id = id/organizationId.
+                        // Geramos o id aqui, antes do insert, e usamos ele mesmo como tenantId do
+                        // contexto (a organização "é dona de si mesma" nesse instante) — igual ao
+                        // padrão já usado em tests/helpers/integration-setup.ts pro seed de teste.
                         // enterWith (em vez de run) de propósito: precisa continuar valendo depois que
                         // este hook retornar, quando o adapter do better-auth insere a linha de `user`
                         // com esse organizationId na sequência, dentro da mesma cadeia assíncrona.
+                        // IMPORTANTE: preserva o bypassRls do contexto atual — enterWith SUBSTITUI a
+                        // store inteira, então um `enterWith({ tenantId: orgId })` sem isso derrubava
+                        // silenciosamente o bypassRls:true do middleware pelo resto da requisição,
+                        // quebrando operações posteriores do better-auth nessa mesma cadeia assíncrona
+                        // que dependem dele (ex.: gravação em "verification", cuja policy de RLS só
+                        // libera INSERT com app.bypass_rls='on' — não tem o escape `WITH CHECK (true)`
+                        // que "session"/"account" têm).
                         const orgId = randomUUID();
-                        requestContext.enterWith({ tenantId: orgId });
+                        const bypassRls = requestContext.getStore()?.bypassRls;
+                        requestContext.enterWith({ tenantId: orgId, bypassRls });
                         const org = await prisma.organization.create({
                             data: { id: orgId, name: `${user.name || 'Novo Usuário'} - ${brandTitle}` }
                         });
