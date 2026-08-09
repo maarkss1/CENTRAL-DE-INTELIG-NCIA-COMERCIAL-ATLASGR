@@ -41,15 +41,18 @@ test.describe('CRUD de lead', () => {
     const readAgain = (await readAgainRes.json()).data;
     expect(readAgain.status).toBe('Qualificação (SDR)');
 
-    // lead.routes.ts:19 exige role ADMIN/GESTOR para DELETE — usuário recém-cadastrado nasce
-    // VISUALIZADOR (better-auth additionalFields.role default), então isto documenta o RBAC real
-    // (403), não uma falha do teste.
+    // lead.routes.ts:19 exige role ADMIN/GESTOR para DELETE. Quem se cadastra fundando uma
+    // organização nova vira ADMIN dela (src/lib/auth.ts databaseHooks.user.create.before) — é a
+    // única pessoa da organização nesse momento, então precisa conseguir administrar seus próprios
+    // dados desde o início (sem isso, ninguém jamais poderia promovê-la). A exclusão aqui deve
+    // funcionar de verdade.
     const deleteRes = await page.request.delete(`/api/leads/${leadId}`);
-    expect(deleteRes.status()).toBe(403);
+    expect(deleteRes.status()).toBe(204);
 
-    // O lead segue existindo porque a exclusão foi corretamente bloqueada.
-    const stillThereRes = await page.request.get(`/api/leads/${leadId}`);
-    expect(stillThereRes.ok()).toBeTruthy();
+    // Soft delete (ver isAuditable/findUnique filtering em src/lib/prisma.ts) — o lead não aparece
+    // mais em GET, mesmo continuando na tabela.
+    const afterDeleteRes = await page.request.get(`/api/leads/${leadId}`);
+    expect(afterDeleteRes.status()).toBe(404);
   });
 
   test('rejeita status de lead fora do enum aceito', async ({ page }) => {

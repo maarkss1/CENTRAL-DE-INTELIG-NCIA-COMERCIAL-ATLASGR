@@ -14,6 +14,14 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().optional(),
   BETTER_AUTH_URL: z.string().optional(),
   BETTER_AUTH_SECRET: z.string().optional(),
+  // Chave mestra (32 bytes, base64) que cifra em repouso credenciais de integrações persistidas
+  // no banco (GoogleWorkspaceConnection.accessToken/refreshToken, BitrixConnection.webhookUrl —
+  // ver src/lib/crypto/secretFields.ts). Separada de BETTER_AUTH_SECRET de propósito: uma chave
+  // comprometida não deve automaticamente comprometer a outra. Opcional aqui (mesmo padrão de
+  // BETTER_AUTH_SECRET) — a obrigatoriedade em produção é reforçada em runtime por
+  // secretFields.ts, não aqui, para não derrubar a aplicação inteira ao subir só por causa deste
+  // schema quando NODE_ENV ainda não foi resolvido nesta camada.
+  CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),

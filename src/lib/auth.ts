@@ -150,10 +150,20 @@ export const auth = betterAuth({
                         const org = await prisma.organization.create({
                             data: { id: orgId, name: `${user.name || 'Novo Usuário'} - ${brandTitle}` }
                         });
+                        // Quem cria uma organização NOVA vira ADMIN dela — sem isso, `role` cai no
+                        // default do schema (VISUALIZADOR, somente-leitura, ver additionalFields
+                        // abaixo) e essa pessoa fica travada para sempre: é a ÚNICA usuária da
+                        // organização, então não existe nenhum ADMIN capaz de promovê-la depois via
+                        // `team.routes.ts` (rota já corrigida para exigir `requireRole(['ADMIN'])`
+                        // em toda escrita — ver auditoria de autorização da Onda 1). Um convite para
+                        // uma organização JÁ existente (branch abaixo, `user.organizationId` já
+                        // presente) continua caindo no default/no papel que o convite atribuir —
+                        // isso aqui só cobre quem está fundando a organização agora.
                         return {
                             data: {
                                 ...user,
-                                organizationId: org.id
+                                organizationId: org.id,
+                                role: 'ADMIN',
                             }
                         };
                     }

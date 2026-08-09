@@ -8,7 +8,49 @@ import { queuesEnabled } from './queue/redis.js';
 import { logger } from './logger.js';
 import { requestContext } from './async-context.js';
 import { env } from '../config/env.js';
+import { encryptField, decryptField } from './crypto/secretFields.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
+
+// Campos de credencial de integração que são cifrados em repouso (AES-256-GCM, ver
+// src/lib/crypto/secretFields.ts) — cifra ao gravar/decifra ao ler, de forma transparente para
+// todo o resto do código (services de Bitrix/Google continuam lendo texto puro em memória; só o
+// valor persistido no Postgres é cifrado).
+const ENCRYPTED_FIELDS: Record<string, readonly string[]> = {
+  GoogleWorkspaceConnection: ['accessToken', 'refreshToken'],
+  BitrixConnection: ['webhookUrl'],
+};
+
+function encryptSensitiveFields(model: string, data: Record<string, unknown>): Record<string, unknown> {
+  const fields = ENCRYPTED_FIELDS[model];
+  if (!fields) return data;
+  const out = { ...data };
+  for (const field of fields) {
+    if (typeof out[field] === 'string' && out[field]) {
+      out[field] = encryptField(out[field] as string);
+    }
+  }
+  return out;
+}
+
+function decryptSensitiveRecord<T>(model: string, record: T): T {
+  const fields = ENCRYPTED_FIELDS[model];
+  if (!fields || !record || typeof record !== 'object') return record;
+  const out = record as Record<string, unknown>;
+  for (const field of fields) {
+    if (typeof out[field] === 'string' && out[field]) {
+      out[field] = decryptField(out[field] as string);
+    }
+  }
+  return out as T;
+}
+
+function decryptSensitiveResult<T>(model: string, result: T): T {
+  if (!ENCRYPTED_FIELDS[model] || !result) return result;
+  if (Array.isArray(result)) {
+    return result.map((item) => decryptSensitiveRecord(model, item)) as unknown as T;
+  }
+  return decryptSensitiveRecord(model, result);
+}
 
 // Production-ready connection pool configuration
 const pool = new Pool({
@@ -77,6 +119,19 @@ export const prisma = basePrisma.$extends({
              if (a.create) {
                 a.create = { ...(a.create as Record<string, unknown>), organizationId: tenantId };
              }
+          }
+        }
+
+        // --- 1b. Criptografia de credenciais em repouso (write) ---
+        if (ENCRYPTED_FIELDS[model as string]) {
+          const a = args as Record<string, unknown>;
+          if ((operation === 'create' || operation === 'update' || operation === 'updateMany') && a.data) {
+            a.data = encryptSensitiveFields(model as string, a.data as Record<string, unknown>);
+          } else if (operation === 'createMany' && Array.isArray(a.data)) {
+            a.data = (a.data as Record<string, unknown>[]).map((d) => encryptSensitiveFields(model as string, d));
+          } else if (operation === 'upsert') {
+            if (a.create) a.create = encryptSensitiveFields(model as string, a.create as Record<string, unknown>);
+            if (a.update) a.update = encryptSensitiveFields(model as string, a.update as Record<string, unknown>);
           }
         }
 
@@ -215,6 +270,11 @@ export const prisma = basePrisma.$extends({
                      data: operation === 'delete' ? [result.id] : [{ ...result }]
                  }).catch(err => logger.error(err, 'Failed to enqueue search index task'));
              }
+        }
+
+        // --- 6. Criptografia de credenciais em repouso (read) ---
+        if (ENCRYPTED_FIELDS[model as string]) {
+          result = decryptSensitiveResult(model as string, result);
         }
 
         return result;

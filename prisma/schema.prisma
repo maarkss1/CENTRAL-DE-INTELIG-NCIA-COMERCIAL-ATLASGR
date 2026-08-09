@@ -913,6 +913,8 @@ model GoogleWorkspaceConnection {
 
   /// Conta Google conectada — mostrado na tela de Integrações.
   email        String
+  /// Cifrados em repouso (AES-256-GCM) de forma transparente pela extensão Prisma em
+  /// src/lib/prisma.ts — ver src/lib/crypto/secretFields.ts.
   accessToken  String   @db.Text
   refreshToken String   @db.Text
   scope        String
@@ -942,8 +944,10 @@ model BitrixConnection {
   label String @default("Bitrix24")
 
   /// URL completa do webhook de entrada, incluindo o token (ex: https://SEUDOMINIO.bitrix24.com.br/rest/1/xxxxxxxx/).
-  /// Mesmo tratamento de segurança que o resto da base: nenhuma coluna tem criptografia de campo
-  /// própria (ver GoogleWorkspaceConnection.accessToken) — a proteção vem de RLS por tenant.
+  /// Cifrada em repouso (AES-256-GCM) de forma transparente pela extensão Prisma em
+  /// src/lib/prisma.ts — ver src/lib/crypto/secretFields.ts. A coluna em si continua `Text` porque
+  /// o valor cifrado (formato "enc:v1:...") é mais longo que a URL original; a proteção de tenant
+  /// via RLS permanece como camada adicional, não substituída por isto.
   webhookUrl String @db.Text
 
   /// Checkpoint da última importação bem-sucedida (crm.lead.list filtrado por >DATE_MODIFY a
