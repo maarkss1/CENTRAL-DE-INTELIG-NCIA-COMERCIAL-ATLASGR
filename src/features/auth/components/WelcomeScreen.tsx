@@ -1,20 +1,71 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Volume2, VolumeX, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, MessageCircle, Phone, Volume2, VolumeX } from 'lucide-react';
 import { clientLogger } from '../../../lib/clientLogger';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { staggerContainer, staggerItem } from '../../../lib/motion';
+
+// Marcas de redes sociais não existem no lucide-react (biblioteca de ícones genéricos do
+// projeto) — seguindo a mesma convenção de Logo.tsx/TotalTrackLogo.tsx, ícones de marca de
+// terceiros vivem como SVG inline em vez de puxar uma segunda lib de ícones para 4 glifos.
+function FacebookGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M15 21v-7.5h2.5l.4-3H15V8.6c0-.87.24-1.46 1.49-1.46H18V4.4A20.6 20.6 0 0 0 15.98 4.3c-2.19 0-3.68 1.34-3.68 3.79v2.42H9.8v3h2.5V21Z" />
+    </svg>
+  );
+}
+
+function InstagramGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17" cy="7" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function LinkedinGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="17" height="17" rx="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="8" cy="8.7" r="1.15" />
+      <rect x="7.1" y="10.8" width="1.8" height="6.5" />
+      <path d="M11.4 10.8h1.75v1.05c.5-.78 1.35-1.25 2.35-1.25 1.9 0 2.9 1.28 2.9 3.42v3.68h-1.8v-3.28c0-1.1-.4-1.83-1.4-1.83-1 0-1.6.72-1.6 1.83v3.28h-1.8Z" />
+    </svg>
+  );
+}
+
+function YoutubeGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="3" y="6" width="18" height="12" rx="4" />
+      <path d="M10.3 9.4v5.2l4.7-2.6Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+const SOCIAL_LINKS = [
+  { href: 'https://www.facebook.com/atlasgroficial', label: 'Facebook', Icon: FacebookGlyph },
+  { href: 'https://www.instagram.com/atlasgroficial/', label: 'Instagram', Icon: InstagramGlyph },
+  { href: 'https://www.linkedin.com/company/atlasgroficial', label: 'LinkedIn', Icon: LinkedinGlyph },
+  { href: 'https://www.youtube.com/@atlasgroficial', label: 'YouTube', Icon: YoutubeGlyph },
+] as const;
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [isMuted, setIsMuted] = useState(true);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (audioRef.current && !isMuted) {
       audioRef.current.play().catch(() => {
-        // Autoplay policy prevented it, we just swallow the error
+        // Autoplay bloqueado pelo navegador — apenas registramos, sem interromper a UI.
         clientLogger.info('Autoplay blocked');
       });
     } else if (audioRef.current && isMuted) {
@@ -22,160 +73,115 @@ export function WelcomeScreen() {
     }
   }, [isMuted]);
 
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-  };
+  const toggleMute = () => setIsMuted((prev) => !prev);
 
   return (
-    <div className="min-h-screen bg-[#030305] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
-      {/* Background Music */}
-      <audio 
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-bg font-sans text-ink transition-colors">
+      <audio
         ref={audioRef}
-        loop 
-        src="https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=ambient-piano-and-strings-10711.mp3" 
+        loop
+        src="https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=ambient-piano-and-strings-10711.mp3"
       />
 
-      {/* Background Ambience - Split Gradients */}
-      <div className="absolute inset-0 flex pointer-events-none z-0">
-        <div className="w-1/2 h-full bg-gradient-to-r from-atlas-orange/30 via-atlas-orange/10 to-transparent blur-[120px]"></div>
-        <div className="w-1/2 h-full bg-gradient-to-l from-totaltrack-blue/30 via-totaltrac-navy/10 to-transparent blur-[120px]"></div>
-      </div>
-      
-      {/* Sound Toggle */}
-      <button 
+      {/* Ambiente de fundo — um glow por marca, sutil e com rotação lenta (mesmo padrão já usado
+          em LoginScreen), não duas faixas largas de gradiente competindo pela atenção. Tamanho
+          reduzido em telas estreitas: em ~390px de largura um blob de 420px tingia a tela toda e
+          derrubava o contraste do texto por baixo dele (achado real do axe-core em mobile). */}
+      <motion.div
+        aria-hidden="true"
+        animate={{ rotate: [0, 90, 0] }}
+        transition={{ duration: 26, repeat: Infinity, ease: 'linear' }}
+        className="pointer-events-none absolute -left-16 -top-16 h-64 w-64 rounded-full bg-atlas-orange/6 blur-[90px] sm:-left-32 sm:-top-32 sm:h-[420px] sm:w-[420px] sm:blur-[110px]"
+      />
+      <motion.div
+        aria-hidden="true"
+        animate={{ rotate: [0, -90, 0] }}
+        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+        className="pointer-events-none absolute -bottom-16 -right-16 h-64 w-64 rounded-full bg-totaltrack-blue/6 blur-[90px] sm:-bottom-32 sm:-right-32 sm:h-[420px] sm:w-[420px] sm:blur-[110px]"
+      />
+
+      <button
+        type="button"
         onClick={toggleMute}
-        className="absolute top-6 right-6 z-50 p-3 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-colors backdrop-blur-md"
+        className="absolute right-6 top-6 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/5 text-ink-2 backdrop-blur-md transition-colors hover:bg-ink/10 hover:text-ink"
+        aria-label={isMuted ? 'Ativar som ambiente' : 'Silenciar som ambiente'}
+        aria-pressed={!isMuted}
       >
-        {isMuted ? <VolumeX size={20} className="text-gray-400" /> : <Volume2 size={20} className="text-atlas-orange" />}
+        {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
 
-      <div className="w-full max-w-4xl px-6 relative z-10 flex flex-col items-center text-center">
-        
-        {/* Logos Container */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="flex items-center gap-6 mb-12"
-        >
-          <div className="flex flex-col items-center">
-            <div className="w-48 h-20 mb-4 flex items-center justify-center">
-              <Logo variant="white" className="w-full h-full" />
-            </div>
-            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
-              AtlasGR
-            </span>
+      <motion.div
+        variants={staggerContainer(0.12)}
+        initial="hidden"
+        animate="show"
+        className="relative z-10 flex w-full max-w-3xl flex-col items-center px-6 text-center"
+      >
+        <motion.p variants={staggerItem} className="mb-8 text-xs font-bold uppercase tracking-[0.3em] text-ink-2">
+          AtlasGR <span className="text-ink-2/40">•</span> Total Trac
+        </motion.p>
+
+        <motion.div variants={staggerItem} className="mb-10 flex items-center gap-6">
+          <div className="flex h-16 w-40 items-center justify-center">
+            <Logo variant={theme === 'dark' ? 'white' : 'default'} className="h-full w-full" />
           </div>
-
-          <div className="h-12 w-px bg-white/20 mx-4"></div>
-
-          <div className="flex flex-col items-center">
-            <div className="w-48 h-20 mb-4 flex items-center justify-center">
-              <TotalTrackLogo tone="negative" className="w-full h-full" />
-            </div>
-            <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 hidden">
-              Total Trac
-            </span>
+          <div className="h-10 w-px bg-line" />
+          <div className="flex h-16 w-40 items-center justify-center">
+            <TotalTrackLogo className="h-full w-full" />
           </div>
         </motion.div>
 
-        {/* Impactful Message */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="mb-14 relative"
-        >
-          <div className="absolute -inset-1 bg-gradient-to-r from-atlas-orange via-totaltrac-navy to-totaltrack-blue rounded-3xl blur-2xl opacity-20"></div>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight relative z-10">
-            A sua nova <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-orange to-totaltrack-blue">
-              inteligência comercial
-            </span>.
-          </h1>
-          <p className="mt-6 text-lg md:text-xl text-gray-400 font-medium max-w-2xl mx-auto leading-relaxed">
-            Onde dados se transformam em receita e os melhores leads B2B qualificados encontram o seu negócio de forma automatizada.
-          </p>
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.05, 1],
-              boxShadow: [
-                "0px 0px 15px rgba(255,86,24,0.6)",
-                "0px 0px 25px rgba(0,143,206,0.8)",
-                "0px 0px 15px rgba(255,86,24,0.6)"
-              ]
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="mt-10 mx-auto max-w-fit px-6 py-3 rounded-2xl bg-gradient-to-r from-atlas-orange/20 to-totaltrack-blue/20 border border-white/30 backdrop-blur-xl"
-          >
-            <p className="text-sm md:text-base font-black uppercase tracking-[0.2em] animate-pulse">
-              <span className="text-white">🚀 Criado pelo coordenador comercial</span>
-              <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-atlas-yellow via-atlas-orange to-red-500 text-lg md:text-xl drop-shadow-[0_0_10px_rgba(255,86,24,0.8)]">
-                ⭐ MARCELO DO NASCIMENTO ⭐
-              </span>
-            </p>
-          </motion.div>
-        </motion.div>
+        <motion.h1 variants={staggerItem} className="max-w-2xl text-4xl font-bold leading-tight tracking-tight text-ink md:text-5xl">
+          A sua nova inteligência comercial.
+        </motion.h1>
+        <motion.p variants={staggerItem} className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-ink-2 md:text-lg">
+          Onde dados se transformam em receita e os leads B2B mais qualificados encontram o seu negócio de forma automatizada.
+        </motion.p>
 
-        {/* Start Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
+        <motion.div variants={staggerItem} className="mt-10">
           <button
+            type="button"
             onClick={() => {
               if (audioRef.current) audioRef.current.play().catch(() => {});
               navigate('/select-brand');
             }}
-            className="group relative inline-flex items-center justify-center gap-3 px-10 py-5 bg-white text-slate-900 rounded-full font-black text-lg overflow-hidden transition-transform hover:scale-105 active:scale-95"
+            className="group inline-flex items-center gap-2.5 rounded-full bg-ink px-8 py-4 text-sm font-bold text-bg transition-transform hover:scale-[1.03] active:scale-95"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-atlas-orange via-totaltrac-navy to-totaltrack-blue opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <span className="relative z-10 group-hover:text-white transition-colors duration-300 flex items-center gap-2">
-              <Sparkles className="w-5 h-5" />
-              Clique em Iniciar
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
+            Continuar
+            <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
           </button>
         </motion.div>
 
-      </div>
+        <motion.p variants={staggerItem} className="mt-14 text-xs font-medium tracking-wide text-ink-2">
+          Desenvolvido pelo Coordenador Comercial Marcelo do Nascimento
+        </motion.p>
+      </motion.div>
 
-      {/* Footer Socials & Contacts */}
-      <div className="absolute bottom-6 w-full px-8 flex justify-between items-center z-50 text-gray-400 text-sm">
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-          <a href="https://api.whatsapp.com/send?phone=5516981818458" target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-white transition-colors">
-            <i className="fab fa-whatsapp text-lg"></i> <span> Suporte: (16) 98181-8458</span>
+      <div className="absolute bottom-6 z-10 flex w-full flex-col items-center gap-4 px-8 text-sm text-ink-2 sm:flex-row sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+          <a
+            href="https://api.whatsapp.com/send?phone=5516981818458"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 transition-colors hover:text-ink"
+          >
+            <MessageCircle size={16} aria-hidden="true" />
+            <span>Suporte: (16) 98181-8458</span>
           </a>
-          <a href="tel:1621323790" className="flex items-center gap-2 hover:text-white transition-colors">
-            <i className="fas fa-phone-alt text-lg"></i> <span>Comercial: (16) 2132-3790</span>
+          <a href="tel:1621323790" className="flex items-center gap-2 transition-colors hover:text-ink">
+            <Phone size={16} aria-hidden="true" />
+            <span>Comercial: (16) 2132-3790</span>
           </a>
         </div>
         <ul className="flex gap-4">
-          <li>
-            <a href="https://www.facebook.com/atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              <i className="fab fa-facebook-f text-lg" aria-hidden="true"></i>
-            </a>
-          </li>
-          <li>
-            <a href="https://www.instagram.com/atlasgroficial/" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              <i className="fab fa-instagram text-lg" aria-hidden="true"></i>
-            </a>
-          </li>
-          <li>
-            <a href="https://www.linkedin.com/company/atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              <i className="fab fa-linkedin-in text-lg" aria-hidden="true"></i>
-            </a>
-          </li>
-          <li>
-            <a href="https://www.youtube.com/@atlasgroficial" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              <i className="fab fa-youtube text-lg" aria-hidden="true"></i>
-            </a>
-          </li>
+          {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+            <li key={href}>
+              <a href={href} target="_blank" rel="noreferrer" aria-label={label} className="block transition-colors hover:text-ink">
+                <Icon className="h-[18px] w-[18px]" />
+              </a>
+            </li>
+          ))}
         </ul>
       </div>
-
-    </div>
+    </main>
   );
 }
