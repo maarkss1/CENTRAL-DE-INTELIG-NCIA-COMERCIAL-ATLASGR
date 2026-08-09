@@ -27,18 +27,54 @@ documenta bugs reais (contraste insuficiente, área não navegável por teclado,
    `command-palette.spec.ts`, `leads-crud.spec.ts`) — rode o(s) spec(s) do fluxo tocado para
    confirmar que a mudança visual não quebrou comportamento (regra visual #10).
 
-## Quando não há navegador interativo disponível
+## Amplitude do QA é proporcional ao risco, não um checklist cego
+
+A "Ordem de verificação recomendada" acima é o teto, não um mínimo fixo pra toda mudança. Antes de
+decidir o que rodar, avalie o risco real: um ajuste pontual de texto/espaçamento numa tela isolada
+não precisa das mesmas combinações que uma mudança em autenticação, layout compartilhado
+(`MainLayout`, `Sidebar`), ou primitivo de design system (`src/components/ui/`) — essas últimas
+afetam múltiplas telas e justificam QA amplo: desktop, mobile, light, dark, AtlasGR, Total Trac,
+navegação por teclado, foco visível, overflow horizontal, contraste, `prefers-reduced-motion`,
+console do navegador (sem erros novos) e screenshot. Não pule QA proporcional por preguiça, mas
+também não rode todas as combinações cegamente em toda alteração pequena — isso não é rigor, é
+desperdício que não escala.
+
+## Classificação de warnings — nem todo warning é ignorável, nem todo warning bloqueia
+
+Ao rodar lint/typecheck/build, classifique cada warning encontrado:
+
+1. **Causado pela alteração** — corrija antes de reportar concluído, sempre.
+2. **Relacionado à alteração** (no mesmo arquivo/fluxo, mas não introduzido por ela) — corrija se
+   for barato; senão, registre explicitamente no relato final.
+3. **Pré-existente, sem relação** — não corrija por conta própria (expandiria o escopo sem pedido),
+   mas registre no relato final se for relevante ao que foi tocado.
+4. **Fora de escopo** — não mencione, não persiga.
+
+"Warning" não significa "pode ignorar" nem "precisa investigar tudo": a classificação acima é o que
+decide a ação, não a palavra "warning" em si.
+
+## Quando não há navegador interativo ou suíte oficial disponível
 
 Sessões anteriores deste projeto já documentaram rodadas inteiras de QA sem acesso a navegador
-interativo (ver seção "Verificação" de `DESIGN_QA_CENTRAL_ATLASGR.md`). Nesse cenário:
+interativo (ver seção "Verificação" de `DESIGN_QA_CENTRAL_ATLASGR.md`) e o Piloto 001 encontrou o
+mesmo bloqueio (sem Docker/Postgres/Redis para o servidor Express que os specs oficiais exigem — ver
+`.claude/PILOTS.md`). Quando a suíte oficial não puder rodar por limitação real de ambiente, siga
+este protocolo:
 
-- Playwright headless (`npx playwright test`) continua funcionando e é a fonte de verdade —
-  prefira sempre a ele sobre inspeção estática de código.
-- Se nem Playwright headless estiver disponível, **declare explicitamente** que a verificação
-  visual não foi possível e liste os itens específicos que precisam de confirmação manual depois —
-  não afirme "funciona visualmente" sem tê-lo verificado de alguma forma. Isso já é a convenção
-  deste projeto (ver como o próprio `DESIGN_QA_CENTRAL_ATLASGR.md` lista pendências de verificação
-  visual manual explicitamente em vez de assumir sucesso).
+1. **Registre exatamente o bloqueio** — o que não rodou e por quê (ex.: "sem Postgres/Redis, o
+   `webServer` do Playwright não sobe").
+2. **Nunca declare que um teste passou se ele não rodou.** Isso vale mesmo sob pressão de "terminar
+   a tarefa" — reportar um falso verde é pior que reportar um bloqueio real.
+3. **Execute a melhor validação alternativa possível** dentro do que o ambiente permite.
+4. **Explique a diferença** entre o teste oficial e a validação alternativa no relato final — não
+   deixe implícito que são equivalentes.
+5. **Nunca substitua silenciosamente** um teste por outro e o apresente como se fosse o mesmo.
+
+O Piloto 001 é uma referência **conceitual** do que uma validação alternativa pode parecer quando a
+tela não depende de backend (build estático real via `vite preview` + Playwright + `axe-core` em
+múltiplos viewports/temas) — não uma receita obrigatória para toda tela. Uma tela que depende de
+dados/autenticação pode não ter alternativa equivalente; nesse caso, o passo 1-2 (registrar o
+bloqueio, não fingir que passou) já é o comportamento correto, mesmo sem passo 3.
 
 ## Verificação nas duas marcas
 

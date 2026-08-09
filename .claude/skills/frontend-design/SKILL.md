@@ -16,13 +16,27 @@ arquivo que o plugin genérico não tem.
 Este projeto já tem exemplos reais do padrão a evitar — não como modelo a copiar, mas como
 diagnóstico do que parece "gerado":
 
-- `WelcomeScreen.tsx`: hero centralizada, gradiente split laranja/azul com `blur-[120px]`,
-  glassmorphism em todo botão flutuante. Funcional para uma tela de seleção de marca única, mas
-  **não é o padrão a replicar** em telas de trabalho novas.
+- `WelcomeScreen.tsx` **antes do Piloto 001** (ver `.claude/PILOTS.md`): hero centralizada com
+  gradiente split laranja/azul + `blur-[120px]`, glow pulsante infinito (`repeat: Infinity`) e um
+  crédito em gradiente arco-íris com emoji — o padrão "AI slop" desta seção, materializado. O
+  piloto corrigiu a decoração sem propósito, mas **manteve a composição centralizada** — ela é uma
+  exceção justificada (ver `CLAUDE.md` seção 5), não um erro. Use o antes/depois documentado em
+  `.claude/PILOTS.md` como referência do que "genérico" parece na prática neste projeto — não como
+  padrão a copiar (nem o "antes", nem literalmente o "depois": cada tela nova ainda precisa da
+  própria direção de arte).
 - Cards de métricas idênticos em grade 3x1 "porque preenchem a tela" — se você está prestes a
   criar 3 `Card` visualmente idênticos só para não deixar espaço vazio, pare: ou o conteúdo
   sustenta a repetição (ex.: 3 KPIs reais e distintos), ou a composição precisa de outra forma
   (lista, gráfico, comparação assimétrica).
+
+## Usando uma exceção justificada (seção 5 do `CLAUDE.md`)
+
+As regras desta skill (e as regras visuais #2/#4/#5/#6 do `CLAUDE.md`) descrevem o padrão default,
+não uma proibição absoluta. Antes de excepcionar uma delas, responda: qual é o objetivo desta tela
+especificamente, em que ponto do fluxo ela está, quanta informação real existe pra organizar, qual
+o contexto (ex.: tela antes de qualquer escolha do usuário) e qual a hierarquia real da informação?
+Se a resposta justifica a exceção, implemente-a e explique por quê. Se a única resposta for "acho
+mais bonito", siga o padrão da regra.
 
 ## Antes de desenhar qualquer coisa nova
 
@@ -50,5 +64,10 @@ diagnóstico do que parece "gerado":
       redefinir tamanho/peso ad-hoc.
 - [ ] Todo `.glass-panel`/blur/sombra tem propósito de hierarquia, não é decoração padrão.
 - [ ] Componente foi composto a partir de `src/components/ui/`, não reimplementado do zero.
+- [ ] Se alguma regra visual foi excepcionada, a justificativa (objetivo/fluxo/informação/
+      contexto/hierarquia) está explícita na resposta ao usuário — não é uma exceção silenciosa.
+- [ ] Nenhum texto, crédito, link, controle ou funcionalidade existente foi removido sem antes
+      classificar o que ele é (conteúdo/regra de negócio/requisito institucional/funcionalidade/
+      decorativo) — ver `CLAUDE.md` seção 6.
 - [ ] Passou pelas skills `ui-ux`, `accessibility`, `motion-design` e `performance` relevantes ao
       caso, e por `visual-qa` antes de reportar como concluído.

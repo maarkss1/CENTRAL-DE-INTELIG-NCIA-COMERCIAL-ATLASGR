@@ -34,18 +34,29 @@ introduzir uma segunda biblioteca de animação.
 
 ## 3D (`@react-three/fiber`) — já existe, mantenha contido
 
-`@react-three/fiber`, `@react-three/drei` e `three` são dependências reais, usadas hoje em
-`src/features/gamification/components/SpaceGame.tsx` e `src/components/ui/AtlasOrb.tsx` — uso
-decorativo/gamificação, não crítico ao fluxo de trabalho. Regra do projeto: **3D não é decoração
-default**. Antes de adicionar uma `<Canvas>` nova em qualquer tela de trabalho (CRM, formulários,
-relatórios, dashboard), pergunte se ela comunica algo que CSS/SVG/Framer Motion não comunicam mais
-barato. Se a resposta é "só porque fica bonito", não adicione. Ver `performance/SKILL.md` para o
-custo real (bundle, CPU/GPU, bateria mobile) antes de expandir o uso de 3D.
+`@react-three/fiber`/`three` são dependências reais, hoje só em uso decorativo/gamificação
+(`SpaceGame.tsx`, `AtlasOrb.tsx`). Regra do projeto: **3D não é decoração default** — antes de
+adicionar uma `<Canvas>` nova, pergunte se ela comunica algo que CSS/SVG/Framer Motion não
+comunicam mais barato. O custo técnico real (bundle, CPU/GPU, pausa fora de viewport, bateria
+mobile) e os critérios operacionais completos estão em `performance/SKILL.md` — comece por lá antes
+de expandir o uso de 3D.
 
 ## Regras de quando animar
 
-- Toda animação tem que responder "o que ela comunica?" — mudança de estado, direção de atenção,
-  ou feedback de ação. Se a resposta é "nada, só fica bonito", não anime.
+Antes de criar qualquer animação contínua — `repeat: Infinity`, pulse, glow animado, scale
+contínuo, box-shadow animado, parallax permanente, loop decorativo — pergunte: **"que informação ou
+estado esta animação comunica?"**. Se a resposta for "nenhuma, só fica bonito", ela não deve
+existir. Isso vale mesmo quando a animação é sutil (ex.: um glow de fundo rotacionando devagar) —
+sutileza não é isenção da pergunta, só reduz o custo se a resposta ainda for "não comunica nada".
+
+Priorize, nesta ordem de preferência: entrada/saída de conteúdo, mudança de estado, feedback de
+ação, continuidade espacial/orientação do usuário. Exemplo real corrigido no Piloto 001
+(`.claude/PILOTS.md`): um `boxShadow`/`scale` pulsando para sempre (`repeat: Infinity`, 2s) num
+bloco de crédito não comunicava nenhum dos quatro — foi removido; um glow de fundo rotacionando
+devagar (mesmo padrão já usado em `LoginScreen`) foi mantido porque estabelece ambientação
+consistente entre as telas do funil de autenticação, com custo baixo (`transform`/`opacity`, sem
+reflow) e opacidade reduzida o suficiente para não competir com o conteúdo.
+
 - Prefira `transform`/`opacity` (o que `fadeInUp`/`staggerItem` já fazem) — evita reflow/repaint
   caro. Não anime `width`/`height`/`top`/`left` quando `transform` resolve.
 - Nunca anime layout (reflow) de forma contínua ou desnecessária — especialmente em listas/tabelas
@@ -63,6 +74,10 @@ custo real (bundle, CPU/GPU, bateria mobile) antes de expandir o uso de 3D.
   novo herda esse comportamento automaticamente — não precisa de tratamento manual, exceto em
   hooks customizados como `useTilt`/`useMagnetic`, que checam `useReducedMotion()` explicitamente
   porque manipulam `MotionValue` fora do fluxo declarativo do `motion.*`.
+- **Como verificar de fato, não só supor**: com Playwright, abra um `context` com
+  `reducedMotion: 'reduce'` e confira `getComputedStyle(el).animationName`/`transitionDuration` do
+  elemento animado — deve neutralizar (`animationName: 'none'` ou duração ~0). Foi assim que o
+  Piloto 001 confirmou que o `MotionConfig` da raiz realmente propaga, em vez de assumir que sim.
 
 ## Checklist de saída
 

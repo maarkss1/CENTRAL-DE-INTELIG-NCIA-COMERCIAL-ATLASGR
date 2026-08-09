@@ -52,6 +52,9 @@ de marca sólida** — não volte a usar `--brand` puro nesse cenário.
 - [ ] Área com scroll próprio (padrão do Kanban `CrmBoard`) tem `tabIndex={0}` +
       `aria-label` se for navegável só por scroll horizontal.
 - [ ] Imagem/ícone informativo tem `alt`/`aria-label`; decorativo tem `aria-hidden="true"`.
+- [ ] A raiz da tela tem um landmark semântico (`<main>`, não `<div>`) — achado real do axe-core no
+      Piloto 001: `WelcomeScreen.tsx` usava `<div>` na raiz e disparava `landmark-one-main`/`region`
+      em toda a página.
 - [ ] Estado de loading é anunciado (não só visual) — `aria-live`/`aria-busy` onde aplicável.
 - [ ] Animação nova respeita `prefers-reduced-motion` (herdado do `MotionConfig` raiz, salvo hooks
       customizados que checam `useReducedMotion()` manualmente).

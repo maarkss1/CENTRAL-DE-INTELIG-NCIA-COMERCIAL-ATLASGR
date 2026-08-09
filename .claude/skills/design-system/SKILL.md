@@ -59,6 +59,26 @@ Toda decisão de cor/token nova precisa ser verificada nas duas marcas, não só
 default costuma "esconder" bugs porque muitos tokens legados já são laranja por padrão). Alterne
 via `useBrand()`/`BrandContext` ou `data-brand="totaltrac"` no `<html>` durante o QA visual.
 
+## Tema (claro/escuro) e marca (AtlasGR/Total Trac) são eixos independentes
+
+"Usar token" não significa automaticamente "reagir à marca". `bg-bg`/`text-ink` resolvem
+reatividade a **tema** (via classe `.dark` que `ThemeContext.tsx` já aplica em `<html>`,
+default `'dark'`); só tokens como `--brand`/`--brand-2` reagem à **marca ativa**. Existem
+superfícies pré-seleção de marca (`WelcomeScreen.tsx`, `SelectionScreen.tsx`, antes de
+`/select-brand`) que precisam reagir a tema mas mostrar as duas marcas com peso visual igual — não
+"corrija" isso pra reagir à marca ativa, é o comportamento certo (ver `CLAUDE.md` seção 7, item 7).
+
+Antes de aplicar uma mudança baseada em tema num componente, confirme nesta ordem: o componente
+tem uma variante/prop própria para tema, ou você precisa ler `useTheme()` manualmente? Ele já
+existe em versão consciente de tema, ou você vai introduzir a primeira? A tela roda antes ou depois
+da escolha de marca? Exemplo real do Piloto 001 (`.claude/PILOTS.md`): `TotalTrackLogo` já tem
+`tone="auto"`, que troca sozinho entre positivo/negativo via `dark:hidden`/`dark:block` — não
+recalcule isso manualmente. Já `Logo` só tem variantes `default`/`white`/`symbol` (sem "auto") —
+usar `variant="white"` fixo, como o código legado fazia, quebra em tema claro; é preciso ler
+`useTheme()` e escolher a variante explicitamente. Verifique sempre as 4 combinações mínimas antes
+de considerar pronto: light+AtlasGR, light+TotalTrac, dark+AtlasGR, dark+TotalTrac — e, se a
+superfície for pré-seleção, o estado "marca ainda não escolhida" também.
+
 ## Checklist de saída
 
 - [ ] Nenhum token novo foi criado sem antes confirmar que não existe equivalente em `globals.css`.
@@ -67,4 +87,6 @@ via `useBrand()`/`BrandContext` ou `data-brand="totaltrac"` no `<html>` durante 
 - [ ] Radius novo usa `--radius-card`/`--radius-card-lg`, a menos que haja motivo semântico para
       justificar por que (pill de `Badge`, painel edge-to-edge de `Drawer`).
 - [ ] Variante de componente nova segue o padrão `cva` já usado em `Button`/`Card`/`Badge`.
-- [ ] Testado (ou revisado mentalmente) nas duas marcas, light e dark.
+- [ ] Testado (ou revisado mentalmente) nas duas marcas, light e dark — 4 combinações mínimas.
+- [ ] Se o componente usado (`Logo`, `TotalTrackLogo`, etc.) já tem uma variante/prop consciente de
+      tema (ex.: `tone="auto"`), ela foi usada em vez de recalcular o mesmo comportamento na mão.

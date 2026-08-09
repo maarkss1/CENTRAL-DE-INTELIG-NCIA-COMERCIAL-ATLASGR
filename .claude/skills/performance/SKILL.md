@@ -45,6 +45,37 @@ expandir esse uso para telas novas:
   polígonos, sem sombras dinâmicas caras) a adicionar fidelidade visual que ninguém vai notar numa
   tela de trabalho.
 
+## Mídia, áudio e vídeo externos
+
+Lacuna real revelada pelo Piloto 001 (`WelcomeScreen.tsx` tem um `<audio>` de música ambiente
+carregado de um CDN externo, pixabay.com, desde o mount — mantido por ser funcionalidade existente,
+ver `CLAUDE.md` seção 6, mas nunca formalmente avaliado até este piloto). Antes de adicionar ou
+revisar qualquer mídia:
+
+- **Sem autoplay por conveniência estética.** Áudio/vídeo só tocam automaticamente quando há
+  necessidade real do produto (nunca "porque fica mais imersivo"), e sempre com controle visível do
+  usuário para pausar/mutar.
+- **Carregar só quando necessário.** Uma tag `<audio src="...">`/`<video src="...">` já dispara
+  requisição de rede ao montar, mesmo mutada/pausada — se o uso é opcional (toggle do usuário),
+  prefira só setar `src`/montar o elemento depois da primeira interação, não no mount da tela.
+- **`preload` é uma escolha deliberada**, não o default do navegador: `none` quando o usuário pode
+  nunca interagir com a mídia, `metadata` quando só a duração/dimensões importam antes de tocar,
+  `auto` só quando a reprodução imediata é garantidamente necessária.
+- **Recurso externo vs. local**: antes de apontar pra um CDN de terceiro, avalie privacidade (o que
+  esse domínio recebe do usuário — IP, user-agent), disponibilidade (o que acontece se o domínio
+  cair ou bloquear), CSP (o domínio precisa estar na política de segurança de conteúdo do app) e
+  rede/performance (latência extra vs. bundlar o asset localmente em `public/`). Um recurso local
+  costuma ser a escolha mais simples e defensável quando o arquivo é pequeno e estável.
+- **Mobile/Capacitor**: mídia contínua (loop de áudio/vídeo) consome bateria e dados móveis de
+  forma desproporcional, e pode continuar tocando em background dependendo da configuração da
+  WebView — trate isso como custo real, não secundário ao desktop.
+- **Mídia decorativa não pode inflar o custo inicial da tela** — não pode bloquear ou atrasar
+  perceptivelmente o carregamento do conteúdo funcional.
+- **Não remova mídia legada silenciosamente** só por parecer visualmente desnecessária — ver
+  `CLAUDE.md` seção 6. Se for genuinamente questionável (como o áudio da `WelcomeScreen`), documente
+  a dúvida (em `.claude/PILOTS.md` ou na resposta ao usuário) em vez de decidir sozinho removê-la ou
+  alterá-la.
+
 ## Listas e tabelas
 
 - `ContactList`/`CompanyList` já usam `Pagination` compartilhada — não implemente scroll infinito
@@ -68,3 +99,6 @@ expandir esse uso para telas novas:
 - [ ] Lista/tabela grande usa paginação existente, não renderização total sem limite.
 - [ ] `npm run build` não introduziu um chunk desproporcional sem necessidade (checar
       `manualChunks` em `vite.config.ts` se a dependência nova for grande).
+- [ ] Mídia nova (áudio/vídeo/recurso externo) não tem autoplay por conveniência estética, tem
+      `preload` escolhido deliberadamente, e foi avaliada quanto a privacidade/CSP/rede antes de
+      apontar pra um domínio externo.
