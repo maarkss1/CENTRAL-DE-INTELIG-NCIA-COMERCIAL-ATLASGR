@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
@@ -66,15 +67,24 @@ async function syncLeadToBitrix(organizationId: string, webhookUrl: string, lead
  * Chamado automaticamente sempre que um lead nasce no Atlas (ver promoteToCrm) — não precisa de
  * clique manual. Fire-and-forget por design: nunca propaga erro, já que o Bitrix é um sistema
  * secundário e uma falha aqui não pode impedir o lead de existir no Atlas.
+ *
+ * IMPORTANTE (bloqueador #11 — "sincronização não pode falhar silenciosamente"): "fire-and-forget"
+ * aqui significa "não propaga erro pro chamador" (correto — o Atlas não pode travar por causa do
+ * Bitrix), NÃO significa "falha sem deixar rastro". O log abaixo carrega correlationId, entidade e
+ * organização para que uma falha recorrente seja localizável nos logs/observabilidade — mas isto
+ * ainda não é visível NA TELA para o operador (o Lead não tem hoje um campo de status de sync
+ * outbound). Ver handoff .agents/handoffs/onda-1/06-para-01-schema-extracoes-bitrix.md (seção
+ * "Lead — status de sync outbound") para o campo que fecharia essa lacuna de vez.
  */
 export async function pushLeadToBitrix(organizationId: string, leadId: string): Promise<void> {
+    const correlationId = randomUUID();
     try {
         const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
         if (!connection) return;
         await syncLeadToBitrix(organizationId, connection.webhookUrl, leadId);
-        logger.info({ organizationId, connectionId: connection.id, leadId }, '[bitrix] Lead enviado automaticamente');
+        logger.info({ correlationId, organizationId, connectionId: connection.id, leadId }, '[bitrix] Lead enviado automaticamente');
     } catch (err) {
-        logger.warn({ err, organizationId, leadId }, '[bitrix] Falha ao enviar lead automaticamente');
+        logger.warn({ err, correlationId, organizationId, leadId }, '[bitrix] Falha ao enviar lead automaticamente — sem status visível na UI ainda (ver handoff 06→01)');
     }
 }
 

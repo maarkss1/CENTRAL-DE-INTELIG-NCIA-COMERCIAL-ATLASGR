@@ -1,8 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthorizationService, Permission, Role } from '../../lib/auth/authorization.js';
 import { AuthRequest } from './authenticateToken.js';
 import { logger } from '../../lib/logger.js';
 import { getTenantPrisma } from '../../lib/tenant-prisma.js';
+
+// Nota de RBAC: este arquivo já teve `requirePermission`/`requireAnyPermission`, baseados num
+// sistema de permissões (SUPER_ADMIN/TENANT_OWNER/.../GUEST) que nunca esteve conectado a nenhuma
+// rota e divergia do papel realmente gravado no banco (User.role, ADMIN/GESTOR/VENDEDOR/
+// VISUALIZADOR). Removidos na unificação de RBAC — usar `requireRole` (`./requireRole.js`), que é
+// o middleware de autorização por papel efetivamente usado em todas as rotas, com fonte canônica
+// em `src/lib/auth/authorization.ts`.
 
 export const requireTenant = (req: Request, res: Response, next: NextFunction): void => {
     const authReq = req as AuthRequest;
@@ -18,34 +24,4 @@ export const requireTenant = (req: Request, res: Response, next: NextFunction): 
         logger.error({ err }, 'Failed to initialize Tenant Prisma');
         res.status(500).json({ success: false, error: 'Internal Server Error.' });
     }
-};
-
-export const requirePermission = (permission: Permission) => {
-    return (req: Request, res: Response, next: NextFunction): void => {
-        const authReq = req as AuthRequest;
-        const role = authReq.user.role as Role;
-
-        if (!AuthorizationService.hasPermission(role, permission)) {
-            logger.warn({ userId: authReq.user.id, role, permission }, 'Access denied: Missing required permission');
-            res.status(403).json({ success: false, error: 'Forbidden: Insufficient permissions.' });
-            return;
-        }
-
-        next();
-    };
-};
-
-export const requireAnyPermission = (permissions: Permission[]) => {
-    return (req: Request, res: Response, next: NextFunction): void => {
-        const authReq = req as AuthRequest;
-        const role = authReq.user.role as Role;
-
-        if (!AuthorizationService.hasAnyPermission(role, permissions)) {
-            logger.warn({ userId: authReq.user.id, role, permissions }, 'Access denied: Missing any of the required permissions');
-            res.status(403).json({ success: false, error: 'Forbidden: Insufficient permissions.' });
-            return;
-        }
-
-        next();
-    };
 };

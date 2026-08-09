@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { authClient } from '../lib/auth-client';
 import { getBrandFromEmail } from '../config/access-policy';
-import { AuthorizationService, type Role, type Permission } from '../lib/auth/authorization';
+import { hasRequiredRole, isKnownRole, type Role } from '../lib/auth/authorization';
 
 export interface UserSession {
   id: string;
@@ -11,7 +11,7 @@ export interface UserSession {
   role: string;
   roleTitle: string;
   brand: 'atlasgr' | 'totaltrac';
-  permissions: Permission[];
+  permissions: string[];
   avatarBg: string;
   mustChangePassword: boolean;
 }
@@ -27,28 +27,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ADMIN_ROLES: readonly string[] = ['SUPER_ADMIN', 'TENANT_OWNER', 'ADMIN'];
-
-const ROLE_TITLES: Record<string, string> = {
-  SUPER_ADMIN: 'Super Administrador',
-  TENANT_OWNER: 'Proprietário da Conta',
+// Papéis reais gravados em User.role (ver src/lib/auth/authorization.ts, fonte canônica de RBAC).
+// Este arquivo já usou um segundo taxonomia de papéis (SUPER_ADMIN/TENANT_OWNER/MANAGER/SDR/...)
+// que nunca era gravada no banco — qualquer usuário GESTOR/VENDEDOR/VISUALIZADOR real (a imensa
+// maioria) caía no fallback `[] ` de permissões porque essas chaves não existiam na tabela antiga,
+// e `isAdmin`/`canAccessAdminPanel` só reconheciam papéis (SUPER_ADMIN/TENANT_OWNER) que nenhum
+// usuário jamais tem. Substituído pela hierarquia real, alinhada ao que o backend efetivamente
+// autoriza via `requireRole` (ver src/shared/middlewares/requireRole.ts).
+const ROLE_TITLES: Record<Role, string> = {
   ADMIN: 'Administrador',
-  MANAGER: 'Gerente',
-  COORDINATOR: 'Coordenador',
-  SALES_MANAGER: 'Gerente Comercial',
-  SDR: 'SDR',
-  BDR: 'BDR',
-  CLOSER: 'Closer',
-  CSM: 'Customer Success',
-  FINANCE: 'Financeiro',
-  HR: 'RH',
-  LEGAL: 'Jurídico',
-  MARKETING: 'Marketing',
-  OPERATIONS: 'Operações',
-  SUPPORT: 'Suporte',
-  READ_ONLY: 'Somente Leitura',
-  GUEST: 'Convidado',
+  GESTOR: 'Gestor',
+  VENDEDOR: 'Vendedor',
+  VISUALIZADOR: 'Visualizador',
 };
+
+// Espelha os gates reais de `requireRole(['ADMIN', 'GESTOR'])` já usados nas rotas de
+// companies/contacts/leads (exclusão) e `requireRole(['ADMIN'])` em team — não é um catálogo à
+// parte: se o backend mudar quem pode o quê, este mapa precisa mudar junto (ver AGENTS.md sobre
+// não reintroduzir um terceiro sistema de RBAC).
+const ROLE_PERMISSIONS: Record<Role, string[]> = {
+  ADMIN: ['crm.read', 'crm.write', 'crm.delete', 'settings.manage', 'users.manage', 'billing.manage'],
+  GESTOR: ['crm.read', 'crm.write', 'crm.delete'],
+  VENDEDOR: ['crm.read', 'crm.write'],
+  VISUALIZADOR: ['crm.read'],
+};
+
+function permissionsForRole(role: string): string[] {
+  return isKnownRole(role) ? ROLE_PERMISSIONS[role] : [];
+}
+
+function titleForRole(role: string): string {
+  return isKnownRole(role) ? ROLE_TITLES[role] : role;
+}
 
 // A sessão do better-auth carrega os campos adicionais configurados em src/lib/auth.ts
 // (role/organizationId), mas o client não os tipa automaticamente — refletimos aqui o
@@ -69,14 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const currentUser: UserSession | null = sessionUser
     ? (() => {
-        const role = sessionUser.role || 'GUEST';
-        const permissions = AuthorizationService.getPermissions(role as Role);
+        // Fallback fail-closed: papel ausente/desconhecido nunca vira 'ADMIN' nem qualquer papel
+        // com permissões — vira string vazia, que `isKnownRole`/`hasRequiredRole` sempre negam.
+        const role = sessionUser.role || '';
+        const permissions = permissionsForRole(role);
         return {
           id: sessionUser.id,
           name: sessionUser.name || sessionUser.email.split('@')[0],
           email: sessionUser.email,
           role,
-          roleTitle: ROLE_TITLES[role] || role,
+          roleTitle: titleForRole(role),
           brand: savedBrand || getBrandFromEmail(sessionUser.email),
           permissions,
           avatarBg: 'bg-gradient-to-r from-blue-500 to-indigo-500',
@@ -90,16 +102,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/app';
   };
 
-  const isAdmin = currentUser ? ADMIN_ROLES.includes(currentUser.role) : false;
+  const isAdmin = currentUser ? hasRequiredRole(currentUser.role, ['ADMIN']) : false;
 
-  const canAccessAdminPanel = () =>
-    isAdmin || !!currentUser?.permissions.includes('settings.manage');
+  const canAccessAdminPanel = () => isAdmin;
 
   const canAccessBrand = (brand: 'atlasgr' | 'totaltrac') => {
-    // Papéis administrativos de conta cruzam marcas; os demais ficam restritos
-    // à marca associada ao domínio do próprio e-mail corporativo.
+    // Isolamento de tenant nunca é decidido no cliente por papel — cada usuário pertence a UMA
+    // Organization (AtlasGR ou TotalTrac); a separação de verdade é aplicada no backend por
+    // organizationId (ver src/lib/tenant-prisma.ts). Este helper só decide o que a UI mostra por
+    // padrão, sempre restrito à marca do próprio e-mail — nenhum papel "cruza" marcas aqui.
     if (!currentUser) return false;
-    if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'TENANT_OWNER') return true;
     return getBrandFromEmail(currentUser.email) === brand;
   };
 

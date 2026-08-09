@@ -2,15 +2,11 @@ import { randomBytes } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
 import { prisma } from '../../../lib/prisma.js';
 import { isAuthorizedLoginEmail } from '../../../config/access-policy.js';
+// Fonte canônica de RBAC — não duplicar a hierarquia de papéis aqui (ver comentário em
+// src/lib/auth/authorization.ts sobre o sistema de RBAC divergente que existia antes).
+import { ASSIGNABLE_ROLES, isKnownRole } from '../../../lib/auth/authorization.js';
 
-const ROLE_HIERARCHY: Record<string, number> = {
-    ADMIN: 100,
-    GESTOR: 75,
-    VENDEDOR: 50,
-    VISUALIZADOR: 10,
-};
-
-export const ASSIGNABLE_ROLES = Object.keys(ROLE_HIERARCHY);
+export { ASSIGNABLE_ROLES };
 
 export class TeamServiceError extends Error {
     constructor(message: string, public statusCode: number = 400) {
@@ -73,7 +69,7 @@ export async function createTeamMember(input: {
     if (!isAuthorizedLoginEmail(email)) {
         throw new TeamServiceError('Use um e-mail corporativo autorizado (@atlasgr.com.br ou @totaltrac.com.br).');
     }
-    if (!ASSIGNABLE_ROLES.includes(input.role)) {
+    if (!isKnownRole(input.role)) {
         throw new TeamServiceError(`Papel inválido. Use um de: ${ASSIGNABLE_ROLES.join(', ')}.`);
     }
 

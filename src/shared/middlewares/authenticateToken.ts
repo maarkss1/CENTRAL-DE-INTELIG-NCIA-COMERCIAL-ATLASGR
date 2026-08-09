@@ -5,6 +5,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { isAuthorizedLoginEmail } from '../../config/access-policy.js';
 import type { getTenantPrisma } from '../../lib/tenant-prisma.js';
 import { requestContext } from '../../lib/async-context.js';
+import { UNVERIFIED_ROLE } from '../../lib/auth/authorization.js';
 
 export interface AuthUser {
     id: string;
@@ -50,7 +51,12 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
         (req as AuthRequest).user = {
             id: user.id,
             email: user.email,
-            role: user.role || 'GUEST',
+            // 'GUEST' era um papel do sistema de permissões divergente já removido (ver
+            // src/lib/auth/authorization.ts) — nunca era um papel real de User.role. UNVERIFIED_ROLE
+            // é o fallback fail-closed canônico: fica fora de ROLE_HIERARCHY, então nunca satisfaz
+            // nenhuma checagem de `requireRole`. Na prática isto não deveria disparar: `src/lib/auth.ts`
+            // sempre grava um `role` default válido ("VISUALIZADOR") na criação do usuário.
+            role: user.role || UNVERIFIED_ROLE,
             organizationId: user.organizationId,
         };
 

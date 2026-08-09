@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
@@ -106,7 +107,11 @@ async function runSyncRule(
  * de Organization (que ESTÁ na allowlist), e cada regra é lida/gravada dentro do contexto de
  * tenant real dela — RLS de verdade, não uma exceção só pra este worker.
  */
-export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: number; totalImported: number }> {
+export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: number; totalImported: number; rulesFailed: number }> {
+    // Amarra todas as regras processadas nesta rodada do worker a um único id — sem isso, uma
+    // falha intermitente vira uma linha de log solta, impossível de distinguir de qualquer outra
+    // rodada dos últimos 15 minutos.
+    const tickCorrelationId = randomUUID();
     // IMPORTANTE: o callback do run() precisa dar `await` na query Prisma, não só retorná-la.
     // `prisma.model.findMany(...)` devolve um PrismaPromise "lazy" (um thenable customizado, não
     // uma Promise nativa) — a query só é de fato disparada (e o hook $allOperations de prisma.ts
@@ -121,6 +126,7 @@ export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: num
 
     let organizationsProcessed = 0;
     let totalImported = 0;
+    let rulesFailed = 0;
 
     for (const { id: organizationId } of organizations) {
         await requestContext.run({ tenantId: organizationId }, async () => {
@@ -137,14 +143,35 @@ export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: num
                         data: { lastRunAt: new Date(), lastImportedCount: imported },
                     });
                     if (imported > 0) {
-                        logger.info({ organizationId, ruleId: rule.id, imported }, '[bitrix] Regra de sincronização automática importou registros');
+                        logger.info({ correlationId: tickCorrelationId, organizationId, ruleId: rule.id, imported }, '[bitrix] Regra de sincronização automática importou registros');
                     }
                 } catch (err) {
-                    logger.error({ err, organizationId, ruleId: rule.id }, '[bitrix] Falha ao executar regra de sincronização automática');
+                    rulesFailed++;
+                    // BUG CORRIGIDO (bloqueador #11 — "sincronização não pode falhar silenciosamente"):
+                    // antes desta correção, uma regra que falhasse em TODA execução nunca tinha
+                    // `lastRunAt` atualizado, então a tela de Integrações mostrava "Ainda não rodou"
+                    // pra sempre — uma mentira, já que o worker rodava (e falhava) a cada 15 minutos
+                    // sem que ninguém percebesse. `lastRunAt` agora reflete a ÚLTIMA TENTATIVA (sucesso
+                    // ou falha); `lastImportedCount` continua representando a última importação bem
+                    // sucedida (não é zerado numa falha, pra não apagar o histórico do último sucesso).
+                    // Isso NÃO resolve visibilidade completa — o schema atual não tem campo pra guardar
+                    // a mensagem de erro/status da última tentativa; ver handoff
+                    // .agents/handoffs/onda-1/06-para-01-schema-extracoes-bitrix.md (seção "BitrixSyncRule").
+                    await prisma.bitrixSyncRule.update({
+                        where: { id: rule.id },
+                        data: { lastRunAt: new Date() },
+                    }).catch((updateErr) => {
+                        logger.error({ err: updateErr, organizationId, ruleId: rule.id }, '[bitrix] Falha ao registrar a tentativa da regra (lastRunAt) — vai continuar parecendo "nunca rodou"');
+                    });
+                    logger.error({ err, correlationId: tickCorrelationId, organizationId, ruleId: rule.id }, '[bitrix] Falha ao executar regra de sincronização automática');
                 }
             }
         });
     }
 
-    return { organizationsProcessed, totalImported };
+    if (rulesFailed > 0) {
+        logger.warn({ correlationId: tickCorrelationId, organizationsProcessed, totalImported, rulesFailed }, '[bitrix] Tick de sincronização automática concluído com falhas parciais');
+    }
+
+    return { organizationsProcessed, totalImported, rulesFailed };
 }

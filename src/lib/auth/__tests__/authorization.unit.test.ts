@@ -1,20 +1,46 @@
 import { describe, it, expect } from 'vitest';
-import { AuthorizationService } from '../authorization';
+import { ASSIGNABLE_ROLES, ROLE_HIERARCHY, UNVERIFIED_ROLE, hasRequiredRole, isKnownRole } from '../authorization';
 
-describe('AuthorizationService', () => {
-    it('should return correct permissions for SUPER_ADMIN', () => {
-        const perms = AuthorizationService.getPermissions('SUPER_ADMIN');
-        expect(perms).toContain('tenant.manage');
-        expect(perms).toContain('users.manage');
+describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
+    it('expõe exatamente os quatro papéis realmente gravados em User.role', () => {
+        expect(ASSIGNABLE_ROLES.sort()).toEqual(['ADMIN', 'GESTOR', 'VENDEDOR', 'VISUALIZADOR'].sort());
+        expect(Object.keys(ROLE_HIERARCHY).sort()).toEqual(ASSIGNABLE_ROLES.sort());
     });
 
-    it('should accurately check if a role has a specific permission', () => {
-        expect(AuthorizationService.hasPermission('ADMIN', 'crm.read')).toBe(true);
-        expect(AuthorizationService.hasPermission('GUEST', 'tenant.manage')).toBe(false);
+    describe('hasRequiredRole', () => {
+        it('permite papel exatamente igual ao exigido', () => {
+            expect(hasRequiredRole('ADMIN', ['ADMIN'])).toBe(true);
+            expect(hasRequiredRole('GESTOR', ['GESTOR'])).toBe(true);
+        });
+
+        it('permite papel de nível maior que o mínimo exigido pela lista', () => {
+            expect(hasRequiredRole('ADMIN', ['GESTOR', 'VENDEDOR'])).toBe(true);
+        });
+
+        it('nega papel de nível menor que o exigido', () => {
+            expect(hasRequiredRole('VENDEDOR', ['ADMIN', 'GESTOR'])).toBe(false);
+            expect(hasRequiredRole('VISUALIZADOR', ['GESTOR'])).toBe(false);
+        });
+
+        it('nega papel desconhecido/fora da hierarquia', () => {
+            expect(hasRequiredRole('SUPER_ADMIN', ['ADMIN'])).toBe(false);
+            expect(hasRequiredRole('', ['VISUALIZADOR'])).toBe(false);
+            expect(hasRequiredRole(UNVERIFIED_ROLE, ['VISUALIZADOR'])).toBe(false);
+        });
     });
 
-    it('should correctly evaluate hasAnyPermission', () => {
-        expect(AuthorizationService.hasAnyPermission('READ_ONLY', ['crm.read', 'lead.create'])).toBe(true);
-        expect(AuthorizationService.hasAnyPermission('READ_ONLY', ['lead.create', 'lead.delete'])).toBe(false);
+    describe('isKnownRole', () => {
+        it('reconhece os quatro papéis válidos', () => {
+            for (const role of ASSIGNABLE_ROLES) {
+                expect(isKnownRole(role)).toBe(true);
+            }
+        });
+
+        it('rejeita papéis do sistema de permissões antigo, agora removido', () => {
+            expect(isKnownRole('SUPER_ADMIN')).toBe(false);
+            expect(isKnownRole('TENANT_OWNER')).toBe(false);
+            expect(isKnownRole('GUEST')).toBe(false);
+            expect(isKnownRole(UNVERIFIED_ROLE)).toBe(false);
+        });
     });
 });
