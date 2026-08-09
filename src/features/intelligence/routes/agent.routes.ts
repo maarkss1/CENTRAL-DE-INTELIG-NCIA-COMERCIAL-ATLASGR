@@ -8,8 +8,10 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 import { redactSensitiveData } from '../services/guardrails.service.js';
 import { synthesizeSpeech } from '../services/voicebox.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
 
 const assistantModeSchema = z.enum([
     'copilot',
@@ -144,7 +146,7 @@ const swarmMissionSchema = z.object({
     leadId: z.string().trim().min(1).max(200).optional(),
 });
 
-router.post('/swarm/mission', validateRequest(swarmMissionSchema), async (req, res, next) => {
+router.post('/swarm/mission', writeRoles, validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
         const { mission, sessionId, leadId } = req.body as z.infer<typeof swarmMissionSchema>;
         const swarm = new SwarmOrchestrator();
@@ -156,7 +158,7 @@ router.post('/swarm/mission', validateRequest(swarmMissionSchema), async (req, r
     }
 });
 
-router.post('/swarm/stream', validateRequest(swarmMissionSchema), async (req, res, next) => {
+router.post('/swarm/stream', writeRoles, validateRequest(swarmMissionSchema), async (req, res, next) => {
     try {
         const { mission, sessionId, leadId } = req.body as z.infer<typeof swarmMissionSchema>;
         const sid = sessionId || `swarm-mission-${Date.now()}`;

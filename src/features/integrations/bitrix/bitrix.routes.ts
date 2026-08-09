@@ -18,8 +18,10 @@ import {
     getLeadStatuses,
     testBitrixConnection,
 } from './bitrix.service.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
 // ── Conexões (uma organização pode ter mais de um portal Bitrix — ex.: AtlasGR e TotalTrac) ────
 
@@ -36,7 +38,7 @@ router.get('/connections', async (req: Request, res: Response, next: NextFunctio
 // Valida a URL do webhook contra o Bitrix24 de verdade (chamada real a profile.json) antes de
 // salvar — assim um erro de digitação ou token revogado aparece na hora, não só na primeira
 // exportação de lead.
-router.post('/connect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/connect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { webhookUrl, label } = req.body;
@@ -47,7 +49,7 @@ router.post('/connect', async (req: Request, res: Response, next: NextFunction):
     }
 });
 
-router.post('/connections/:connectionId/test', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/connections/:connectionId/test', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const result = await testBitrixConnection(organizationId, req.params.connectionId);
@@ -57,7 +59,7 @@ router.post('/connections/:connectionId/test', async (req: Request, res: Respons
     }
 });
 
-router.post('/disconnect/:connectionId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/disconnect/:connectionId', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await disconnectBitrix(organizationId, req.params.connectionId);
@@ -95,7 +97,7 @@ router.get('/leads', async (req: Request, res: Response, next: NextFunction): Pr
     }
 });
 
-router.post('/leads/import', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/leads/import', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, bitrixLeadIds } = req.body as { connectionId?: unknown; bitrixLeadIds?: unknown };
@@ -191,7 +193,7 @@ router.get('/deals', async (req: Request, res: Response, next: NextFunction): Pr
     }
 });
 
-router.post('/deals/import', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/deals/import', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, bitrixDealIds } = req.body as { connectionId?: unknown; bitrixDealIds?: unknown };
@@ -224,7 +226,7 @@ router.get('/sync-rules', async (req: Request, res: Response, next: NextFunction
     }
 });
 
-router.post('/sync-rules', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/sync-rules', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, source, categoryId, stageId, assignedById } = req.body as {
@@ -255,7 +257,7 @@ router.post('/sync-rules', async (req: Request, res: Response, next: NextFunctio
     }
 });
 
-router.put('/sync-rules/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.put('/sync-rules/:id', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { active } = req.body as { active?: unknown };
@@ -270,7 +272,7 @@ router.put('/sync-rules/:id', async (req: Request, res: Response, next: NextFunc
     }
 });
 
-router.delete('/sync-rules/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.delete('/sync-rules/:id', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await deleteSyncRule(organizationId, req.params.id);

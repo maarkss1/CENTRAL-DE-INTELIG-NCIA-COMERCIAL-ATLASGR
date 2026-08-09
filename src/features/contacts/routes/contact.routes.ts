@@ -7,6 +7,7 @@ import { contactSchema } from '../../../lib/zod.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 const router = Router();
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -34,7 +35,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction): Prom
     }
 });
 
-router.post('/', validateRequest(contactSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', writeRoles, validateRequest(contactSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const contact = await contactService.create(orgId, req.body);
@@ -44,7 +45,7 @@ router.post('/', validateRequest(contactSchema), async (req: Request, res: Respo
     }
 });
 
-router.put('/:id', validateRequest(contactSchema.partial()), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', writeRoles, validateRequest(contactSchema.partial()), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const contact = await contactService.update(orgId, req.params.id, req.body);
@@ -66,7 +67,7 @@ router.delete('/:id', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res
 });
 
 // Enriquece a empresa vinculada ao contato com IA (Receita Federal + Google Negócios + Apollo).
-router.post('/:id/enrich', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/enrich', writeRoles, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const result = await contactService.enrich(orgId, req.params.id);

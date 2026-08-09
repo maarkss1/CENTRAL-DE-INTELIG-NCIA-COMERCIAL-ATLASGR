@@ -3,8 +3,10 @@ import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.
 import { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } from './whatsapp.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { toE164BR } from '../../../lib/phone.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
 // Histórico de mensagens persistidas — de um lead específico, de um telefone específico (útil para
 // candidatos de prospecção ainda não promovidos a Lead), ou as mais recentes de toda a organização
@@ -47,7 +49,7 @@ router.get('/signals', async (req: Request, res: Response, next: NextFunction): 
 });
 
 // Inicia a sessão e gera QR Code (por tenant)
-router.post('/connect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/connect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await initWhatsApp(organizationId);
@@ -69,7 +71,7 @@ router.get('/status', async (req: Request, res: Response, next: NextFunction): P
 });
 
 // Desconecta a sessão do tenant autenticado
-router.post('/disconnect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/disconnect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await logoutWhatsApp(organizationId);
@@ -80,7 +82,7 @@ router.post('/disconnect', async (req: Request, res: Response, next: NextFunctio
 });
 
 // Envia uma mensagem pela sessão do tenant autenticado
-router.post('/send', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/send', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { number, text } = req.body;

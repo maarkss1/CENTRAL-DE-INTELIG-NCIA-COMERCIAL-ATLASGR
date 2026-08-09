@@ -7,8 +7,10 @@ import { searchService } from './search.service.js';
 import { validateRequest } from '../../shared/middlewares/validateRequest.js';
 import { logger } from '../../lib/logger.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
 
 /**
  * Teto de tamanho do texto de um documento. O `express.json` já limita o corpo a 10mb; este limite
@@ -135,7 +137,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 /** POST /api/knowledge — ingestão de texto colado. */
-router.post('/', validateRequest(ingestTextSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', writeRoles, validateRequest(ingestTextSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId, id: userId } = (req as AuthRequest).user;
         const { title, content } = req.body as z.infer<typeof ingestTextSchema>;
@@ -155,7 +157,7 @@ router.post('/', validateRequest(ingestTextSchema), async (req: Request, res: Re
 });
 
 /** POST /api/knowledge/upload — ingestão a partir de arquivo (base64). */
-router.post('/upload', validateRequest(uploadSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/upload', writeRoles, validateRequest(uploadSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId, id: userId } = (req as AuthRequest).user;
         const { fileName, data, title } = req.body as z.infer<typeof uploadSchema>;
@@ -217,7 +219,7 @@ const updateSchema = z.object({
 });
 
 /** PUT /api/knowledge/:id — edita o documento e reindexa se o conteúdo mudou. */
-router.put('/:id', validateRequest(updateSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', writeRoles, validateRequest(updateSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const result = await ingestionService.updateDocument(organizationId, req.params.id, req.body);
@@ -232,7 +234,7 @@ router.put('/:id', validateRequest(updateSchema), async (req: Request, res: Resp
 });
 
 /** POST /api/knowledge/:id/reembed — regera vetores que faltaram na ingestão. */
-router.post('/:id/reembed', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/:id/reembed', writeRoles, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const result = await ingestionService.reembedDocument(organizationId, req.params.id);
@@ -243,7 +245,7 @@ router.post('/:id/reembed', async (req: Request, res: Response, next: NextFuncti
 });
 
 /** DELETE /api/knowledge/:id */
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const removed = await ingestionService.delete(organizationId, req.params.id);

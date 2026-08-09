@@ -10,6 +10,7 @@ import {
     GoogleNotConfiguredError,
     GoogleNotConnectedError,
 } from './google.service.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
 
@@ -66,7 +67,7 @@ router.get('/status', async (req: Request, res: Response, next: NextFunction): P
     }
 });
 
-router.post('/disconnect', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/disconnect', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await disconnectGoogle(organizationId);

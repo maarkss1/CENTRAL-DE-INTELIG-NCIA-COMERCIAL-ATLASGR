@@ -8,6 +8,7 @@ import { normalizeCompanyDomain } from '../utils/domain.js';
 import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from '../services/ocr.service.js';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const icebreakerService = new IcebreakerService();
 
@@ -84,7 +85,7 @@ router.post('/enrich-cnpj', async (req: Request, res: Response, next: NextFuncti
 });
 
 // Promove um candidato (IA ou CNPJ) para o CRM: cria Company + Contact + Lead e enriquece automaticamente.
-router.post('/promote', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/promote', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const body = req.body as { tradeName?: string; source?: string };
         if (!body.tradeName || !body.source) {

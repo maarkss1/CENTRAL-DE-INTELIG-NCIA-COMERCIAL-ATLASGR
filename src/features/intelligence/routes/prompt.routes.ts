@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { listPrompts, createPrompt, updatePromptVariables } from '../services/prompt.service.js';
+
+const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
 export const promptRoutes = Router();
 
@@ -25,7 +28,7 @@ const createPromptSchema = z.object({
         variables: z.record(z.string(), z.unknown()).optional(),
     }),
 });
-promptRoutes.post('/', validateRequest(createPromptSchema), async (req, res, next) => {
+promptRoutes.post('/', managementRoles, validateRequest(createPromptSchema), async (req, res, next) => {
     try {
         const { name, category, variables } = req.body;
         // Bug anterior: lia `req.tenantId`, que authenticateToken nunca seta (o middleware expõe
@@ -48,7 +51,7 @@ const updatePromptSchema = z.object({
         variables: z.record(z.string(), z.unknown()),
     }),
 });
-promptRoutes.put('/:id', validateRequest(updatePromptSchema), async (req, res, next) => {
+promptRoutes.put('/:id', managementRoles, validateRequest(updatePromptSchema), async (req, res, next) => {
     try {
         const { id } = req.params;
         const { variables } = req.body;

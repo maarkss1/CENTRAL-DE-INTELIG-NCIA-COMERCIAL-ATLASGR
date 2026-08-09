@@ -4,6 +4,7 @@ import { noteService } from '../services/note.service.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { noteSchema } from '../../../lib/zod.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router({ mergeParams: true }); // mergeParams to access :leadId from parent router
 
@@ -18,7 +19,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 });
 
-router.post('/', validateRequest(noteSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), validateRequest(noteSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { leadId } = req.params;
@@ -29,7 +30,7 @@ router.post('/', validateRequest(noteSchema), async (req: Request, res: Response
     }
 });
 
-router.delete('/:noteId', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:noteId', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await noteService.delete(organizationId, req.params.noteId);

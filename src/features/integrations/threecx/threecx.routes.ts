@@ -11,8 +11,10 @@ import {
     make3CXCall,
     process3CXWebhook,
 } from './threecx.service.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
 // Webhook do PABX 3CX Call Flow: quem chama é o servidor 3CX do cliente, não um usuário logado,
 // então não passa por authenticateToken — a autenticidade é provada por uma assinatura HMAC sobre
@@ -72,7 +74,7 @@ router.get('/connections', async (req: Request, res: Response, next: NextFunctio
     }
 });
 
-router.post('/connect', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/connect', managementRoles, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const data = await connect3CX(organizationId, req.body);
@@ -82,7 +84,7 @@ router.post('/connect', async (req: Request, res: Response, next: NextFunction) 
     }
 });
 
-router.post('/connections/:connectionId/test', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/connections/:connectionId/test', managementRoles, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const data = await test3CXConnection(organizationId, req.params.connectionId);
@@ -92,7 +94,7 @@ router.post('/connections/:connectionId/test', async (req: Request, res: Respons
     }
 });
 
-router.post('/disconnect/:connectionId', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/disconnect/:connectionId', managementRoles, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         await disconnect3CX(organizationId, req.params.connectionId);
@@ -102,7 +104,7 @@ router.post('/disconnect/:connectionId', async (req: Request, res: Response, nex
     }
 });
 
-router.post('/call', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/call', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, phoneNumber, leadId } = req.body;

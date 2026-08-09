@@ -10,6 +10,7 @@ import {
 } from './birthVoice.service.js';
 import { listSuppressions, recordOptOut, normalizeSuppressionKey } from './callSuppression.service.js';
 import { enabledOrganizations, callWindowFromEnv, dialPolicyFromEnv } from './coldCall.service.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.get('/cold-call/status', async (req: Request, res: Response, next: NextFu
 });
 
 // Dispara uma ligação do SDR de voz para o lead informado.
-router.post('/call/:leadId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/call/:leadId', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const result = await callLead(organizationId, req.params.leadId);
@@ -81,7 +82,7 @@ const addSuppressionSchema = z.object({
 });
 
 // Bloqueio manual — pedido que chegou por outro canal (e-mail, WhatsApp, atendimento humano).
-router.post('/suppressions', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/suppressions', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const parsed = addSuppressionSchema.safeParse(req.body);

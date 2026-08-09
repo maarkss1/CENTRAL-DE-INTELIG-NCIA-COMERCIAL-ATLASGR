@@ -37,6 +37,7 @@ import { listAiSettings, saveAiSettings } from '../services/ai-settings.service.
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { studioGenerationSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
 
@@ -234,7 +235,8 @@ const putAiSettingsSchema = z.object({
     ),
 });
 
-router.put('/ai-settings', validateRequest(putAiSettingsSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// Config global de IA (sem organizationId — afeta todos os tenants), então só ADMIN grava.
+router.put('/ai-settings', requireRole(['ADMIN']), validateRequest(putAiSettingsSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { settings } = req.body as {
             settings: { toolKey: string; provider: string; model: string; temperature: number }[];

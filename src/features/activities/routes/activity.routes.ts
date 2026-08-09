@@ -4,8 +4,10 @@ import { activityService } from '../services/activity.service.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 import { activitySchema, type ActivityStatus, type ActivityType } from '../../../lib/zod.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -42,7 +44,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 });
 
-router.post('/', validateRequest(activitySchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', writeRoles, validateRequest(activitySchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const activity = await activityService.create(orgId, req.body);
@@ -52,7 +54,7 @@ router.post('/', validateRequest(activitySchema), async (req: Request, res: Resp
     }
 });
 
-router.put('/:id', validateRequest(activitySchema.partial()), async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', writeRoles, validateRequest(activitySchema.partial()), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         const activity = await activityService.update(orgId, req.params.id, req.body);
@@ -62,7 +64,7 @@ router.put('/:id', validateRequest(activitySchema.partial()), async (req: Reques
     }
 });
 
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId: orgId } = (req as AuthRequest).user;
         await activityService.delete(orgId, req.params.id);
