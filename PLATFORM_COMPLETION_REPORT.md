@@ -1,9 +1,46 @@
 # Platform Completion Report — Central de Inteligência Comercial ATLASGR
 
 **Data:** 2026-08-10
-**Branch:** `claude/platform-completion-skills-re4e3h` (base: `c29ba0b`)
-**Executor:** Chief Platform Completion Orchestrator (sessão única, sem commit/push)
+**Branch:** `claude/platform-completion-skills-re4e3h` (base: `c29ba0b`, correções em `6d6ed9b`, já pushado)
+**Executor:** Chief Platform Completion Orchestrator (sessão única)
 **Estado detalhado:** `.platform-completion/{STATE,QUEUE}.json`, `{FINDINGS,COMPLETED,BLOCKED,TEST_RESULTS,RUN_LOG}.md`
+
+> **Adendo pós-commit**: depois do commit `6d6ed9b` (autorizado pelo usuário), a execução
+> continuou pelas Ondas 4/6/8/10. Achados dessa rodada (sem mudança de código, exceto onde
+> indicado): **PC-002** (chunk `exceljs`) fechado como verificado — já está atrás de `import()`
+> dinâmico real, disparado só no clique de exportar, não no mount da tela. **Notifications**
+> verificado como correto sem `requireRole` (autorização por posse do registro, não por papel —
+> `WHERE ... OR: [{userId}, {userId: null}]` na própria query). **Automations/Team/Knowledge**
+> verificados com RBAC graduado correto. **Google Workspace e os webhooks de entrada
+> (Bitrix/3CX/Birth Voice)** verificados sólidos (timeouts, `timingSafeEqual`, escopo estreito por
+> design). **Índices do `Lead`** confirmados adequados; **N+1** varrido, sem achado problemático
+> novo. **Novo achado**: model Prisma `KnowledgeDocument` confirmado como código morto real
+> (`prisma.knowledgeDocument.*` nunca é chamado) — não removido nesta sessão (exclusão de tabela é
+> ação destrutiva, registrado como **PC-011** em `BLOCKED.md`, aguardando sua decisão). Ver seções
+> abaixo e `.platform-completion/FINDINGS.md` para o detalhe completo desta rodada.
+
+> **Adendo 2 (Ondas 3/5/11/12)**: `OverviewMetrics` (Analytics) conferido campo a campo entre
+> frontend/backend — batem hoje, mas são dois tipos duplicados sem fonte compartilhada (risco de
+> divergência futura, registrado como débito, não bug ativo). Confirmado que um bug real de classe
+> "sucesso fabricado" em `AnalyticsController.getOverview` (números fictícios quando o banco
+> estava vazio) já foi corrigido em sessão anterior. Onda 11 (limpeza): único candidato real de
+> código morto é o `KnowledgeDocument` já registrado (PC-011), nada mais forte encontrado — o
+> pipeline Apollo órfão já tinha sido removido antes desta sessão (commit `5f5cf12`). Onda 3
+> (execução real de jornadas E2E) permanece bloqueada por ENV-001 — não executada. Onda 12
+> (release readiness final) — ver tabela ANTES/DEPOIS abaixo.
+
+### ANTES / DEPOIS (Onda 12)
+
+| Verificação | Baseline (início da sessão) | Final (após todas as correções) |
+|---|---|---|
+| `npm run lint` | 0 erros / 153 warnings | 0 erros / 153 warnings (idêntico — nenhuma regressão, nenhum warning novo) |
+| `npx tsc -b --noEmit` | 0 erros | 0 erros |
+| `npm run test:unit` | 517/517, 81 arquivos | **523/523, 85 arquivos** (+6 testes novos de regressão, PC-006) |
+| `npm run build` | OK, `OnboardingTour` 902.27kB sempre buscado | OK, `OnboardingTour` só buscado quando necessário (PC-001) |
+| `npm run test:integration`/`test:e2e` | Bloqueado (ENV-001) | Bloqueado (ENV-001) — inalterado, limitação de ambiente |
+| Bugs reais corrigidos nesta sessão | — | 3 (PC-001 performance, PC-005/PC-010 error-resilience×6 pontos, PC-008 persistência) |
+| Itens verificados e fechados sem mudança de código | — | 1 (PC-002) |
+| Itens novos registrados para decisão do usuário | — | 2 (PC-011 KnowledgeDocument, mais o PC-BX-DECISION já existente) |
 
 ---
 
