@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { authClient } from '../lib/auth-client';
 import { getBrandFromEmail } from '../config/access-policy';
-import { hasRequiredRole, isKnownRole, type Role } from '../lib/auth/authorization';
+import { hasRequiredRole, isKnownRole, canAccessCommercialIntelligence, type Role } from '../lib/auth/authorization';
 
 export interface UserSession {
   id: string;
@@ -22,6 +22,8 @@ interface AuthContextType {
   logout: () => void;
   canAccessAdminPanel: () => boolean;
   canAccessBrand: (brand: 'atlasgr' | 'totaltrac') => boolean;
+  /** Comercial Inteligente (Revenue Command Center executivo) — ADMIN/GESTOR, ver src/lib/auth/authorization.ts. */
+  canAccessCommercialIntelligence: boolean;
   isPending: boolean;
 }
 
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAdmin = currentUser ? hasRequiredRole(currentUser.role, ['ADMIN']) : false;
+  const canAccessCommercialIntelligenceValue = currentUser ? canAccessCommercialIntelligence(currentUser.role) : false;
 
   const canAccessAdminPanel = () => isAdmin;
 
@@ -123,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         canAccessAdminPanel,
         canAccessBrand,
+        canAccessCommercialIntelligence: canAccessCommercialIntelligenceValue,
         isPending
       }}
     >
