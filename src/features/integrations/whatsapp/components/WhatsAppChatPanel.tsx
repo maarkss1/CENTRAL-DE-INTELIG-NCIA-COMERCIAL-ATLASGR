@@ -84,7 +84,13 @@ export function WhatsAppChatPanel({
                 {status === 'connected' && (
                     <>
                         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-                            {messages.length === 0 && (
+                            {error && messages.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-4">
+                                    <AlertTriangle className="text-amber-500" size={24} />
+                                    <p className="text-xs text-ink-2">{error}</p>
+                                </div>
+                            )}
+                            {!error && messages.length === 0 && (
                                 <p className="text-center text-xs text-ink-2 mt-8">Nenhuma mensagem ainda. Envie a primeira abaixo.</p>
                             )}
                             {messages.map((msg) => (
