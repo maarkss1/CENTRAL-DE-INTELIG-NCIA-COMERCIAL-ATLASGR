@@ -1,4 +1,5 @@
 import { api } from '../../lib/api';
+import { LEAD_STATUS } from '../../lib/zod';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
 export type AutomationAction = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
@@ -28,12 +29,10 @@ export interface AutomationDraft {
 export const TRIGGERS: AutomationTrigger[] = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'];
 export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'];
 
-/** Etapas do funil, para o filtro de condição do gatilho de status. */
-export const LEAD_STATUSES = [
-    'Lead Recebido', 'Cadência Iniciada', 'Qualificação (SDR)', 'Reunião Agendada', 'Lead Desqualificado',
-    'Convertido em Oportunidade', 'Nova Oportunidade', 'Proposta Enviada', 'Call/Visita Agendada',
-    'Negócios Perdidos', 'Negócios Ganhos'
-];
+/** Etapas do funil, para o filtro de condição do gatilho de status — lista completa dos 18
+ * estágios (LEAD_STATUS, fonte única em lib/zod.ts), incluindo os 7 estágios "Piloto" do funil
+ * Negócio que antes ficavam de fora deste filtro mesmo já sendo estágios válidos de lead. */
+export const LEAD_STATUSES: string[] = [...LEAD_STATUS];
 
 export const automationsApi = {
     list: () => api.get<Automation[]>('/api/automations'),

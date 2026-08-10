@@ -147,7 +147,17 @@ export class PrismaLeadRepository implements LeadRepository {
         // disso pra "ganho/perdido no mês" não contar como fechamento qualquer update posterior do
         // lead (sync do Bitrix, uma ligação tocando só lastInteraction, etc.). Volta a null se o
         // lead for reaberto pra uma etapa que não é final.
-        const isClosingNow = newStatus === 'Negócios Ganhos' || newStatus === 'Negócios Perdidos';
+        // Os dois estágios "...Cancelado" dos pilotos comerciais entram aqui pelo mesmo motivo que
+        // "Negócios Perdidos": crm360.service.ts (DEAL_STAGES) já os define como isLost:true — sem
+        // fechar closedAt aqui, um piloto cancelado por este caminho (update legado de status, sem
+        // passar por /api/crm/records/:id/stage) ficaria "aberto" para sempre nos relatórios.
+        const CLOSING_STATUSES = new Set([
+            'Negócios Ganhos',
+            'Negócios Perdidos',
+            'Piloto Atlas Profile - Cancelado',
+            'Piloto Logístico - Cancelado',
+        ]);
+        const isClosingNow = CLOSING_STATUSES.has(newStatus);
         // O `where` inclui organizationId para garantir isolamento de tenant no update.
         const lead = await prisma.lead.update({
             where: { id, organizationId },

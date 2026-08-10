@@ -3,7 +3,10 @@ import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
 } from 'lucide-react';
-import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
+import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
+// LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
+// runtime só existe na fonte original.
+import { LEAD_STATUS } from '../../../lib/zod';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { PIC_OPTIONS } from '../../../shared/constants/icp-options';
@@ -12,20 +15,24 @@ import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 
+// Mesmo mapa de emoji por status usado em KanbanColumn.tsx (fonte de verdade visual do board) —
+// mantido em sincronia manualmente até haver um único lugar para essa constante.
 const STATUS_EMOJI: Record<string, string> = {
     'Lead Recebido': '🆕', 'Cadência Iniciada': '📣', 'Qualificação (SDR)': '🔎', 'Reunião Agendada': '📅',
     'Lead Desqualificado': '🚫', 'Convertido em Oportunidade': '⭐', 'Nova Oportunidade': '💡',
-    'Proposta Enviada': '📄', 'Call/Visita Agendada': '🤝', 'Negócios Perdidos': '❌', 'Negócios Ganhos': '🏆',
+    'Proposta Enviada': '📄', 'Call/Visita Agendada': '🤝',
+    'Piloto VTECH': '🧪', 'Piloto Atlas Profile': '🧪',
+    'Piloto Atlas Profile - Concluído': '✅', 'Piloto Atlas Profile - Cancelado': '⛔',
+    'Piloto Logística': '🚚', 'Piloto Logístico - Concluído': '✅', 'Piloto Logístico - Cancelado': '⛔',
+    'Negócios Perdidos': '❌', 'Negócios Ganhos': '🏆',
 };
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
-const LEAD_STATUSES: LeadStatus[] = [
-    'Lead Recebido', 'Cadência Iniciada', 'Qualificação (SDR)', 'Reunião Agendada', 'Lead Desqualificado',
-    'Convertido em Oportunidade', 'Nova Oportunidade', 'Proposta Enviada', 'Call/Visita Agendada',
-    'Negócios Perdidos', 'Negócios Ganhos'
-];
-void ({} as typeof LEAD_STATUS); // mantém o import de tipo referenciado
+// Lista completa dos 18 estágios (LEAD_STATUS, fonte única em lib/zod.ts) — antes desta correção
+// esta lista local parava em 11 e nunca incluía os 7 estágios "Piloto" do funil Negócio, que
+// ficavam inalcançáveis por este dropdown mesmo já sendo aceitos pelo backend.
+const LEAD_STATUSES: LeadStatus[] = [...LEAD_STATUS];
 
 interface LeadDetailDrawerProps {
     leadId: string;

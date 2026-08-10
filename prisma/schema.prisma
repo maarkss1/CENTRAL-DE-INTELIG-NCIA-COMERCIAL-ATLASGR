@@ -471,6 +471,9 @@ model CrmPipeline {
   leads          Lead[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?
+  deleteReason   String?
 
   @@unique([organizationId, name])
   @@index([organizationId, entity, active])
@@ -518,6 +521,9 @@ model CrmProduct {
   dealItems      CrmDealItem[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?
+  deleteReason   String?
 
   @@unique([organizationId, sku])
   @@index([organizationId, active, name])
@@ -541,6 +547,9 @@ model CrmDealItem {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  deletedBy       String?
+  deleteReason    String?
 
   @@index([organizationId, leadId, sortOrder])
   @@index([productId])
@@ -574,6 +583,9 @@ model CrmCommercialDocument {
   organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+  deletedBy      String?
+  deleteReason   String?
 
   @@unique([organizationId, number])
   @@index([organizationId, type, status])
