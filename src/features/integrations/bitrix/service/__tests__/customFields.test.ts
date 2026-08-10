@@ -145,10 +145,41 @@ describe('applyInboundCustomFields — Bitrix → Atlas', () => {
         expect(Object.keys(leadFields)).toHaveLength(0);
     });
 
-    it('quando o ID recebido não tem tradução conhecida, mantém o ID bruto em vez de descartar o dado', async () => {
+    it('quando o ID recebido não tem tradução conhecida, mantém o ID bruto em vez de descartar o dado (campo sem enum Prisma)', async () => {
+        // corretora (String? no Prisma, não enum) — o dado bruto é seguro de gravar.
+        const { applyInboundCustomFields } = await import('../customFields.js');
+        const { qualification } = applyInboundCustomFields({ UF_CRM_1770149252221: '999' }, 'lead', new Map());
+        expect(qualification.seguradora).toBe('999');
+    });
+
+    it('quando temperature (enum LeadTemperature no Prisma) não tem tradução conhecida, OMITE o campo em vez de gravar o ID bruto (evita rejeitar o update inteiro do Lead)', async () => {
         const { applyInboundCustomFields } = await import('../customFields.js');
         const { leadFields } = applyInboundCustomFields({ UF_CRM_1785162221346: '999' }, 'lead', new Map());
-        expect(leadFields.temperature).toBe('999');
+        expect(leadFields.temperature).toBeUndefined();
+    });
+
+    it('quando o texto resolvido de temperature não bate com nenhum valor do enum LeadTemperature (Frio/Morno/Quente), OMITE o campo', async () => {
+        const { resolveEnumMaps, applyInboundCustomFields } = await import('../customFields.js');
+        clientMock.callBitrix.mockResolvedValue({
+            result: { UF_CRM_1785162221346: { type: 'enumeration', items: [{ ID: '103', VALUE: 'Escaldante' }] } },
+        });
+        const enumMaps = await resolveEnumMaps('https://portal-test-5/rest/1/token/', 'lead');
+
+        const { leadFields } = applyInboundCustomFields({ UF_CRM_1785162221346: '103' }, 'lead', enumMaps);
+
+        expect(leadFields.temperature).toBeUndefined();
+    });
+
+    it('quando o texto resolvido de temperature bate (case-insensitive) com uma opção do enum, grava com a grafia canônica do Prisma', async () => {
+        const { resolveEnumMaps, applyInboundCustomFields } = await import('../customFields.js');
+        clientMock.callBitrix.mockResolvedValue({
+            result: { UF_CRM_1785162221346: { type: 'enumeration', items: [{ ID: '103', VALUE: 'quente' }] } },
+        });
+        const enumMaps = await resolveEnumMaps('https://portal-test-6/rest/1/token/', 'lead');
+
+        const { leadFields } = applyInboundCustomFields({ UF_CRM_1785162221346: '103' }, 'lead', enumMaps);
+
+        expect(leadFields.temperature).toBe('Quente');
     });
 
     it('ignora campos ausentes/vazios sem lançar erro', async () => {

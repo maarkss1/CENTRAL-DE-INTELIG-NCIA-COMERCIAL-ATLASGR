@@ -131,6 +131,28 @@ interface InboundCustomFieldsResult {
     contactRole: string | null;
 }
 
+// Ao contrário dos outros alvos `kind: 'lead'` deste mapa (todos String?/Boolean? no Prisma), a
+// coluna Lead.temperature é o enum LeadTemperature (Frio|Morno|Quente) — só aceita EXATAMENTE um
+// desses três valores. Um texto do Bitrix que não bata (ou o ID bruto, quando a tradução do enum
+// falha — ver fallback abaixo) faz o Prisma rejeitar o update INTEIRO do Lead, não só este campo.
+// É o que gerava "erro interno" no webhook de entrada e na importação (import/webhook chamam
+// applyInboundCustomFields e gravam leadFields direto via `...leadFields` sem validação).
+const LEAD_ENUM_COLUMNS: Record<string, readonly string[]> = {
+    temperature: ['Frio', 'Morno', 'Quente'],
+};
+
+/**
+ * Garante que um valor destinado a uma coluna `kind: 'lead'` que é enum no Prisma só é gravado
+ * quando bate (case-insensitive) com uma das opções válidas — senão devolve `undefined` para o
+ * campo ser omitido, em vez de quebrar o update inteiro. Campos `kind: 'lead'` sem enum Prisma
+ * (a maioria) passam direto, sem validação.
+ */
+function coerceLeadFieldValue(field: string, value: unknown): unknown {
+    const allowed = LEAD_ENUM_COLUMNS[field];
+    if (!allowed) return value;
+    return allowed.find((option) => option.toLowerCase() === String(value).trim().toLowerCase());
+}
+
 /**
  * Caminho inverso de buildOutboundCustomFields — extrai os `UF_CRM_*` de um registro cru do
  * Bitrix (retorno de crm.lead.get/crm.deal.get, ou de um crm.lead.list cujo `select` os inclui) e
@@ -177,9 +199,18 @@ export function applyInboundCustomFields(
             continue;
         }
 
-        if (mapping.target.kind === 'qualification') qualification[mapping.target.field] = value;
-        else if (mapping.target.kind === 'contact') contactRole = String(value);
-        else leadFields[mapping.target.field] = value;
+        if (mapping.target.kind === 'qualification') {
+            qualification[mapping.target.field] = value;
+        } else if (mapping.target.kind === 'contact') {
+            contactRole = String(value);
+        } else {
+            const coerced = coerceLeadFieldValue(mapping.target.field, value);
+            if (coerced === undefined && value !== undefined) {
+                logger.warn({ code, label: mapping.label, value }, '[bitrix] Valor recebido não corresponde a nenhuma opção válida da coluna local — campo não gravado (evita rejeitar o update inteiro do Lead)');
+                continue;
+            }
+            leadFields[mapping.target.field] = coerced;
+        }
     }
 
     return { qualification, leadFields, contactRole };
