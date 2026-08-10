@@ -326,7 +326,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         type="button"
                                         title={pic.desc}
                                         onClick={() => handleSetPic(pic.value)}
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-indigo-300'}`}
+                                        // bg-brand-active (estado ativo) não depende do tema — é
+                                        // fundo sólido próprio, texto branco valida AA nas duas
+                                        // marcas (5.28:1 AtlasGR / 11.26:1 Total Trac). O hover do
+                                        // estado inativo usa dark:hover:border-brand-2/40 pelo
+                                        // mesmo motivo do resto do board: --brand cru da Total Trac
+                                        // (#374898) quase some sobre superfície escura (2.25:1).
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-brand-active border-brand-active text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-brand/40 dark:hover:border-brand-2/40'}`}
                                     >
                                         {pic.label}
                                     </button>

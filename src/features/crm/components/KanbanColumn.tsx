@@ -45,14 +45,24 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
     return (
         <div
             ref={setNodeRef}
-            className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-blue-400 bg-blue-50/20' : 'border-line'}`}
+            // border-brand sozinho falha o mínimo de contraste não-textual (3:1) da Total Trac em
+            // dark mode: --brand da Total Trac é #374898 (navy), só 2.25:1 contra a superfície
+            // escura (#171211) — confirmado via cálculo real, não "parece diferente" (ver matriz
+            // no relato da Rodada B). dark:border-brand-2 troca pro azul de acento mais claro
+            // (#008FCE) só no tema escuro, que dá 5.15:1 — a AtlasGR também passa nos dois casos.
+            className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-brand dark:border-brand-2 bg-soft' : 'border-line'}`}
         >
-            <div className="p-4 border-b border-line bg-surface-2/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center">
-                <h3 className="font-semibold text-ink-2 flex items-center gap-2">
-                    <span>{STATUS_EMOJI[status] || '📌'}</span>
-                    {status}
+            {/* h3 sem tamanho explícito herdava o font-size:2rem global (@layer base em
+                globals.css) — o emoji, no mesmo elemento, ficava do mesmo tamanho gigante e
+                competia com o título. text-sm restaura a escala de rótulo de coluna; o emoji vira
+                aria-hidden (a informação da etapa já está no texto) e ganha peso visual secundário
+                (menor + opacidade reduzida) em vez de dividir a atenção com o título. */}
+            <div className="p-4 border-b border-line bg-surface-2/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center gap-2">
+                <h3 className="text-sm font-bold text-ink-2 flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs opacity-60 shrink-0" aria-hidden="true">{STATUS_EMOJI[status] || '📌'}</span>
+                    <span className="line-clamp-2 leading-tight">{status}</span>
                 </h3>
-                <span className="bg-surface-2 text-ink-2 text-xs font-medium px-2.5 py-1 rounded-full">
+                <span className="bg-surface-2 text-ink-2 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
                     {leads.length}
                 </span>
             </div>

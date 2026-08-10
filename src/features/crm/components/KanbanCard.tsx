@@ -7,6 +7,20 @@ import { TechToolLogo } from '../../../components/ui/TechToolLogo';
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
+// Hierarquia visual do badge de score — usa o campo `temperature` já existente (categórico:
+// Quente/Morno/Frio), sem inventar threshold novo em cima do número de `score`. Emoji + número
+// continuam sempre presentes (cor nunca é o único sinal); o que varia entre os 3 níveis é só o
+// "peso" do badge — preenchimento mais forte pra Quente, neutro/sem preenchimento pra Frio — pra
+// dar hierarquia sem virar semáforo, arco-íris ou glow. Frio usa bg-surface (transparente sobre o
+// card) porque text-ink-2 sobre bg-surface-2 fica em 4.24:1, abaixo de AA — sobre bg-surface (o
+// fundo real do card) dá 4.77:1.
+const SCORE_BADGE_CLASS: Record<string, string> = {
+    Quente: 'bg-blue-500/30 border-blue-500/50 text-blue-700 dark:text-blue-300',
+    Morno: 'bg-blue-500/20 border-blue-500/30 text-blue-700 dark:text-blue-300',
+    Frio: 'bg-transparent border-line text-ink-2',
+};
+const DEFAULT_SCORE_BADGE_CLASS = SCORE_BADGE_CLASS.Morno;
+
 interface KanbanCardProps {
     lead: Lead;
     onClick: (lead: Lead) => void;
@@ -42,6 +56,8 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
     };
 
     const companyTech = lead.company?.technologies || [];
+    const companyName = lead.company?.tradeName || lead.company?.legalName || '';
+    const hasCompanyName = companyName.length > 0;
 
     // TechToolLogo (fora do escopo de edição desta rodada) sempre renderiza um <button> real,
     // mesmo sem onClick. Aqui os logos são puramente informativos, então ficam fora do Tab/da
@@ -81,7 +97,13 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
         <div
             ref={setNodeRef}
             style={style}
-            className={`bg-surface rounded-2xl border border-line shadow-md hover:border-blue-500/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-blue-500 z-50 bg-surface-2' : ''}`}
+            // border-brand/ring-brand sozinhos falham o mínimo de contraste não-textual (3:1) da
+            // Total Trac em dark mode: --brand da Total Trac é #374898 (navy), só 2.25:1 contra a
+            // superfície escura — confirmado por cálculo real (getComputedStyle + fórmula WCAG),
+            // não "parece diferente". dark:hover:border-brand-2 / dark:ring-brand-2 trocam pro azul
+            // de acento mais claro (#008FCE) só no tema escuro, que dá 5.15:1; a AtlasGR passa nos
+            // dois casos com qualquer um dos dois tokens.
+            className={`bg-surface rounded-2xl border border-line shadow-md hover:border-brand/50 dark:hover:border-brand-2/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-brand dark:ring-brand-2 z-50 bg-surface-2' : ''}`}
         >
             {/* Região arrastável/clicável — role="button" e o keydown do dnd-kit vêm de
                 attributes/listeners. Os botões de ação (abaixo) ficam FORA desta div de propósito:
@@ -96,12 +118,23 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 onClick={() => onClick(lead)}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
             >
-                <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-ink group-hover:text-blue-400 transition-colors text-sm">
-                        {lead.company?.tradeName || lead.company?.legalName || 'Sem Empresa'}
-                    </h4>
+                <div className="flex justify-between items-start gap-2 mb-2">
+                    {/* line-clamp-2 (em vez de 1 linha truncada ou altura livre) evita que um nome
+                        muito longo estoure o card sem esconder o nome inteiro; title nativo dá
+                        acesso ao nome completo sem popover novo. Sem empresa vinculada é tratado
+                        como dado incompleto — itálico/tom secundário em vez do mesmo peso de um
+                        nome real, sem novo componente/alerta. */}
+                    {hasCompanyName ? (
+                        <h4 title={companyName} className="font-bold text-ink group-hover:text-brand-active dark:group-hover:text-brand-2 transition-colors text-sm line-clamp-2 leading-snug">
+                            {companyName}
+                        </h4>
+                    ) : (
+                        <h4 className="font-medium italic text-ink-2 text-sm">
+                            Sem empresa <span className="not-italic">· dados incompletos</span>
+                        </h4>
+                    )}
                     {lead.score && (
-                        <span className="text-xs font-extrabold bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-lg">
+                        <span className={`shrink-0 text-xs font-extrabold border px-2 py-0.5 rounded-lg ${lead.temperature ? (SCORE_BADGE_CLASS[lead.temperature] ?? DEFAULT_SCORE_BADGE_CLASS) : DEFAULT_SCORE_BADGE_CLASS}`}>
                             {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : ''}{lead.score}
                         </span>
                     )}
@@ -110,7 +143,7 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 <div className="space-y-2 mt-2 text-xs text-ink-2">
                     {lead.contact && (
                         <div className="flex items-center gap-1.5 text-ink-2">
-                            <User className="w-3.5 h-3.5 text-blue-400" />
+                            <User className="w-3.5 h-3.5 text-ink-2" />
                             <span className="truncate">{lead.contact.name}</span>
                         </div>
                     )}
@@ -149,7 +182,12 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                             onClick={handleConvert}
                             disabled={converting}
                             title="Converter em oportunidade — move este lead para o funil de Negócios"
-                            className="flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 disabled:opacity-50 transition-colors"
+                            // text-brand-active dark:text-brand-2 (não dark:text-brand simples):
+                            // --brand cru da Total Trac (#374898) só dá 2.25:1 sobre a superfície
+                            // escura, abaixo até do mínimo não-textual — teria ficado quase
+                            // ilegível no card. brand-2 (#008FCE, acento) dá 5.15:1. Confirmado via
+                            // canvas + fórmula de contraste real, nas duas marcas — ver relato.
+                            className="flex items-center gap-1 text-[11px] font-bold text-brand-active dark:text-brand-2 hover:opacity-75 disabled:opacity-50 transition-colors"
                         >
                             {converting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowRightCircle className="w-3 h-3" />}
                             {converting ? 'Convertendo...' : 'Converter'}

@@ -329,23 +329,36 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
                             : `Gerencie propostas, pilotos e receita do ${brandInfo.name} em um funil separado.`}
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
+                {/* Em 390px os dois botões, com o label completo, não cabiam lado a lado (medido:
+                    "Exportar CSV" terminava em ~377px, 2px além do viewport de 375px) — ação
+                    ficava presente no DOM mas inalcançável. Grid de 2 colunas full-width + label
+                    curto abaixo do breakpoint sm resolve sem esconder nenhuma ação nem criar menu
+                    "...". A partir de sm volta ao layout original (flex, largura de conteúdo). */}
+                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:items-center sm:gap-3">
                     <Button
                         onClick={handleImportBitrix}
                         disabled={loading}
                         variant="secondary"
-                        className="text-xs"
+                        className="text-xs w-full sm:w-auto"
                         title="Importar leads recentes do Bitrix24"
                     >
-                        <Download className="w-4 h-4 rotate-180" /> 📥 {loading ? 'Importando...' : 'Sincronizar Bitrix24'}
+                        <Download className="w-4 h-4 rotate-180 shrink-0" />
+                        {loading ? 'Importando...' : (
+                            <>
+                                <span className="sm:hidden">📥 Bitrix24</span>
+                                <span className="hidden sm:inline">📥 Sincronizar Bitrix24</span>
+                            </>
+                        )}
                     </Button>
                     <Button
                         onClick={handleExportCsv}
                         variant="secondary"
-                        className="text-xs"
+                        className="text-xs w-full sm:w-auto"
                         title="Exportar todos os leads para uma planilha CSV"
                     >
-                        <Download className="w-4 h-4" /> 💾 Exportar CSV
+                        <Download className="w-4 h-4 shrink-0" />
+                        <span className="sm:hidden">💾 CSV</span>
+                        <span className="hidden sm:inline">💾 Exportar CSV</span>
                     </Button>
                 </div>
             </div>
@@ -368,7 +381,10 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
-                            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            {/* dark:border-brand-2 pelo mesmo motivo do drop target/hover do card:
+                                --brand cru da Total Trac (#374898) só dá 2.25:1 sobre superfície
+                                escura — ver relato da Rodada B pra matriz completa. */}
+                            <div className="w-8 h-8 border-4 border-brand dark:border-brand-2 border-t-transparent rounded-full animate-spin" />
                             <p className="text-ink-2 font-medium text-sm">Carregando pipeline comercial...</p>
                         </div>
                     </div>
