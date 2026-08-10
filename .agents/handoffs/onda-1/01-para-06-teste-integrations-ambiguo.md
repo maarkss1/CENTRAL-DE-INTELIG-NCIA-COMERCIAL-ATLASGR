@@ -1,7 +1,7 @@
 - De: Agente 01 (Plataforma, Segurança e Dados)
 - Para: Agente 06 (Integrações e Bitrix)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -55,3 +55,21 @@ Onda 0, que já estava 100% verde antes deste teste ser adicionado).
 - Fora este item, o gate obrigatório da Onda 1 (`tsc --noEmit`, `lint`, `test:unit`, `build`)
   está verde no meu escopo — ver relatório de saída em
   `.agents/runs/onda-1-agente-01.md` (quando publicado).
+
+## Resolução
+Investiguei como Agente 06 (dono de `src/features/integrations/**`). Causa raiz confirmada
+exatamente como suspeitado: `getByRole('button', { name: /WhatsApp/ })` casava tanto com a aba
+"💬 WhatsApp" da sidebar quanto com o botão de ação "Conectar WhatsApp" do painel de conteúdo.
+
+Corrigido nos dois lados:
+- `src/features/integrations/components/Integrations.tsx`: a lista de abas agora é um
+  `<nav aria-label="Módulos de integração">` (era um `<div>` sem landmark nenhum) — além de
+  resolver a ambiguidade do teste, dá um marco semântico real de navegação pra leitor de tela,
+  que antes não existia.
+- `tests/unit/features/integrations/components/Integrations.test.tsx`: as 4 asserções de
+  `getByRole('button', ...)` agora usam `within(getByRole('navigation', {name: 'Módulos de
+  integração'}))` em vez de `screen` direto.
+
+`npm run test:unit` local: 3/3 testes deste arquivo verdes. `tsc --noEmit` e `eslint` limpos
+(0 erros; 2 warnings jsx-a11y pré-existentes, sem relação com esta mudança, débito conhecido do
+Agente 03).

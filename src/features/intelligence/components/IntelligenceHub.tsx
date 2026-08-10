@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Zap, Target } from 'lucide-react';
+import {
+    Database, Zap, Target, Bot, GraduationCap, Settings, Sparkles,
+    FileText, Workflow, CheckSquare, Wand2, Search,
+} from 'lucide-react';
 import { AIPendingActions } from './AIPendingActions';
 import { B2BGenerator } from './B2BGenerator';
 import { Intelligence } from '../../../components/Intelligence';
@@ -19,12 +23,56 @@ interface IntelligenceHubProps {
     initialTab?: IntelligenceTab;
 }
 
+// Bloqueador #8 do AGENTS.md ("Ferramentas do Hub de IA inacessíveis"): este componente sempre
+// declarou 10 ferramentas via IntelligenceTab, mas `activeTab` nunca foi um estado real — era só
+// `initialTab` (sempre 'swarm', porque nenhum chamador jamais passava outro valor) — então 9 das
+// 10 ferramentas eram código morto: renderizadas em algum branch de JSX que nenhum clique jamais
+// alcançava. Cada ferramenta agora tem uma aba real, alcançável e com affordance visível.
+const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot }[] = [
+    { id: 'swarm', label: 'Enxame Autônomo', icon: Bot },
+    { id: 'methodologies', label: 'Metodologias de Vendas', icon: GraduationCap },
+    { id: 'ai_config', label: 'Central de Motores de IA', icon: Settings },
+    { id: 'superagent', label: 'Criador de Superagente', icon: Sparkles },
+    { id: 'scripts', label: 'Gerador de Scripts', icon: FileText },
+    { id: 'automations', label: 'Guia de Automações', icon: Workflow },
+    { id: 'actions', label: 'Central de Decisões', icon: CheckSquare },
+    { id: 'generator', label: 'Gerador B2B', icon: Wand2 },
+    { id: 'tools', label: 'Outreach Intelligence', icon: Search },
+    { id: 'rag', label: 'Conhecimento Vetorial (RAG)', icon: Database },
+];
+
 export function IntelligenceHub({ initialTab = 'swarm' }: IntelligenceHubProps) {
-    const activeTab = initialTab;
+    const [activeTab, setActiveTab] = useState<IntelligenceTab>(initialTab);
     const accent = useBrandAccent();
 
     return (
         <div className="space-y-6">
+            <nav
+                aria-label="Ferramentas do Hub de IA"
+                className="flex flex-wrap gap-2 pb-1"
+            >
+                {TOOL_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            aria-pressed={isActive}
+                            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors border cursor-pointer ${
+                                isActive
+                                    ? `${accent.bgSoft} ${accent.text} border-transparent`
+                                    : 'bg-surface text-ink-2 border-line hover:bg-surface-2'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4" />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </nav>
+
             {activeTab === 'swarm' && <SwarmDashboard />}
             {activeTab === 'methodologies' && <SalesMethodologyStudio />}
             {activeTab === 'ai_config' && <AIConfigCenter />}

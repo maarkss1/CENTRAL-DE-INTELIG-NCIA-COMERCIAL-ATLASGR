@@ -31,17 +31,22 @@ export function VoiceCommandWidget() {
         
         setTranscript(currentText);
 
-        // Processamento de Comandos de Voz em Português
+        // Processamento de Comandos de Voz em Português. `navigateOrReportFailure` só anuncia
+        // sucesso quando `navigationBus.requestNavigation` confirma que a navegação foi
+        // realmente disparada (bloqueador #7 do AGENTS.md: "comando de voz que afirma navegar
+        // sem realizar navegação") — nunca um falso positivo.
         const textLower = currentText.toLowerCase();
 
+        const navigateOrReportFailure = (tab: string, successLabel: string) => {
+          const navigated = navigationBus.requestNavigation(tab);
+          setLastAction(navigated ? successLabel : 'Não consegui navegar até aqui agora — tente de novo em instantes.');
+          stopListening();
+        };
+
         if (textLower.includes('crm') || textLower.includes('pipeline')) {
-          navigationBus.requestTool('crm');
-          setLastAction('Navegou para o CRM Board');
-          stopListening();
+          navigateOrReportFailure('crm', 'Navegou para o CRM Board');
         } else if (textLower.includes('prospector') || textLower.includes('buscar lead')) {
-          navigationBus.requestTool('prospect');
-          setLastAction('Navegou para o Prospector');
-          stopListening();
+          navigateOrReportFailure('prospect', 'Navegou para o Prospector');
         } else if (textLower.includes('atlas') || textLower.includes('atlas gr')) {
           setActiveBrand('atlasgr');
           setLastAction('Alternou para operação AtlasGR');
@@ -51,16 +56,16 @@ export function VoiceCommandWidget() {
           setLastAction('Alternou para operação Total Trac');
           stopListening();
         } else if (textLower.includes('inteligência') || textLower.includes('metodologia')) {
-          navigationBus.requestTool('intelligence');
-          setLastAction('Abriu Estúdio de Inteligência');
-          stopListening();
+          navigateOrReportFailure('intelligence', 'Abriu o Hub de IA');
         } else if (textLower.includes('contato') || textLower.includes('contatos')) {
-          navigationBus.requestTool('contacts');
-          setLastAction('Navegou para Lista de Contatos');
-          stopListening();
+          navigateOrReportFailure('contacts', 'Navegou para Lista de Contatos');
         } else if (textLower.includes('empresa') || textLower.includes('empresas')) {
-          navigationBus.requestTool('companies');
-          setLastAction('Navegou para Lista de Empresas');
+          navigateOrReportFailure('companies', 'Navegou para Lista de Empresas');
+        } else if (currentText.trim().length > 0 && event.results[event.results.length - 1]?.isFinal) {
+          // Só reporta "não entendi" quando o reconhecimento terminou de processar a frase
+          // (isFinal) — resultados interinos (enquanto a pessoa ainda está falando) não devem
+          // disparar esse aviso a cada palavra parcial reconhecida.
+          setLastAction('Não entendi o comando. Tente: CRM, Prospector, Contatos, Empresas ou Inteligência.');
           stopListening();
         }
       };

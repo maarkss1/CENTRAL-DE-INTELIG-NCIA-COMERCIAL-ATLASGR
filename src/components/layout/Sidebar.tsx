@@ -2,7 +2,7 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
@@ -63,6 +63,13 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'usage' as TabType, label: 'Consumo de IA', icon: <Wallet size={20} /> },
     ];
 
+    // Ferramenta estática (HTML/JS puro, sem passar pelo router da SPA) servida direto de
+    // public/tools — roda 100% no navegador do usuário, direto contra o webhook Bitrix24 dele,
+    // por isso abre em nova aba em vez de navegar dentro do app.
+    const externalTools = [
+        { label: 'Extrator Bitrix24', href: '/tools/extrator-bitrix.html', icon: <Download size={20} /> },
+    ];
+
     return (
         <aside
             className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex flex-col transition-transform duration-300 bg-surface border-r border-line lg:static lg:translate-x-0 ${
@@ -117,14 +124,14 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                             <button
                                 key={tool.id}
                                 onClick={() => selectTab(tool.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
                                     isActive
                                         ? 'bg-brand-active text-white shadow-md'
                                         : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
-                                <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
-                                {tool.label}
+                                <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
+                                <span>{tool.label}</span>
                             </button>
                         );
                     })}
@@ -141,17 +148,36 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                             <button
                                 key={tool.id}
                                 onClick={() => selectTab(tool.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
                                     isActive
                                         ? 'bg-brand-active text-white shadow-md'
                                         : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                 }`}
                             >
-                                <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
-                                {tool.label}
+                                <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
+                                <span>{tool.label}</span>
                             </button>
                         );
                     })}
+                </div>
+
+                {/* Ferramentas externas — páginas estáticas fora da SPA */}
+                <div className="space-y-1">
+                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
+                        Ferramentas
+                    </p>
+                    {externalTools.map(tool => (
+                        <a
+                            key={tool.href}
+                            href={tool.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all text-ink-2 hover:bg-surface-2 hover:text-ink"
+                        >
+                            <span className="shrink-0 opacity-70">{tool.icon}</span>
+                            <span>{tool.label}</span>
+                        </a>
+                    ))}
                 </div>
 
                 {/* Admin Tools — só pra quem tem papel administrativo */}
@@ -166,14 +192,14 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                                 <button
                                     key={tool.id}
                                     onClick={() => selectTab(tool.id)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
                                         isActive
                                             ? 'bg-brand-active text-white shadow-md'
                                             : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
                                     }`}
                                 >
-                                    <span className={isActive ? 'opacity-100' : 'opacity-70'}>{tool.icon}</span>
-                                    {tool.label}
+                                    <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
+                                    <span>{tool.label}</span>
                                 </button>
                             );
                         })}

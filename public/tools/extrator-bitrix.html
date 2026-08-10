@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AtlasGR — Extrator Bitrix24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Mesmos design tokens de src/styles/globals.css (tema escuro é o padrão do app —
+     ver ThemeContext.tsx, savedTheme || 'dark'). Página estática, então não lê o
+     data-theme salvo no localStorage do app — só replica a paleta. */
+  :root {
+    --bg: #0D0A09;
+    --surface: #171211;
+    --surface-2: #1F1917;
+    --ink: #F7F3F1;
+    --ink-2: #A2968F;
+    --line: rgba(255, 255, 255, .10);
+    --brand: #FF5618;
+    --brand-2: #FF8008;
+    --brand-active: color-mix(in srgb, var(--brand) 75%, black);
+    --warn: #FFC500;
+    --ok: #0F9D64;
+    --danger: #ef4444;
+    --soft: rgba(255, 86, 24, .15);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, .6), 0 14px 34px -18px rgba(0, 0, 0, .9);
+    --font-brand-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #FBF9F7;
+      --surface: #FFFFFF;
+      --surface-2: #F5F1EE;
+      --ink: #1A1513;
+      --ink-2: #7A716C;
+      --line: rgba(0, 0, 0, .09);
+      --soft: rgba(255, 86, 24, .08);
+      --shadow-card: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font-brand-sans);
+    background: var(--bg);
+    color: var(--ink);
+  }
+  header {
+    background: linear-gradient(135deg, var(--brand), var(--brand-2));
+    color: #fff;
+    padding: 22px 28px;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: 0.92; }
+  main {
+    max-width: 980px;
+    margin: 24px auto 80px;
+    padding: 0 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 1.25rem;
+    box-shadow: var(--shadow-card);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2 .num {
+    background: var(--brand);
+    color: #fff;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  label:first-of-type { margin-top: 0; }
+  select, input[type="text"], input[type="password"], input[type="date"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+  select:focus-visible, input:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+  }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 200px; }
+  .aviso {
+    background: var(--soft);
+    border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    color: var(--ink);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .campos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px 14px;
+    margin-top: 8px;
+  }
+  .campo-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+  }
+  .campo-item input { width: auto; }
+  button {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    padding: 11px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  button:hover { background: var(--brand-active); }
+  button:active { transform: scale(0.97); }
+  button.secundario {
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    font-weight: 600;
+  }
+  button.secundario:hover { background: color-mix(in srgb, var(--line) 180%, transparent); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toggle-eye {
+    background: none; border: none; color: var(--ink-2);
+    font-family: inherit;
+    font-size: 12px; padding: 4px 0; text-decoration: underline; cursor: pointer;
+  }
+  .status-linha {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--ink-2); margin-top: 12px;
+  }
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid var(--line);
+    border-top-color: var(--brand); border-radius: 50%;
+    animation: girar 0.7s linear infinite; display: none;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .erro { color: var(--danger); font-size: 13px; margin-top: 10px; white-space: pre-wrap; }
+  .sucesso { color: var(--ok); font-size: 13px; margin-top: 10px; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px;
+    display: block; overflow-x: auto; white-space: nowrap;
+  }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+  th { background: var(--surface-2); position: sticky; top: 0; color: var(--ink); }
+  tr:nth-child(even) { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
+  .resultado-header {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+  }
+  .botoes-download { display: flex; gap: 8px; }
+  pre {
+    background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); padding: 14px; border-radius: 10px;
+    font-size: 12px; overflow-x: auto; line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .oculto { display: none !important; }
+  .rodape-nota {
+    font-size: 11.5px; color: var(--ink-2); margin-top: 6px;
+  }
+  .total-pill {
+    display: inline-block; background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok);
+    padding: 4px 10px; border-radius: 20px; font-size: 12.5px; font-weight: 700;
+  }
+  .entidade-card {
+    border: 1px solid var(--line); border-radius: 1rem; padding: 14px 16px; background: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+  .entidade-card h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 700; }
+  .entidade-card .contagem { font-size: 22px; font-weight: 800; color: var(--brand); }
+  .entidade-card .campos-info { font-size: 11.5px; color: var(--ink-2); margin: 4px 0 10px; }
+  .entidade-card .botoes { display: flex; gap: 6px; }
+  .entidade-card .botoes button { padding: 6px 10px; font-size: 12px; }
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--line) 180%, transparent); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--brand); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AtlasGR — Extrator de dados Bitrix24</h1>
+  <p>Monta a consulta com os filtros abaixo e extrai direto do seu Bitrix, sem passar por nenhum servidor externo.</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2><span class="num">1</span> Webhook</h2>
+    <div class="aviso">
+      Por segurança, o webhook <strong>não vem gravado neste arquivo</strong> — se alguém
+      compartilhar esse HTML, mandar por e-mail ou subir num git, o token de acesso não
+      vaza junto. Cole aqui uma vez: ele fica só na memória desta aba enquanto ela estiver
+      aberta (não é salvo no disco, nem em cookies, nem em localStorage). Se recarregar a
+      página, precisa colar de novo.
+    </div>
+    <label for="webhook">URL do webhook de entrada</label>
+    <input type="password" id="webhook" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/">
+    <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span> O que extrair</h2>
+    <div class="row">
+      <div>
+        <label for="entidade">Tipo de dado</label>
+        <select id="entidade" onchange="aoTrocarEntidade()"></select>
+      </div>
+      <div id="bloco-categoria" class="oculto">
+        <label for="categoria">Categoria (pipeline)</label>
+        <select id="categoria" onchange="aoTrocarCategoria()"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div id="bloco-estagio" class="oculto">
+        <label for="estagio">Estágio / Status</label>
+        <select id="estagio"></select>
+      </div>
+    </div>
+    <div id="nota-tudo" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      No modo <strong>Extração completa</strong>, o botão "Extrair dados" busca, em sequência: Negócios (todos os funis/pipelines), Leads, Empresas, Contatos, Atividades (ligações, reuniões e tarefas de CRM) e Usuários — cada um com <strong>todos os campos existentes</strong> (incluindo campos personalizados UF_CRM_*), consultados diretamente na estrutura do seu Bitrix no momento da extração. Não é preciso escolher campos manualmente (passo 4 fica oculto). O filtro de período do passo 3, se preenchido, é aplicado à data de criação de cada entidade.
+    </div>
+  </div>
+
+  <div class="card" id="bloco-periodo">
+    <h2><span class="num">3</span> Período</h2>
+    <div class="row">
+      <div>
+        <label for="periodoPreset">Intervalo rápido</label>
+        <select id="periodoPreset" onchange="aoTrocarPresetPeriodo()">
+          <option value="personalizado">Personalizado (uso as datas abaixo)</option>
+          <option value="todas">Todas as datas (sem filtro de período)</option>
+          <option value="diario">Diário (hoje)</option>
+          <option value="semanal">Semanal (últimos 7 dias)</option>
+          <option value="mensal">Mensal (mês atual)</option>
+          <option value="trimestral">Trimestral (trimestre atual)</option>
+          <option value="semestral">Semestral (semestre atual)</option>
+        </select>
+      </div>
+      <div id="linha-campo-data">
+        <label for="campoData">Filtrar pela data de...</label>
+        <select id="campoData"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="dataInicio">De</label>
+        <input type="date" id="dataInicio" onchange="voltarParaPersonalizado()">
+      </div>
+      <div>
+        <label for="dataFim">Até</label>
+        <input type="date" id="dataFim" onchange="voltarParaPersonalizado()">
+      </div>
+    </div>
+    <p class="rodape-nota">Datas são enviadas ao Bitrix no fuso -03:00 (São Paulo). Escolha um intervalo rápido acima ou preencha "De"/"Até" manualmente (isso muda o intervalo rápido para "Personalizado"). Deixe as duas datas em branco (ou escolha "Todas as datas") para não filtrar por período.</p>
+  </div>
+
+  <div class="card" id="card-campos">
+    <h2><span class="num">4</span> Campos a extrair</h2>
+    <div class="row" style="margin-bottom:4px;">
+      <button type="button" class="secundario" onclick="selecionarCampos(true)">Selecionar todos</button>
+      <button type="button" class="secundario" onclick="selecionarCampos(false)">Limpar seleção</button>
+    </div>
+    <div id="campos-lista" class="campos-grid"></div>
+    <label for="camposExtra">Campos extras (códigos separados por vírgula, ex: UF_CRM_1234567890)</label>
+    <input type="text" id="camposExtra" placeholder="UF_CRM_1234567890, UF_CRM_9876543210">
+  </div>
+
+  <div class="card">
+    <h2><span class="num">5</span> Extrair</h2>
+    <button type="button" id="btnExtrair" onclick="extrair()">Extrair dados</button>
+    <button type="button" class="secundario" id="btnParar" onclick="pararExtracao()" disabled>Parar</button>
+    <button type="button" class="secundario oculto" id="btnContinuar" onclick="continuarExtracao()">Continuar extração (buscar mais)</button>
+    <div class="status-linha">
+      <div class="spinner" id="spinner"></div>
+      <span id="statusTexto"></span>
+    </div>
+    <div class="erro oculto" id="areaErro"></div>
+  </div>
+
+  <div class="card oculto" id="bloco-resultado">
+    <h2><span class="num">6</span> Resultado</h2>
+    <div class="resultado-header">
+      <div>
+        <span id="totalRegistros" class="total-pill"></span>
+        <span id="totalValor" style="margin-left:10px; font-size:13px; color:var(--ink-2);"></span>
+      </div>
+      <div class="botoes-download">
+        <button type="button" class="secundario" onclick="baixarCSV()">Baixar CSV</button>
+        <button type="button" class="secundario" onclick="baixarJSON()">Baixar JSON</button>
+      </div>
+    </div>
+    <p class="rodape-nota">Pré-visualização das 50 primeiras linhas (o arquivo baixado tem tudo).</p>
+    <div id="tabela-wrapper"></div>
+  </div>
+
+  <div class="card oculto" id="bloco-resultado-completo">
+    <h2 style="margin-bottom:4px;">Resultado — extração completa</h2>
+    <p class="rodape-nota">Uma entidade por card, com contagem de registros e download individual. Todos os campos de cada entidade foram incluídos automaticamente.</p>
+    <div class="row" style="margin:10px 0 4px;">
+      <button type="button" class="secundario" onclick="baixarJSONCompleto()">Baixar tudo em um único JSON</button>
+    </div>
+    <div id="entidades-lista" class="campos-grid" style="grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">7</span> Analisar com IA</h2>
+    <div class="aviso">
+      Este extrator não manda seus dados para nenhuma IA por conta própria — mesma lógica de segurança do webhook do passo 1. Em vez disso, ele monta, aqui na sua tela, um prompt pronto (sua pergunta + os dados extraídos) para você colar na conversa com o Claude, ChatGPT ou outra IA que você já usa.
+    </div>
+    <label for="perguntaIA">O que você quer que a IA leia/analise nesse relatório?</label>
+    <input type="text" id="perguntaIA" placeholder="Ex: calcule a taxa de conversão de leads para negócios ganhos, por vendedor e por mês, no período extraído">
+    <div class="row" style="margin-top:12px;">
+      <button type="button" onclick="gerarPromptIA()">Gerar prompt para IA</button>
+    </div>
+    <div id="bloco-prompt-ia" class="oculto" style="margin-top:14px;">
+      <p class="rodape-nota" id="avisoTamanhoPrompt" style="color:var(--brand-active); font-weight:600;"></p>
+      <pre id="promptIA"></pre>
+      <div class="botoes-download">
+        <button type="button" class="secundario" onclick="copiarPromptIA()">Copiar prompt</button>
+        <button type="button" class="secundario" onclick="baixarPromptIA()">Baixar prompt (.txt)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card oculto" id="bloco-python">
+    <h2><span class="num">8</span> Equivalente em Python (opcional)</h2>
+    <p class="rodape-nota">
+      Se o navegador bloquear a chamada direta (CORS) ou se você quiser rodar essa mesma
+      extração de forma automatizada/agendada, use este trecho — ele lê o webhook de uma
+      variável de ambiente, do mesmo jeito que os outros scripts deste projeto.
+    </p>
+    <pre id="codigoPython"></pre>
+    <button type="button" class="secundario" onclick="copiarPython()">Copiar código</button>
+  </div>
+
+</main>
+
+<script>
+// ---------------------------------------------------------------------------
+// Metadados conhecidos do Bitrix da AtlasGR (confirmados via API em 08/08/2026
+// — ver PIPELINE_MAPPING.md). Se a estrutura do CRM mudar, atualize aqui.
+// ---------------------------------------------------------------------------
+
+const ENTIDADES = {
+  negocios: {
+    label: "Negócios (Deals)",
+    method: "crm.deal.list",
+    hasCategoria: true,
+    categorias: [
+      { code: "", label: "Todas as categorias" },
+      { code: "0", label: "0 — Comercial" },
+      { code: "20", label: "20 — Financeiro" },
+      { code: "50", label: "50 — Perfil Securitário" },
+      { code: "3", label: "3 — Implantação" },
+      { code: "5", label: "5 — Pós-Vendas" },
+      { code: "46", label: "46 — Sucesso do Cliente" },
+      { code: "48", label: "48 — Implantação Logística" },
+      { code: "44", label: "44 — Financeiro (Reembolsos)" },
+      { code: "8", label: "8 — RH" },
+      { code: "32", label: "32 — T.I (interno)" },
+      { code: "30", label: "30 — Negócios Perdidos (arquivo histórico)" },
+      { code: "42", label: "42 — Área de Teste (dado de teste — não recomendado)" },
+      { code: "56", label: "56 — Chamados SC" },
+    ],
+    estagiosPorCategoria: {
+      "0": [
+        { code: "UC_A0VPC5", label: "Nova Oportunidade" },
+        { code: "NEW", label: "Proposta Enviada" },
+        { code: "UC_5X3WZN", label: "Call/Visita Agendada" },
+        { code: "UC_R1YAOS", label: "Piloto" },
+        { code: "WON", label: "Negócios Ganhos" },
+        { code: "LOSE", label: "Negócios Perdidos" },
+      ],
+      "20": [
+        { code: "UC_JWY0OY", label: "Piloto Atlas Profile" },
+        { code: "UC_AM8GK1", label: "Aguardando Assinatura (Piloto Atlas Profile)" },
+        { code: "UC_I37148", label: "Termo Aceito (Piloto Profile)" },
+        { code: "UC_EU6LUO", label: "Piloto Logístico" },
+        { code: "UC_WBYFT4", label: "Aguardando Assinatura (Piloto Logístico)" },
+        { code: "UC_QT3CO8", label: "Termo Aceito (Piloto Logístico)" },
+        { code: "NEW", label: "Análise de Documentos" },
+        { code: "UC_H2J1XM", label: "Aguardando Assinatura de Contrato" },
+        { code: "WON", label: "Contrato Assinado" },
+        { code: "LOSE", label: "Contrato Cancelado" },
+      ],
+    },
+    camposData: [
+      { code: "DATE_CREATE", label: "Data de criação" },
+      { code: "DATE_MODIFY", label: "Data de modificação" },
+      { code: "MOVED_TIME", label: "Data da última mudança de estágio" },
+      { code: "CLOSEDATE", label: "Data de fechamento (campo de sistema)" },
+      { code: "BEGINDATE", label: "Data de início" },
+      { code: "UF_CRM_1770928318695", label: "Data do contrato assinado (campo oficial)" },
+    ],
+    campos: [
+      { code: "ID", label: "ID", padrao: true },
+      { code: "TITLE", label: "Título", padrao: true },
+      { code: "STAGE_ID", label: "Estágio", padrao: true },
+      { code: "CATEGORY_ID", label: "Categoria", padrao: true },
+      { code: "OPPORTUNITY", label: "Valor (R$)", padrao: true },
+      { code: "CURRENCY_ID", label: "Moeda" },
+      { code: "DATE_CREATE", label: "Data de criação" },
+      { code: "DATE_MODIFY", label: "Data de modificação" },
+      { code: "MOVED_TIME", label: "Data última mudança de estágio" },
+      { code: "CLOSEDATE", label: "Data de fechamento (sistema)" },
+      { code: "BEGINDATE", label: "Data de início" },
+      { code: "UF_CRM_1770928318695", label: "Data do contrato assinado", padrao: true },
+      { code: "ASSIGNED_BY_ID", label: "Responsável (ID)", padrao: true },
+      { code: "COMPANY_ID", label: "ID Empresa", padrao: true },
+      { code: "CONTACT_ID", label: "ID Contato" },
+      { code: "SOURCE_ID", label: "Origem" },
+      { code: "CLOSED", label: "Fechado (S/N)" },
+      { code: "LEAD_ID", label: "ID Lead de origem" },
+    ],
+  },
+  leads: {
+    label: "Leads",
+    method: "crm.lead.list",
+    hasCategoria: false,
+    estagios: [
+      { code: "", label: "Todos os estágios" },
+      { code: "NEW", label: "Lead Recebido" },
+      { code: "UC_IX9SZ8", label: "Cadência Iniciada" },
+      { code: "UC_0NU8BD", label: "Qualificação (SDR)" },
+      { code: "UC_B5Q2RS", label: "Reunião Agendada" },
+      { code: "CONVERTED", label: "Convertido em Oportunidade" },
+      { code: "JUNK", label: "Lead Desqualificado" },
+    ],
+    campoEstagio: "STATUS_ID",
+    camposData: [
+      { code: "DATE_CREATE", label: "Data de criação" },
+      { code: "DATE_MODIFY", label: "Data de modificação" },
+    ],
+    campos: [
+      { code: "ID", label: "ID", padrao: true },
+      { code: "TITLE", label: "Título", padrao: true },
+      { code: "STATUS_ID", label: "Estágio", padrao: true },
+      { code: "SOURCE_ID", label: "Origem", padrao: true },
+      { code: "OPPORTUNITY", label: "Valor (R$)" },
+      { code: "DATE_CREATE", label: "Data de criação", padrao: true },
+      { code: "DATE_MODIFY", label: "Data de modificação" },
+      { code: "ASSIGNED_BY_ID", label: "Responsável (ID)", padrao: true },
+      { code: "COMPANY_ID", label: "ID Empresa" },
+      { code: "COMPANY_TITLE", label: "Nome Empresa" },
+      { code: "CONTACT_ID", label: "ID Contato" },
+      { code: "NAME", label: "Nome (contato)" },
+      { code: "LAST_NAME", label: "Sobrenome (contato)" },
+      { code: "PHONE", label: "Telefone" },
+      { code: "EMAIL", label: "E-mail" },
+    ],
+  },
+  empresas: {
+    label: "Empresas",
+    method: "crm.company.list",
+    hasCategoria: false,
+    camposData: [{ code: "DATE_CREATE", label: "Data de criação" }],
+    campos: [
+      { code: "ID", label: "ID", padrao: true },
+      { code: "TITLE", label: "Nome", padrao: true },
+      { code: "COMPANY_TYPE", label: "Tipo" },
+      { code: "INDUSTRY", label: "Setor" },
+      { code: "DATE_CREATE", label: "Data de criação", padrao: true },
+      { code: "ASSIGNED_BY_ID", label: "Responsável (ID)" },
+    ],
+  },
+  contatos: {
+    label: "Contatos",
+    method: "crm.contact.list",
+    hasCategoria: false,
+    camposData: [{ code: "DATE_CREATE", label: "Data de criação" }],
+    campos: [
+      { code: "ID", label: "ID", padrao: true },
+      { code: "NAME", label: "Nome", padrao: true },
+      { code: "LAST_NAME", label: "Sobrenome", padrao: true },
+      { code: "COMPANY_ID", label: "ID Empresa" },
+      { code: "DATE_CREATE", label: "Data de criação", padrao: true },
+      { code: "ASSIGNED_BY_ID", label: "Responsável (ID)" },
+      { code: "PHONE", label: "Telefone" },
+      { code: "EMAIL", label: "E-mail" },
+    ],
+  },
+  usuarios: {
+    label: "Usuários",
+    method: "user.get",
+    hasCategoria: false,
+    semFiltroData: true,
+    campos: [
+      { code: "ID", label: "ID", padrao: true },
+      { code: "NAME", label: "Nome", padrao: true },
+      { code: "LAST_NAME", label: "Sobrenome", padrao: true },
+      { code: "ACTIVE", label: "Ativo", padrao: true },
+      { code: "WORK_POSITION", label: "Cargo", padrao: true },
+      { code: "EMAIL", label: "E-mail" },
+    ],
+  },
+  tudo: {
+    label: "🔵 Extração completa — tudo do Bitrix (negócios, leads, empresas, contatos, atividades, usuários)",
+    especial: true,
+    hasCategoria: false,
+  },
+};
+
+// Campos de usuário: não existe um método "user.fields" público no Bitrix (diferente de
+// crm.*.fields), então para a Extração completa usamos uma lista ampliada e fixa.
+const CAMPOS_USUARIO_COMPLETO = [
+  "ID", "XML_ID", "ACTIVE", "NAME", "LAST_NAME", "SECOND_NAME", "EMAIL", "LOGIN",
+  "WORK_POSITION", "PERSONAL_PHONE", "PERSONAL_MOBILE", "PERSONAL_WWW", "PERSONAL_BIRTHDAY",
+  "PERSONAL_PHOTO", "LAST_LOGIN", "DATE_REGISTER", "TIME_ZONE", "UF_DEPARTMENT", "IS_ONLINE",
+];
+
+// As seis entidades buscadas pelo modo "Extração completa". Para as que têm um método
+// "*.fields" no Bitrix, os campos são descobertos dinamicamente (inclusive UF_CRM_* customizados)
+// em vez de usar uma lista fixa — por isso é mais robusto a mudanças no CRM do que os modos manuais acima.
+const SUBENTIDADES_TUDO = [
+  { chave: "negocios", label: "Negócios (todos os funis/pipelines)", method: "crm.deal.list", fieldsMethod: "crm.deal.fields", campoData: "DATE_CREATE" },
+  { chave: "leads", label: "Leads", method: "crm.lead.list", fieldsMethod: "crm.lead.fields", campoData: "DATE_CREATE" },
+  { chave: "empresas", label: "Empresas", method: "crm.company.list", fieldsMethod: "crm.company.fields", campoData: "DATE_CREATE" },
+  { chave: "contatos", label: "Contatos", method: "crm.contact.list", fieldsMethod: "crm.contact.fields", campoData: "DATE_CREATE" },
+  { chave: "atividades", label: "Atividades (ligações, reuniões e tarefas de CRM)", method: "crm.activity.list", fieldsMethod: "crm.activity.fields", campoData: "CREATED" },
+  { chave: "usuarios", label: "Usuários", method: "user.get", fieldsMethod: null, camposFixos: CAMPOS_USUARIO_COMPLETO, semFiltroData: true },
+];
+const LIMITE_POR_ENTIDADE_TUDO = 30000;
+
+let dadosExtraidos = [];
+let camposExtraidos = [];
+let resultadoCompleto = {};
+let extracaoCancelada = false;
+
+// ---------------------------------------------------------------------------
+// Montagem da interface
+// ---------------------------------------------------------------------------
+
+function iniciar() {
+  const selEntidade = document.getElementById("entidade");
+  Object.keys(ENTIDADES).forEach((chave) => {
+    const opt = document.createElement("option");
+    opt.value = chave;
+    opt.textContent = ENTIDADES[chave].label;
+    selEntidade.appendChild(opt);
+  });
+  aoTrocarEntidade();
+}
+
+function aoTrocarEntidade() {
+  const chave = document.getElementById("entidade").value;
+  const ent = ENTIDADES[chave];
+
+  document.getElementById("nota-tudo").classList.toggle("oculto", !ent.especial);
+  document.getElementById("card-campos").classList.toggle("oculto", !!ent.especial);
+  document.getElementById("linha-campo-data").classList.toggle("oculto", !!ent.especial);
+
+  if (ent.especial) {
+    // Extração completa: sem categoria/estágio/campos manuais — tudo é resolvido em extrairTudo().
+    document.getElementById("bloco-categoria").classList.add("oculto");
+    document.getElementById("bloco-estagio").classList.add("oculto");
+    document.getElementById("bloco-periodo").classList.remove("oculto");
+    return;
+  }
+
+  document.getElementById("bloco-categoria").classList.toggle("oculto", !ent.hasCategoria);
+  if (ent.hasCategoria) {
+    const selCat = document.getElementById("categoria");
+    selCat.innerHTML = "";
+    ent.categorias.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c.code;
+      opt.textContent = c.label;
+      selCat.appendChild(opt);
+    });
+    aoTrocarCategoria();
+  } else {
+    montarEstagios(ent.estagios || null, ent.campoEstagio || "STATUS_ID");
+  }
+
+  document.getElementById("bloco-periodo").classList.toggle("oculto", !!ent.semFiltroData);
+  const selData = document.getElementById("campoData");
+  selData.innerHTML = "";
+  (ent.camposData || []).forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c.code;
+    opt.textContent = c.label;
+    selData.appendChild(opt);
+  });
+
+  const lista = document.getElementById("campos-lista");
+  lista.innerHTML = "";
+  ent.campos.forEach((c) => {
+    const div = document.createElement("div");
+    div.className = "campo-item";
+    const id = "campo_" + c.code;
+    div.innerHTML = `<input type="checkbox" id="${id}" value="${c.code}" ${c.padrao ? "checked" : ""}><label for="${id}" style="margin:0; font-size:13px; color:var(--ink);">${c.label} <span style="color:var(--ink-2); font-size:11px;">(${c.code})</span></label>`;
+    lista.appendChild(div);
+  });
+}
+
+function aoTrocarCategoria() {
+  const chaveEnt = document.getElementById("entidade").value;
+  const ent = ENTIDADES[chaveEnt];
+  const cat = document.getElementById("categoria").value;
+  const estagios = (ent.estagiosPorCategoria && ent.estagiosPorCategoria[cat]) || null;
+  montarEstagios(estagios, "STAGE_ID");
+}
+
+function montarEstagios(lista, campoEstagio) {
+  const bloco = document.getElementById("bloco-estagio");
+  const sel = document.getElementById("estagio");
+  sel.innerHTML = "";
+  sel.dataset.campo = campoEstagio;
+  if (!lista) {
+    bloco.classList.add("oculto");
+    return;
+  }
+  bloco.classList.remove("oculto");
+  const optTodos = document.createElement("option");
+  optTodos.value = "";
+  optTodos.textContent = "Todos os estágios";
+  sel.appendChild(optTodos);
+  lista.forEach((e) => {
+    if (e.code === "") return; // já cobrimos "todos" acima
+    const opt = document.createElement("option");
+    opt.value = e.code;
+    opt.textContent = e.label;
+    sel.appendChild(opt);
+  });
+}
+
+function alternarVisibilidadeWebhook() {
+  const campo = document.getElementById("webhook");
+  campo.type = campo.type === "password" ? "text" : "password";
+}
+
+// ---------------------------------------------------------------------------
+// Intervalos rápidos de período (Todas / Diário / Semanal / Mensal / Trimestral / Semestral)
+// ---------------------------------------------------------------------------
+
+function formatarDataISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function calcularIntervaloPreset(preset) {
+  const hoje = new Date();
+  const fim = new Date(hoje);
+  let inicio = null;
+
+  switch (preset) {
+    case "todas":
+      return { inicio: "", fim: "" };
+    case "diario":
+      inicio = new Date(hoje);
+      break;
+    case "semanal":
+      inicio = new Date(hoje);
+      inicio.setDate(inicio.getDate() - 6);
+      break;
+    case "mensal":
+      inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      break;
+    case "trimestral": {
+      const trimestreAtual = Math.floor(hoje.getMonth() / 3); // 0,1,2,3
+      inicio = new Date(hoje.getFullYear(), trimestreAtual * 3, 1);
+      break;
+    }
+    case "semestral": {
+      const semestreAtual = hoje.getMonth() < 6 ? 0 : 1;
+      inicio = new Date(hoje.getFullYear(), semestreAtual * 6, 1);
+      break;
+    }
+    default:
+      return null; // "personalizado" — não mexe nas datas
+  }
+
+  return { inicio: formatarDataISO(inicio), fim: formatarDataISO(fim) };
+}
+
+function aoTrocarPresetPeriodo() {
+  const preset = document.getElementById("periodoPreset").value;
+  const intervalo = calcularIntervaloPreset(preset);
+  if (intervalo === null) return; // personalizado: mantém o que já estava digitado
+  document.getElementById("dataInicio").value = intervalo.inicio;
+  document.getElementById("dataFim").value = intervalo.fim;
+}
+
+function voltarParaPersonalizado() {
+  document.getElementById("periodoPreset").value = "personalizado";
+}
+
+// ---------------------------------------------------------------------------
+// Extração
+// ---------------------------------------------------------------------------
+
+function selecionarCampos(marcar) {
+  document.querySelectorAll("#campos-lista input[type=checkbox]").forEach((i) => {
+    i.checked = marcar;
+  });
+}
+
+function camposSelecionados() {
+  const marcados = Array.from(document.querySelectorAll("#campos-lista input[type=checkbox]:checked")).map((i) => i.value);
+  const extras = document.getElementById("camposExtra").value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return [...new Set([...marcados, ...extras])];
+}
+
+function montarFiltro() {
+  const chaveEnt = document.getElementById("entidade").value;
+  const ent = ENTIDADES[chaveEnt];
+  const filtro = {};
+
+  if (ent.hasCategoria) {
+    const cat = document.getElementById("categoria").value;
+    if (cat !== "") filtro["CATEGORY_ID"] = cat;
+  }
+
+  const selEstagio = document.getElementById("estagio");
+  if (!document.getElementById("bloco-estagio").classList.contains("oculto") && selEstagio.value) {
+    filtro[selEstagio.dataset.campo] = selEstagio.value;
+  }
+
+  if (!ent.semFiltroData) {
+    const campoData = document.getElementById("campoData").value;
+    const inicio = document.getElementById("dataInicio").value;
+    const fim = document.getElementById("dataFim").value;
+    if (campoData && inicio) filtro[">=" + campoData] = inicio + "T00:00:00-03:00";
+    if (campoData && fim) filtro["<=" + campoData] = fim + "T23:59:59-03:00";
+  }
+
+  return filtro;
+}
+
+function montarUrl(webhook, method, campos, filtro, start) {
+  const params = new URLSearchParams();
+  campos.forEach((c) => params.append("select[]", c));
+  Object.entries(filtro).forEach(([chave, valor]) => {
+    params.append(`filter[${chave}]`, valor);
+  });
+  params.append("start", start);
+  return `${webhook.replace(/\/$/, "")}/${method}.json?${params.toString()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Extração robusta: timeout por requisição, retentativa com backoff,
+// respeito ao limite de chamadas do Bitrix, e retomada após o teto de segurança.
+// ---------------------------------------------------------------------------
+
+const TAMANHO_LOTE_SEGURANCA = 20000; // por chamada de "Extrair"/"Continuar"
+const ATRASO_ENTRE_PAGINAS_MS = 350; // ~3 chamadas/seg, dentro do limite padrão do Bitrix
+const TENTATIVAS_MAX = 5;
+const TIMEOUT_REQUISICAO_MS = 30000;
+
+let extracaoContexto = null; // guarda estado para permitir "Continuar extração"
+
+function aguardar(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function validarWebhook(webhook) {
+  if (!webhook) return "Cole a URL do webhook no passo 1 antes de extrair.";
+  if (!/^https?:\/\//i.test(webhook)) return "O webhook precisa começar com http:// ou https://.";
+  if (!/\/rest\//i.test(webhook)) {
+    return "Essa URL não parece um webhook de entrada do Bitrix24 (normalmente contém \"/rest/\"). Confira se copiou a URL certa.";
+  }
+  return null;
+}
+
+function validarPeriodo() {
+  const inicio = document.getElementById("dataInicio").value;
+  const fim = document.getElementById("dataFim").value;
+  if (inicio && fim && inicio > fim) {
+    return "A data \"De\" não pode ser depois da data \"Até\".";
+  }
+  return null;
+}
+
+// fetch com timeout (AbortController) + retentativa com backoff exponencial.
+// Trata especificamente erro de limite de chamadas do Bitrix (QUERY_LIMIT_EXCEEDED).
+async function bitrixFetchComRetentativa(url) {
+  let ultimoErro = null;
+  for (let tentativa = 1; tentativa <= TENTATIVAS_MAX; tentativa++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_REQUISICAO_MS);
+    try {
+      const resp = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (resp.status === 429 || resp.status >= 500) {
+        throw new Error(`HTTP ${resp.status} — ${resp.statusText} (temporário, será tentado de novo)`);
+      }
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status} — ${resp.statusText}`);
+      }
+      const body = await resp.json();
+      if (body.error === "QUERY_LIMIT_EXCEEDED") {
+        throw new Error("QUERY_LIMIT_EXCEEDED (limite de chamadas do Bitrix, aguardando para tentar de novo)");
+      }
+      if (body.error) {
+        // erro definitivo do Bitrix (filtro inválido, permissão, etc.) — não adianta retentar
+        const erroFinal = new Error(`Bitrix retornou erro: ${body.error} — ${body.error_description || ""}`);
+        erroFinal.definitivo = true;
+        throw erroFinal;
+      }
+      return body;
+    } catch (e) {
+      clearTimeout(timer);
+      ultimoErro = e;
+      if (e.definitivo) throw e;
+      if (e.name === "AbortError") {
+        ultimoErro = new Error(`Tempo esgotado (${TIMEOUT_REQUISICAO_MS / 1000}s) aguardando resposta do Bitrix.`);
+      }
+      if (tentativa < TENTATIVAS_MAX) {
+        const espera = Math.min(1000 * 2 ** (tentativa - 1), 8000);
+        atualizarStatus(`Falha temporária (tentativa ${tentativa}/${TENTATIVAS_MAX}): ${ultimoErro.message}. Tentando de novo em ${Math.round(espera / 1000)}s...`);
+        await aguardar(espera);
+      }
+    }
+  }
+  throw ultimoErro;
+}
+
+async function executarLoteExtracao() {
+  const ctx = extracaoContexto;
+  esconderErro();
+  document.getElementById("spinner").style.display = "inline-block";
+  document.getElementById("btnExtrair").disabled = true;
+  document.getElementById("btnParar").disabled = false;
+  document.getElementById("btnContinuar").classList.add("oculto");
+  extracaoCancelada = false;
+
+  const metaDoLote = ctx.acumulado.length + TAMANHO_LOTE_SEGURANCA;
+
+  try {
+    while (true) {
+      if (extracaoCancelada) {
+        atualizarStatus(`Parado pelo usuário. ${ctx.acumulado.length} registros extraídos até aqui.`);
+        break;
+      }
+      const url = montarUrl(ctx.webhook, ctx.ent.method, ctx.campos, ctx.filtro, ctx.start);
+      atualizarStatus(`Buscando... ${ctx.acumulado.length}${ctx.total !== null ? " / " + ctx.total : ""} registros`);
+      const body = await bitrixFetchComRetentativa(url);
+      const chunk = Array.isArray(body.result) ? body.result : Object.values(body.result || {});
+      ctx.acumulado = ctx.acumulado.concat(chunk);
+      ctx.total = typeof body.total === "number" ? body.total : ctx.total;
+      atualizarStatus(`Buscando... ${ctx.acumulado.length}${ctx.total !== null ? " / " + ctx.total : ""} registros`);
+
+      const acabou = !body.next || chunk.length === 0;
+      const bateuTeto = ctx.acumulado.length >= metaDoLote;
+      if (acabou || bateuTeto) {
+        ctx.terminou = acabou;
+        if (bateuTeto && !acabou) {
+          document.getElementById("btnContinuar").classList.remove("oculto");
+          atualizarStatus(`Parado em ${ctx.acumulado.length} registros (lote de segurança de ${TAMANHO_LOTE_SEGURANCA} por vez${ctx.total !== null ? ", de " + ctx.total + " no total" : ""}). Clique em "Continuar extração" para buscar o restante.`);
+        }
+        break;
+      }
+      ctx.start = body.next;
+      await aguardar(ATRASO_ENTRE_PAGINAS_MS);
+    }
+
+    dadosExtraidos = ctx.acumulado;
+    camposExtraidos = ctx.campos;
+    mostrarResultado();
+    gerarCodigoPython(ctx.webhook, ctx.ent.method, ctx.campos, ctx.filtro);
+    if (!extracaoCancelada && ctx.terminou) {
+      atualizarStatus(`Concluído: ${ctx.acumulado.length} registros.`);
+    }
+  } catch (e) {
+    mostrarErro(
+      "A extração parou por causa de um erro" + (e.definitivo ? "" : " (mesmo após tentar de novo várias vezes)") + ".\n\n" +
+      "Detalhe técnico: " + e.message + "\n\n" +
+      (e.definitivo
+        ? "Esse erro veio do próprio Bitrix (filtro, permissão do webhook ou campo inválido) — confira os filtros e o campo selecionado acima."
+        : "Se o erro persistir, o motivo mais provável é bloqueio de CORS do Bitrix para chamadas feitas " +
+          "de um arquivo HTML local (isso não é um erro no seu webhook). " +
+          "Solução: copie o código Python equivalente e rode localmente — " +
+          "ele usa a mesma variável de ambiente BITRIX_WEBHOOK_URL dos outros " +
+          "scripts deste projeto.") +
+      (ctx.acumulado.length ? `\n\n${ctx.acumulado.length} registros já haviam sido extraídos antes do erro — clique em "Continuar extração" para tentar retomar de onde parou.` : "")
+    );
+    if (ctx.acumulado.length) {
+      dadosExtraidos = ctx.acumulado;
+      camposExtraidos = ctx.campos;
+      mostrarResultado();
+      document.getElementById("btnContinuar").classList.remove("oculto");
+    }
+    gerarCodigoPython(ctx.webhook, ctx.ent.method, ctx.campos, ctx.filtro);
+  } finally {
+    document.getElementById("spinner").style.display = "none";
+    document.getElementById("btnExtrair").disabled = false;
+    document.getElementById("btnParar").disabled = true;
+  }
+}
+
+async function extrair() {
+  const webhook = document.getElementById("webhook").value.trim();
+  const erroWebhook = validarWebhook(webhook);
+  if (erroWebhook) {
+    mostrarErro(erroWebhook);
+    return;
+  }
+  const erroPeriodo = validarPeriodo();
+  if (erroPeriodo) {
+    mostrarErro(erroPeriodo);
+    return;
+  }
+
+  const chaveEnt = document.getElementById("entidade").value;
+  const ent = ENTIDADES[chaveEnt];
+
+  document.getElementById("bloco-resultado").classList.add("oculto");
+  document.getElementById("bloco-resultado-completo").classList.add("oculto");
+  document.getElementById("bloco-python").classList.add("oculto");
+  document.getElementById("btnContinuar").classList.add("oculto");
+
+  if (ent.especial) {
+    resultadoCompleto = {};
+    dadosExtraidos = [];
+    await extrairTudo(webhook);
+    return;
+  }
+
+  const campos = camposSelecionados();
+  if (campos.length === 0) {
+    mostrarErro("Selecione pelo menos um campo para extrair.");
+    return;
+  }
+  const filtro = montarFiltro();
+  resultadoCompleto = {};
+
+  extracaoContexto = { webhook, ent, campos, filtro, start: 0, total: null, acumulado: [], terminou: false };
+  await executarLoteExtracao();
+}
+
+// ---------------------------------------------------------------------------
+// Extração completa (modo "tudo"): percorre todas as sub-entidades do Bitrix,
+// descobrindo os campos dinamicamente via "*.fields" sempre que o método existe.
+// ---------------------------------------------------------------------------
+
+async function buscarCamposDinamicos(webhook, fieldsMethod) {
+  const url = `${webhook.replace(/\/$/, "")}/${fieldsMethod}.json`;
+  const body = await bitrixFetchComRetentativa(url);
+  return Object.keys(body.result || {});
+}
+
+async function extrairEntidadeCompleta(webhook, sub) {
+  const campos = sub.fieldsMethod ? await buscarCamposDinamicos(webhook, sub.fieldsMethod) : sub.camposFixos;
+
+  const filtro = {};
+  if (!sub.semFiltroData) {
+    const inicio = document.getElementById("dataInicio").value;
+    const fim = document.getElementById("dataFim").value;
+    if (inicio) filtro[">=" + sub.campoData] = inicio + "T00:00:00-03:00";
+    if (fim) filtro["<=" + sub.campoData] = fim + "T23:59:59-03:00";
+  }
+
+  let start = 0;
+  let acumulado = [];
+  let total = null;
+  while (true) {
+    if (extracaoCancelada) break;
+    const url = montarUrl(webhook, sub.method, campos, filtro, start);
+    atualizarStatus(`[${sub.label}] buscando... ${acumulado.length}${total !== null ? " / " + total : ""} registros`);
+    const body = await bitrixFetchComRetentativa(url);
+    const chunk = Array.isArray(body.result) ? body.result : Object.values(body.result || {});
+    acumulado = acumulado.concat(chunk);
+    total = typeof body.total === "number" ? body.total : total;
+
+    const acabou = !body.next || chunk.length === 0;
+    const bateuTeto = acumulado.length >= LIMITE_POR_ENTIDADE_TUDO;
+    if (acabou || bateuTeto) {
+      if (bateuTeto && !acabou) {
+        atualizarStatus(`[${sub.label}] parado no limite de segurança de ${LIMITE_POR_ENTIDADE_TUDO} registros (havia mais). Use o modo manual (passo 2, tipo de dado específico) com um período mais curto para extrair o restante dessa entidade.`);
+      }
+      break;
+    }
+    start = body.next;
+    await aguardar(ATRASO_ENTRE_PAGINAS_MS);
+  }
+  return { label: sub.label, campos, dados: acumulado, total };
+}
+
+async function extrairTudo(webhook) {
+  document.getElementById("spinner").style.display = "inline-block";
+  document.getElementById("btnExtrair").disabled = true;
+  document.getElementById("btnParar").disabled = false;
+  extracaoCancelada = false;
+  esconderErro();
+  resultadoCompleto = {};
+
+  try {
+    for (const sub of SUBENTIDADES_TUDO) {
+      if (extracaoCancelada) {
+        atualizarStatus(`Parado pelo usuário após ${Object.keys(resultadoCompleto).length} de ${SUBENTIDADES_TUDO.length} entidades.`);
+        break;
+      }
+      resultadoCompleto[sub.chave] = await extrairEntidadeCompleta(webhook, sub);
+      atualizarStatus(`[${sub.label}] concluído: ${resultadoCompleto[sub.chave].dados.length} registros.`);
+      await aguardar(ATRASO_ENTRE_PAGINAS_MS);
+    }
+    mostrarResultadoCompleto();
+    if (!extracaoCancelada) {
+      const totalGeral = Object.values(resultadoCompleto).reduce((acc, r) => acc + r.dados.length, 0);
+      atualizarStatus(`Extração completa concluída: ${totalGeral} registros no total, em ${Object.keys(resultadoCompleto).length} entidades. Veja o resumo abaixo.`);
+    }
+  } catch (e) {
+    mostrarErro(
+      "A extração completa parou por causa de um erro" + (e.definitivo ? "" : " (mesmo após tentar de novo várias vezes)") + ".\n\n" +
+      "Detalhe técnico: " + e.message + "\n\n" +
+      (e.definitivo
+        ? "Esse erro veio do próprio Bitrix — confira se o webhook tem permissão de leitura de CRM (negócios, leads, empresas, contatos, atividades) e de usuários."
+        : "Se persistir, o motivo mais provável é bloqueio de CORS do Bitrix para chamadas feitas de um arquivo HTML local — use o código Python equivalente do passo 8 rodando localmente.") +
+      (Object.keys(resultadoCompleto).length ? `\n\nAs entidades já concluídas antes do erro (${Object.keys(resultadoCompleto).map((k) => resultadoCompleto[k].label).join(", ")}) foram mantidas no resumo abaixo.` : "")
+    );
+    if (Object.keys(resultadoCompleto).length) mostrarResultadoCompleto();
+  } finally {
+    document.getElementById("spinner").style.display = "none";
+    document.getElementById("btnExtrair").disabled = false;
+    document.getElementById("btnParar").disabled = true;
+  }
+}
+
+function mostrarResultadoCompleto() {
+  const bloco = document.getElementById("bloco-resultado-completo");
+  bloco.classList.remove("oculto");
+  const cont = document.getElementById("entidades-lista");
+  cont.innerHTML = "";
+
+  Object.entries(resultadoCompleto).forEach(([chave, r]) => {
+    const div = document.createElement("div");
+    div.className = "entidade-card";
+    const tetoAtingido = r.dados.length >= LIMITE_POR_ENTIDADE_TUDO;
+    div.innerHTML = `
+      <h3>${r.label}</h3>
+      <div class="contagem">${r.dados.length}</div>
+      <div class="campos-info">registro(s) · ${r.campos.length} campos${r.total !== null ? " · " + r.total + " no total do Bitrix" : ""}${tetoAtingido ? ' · <span style="color:var(--danger);">limite atingido</span>' : ""}</div>
+      <div class="botoes">
+        <button type="button" class="secundario" onclick="baixarCSVEntidade('${chave}')">CSV</button>
+        <button type="button" class="secundario" onclick="baixarJSONEntidade('${chave}')">JSON</button>
+      </div>`;
+    cont.appendChild(div);
+  });
+}
+
+function linhasCSVDe(campos, dados) {
+  const linhas = [campos.join(";")];
+  dados.forEach((registro) => {
+    const linha = campos.map((c) => {
+      let v = registro[c];
+      if (v === null || v === undefined) v = "";
+      if (typeof v === "object") v = JSON.stringify(v);
+      v = String(v).replace(/"/g, '""');
+      if (v.includes(";") || v.includes("\n") || v.includes('"')) v = `"${v}"`;
+      return v;
+    });
+    linhas.push(linha.join(";"));
+  });
+  return linhas.join("\r\n");
+}
+
+function baixarCSVEntidade(chave) {
+  const r = resultadoCompleto[chave];
+  if (!r || r.dados.length === 0) return;
+  baixarArquivo("﻿" + linhasCSVDe(r.campos, r.dados), `bitrix_tudo_${chave}_${dataHoje()}.csv`, "text/csv;charset=utf-8;");
+}
+
+function baixarJSONEntidade(chave) {
+  const r = resultadoCompleto[chave];
+  if (!r || r.dados.length === 0) return;
+  baixarArquivo(JSON.stringify(r.dados, null, 2), `bitrix_tudo_${chave}_${dataHoje()}.json`, "application/json;charset=utf-8;");
+}
+
+function baixarJSONCompleto() {
+  if (!Object.keys(resultadoCompleto).length) return;
+  const combinado = {};
+  Object.entries(resultadoCompleto).forEach(([chave, r]) => {
+    combinado[chave] = { campos: r.campos, total_no_bitrix: r.total, registros_extraidos: r.dados.length, dados: r.dados };
+  });
+  baixarArquivo(JSON.stringify(combinado, null, 2), `bitrix_extracao_completa_${dataHoje()}.json`, "application/json;charset=utf-8;");
+}
+
+// ---------------------------------------------------------------------------
+// Analisar com IA: monta um prompt (pergunta do usuário + dados extraídos)
+// pronto para colar em qualquer IA — nenhum dado é enviado automaticamente.
+// ---------------------------------------------------------------------------
+
+const LIMITE_CARACTERES_PROMPT = 400000; // margem de segurança para colar direto num chat
+
+function coletarDadosParaPrompt() {
+  if (resultadoCompleto && Object.keys(resultadoCompleto).length) {
+    const obj = {};
+    Object.entries(resultadoCompleto).forEach(([chave, r]) => {
+      obj[chave] = { campos: r.campos, total_no_bitrix: r.total, registros_extraidos: r.dados.length, dados: r.dados };
+    });
+    return { modo: "extração completa (negócios, leads, empresas, contatos, atividades e usuários)", conteudo: obj };
+  }
+  if (dadosExtraidos && dadosExtraidos.length) {
+    const selEntidade = document.getElementById("entidade");
+    const rotulo = selEntidade.options[selEntidade.selectedIndex] ? selEntidade.options[selEntidade.selectedIndex].textContent : "";
+    return { modo: `extração de "${rotulo}"`, conteudo: dadosExtraidos };
+  }
+  return null;
+}
+
+function gerarPromptIA() {
+  const pergunta = document.getElementById("perguntaIA").value.trim();
+  if (!pergunta) {
+    mostrarErro("Escreva o que você quer que a IA analise antes de gerar o prompt.");
+    return;
+  }
+  const pacote = coletarDadosParaPrompt();
+  if (!pacote) {
+    mostrarErro("Extraia algum dado primeiro (passo 5) antes de gerar o prompt de análise.");
+    return;
+  }
+
+  let dadosTexto = JSON.stringify(pacote.conteudo, null, 2);
+  let aviso = "";
+  if (dadosTexto.length > LIMITE_CARACTERES_PROMPT) {
+    dadosTexto = dadosTexto.slice(0, LIMITE_CARACTERES_PROMPT);
+    aviso = `⚠️ Os dados extraídos são grandes demais para caber inteiros neste prompt — foram cortados em ${LIMITE_CARACTERES_PROMPT.toLocaleString("pt-BR")} caracteres. Para uma análise sobre a base completa, baixe o(s) arquivo(s) JSON/CSV no passo 6 e anexe-os na conversa com a IA em vez de colar só este texto.`;
+  }
+
+  const prompt = `Você está analisando dados extraídos do CRM Bitrix24 da AtlasGR (${pacote.modo}).
+
+O que eu quero que você faça com esses dados:
+${pergunta}
+
+Dados extraídos (JSON):
+\`\`\`json
+${dadosTexto}
+\`\`\``;
+
+  document.getElementById("promptIA").textContent = prompt;
+  document.getElementById("avisoTamanhoPrompt").textContent = aviso;
+  document.getElementById("bloco-prompt-ia").classList.remove("oculto");
+  esconderErro();
+}
+
+function copiarPromptIA() {
+  const texto = document.getElementById("promptIA").textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    atualizarStatus("Prompt copiado para a área de transferência — cole na conversa com sua IA.");
+  });
+}
+
+function baixarPromptIA() {
+  const texto = document.getElementById("promptIA").textContent;
+  baixarArquivo(texto, `prompt_analise_bitrix_${dataHoje()}.txt`, "text/plain;charset=utf-8;");
+}
+
+async function continuarExtracao() {
+  if (!extracaoContexto) return;
+  await executarLoteExtracao();
+}
+
+function pararExtracao() {
+  extracaoCancelada = true;
+}
+
+function atualizarStatus(msg) {
+  document.getElementById("statusTexto").textContent = msg;
+}
+
+function mostrarErro(msg) {
+  const area = document.getElementById("areaErro");
+  area.textContent = msg;
+  area.classList.remove("oculto");
+}
+
+function esconderErro() {
+  document.getElementById("areaErro").classList.add("oculto");
+}
+
+// ---------------------------------------------------------------------------
+// Resultado / download
+// ---------------------------------------------------------------------------
+
+function mostrarResultado() {
+  const bloco = document.getElementById("bloco-resultado");
+  bloco.classList.remove("oculto");
+  document.getElementById("totalRegistros").textContent = `${dadosExtraidos.length} registros`;
+
+  if (camposExtraidos.includes("OPPORTUNITY")) {
+    const soma = dadosExtraidos.reduce((acc, r) => acc + (parseFloat(r.OPPORTUNITY) || 0), 0);
+    document.getElementById("totalValor").textContent =
+      "Soma de OPPORTUNITY: R$ " + soma.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  } else {
+    document.getElementById("totalValor").textContent = "";
+  }
+
+  const wrapper = document.getElementById("tabela-wrapper");
+  wrapper.innerHTML = "";
+  if (dadosExtraidos.length === 0) {
+    wrapper.innerHTML = "<p class='rodape-nota'>Nenhum registro encontrado com esses filtros.</p>";
+    return;
+  }
+  const tabela = document.createElement("table");
+  const thead = document.createElement("thead");
+  const trHead = document.createElement("tr");
+  camposExtraidos.forEach((c) => {
+    const th = document.createElement("th");
+    th.textContent = c;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  tabela.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  dadosExtraidos.slice(0, 50).forEach((registro) => {
+    const tr = document.createElement("tr");
+    camposExtraidos.forEach((c) => {
+      const td = document.createElement("td");
+      td.textContent = registro[c] ?? "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tabela.appendChild(tbody);
+  wrapper.appendChild(tabela);
+}
+
+function baixarArquivo(conteudo, nomeArquivo, tipo) {
+  const blob = new Blob([conteudo], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function baixarCSV() {
+  if (dadosExtraidos.length === 0) return;
+  const linhas = [camposExtraidos.join(";")];
+  dadosExtraidos.forEach((registro) => {
+    const linha = camposExtraidos.map((c) => {
+      let v = registro[c];
+      if (v === null || v === undefined) v = "";
+      v = String(v).replace(/"/g, '""');
+      if (v.includes(";") || v.includes("\n") || v.includes('"')) v = `"${v}"`;
+      return v;
+    });
+    linhas.push(linha.join(";"));
+  });
+  const chaveEnt = document.getElementById("entidade").value;
+  baixarArquivo("﻿" + linhas.join("\r\n"), `bitrix_${chaveEnt}_${dataHoje()}.csv`, "text/csv;charset=utf-8;");
+}
+
+function baixarJSON() {
+  if (dadosExtraidos.length === 0) return;
+  const chaveEnt = document.getElementById("entidade").value;
+  baixarArquivo(JSON.stringify(dadosExtraidos, null, 2), `bitrix_${chaveEnt}_${dataHoje()}.json`, "application/json;charset=utf-8;");
+}
+
+function dataHoje() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Código Python equivalente (fallback caso CORS bloqueie, ou para automatizar)
+// ---------------------------------------------------------------------------
+
+function gerarCodigoPython(webhook, method, campos, filtro) {
+  const bloco = document.getElementById("bloco-python");
+  bloco.classList.remove("oculto");
+  const camposPy = campos.map((c) => `"${c}"`).join(", ");
+  const filtroLinhas = Object.entries(filtro)
+    .map(([chave, valor]) => `    "filter[${chave}]": "${valor}",`)
+    .join("\n");
+
+  const codigo = `import os, json, csv, time, urllib.request, urllib.parse, urllib.error
+
+WEBHOOK_URL = os.environ.get("BITRIX_WEBHOOK_URL", "").rstrip("/")
+if not WEBHOOK_URL:
+    raise SystemExit("Defina BITRIX_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
+if "/rest/" not in WEBHOOK_URL:
+    raise SystemExit("BITRIX_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
+
+METHOD = "${method}"
+SELECT = [${camposPy}]
+FILTRO_BASE = {
+${filtroLinhas || "    # sem filtros"}
+}
+
+TENTATIVAS_MAX = 5
+TIMEOUT_SEGUNDOS = 30
+ATRASO_ENTRE_PAGINAS = 0.35  # ~3 chamadas/seg, dentro do limite padrão do Bitrix
+
+def bitrix_call(method, params):
+    url = f"{WEBHOOK_URL}/{method}.json"
+    data = urllib.parse.urlencode(params, doseq=True).encode("utf-8")
+    ultimo_erro = None
+    for tentativa in range(1, TENTATIVAS_MAX + 1):
+        try:
+            req = urllib.request.Request(url, data=data, method="POST")
+            with urllib.request.urlopen(req, timeout=TIMEOUT_SEGUNDOS) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            if body.get("error") == "QUERY_LIMIT_EXCEEDED":
+                raise RuntimeError("QUERY_LIMIT_EXCEEDED (limite de chamadas do Bitrix)")
+            if "error" in body:
+                # erro definitivo (filtro/permissão/campo inválido) — não adianta retentar
+                raise SystemExit(f"Bitrix retornou erro definitivo: {body}")
+            return body
+        except SystemExit:
+            raise
+        except (urllib.error.URLError, TimeoutError, RuntimeError, json.JSONDecodeError) as e:
+            ultimo_erro = e
+            if tentativa < TENTATIVAS_MAX:
+                espera = min(2 ** (tentativa - 1), 8)
+                print(f"  falha temporária (tentativa {tentativa}/{TENTATIVAS_MAX}): {e} — tentando de novo em {espera}s")
+                time.sleep(espera)
+    raise RuntimeError(f"Falhou após {TENTATIVAS_MAX} tentativas: {ultimo_erro}")
+
+def fetch_all():
+    resultados, start = [], 0
+    while True:
+        params = dict(FILTRO_BASE)
+        params["select[]"] = SELECT
+        params["start"] = start
+        body = bitrix_call(METHOD, params)
+        chunk = body.get("result", [])
+        resultados.extend(chunk)
+        print(f"  {len(resultados)}/{body.get('total', len(resultados))}")
+        if "next" not in body or not chunk:
+            break
+        start = body["next"]
+        time.sleep(ATRASO_ENTRE_PAGINAS)
+    return resultados
+
+if __name__ == "__main__":
+    try:
+        dados = fetch_all()
+    except Exception as e:
+        raise SystemExit(f"Extração interrompida: {e}")
+    with open("extracao.json", "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=2)
+    if dados:
+        with open("extracao.csv", "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=SELECT)
+            w.writeheader()
+            w.writerows(dados)
+    print(f"Pronto: {len(dados)} registros salvos em extracao.json / extracao.csv")
+`;
+  document.getElementById("codigoPython").textContent = codigo;
+}
+
+function copiarPython() {
+  const texto = document.getElementById("codigoPython").textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    atualizarStatus("Código Python copiado para a área de transferência.");
+  });
+}
+
+iniciar();
+</script>
+
+</body>
+</html>

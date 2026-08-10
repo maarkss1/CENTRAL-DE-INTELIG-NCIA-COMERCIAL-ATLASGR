@@ -9,6 +9,7 @@ import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { CommandPalette } from '../ui/CommandPalette';
 import { motion } from 'framer-motion';
 import { useBrandAccent } from '../../hooks/useBrandAccent';
+import { useNavigationBusBridge } from '../../hooks/useNavigationBusBridge';
 
 interface MainLayoutProps {
     children: ReactNode;
@@ -18,6 +19,9 @@ export function MainLayout({ children }: MainLayoutProps) {
     const { isAtlas } = useBrandAccent();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const location = useLocation();
+    // Liga o navigationBus (usado hoje pelo comando de voz) à navegação real — ver
+    // useNavigationBusBridge.ts sobre por que isto precisa ficar aqui dentro do Router.
+    useNavigationBusBridge();
     // "/app" (dashboard) ou "/app/prospect" etc — o segmento logo após "/app" é o módulo ativo.
     // TabType assumido aqui porque toda rota é registrada em App.tsx com um valor de TabType como
     // path; qualquer path desconhecido já é redirecionado pra "/app" antes de chegar aqui.

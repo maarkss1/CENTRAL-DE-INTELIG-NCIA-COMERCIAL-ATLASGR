@@ -152,7 +152,29 @@ export async function disconnect3CX(organizationId: string, connectionId: string
     logger.info({ organizationId, connectionId }, '[3cx] Conexão 3CX removida');
 }
 
-/** Dispara uma chamada via 3CX Click-to-Call / Call Control API */
+const MAKE_CALL_TIMEOUT_MS = 10_000;
+
+/**
+ * Dispara uma chamada via 3CX Click-to-Call / Call Control API.
+ *
+ * CORREÇÃO (achado de auditoria — mesma classe de bug do bloqueador #7 do AGENTS.md, "sistema não
+ * pode afirmar que fez algo sem fazer de verdade"): esta função nunca chegou a fazer NENHUMA
+ * chamada de rede para o PABX — gerava um `callId` fabricado e devolvia `success: true`
+ * incondicionalmente, inclusive gravando no CRM uma Activity afirmando "Chamada iniciada via 3CX
+ * PABX" mesmo com o PABX inalcançável ou o ramal inválido. Um vendedor via a UI dizer que ligou,
+ * o CRM registrava a ligação como fato, e nenhuma chamada real acontecia — o cliente nunca era
+ * discado.
+ *
+ * Agora faz uma tentativa real de HTTP contra o PABX, no mesmo padrão (timeout via
+ * AbortController, sucesso/falha honestos) já usado e testado em `test3CXConnection` acima —
+ * inclusive o mesmo prefixo `/api/v1/...`. IMPORTANTE: o contrato exato da API de Call Control
+ * deste PABX (`/api/v1/calls`, payload `{ from, to }`) não pôde ser validado contra um servidor
+ * 3CX real nesta auditoria — se o endpoint real usar outro caminho/payload, esta chamada falhará
+ * honestamente (erro reportado ao usuário) em vez de mentir. Antes de confiar nisto em produção,
+ * validar o contrato real com a documentação do PABX do cliente (ver handoff
+ * `.agents/handoffs/onda-1/06-para-01-persistencia-3cx.md` para o item relacionado de
+ * persistência).
+ */
 export async function make3CXCall(
     organizationId: string,
     connectionId: string,
@@ -169,8 +191,30 @@ export async function make3CXCall(
     }
 
     const callId = `3cx-call-${Date.now()}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), MAKE_CALL_TIMEOUT_MS);
+    let dialSucceeded: boolean;
+    let failureReason = '';
+    try {
+        const res = await fetch(`${conn.pbxUrl}/api/v1/calls`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: conn.extension, to: cleanNumber }),
+            signal: controller.signal,
+        });
+        dialSucceeded = res.ok;
+        if (!res.ok) failureReason = `PABX respondeu HTTP ${res.status}`;
+    } catch (err) {
+        dialSucceeded = false;
+        failureReason = controller.signal.aborted ? 'timeout ao comunicar com o PABX' : 'falha de rede ao comunicar com o PABX';
+        logger.warn({ err, organizationId, connectionId: conn.id }, '[3cx] Falha ao disparar chamada real');
+    } finally {
+        clearTimeout(timeout);
+    }
 
-    // Registra a atividade no CRM se leadId for fornecido
+    // Registra a atividade no CRM se leadId for fornecido — texto reflete o que REALMENTE
+    // aconteceu (chamada disparada com sucesso vs. tentativa que falhou), nunca afirma uma
+    // ligação que não ocorreu.
     if (leadId) {
         try {
             await prisma.activity.create({
@@ -181,7 +225,9 @@ export async function make3CXCall(
                     owner: `3CX Ramal ${conn.extension}`,
                     date: new Date(),
                     status: 'Em_andamento' as never,
-                    observations: `Chamada iniciada via 3CX PABX (${conn.pbxUrl}) para o número ${destinationNumber}.`,
+                    observations: dialSucceeded
+                        ? `Chamada disparada via 3CX PABX (${conn.pbxUrl}) para o número ${destinationNumber}.`
+                        : `Tentativa de chamada via 3CX PABX (${conn.pbxUrl}) para ${destinationNumber} FALHOU: ${failureReason}.`,
                 },
             });
         } catch (err) {
@@ -189,7 +235,12 @@ export async function make3CXCall(
         }
     }
 
-    logger.info({ organizationId, connectionId: conn.id, extension: conn.extension, destinationNumber, callId }, '[3cx] Chamada iniciada via 3CX PABX');
+    if (!dialSucceeded) {
+        logger.warn({ organizationId, connectionId: conn.id, extension: conn.extension, destinationNumber, callId, failureReason }, '[3cx] Chamada NÃO foi disparada');
+        throw new AppError(`Não foi possível disparar a chamada pelo PABX 3CX (${failureReason}).`, 502);
+    }
+
+    logger.info({ organizationId, connectionId: conn.id, extension: conn.extension, destinationNumber, callId }, '[3cx] Chamada disparada via 3CX PABX');
 
     return {
         success: true,

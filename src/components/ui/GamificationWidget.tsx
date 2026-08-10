@@ -9,17 +9,24 @@ interface GamificationWidgetProps {
   streakDays?: number;
 }
 
+// Não existe, hoje, nenhum sistema real de XP/nível/sequência de dias no backend — este widget é
+// um checklist auto-reportado (o próprio usuário marca o que já fez), não uma leitura de dado
+// real. Antes, os defaults (Level 12, 12.480 XP, "5 Dias Seguidos", duas missões já marcadas como
+// concluídas) apareciam pra QUALQUER usuário, em qualquer organização, como se fosse o histórico
+// de progresso real dele — verdade cenográfica (ver AGENTS.md). Os defaults agora começam
+// zerados: nenhuma conquista é atribuída a ninguém sem ter sido de fato marcada por quem está
+// usando a tela nesta sessão.
 export function GamificationWidget({
-  initialXp = 12480,
-  nextLevelXp = 14000,
-  level = 12,
-  streakDays = 5
+  initialXp = 0,
+  nextLevelXp = 2000,
+  level = 1,
+  streakDays = 0
 }: GamificationWidgetProps) {
   const [showMissions, setShowMissions] = useState(false);
   const [xp, setXp] = useState(initialXp);
   const [missions, setMissions] = useState([
-    { id: 1, title: 'Completar perfil do SDR', xp: 200, done: true },
-    { id: 2, title: 'Qualificar 5 novos leads hoje', xp: 500, done: true },
+    { id: 1, title: 'Completar perfil do SDR', xp: 200, done: false },
+    { id: 2, title: 'Qualificar 5 novos leads hoje', xp: 500, done: false },
     { id: 3, title: 'Agendar 2 reuniões de demo', xp: 800, done: false },
     { id: 4, title: 'Enviar 10 cold emails inteligentes', xp: 450, done: false }
   ]);
@@ -63,10 +70,12 @@ export function GamificationWidget({
 
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="font-bold text-ink text-base">Prospector Master</h4>
-              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-atlas-yellow/20 text-atlas-yellow border border-atlas-yellow/30 font-semibold">
-                <Flame className="w-3.5 h-3.5 text-atlas-yellow animate-pulse" /> {streakDays} Dias Seguidos
-              </span>
+              <h4 className="font-bold text-ink text-base">Missões Diárias</h4>
+              {streakDays > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full bg-atlas-yellow/20 text-atlas-yellow border border-atlas-yellow/30 font-semibold">
+                  <Flame className="w-3.5 h-3.5 text-atlas-yellow animate-pulse" /> {streakDays} Dias Seguidos
+                </span>
+              )}
             </div>
             <p className="text-xs text-ink-2 mt-0.5">
               {xp.toLocaleString('pt-BR')} / {nextLevelXp.toLocaleString('pt-BR')} XP para o Nível {level + 1}

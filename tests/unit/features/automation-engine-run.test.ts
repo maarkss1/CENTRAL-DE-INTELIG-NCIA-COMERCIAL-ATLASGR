@@ -61,7 +61,7 @@ describe('AutomationEngine.handle — execução real', () => {
         await automationEngine.handle(eventoLead);
 
         expect(automationMock.findMany).toHaveBeenCalledWith({
-            where: { organizationId: ORG, enabled: true, trigger: 'Lead mudou de status' },
+            where: { organizationId: ORG, enabled: true, trigger: 'Lead_Mudou_Status' },
         });
     });
 

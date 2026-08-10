@@ -1,6 +1,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
 import { notificationService, type NotificationKind } from '../notifications/notification.service.js';
+import { toPrismaAutomationTrigger, fromPrismaAutomationAction } from '../../lib/enumMap.js';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
 export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
@@ -79,19 +80,23 @@ export class AutomationEngine {
         let executed = 0;
         try {
             const automations = await prisma.automation.findMany({
-                // O enum do Prisma usa identificadores (`Lead_Mudou_Status`) mapeados para os
-                // rótulos que trafegam aqui; o cast atravessa essa diferença de nomes.
+                // O Prisma Client só aceita o identificador do enum (`Lead_Mudou_Status`), nunca o
+                // rótulo humano mapeado (`@map`) que trafega no resto do sistema — mesma conversão
+                // que PrismaAutomationRepository já faz para as rotas de CRUD (ver enumMap.ts).
                 where: {
                     organizationId: event.organizationId,
                     enabled: true,
-                    trigger: event.trigger as never,
+                    trigger: toPrismaAutomationTrigger(event.trigger) as never,
                 },
             });
 
             for (const automation of automations) {
                 if (!matchesConditions(automation.conditions, event.data)) continue;
                 try {
-                    await this.runAction(automation, event);
+                    await this.runAction(
+                        { ...automation, action: fromPrismaAutomationAction(automation.action) },
+                        event,
+                    );
                     await prisma.automation.update({
                         where: { id: automation.id },
                         data: { lastRunAt: new Date(), runCount: { increment: 1 } },

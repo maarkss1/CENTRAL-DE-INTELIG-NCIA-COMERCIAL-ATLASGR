@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldAlert } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { BitrixImportPanel } from './BitrixImportPanel';
@@ -7,8 +8,18 @@ import { useWhatsAppIntegration } from '../../../hooks/useWhatsAppIntegration';
 import { useGoogleIntegration } from '../../../hooks/useGoogleIntegration';
 import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
 import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 
 export function Integrations() {
+    // O backend já restringe conectar/desconectar/testar integração a ADMIN/GESTOR
+    // (requireRole — ver auditoria de autorização da Onda 1); sem este espelho no front, um
+    // VISUALIZADOR ou VENDEDOR via os botões normalmente e só descobria que não tinha permissão
+    // quando a chamada voltava 403, sem nenhuma explicação na tela (achado do inventário de
+    // navegação da Onda 1).
+    const { currentUser } = useAuth();
+    const canManage = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
+
     const { qrCode, status, loading, handleConnect, handleDisconnect } = useWhatsAppIntegration();
 
     const {
@@ -45,7 +56,11 @@ export function Integrations() {
                         </div>
                     </div>
                 </div>
-                <div className="p-4 space-y-1 flex-1 overflow-y-auto">
+                {/* aria-label distingue estas abas dos botões de ação com o mesmo nome dentro de
+                    cada painel (ex.: "Conectar WhatsApp") — sem isso, `getByRole('button', {name})`
+                    casa com os dois e vira ambíguo pra quem consome esta tela via acessibilidade
+                    (leitor de tela, testes). */}
+                <nav aria-label="Módulos de integração" className="p-4 space-y-1 flex-1 overflow-y-auto">
                     <button
                         onClick={() => setActiveTab('whatsapp')}
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'whatsapp' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -70,13 +85,18 @@ export function Integrations() {
                     >
                         <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
                     </button>
-                </div>
+                </nav>
             </div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-8">
                 <div className="max-w-4xl mx-auto">
-
+                    {!canManage && (
+                        <div className="mb-6 p-3.5 rounded-xl border border-line bg-surface-2 flex items-center gap-2.5 text-xs text-ink-2">
+                            <ShieldAlert className="w-4 h-4 text-brand shrink-0" />
+                            Você pode ver o status das integrações, mas conectar, desconectar ou testar exige permissão de Gestor ou Administrador.
+                        </div>
+                    )}
 
                     {activeTab === 'whatsapp' && (
                     <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
@@ -101,8 +121,9 @@ export function Integrations() {
                             {status === 'disconnected' && (
                                 <button
                                     onClick={handleConnect}
-                                    disabled={loading}
-                                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+                                    disabled={loading || !canManage}
+                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
                                 </button>
@@ -118,8 +139,9 @@ export function Integrations() {
                             {status === 'connected' && (
                                 <button
                                     onClick={handleDisconnect}
-                                    disabled={loading}
-                                    className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
+                                    disabled={loading || !canManage}
+                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                    className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {loading ? 'Desconectando...' : 'Desconectar'}
                                 </button>
@@ -162,8 +184,9 @@ export function Integrations() {
                                     )}
                                     <button
                                         onClick={handleGoogleDisconnect}
-                                        disabled={googleLoading}
-                                        className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors"
+                                        disabled={googleLoading || !canManage}
+                                        title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                        className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
                                         {googleLoading ? 'Desconectando...' : 'Desconectar'}
                                     </button>
@@ -171,8 +194,9 @@ export function Integrations() {
                             ) : (
                                 <button
                                     onClick={handleGoogleConnect}
-                                    disabled={googleLoading}
-                                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                                    disabled={googleLoading || !canManage}
+                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {googleLoading ? 'Conectando...' : 'Conectar Conta Google'}
                                 </button>
@@ -211,8 +235,9 @@ export function Integrations() {
                                             </div>
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleBitrixDisconnect(conn.id); }}
-                                                disabled={bitrixLoading}
-                                                className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 transition-colors"
+                                                disabled={bitrixLoading || !canManage}
+                                                title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                                className="shrink-0 text-sm font-medium text-red-600 hover:text-red-700 dark:text-red-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                             >
                                                 Desconectar
                                             </button>
@@ -246,8 +271,9 @@ export function Integrations() {
                                 </p>
                                 <button
                                     onClick={handleBitrixConnect}
-                                    disabled={bitrixLoading}
-                                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-60 text-white font-bold rounded-lg transition-colors"
+                                    disabled={bitrixLoading || !canManage}
+                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
                                 >
                                     {bitrixLoading ? 'Validando webhook...' : 'Conectar'}
                                 </button>
@@ -298,14 +324,17 @@ export function Integrations() {
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => handle3CXTest(conn.id)}
-                                                    className="px-3 py-2 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition-colors border border-sky-100"
+                                                    disabled={!canManage}
+                                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                                    className="px-3 py-2 text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg transition-colors border border-sky-100 disabled:opacity-60 disabled:cursor-not-allowed"
                                                 >
                                                     Testar PABX
                                                 </button>
                                                 <button
                                                     onClick={() => handle3CXDisconnect(conn.id)}
-                                                    disabled={threecxLoading}
-                                                    className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    disabled={threecxLoading || !canManage}
+                                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                                    className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                                 >
                                                     Desconectar
                                                 </button>
@@ -344,8 +373,9 @@ export function Integrations() {
                                 </div>
                                 <button
                                     onClick={handle3CXConnect}
-                                    disabled={threecxLoading}
-                                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 shadow-sm disabled:opacity-60 text-white font-bold rounded-lg transition-colors"
+                                    disabled={threecxLoading || !canManage}
+                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                    className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
                                 >
                                     {threecxLoading ? 'Registrando 3CX...' : 'Conectar 3CX PABX'}
                                 </button>

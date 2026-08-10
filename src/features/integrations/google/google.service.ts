@@ -3,7 +3,13 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
-import { fetchWithTimeout } from '../../../lib/http.js';
+import { fetchWithTimeout, withTimeout } from '../../../lib/http.js';
+import { AppError } from '../../../shared/middlewares/errorHandler.js';
+
+/** Mesmo teto usado nas chamadas REST diretas (fetchWithTimeout) — google-auth-library não expõe
+ * timeout próprio para getToken()/refreshAccessToken(), então sem isto uma travada no endpoint de
+ * token do Google prende a requisição indefinidamente. */
+const OAUTH_TOKEN_TIMEOUT_MS = 15_000;
 
 /** GOOGLE_CLIENT_ID/SECRET ou PUBLIC_BASE_URL ausentes — sem eles não há como montar o fluxo OAuth. */
 export class GoogleNotConfiguredError extends Error {}
@@ -89,11 +95,14 @@ async function fetchConnectedEmail(accessToken: string): Promise<string> {
         headers: { Authorization: `Bearer ${accessToken}` },
     }, 15_000);
     if (!response.ok) {
-        throw new Error(`Falha ao obter e-mail da conta Google conectada (HTTP ${response.status}).`);
+        // AppError (não Error genérico): sem isso, o errorHandler global substitui a mensagem por
+        // "Erro Interno do Servidor" em produção — o operador não consegue distinguir uma falha
+        // real do Google de qualquer outro 500 (ver errorHandler.ts).
+        throw new AppError(`Falha ao obter e-mail da conta Google conectada (HTTP ${response.status}).`, 502);
     }
     const data = (await response.json()) as { email?: string };
     if (!data.email) {
-        throw new Error('Resposta do Google não trouxe um e-mail.');
+        throw new AppError('Resposta do Google não trouxe um e-mail.', 502);
     }
     return data.email;
 }
@@ -101,13 +110,19 @@ async function fetchConnectedEmail(accessToken: string): Promise<string> {
 /** Troca o código de autorização por tokens reais e persiste a conexão desta organização. */
 export async function processGoogleCallback(organizationId: string, code: string): Promise<{ email: string }> {
     const client = createOAuthClient();
-    const { tokens } = await client.getToken(code);
+    // `.catch` (em vez de try/catch em volta de uma `let` pré-tipada) deixa o TypeScript inferir o
+    // tipo de sucesso (GetTokenResponse) direto da chamada real — evita o ReturnType<> de um
+    // método sobrecarregado (getToken tem overloads) resolver pro tipo errado.
+    const { tokens } = await withTimeout(client.getToken(code), OAUTH_TOKEN_TIMEOUT_MS).catch((err) => {
+        logger.warn({ err, organizationId }, '[google] Falha/timeout ao trocar o código de autorização por tokens');
+        throw new AppError('Não foi possível concluir a conexão com o Google agora (timeout ou falha de comunicação).', 502);
+    });
 
     if (!tokens.access_token || !tokens.refresh_token) {
         // O Google só devolve refresh_token na primeira concessão de consentimento — se a
         // organização reconectar sem revogar o acesso antes, prompt:'consent' acima ainda força
         // um novo, mas cobrimos o caso de faltar mesmo assim em vez de salvar uma conexão inútil.
-        throw new Error('Google não devolveu um refresh_token. Revogue o acesso em myaccount.google.com e tente conectar de novo.');
+        throw new AppError('Google não devolveu um refresh_token. Revogue o acesso em myaccount.google.com e tente conectar de novo.', 502);
     }
 
     const email = await fetchConnectedEmail(tokens.access_token);
@@ -162,9 +177,12 @@ async function getValidAccessToken(organizationId: string, forceRefresh = false)
 
     const client = createOAuthClient();
     client.setCredentials({ refresh_token: connection.refreshToken });
-    const { credentials } = await client.refreshAccessToken();
+    const { credentials } = await withTimeout(client.refreshAccessToken(), OAUTH_TOKEN_TIMEOUT_MS).catch((err) => {
+        logger.warn({ err, organizationId }, '[google] Falha/timeout ao renovar o access_token');
+        throw new AppError('Não foi possível renovar a conexão com o Google agora (timeout ou falha de comunicação).', 502);
+    });
     if (!credentials.access_token) {
-        throw new Error('Falha ao renovar o access_token do Google (refresh_token pode ter sido revogado).');
+        throw new AppError('Falha ao renovar o access_token do Google (refresh_token pode ter sido revogado).', 409);
     }
 
     await prisma.googleWorkspaceConnection.update({
@@ -212,7 +230,7 @@ export async function getUpcomingCalendarEvents(organizationId: string, maxResul
     if (!response.ok) {
         const body = await response.text().catch(() => '');
         logger.error({ status: response.status, body, organizationId }, 'Falha ao buscar eventos do Google Calendar.');
-        throw new Error(`Falha ao consultar o Google Calendar (HTTP ${response.status}).`);
+        throw new AppError(`Falha ao consultar o Google Calendar (HTTP ${response.status}).`, 502);
     }
 
     const data = (await response.json()) as { items?: Array<{ id: string; summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } }> };

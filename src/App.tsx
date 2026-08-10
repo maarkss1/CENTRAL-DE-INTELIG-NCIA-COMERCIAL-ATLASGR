@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { RequireRole } from './components/layout/RequireRole';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -88,7 +89,7 @@ function AppLayout() {
           <Route path="automations" element={<Automations />} />
           <Route path="usage" element={<Usage />} />
           <Route path="editor" element={<DocumentEditor />} />
-          <Route path="team" element={<Team />} />
+          <Route path="team" element={<RequireRole allowedRoles={['ADMIN']}><Team /></RequireRole>} />
           <Route path="settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/app" replace />} />
         </Routes>

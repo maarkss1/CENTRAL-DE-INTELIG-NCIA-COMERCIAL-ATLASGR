@@ -10,6 +10,11 @@ import { logger } from '../../../lib/logger.js';
 import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.service.js';
 import { cacheConnection } from '../../../lib/queue/redis.js';
 import { withTimeout } from '../../../lib/http.js';
+import { AppError } from '../../../shared/middlewares/errorHandler.js';
+
+/** Mesmo teto usado em fetchLatestBaileysVersion — chamadas ao socket Baileys também podem
+ * travar indefinidamente (mesma classe de bug já corrigida ali; ver comentário lá). */
+const BAILEYS_CALL_TIMEOUT_MS = 15_000;
 
 export const whatsappEvents = new EventEmitter();
 
@@ -230,8 +235,13 @@ export async function logoutWhatsApp(organizationId: string) {
 export async function sendWhatsAppMessage(organizationId: string, number: string, text: string) {
     const session = sessions.get(organizationId);
     if (!session?.sock || session.status !== 'connected') {
-        throw new Error('WhatsApp não está conectado.');
+        // AppError (não Error genérico): sem isso, o errorHandler global substitui a mensagem por
+        // "Erro Interno do Servidor" em produção (qualquer erro que não seja AppError vira 500
+        // genérico — ver errorHandler.ts) e o operador não consegue distinguir "não conectado" de
+        // qualquer outra falha.
+        throw new AppError('WhatsApp não está conectado.', 409);
     }
+    const sock = session.sock;
 
     // Formata o número (adiciona o @s.whatsapp.net e garante que só tenha números)
     let formattedNumber = number.replace(/\D/g, '');
@@ -239,12 +249,23 @@ export async function sendWhatsAppMessage(organizationId: string, number: string
         formattedNumber = `${formattedNumber}@s.whatsapp.net`;
     }
 
-    const results = await session.sock.onWhatsApp(formattedNumber);
+    let results: Awaited<ReturnType<WASocket['onWhatsApp']>>;
+    try {
+        results = await withTimeout(sock.onWhatsApp(formattedNumber), BAILEYS_CALL_TIMEOUT_MS);
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[whatsapp] Falha/timeout ao verificar número no WhatsApp');
+        throw new AppError('Não foi possível verificar esse número no WhatsApp agora (timeout ou falha de conexão).', 502);
+    }
     const result = results?.[0];
     if (!result?.exists) {
-        throw new Error('O número fornecido não está registrado no WhatsApp.');
+        throw new AppError('O número fornecido não está registrado no WhatsApp.', 422);
     }
 
-    await session.sock.sendMessage(result.jid, { text });
+    try {
+        await withTimeout(sock.sendMessage(result.jid, { text }), BAILEYS_CALL_TIMEOUT_MS);
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[whatsapp] Falha/timeout ao enviar mensagem');
+        throw new AppError('Não foi possível enviar a mensagem agora (timeout ou falha de conexão).', 502);
+    }
     return true;
 }

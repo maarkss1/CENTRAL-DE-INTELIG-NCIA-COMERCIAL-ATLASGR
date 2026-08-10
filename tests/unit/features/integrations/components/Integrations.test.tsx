@@ -1,11 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 // não registra os matchers do jest-dom globalmente — importa aqui pra não depender de config
 // (mesmo padrão de tests/unit/features/companies/components/CompanyForm.test.tsx).
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../mocks/server';
+
+// GESTOR por padrão: mantém as flows de connect/disconnect exercitadas pelos testes existentes
+// sem exigir AuthProvider/authClient reais (rede/sessão) só para montar este componente.
+// Testes específicos de permissão sobrescrevem com mockReturnValueOnce.
+const useAuthMock = vi.fn(() => ({ currentUser: { role: 'GESTOR' } }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => useAuthMock() }));
 
 import { Integrations } from '@/features/integrations/components/Integrations';
 
@@ -27,6 +33,7 @@ function mockAllIntegrationEndpoints() {
 beforeEach(() => {
     cleanup();
     mockAllIntegrationEndpoints();
+    useAuthMock.mockReturnValue({ currentUser: { role: 'GESTOR' } });
 });
 
 describe('Integrations — tela de Integrações não quebra ao montar (estado/imports)', () => {
@@ -34,10 +41,15 @@ describe('Integrations — tela de Integrações não quebra ao montar (estado/i
         render(<Integrations />);
 
 expect(screen.getByText('Integrações')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /WhatsApp/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Google Workspace/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Bitrix24/ })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /PABX 3CX/ })).toBeInTheDocument();
+
+        // Escopado ao <nav> das abas: a aba "WhatsApp" e o botão de ação "Conectar WhatsApp" do
+        // painel de conteúdo têm nomes acessíveis que casam com o mesmo /WhatsApp/ regex — sem
+        // escopar, getByRole('button', {name}) achava os dois e falhava por ambiguidade.
+        const tabs = within(screen.getByRole('navigation', { name: 'Módulos de integração' }));
+        expect(tabs.getByRole('button', { name: /WhatsApp/ })).toBeInTheDocument();
+        expect(tabs.getByRole('button', { name: /Google Workspace/ })).toBeInTheDocument();
+        expect(tabs.getByRole('button', { name: /Bitrix24/ })).toBeInTheDocument();
+        expect(tabs.getByRole('button', { name: /PABX 3CX/ })).toBeInTheDocument();
 
         // Aba inicial (WhatsApp) renderizou de fato o conteúdo, não só a casca da sidebar.
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
@@ -71,5 +83,15 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         // cai pro estado padrão "desconectado" de cada hook.
         expect(screen.getByText('Integrações')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
+    });
+
+    it('VISUALIZADOR vê o status mas não consegue conectar (achado do inventário de navegação da Onda 1)', async () => {
+        useAuthMock.mockReturnValue({ currentUser: { role: 'VISUALIZADOR' } });
+        render(<Integrations />);
+
+        await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
+
+        expect(screen.getByText(/exige permissão de Gestor ou Administrador/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Conectar WhatsApp' })).toBeDisabled();
     });
 });

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Clock, Calendar as CalendarIcon, CheckCircle2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Clock, Calendar as CalendarIcon, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
+import { useActivities } from '../../hooks/useDatabase';
 
 export function ClockCalendarWidget() {
   const [time, setTime] = useState<Date>(new Date());
@@ -19,13 +20,23 @@ export function ClockCalendarWidget() {
   const fullDate = time.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const currentMonthName = time.toLocaleDateString('pt-BR', { month: 'long' });
 
-  // Eventos Comerciais Agendados
-  const scheduledEvents = [
-    { day: 24, title: 'Demo AtlasGR — Diretoria SaaS', time: '14:00', type: 'demo', badge: 'Alta Prioridade' },
-    { day: 24, title: 'Follow-up Total Trac — Frota Sul', time: '16:30', type: 'followup', badge: 'Em Andamento' },
-    { day: 25, title: 'Reunião de Fechamento de Meta', time: '10:00', type: 'meeting', badge: 'Estratégico' },
-    { day: 28, title: 'Treinamento de Telemetria com SDRs', time: '15:00', type: 'training', badge: 'Interno' }
-  ];
+  // Agenda real do mês corrente — antes disto era um array fixo de compromissos inventados
+  // ("Demo AtlasGR — Diretoria SaaS" etc.), mostrado a qualquer usuário em qualquer organização
+  // como se fosse a agenda comercial de verdade (verdade cenográfica, ver AGENTS.md). `to` é
+  // exclusivo em /api/activities (mesmo motivo documentado em SinglePageDashboard), por isso o
+  // primeiro dia do mês seguinte.
+  const monthStart = useMemo(() => new Date(time.getFullYear(), time.getMonth(), 1).toISOString().split('T')[0], [time]);
+  const monthEnd = useMemo(() => new Date(time.getFullYear(), time.getMonth() + 1, 1).toISOString().split('T')[0], [time]);
+  const { activities, loading: eventsLoading, error: eventsError, refetch: refetchEvents } = useActivities({ from: monthStart, to: monthEnd, limit: 200 });
+
+  const scheduledEvents = useMemo(() => activities
+    .filter((a) => !!a.date)
+    .map((a) => ({
+      day: new Date(a.date).getDate(),
+      title: a.observations?.trim() || `${a.type} — ${a.owner}`,
+      time: a.time || '—',
+      badge: a.status,
+    })), [activities]);
 
   return (
     <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
@@ -103,7 +114,18 @@ export function ClockCalendarWidget() {
         <h4 className="font-bold text-ink text-xs uppercase tracking-wider flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-ok" /> Compromissos do Dia {selectedDate}
         </h4>
-        {scheduledEvents.filter((e) => e.day === selectedDate).length === 0 ? (
+        {eventsError ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-red-300">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Não foi possível carregar a agenda do mês.
+            </div>
+            <button onClick={() => refetchEvents()} className="text-[10px] font-bold text-red-300 hover:underline cursor-pointer shrink-0">
+              Tentar novamente
+            </button>
+          </div>
+        ) : eventsLoading ? (
+          <p className="text-xs text-ink-2">Carregando agenda...</p>
+        ) : scheduledEvents.filter((e) => e.day === selectedDate).length === 0 ? (
           <p className="text-xs text-ink-2 italic">Nenhum evento registrado para este dia.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">

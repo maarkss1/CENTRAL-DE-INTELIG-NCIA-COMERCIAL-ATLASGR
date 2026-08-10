@@ -9,6 +9,8 @@ export {};
 declare global {
     interface SpeechRecognitionResultLike {
         0: { transcript: string };
+        /** true quando o reconhecimento terminou de processar este resultado (não é mais interino). */
+        isFinal: boolean;
     }
 
     interface SpeechRecognitionEventLike {
