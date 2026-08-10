@@ -105,6 +105,9 @@ export const prisma = basePrisma.$extends({
         const tenantModels = [
           'Company', 'Contact', 'Lead', 'Activity', 'User',
           'CrmPipeline', 'CrmProduct', 'CrmDealItem', 'CrmCommercialDocument',
+          // Comercial Inteligente (ver prisma/schema.prisma) — mesmo tratamento: organizationId
+          // é sempre injetado a partir do tenant da request, nunca aceito do corpo do payload.
+          'CommercialGoal', 'LeadStageHistory',
         ];
         const auditableModels = [
           'Company', 'Contact', 'Lead', 'Activity',

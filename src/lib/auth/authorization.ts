@@ -55,3 +55,29 @@ export function hasRequiredRole(userRole: string, allowedRoles: readonly string[
 export function isKnownRole(role: string): role is Role {
     return Object.prototype.hasOwnProperty.call(ROLE_HIERARCHY, role);
 }
+
+/**
+ * Comercial Inteligente (Revenue Command Center executivo) — módulo restrito a quem toma decisão
+ * de receita. O pedido de produto descreve os papéis permitidos como "Gestor/Diretor/CEO" e os
+ * bloqueados como "SDR/vendedor/operador/financeiro/suporte/usuário comum/outros". Este sistema
+ * de RBAC só tem os 4 papéis reais documentados acima — não existe DIRETOR, CEO, SDR, OPERADOR,
+ * FINANCEIRO nem SUPORTE gravado em `User.role`, e criar um enum novo só para este módulo seria
+ * reintroduzir exatamente o "terceiro sistema de permissões" que este arquivo já eliminou uma vez
+ * (ver o comentário no topo do arquivo e o bloqueador "RBAC duplicado ou divergente" em
+ * `/AGENTS.md`). A tradução usada aqui, e a única aplicada em toda a pilha (frontend, rotas,
+ * controllers, exportações):
+ *   - GESTOR (75) e ADMIN (100) → autorizados. ADMIN é hoje também o papel do fundador da
+ *     organização (ver `src/lib/auth.ts`) e cobre Diretor/CEO na ausência de um papel executivo
+ *     próprio — é o nível mais alto da hierarquia existente, o análogo mais próximo disponível.
+ *   - VENDEDOR (50), VISUALIZADOR (10) e qualquer papel desconhecido/UNVERIFIED (0) → bloqueados.
+ *     Nenhum desses papéis distingue SDR de vendedor, nem operador/financeiro/suporte de
+ *     visualizador — todos caem abaixo do nível mínimo exigido (GESTOR), que é o efeito prático
+ *     pedido: só gestão para cima acessa o módulo.
+ * `hasRequiredRole` é a MESMA função usada por todo o resto do RBAC — nenhuma lógica nova, só um
+ * nome de domínio para o nível mínimo exigido por este módulo específico.
+ */
+export const COMMERCIAL_INTELLIGENCE_ROLES: readonly Role[] = ['ADMIN', 'GESTOR'];
+
+export function canAccessCommercialIntelligence(role: string): boolean {
+    return hasRequiredRole(role, COMMERCIAL_INTELLIGENCE_ROLES);
+}

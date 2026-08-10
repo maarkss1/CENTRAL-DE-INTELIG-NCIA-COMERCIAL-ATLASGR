@@ -2,7 +2,7 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
@@ -21,7 +21,7 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
     const { activeBrand, setActiveBrand } = useBrand();
-    const { isAdmin } = useAuth();
+    const { isAdmin, canAccessCommercialIntelligence } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
     const navigate = useNavigate();
 
@@ -45,6 +45,15 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
         { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
         { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
+    ];
+
+    // Comercial Inteligente — módulo executivo restrito (Gestor/Diretor/CEO, mapeados hoje para
+    // ADMIN/GESTOR — ver src/lib/auth/authorization.ts). Renderizado como seção própria (não
+    // dentro de "Administração", que é ADMIN-only) porque GESTOR também precisa enxergar este
+    // item. A proteção real está no backend (requireRole) e na rota (RequireRole) — esconder o
+    // item aqui é só uma conveniência de UX, nunca a única barreira.
+    const executiveTools = [
+        { id: 'commercial_intelligence' as TabType, label: 'Comercial Inteligente', icon: <LineChart size={20} /> },
     ];
 
     const aiTools = [
@@ -136,6 +145,32 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                         );
                     })}
                 </div>
+
+                {/* Comercial Inteligente — só Gestor/Admin (ver executiveTools acima) */}
+                {canAccessCommercialIntelligence && (
+                    <div className="space-y-1">
+                        <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
+                            Executivo
+                        </p>
+                        {executiveTools.map(tool => {
+                            const isActive = activeTab === tool.id;
+                            return (
+                                <button
+                                    key={tool.id}
+                                    onClick={() => selectTab(tool.id)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
+                                        isActive
+                                            ? 'bg-brand-active text-white shadow-md'
+                                            : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+                                    }`}
+                                >
+                                    <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
+                                    <span>{tool.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {/* AI Tools */}
                 <div className="space-y-1">

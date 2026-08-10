@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { ASSIGNABLE_ROLES, ROLE_HIERARCHY, UNVERIFIED_ROLE, hasRequiredRole, isKnownRole } from '../authorization';
+import {
+    ASSIGNABLE_ROLES,
+    ROLE_HIERARCHY,
+    UNVERIFIED_ROLE,
+    COMMERCIAL_INTELLIGENCE_ROLES,
+    hasRequiredRole,
+    isKnownRole,
+    canAccessCommercialIntelligence,
+} from '../authorization';
 
 describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
     it('expõe exatamente os quatro papéis realmente gravados em User.role', () => {
@@ -41,6 +49,30 @@ describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
             expect(isKnownRole('TENANT_OWNER')).toBe(false);
             expect(isKnownRole('GUEST')).toBe(false);
             expect(isKnownRole(UNVERIFIED_ROLE)).toBe(false);
+        });
+    });
+
+    describe('canAccessCommercialIntelligence (módulo Comercial Inteligente)', () => {
+        it('define o nível mínimo como GESTOR (ADMIN e GESTOR, nada abaixo)', () => {
+            expect(COMMERCIAL_INTELLIGENCE_ROLES.slice().sort()).toEqual(['ADMIN', 'GESTOR'].sort());
+        });
+
+        it('autoriza ADMIN e GESTOR', () => {
+            expect(canAccessCommercialIntelligence('ADMIN')).toBe(true);
+            expect(canAccessCommercialIntelligence('GESTOR')).toBe(true);
+        });
+
+        it('bloqueia VENDEDOR e VISUALIZADOR — cobre SDR/vendedor/operador/financeiro/suporte/usuário comum, que não são papéis distintos hoje', () => {
+            expect(canAccessCommercialIntelligence('VENDEDOR')).toBe(false);
+            expect(canAccessCommercialIntelligence('VISUALIZADOR')).toBe(false);
+        });
+
+        it('bloqueia papel desconhecido, vazio ou o sentinela UNVERIFIED (fail-closed)', () => {
+            expect(canAccessCommercialIntelligence('SDR')).toBe(false);
+            expect(canAccessCommercialIntelligence('DIRETOR')).toBe(false);
+            expect(canAccessCommercialIntelligence('CEO')).toBe(false);
+            expect(canAccessCommercialIntelligence('')).toBe(false);
+            expect(canAccessCommercialIntelligence(UNVERIFIED_ROLE)).toBe(false);
         });
     });
 });

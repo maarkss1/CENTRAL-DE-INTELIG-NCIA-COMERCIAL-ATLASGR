@@ -335,6 +335,7 @@ model Lead {
   conversationSignals ConversationSignal[]
   dealItems           CrmDealItem[]
   commercialDocuments CrmCommercialDocument[]
+  stageHistory        LeadStageHistory[]
   organizationId      String?
   organization        Organization?           @relation(fields: [organizationId], references: [id])
 
@@ -474,8 +475,75 @@ model Organization {
   crmProducts               CrmProduct[]
   crmDealItems              CrmDealItem[]
   crmCommercialDocuments    CrmCommercialDocument[]
+  commercialGoals           CommercialGoal[]
+  leadStageHistories        LeadStageHistory[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+}
+
+// ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
+// Extensão mínima de schema pedida pelo módulo executivo restrito (Gestor/Diretor/CEO — ver
+// canAccessCommercialIntelligence em src/lib/auth/authorization.ts). Duas tabelas novas, as
+// únicas que o módulo genuinamente não conseguia calcular a partir do schema já existente:
+//
+// 1. CommercialGoal — não existia NENHUM model de meta/quota comercial no schema. Sem isso,
+//    "% da Meta"/Gap Forecast/Coverage teriam que fabricar um número, o que a seção 40 do prompt
+//    de produto e o AGENTS.md ("Dados reais x demonstração") proíbem explicitamente. A meta é
+//    sempre um valor real digitado por um Gestor/Admin (ver commercialGoal.routes), nunca
+//    inferido.
+// 2. LeadStageHistory — não existia histórico estruturado de mudança de etapa (TimelineEvent é
+//    texto livre, sem fromStage/toStage/enteredAt/exitedAt consultável). Sem isso, Aging por
+//    Etapa e Sales Cycle por etapa não são calculáveis de forma real (ver seção 34 do prompt:
+//    "não inventar histórico inexistente" — a extensão mínima de schema é o caminho permitido).
+//    Alimentada a partir de agora em diante pelos mesmos pontos de escrita que já movem uma
+//    oportunidade de etapa (crm360.service.ts moveRecord/createDeal/convertLead) — ver
+//    src/features/commercial-intelligence/infra/stageHistory.ts. Leads que mudaram de etapa
+//    ANTES desta migration não têm histórico real: os endpoints tratam isso como dado ausente
+//    ("Não disponível"/estimado, nunca um valor calculado a partir de histórico fabricado).
+model CommercialGoal {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Formato "YYYY-MM" — mesma granularidade mensal usada em toda a Meta New MRR do prompt de
+  // produto (seção 7). Metas trimestrais/anuais são derivadas somando meses, não um registro à parte.
+  period    String
+  // Hoje só "NEW_MRR" é usado pela UI, mas o campo já existe para não exigir outra migration
+  // quando o módulo ganhar metas por métrica (ex.: pipeline criado) no futuro.
+  metric    String   @default("NEW_MRR")
+  amount    Float
+  currency  String   @default("BRL")
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, period, metric])
+  @@index([organizationId, period])
+}
+
+model LeadStageHistory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leadId         String
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  // pipelineId/stageId ficam nullable e stageName é desnormalizado de propósito: uma etapa pode
+  // ser reordenada/excluída depois, e o histórico não pode virar órfão nem mudar de sentido
+  // retroativamente por causa disso — o nome no momento da transição é preservado como registrado.
+  pipelineId String?
+  stageId    String?
+  stageName  String
+  probability Int?
+  isWon      Boolean  @default(false)
+  isLost     Boolean  @default(false)
+  // Nula enquanto a oportunidade permanece nesta etapa; setada quando ela sai (para a próxima
+  // etapa ou fechamento). A linha com exitedAt=null é sempre a etapa atual do lead.
+  enteredAt DateTime  @default(now())
+  exitedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([organizationId, leadId, enteredAt])
+  @@index([organizationId, stageId])
+  @@index([leadId, exitedAt])
 }
 
 model CrmPipeline {
