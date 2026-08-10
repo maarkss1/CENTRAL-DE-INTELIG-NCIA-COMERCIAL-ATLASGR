@@ -115,3 +115,90 @@ entrada nova.
   - `visual-qa/SKILL.md` — harness/script de investigação temporário (usado para medir performance
     e simular mobile) nunca vira teste oficial por cópia direta; só promovido depois de reescrito
     contra a infra real e validado por execuções repetidas estáveis.
+
+## Pilot 003 — Comercial Inteligente (Revenue Command Center executivo)
+
+- **Objetivo**: criar, do zero, um módulo executivo novo (não um ajuste de tela existente) —
+  cockpit de receita restrito a Gestor/Diretor/CEO, com RBAC ponta-a-ponta, forecast ponderado
+  explicável, pipeline/coverage, eficiência comercial, aging, leading indicators, motivos de perda
+  e qualidade do CRM — a partir de um prompt de produto de 46 seções que assume papéis
+  (DIRETOR/CEO/SDR/OPERADOR/FINANCEIRO/SUPORTE) que não existem no RBAC real do repositório.
+- **Decisão de RBAC (a mais importante da sessão)**: o sistema real só tem 4 papéis
+  (`ADMIN`/`GESTOR`/`VENDEDOR`/`VISUALIZADOR`, ver `src/lib/auth/authorization.ts`) — um segundo
+  sistema de papéis mais rico já existiu neste repositório e foi deliberadamente removido por ser
+  divergente/nunca conectado a nenhuma rota (ver comentário no topo daquele arquivo). Criar
+  DIRETOR/CEO/SDR/OPERADOR/FINANCEIRO só para este módulo teria reintroduzido exatamente esse
+  problema. Resolvido reaproveitando a hierarquia existente:
+  `canAccessCommercialIntelligence(role) = hasRequiredRole(role, ['ADMIN', 'GESTOR'])` — ADMIN
+  (nível mais alto, hoje também o papel do fundador da organização) cobre Diretor/CEO na ausência
+  de um papel executivo próprio; VENDEDOR/VISUALIZADOR/papel desconhecido cobrem SDR/vendedor/
+  operador/financeiro/suporte/usuário comum, nenhum dos quais é distinto hoje. Decisão documentada
+  em comentário extenso em `authorization.ts` (não só aqui) porque é a peça mais fácil de
+  "corrigir errado" numa sessão futura sem o contexto completo.
+- **RBAC em profundidade, não só um checkpoint**: `requireRole` no `router.use()` do módulo
+  (bloqueia todo sub-endpoint mesmo que o mount em `server.ts` mude), `requireRole` de novo no
+  mount de `server.ts` (defesa em profundidade explícita), `RequireRole` de UI em `App.tsx`
+  (acesso direto por URL nunca renderiza o conteúdo restrito, só um aviso), item de menu
+  condicional na Sidebar (conveniência de UX, nunca a única barreira) e ausência deliberada do
+  módulo em `MODULE_ORDER` do Command Palette (não vaza nem a existência do módulo pra quem não
+  tem acesso). Testado com sessão REAL (não role simulado) em
+  `tests/integration/rbac-e2e-commercial-intelligence.test.ts` (9 casos, incl. varredura dos 11
+  endpoints do módulo bloqueados para VENDEDOR, 401 sem sessão, isolamento de tenant) e na camada
+  de UI em `tests/e2e/commercial-intelligence-rbac.spec.ts` (4 casos: menu some e URL direta mostra
+  "Acesso restrito" para VENDEDOR/VISUALIZADOR, funciona para ADMIN/GESTOR).
+- **Extensão mínima de schema (seção 34 do prompt de produto)**: duas tabelas novas e só essas —
+  `CommercialGoal` (meta mensal, sempre digitada por um Gestor/Admin, nunca fabricada) e
+  `LeadStageHistory` (histórico estruturado de mudança de etapa, que não existia — `TimelineEvent`
+  é texto livre não consultável). `LeadStageHistory` é alimentada pelos mesmos 3 pontos de escrita
+  que já movem uma oportunidade no Kanban (`crm360.service.ts`: `moveRecord`/`createDeal`/
+  `convertLead`), via um helper único (`commercial-intelligence/infra/stageHistory.ts`) — histórico
+  anterior à migration não existe e os endpoints tratam isso como dado ausente/estimado, nunca
+  fabricado (Aging por Etapa expõe `dataQuality: 'measured' | 'estimated' | 'unknown'` por etapa).
+- **Nunca "Pipeline = Forecast"**: `Forecast = Fechado + Commit + Best Case + Pipeline ponderado`,
+  com Commit/Best Case/Pipeline/Upside classificados por um motor determinístico não-IA
+  (`forecastEngine.ts`, testado em isolamento com 8 casos) — cada oportunidade expõe fatores
+  positivos/negativos explicáveis (próxima ação, interação recente, data prevista, estagnação na
+  etapa vs. média histórica real). "Pipeline Elegível" é um subconjunto de "Pipeline Total" por
+  critério explícito (valor válido, responsável, data prevista, próxima ação, aging não-crítico),
+  nunca todo o pipeline aberto.
+- **Ambiente sem Docker, mas COM Postgres/Redis instaláveis**: diferente do Pilot 001 (sem infra) e
+  mais parecido com o Pilot 002, mas aqui nem `docker-compose` nem um Postgres pré-rodando
+  existiam — instalados via `apt-get` (`postgresql-16`, `postgresql-16-pgvector`, `redis-server`)
+  e provisionados manualmente com o mesmo `scripts/db/create-app-role.sql` que o `docker-compose`
+  usaria, permitindo rodar a suíte real completa (unit, integration com RLS real, e2e Playwright
+  com sessão real) em vez do protocolo alternativo do Pilot 001. `PW_CHROMIUM_EXECUTABLE` (variável
+  de ambiente opcional em `playwright.config.ts`, só ativa quando setada) contorna um descompasso
+  de versão entre o Chromium pré-instalado deste ambiente e o pinado pelo `@playwright/test` do
+  projeto — não deve ser necessária num ambiente com as versões alinhadas (ex.: CI).
+- **Bug real de infraestrutura de teste encontrado ao escrever o e2e de RBAC** (não por leitura de
+  código): um helper de teste que muda o papel de um usuário direto no banco
+  (`tests/e2e/helpers.ts`, `setUserRole`) usando `requestContext.run({bypassRls:true}, () =>
+  prisma.user.update(...))` falhava com "record not found" mesmo o registro existindo — porque
+  `prisma.user.update(...)` devolve um `PrismaPromise` preguiçoso, e o hook `$allOperations` da
+  extensão do Prisma (`src/lib/prisma.ts`) que lê `requestContext.getStore()` só roda quando a
+  promise é de fato `await`ada, depois que o `.run(store, callback)` síncrono já retornou —
+  perdendo o contexto. Corrigido trocando para `requestContext.enterWith(...)` (o padrão já usado
+  com sucesso em `tests/helpers/rbac-e2e-helpers.ts`), que muta o contexto ambiente em vez de
+  escopar a um callback. Vale como alerta geral: `AsyncLocalStorage.run()` com um `PrismaPromise`
+  lazy dentro é uma armadilha real neste código-base, não só teoria.
+- **Arquitetura**: espelha `src/features/analytics/` (domain/application/infra/presentation/routes
+  + registro em `src/shared/di/setup.ts`), a estrutura de clean architecture já estabelecida para
+  módulos de agregação read-heavy — não a estrutura `pages/` sugerida pelo prompt de produto
+  (explicitamente condicional a "se o repositório não tiver padrão definido", e este já tinha).
+  Frontend é um "hub" com abas internas (`CommercialIntelligenceHub.tsx`), mesmo padrão de
+  `IntelligenceHub.tsx`/`ChatbookHub.tsx`, em vez de 9 rotas/itens de menu separados.
+- **Validações executadas**: `npx tsc --noEmit` (0 erros), `npm run lint` (0 erros, mesmos
+  warnings pré-existentes), `npm run build` (limpo), `npm run test:unit` (557 testes, incl. 4
+  arquivos novos — `forecastEngine`, `pipelineEligibility`, `lossTaxonomy`,
+  `CommercialIntelligenceUseCases`), `npx vitest run -c vitest.integration.config.ts` (suíte
+  completa, 11 arquivos/40 testes, incl. `rbac-e2e-commercial-intelligence.test.ts` novo com
+  Postgres real e RLS real), e Playwright e2e real (`auth.spec.ts` como controle +
+  `commercial-intelligence-rbac.spec.ts` novo, 4/4 verde); a suíte e2e completa (10 specs) não
+  terminou dentro do orçamento de tempo da sessão — `crm.spec.ts`/`crm-kanban.spec.ts` (os mais
+  relevantes por tocarem `crm360.service.ts`) foram verificados à parte.
+- **Aprendizados incorporados à constituição**: nenhuma mudança de regra visual desta vez (módulo
+  de dados/densidade alta, não uma tela de composição livre) — reaproveitou o padrão `StatTile`/
+  `Card variant="stat"` já visto em `Analytics.tsx` sem introduzir um novo primitivo de KPI global
+  em `src/components/ui/` (ficou local à feature, mesma decisão que `Analytics.tsx` já tinha
+  tomado). O aprendizado real desta rodada é de RBAC/dados (documentado acima e em
+  `authorization.ts`), não de design engineering.
