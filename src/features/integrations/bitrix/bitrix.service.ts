@@ -36,5 +36,5 @@ export { pushLeadToBitrix, exportLeadToBitrixNow } from './service/outboundSync.
 export type { BitrixSyncRuleInput } from './service/syncRules.js';
 export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBitrixSyncTick } from './service/syncRules.js';
 
-export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields } from './service/customFields.js';
-export type { BitrixEntityKind } from './service/customFields.js';
+export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, getEntityFields } from './service/customFields.js';
+export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';

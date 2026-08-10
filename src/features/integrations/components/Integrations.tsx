@@ -4,6 +4,7 @@ import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { BitrixImportPanel } from './BitrixImportPanel';
 import { BitrixSyncRulesPanel } from './BitrixSyncRulesPanel';
+import { WhatsAppWebPanel } from '../whatsapp/components/WhatsAppWebPanel';
 import { useWhatsAppIntegration } from '../../../hooks/useWhatsAppIntegration';
 import { useGoogleIntegration } from '../../../hooks/useGoogleIntegration';
 import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
@@ -48,10 +49,14 @@ export function Integrations() {
     const [activeTab, setActiveTab] = useState<Tab>('whatsapp');
 
     return (
-        <div className="flex-1 overflow-hidden flex bg-gray-50/50 transition-colors duration-300">
-            {/* Sidebar */}
-            <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full shrink-0">
-                <div className="p-6 border-b border-gray-100">
+        // flex-col (mobile) -> flex-row (lg+): a navegação secundária desta tela vira uma barra de
+        // abas horizontal em telas estreitas em vez da sidebar vertical fixa de 256px, que sozinha
+        // já não cabia num viewport de ~390px e empurrava o conteúdo pra fora da tela (achado real
+        // reportado pelo usuário — sidebar fixa + conteúdo sem min-w-0 nunca encolhiam).
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-gray-50/50 transition-colors duration-300">
+            {/* Sidebar (vertical em lg+, barra de abas horizontal abaixo disso) */}
+            <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col lg:h-full shrink-0">
+                <div className="hidden lg:block p-6 border-b border-gray-100">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center text-[var(--brand-primary)] border border-gray-200">
                             <IconWrench className="w-5 h-5" />
@@ -65,36 +70,38 @@ export function Integrations() {
                     cada painel (ex.: "Conectar WhatsApp") — sem isso, `getByRole('button', {name})`
                     casa com os dois e vira ambíguo pra quem consome esta tela via acessibilidade
                     (leitor de tela, testes). */}
-                <nav aria-label="Módulos de integração" className="p-4 space-y-1 flex-1 overflow-y-auto">
+                <nav aria-label="Módulos de integração" className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-x-visible lg:overflow-y-auto p-3 lg:p-4 lg:space-y-1 lg:flex-1">
                     <button
                         onClick={() => setActiveTab('whatsapp')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'whatsapp' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'whatsapp' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <span className="text-lg">💬</span> WhatsApp
                     </button>
                     <button
                         onClick={() => setActiveTab('google')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'google' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'google' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <span className="text-lg">📧</span> Google Workspace
                     </button>
                     <button
                         onClick={() => setActiveTab('bitrix')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'bitrix' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'bitrix' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <span className="text-lg">🔗</span> Bitrix24
                     </button>
                     <button
                         onClick={() => setActiveTab('3cx')}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${activeTab === '3cx' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
                     </button>
                 </nav>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-8">
+            {/* Content Area — min-w-0 é o que faz este flex item de fato encolher pra caber no
+                viewport em vez de manter a largura "natural" do conteúdo e transbordar pra fora da
+                tela (o bug real visto nas screenshots: texto/botões cortados na borda direita). */}
+            <div className="flex-1 min-w-0 overflow-y-auto p-4 md:p-8">
                 <div className="max-w-4xl mx-auto">
                     {!canManage && (
                         <div className="mb-6 p-3.5 rounded-xl border border-line bg-surface-2 flex items-center gap-2.5 text-xs text-ink-2">
@@ -104,34 +111,63 @@ export function Integrations() {
                     )}
 
                     {activeTab === 'whatsapp' && (
-                    <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
+                    <Card className="p-4 md:p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
+                        {/* Cabeçalho compacto quando conectado — a lista de conversas + chat precisa do máximo
+                            de altura disponível, especialmente em mobile, onde a descrição não cabia sem
+                            empurrar o painel pra abaixo da dobra. */}
+                        <div className={`flex items-center justify-between gap-3 ${status === 'connected' ? 'mb-3' : 'mb-6'}`}>
+                            <div className="min-w-0">
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">WhatsApp</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Disparo de quebra-gelos automático via WhatsApp.</p>
+                                <p className={`text-sm text-gray-500 dark:text-gray-400 ${status === 'connected' ? 'hidden sm:block' : ''}`}>
+                                    {status === 'connected'
+                                        ? 'WhatsApp Web da organização — converse direto pela plataforma.'
+                                        : 'Conecte para disparar quebra-gelos e conversar pelo WhatsApp direto na plataforma.'}
+                                </p>
                             </div>
-                            <div className="w-12 h-12 bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center">
-                                <span className="text-2xl">💬</span>
+                            <div className={`bg-green-50 dark:bg-green-500/10 rounded-full flex items-center justify-center shrink-0 ${status === 'connected' ? 'w-9 h-9' : 'w-12 h-12'}`}>
+                                <span className={status === 'connected' ? 'text-lg' : 'text-2xl'}>💬</span>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                                <span className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></span>
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {status === 'connected' ? 'Conectado' : status === 'connecting' ? 'Conectando...' : 'Desconectado'}
-                                </span>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></span>
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        {status === 'connected' ? 'Conectado' : status === 'connecting' ? 'Conectando...' : 'Desconectado'}
+                                    </span>
+                                </div>
+                                {status === 'connected' && (
+                                    <button
+                                        onClick={handleDisconnect}
+                                        disabled={loading || !canManage}
+                                        title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                        className="text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Desconectando...' : 'Desconectar'}
+                                    </button>
+                                )}
                             </div>
 
                             {status === 'disconnected' && (
-                                <button
-                                    onClick={handleConnect}
-                                    disabled={loading || !canManage}
-                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
-                                </button>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={loading || !canManage}
+                                        title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
+                                    </button>
+                                    {/* Servidor no plano free do Render (ver render.yaml) — hiberna sozinho após
+                                        alguns minutos sem uso e perde a sessão do WhatsApp junto (não há disco
+                                        persistente pra sobreviver ao ciclo de hibernação). Sem este aviso, "estava
+                                        conectado ontem e hoje pede QR de novo" parece bug em vez de comportamento
+                                        esperado do plano atual. */}
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                                        Se já conectou antes e caiu sozinho, é o servidor gratuito hibernando por inatividade — basta escanear o QR de novo.
+                                    </p>
+                                </div>
                             )}
 
                             {status === 'connecting' && qrCode && (
@@ -141,16 +177,7 @@ export function Integrations() {
                                 </div>
                             )}
 
-                            {status === 'connected' && (
-                                <button
-                                    onClick={handleDisconnect}
-                                    disabled={loading || !canManage}
-                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                                    className="w-full py-2 bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-100 dark:hover:bg-red-500/20 font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? 'Desconectando...' : 'Desconectar'}
-                                </button>
-                            )}
+                            {status === 'connected' && <WhatsAppWebPanel connected />}
                         </div>
                     </Card>
                     )}

@@ -116,3 +116,51 @@ export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput)
         await scheduleConversationAnalysis(lead.id, input.organizationId);
     }
 }
+
+export interface WhatsAppConversationSummary {
+    phoneE164: string;
+    contactId: string | null;
+    contactName: string | null;
+    lastMessageBody: string | null;
+    lastMessageDirection: 'inbound' | 'outbound';
+    lastMessageAt: Date;
+}
+
+/**
+ * Lista as conversas de WhatsApp da organização, uma por número, ordenadas pela mensagem mais
+ * recente — a lista à esquerda do painel "WhatsApp Web" embutido na tela de Integrações.
+ *
+ * Usa `groupBy` tipado (não `$queryRaw`) de propósito: `$queryRaw` não passa pela extensão
+ * `$allOperations` de `src/lib/prisma.ts` (RLS/tenant scoping), então bateria na RLS mesmo com um
+ * usuário autenticado normal a menos que passasse por `withRlsContext` — o volume real de
+ * conversas por organização é pequeno o bastante pra um N+1 tipado e seguro valer mais que a
+ * complexidade de SQL cru com o contexto de RLS certo.
+ */
+export async function listConversations(organizationId: string, limit = 50): Promise<WhatsAppConversationSummary[]> {
+    const groups = await prisma.whatsAppMessage.groupBy({
+        by: ['phoneE164'],
+        where: { organizationId },
+        _max: { receivedAt: true },
+    });
+
+    const mostRecentFirst = groups
+        .filter((g): g is typeof g & { _max: { receivedAt: Date } } => g._max.receivedAt !== null)
+        .sort((a, b) => b._max.receivedAt.getTime() - a._max.receivedAt.getTime())
+        .slice(0, limit);
+
+    return Promise.all(mostRecentFirst.map(async (group) => {
+        const last = await prisma.whatsAppMessage.findFirst({
+            where: { organizationId, phoneE164: group.phoneE164, receivedAt: group._max.receivedAt },
+            include: { contact: { select: { id: true, name: true } } },
+            orderBy: { id: 'desc' },
+        });
+        return {
+            phoneE164: group.phoneE164,
+            contactId: last?.contact?.id ?? null,
+            contactName: last?.contact?.name ?? null,
+            lastMessageBody: last?.body ?? null,
+            lastMessageDirection: (last?.direction as 'inbound' | 'outbound') ?? 'inbound',
+            lastMessageAt: group._max.receivedAt,
+        };
+    }));
+}
