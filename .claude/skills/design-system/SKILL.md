@@ -79,6 +79,31 @@ usar `variant="white"` fixo, como o código legado fazia, quebra em tema claro; 
 de considerar pronto: light+AtlasGR, light+TotalTrac, dark+AtlasGR, dark+TotalTrac — e, se a
 superfície for pré-seleção, o estado "marca ainda não escolhida" também.
 
+## Cor de marca ≠ cor semântica ≠ identidade de terceiro — três eixos diferentes
+
+Achado real do Piloto 002 (`DecisionMakerSearch.tsx`/`CandidateCard.tsx`, ver `.claude/PILOTS.md`):
+um selo "HUNTER" usava `bg-neon-purple/20 text-neon-purple` — uma classe Tailwind que nunca existiu
+em `globals.css` (`grep` por `--color-neon`/`neon-purple` não encontra nada), então o selo
+renderizava sem cor nenhuma, silenciosamente, sem erro no console. Antes de escolher a cor de
+qualquer elemento visual, classifique primeiro a qual dos eixos ele pertence — cada um tem sua
+própria fonte de verdade, e não são intercambiáveis:
+
+- **Marca** (`--brand`/`--brand-2`/`atlas-orange`/`totaltrack-blue`) — reage (ou deliberadamente
+  não reage, ver seção acima) à troca AtlasGR↔Total Trac.
+- **Semântica de produto** (`--color-success`/`--color-warning`/`--color-danger`/`text-danger`/
+  `text-warn`) — sucesso, erro, aviso. Já existe token pronto; não reinvente com Tailwind cru
+  (`text-red-600`, `text-amber-300`) nem com uma classe nunca definida.
+- **Identidade de terceiro** (ex.: azul do LinkedIn, verde do WhatsApp em `DecisionMakerSearch.tsx`)
+  — cor fixa por design, porque representa a marca de outro produto, não a nossa. Legítimo manter
+  hardcoded; não "corrija" para um token nosso.
+- **Interação/seleção sem significado externo** (ex.: a paleta índigo de todo o
+  `DecisionMakerSearch.tsx` hoje) — candidata a virar token, mas migrar isso é decisão de
+  design/produto (qual token, ou se vira `--accent-*` novo), não uma troca mecânica de classe.
+
+Ao encontrar uma classe de cor no código, pergunte a qual desses quatro grupos ela pertence antes
+de decidir se conserta, mantém ou escala para decisão de produto — e sempre confirme que a classe
+usada resolve para uma cor real (`grep` em `globals.css`), não assuma que existe.
+
 ## Checklist de saída
 
 - [ ] Nenhum token novo foi criado sem antes confirmar que não existe equivalente em `globals.css`.

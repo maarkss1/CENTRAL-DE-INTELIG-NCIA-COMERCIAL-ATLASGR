@@ -76,6 +76,22 @@ múltiplos viewports/temas) — não uma receita obrigatória para toda tela. Um
 dados/autenticação pode não ter alternativa equivalente; nesse caso, o passo 1-2 (registrar o
 bloqueio, não fingir que passou) já é o comportamento correto, mesmo sem passo 3.
 
+## Harness/script de investigação temporário nunca vira teste oficial por cópia direta
+
+Achado real do Piloto 002 (`.claude/PILOTS.md`): medir performance do Kanban com datasets grandes e
+validar comportamento mobile precisou de scripts descartáveis (semear centenas de leads via Prisma
+direto, abrir browser manualmente, medir `PerformanceObserver`/`longtask`) — ferramentas de
+diagnóstico, não testes. Eles viveram fora do Git (`.tmp-*`, apagados ao final da investigação) e
+nenhum virou arquivo de teste oficial por simples copy-paste.
+
+Quando uma investigação descartável revela um comportamento que vale a pena proteger com teste
+permanente, **reescreva-o contra a infraestrutura real do repo** (`tests/e2e/helpers.ts`,
+`signUp()`, seeds via API autenticada como os specs já existentes fazem) em vez de promover o
+script bruto. Só promova depois de rodar repetidamente e confirmar estabilidade (não flakiness) —
+foi o caso do teste de touch/mobile deste piloto (`tests/e2e/crm-kanban-mobile.spec.ts`), que só
+entrou na suíte oficial depois de reescrito nesses termos e validado por múltiplas execuções
+consecutivas sem falha.
+
 ## Verificação nas duas marcas
 
 Sempre que a mudança tocar cor, contraste ou qualquer coisa condicionada a `data-brand`, verifique
