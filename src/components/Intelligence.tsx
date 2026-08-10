@@ -3,7 +3,7 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import {
     Target, AlertCircle, RefreshCw, Copy, CheckCircle2, Mail, UserCheck, ShieldAlert, Phone,
     MessageCircle, Linkedin, PhoneMissed, Calculator, Search, X, Building2, User, Swords,
-    Sparkles, Zap, ChevronDown, Check, Bot, Activity, BrainCircuit, Fingerprint
+    Sparkles, Zap, ChevronDown, Check, Bot, Activity, BrainCircuit, Fingerprint, Workflow
 } from 'lucide-react';
 import { api } from '../lib/api';
 import type { Lead } from '../types';
@@ -15,12 +15,14 @@ import { clientLogger } from '../lib/clientLogger';
 
 type ToolType =
     | 'script_call' | 'script_whatsapp' | 'script_email' | 'prompt' | 'objections' | 'followup'
-    | 'profile' | 'risk' | 'linkedin_invite' | 'voicemail' | 'roi_pitch' | 'competitor_battlecard' | null;
+    | 'profile' | 'risk' | 'linkedin_invite' | 'voicemail' | 'roi_pitch' | 'competitor_battlecard'
+    | 'cadence_sequence' | null;
 
 const TOOLS = [
     { id: 'script_call', icon: Phone, title: 'Script de Ligação', desc: 'Cold call com abertura, diagnóstico, contorno e fechamento.' },
     { id: 'script_whatsapp', icon: MessageCircle, title: 'Mensagem (WhatsApp/LinkedIn)', desc: 'Duas variações prontas de Social Selling.' },
     { id: 'script_email', icon: Mail, title: 'Template de E-mail', desc: 'Cold e-mail com 2 opções de assunto testável.' },
+    { id: 'cadence_sequence', icon: Workflow, title: 'Fluxo de Cadência', desc: 'Sequência de 5 dias alternando e-mail, LinkedIn e ligação.' },
     { id: 'prompt', icon: Target, title: 'Prompts de Qualificação', desc: 'Perguntas BANT/SPIN com o que cada resposta revela.' },
     { id: 'objections', icon: AlertCircle, title: 'Matriz de Objeções', desc: 'As 3 objeções mais prováveis deste lead e como contornar.' },
     { id: 'followup', icon: Mail, title: 'E-mail de Follow-up', desc: 'Pós-reunião, focado em próximo passo com data.' },
