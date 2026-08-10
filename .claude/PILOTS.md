@@ -51,3 +51,67 @@ entrada nova.
   - `visual-qa/SKILL.md` — amplitude de QA por risco, classificação de warnings, e o protocolo
     formal para quando a suíte oficial não roda (este piloto é a referência conceitual do protocolo,
     não uma receita obrigatória pra toda tela).
+
+## Pilot 002 — Kanban/CrmBoard (execução das 7 etapas pendentes do CRM)
+
+- **Objetivo**: resolver, numa única sessão, as pendências reais mapeadas em pilotos anteriores do
+  CRM (`crm-kanban`, `CrmBoard.tsx`) — pendências funcionais de status/funil, RBAC, mobile, dívidas
+  de UX, performance e cobertura de teste — e calibrar a `.claude/` com os aprendizados reais.
+  Diferente do Piloto 001, esta rodada teve Postgres/Redis reais disponíveis (instalados no
+  ambiente da sessão, incluindo a extensão `pgvector`), permitindo rodar a suíte oficial completa
+  (`test:unit`, `test:integration`, `test:e2e`) de verdade, não só validação alternativa.
+- **Pendências funcionais resolvidas**: 7 estágios "Piloto" do funil Negócio (antes inalcançáveis
+  no dropdown do `LeadDetailDrawer` e no filtro de condição de automações — só existiam no enum e
+  no board) expostos corretamente, reusando `LEAD_STATUS` (`lib/zod.ts`) como única fonte em vez de
+  listas locais duplicadas e desatualizadas; toggle real "Leads/Negócios" adicionado ao header do
+  `CrmBoard` (antes o funil Negócio não tinha nenhuma rota/link/toggle alcançável); `closedAt`/
+  analytics alinhados para os 2 estágios "...Cancelado" (já tratados como `isLost:true` em
+  `crm360.service.ts`, mas não no caminho legado de update).
+- **Bug real descoberto só ao exercitar o sistema (não por leitura de código)**: `CrmPipeline`,
+  `CrmProduct`, `CrmDealItem` e `CrmCommercialDocument` estavam listados em `auditableModels`
+  (`src/lib/prisma.ts`) — o que faz a extensão global do Prisma injetar `deletedAt: null`
+  incondicionalmente em toda leitura — mas as migrations nunca criaram essas colunas nesses 4
+  modelos. Qualquer query nessas tabelas (incluindo `PUT /api/crm/records/:id/stage` e
+  `POST /api/crm/leads/:id/convert` — a ÚNICA ação do sistema `crm360` já alcançável pela UI antes
+  desta sessão) quebrava com `PrismaClientValidationError`. Nunca fora percebido porque nenhuma tela
+  real chamava esse caminho. Corrigido com uma migration real
+  (`20260809100000_crm360_soft_delete_columns`) adicionando as colunas que o código já assumia
+  existirem, em vez de remover os models de `auditableModels` (o que teria trocado silenciosamente
+  soft-delete por hard-delete em `deleteDealItem`). Encontrado ao escrever o novo teste de RBAC
+  ponta-a-ponta para essas rotas (`tests/integration/rbac-e2e-crm-operations.test.ts`), não por
+  inspeção de código.
+- **RBAC**: auditoria não encontrou nenhuma falha crítica — organizationId já vinha sempre de
+  `req.user`, roles já validados via `requireRole`, RLS real (`FORCE ROW LEVEL SECURITY`) como
+  camada extra. Correções foram hardening (não falhas exploráveis): `enrichCompany` passou a exigir
+  `organizationId`; padrão "check-then-update-sem-filtro" de Company/Contact/Activity alinhado ao
+  padrão mais defensivo já usado em `PrismaLeadRepository` (`where: {id, organizationId}` na própria
+  query de escrita).
+- **Performance**: medido de verdade (50/300/1000 leads, seed via Prisma, `PerformanceObserver`
+  para `longtask` durante um drag real) antes de decidir qualquer coisa. DOM cresce linearmente sem
+  virtualização (931 → 16.912 nós) e o custo do drag cresce de forma real com N (~560ms → ~2950ms de
+  long tasks). Decisão: **não implementar paginação/virtualização nesta sessão** — o backend já
+  devolve `meta.totalPages` pronto para paginação real, mas desenhar a UX de paginação por coluna do
+  Kanban é decisão de produto/design que esta etapa não deveria forçar sob pressão de prazo; ver
+  relato de entrega para o encaminhamento recomendado.
+- **Mobile**: sem WebKit instalado neste ambiente (só Chromium) — Android/Chrome testado de
+  verdade via emulação de dispositivo (Pixel 5, touch real via Pointer Events); iOS Safari e teclado
+  virtual real de SO permanecem `REQUER DEVICE REAL`, não fingidos. Nenhum bug reproduzido (scroll
+  horizontal não conflita com drag, hit targets ok, drawer funciona em 393px, touch-drag com
+  auto-scroll do dnd-kit funciona) — por isso nenhuma correção de código, só a suíte nova
+  (`tests/e2e/crm-kanban-mobile.spec.ts`).
+- **Testes**: suíte nova real cobrindo o que faltava (`tests/e2e/crm-kanban.spec.ts` — drag mouse
+  adjacente/vazio/rollback-500, drag teclado pickup/cancelar/múltiplas colunas, drawer;
+  `tests/e2e/crm-kanban-mobile.spec.ts`; `tests/integration/rbac-e2e-crm-operations.test.ts`),
+  integrada à infraestrutura real (`tests/e2e/helpers.ts`, `tests/helpers/rbac-e2e-helpers.ts`
+  extraído de `rbac-e2e.test.ts` para reuso, não duplicado).
+- **Aprendizados incorporados à constituição**:
+  - `accessibility/SKILL.md` — acessibilidade executável: `KeyboardSensor` presente no código não
+    provou drag acessível; só rodar o gesto revelou que `sortableKeyboardCoordinates` (opção nativa
+    do dnd-kit) falhava em board multi-coluna, e que o `coordinateGetter` fica preso numa closure
+    congelada no momento da ativação.
+  - `design-system/SKILL.md` — cor de marca, semântica de produto e identidade de terceiro são
+    eixos diferentes; bug real (`bg-neon-purple`, classe nunca definida) encontrado em
+    `DecisionMakerSearch.tsx`/`CandidateCard.tsx`.
+  - `visual-qa/SKILL.md` — harness/script de investigação temporário (usado para medir performance
+    e simular mobile) nunca vira teste oficial por cópia direta; só promovido depois de reescrito
+    contra a infra real e validado por execuções repetidas estáveis.

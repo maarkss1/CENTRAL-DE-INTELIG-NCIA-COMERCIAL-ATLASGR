@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Download, WifiOff } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
@@ -54,8 +55,15 @@ interface CrmBoardProps {
     embedded?: boolean;
 }
 
-export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
+export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps) {
     const { brandInfo } = useBrand();
+    // Funil vem da prop quando informada explicitamente (uso embutido/composição futura) ou da
+    // URL (?funnel=Negocio) na rota /app/crm — sem prop e sem query param, cai no padrão 'Lead'.
+    // Antes desta correção não existia nenhum jeito de o usuário alcançar o funil "Negocio" (com
+    // os 12 estágios de negócio, incluindo os 7 estágios "Piloto"): a prop nunca era passada pela
+    // única rota que monta este componente (src/App.tsx: <Route path="crm" element={<CrmBoard />} />).
+    const [searchParams, setSearchParams] = useSearchParams();
+    const funnel: 'Lead' | 'Negocio' = funnelProp ?? (searchParams.get('funnel') === 'Negocio' ? 'Negocio' : 'Lead');
     const columns = funnel === 'Lead' ? LEAD_COLUMNS : DEAL_COLUMNS;
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
@@ -240,6 +248,12 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
         setSelectedLeadId(lead.id);
     }, []);
 
+    const handleFunnelChange = useCallback((next: 'Lead' | 'Negocio') => {
+        if (funnelProp) return; // funil fixado por prop — toggle não se aplica
+        setSelectedLeadId(null); // evita abrir o drawer de um lead que já não está no funil visível
+        setSearchParams(next === 'Lead' ? {} : { funnel: next }, { replace: true });
+    }, [funnelProp, setSearchParams]);
+
     const handleCardEnrich = useCallback(async (leadId: string) => {
         try {
             await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
@@ -328,6 +342,32 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
                             ? 'Qualifique, nutra e converta os leads prontos para o pipeline de negócios.'
                             : `Gerencie propostas, pilotos e receita do ${brandInfo.name} em um funil separado.`}
                     </p>
+                    {/* Único jeito de alcançar o funil "Negocio" (12 estágios, incluindo os 7
+                        estágios "Piloto") — antes desta correção não havia rota, aba ou link para
+                        ele; o board só sabia renderizá-lo se recebesse a prop `funnel`, que nunca
+                        era passada por nenhuma tela real. bg-brand-active/text-white é o mesmo
+                        padrão já validado em AA (5.28:1 AtlasGR / 11.26:1 Total Trac) usado no
+                        toggle de PIC em LeadDetailDrawer.tsx. */}
+                    {!funnelProp && (
+                        <div className="inline-flex items-center gap-1 p-1 mt-3 bg-surface-2 rounded-xl border border-line" role="group" aria-label="Funil do pipeline">
+                            <button
+                                type="button"
+                                onClick={() => handleFunnelChange('Lead')}
+                                aria-pressed={funnel === 'Lead'}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${funnel === 'Lead' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'}`}
+                            >
+                                Leads
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleFunnelChange('Negocio')}
+                                aria-pressed={funnel === 'Negocio'}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${funnel === 'Negocio' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'}`}
+                            >
+                                Negócios
+                            </button>
+                        </div>
+                    )}
                 </div>
                 {/* Em 390px os dois botões, com o label completo, não cabiam lado a lado (medido:
                     "Exportar CSV" terminava em ~377px, 2px além do viewport de 375px) — ação

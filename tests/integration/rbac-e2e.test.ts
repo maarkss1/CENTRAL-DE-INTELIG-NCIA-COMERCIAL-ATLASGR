@@ -3,14 +3,13 @@ import request from 'supertest';
 import express, { type Express } from 'express';
 
 import { prisma } from '../../src/lib/prisma';
-import { requestContext } from '../../src/lib/async-context';
-import { auth } from '../../src/lib/auth';
 import { authenticateToken } from '../../src/shared/middlewares/authenticateToken';
 import { requireTenant } from '../../src/shared/middlewares/authorization';
 import { leadRoutes } from '../../src/features/crm/routes/lead.routes';
 import { errorHandler } from '../../src/shared/middlewares/errorHandler';
 import { setupDI } from '../../src/shared/di/setup';
 import { LeadFactory } from '../helpers/factories';
+import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from '../helpers/rbac-e2e-helpers';
 
 // TEST-006 (dívida técnica): RBAC ponta-a-ponta numa rota REAL.
 //
@@ -25,118 +24,9 @@ import { LeadFactory } from '../helpers/factories';
 //
 // Requer Postgres real via `.env.test` (ver tests/helpers/integration-setup.ts).
 
-// DEFAULT_TENANT_ID: mesmo valor que tests/helpers/integration-setup.ts usa no `beforeEach`
-// global (`requestContext.enterWith({ tenantId: 'test-org-id' })`). Usamos `enterWith` aqui (não
-// `requestContext.run`) de propósito: `.run()` abre um novo frame de AsyncLocalStorage para o
-// callback, e — verificado manualmente neste ambiente (Prisma 7 + @prisma/adapter-pg + o
-// `$transaction([setConfig, query])` de src/lib/prisma.ts) — a continuação assíncrona de uma
-// chamada Prisma real nem sempre "ficou" dentro desse frame novo depois de atravessar o driver;
-// o resultado prático era a query rodar com o `tenantId`/`bypassRls` ANTERIOR (o do `enterWith`
-// global do `beforeEach`), não o do `.run()`. `enterWith` chamado aqui, no mesmo frame que já
-// está ativo (o mesmo padrão que o `beforeEach` global e todos os outros testes de integração já
-// usam com sucesso), não tem esse problema. Sempre restauramos pro tenant padrão depois de cada
-// operação, pra não vazar pro resto do teste.
-const DEFAULT_TENANT_ID = 'test-org-id';
-
-async function withRlsBypass<T>(fn: () => Promise<T>): Promise<T> {
-  requestContext.enterWith({ bypassRls: true });
-  try {
-    return await fn();
-  } finally {
-    requestContext.enterWith({ tenantId: DEFAULT_TENANT_ID });
-  }
-}
-
-async function withTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
-  requestContext.enterWith({ tenantId });
-  try {
-    return await fn();
-  } finally {
-    requestContext.enterWith({ tenantId: DEFAULT_TENANT_ID });
-  }
-}
-
-const TEST_PASSWORD = 'RbacTestPassword123!';
-
-// Domínio @atlasgr.com.br: é o único jeito de passar por
-// `isAuthorizedLoginEmail` (src/config/access-policy.ts), checado tanto pelo
-// databaseHooks.user.create.before do better-auth (src/lib/auth.ts) quanto por
-// databaseHooks.session.create.before — um e-mail fora do domínio autorizado faz o
-// signUpEmail falhar com 403 antes mesmo de chegarmos à parte de RBAC que este teste cobre.
-function uniqueEmail(prefix: string): string {
-  const unique = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
-  return `rbac-${prefix}-${unique}@atlasgr.com.br`;
-}
-
-interface RealSessionUser {
-  userId: string;
-  organizationId: string;
-  /** Header `Cookie` pronto pra usar em supertest — cookie de sessão REAL, assinado pelo better-auth. */
-  cookie: string;
-}
-
-/**
- * Cria um usuário real via `auth.api.signUpEmail` (mesmo caminho que o formulário de cadastro
- * usa em produção — dispara os mesmos databaseHooks que criam a Organization e validam o
- * domínio do e-mail) e devolve o cookie de sessão REAL emitido pelo better-auth
- * (`setSessionCookie`, ver node_modules/better-auth/dist/cookies/index.mjs), extraído do
- * `Set-Cookie` devolvido via `returnHeaders: true` — nunca um valor fabricado à mão, que não
- * bateria com a assinatura HMAC que `auth.api.getSession()` valida.
- *
- * Usamos `returnHeaders: true` (não `asResponse: true`): com `asResponse`, better-call
- * constrói um `Response` de verdade (via `toResponse`/undici) e isso — verificado manualmente
- * neste ambiente — faz o `AsyncLocalStorage` de `requestContext` (src/lib/async-context.ts)
- * perder o `enterWith({ tenantId })` que o hook `databaseHooks.user.create.before`
- * (src/lib/auth.ts) depende para o INSERT de Organization passar pela RLS, e o signup falha com
- * "new row violates row-level security policy for table Organization". `returnHeaders: true`
- * devolve `{ response, headers }` sem passar por `toResponse`, preservando o contexto — e é
- * exatamente o mesmo objeto de headers que o `Set-Cookie` real carrega.
- *
- * O usuário nasce com o role padrão (`VISUALIZADOR`, ver additionalFields em src/lib/auth.ts);
- * quando o teste precisa de outro role, ele é promovido depois via update direto no Prisma,
- * dentro do tenant do próprio usuário (`withTenant`, sem precisar de bypass — o `organizationId`
- * já vem no `user` devolvido pelo signup) — só pra reduzir o setup, RBAC continua sendo decidido
- * em runtime pelo `requireRole` real a partir do role persistido no banco, não por nada fabricado
- * no teste.
- *
- * Importante: signup + a eventual promoção de role acontecem dentro do MESMO
- * `withRlsBypass` (um único bloco `enterWith` envolvendo os dois `await`s) — chamadas
- * separadas (um `withRlsBypass`/`withTenant` novo, depois de já ter dado `await` no primeiro)
- * não enxergaram de forma confiável a escrita que tinha acabado de acontecer nesta versão do
- * Prisma/adapter-pg (a query rodava, mas via RLS filtrava tudo — 0 linhas afetadas/encontradas
- * — mesmo com o contexto certo). Mantendo as duas escritas na mesma árvore de `AsyncLocalStorage`
- * evita esse problema; `userId`/`organizationId` continuam vindo da própria resposta do
- * signUpEmail, nunca de uma releitura à parte.
- */
-async function signUpRealUser(prefix: string, role: 'ADMIN' | 'GESTOR' | 'VENDEDOR' | 'VISUALIZADOR'): Promise<RealSessionUser> {
-  const email = uniqueEmail(prefix);
-
-  const { payload, headers } = await withRlsBypass(async () => {
-    const { response, headers } = await auth.api.signUpEmail({
-      body: { email, password: TEST_PASSWORD, name: `RBAC Test ${prefix}` },
-      returnHeaders: true,
-    }) as { response: { user: { id: string; organizationId: string; role: string } }; headers: Headers };
-
-    if (response.user.role !== role) {
-      await prisma.user.update({ where: { id: response.user.id }, data: { role } });
-    }
-
-    return { payload: response.user, headers };
-  });
-
-  const rawSetCookies: string[] = typeof headers.getSetCookie === 'function'
-    ? headers.getSetCookie()
-    : (headers.get('set-cookie') ? [headers.get('set-cookie') as string] : []);
-
-  if (rawSetCookies.length === 0) {
-    throw new Error(`signUpEmail não retornou Set-Cookie para ${email} — sem sessão real pra reaproveitar.`);
-  }
-
-  const cookie = rawSetCookies.map((raw) => raw.split(';')[0]).join('; ');
-  const { id: userId, organizationId } = payload;
-
-  return { userId, organizationId, cookie };
-}
+// withRlsBypass/withTenant/signUpRealUser: ver tests/helpers/rbac-e2e-helpers.ts (extraído deste
+// arquivo — mesmo comportamento, agora reutilizado por outros specs de RBAC ponta-a-ponta como
+// tests/integration/rbac-e2e-crm-operations.test.ts).
 
 function buildLeadsApp(): Express {
   const app = express();

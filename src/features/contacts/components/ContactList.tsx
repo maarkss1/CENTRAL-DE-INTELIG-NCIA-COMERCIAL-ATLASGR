@@ -82,8 +82,10 @@ export function ContactList() {
     try {
       await contactsDB.enrich(id);
       await refetch();
+      toast.success('Contato enriquecido com sucesso.');
     } catch (error) {
       clientLogger.error({ err: error }, 'Error enriching contact');
+      toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o contato.');
     } finally {
       setEnrichingId(null);
     }

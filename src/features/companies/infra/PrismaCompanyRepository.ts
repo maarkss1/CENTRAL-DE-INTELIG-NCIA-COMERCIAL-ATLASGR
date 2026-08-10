@@ -57,8 +57,12 @@ export class PrismaCompanyRepository implements CompanyRepository {
         const existing = await prisma.company.findFirst({ where: { id, organizationId } });
         if (!existing) throw new Error('Company not found');
 
+        // organizationId também no `where` do update em si (mesmo padrão de PrismaLeadRepository)
+        // — não corrige uma falha explorável hoje (o pré-check acima + RLS real já bloqueiam um
+        // tenant errado), mas deixa a query de escrita autocontida em vez de depender só do
+        // pré-check + RLS como únicas camadas.
         return prisma.company.update({
-            where: { id },
+            where: { id, organizationId },
             data: data as Prisma.CompanyUpdateInput
         });
     }
@@ -66,6 +70,6 @@ export class PrismaCompanyRepository implements CompanyRepository {
     async delete(organizationId: string, id: string): Promise<Company> {
         const existing = await prisma.company.findFirst({ where: { id, organizationId } });
         if (!existing) throw new Error('Company not found');
-        return prisma.company.delete({ where: { id } });
+        return prisma.company.delete({ where: { id, organizationId } });
     }
 }

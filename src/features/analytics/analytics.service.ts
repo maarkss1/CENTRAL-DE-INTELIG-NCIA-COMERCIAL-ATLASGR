@@ -1,3 +1,4 @@
+import type { LeadStatus as PrismaLeadStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import {
     fromPrismaLeadStatus,
@@ -16,9 +17,16 @@ export const FUNNEL_STAGES = [
     'Call_Visita_Agendada',
 ] as const;
 
-const WON = 'Negocios_Ganhos';
-const LOST = 'Negocios_Perdidos';
-const DESQUALIFICADO = 'Lead_Desqualificado';
+const WON: PrismaLeadStatus = 'Negocios_Ganhos';
+const LOST: PrismaLeadStatus = 'Negocios_Perdidos';
+const DESQUALIFICADO: PrismaLeadStatus = 'Lead_Desqualificado';
+// Os dois estágios "...Cancelado" dos pilotos comerciais (funil Negócio) — crm360.service.ts
+// (DEAL_STAGES) já os trata como isLost:true, mas este serviço (que lê Lead.status diretamente,
+// caminho legado) não os reconhecia como fechamento. Sem isso, um lead cancelado num piloto
+// contava como "pipeline ainda aberto" nestas métricas — inconsistente com o resto do produto.
+const PILOT_CANCELLED_STATUSES: PrismaLeadStatus[] = ['Piloto_Atlas_Profile_Cancelado', 'Piloto_Logistico_Cancelado'];
+/** Todo status que representa fechamento sem venda (perdido/desqualificado/piloto cancelado). */
+const CLOSED_LOST_STATUSES: PrismaLeadStatus[] = [LOST, DESQUALIFICADO, ...PILOT_CANCELLED_STATUSES];
 export interface OverviewMetrics {
     totalCompanies: number;
     totalContacts: number;
@@ -130,7 +138,7 @@ export class AnalyticsService {
         ] = await Promise.all([
             prisma.company.count({ where: scope }),
             prisma.contact.count({ where: scope }),
-            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, LOST, DESQUALIFICADO] } } }),
+            prisma.lead.count({ where: { ...scope, status: { notIn: [WON, ...CLOSED_LOST_STATUSES] } } }),
             prisma.lead.count({ where: scope }),
             prisma.activity.count({ where: scope }),
             prisma.activity.count({ where: { ...scope, status: 'Pendente' } }),
@@ -139,10 +147,10 @@ export class AnalyticsService {
             // closedAt (não updatedAt: esse é @updatedAt e sobe em QUALQUER update do lead — sync do
             // Bitrix, uma ligação do SDR de voz tocando só lastInteraction — não só em fechamento).
             prisma.lead.count({ where: { ...scope, status: WON, closedAt: { gte: monthStart } } }),
-            prisma.lead.count({ where: { ...scope, status: { in: [LOST, DESQUALIFICADO] }, closedAt: { gte: monthStart } } }),
+            prisma.lead.count({ where: { ...scope, status: { in: CLOSED_LOST_STATUSES }, closedAt: { gte: monthStart } } }),
             prisma.lead.count({ where: { ...scope, status: WON } }),
             prisma.lead.aggregate({
-                where: { ...scope, status: { notIn: [WON, LOST, DESQUALIFICADO] }, score: { not: null } },
+                where: { ...scope, status: { notIn: [WON, ...CLOSED_LOST_STATUSES] }, score: { not: null } },
                 _avg: { score: true },
             }),
         ]);
@@ -205,7 +213,7 @@ export class AnalyticsService {
                 select: { createdAt: true },
             }),
             prisma.lead.findMany({
-                where: { ...scope, status: { in: [WON, LOST, DESQUALIFICADO] }, closedAt: { gte: since } },
+                where: { ...scope, status: { in: [WON, ...CLOSED_LOST_STATUSES] }, closedAt: { gte: since } },
                 select: { closedAt: true, status: true },
             }),
         ]);

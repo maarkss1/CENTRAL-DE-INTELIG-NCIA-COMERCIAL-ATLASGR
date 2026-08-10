@@ -137,8 +137,10 @@ export class ActivityService {
         if (data.type) updateData.type = toPrismaActivityType(data.type) as unknown as Prisma.ActivityUpdateInput['type'];
         if (data.status) updateData.status = toPrismaActivityStatus(data.status) as unknown as Prisma.ActivityUpdateInput['status'];
 
+        // organizationId também no `where` do update em si (mesmo padrão de PrismaLeadRepository)
+        // — hardening, não corrige falha explorável (pré-check acima + RLS já bloqueiam).
         const activity = await prisma.activity.update({
-            where: { id },
+            where: { id, organizationId },
             data: updateData
         });
 
@@ -173,7 +175,7 @@ export class ActivityService {
     async delete(organizationId: string, id: string) {
         const existing = await prisma.activity.findFirst({ where: { id, organizationId } });
         if (!existing) throw new Error('Activity not found');
-        return prisma.activity.delete({ where: { id } });
+        return prisma.activity.delete({ where: { id, organizationId } });
     }
 }
 export const activityService = new ActivityService();
