@@ -35,6 +35,7 @@ export function ReportsHub() {
   const [monthly, setMonthly] = useState<MonthlyPoint[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [report, setReport] = useState<string | null>(null);
+  const [reportSavedAt, setReportSavedAt] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +50,16 @@ export function ReportsHub() {
       .dashboard(6)
       .then((data) => { if (!cancelled) setMonthly(data.monthly); })
       .catch(() => { if (!cancelled) setMonthly([]); });
+    // PC-008: antes desta correção o relatório só existia em estado local — sumia ao navegar ou
+    // recarregar. Carrega o último relatório salvo desta organização ao montar a tela, para o
+    // usuário não perder o que já foi gerado.
+    api.get<{ id: string; content: string; createdAt: string } | null>('/api/intelligence/report/latest')
+      .then((latest) => {
+        if (cancelled || !latest) return;
+        setReport(latest.content);
+        setReportSavedAt(latest.createdAt);
+      })
+      .catch(() => { /* melhor esforço — a tela continua útil sem o histórico */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -57,12 +68,13 @@ export function ReportsHub() {
     setGenerating(true);
     setError(null);
     try {
-      const { result } = await api.post<{ result: string }>(
+      const { result, createdAt } = await api.post<{ result: string; reportId: string; createdAt: string }>(
         '/api/intelligence/report',
         { metrics, brandId: activeBrand },
         { timeoutMs: 90_000 },
       );
       setReport(result);
+      setReportSavedAt(createdAt);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao gerar o relatório.');
     } finally {
@@ -129,7 +141,14 @@ export function ReportsHub() {
               <Loader2 size={18} className="animate-spin" /> A IA está lendo os dados e escrevendo o relatório…
             </div>
           ) : report ? (
-            <div>{renderReportMarkdown(report)}</div>
+            <div>
+              {reportSavedAt && (
+                <p className="text-[11px] text-ink-2 mb-3">
+                  Gerado em {new Date(reportSavedAt).toLocaleString('pt-BR')} — salvo, continua disponível ao recarregar a página.
+                </p>
+              )}
+              {renderReportMarkdown(report)}
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-10">
               <Sparkles className="w-8 h-8 text-brand/50 mb-3" />

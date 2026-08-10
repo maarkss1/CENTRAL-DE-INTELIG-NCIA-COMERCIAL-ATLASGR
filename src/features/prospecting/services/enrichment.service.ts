@@ -22,6 +22,7 @@
 // lógica. Se uma reescrita nesses moldes voltar a ser cogitada, trate como trabalho novo — não
 // há mais nada pra "migrar para consumir".
 import { prisma } from '../../../lib/prisma.js';
+import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import type { Prisma } from '@prisma/client';
 import { isValidCnpj, discoverCnpjByName } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
@@ -101,7 +102,7 @@ interface CompanyUpdateData {
  */
 export async function enrichCompany(organizationId: string, companyId: string, options: EnrichCompanyOptions = {}) {
     const company = await prisma.company.findFirst({ where: { id: companyId, organizationId } });
-    if (!company) throw new Error('Company not found');
+    if (!company) throw new AppError('Company not found', 404);
 
     await prisma.company.update({ where: { id: companyId }, data: { enrichmentStatus: 'Enriquecendo' } });
 

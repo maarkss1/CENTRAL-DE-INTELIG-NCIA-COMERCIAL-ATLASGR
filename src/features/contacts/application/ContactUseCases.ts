@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { contactSchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
+import { AppError } from '../../../shared/middlewares/errorHandler';
 
 export class ContactUseCases extends BaseUseCases<Contact, ContactRepository> {
     constructor(contactRepository: ContactRepository) {
@@ -32,8 +33,8 @@ export class ContactUseCases extends BaseUseCases<Contact, ContactRepository> {
 
     async enrichContact(organizationId: string, id: string) {
         const contact = await this.repository.findById!(organizationId, id);
-        if (!contact) throw new Error('Contact not found');
-        if (!contact.companyId) throw new Error('Contato sem empresa vinculada — não é possível enriquecer');
+        if (!contact) throw new AppError('Contact not found', 404);
+        if (!contact.companyId) throw new AppError('Contato sem empresa vinculada — não é possível enriquecer', 400);
 
         const result = await enrichCompany(organizationId, contact.companyId, {});
         const updated = await this.repository.findById!(organizationId, id);

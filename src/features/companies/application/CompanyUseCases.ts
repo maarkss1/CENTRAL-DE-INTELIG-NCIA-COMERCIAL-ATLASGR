@@ -4,6 +4,7 @@ import { companySchema } from '../../../lib/zod';
 import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { enrichmentQueue } from '../../../lib/queue/enrichment.queue';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
+import { AppError } from '../../../shared/middlewares/errorHandler';
 
 export class CompanyUseCases extends BaseUseCases<Company, CompanyRepository> {
     constructor(companyRepository: CompanyRepository) {
@@ -44,7 +45,7 @@ export class CompanyUseCases extends BaseUseCases<Company, CompanyRepository> {
 
     async enrichCompany(organizationId: string, id: string, data?: { cnpj?: string, segmentKeywords?: string[] }) {
         const company = await this.repository.findById!(organizationId, id);
-        if (!company) throw new Error('Company not found');
+        if (!company) throw new AppError('Company not found', 404);
 
         const result = await enrichCompany(organizationId, id, { cnpj: data?.cnpj, segmentKeywords: data?.segmentKeywords });
         return result;
