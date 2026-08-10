@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
@@ -36,6 +36,11 @@ interface LeadDetailDrawerProps {
 
 export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawerProps) {
     const { activeBrand, brandInfo } = useBrand();
+    const titleId = useId();
+    const statusSelectId = useId();
+    const ownerSelectId = useId();
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const previouslyFocusedRef = useRef<HTMLElement | null>(null);
     const [lead, setLead] = useState<Lead | null>(null);
     const [loading, setLoading] = useState(true);
     const [enriching, setEnriching] = useState(false);
@@ -94,6 +99,19 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [onClose]);
+
+    // Foco do diálogo modal — mesmo padrão já validado no ToolTechPopover: ao montar (abrir),
+    // guarda o elemento que tinha foco e move o foco pro botão Fechar; ao desmontar (fechar),
+    // devolve o foco pra ele, se ainda existir no DOM. O drawer só existe montado enquanto está
+    // aberto (CrmBoard renderiza condicionalmente por `selectedLeadId`), então mount/unmount aqui
+    // corresponde exatamente a abrir/fechar — sem precisar re-registrar nada a cada render.
+    useEffect(() => {
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+        closeButtonRef.current?.focus();
+        return () => {
+            previouslyFocusedRef.current?.focus?.();
+        };
+    }, []);
 
     const handleStatusChange = async (newStatus: string) => {
         try {
@@ -207,14 +225,22 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop */}
+            {/* Backdrop — clique fecha por conveniência de mouse/touch; o equivalente de teclado é
+                o Escape (handler acima). Mesmo padrão de dismiss por overlay não-focável endossado
+                pelas ARIA Authoring Practices pra diálogos, já usado em ToolTechPopover/CrmBoard. */}
+            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
             <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
 
             {/* Drawer */}
-            <div className="relative w-full max-w-xl h-full bg-surface shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                className="relative w-full max-w-xl h-full bg-surface shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+            >
                 <div className="p-5 border-b border-line flex items-start justify-between gap-4 shrink-0">
                     <div className="min-w-0">
-                        <h2 className="font-black text-xl text-atlas-dark truncate">
+                        <h2 id={titleId} className="font-black text-xl text-ink truncate">
                             🎯 {company?.tradeName || company?.legalName || 'Lead'}
                         </h2>
                         <p className="text-xs text-ink-2 mt-0.5 truncate">
@@ -222,7 +248,12 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             {lead?.createdAt && ` · criado em ${new Date(lead.createdAt).toLocaleDateString('pt-BR')}`}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors shrink-0">
+                    <button
+                        ref={closeButtonRef}
+                        onClick={onClose}
+                        aria-label="Fechar detalhes do lead"
+                        className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors shrink-0"
+                    >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -235,10 +266,12 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                     <div className="flex-1 overflow-y-auto p-5 space-y-6">
                         {/* Estágio + score */}
                         <div className="flex flex-wrap items-center gap-3">
+                            <label htmlFor={statusSelectId} className="sr-only">Estágio do lead</label>
                             <select
+                                id={statusSelectId}
                                 value={lead.status}
                                 onChange={(e) => handleStatusChange(e.target.value)}
-                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-brand"
+                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-ink outline-none focus:border-brand"
                             >
                                 {LEAD_STATUSES.map((s) => (
                                     <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>
@@ -261,13 +294,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                         {/* Responsável — realocar para outro vendedor/SDR */}
                         <div>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Responsável</h3>
+                            <h3 id={ownerSelectId} className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Responsável</h3>
                             <div className="flex items-center gap-2">
                                 <select
+                                    aria-labelledby={ownerSelectId}
                                     value={lead.owner || ''}
                                     onChange={(e) => handleReassignOwner(e.target.value)}
                                     disabled={savingOwner}
-                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-atlas-dark outline-none focus:border-brand disabled:opacity-50"
+                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-ink outline-none focus:border-brand disabled:opacity-50"
                                 >
                                     <option value="">Sem responsável</option>
                                     {owners.map((o) => (
@@ -305,7 +339,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <section>
                                 <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🏢 Empresa</h3>
                                 <div className="bg-surface-2/70 rounded-xl p-4 space-y-2 text-sm text-ink-2">
-                                    <p className="font-bold text-atlas-dark">{company.legalName}</p>
+                                    <p className="font-bold text-ink">{company.legalName}</p>
                                     {company.cnpj && <p className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-ink-2" /> {company.cnpj}</p>}
                                     {(company.city || company.state) && (
                                         <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-ink-2" /> {[company.city, company.state].filter(Boolean).join(', ')}</p>
@@ -353,7 +387,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             <section>
                                 <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Contato</h3>
                                 <div className="bg-surface-2/70 rounded-xl p-4 space-y-1.5 text-sm text-ink-2">
-                                    <p className="font-bold text-atlas-dark flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.name}</p>
+                                    <p className="font-bold text-ink flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.name}</p>
                                     {lead.contact.role && <p className="text-ink-2 pl-5">{lead.contact.role}</p>}
                                     {lead.contact.email && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.email}</p>}
                                     {lead.contact.phone && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.phone}</p>}
@@ -462,6 +496,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 <button
                                     onClick={handleAddNote}
                                     disabled={savingNote || !noteText.trim()}
+                                    aria-label="Adicionar nota"
                                     className="p-2.5 bg-atlas-dark text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
                                 >
                                     {savingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

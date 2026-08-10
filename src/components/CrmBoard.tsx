@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Download, WifiOff } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
@@ -12,16 +12,17 @@ import { Button } from './ui/Button';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
 import { clientLogger } from '../lib/clientLogger';
-import { 
-    DndContext, 
-    closestCenter, 
-    KeyboardSensor, 
-    PointerSensor, 
-    useSensor, 
-    useSensors, 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
     DragOverlay,
     DragStartEvent,
-    DragEndEvent
+    DragEndEvent,
+    Announcements
 } from '@dnd-kit/core';
 
 const LEAD_COLUMNS: LeadStatus[] = [
@@ -61,6 +62,62 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
     const [error, setError] = useState<string | null>(null);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
+    /** "Cursor" virtual do drag por teclado — avança/recua com ArrowRight/ArrowLeft, independente
+        de `leads`. Ver comentário do coordinateGetter abaixo pra explicação completa. */
+    const keyboardDragStatusRef = useRef<LeadStatus | null>(null);
+
+    // `sortableKeyboardCoordinates` (@dnd-kit/sortable) foi testado primeiro, por ser a opção
+    // nativa do dnd-kit — mas falhou em execução real neste board multi-coluna: sua busca por
+    // distância de canto (closestCorners) compara o card contra TODOS os droppables registrados
+    // (cada card individual E o droppable de cada coluna inteira via useDroppable em
+    // KanbanColumn), e o droppable da coluna, bem mais alto, tende a "ganhar" essa comparação
+    // antes de a seta conseguir avançar — ArrowRight repetido nunca saía da coluna vizinha mais
+    // próxima da origem.
+    //
+    // A primeira correção tentada usava um coordinateGetter próprio lendo `leads` (state) +
+    // um handleDragOver que reparentava o card otimisticamente no array `leads` a cada mudança de
+    // `over`, pra dar ao getter algo atualizado pra ler. Também falhou, por dois motivos
+    // confirmados em execução real: (1) o KeyboardSensor do dnd-kit congela a função
+    // coordinateGetter no momento em que o drag é ativado (Space) e reusa essa MESMA closure pro
+    // resto do gesto — fechar sobre `leads` direto sempre lia o valor de quando o drag começou,
+    // nunca o atualizado, nem trocando por uma ref sempre-atual resolvia sozinho; (2) reparentar o
+    // card de verdade em `leads` fazia o React desmontar/remontar o KanbanCard em outra
+    // <SortableContext> (coluna diferente = subárvore diferente, reconciliação por `key` não
+    // atravessa colunas), derrubando o foco real do DOM pro <body> no meio do drag — e esse
+    // remount, combinado com a remedição contínua de retângulos do dnd-kit
+    // (MeasuringStrategy.WhileDragging), também fazia a "coluna atual" pular sozinha sem nenhuma
+    // tecla ser pressionada.
+    //
+    // A solução abaixo evita os dois problemas não tocando em `leads` durante o drag: o
+    // coordinateGetter mantém seu próprio "cursor" (`keyboardDragStatusRef`), que ele mesmo lê E
+    // escreve a cada seta — autocontido, imune a re-render e a remontagem. `leads` só muda de
+    // verdade no drop (handleDragEnd), igual ao mouse já fazia antes desta rodada. O preview
+    // visual durante o drag continua vindo do <DragOverlay> (já existia antes desta rodada), que o
+    // dnd-kit já anima seguindo a posição virtual — não precisa de reparentação nenhuma pra isso.
+    const columnKeyboardCoordinateGetter = useCallback((event: KeyboardEvent, { context }: { context: { droppableRects: Map<string | number, { left: number; top: number; width: number; height: number }> } }) => {
+        if (event.code !== 'ArrowLeft' && event.code !== 'ArrowRight') return undefined;
+        const currentStatus = keyboardDragStatusRef.current;
+        if (!currentStatus) return undefined;
+
+        const currentIndex = columns.indexOf(currentStatus);
+        if (currentIndex === -1) return undefined;
+        const nextIndex = event.code === 'ArrowRight' ? currentIndex + 1 : currentIndex - 1;
+        const nextStatus = columns[nextIndex];
+        if (!nextStatus) return undefined; // já está na primeira/última coluna
+
+        const rect = context.droppableRects.get(nextStatus);
+        if (!rect) return undefined;
+
+        event.preventDefault();
+        keyboardDragStatusRef.current = nextStatus;
+        // Mira no CENTRO do retângulo da coluna, não perto do topo: closestCenter compara
+        // centro-a-centro contra TODOS os droppables (cada card E cada coluna inteira). Um ponto
+        // perto do topo fica geometricamente mais perto do centro de um card vizinho (retângulo
+        // pequeno) do que do centro da própria coluna (retângulo alto) — fazia o alvo "grudar" na
+        // coluna anterior por 1-2 teclas antes de reagir, ou pular coluna vazia. Mirando no centro
+        // real da coluna, ela sempre vence essa comparação pra ela mesma.
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }, [columns]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -68,7 +125,9 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
                 distance: 8,
             },
         }),
-        useSensor(KeyboardSensor)
+        useSensor(KeyboardSensor, {
+            coordinateGetter: columnKeyboardCoordinateGetter,
+        })
     );
 
     const fetchLeads = useCallback(async () => {
@@ -95,46 +154,87 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
         fetchLeads();
     }, [fetchLeads]);
 
+    /** Resolve a coluna de destino a partir do `over.id` do dnd-kit — pode ser o id da própria
+        coluna (drop numa coluna vazia) ou o id de um card dentro dela (drop entre dois cards). */
+    const resolveStatusFromOverId = useCallback((overId: string | number): LeadStatus | null => {
+        if (typeof overId === 'string' && columns.includes(overId as LeadStatus)) {
+            return overId as LeadStatus;
+        }
+        const overLead = leads.find(l => l.id === overId);
+        return overLead ? overLead.status : null;
+    }, [leads, columns]);
+
+    const leadLabel = useCallback((lead: Lead | null | undefined) => {
+        if (!lead) return 'Card';
+        return lead.company?.tradeName || lead.company?.legalName || lead.contact?.name || 'Lead sem empresa';
+    }, []);
+
     const handleDragStart = useCallback((event: DragStartEvent) => {
         const { active } = event;
         const lead = leads.find(l => l.id === active.id);
         if (lead) {
             setActiveLead(lead);
+            keyboardDragStatusRef.current = lead.status;
         }
     }, [leads]);
 
     const handleDragEnd = useCallback(async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveLead(null);
+        keyboardDragStatusRef.current = null;
 
         if (!over) return;
 
         const leadId = active.id;
-        let targetStatus: LeadStatus | null = null;
-
-        if (typeof over.id === 'string' && columns.includes(over.id as LeadStatus)) {
-            targetStatus = over.id as LeadStatus;
-        } else {
-            const overLead = leads.find(l => l.id === over.id);
-            if (overLead) {
-                targetStatus = overLead.status;
-            }
-        }
-
+        const targetStatus = resolveStatusFromOverId(over.id);
         if (!targetStatus) return;
 
         const currentLead = leads.find(l => l.id === leadId);
         if (currentLead && currentLead.status !== targetStatus) {
-            setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, status: targetStatus! } : lead));
+            setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, status: targetStatus } : lead));
 
             try {
                 await leadsDB.updateStatus(leadId as string, targetStatus);
             } catch (error) {
                 clientLogger.error({ err: error }, 'Error updating lead status');
+                toast.error(`Não foi possível mover ${leadLabel(currentLead)} — a alteração foi desfeita.`);
                 fetchLeads();
             }
         }
-    }, [leads, fetchLeads, columns]);
+    }, [leads, fetchLeads, resolveStatusFromOverId, leadLabel]);
+
+    const handleDragCancel = useCallback(() => {
+        setActiveLead(null);
+        keyboardDragStatusRef.current = null;
+    }, []);
+
+    // Announcements acessíveis do dnd-kit — o default ("Draggable item l2...") expõe o id
+    // interno do lead, que não diz nada pro usuário. Trocado por nome da empresa + coluna,
+    // sem introduzir dependência nova (accessibility.announcements é nativo do @dnd-kit/core).
+    const announcements: Announcements = useMemo(() => ({
+        onDragStart({ active }) {
+            const lead = leads.find(l => l.id === active.id);
+            return `${leadLabel(lead)} selecionado para mover, coluna atual ${lead?.status ?? ''}. Use as setas para escolher o destino, espaço para soltar, Esc para cancelar.`;
+        },
+        onDragOver({ active, over }) {
+            const lead = leads.find(l => l.id === active.id);
+            const status = over ? resolveStatusFromOverId(over.id) : null;
+            if (!status) return `${leadLabel(lead)} não está sobre nenhuma coluna.`;
+            return `${leadLabel(lead)} sobre a coluna ${status}.`;
+        },
+        onDragEnd({ active, over }) {
+            const lead = leads.find(l => l.id === active.id);
+            const status = over ? resolveStatusFromOverId(over.id) : null;
+            if (!status) return `Movimentação de ${leadLabel(lead)} cancelada.`;
+            return `${leadLabel(lead)} movido para ${status}.`;
+        },
+        onDragCancel({ active }) {
+            const lead = leads.find(l => l.id === active.id);
+            // `leads` nunca é tocado durante o drag (só no drop, em handleDragEnd), então
+            // lead.status aqui já é a coluna de origem, sem precisar de nenhuma ref à parte.
+            return `Movimentação de ${leadLabel(lead)} cancelada. O card permanece em ${lead?.status ?? ''}.`;
+        },
+    }), [leads, leadLabel, resolveStatusFromOverId]);
 
     const handleCardClick = useCallback((lead: Lead) => {
         setSelectedLeadId(lead.id);
@@ -286,6 +386,8 @@ export function CrmBoard({ funnel = 'Lead', embedded = false }: CrmBoardProps) {
                         collisionDetection={closestCenter}
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
+                        onDragCancel={handleDragCancel}
+                        accessibility={{ announcements }}
                     >
                         <div className="flex gap-6 h-full items-start">
                             {columns.map(status => (
