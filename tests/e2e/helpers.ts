@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { prisma } from '../../src/lib/prisma';
+import { requestContext } from '../../src/lib/async-context';
 
 // Sempre @atlasgr.com.br: só domínios autorizados (ver src/config/access-policy.ts) passam pela
 // checagem client-side E pelo databaseHooks.user.create.before do better-auth (src/lib/auth.ts).
@@ -45,4 +47,23 @@ export async function signUp(page: Page, { email, password = E2E_PASSWORD, name 
   // hang). 30s dá folga sem mascarar um hang de verdade (o timeout global do teste, abaixo, seria
   // estourado de qualquer forma nesse caso).
   await page.waitForURL('**/app*', { timeout: 30_000 });
+}
+
+/**
+ * Rebaixa/eleva o papel de um usuário já cadastrado, direto no banco de teste — usado só por
+ * specs de RBAC que precisam de um papel diferente de ADMIN (o público `signUp()` sempre cria um
+ * ADMIN, porque é sempre o primeiro usuário de uma Organization nova; não existe fluxo de
+ * signup público para GESTOR/VENDEDOR/VISUALIZADOR, esses papéis só existem via convite de um
+ * ADMIN — ver `src/features/team`). Mesmo padrão de bypass de RLS usado em
+ * `tests/helpers/rbac-e2e-helpers.ts` para os testes de integração equivalentes.
+ */
+export async function setUserRole(email: string, role: 'ADMIN' | 'GESTOR' | 'VENDEDOR' | 'VISUALIZADOR'): Promise<void> {
+  // `enterWith` (não `.run()`) de propósito — mesmo racional de `tests/helpers/rbac-e2e-helpers.ts`:
+  // `prisma.user.update(...)` devolve um `PrismaPromise` preguiçoso (só dispara a query real ao
+  // ser `await`ado), e o hook `$allOperations` da extensão (src/lib/prisma.ts) que lê
+  // `requestContext.getStore()` roda nesse momento posterior — depois que um `.run(store, cb)`
+  // síncrono já teria retornado. `enterWith` muta o contexto ambiente do resto da execução em vez
+  // de escopar a um callback, e por isso sobrevive até a query de fato disparar.
+  requestContext.enterWith({ bypassRls: true });
+  await prisma.user.update({ where: { email }, data: { role } });
 }
