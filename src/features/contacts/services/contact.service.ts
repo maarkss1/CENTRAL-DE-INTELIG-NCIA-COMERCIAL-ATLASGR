@@ -55,8 +55,10 @@ export class ContactService {
         const existing = await prisma.contact.findFirst({ where: { id, organizationId } });
         if (!existing) throw new Error('Contact not found');
 
+        // organizationId também no `where` do update em si (mesmo padrão de PrismaLeadRepository)
+        // — hardening, não corrige falha explorável (pré-check acima + RLS já bloqueiam).
         return prisma.contact.update({
-            where: { id },
+            where: { id, organizationId },
             data: updateData
         });
     }
@@ -64,7 +66,7 @@ export class ContactService {
     async delete(organizationId: string, id: string) {
         const existing = await prisma.contact.findFirst({ where: { id, organizationId } });
         if (!existing) throw new Error('Contact not found');
-        return prisma.contact.delete({ where: { id } });
+        return prisma.contact.delete({ where: { id, organizationId } });
     }
 
     /** Enriquece a empresa vinculada ao contato (Receita Federal + Google Negócios + Apollo) e retorna o contato atualizado. */
@@ -73,7 +75,7 @@ export class ContactService {
         if (!contact) throw new Error('Contact not found');
         if (!contact.companyId) throw new Error('Contato sem empresa vinculada — não é possível enriquecer');
 
-        const result = await enrichCompany(contact.companyId, {});
+        const result = await enrichCompany(organizationId, contact.companyId, {});
         const updated = await this.findById(organizationId, id);
 
         return { contact: updated, fit: result.fit, enrichment: result };

@@ -69,7 +69,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         if (!lead.companyId) throw new Error('Lead sem empresa vinculada — não é possível enriquecer');
 
         const company = lead.company as LeadCompanyRelation | undefined;
-        const result = await enrichCompany(lead.companyId, {
+        const result = await enrichCompany(organizationId, lead.companyId, {
             segmentKeywords: company?.segment ? [company.segment] : undefined,
             fleetSizeHint: company?.size || undefined,
         });

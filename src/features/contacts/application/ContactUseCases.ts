@@ -35,7 +35,7 @@ export class ContactUseCases extends BaseUseCases<Contact, ContactRepository> {
         if (!contact) throw new Error('Contact not found');
         if (!contact.companyId) throw new Error('Contato sem empresa vinculada — não é possível enriquecer');
 
-        const result = await enrichCompany(contact.companyId, {});
+        const result = await enrichCompany(organizationId, contact.companyId, {});
         const updated = await this.repository.findById!(organizationId, id);
 
         return { contact: updated, fit: result.fit, enrichment: result };

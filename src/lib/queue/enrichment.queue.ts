@@ -27,7 +27,7 @@ export function createEnrichmentWorker() {
             // manualmente para que o Prisma extension aplique o RLS e encontre a empresa.
             await requestContext.run({ tenantId: organizationId }, async () => {
                 try {
-                    await enrichCompany(companyId, { cnpj, segmentKeywords });
+                    await enrichCompany(organizationId, companyId, { cnpj, segmentKeywords });
                     logger.info({ companyId, organizationId }, 'Enrichment job completed successfully');
                 } catch (error) {
                     logger.error({ err: error, jobId: job.id, companyId }, 'Enrichment job failed');
