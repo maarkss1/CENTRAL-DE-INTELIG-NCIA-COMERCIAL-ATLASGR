@@ -65,6 +65,37 @@ export async function resolveEnumMaps(webhookUrl: string, entity: BitrixEntityKi
     return maps;
 }
 
+export interface BitrixFieldOption {
+    code: string;
+    label: string;
+}
+
+interface BitrixFieldMetaRaw {
+    title?: string;
+    listLabel?: string;
+    formLabel?: string;
+    filterLabel?: string;
+}
+
+/**
+ * Lista TODOS os campos existentes (fixos do sistema + UF_CRM_* personalizados) de Lead ou
+ * Negócio neste portal — usada pela tela de importação (BitrixImportPanel) para deixar a pessoa
+ * escolher, por nome, um campo personalizado para filtrar a busca (ex.: "Segmento", "Perfil de
+ * Risco") sem precisar saber o código UF_CRM_ de cor. Mesmo método (`crm.lead.fields`/
+ * `crm.deal.fields`) já usado por fetchEnumMaps acima, mas devolvendo o rótulo amigável de cada
+ * campo em vez de só os itens de enum dos campos do BITRIX_FIELD_MAP.
+ */
+export async function getEntityFields(webhookUrl: string, entity: BitrixEntityKind): Promise<BitrixFieldOption[]> {
+    const method = entity === 'lead' ? 'crm.lead.fields' : 'crm.deal.fields';
+    const data = await callBitrix<{ result: Record<string, BitrixFieldMetaRaw> }>(webhookUrl, method, {});
+    return Object.entries(data.result || {})
+        .map(([code, meta]) => ({
+            code,
+            label: meta.title || meta.listLabel || meta.formLabel || meta.filterLabel || code,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+}
+
 function formatBitrixDate(value: unknown): string | null {
     const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) return null;

@@ -119,6 +119,11 @@ export interface BitrixDealFilters {
     year?: number;
     /** Busca parcial pelo título (nome da empresa/negócio) — resolvida no servidor do Bitrix. */
     search?: string;
+    /** Filtro por valor exato de um campo qualquer (ex.: UF_CRM_1234567890) — código resolvido
+     * via getEntityFields, valor digitado livremente pela pessoa na tela. Os dois precisam vir
+     * juntos; um sem o outro é ignorado. */
+    customFieldCode?: string;
+    customFieldValue?: string;
 }
 
 /**
@@ -152,6 +157,7 @@ export async function listBitrixDeals(
     if (filters.stageId) filter.STAGE_ID = filters.stageId;
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
     if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
+    if (filters.customFieldCode && filters.customFieldValue?.trim()) filter[filters.customFieldCode] = filters.customFieldValue.trim();
     if (filters.month && filters.year) {
         const start_ = new Date(Date.UTC(filters.year, filters.month - 1, 1));
         const end_ = new Date(Date.UTC(filters.year, filters.month, 1));

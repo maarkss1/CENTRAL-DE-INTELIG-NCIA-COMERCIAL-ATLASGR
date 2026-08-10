@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Download, CheckCircle2, RefreshCw, Search, X, Filter, Tag, Users, CalendarDays, Info } from 'lucide-react';
+import { Loader2, Download, CheckCircle2, RefreshCw, Search, X, Filter, Tag, Users, CalendarDays, Info, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../../lib/api';
 
 interface BitrixLeadSummary {
@@ -38,6 +38,11 @@ interface BitrixDealStage {
 interface BitrixUserOption {
     id: string;
     name: string;
+}
+
+interface BitrixFieldOption {
+    code: string;
+    label: string;
 }
 
 const MONTHS = [
@@ -80,6 +85,19 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         return () => clearTimeout(timer);
     }, [search]);
 
+    // ── Filtro por campo personalizado (qualquer campo do Bitrix, incluindo UF_CRM_*) ──────────
+    // A lista de campos disponíveis vem direto do portal (crm.deal.fields/crm.lead.fields) — sem
+    // isso, filtrar por um campo customizado (ex.: "Segmento") exigiria saber o código UF_CRM_ de
+    // cor, algo que só quem já mexeu no admin do Bitrix teria.
+    const [fields, setFields] = useState<BitrixFieldOption[]>([]);
+    const [customFieldCode, setCustomFieldCode] = useState('');
+    const [customFieldValue, setCustomFieldValue] = useState('');
+    const [debouncedCustomFieldValue, setDebouncedCustomFieldValue] = useState('');
+    useEffect(() => {
+        const timer = setTimeout(() => setDebouncedCustomFieldValue(customFieldValue), 400);
+        return () => clearTimeout(timer);
+    }, [customFieldValue]);
+
     // ── Estado compartilhado ─────────────────────────────────────────────────────────────────
     const [start, setStart] = useState(0);
     const [next, setNext] = useState<number | null>(null);
@@ -105,6 +123,16 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         api.get<BitrixUserOption[]>(`/api/bitrix/users?connectionId=${connectionId}`).then(setUsers).catch(() => setUsers([]));
     }, [connectionId]);
 
+    // Lista de campos depende de qual entidade está selecionada (Negócio x Lead têm campos
+    // personalizados diferentes) — recarrega ao trocar de modo, e limpa a seleção de campo (um
+    // código UF_CRM_ de Negócio não existe no objeto Lead, e vice-versa).
+    useEffect(() => {
+        setCustomFieldCode('');
+        setCustomFieldValue('');
+        const entity = mode === 'deals' ? 'deal' : 'lead';
+        api.get<BitrixFieldOption[]>(`/api/bitrix/fields?connectionId=${connectionId}&entity=${entity}`).then(setFields).catch(() => setFields([]));
+    }, [connectionId, mode]);
+
     // Etapas dependem do pipeline escolhido — recarrega ao trocar, e limpa a etapa selecionada
     // (uma etapa de outro pipeline não existe mais no novo contexto).
     useEffect(() => {
@@ -124,6 +152,10 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             if (month) params.set('month', month);
             if (year) params.set('year', year);
             if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+            if (customFieldCode && debouncedCustomFieldValue.trim()) {
+                params.set('customFieldCode', customFieldCode);
+                params.set('customFieldValue', debouncedCustomFieldValue.trim());
+            }
             const data = await api.get<{ deals: BitrixDealSummary[]; next: number | null; total: number }>(`/api/bitrix/deals?${params}`);
             setDeals(data.deals);
             setNext(data.next);
@@ -142,6 +174,10 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         try {
             const params = new URLSearchParams({ start: String(from), connectionId });
             if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
+            if (customFieldCode && debouncedCustomFieldValue.trim()) {
+                params.set('customFieldCode', customFieldCode);
+                params.set('customFieldValue', debouncedCustomFieldValue.trim());
+            }
             const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?${params}`);
             setLeads(data.leads);
             setNext(data.next);
@@ -163,7 +199,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         setImportResult(null);
         load(0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [connectionId, mode, categoryId, stageId, assignedById, month, year, debouncedSearch]);
+    }, [connectionId, mode, categoryId, stageId, assignedById, month, year, debouncedSearch, customFieldCode, debouncedCustomFieldValue]);
 
     const toggle = (id: string) => {
         setSelected((prev) => {
@@ -299,6 +335,31 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                         <Info className="w-3 h-3 shrink-0" />
                         O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo &quot;user&quot; ao webhook para ver nomes.
                     </p>
+                )}
+
+                {fields.length > 0 && (
+                    <div className="flex flex-wrap items-end gap-3 pt-1 border-t border-gray-100 dark:border-white/10">
+                        <div className="flex flex-col gap-1">
+                            <label htmlFor="bitrix-import-custom-field" className={filterLabelClass}><SlidersHorizontal className="w-3 h-3" /> Campo personalizado</label>
+                            <select id="bitrix-import-custom-field" value={customFieldCode} onChange={(e) => setCustomFieldCode(e.target.value)} className={`${selectClass} min-w-[13rem]`}>
+                                <option value="">Nenhum (não filtrar)</option>
+                                {fields.map((f) => <option key={f.code} value={f.code}>{f.label}</option>)}
+                            </select>
+                        </div>
+                        {customFieldCode && (
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="bitrix-import-custom-field-value" className={filterLabelClass}>Valor exato a filtrar</label>
+                                <input
+                                    id="bitrix-import-custom-field-value"
+                                    type="text"
+                                    value={customFieldValue}
+                                    onChange={(e) => setCustomFieldValue(e.target.value)}
+                                    placeholder="Ex: Transportadora"
+                                    className="h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white px-3 min-w-[11rem] placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
+                                />
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
 
