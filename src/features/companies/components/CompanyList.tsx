@@ -70,8 +70,10 @@ export function CompanyList() {
         try {
             await companiesDB.enrich(id);
             await refetch();
+            toast.success('Empresa enriquecida com sucesso.');
         } catch (error) {
             clientLogger.error({ err: error }, 'Error enriching company');
+            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer a empresa.');
         } finally {
             setEnrichingId(null);
         }
@@ -117,7 +119,11 @@ export function CompanyList() {
             const parts = [`${succeeded} enriquecida${succeeded === 1 ? '' : 's'}`];
             if (failed > 0) parts.push(`${failed} falhou/falharam`);
             if (skipped > 0) parts.push(`${skipped} sem CNPJ (ignorada${skipped === 1 ? '' : 's'})`);
-            alert(parts.join(', ') + '.');
+            const message = parts.join(', ') + '.';
+            // alert() nativo trocado pelo sistema de toast já usado no restante deste arquivo
+            // (ex.: handleDelete) — bloqueante, sem estilo e inacessível em mobile/Capacitor.
+            if (failed > 0) toast.error(message);
+            else toast.success(message);
         } finally {
             setIsBulkProcessing(false);
             setSelectedIds(new Set());
