@@ -40,7 +40,16 @@
 | `npm run test:integration`/`test:e2e` | Bloqueado (ENV-001) | Bloqueado (ENV-001) — inalterado, limitação de ambiente |
 | Bugs reais corrigidos nesta sessão | — | 3 (PC-001 performance, PC-005/PC-010 error-resilience×6 pontos, PC-008 persistência) |
 | Itens verificados e fechados sem mudança de código | — | 1 (PC-002) |
-| Itens novos registrados para decisão do usuário | — | 2 (PC-011 KnowledgeDocument, mais o PC-BX-DECISION já existente) |
+| Itens novos registrados para decisão do usuário | — | 1 (PC-BX-DECISION, ainda em aberto) |
+
+> **Adendo 3**: usuário autorizou explicitamente a remoção do model `KnowledgeDocument` (PC-011).
+> Implementado: `prisma/schema.prisma` (model removido) +
+> `prisma/migrations/20260810130000_remove_knowledge_document/migration.sql` (`DROP TABLE`).
+> Validado (`prisma validate`, `prisma generate`, `tsc -b --noEmit` 0 erros, `lint` 0 erros/153
+> warnings, `build` OK, `test:unit` 523/523) — mas, como as demais migrations desta sessão, **nunca
+> aplicada contra Postgres real** (PC-012/ENV-001). `PC-BX-DECISION` (Bitrix field map) segue sem
+> decisão do usuário — não é bloqueio técnico, já está implementado, só falta confirmação humana
+> contra o portal Bitrix real.
 
 ---
 

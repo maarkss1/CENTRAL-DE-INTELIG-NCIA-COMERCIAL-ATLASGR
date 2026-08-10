@@ -9,15 +9,6 @@ datasource db {
   extensions = [vector]
 }
 
-model KnowledgeDocument {
-  id        String                      @id @default(uuid())
-  title     String
-  content   String                      @db.Text
-  embedding Unsupported("vector(768)")?
-  createdAt DateTime                    @default(now())
-  updatedAt DateTime                    @updatedAt
-}
-
 enum CompanyStatus {
   Ativo
   Inativo
