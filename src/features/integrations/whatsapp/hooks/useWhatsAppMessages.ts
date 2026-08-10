@@ -29,12 +29,22 @@ export function useWhatsAppMessages(phone: string | null, connected: boolean) {
         }
 
         let cancelled = false;
+        let firstLoad = true;
         const loadMessages = async () => {
             try {
                 const data = await api.get<WhatsAppMessageDto[]>(`/api/whatsapp/messages?phone=${encodeURIComponent(phone)}`);
-                if (!cancelled) setMessages([...data].reverse());
-            } catch {
-                // Falha silenciosa no polling — não interrompe a conversa já carregada.
+                if (cancelled) return;
+                setMessages([...data].reverse());
+                setError(null);
+            } catch (err) {
+                // Só reporta erro na carga inicial — uma falha de poll em segundo plano não deve
+                // apagar/interromper a conversa já carregada com sucesso antes. Sem isso, uma falha
+                // real na primeira carga (401/500) parece silenciosamente "conversa vazia".
+                if (!cancelled && firstLoad) {
+                    setError(err instanceof Error ? err.message : 'Não foi possível carregar as mensagens.');
+                }
+            } finally {
+                firstLoad = false;
             }
         };
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Loader2, MessageCircle, Send } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Loader2, MessageCircle, Send } from 'lucide-react';
 import { useWhatsAppConversations, type WhatsAppConversationDto } from '../hooks/useWhatsAppConversations';
 import { useWhatsAppMessages } from '../hooks/useWhatsAppMessages';
 
@@ -91,12 +91,18 @@ function ChatArea({ conversation, onBack }: { conversation: WhatsAppConversation
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2 min-h-0">
-                {loading && messages.length === 0 && (
+                {loading && messages.length === 0 && !error && (
                     <div className="h-full flex items-center justify-center text-ink-2 gap-2 text-sm">
                         <Loader2 className="animate-spin" size={16} /> Carregando conversa...
                     </div>
                 )}
-                {!loading && messages.length === 0 && (
+                {!loading && error && messages.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center text-center gap-2 px-4">
+                        <AlertTriangle className="text-amber-500" size={24} />
+                        <p className="text-xs text-ink-2">{error}</p>
+                    </div>
+                )}
+                {!loading && !error && messages.length === 0 && (
                     <p className="text-center text-xs text-ink-2 mt-8">Nenhuma mensagem ainda. Envie a primeira abaixo.</p>
                 )}
                 {messages.map((msg) => (
@@ -145,7 +151,7 @@ function ChatArea({ conversation, onBack }: { conversation: WhatsAppConversation
  * o QR Code (ver seção "Conectar" da tela).
  */
 export function WhatsAppWebPanel({ connected }: { connected: boolean }) {
-    const { conversations, loading } = useWhatsAppConversations(connected);
+    const { conversations, loading, error } = useWhatsAppConversations(connected);
     const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
 
     // Se a conversa selecionada some da lista (improvável, mas evita ficar preso numa seleção
@@ -173,15 +179,25 @@ export function WhatsAppWebPanel({ connected }: { connected: boolean }) {
                     <h3 className="text-sm font-bold text-ink">Conversas</h3>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {loading && conversations.length === 0 && (
+                    {loading && conversations.length === 0 && !error && (
                         <div className="h-full flex items-center justify-center text-ink-2 gap-2 text-sm">
                             <Loader2 className="animate-spin" size={16} /> Carregando conversas...
                         </div>
                     )}
-                    {!loading && conversations.length === 0 && (
+                    {!loading && error && conversations.length === 0 && (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-2">
+                            <AlertTriangle className="text-amber-500" size={28} />
+                            <p className="text-sm text-ink-2">Não foi possível carregar as conversas agora.</p>
+                            <p className="text-xs text-ink-2">{error}</p>
+                        </div>
+                    )}
+                    {!loading && !error && conversations.length === 0 && (
                         <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-2">
                             <MessageCircle className="text-ink-2" size={28} />
-                            <p className="text-sm text-ink-2">Nenhuma conversa ainda. Mensagens recebidas ou enviadas pelo WhatsApp da organização aparecem aqui.</p>
+                            <p className="text-sm text-ink-2">Nenhuma conversa ainda.</p>
+                            <p className="text-xs text-ink-2">
+                                O histórico do celular não é importado automaticamente — as conversas aparecem aqui a partir da próxima mensagem enviada ou recebida pelo WhatsApp da organização.
+                            </p>
                         </div>
                     )}
                     {conversations.map((conv) => (
