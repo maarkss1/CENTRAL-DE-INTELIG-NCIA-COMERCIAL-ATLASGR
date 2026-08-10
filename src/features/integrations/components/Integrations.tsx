@@ -150,14 +150,24 @@ export function Integrations() {
                             </div>
 
                             {status === 'disconnected' && (
-                                <button
-                                    onClick={handleConnect}
-                                    disabled={loading || !canManage}
-                                    title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                                    className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
-                                </button>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={handleConnect}
+                                        disabled={loading || !canManage}
+                                        title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
+                                    </button>
+                                    {/* Servidor no plano free do Render (ver render.yaml) — hiberna sozinho após
+                                        alguns minutos sem uso e perde a sessão do WhatsApp junto (não há disco
+                                        persistente pra sobreviver ao ciclo de hibernação). Sem este aviso, "estava
+                                        conectado ontem e hoje pede QR de novo" parece bug em vez de comportamento
+                                        esperado do plano atual. */}
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                                        Se já conectou antes e caiu sozinho, é o servidor gratuito hibernando por inatividade — basta escanear o QR de novo.
+                                    </p>
+                                </div>
                             )}
 
                             {status === 'connecting' && qrCode && (
