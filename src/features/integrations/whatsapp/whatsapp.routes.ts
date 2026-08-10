@@ -1,12 +1,25 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } from './whatsapp.service.js';
+import { listConversations } from './whatsappMessage.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
+
+// Lista de conversas (uma por número, mensagem mais recente primeiro) — alimenta o painel
+// "WhatsApp Web" embutido na tela de Integrações.
+router.get('/conversations', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const conversations = await listConversations(organizationId);
+        res.json({ success: true, data: conversations });
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Histórico de mensagens persistidas — de um lead específico, de um telefone específico (útil para
 // candidatos de prospecção ainda não promovidos a Lead), ou as mais recentes de toda a organização
