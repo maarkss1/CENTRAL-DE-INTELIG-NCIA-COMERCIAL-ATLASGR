@@ -9,6 +9,7 @@ import { PrismaCompanyRepository } from '../../features/companies/infra/PrismaCo
 import { PrismaLeadRepository } from '../../features/crm/infra/PrismaLeadRepository';
 import { PrismaAutomationRepository } from '../../features/automations/infra/PrismaAutomationRepository';
 import { PrismaAnalyticsRepository } from '../../features/analytics/infra/PrismaAnalyticsRepository';
+import { PrismaCommercialIntelligenceRepository } from '../../features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -18,6 +19,7 @@ import { CompanyUseCases } from '../../features/companies/application/CompanyUse
 import { LeadUseCases } from '../../features/crm/application/LeadUseCases';
 import { AutomationUseCases } from '../../features/automations/application/AutomationUseCases';
 import { AnalyticsUseCases } from '../../features/analytics/application/AnalyticsUseCases';
+import { CommercialIntelligenceUseCases } from '../../features/commercial-intelligence/application/CommercialIntelligenceUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -27,6 +29,7 @@ import { CompanyController } from '../../features/companies/presentation/Company
 import { LeadController } from '../../features/crm/presentation/LeadController';
 import { AutomationController } from '../../features/automations/presentation/AutomationController';
 import { AnalyticsController } from '../../features/analytics/presentation/AnalyticsController';
+import { CommercialIntelligenceController } from '../../features/commercial-intelligence/presentation/CommercialIntelligenceController';
 
 export function setupDI() {
     // 1. Shared
@@ -41,6 +44,7 @@ export function setupDI() {
     const leadRepository = new PrismaLeadRepository();
     const automationRepository = new PrismaAutomationRepository();
     const analyticsRepository = new PrismaAnalyticsRepository();
+    const commercialIntelligenceRepository = new PrismaCommercialIntelligenceRepository();
 
     container.register('NoteRepository', noteRepository);
     container.register('ActivityRepository', activityRepository);
@@ -49,6 +53,7 @@ export function setupDI() {
     container.register('LeadRepository', leadRepository);
     container.register('AutomationRepository', automationRepository);
     container.register('AnalyticsRepository', analyticsRepository);
+    container.register('CommercialIntelligenceRepository', commercialIntelligenceRepository);
 
     // 3. Use Cases
     const noteUseCases = new NoteUseCases(noteRepository);
@@ -58,6 +63,7 @@ export function setupDI() {
     const leadUseCases = new LeadUseCases(leadRepository);
     const automationUseCases = new AutomationUseCases(automationRepository);
     const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
+    const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(commercialIntelligenceRepository);
 
     container.register('NoteUseCases', noteUseCases);
     container.register('ActivityUseCases', activityUseCases);
@@ -66,6 +72,7 @@ export function setupDI() {
     container.register('LeadUseCases', leadUseCases);
     container.register('AutomationUseCases', automationUseCases);
     container.register('AnalyticsUseCases', analyticsUseCases);
+    container.register('CommercialIntelligenceUseCases', commercialIntelligenceUseCases);
 
     // 4. Controllers
     container.register('NoteController', new NoteController(noteUseCases));
@@ -75,4 +82,5 @@ export function setupDI() {
     container.register('LeadController', new LeadController(leadUseCases));
     container.register('AutomationController', new AutomationController(automationUseCases));
     container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
+    container.register('CommercialIntelligenceController', new CommercialIntelligenceController(commercialIntelligenceUseCases));
 }
