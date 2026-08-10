@@ -102,6 +102,16 @@ function formatBitrixDate(value: unknown): string | null {
     return date.toISOString().slice(0, 10);
 }
 
+// Contraparte de formatBitrixDate para o sentido de entrada: os alvos `kind: 'lead'` de campos
+// `type: 'date'` (resumeDate, contractSignedDate) são colunas Prisma DateTime? — precisam de um
+// objeto Date de verdade, não da string "YYYY-MM-DD" truncada que formatBitrixDate produz para o
+// payload de saída (Bitrix aceita data pura, mas o engine do Prisma rejeita DateTime sem
+// componente de hora com "premature end of input. Expected ISO-8601 DateTime").
+function parseInboundBitrixDate(value: unknown): Date | null {
+    const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
 function getByTarget(source: { lead: Record<string, unknown>; qualification: Record<string, unknown>; contact: Record<string, unknown> }, target: BitrixFieldMapping['target']): unknown {
     if (target.kind === 'qualification') return source.qualification[target.field];
     if (target.kind === 'contact') return source.contact[target.field];
@@ -214,7 +224,7 @@ export function applyInboundCustomFields(
             if (!Number.isFinite(n)) continue;
             value = n;
         } else if (mapping.type === 'date') {
-            value = formatBitrixDate(rawValue);
+            value = parseInboundBitrixDate(rawValue);
             if (!value) continue;
         } else if (mapping.type === 'enumeration' || mapping.type === 'boolean_sim_nao') {
             // Bitrix devolve o ID como string (ou array de 1 item, em alguns campos multi-select

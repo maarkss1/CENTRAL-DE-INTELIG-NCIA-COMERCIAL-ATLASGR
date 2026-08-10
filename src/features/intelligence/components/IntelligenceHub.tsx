@@ -46,7 +46,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
 
     if (activeTab === null) {
         return (
-            <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto bg-transparent p-6 md:p-8 space-y-6">
                 <header>
                     <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hub de IA</h1>
                     <p className="text-sm text-ink-2 mt-1">Escolha a ferramenta de IA que você quer usar.</p>
@@ -57,7 +57,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
                     variants={staggerContainer()}
                     initial="hidden"
                     animate="show"
-                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"
                 >
                     {TOOL_TABS.map((tab) => {
                         const Icon = tab.icon;
@@ -74,15 +74,15 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
                             >
                                 <Card
                                     variant="default"
-                                    padding="lg"
+                                    padding="sm"
                                     className={`h-full transition-all duration-300 ${accent.hoverBorder} group-hover:bg-surface-2 group-focus-visible:bg-surface-2 group-hover:shadow-lg group-focus-visible:shadow-lg`}
                                 >
-                                    <div className={`w-11 h-11 rounded-2xl ${accent.bgSoft} flex items-center justify-center ${accent.text} shrink-0 mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-focus-visible:scale-110`}>
-                                        <Icon size={20} />
+                                    <div className={`w-9 h-9 rounded-xl ${accent.bgSoft} flex items-center justify-center ${accent.text} shrink-0 mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 group-focus-visible:scale-110`}>
+                                        <Icon size={16} />
                                     </div>
-                                    <CardTitle className={accent.text}>{tab.label}</CardTitle>
-                                    <CardDescription className="mt-1.5">{tab.description}</CardDescription>
-                                    <span className={`mt-4 inline-flex items-center gap-1 text-xs font-bold ${accent.text} opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-300 group-hover:translate-x-0.5`}>
+                                    <CardTitle className={`${accent.text} text-sm`}>{tab.label}</CardTitle>
+                                    <CardDescription className="mt-1 text-xs leading-snug line-clamp-2">{tab.description}</CardDescription>
+                                    <span className={`mt-3 inline-flex items-center gap-1 text-xs font-bold ${accent.text} opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-all duration-300 group-hover:translate-x-0.5`}>
                                         Abrir <ArrowRight className="w-3.5 h-3.5" />
                                     </span>
                                 </Card>
@@ -95,7 +95,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto bg-transparent p-6 md:p-8 space-y-6">
             <button
                 type="button"
                 onClick={() => setActiveTab(null)}
