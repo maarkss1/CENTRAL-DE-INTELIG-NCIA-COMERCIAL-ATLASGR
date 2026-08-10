@@ -176,6 +176,15 @@ export interface Lead {
     partnerBroker?: string | null;
     qualificationValidatedByAM?: boolean | null;
 
+    // Vínculo e status de sincronização com o Bitrix24 (ver bitrix.service.ts)
+    bitrixLeadId?: string | null;
+    bitrixDealId?: string | null;
+    bitrixStageLabel?: string | null;
+    /** 'pending' | 'syncing' | 'synced' | 'failed' — null antes da primeira tentativa de export. */
+    bitrixSyncStatus?: string | null;
+    bitrixSyncError?: string | null;
+    bitrixSyncedAt?: string | null;
+
     companyId?: string | null;
     company?: Company | null;
     contactId?: string | null;

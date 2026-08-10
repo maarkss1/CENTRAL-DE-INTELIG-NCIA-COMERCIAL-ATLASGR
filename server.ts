@@ -33,6 +33,7 @@ import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthV
 import { birthVoiceWebhookRoutes } from './src/features/integrations/birth-voice/birthVoice.webhook.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { bitrixRoutes } from './src/features/integrations/bitrix/bitrix.routes.js';
+import { bitrixWebhookRoutes } from './src/features/integrations/bitrix/bitrix.webhook.js';
 import { teamRoutes } from './src/features/team/routes/team.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
@@ -218,6 +219,11 @@ async function startServer() {
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
     app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
+    // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
+    // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
+    // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
+    // bitrix.webhook.ts). Parser próprio (urlencoded, não json) porque o Bitrix envia form-encoded.
+    app.use('/api/integrations/bitrix', bitrixWebhookRoutes);
 
     app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
     // CORREÇÃO: JSON_BODY_LIMIT definida em env.ts (default '2mb') mas o valor

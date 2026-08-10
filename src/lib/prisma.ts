@@ -17,7 +17,7 @@ const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 // valor persistido no Postgres é cifrado).
 const ENCRYPTED_FIELDS: Record<string, readonly string[]> = {
   GoogleWorkspaceConnection: ['accessToken', 'refreshToken'],
-  BitrixConnection: ['webhookUrl'],
+  BitrixConnection: ['webhookUrl', 'webhookSecret'],
 };
 
 function encryptSensitiveFields(model: string, data: Record<string, unknown>): Record<string, unknown> {
@@ -91,7 +91,15 @@ export const prisma = basePrisma.$extends({
         // manipulam múltiplos tenants fora de qualquer request HTTP, e essa camada nunca é exposta
         // a usuário real fora de produção.
         const rawBypassRls = Boolean((store as Record<string, unknown>)?.bypassRls);
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification'];
+        // BitrixConnection entrou nesta allowlist só para o lookup de bootstrap do webhook de
+        // entrada do Bitrix (ver bitrix.webhook.ts): a rota recebe apenas um connectionId (cuid,
+        // não adivinhável) na URL e um segredo no corpo, sem JWT — não há tenant conhecido até
+        // achar a conexão. O mesmo modelo de confiança das tabelas de identidade abaixo (um
+        // token/id opaco É a credencial, não o "estar logado"). O bypass aqui só cobre esta ÚNICA
+        // query (findUnique por id); toda leitura/escrita seguinte roda dentro de
+        // requestContext.run({ tenantId: connection.organizationId }) com RLS normal, igual ao
+        // padrão já usado pelo lookup de Organization em runBitrixSyncTick (syncRules.ts).
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

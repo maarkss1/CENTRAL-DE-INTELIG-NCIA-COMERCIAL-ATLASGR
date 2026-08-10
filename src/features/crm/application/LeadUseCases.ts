@@ -197,14 +197,21 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         return [headers.map(escape).join(';'), ...rows].join('\n');
     }
 
-    async exportLeadToBitrix(organizationId: string, leadId: string | undefined) {
+    async exportLeadToBitrix(
+        organizationId: string,
+        leadId: string | undefined,
+        options?: { connectionId?: string; statusId?: string; assignedById?: string },
+    ) {
         const { exportLeadToBitrixNow } = await import('../../integrations/bitrix/bitrix.service.js');
-        return exportLeadToBitrixNow(organizationId, leadId);
+        return exportLeadToBitrixNow(organizationId, leadId, options?.connectionId, {
+            statusId: options?.statusId,
+            assignedById: options?.assignedById,
+        });
     }
 
     async importRecentBitrixLeads(organizationId: string) {
         const { prisma } = await import('../../../lib/prisma.js');
-        const { listBitrixLeads, importSelectedBitrixLeads, connectBitrix } = await import('../../integrations/bitrix/bitrix.service.js');
+        const { findUnimportedBitrixLeadIds, importSelectedBitrixLeads, connectBitrix } = await import('../../integrations/bitrix/bitrix.service.js');
 
         let connection = await prisma.bitrixConnection.findFirst({
             where: { organizationId },
@@ -220,13 +227,17 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             throw new Error('Nenhuma conexão Bitrix24 configurada.');
         }
 
-        const { leads } = await listBitrixLeads(organizationId, connection.id, 0);
-        const unimportedIds = leads.filter(l => !l.alreadyImported).map(l => l.id).slice(0, 25);
-        
+        // findUnimportedBitrixLeadIds pagina de verdade (segue o cursor `next` do Bitrix) em vez
+        // de olhar só a primeira página — antes desta correção, se os ~50 primeiros leads da
+        // primeira página já estivessem todos importados, este botão nunca alcançava nenhum lead
+        // além deles, para sempre (mesmo achado P0-2 do worker automático, ver syncRules.ts).
+        const { ids: unimportedIds, pagesExhausted } = await findUnimportedBitrixLeadIds(organizationId, connection.id, 25);
+
         if (unimportedIds.length === 0) {
-            return { imported: 0, skipped: 0 };
+            return { imported: 0, skipped: 0, pagesExhausted };
         }
 
-        return await importSelectedBitrixLeads(organizationId, connection.id, unimportedIds);
+        const result = await importSelectedBitrixLeads(organizationId, connection.id, unimportedIds);
+        return { ...result, pagesExhausted };
     }
 }

@@ -1,9 +1,14 @@
 import { prisma } from '../../../../lib/prisma.js';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, Prisma } from '@prisma/client';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
+import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getStatusLabels, getConnectionWebhookUrl } from './client.js';
+import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
+import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
 import type { BitrixDealStage } from './deals.js';
+
+const LEAD_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.leadCode).filter((c): c is string => Boolean(c));
 
 // ── Sincronização bidirecional ──────────────────────────────────────────────────────────────
 //
@@ -27,6 +32,9 @@ interface BitrixLeadRaw {
     SOURCE_ID?: string;
     DATE_CREATE?: string;
     COMMENTS?: string;
+    // Índice aberto para os UF_CRM_* de BITRIX_FIELD_MAP — pedidos explicitamente no `select` de
+    // listBitrixLeads/crm.lead.get e lidos por applyInboundCustomFields (service/customFields.ts).
+    [ufCrmCode: string]: unknown;
 }
 
 export interface BitrixLeadSummary {
@@ -78,7 +86,10 @@ export async function listBitrixLeads(
     const [data, labels, imported] = await Promise.all([
         callBitrix<{ result: BitrixLeadRaw[]; next?: number; total: number }>(webhookUrl, 'crm.lead.list', {
             filter,
-            select: ['ID', 'TITLE', 'NAME', 'LAST_NAME', 'COMPANY_TITLE', 'PHONE', 'EMAIL', 'STATUS_ID', 'SOURCE_ID', 'DATE_CREATE'],
+            // UF_CRM_* incluídos aqui (não só em crm.lead.get) para que a importação em massa via
+            // regra automática (runSyncRule) também traga os campos de qualificação — sem isso a
+            // paginação corrigida em runSyncRule ainda importaria leads "vazios" de qualificação.
+            select: ['ID', 'TITLE', 'NAME', 'LAST_NAME', 'COMPANY_TITLE', 'PHONE', 'EMAIL', 'STATUS_ID', 'SOURCE_ID', 'DATE_CREATE', ...LEAD_UF_CRM_CODES],
             order: { DATE_CREATE: 'DESC' },
             start,
         }),
@@ -104,7 +115,51 @@ export async function listBitrixLeads(
     return { leads, next: data.next ?? null, total: data.total };
 }
 
-/** Importa só os leads cujo ID a pessoa marcou na tela — pula silenciosamente o que já foi importado antes. */
+/**
+ * Varre páginas de crm.lead.list (seguindo o cursor `next`) até juntar `limit` IDs ainda não
+ * importados ou esgotar o portal — usada pelos dois caminhos de importação automática (regra de
+ * sync e o botão rápido "Sincronizar Bitrix24"). Sem isto, os dois só enxergavam a primeira
+ * página (padrão 50 registros) do Bitrix; se ela já estivesse toda importada, nada além dela era
+ * alcançado, para sempre (achado P0-2 da auditoria).
+ *
+ * `maxPagesScanned` é uma trava de segurança por chamada (não por conta/regra): evita que um
+ * portal com dezenas de milhares de leads, todos já importados, prenda o worker varrendo páginas
+ * indefinidamente numa única rodada. Quando o teto é atingido antes de achar `limit` registros, o
+ * chamador é avisado via `pagesExhausted: false` para poder logar que a varredura não foi completa.
+ */
+export async function findUnimportedBitrixLeadIds(
+    organizationId: string,
+    connectionId: string,
+    limit: number,
+    filters: BitrixLeadFilters = {},
+    maxPagesScanned = 20,
+): Promise<{ ids: string[]; pagesExhausted: boolean; pagesScanned: number }> {
+    const ids: string[] = [];
+    let start: number | null = 0;
+    let pagesScanned = 0;
+
+    while (start !== null && ids.length < limit && pagesScanned < maxPagesScanned) {
+        const page = await listBitrixLeads(organizationId, connectionId, start, filters);
+        pagesScanned++;
+        for (const lead of page.leads) {
+            if (!lead.alreadyImported) ids.push(lead.id);
+            if (ids.length >= limit) break;
+        }
+        start = page.next;
+    }
+
+    return { ids: ids.slice(0, limit), pagesExhausted: start === null, pagesScanned };
+}
+
+/**
+ * Importa só os leads cujo ID a pessoa marcou na tela (ou que findUnimportedBitrixLeadIds
+ * selecionou) — pula o que já foi importado antes. A checagem prévia (`findFirst`) cobre o caso
+ * comum (reimportar a mesma seleção); a constraint `@@unique([organizationId, bitrixLeadId])` no
+ * schema cobre a corrida genuína (dois imports concorrentes do mesmo ID — ex.: clique manual e
+ * tick do worker automático ao mesmo tempo): se os dois passarem pelo `findFirst` antes de o
+ * primeiro `create` commitar, o segundo `create` falha com P2002 e é contado como `skipped` em
+ * vez de derrubar o lote inteiro ou duplicar o lead.
+ */
 export async function importSelectedBitrixLeads(
     organizationId: string,
     connectionId: string,
@@ -114,7 +169,10 @@ export async function importSelectedBitrixLeads(
     if (bitrixLeadIds.length === 0) return { imported: 0, skipped: 0 };
     if (bitrixLeadIds.length > 100) throw new AppError('Selecione no máximo 100 leads por vez.', 400);
 
-    const labels = await getStatusLabels(webhookUrl);
+    const [labels, enumMaps] = await Promise.all([
+        getStatusLabels(webhookUrl),
+        resolveEnumMaps(webhookUrl, 'lead'),
+    ]);
     let imported = 0;
     let skipped = 0;
 
@@ -130,38 +188,61 @@ export async function importSelectedBitrixLeads(
         const contactName = [raw.NAME, raw.LAST_NAME].filter(Boolean).join(' ');
         const phone = raw.PHONE?.[0]?.VALUE || null;
         const email = raw.EMAIL?.[0]?.VALUE || null;
+        const { qualification, leadFields: rawLeadFields, contactRole } = applyInboundCustomFields(raw, 'lead', enumMaps);
+        // `source` (mapeado da "Origem" do Bitrix) não pode sobrescrever a tag fixa
+        // 'Bitrix24 (importado)' abaixo — ela marca COMO o registro entrou no Atlas (rastreável em
+        // relatórios de funil), não a origem de marketing original, que já não temos onde guardar
+        // separadamente sem introduzir uma coluna nova fora do escopo desta correção.
+        const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
+        void _bitrixOrigemIgnorada;
 
-        const company = await prisma.company.create({
-            data: {
-                legalName: tradeName,
-                tradeName,
-                phones: phone ? [phone] : [],
-                emails: email ? [email] : [],
-                segment: 'Importado do Bitrix24',
-                observations: raw.COMMENTS || null,
-                organizationId,
-                tags: ['Bitrix24'],
-            },
-        });
+        try {
+            const company = await prisma.company.create({
+                data: {
+                    legalName: tradeName,
+                    tradeName,
+                    phones: phone ? [phone] : [],
+                    emails: email ? [email] : [],
+                    segment: 'Importado do Bitrix24',
+                    observations: raw.COMMENTS || null,
+                    organizationId,
+                    tags: ['Bitrix24'],
+                },
+            });
 
-        const contact = contactName
-            ? await prisma.contact.create({
-                data: { name: contactName, phone, email, companyId: company.id, organizationId },
-            })
-            : null;
+            const contact = contactName
+                ? await prisma.contact.create({
+                    data: { name: contactName, phone, email, role: contactRole, companyId: company.id, organizationId },
+                })
+                : null;
 
-        await prisma.lead.create({
-            data: {
-                status: LeadStatus.Lead_Recebido,
-                source: 'Bitrix24 (importado)',
-                companyId: company.id,
-                contactId: contact?.id,
-                organizationId,
-                bitrixLeadId: raw.ID,
-                bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
-            },
-        });
-        imported++;
+            const lead = await prisma.lead.create({
+                data: {
+                    status: LeadStatus.Lead_Recebido,
+                    source: 'Bitrix24 (importado)',
+                    companyId: company.id,
+                    contactId: contact?.id,
+                    organizationId,
+                    bitrixLeadId: raw.ID,
+                    bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
+                    qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
+                    ...leadFields,
+                } as Prisma.LeadCreateInput,
+            });
+            imported++;
+            await AuditService.log({ action: 'IMPORT', entity: 'Lead', entityId: lead.id, tenantId: organizationId, afterState: { bitrixLeadId: raw.ID, source: 'crm.lead.get' } });
+        } catch (err) {
+            // P2002 = violação da unique constraint (organizationId, bitrixLeadId) — corrida real
+            // com outra importação do MESMO registro entre o findFirst acima e este create. Não é
+            // um erro de verdade: o resultado (lead existe, vinculado a este bitrixLeadId) é o
+            // mesmo que se este loop tivesse simplesmente perdido a corrida — conta como skipped.
+            if ((err as { code?: string })?.code === 'P2002') {
+                skipped++;
+                logger.info({ organizationId, bitrixLeadId }, '[bitrix] Import concorrente do mesmo lead detectado (unique constraint) — contado como já importado');
+            } else {
+                throw err;
+            }
+        }
     }
 
     logger.info({ organizationId, imported, skipped }, '[bitrix] Importação seletiva concluída');

@@ -14,12 +14,13 @@
 // Este arquivo mantém enrichCompany/runEnrichment — o orquestrador de fato — e reexporta a API
 // pública dos três módulos acima.
 //
-// Nota para uma iteração futura: já existem adapters (IDataProvider) em lib/adapters/data-providers
-// (BrasilApiAdapter, ApolloAdapter, CnpjWsAdapter, GooglePlacesAdapter) que duplicam parte da lógica
-// daqui sem serem usados por runEnrichment. Migrar runEnrichment para consumi-los eliminaria essa
-// duplicação, mas é uma mudança de comportamento real (não só de organização de arquivo) num fluxo
-// de negócio crítico sem testes — fora do escopo deste item do checklist, registrado aqui para não
-// se perder.
+// ATUALIZAÇÃO (BITRIX24-LEAD-FLOW-AUDIT.md, achado P1-2): os adapters (IDataProvider) citados
+// aqui numa nota anterior — BrasilApiAdapter/ApolloAdapter/CnpjWsAdapter/GooglePlacesAdapter em
+// lib/adapters/data-providers, e o orquestrador MergeEngineService que os consumia — foram
+// REMOVIDOS. Eram uma segunda implementação completa, nunca chamada por runEnrichment nem por
+// nenhuma rota real (só pelos próprios testes unitários), puro código morto duplicando esta
+// lógica. Se uma reescrita nesses moldes voltar a ser cogitada, trate como trabalho novo — não
+// há mais nada pra "migrar para consumir".
 import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { isValidCnpj, discoverCnpjByName } from './cnpj.util';

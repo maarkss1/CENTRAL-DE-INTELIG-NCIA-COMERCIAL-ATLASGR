@@ -4,6 +4,8 @@ import {
     connectBitrix,
     listBitrixConnections,
     disconnectBitrix,
+    regenerateWebhookSecret,
+    setInboundEventsEnabled,
     listBitrixLeads,
     importSelectedBitrixLeads,
     getDealPipelines,
@@ -63,6 +65,33 @@ router.post('/disconnect/:connectionId', managementRoles, async (req: Request, r
     try {
         const { organizationId } = (req as AuthRequest).user;
         await disconnectBitrix(organizationId, req.params.connectionId);
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Gera/substitui o segredo do webhook de ENTRADA (Bitrix → Atlas, ver bitrix.webhook.ts) — o
+// valor em texto puro só aparece nesta resposta, a pessoa precisa colar no admin do Bitrix agora.
+router.post('/connections/:connectionId/webhook-secret', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await regenerateWebhookSecret(organizationId, req.params.connectionId);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.put('/connections/:connectionId/inbound-events', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { enabled } = req.body as { enabled?: unknown };
+        if (typeof enabled !== 'boolean') {
+            res.status(400).json({ success: false, error: 'enabled deve ser booleano.' });
+            return;
+        }
+        await setInboundEventsEnabled(organizationId, req.params.connectionId, enabled);
         res.json({ success: true });
     } catch (error) {
         next(error);

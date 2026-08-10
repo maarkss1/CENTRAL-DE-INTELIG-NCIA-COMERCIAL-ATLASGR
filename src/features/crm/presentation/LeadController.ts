@@ -135,10 +135,19 @@ export class LeadController {
     exportToBitrix24 = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId: orgId } = (req as AuthRequest).user;
-            const { leadId } = req.body;
-            // Sempre usa a conexão salva em Integrações (ver bitrix.service.ts) — não aceita mais
+            const { leadId, connectionId, statusId, assignedById } = req.body as {
+                leadId?: string; connectionId?: unknown; statusId?: unknown; assignedById?: unknown;
+            };
+            // Sempre usa uma conexão salva em Integrações (ver bitrix.service.ts) — não aceita mais
             // uma webhookUrl solta no corpo, pra ter uma única fonte de verdade da conexão.
-            const result = await this.leadUseCases.exportLeadToBitrix(orgId, leadId);
+            // connectionId/statusId/assignedById são opcionais: sem eles, o comportamento é o
+            // mesmo de antes (primeira conexão da organização, sem STATUS_ID/ASSIGNED_BY_ID
+            // explícitos no Bitrix).
+            const result = await this.leadUseCases.exportLeadToBitrix(orgId, leadId, {
+                connectionId: typeof connectionId === 'string' ? connectionId : undefined,
+                statusId: typeof statusId === 'string' ? statusId : undefined,
+                assignedById: typeof assignedById === 'string' ? assignedById : undefined,
+            });
             res.json({ success: true, data: result });
         } catch (error) {
             next(error);

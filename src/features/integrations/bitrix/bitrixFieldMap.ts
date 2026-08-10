@@ -13,8 +13,14 @@
  *
  * `enumeration`: Bitrix guarda o VALOR como um ID numérico opaco (ex: "18650"), não o texto. A
  * tradução ID↔texto usa a lista `items` de cada campo, resolvida em tempo real via
- * `crm.lead.fields`/`crm.deal.fields` (ver `resolveEnumMaps` em bitrix.service.ts) — nunca
+ * `crm.lead.fields`/`crm.deal.fields` (ver `resolveEnumMaps` em `service/customFields.ts`) — nunca
  * hardcoded aqui, porque os IDs são específicos deste portal e mudam se o campo for reconfigurado.
+ *
+ * Este mapa é consumido nas duas direções por `service/customFields.ts`
+ * (`buildOutboundCustomFields`/`applyInboundCustomFields`), chamado por `service/outboundSync.ts`
+ * (export) e `service/leads.ts`/`service/deals.ts` (import) — ver BITRIX24-LEAD-FLOW-AUDIT.md,
+ * achado P0-1, para o histórico de por que ele passou um tempo definido mas desconectado do fluxo
+ * real.
  */
 
 export type BitrixFieldValueType = 'string' | 'enumeration' | 'double' | 'date' | 'boolean_sim_nao' | 'url';
@@ -85,4 +91,9 @@ export const BITRIX_FIELD_MAP: BitrixFieldMapping[] = [
     // ── Campos que já existem como coluna nativa do Lead (Origem/Temperatura) ───────────────────
     { label: 'Origem', type: 'enumeration', target: { kind: 'lead', field: 'source' }, leadCode: 'UF_CRM_1750448346', dealCode: 'UF_CRM_6855C08ACB72B' },
     { label: 'Temperatura', type: 'enumeration', target: { kind: 'lead', field: 'temperature' }, leadCode: 'UF_CRM_1785162221346', dealCode: 'UF_CRM_1784922718473' },
+
+    // Achado em public/tools/extrator-bitrix.html (ferramenta de referência standalone) — não
+    // fazia parte do levantamento original de 2026-08-05 que gerou o resto deste mapa. Só código
+    // Lead conhecido; nenhum equivalente Deal foi identificado até agora.
+    { label: 'Data do contrato assinado', type: 'date', target: { kind: 'lead', field: 'contractSignedDate' }, leadCode: 'UF_CRM_1770928318695', dealCode: null },
 ];

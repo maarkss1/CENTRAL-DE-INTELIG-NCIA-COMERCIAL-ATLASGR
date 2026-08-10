@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Copy, KeyRound } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { BitrixImportPanel } from './BitrixImportPanel';
@@ -31,7 +31,12 @@ export function Integrations() {
         bitrixConnections, selectedBitrixConnectionId, setSelectedBitrixConnectionId,
         bitrixWebhookInput, setBitrixWebhookInput, bitrixLabelInput, setBitrixLabelInput,
         bitrixLoading, handleBitrixConnect, handleBitrixDisconnect,
+        handleGenerateWebhookSecret, handleToggleInboundEvents,
     } = useBitrixIntegration();
+    // Segredo em texto puro só existe uma vez, na resposta de geração — depois disso a API nunca
+    // mais devolve o valor (só hasWebhookSecret: true). Fica só em memória do componente, nunca
+    // persistido no cliente.
+    const [revealedWebhookSecret, setRevealedWebhookSecret] = useState<string | null>(null);
 
     const {
         threecxConnections, threecxPbxUrlInput, setThreecxPbxUrlInput,
@@ -281,6 +286,85 @@ export function Integrations() {
 
                             {selectedBitrixConnectionId && (
                                 <div className="space-y-6 pt-2">
+                                    {(() => {
+                                        const conn = bitrixConnections.find((c) => c.id === selectedBitrixConnectionId);
+                                        if (!conn) return null;
+                                        return (
+                                            <div className="p-5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 space-y-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                                                        <KeyRound className="w-4 h-4 text-orange-500" /> Webhook de entrada (Bitrix24 → Atlas)
+                                                    </p>
+                                                    <label className="relative inline-flex items-center cursor-pointer shrink-0" title={!conn.hasWebhookSecret ? 'Gere o segredo antes de ativar' : undefined}>
+                                                        <input
+                                                            type="checkbox"
+                                                            aria-label="Receber eventos do Bitrix24 automaticamente"
+                                                            checked={conn.inboundEventsEnabled}
+                                                            disabled={!canManage || !conn.hasWebhookSecret || bitrixLoading}
+                                                            onChange={(e) => handleToggleInboundEvents(conn.id, e.target.checked)}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-9 h-5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-orange-600 transition-colors peer-disabled:opacity-40" />
+                                                        <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4" />
+                                                    </label>
+                                                </div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Opcional — sem isto, o Atlas continua trazendo dados do Bitrix24 por importação manual/regra automática (a cada 15 min). Ativar aqui faz o Bitrix avisar o Atlas na hora quando um Lead/Negócio já importado muda, sem esperar o próximo ciclo. Só atualiza registros já importados — nunca cria um novo sozinho.
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        readOnly
+                                                        value={conn.webhookReceiverUrl}
+                                                        onFocus={(e) => e.target.select()}
+                                                        className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-black/20 text-gray-700 dark:text-gray-300"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => navigator.clipboard.writeText(conn.webhookReceiverUrl)}
+                                                        title="Copiar URL"
+                                                        className="shrink-0 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!canManage || bitrixLoading}
+                                                        onClick={async () => {
+                                                            const result = await handleGenerateWebhookSecret(conn.id);
+                                                            setRevealedWebhookSecret(result?.webhookSecret ?? null);
+                                                        }}
+                                                        title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
+                                                        className="px-3 py-2 text-xs font-bold bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 hover:bg-orange-100 rounded-lg transition-colors border border-orange-100 dark:border-orange-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    >
+                                                        {conn.hasWebhookSecret ? 'Gerar novo segredo' : 'Gerar segredo'}
+                                                    </button>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {conn.hasWebhookSecret ? 'Segredo configurado.' : 'Nenhum segredo gerado ainda.'} Cole a URL acima e o segredo no cadastro do webhook de saída (Aplicativos → Webhooks → Webhook de saída) do Bitrix24, com os eventos de Lead/Negócio.
+                                                    </span>
+                                                </div>
+                                                {revealedWebhookSecret && selectedBitrixConnectionId === conn.id && (
+                                                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 space-y-1.5">
+                                                        <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                                                            Copie agora — este segredo só aparece uma vez:
+                                                        </p>
+                                                        <div className="flex items-center gap-2">
+                                                            <code className="flex-1 text-xs font-mono break-all text-amber-900 dark:text-amber-200">{revealedWebhookSecret}</code>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => navigator.clipboard.writeText(revealedWebhookSecret)}
+                                                                className="shrink-0 p-1.5 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded-md transition-colors"
+                                                                title="Copiar segredo"
+                                                            >
+                                                                <Copy className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     <BitrixImportPanel connectionId={selectedBitrixConnectionId} />
                                     <BitrixSyncRulesPanel connectionId={selectedBitrixConnectionId} />
                                 </div>

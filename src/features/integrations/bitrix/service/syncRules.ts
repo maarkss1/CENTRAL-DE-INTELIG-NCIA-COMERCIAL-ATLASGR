@@ -3,8 +3,9 @@ import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { requestContext } from '../../../../lib/async-context.js';
-import { listBitrixLeads, importSelectedBitrixLeads } from './leads.js';
-import { listBitrixDeals, importSelectedBitrixDeals } from './deals.js';
+import { AuditService } from '../../../../lib/audit/audit.service.js';
+import { findUnimportedBitrixLeadIds, importSelectedBitrixLeads } from './leads.js';
+import { findUnimportedBitrixDealIds, importSelectedBitrixDeals } from './deals.js';
 
 // ── Sincronização automática (regras) — ver bitrixSync.worker.ts ───────────────────────────────
 //
@@ -38,7 +39,7 @@ export async function createSyncRule(organizationId: string, input: BitrixSyncRu
     const connection = await prisma.bitrixConnection.findFirst({ where: { id: input.connectionId, organizationId } });
     if (!connection) throw new AppError('Conexão Bitrix24 não encontrada para esta organização.', 404);
 
-    return prisma.bitrixSyncRule.create({
+    const rule = await prisma.bitrixSyncRule.create({
         data: {
             organizationId,
             connectionId: input.connectionId,
@@ -48,18 +49,23 @@ export async function createSyncRule(organizationId: string, input: BitrixSyncRu
             assignedById: input.assignedById || null,
         },
     });
+    await AuditService.log({ action: 'CREATE', entity: 'BitrixSyncRule', entityId: rule.id, tenantId: organizationId, afterState: { source: rule.source, categoryId: rule.categoryId, stageId: rule.stageId } });
+    return rule;
 }
 
 export async function setSyncRuleActive(organizationId: string, ruleId: string, active: boolean) {
     const rule = await prisma.bitrixSyncRule.findFirst({ where: { id: ruleId, organizationId } });
     if (!rule) throw new AppError('Regra não encontrada.', 404);
-    return prisma.bitrixSyncRule.update({ where: { id: ruleId }, data: { active } });
+    const updated = await prisma.bitrixSyncRule.update({ where: { id: ruleId }, data: { active } });
+    await AuditService.log({ action: 'UPDATE', entity: 'BitrixSyncRule', entityId: ruleId, tenantId: organizationId, beforeState: { active: rule.active }, afterState: { active } });
+    return updated;
 }
 
 export async function deleteSyncRule(organizationId: string, ruleId: string): Promise<void> {
     const rule = await prisma.bitrixSyncRule.findFirst({ where: { id: ruleId, organizationId } });
     if (!rule) throw new AppError('Regra não encontrada.', 404);
     await prisma.bitrixSyncRule.delete({ where: { id: ruleId } });
+    await AuditService.log({ action: 'DELETE', entity: 'BitrixSyncRule', entityId: ruleId, tenantId: organizationId, beforeState: { source: rule.source, categoryId: rule.categoryId } });
 }
 
 // Trava de segurança por execução de regra: mesmo com um pipeline movimentado, uma regra nunca
@@ -67,33 +73,40 @@ export async function deleteSyncRule(organizationId: string, ruleId: string): Pr
 // pipeline errado, sem etapa) inunde o CRM de uma vez só. O próximo tick pega o restante.
 const MAX_AUTO_IMPORT_PER_RULE_PER_TICK = 25;
 
-/** Executa uma única regra: busca registros não importados que batem com o filtro e importa até o teto por rodada. */
+/**
+ * Executa uma única regra: busca registros não importados que batem com o filtro e importa até o
+ * teto por rodada. `findUnimportedBitrixLeadIds`/`findUnimportedBitrixDealIds` seguem o cursor
+ * `next` do Bitrix por conta própria (até MAX_AUTO_IMPORT_PER_RULE_PER_TICK IDs encontrados ou o
+ * teto de páginas escaneadas) — antes desta correção, esta função sempre lia `start=0` fixo, então
+ * uma regra só enxergava a PRIMEIRA página (~50 registros) do Bitrix; se ela já estivesse toda
+ * importada, os registros além dela nunca eram alcançados por nenhum tick futuro (achado P0-2 da
+ * auditoria). Retorna também se a varredura desta rodada esgotou o portal ou parou por teto de
+ * páginas, pro chamador poder registrar isso em BitrixSyncLog em vez de "0 importados" sem contexto.
+ */
 async function runSyncRule(
     organizationId: string,
     rule: { id: string; connectionId: string; source: string; categoryId: string | null; stageId: string | null; assignedById: string | null },
-): Promise<number> {
+): Promise<{ imported: number; pagesScanned: number; pagesExhausted: boolean }> {
     if (rule.source === 'lead') {
-        const { leads } = await listBitrixLeads(organizationId, rule.connectionId, 0, {
+        const { ids, pagesScanned, pagesExhausted } = await findUnimportedBitrixLeadIds(organizationId, rule.connectionId, MAX_AUTO_IMPORT_PER_RULE_PER_TICK, {
             statusId: rule.stageId || undefined,
             assignedById: rule.assignedById || undefined,
         });
-        const pendingIds = leads.filter((l) => !l.alreadyImported).map((l) => l.id).slice(0, MAX_AUTO_IMPORT_PER_RULE_PER_TICK);
-        if (pendingIds.length === 0) return 0;
-        const { imported } = await importSelectedBitrixLeads(organizationId, rule.connectionId, pendingIds);
-        return imported;
+        if (ids.length === 0) return { imported: 0, pagesScanned, pagesExhausted };
+        const { imported } = await importSelectedBitrixLeads(organizationId, rule.connectionId, ids);
+        return { imported, pagesScanned, pagesExhausted };
     }
 
-    if (!rule.categoryId) return 0; // regra "deal" mal formada (não deveria acontecer — createSyncRule já valida)
-    const { deals } = await listBitrixDeals(organizationId, rule.connectionId, 0, {
+    if (!rule.categoryId) return { imported: 0, pagesScanned: 0, pagesExhausted: true }; // regra "deal" mal formada (não deveria acontecer — createSyncRule já valida)
+    const { ids, pagesScanned, pagesExhausted } = await findUnimportedBitrixDealIds(organizationId, rule.connectionId, MAX_AUTO_IMPORT_PER_RULE_PER_TICK, {
         categoryId: rule.categoryId,
         stageId: rule.stageId || undefined,
         assignedById: rule.assignedById || undefined,
     });
-    const pendingIds = deals.filter((d) => !d.alreadyImported).map((d) => d.id).slice(0, MAX_AUTO_IMPORT_PER_RULE_PER_TICK);
-    if (pendingIds.length === 0) return 0;
+    if (ids.length === 0) return { imported: 0, pagesScanned, pagesExhausted };
 
-    const { imported } = await importSelectedBitrixDeals(organizationId, rule.connectionId, pendingIds);
-    return imported;
+    const { imported } = await importSelectedBitrixDeals(organizationId, rule.connectionId, ids);
+    return { imported, pagesScanned, pagesExhausted };
 }
 
 /**
@@ -136,14 +149,29 @@ export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: num
 
             for (const rule of rules) {
                 try {
-                    const imported = await runSyncRule(organizationId, rule);
+                    const { imported, pagesScanned, pagesExhausted } = await runSyncRule(organizationId, rule);
                     totalImported += imported;
                     await prisma.bitrixSyncRule.update({
                         where: { id: rule.id },
-                        data: { lastRunAt: new Date(), lastImportedCount: imported },
+                        data: { lastRunAt: new Date(), lastImportedCount: imported, lastError: null },
+                    });
+                    await prisma.bitrixSyncLog.create({
+                        data: {
+                            organizationId,
+                            connectionId: rule.connectionId,
+                            direction: 'inbound',
+                            entityType: rule.source,
+                            status: 'success',
+                            bitrixRecordId: null,
+                            errorMessage: pagesExhausted ? null : `Teto de páginas escaneadas atingido (${pagesScanned}) — pode haver mais registros pendentes além do que esta rodada alcançou.`,
+                            correlationId: tickCorrelationId,
+                        },
                     });
                     if (imported > 0) {
-                        logger.info({ correlationId: tickCorrelationId, organizationId, ruleId: rule.id, imported }, '[bitrix] Regra de sincronização automática importou registros');
+                        logger.info({ correlationId: tickCorrelationId, organizationId, ruleId: rule.id, imported, pagesScanned }, '[bitrix] Regra de sincronização automática importou registros');
+                    }
+                    if (!pagesExhausted) {
+                        logger.warn({ correlationId: tickCorrelationId, organizationId, ruleId: rule.id, pagesScanned }, '[bitrix] Varredura de paginação parou pelo teto de segurança antes de esgotar o portal — retoma no próximo tick');
                     }
                 } catch (err) {
                     rulesFailed++;
@@ -154,15 +182,26 @@ export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: num
                     // sem que ninguém percebesse. `lastRunAt` agora reflete a ÚLTIMA TENTATIVA (sucesso
                     // ou falha); `lastImportedCount` continua representando a última importação bem
                     // sucedida (não é zerado numa falha, pra não apagar o histórico do último sucesso).
-                    // Isso NÃO resolve visibilidade completa — o schema atual não tem campo pra guardar
-                    // a mensagem de erro/status da última tentativa; ver handoff
-                    // .agents/handoffs/onda-1/06-para-01-schema-extracoes-bitrix.md (seção "BitrixSyncRule").
+                    // `lastError` fecha a lacuna que este comentário descrevia antes: agora a MENSAGEM
+                    // da última falha também fica visível (ver BitrixSyncRulesPanel.tsx).
+                    const errorMessage = err instanceof Error ? err.message : String(err);
                     await prisma.bitrixSyncRule.update({
                         where: { id: rule.id },
-                        data: { lastRunAt: new Date() },
+                        data: { lastRunAt: new Date(), lastError: errorMessage },
                     }).catch((updateErr) => {
                         logger.error({ err: updateErr, organizationId, ruleId: rule.id }, '[bitrix] Falha ao registrar a tentativa da regra (lastRunAt) — vai continuar parecendo "nunca rodou"');
                     });
+                    await prisma.bitrixSyncLog.create({
+                        data: {
+                            organizationId,
+                            connectionId: rule.connectionId,
+                            direction: 'inbound',
+                            entityType: rule.source,
+                            status: 'failed',
+                            errorMessage,
+                            correlationId: tickCorrelationId,
+                        },
+                    }).catch((logErr) => logger.error({ err: logErr, organizationId, ruleId: rule.id }, '[bitrix] Falha ao gravar BitrixSyncLog da falha'));
                     logger.error({ err, correlationId: tickCorrelationId, organizationId, ruleId: rule.id }, '[bitrix] Falha ao executar regra de sincronização automática');
                 }
             }

@@ -304,6 +304,19 @@ model Lead {
   // Bitrix tem estágios/categorias específicas do negócio do cliente que não têm equivalente 1:1
   // no nosso LeadStatus fixo.
   bitrixStageLabel String?
+  // Data de assinatura do contrato — UF_CRM_1770928318695 no objeto Lead do Bitrix (achado em
+  // public/tools/extrator-bitrix.html, fora do BITRIX_FIELD_MAP original). Não existe código
+  // equivalente conhecido no objeto Deal.
+  contractSignedDate DateTime?
+
+  // Status de sincronização OUTBOUND (Atlas → Bitrix) — fecha a lacuna descrita em
+  // outboundSync.ts/pushLeadToBitrix: antes disso uma falha no push automático só existia no log,
+  // nunca na tela. 'pending' = nunca sincronizado; 'syncing' = claim em andamento (trava de
+  // concorrência, ver syncLeadToBitrix); 'synced' = última tentativa teve sucesso; 'failed' =
+  // última tentativa falhou (bitrixSyncError carrega o motivo).
+  bitrixSyncStatus String?
+  bitrixSyncError  String?   @db.Text
+  bitrixSyncedAt   DateTime?
 
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
@@ -337,6 +350,13 @@ model Lead {
   @@index([organizationId, pipelineId, pipelineStageId])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
+  // Fecha a janela de corrida de duplicidade descrita no comentário de bitrixLeadId/bitrixDealId
+  // acima: dois imports/exports concorrentes do MESMO registro Bitrix não conseguem mais criar
+  // dois Leads locais (o segundo INSERT falha com violação de unique, tratada como "já
+  // importado"/"já sincronizado" pelo chamador). NULL não colide com NULL em unique index do
+  // Postgres — leads sem vínculo Bitrix continuam livres para existir aos milhares sem restrição.
+  @@unique([organizationId, bitrixLeadId])
+  @@unique([organizationId, bitrixDealId])
 }
 
 model Activity {
@@ -449,6 +469,7 @@ model Organization {
   googleWorkspaceConnection GoogleWorkspaceConnection?
   bitrixConnections         BitrixConnection[]
   bitrixSyncRules           BitrixSyncRule[]
+  bitrixSyncLogs            BitrixSyncLog[]
   crmPipelines              CrmPipeline[]
   crmProducts               CrmProduct[]
   crmDealItems              CrmDealItem[]
@@ -955,7 +976,21 @@ model BitrixConnection {
   /// inteiros do portal a cada 15 minutos em vez de só o que mudou.
   lastImportedAt DateTime?
 
+  /// Segredo do webhook de SAÍDA do Bitrix ("исходящий вебхук") que este portal chama de volta —
+  /// gerado pelo Atlas, colado pela pessoa no cadastro do webhook de saída no admin do Bitrix.
+  /// Comparado contra `auth.application_token` de cada evento recebido (ver bitrix.webhook.ts)
+  /// antes de aceitar qualquer payload — sem isto, a rota seria um endpoint público aceitando
+  /// qualquer POST. Cifrado em repouso do mesmo jeito que webhookUrl (ver ENCRYPTED_FIELDS em
+  /// src/lib/prisma.ts).
+  webhookSecret String? @db.Text
+  /// Só processa eventos de entrada (ONCRMLEADUPDATE etc.) quando true — desligado por padrão:
+  /// gerar o segredo não é o mesmo que já ter colado a URL no Bitrix, e aceitar eventos de um
+  /// webhook de saída ainda não configurado lá não tem como acontecer de verdade, mas o flag
+  /// deixa a intenção explícita em vez de inferir do segredo existir ou não.
+  inboundEventsEnabled Boolean @default(false)
+
   syncRules BitrixSyncRule[]
+  syncLogs  BitrixSyncLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -995,6 +1030,10 @@ model BitrixSyncRule {
 
   lastRunAt         DateTime?
   lastImportedCount Int       @default(0)
+  /// Mensagem da última falha de execução (null se a última tentativa teve sucesso) — fecha a
+  /// lacuna descrita no comentário de runBitrixSyncTick: antes disso o schema não tinha onde
+  /// guardar POR QUE uma regra estava falhando, só QUANDO ela tentou pela última vez.
+  lastError String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1002,6 +1041,41 @@ model BitrixSyncRule {
   @@index([organizationId])
   @@index([connectionId])
   @@index([active])
+}
+
+/// Trilha de auditoria por operação de sincronização Bitrix (import, export, push automático,
+/// evento de webhook de entrada) — granularidade que BitrixSyncRule.lastRunAt/lastImportedCount
+/// não tem (só o resumo da última rodada de UMA regra). Responde "este lead foi realmente
+/// enviado/recebido do Bitrix, quando, e com que resultado?" por registro, não só por regra.
+model BitrixSyncLog {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectionId   String?
+  connection     BitrixConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  /// 'inbound' (Bitrix → Atlas: import manual, regra automática, webhook) ou 'outbound' (Atlas → Bitrix).
+  direction String
+  /// 'lead' ou 'deal' — qual objeto Bitrix esta operação tocou.
+  entityType String
+  /// Lead local afetado, quando existe (pode ser null num evento de webhook para um Bitrix ID
+  /// ainda não importado — a operação é só ignorada, mas fica registrada mesmo assim).
+  leadId String?
+  /// ID do registro no Bitrix (Lead ou Deal, conforme entityType).
+  bitrixRecordId String?
+
+  /// 'success' | 'failed' | 'skipped'
+  status       String
+  errorMessage String? @db.Text
+  /// Mesmo correlationId usado nos logs estruturados (client.ts/outboundSync.ts) — permite achar
+  /// a chamada HTTP exata que gerou esta linha nos logs da aplicação.
+  correlationId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([leadId])
+  @@index([connectionId, createdAt])
 }
 
 /// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a

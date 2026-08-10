@@ -1,8 +1,13 @@
 import { prisma } from '../../../../lib/prisma.js';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, Prisma } from '@prisma/client';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
+import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
+import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
+import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
+
+const DEAL_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.dealCode).filter((c): c is string => Boolean(c));
 
 // ── Importação a partir de Deals (Negócios) — funil real com pipeline/etapa ────────────────────
 //
@@ -90,6 +95,9 @@ interface BitrixDealRaw {
     COMPANY_ID?: string;
     COMMENTS?: string;
     LEAD_ID?: string;
+    // Índice aberto para os UF_CRM_* de BITRIX_FIELD_MAP (lado Deal) — ver mesmo comentário em
+    // BitrixLeadRaw (leads.ts).
+    [ufCrmCode: string]: unknown;
 }
 
 export interface BitrixDealSummary {
@@ -157,7 +165,7 @@ export async function listBitrixDeals(
     const [data, imported] = await Promise.all([
         callBitrix<{ result: BitrixDealRaw[]; next?: number; total: number }>(webhookUrl, 'crm.deal.list', {
             filter,
-            select: ['ID', 'TITLE', 'CATEGORY_ID', 'STAGE_ID', 'ASSIGNED_BY_ID', 'DATE_CREATE', 'OPPORTUNITY', 'CONTACT_ID', 'COMPANY_ID'],
+            select: ['ID', 'TITLE', 'CATEGORY_ID', 'STAGE_ID', 'ASSIGNED_BY_ID', 'DATE_CREATE', 'OPPORTUNITY', 'CONTACT_ID', 'COMPANY_ID', ...DEAL_UF_CRM_CODES],
             order: { DATE_CREATE: 'DESC' },
             start,
         }),
@@ -188,7 +196,36 @@ export async function listBitrixDeals(
     return { deals, next: data.next ?? null, total: data.total };
 }
 
-/** Importa só os Negócios cujo ID a pessoa marcou na tela — pula silenciosamente o que já foi importado antes. */
+/** Mesmo princípio de findUnimportedBitrixLeadIds (leads.ts) — varre páginas até juntar `limit` negócios ainda não importados ou esgotar o portal. */
+export async function findUnimportedBitrixDealIds(
+    organizationId: string,
+    connectionId: string,
+    limit: number,
+    filters: BitrixDealFilters = {},
+    maxPagesScanned = 20,
+): Promise<{ ids: string[]; pagesExhausted: boolean; pagesScanned: number }> {
+    const ids: string[] = [];
+    let start: number | null = 0;
+    let pagesScanned = 0;
+
+    while (start !== null && ids.length < limit && pagesScanned < maxPagesScanned) {
+        const page = await listBitrixDeals(organizationId, connectionId, start, filters);
+        pagesScanned++;
+        for (const deal of page.deals) {
+            if (!deal.alreadyImported) ids.push(deal.id);
+            if (ids.length >= limit) break;
+        }
+        start = page.next;
+    }
+
+    return { ids: ids.slice(0, limit), pagesExhausted: start === null, pagesScanned };
+}
+
+/**
+ * Importa só os Negócios cujo ID a pessoa marcou na tela — pula o que já foi importado antes. A
+ * mesma proteção de corrida de importSelectedBitrixLeads (constraint única no banco + P2002
+ * tratado como skipped) se aplica aqui via `@@unique([organizationId, bitrixDealId])`.
+ */
 export async function importSelectedBitrixDeals(
     organizationId: string,
     connectionId: string,
@@ -198,6 +235,7 @@ export async function importSelectedBitrixDeals(
     if (bitrixDealIds.length === 0) return { imported: 0, skipped: 0 };
     if (bitrixDealIds.length > 100) throw new AppError('Selecione no máximo 100 negócios por vez.', 400);
 
+    const enumMaps = await resolveEnumMaps(webhookUrl, 'deal');
     let imported = 0;
     let skipped = 0;
 
@@ -213,14 +251,16 @@ export async function importSelectedBitrixDeals(
         let contactName = '';
         let phone: string | null = null;
         let email: string | null = null;
+        let contactRoleFromApi: string | null = null;
         if (deal.CONTACT_ID) {
             try {
                 const { result: contact } = await callBitrix<{
-                    result: { NAME?: string; LAST_NAME?: string; PHONE?: Array<{ VALUE: string }>; EMAIL?: Array<{ VALUE: string }> };
+                    result: { NAME?: string; LAST_NAME?: string; POST?: string; PHONE?: Array<{ VALUE: string }>; EMAIL?: Array<{ VALUE: string }> };
                 }>(webhookUrl, 'crm.contact.get', { id: deal.CONTACT_ID });
                 contactName = [contact.NAME, contact.LAST_NAME].filter(Boolean).join(' ');
                 phone = contact.PHONE?.[0]?.VALUE || null;
                 email = contact.EMAIL?.[0]?.VALUE || null;
+                contactRoleFromApi = contact.POST || null;
             } catch (err) {
                 logger.warn({ err, bitrixDealId, contactId: deal.CONTACT_ID }, '[bitrix] Falha ao buscar contato do negócio — segue sem esses dados');
             }
@@ -240,37 +280,55 @@ export async function importSelectedBitrixDeals(
             ? (await getDealStages(organizationId, connectionId, deal.CATEGORY_ID)).find((s) => s.id === deal.STAGE_ID)?.name || deal.STAGE_ID
             : null;
 
-        const company = await prisma.company.create({
-            data: {
-                legalName: tradeName,
-                tradeName,
-                phones: phone ? [phone] : [],
-                emails: email ? [email] : [],
-                segment: 'Importado do Bitrix24 (Negócio)',
-                observations: deal.COMMENTS || null,
-                organizationId,
-                tags: ['Bitrix24'],
-            },
-        });
+        const { qualification, leadFields: rawLeadFields, contactRole } = applyInboundCustomFields(deal, 'deal', enumMaps);
+        // Mesmo motivo do leads.ts: não deixa a "Origem" do Bitrix sobrescrever a tag de
+        // rastreamento de como o registro entrou no Atlas.
+        const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
+        void _bitrixOrigemIgnorada;
 
-        const contact = contactName
-            ? await prisma.contact.create({
-                data: { name: contactName, phone, email, companyId: company.id, organizationId },
-            })
-            : null;
+        try {
+            const company = await prisma.company.create({
+                data: {
+                    legalName: tradeName,
+                    tradeName,
+                    phones: phone ? [phone] : [],
+                    emails: email ? [email] : [],
+                    segment: 'Importado do Bitrix24 (Negócio)',
+                    observations: deal.COMMENTS || null,
+                    organizationId,
+                    tags: ['Bitrix24'],
+                },
+            });
 
-        await prisma.lead.create({
-            data: {
-                status: LeadStatus.Lead_Recebido,
-                source: 'Bitrix24 (importado via Negócio)',
-                companyId: company.id,
-                contactId: contact?.id,
-                organizationId,
-                bitrixDealId: deal.ID,
-                bitrixStageLabel: stageLabel,
-            },
-        });
-        imported++;
+            const contact = contactName
+                ? await prisma.contact.create({
+                    data: { name: contactName, phone, email, role: contactRole || contactRoleFromApi, companyId: company.id, organizationId },
+                })
+                : null;
+
+            const lead = await prisma.lead.create({
+                data: {
+                    status: LeadStatus.Lead_Recebido,
+                    source: 'Bitrix24 (importado via Negócio)',
+                    companyId: company.id,
+                    contactId: contact?.id,
+                    organizationId,
+                    bitrixDealId: deal.ID,
+                    bitrixStageLabel: stageLabel,
+                    qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
+                    ...leadFields,
+                } as Prisma.LeadCreateInput,
+            });
+            imported++;
+            await AuditService.log({ action: 'IMPORT', entity: 'Lead', entityId: lead.id, tenantId: organizationId, afterState: { bitrixDealId: deal.ID, source: 'crm.deal.get' } });
+        } catch (err) {
+            if ((err as { code?: string })?.code === 'P2002') {
+                skipped++;
+                logger.info({ organizationId, bitrixDealId }, '[bitrix] Import concorrente do mesmo negócio detectado (unique constraint) — contado como já importado');
+            } else {
+                throw err;
+            }
+        }
     }
 
     logger.info({ organizationId, imported, skipped }, '[bitrix] Importação de negócios concluída');

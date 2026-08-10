@@ -37,6 +37,16 @@ export interface Lead {
     commissionPercent: string | null;
     partnerBroker: string | null;
     qualificationValidatedByAM: boolean | null;
+    // Vínculo e status de sincronização com o Bitrix24 (ver bitrix.service.ts) — lidos/gravados
+    // direto via Prisma pela camada de integração (fora do repositório padrão de Lead, ver
+    // outboundSync.ts/leads.ts), mas expostos aqui pra não deixar o tipo de domínio mentir sobre
+    // quais campos um Lead realmente tem (achado P1-4 da auditoria).
+    bitrixLeadId: string | null;
+    bitrixDealId: string | null;
+    bitrixStageLabel: string | null;
+    bitrixSyncStatus: string | null;
+    bitrixSyncError: string | null;
+    bitrixSyncedAt: Date | null;
     createdAt: Date;
     updatedAt: Date;
     company?: unknown;

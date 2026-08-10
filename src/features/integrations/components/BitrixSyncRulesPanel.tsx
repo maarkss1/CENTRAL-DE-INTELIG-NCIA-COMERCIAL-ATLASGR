@@ -26,6 +26,8 @@ interface BitrixSyncRule {
     active: boolean;
     lastRunAt: string | null;
     lastImportedCount: number;
+    /** Mensagem da última falha de execução — null se a última tentativa teve sucesso. */
+    lastError: string | null;
 }
 
 const selectClass = 'h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white px-3 disabled:opacity-40 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none cursor-pointer';
@@ -175,6 +177,11 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                                                 ? `Última rodada: ${new Date(rule.lastRunAt).toLocaleString('pt-BR')} — ${rule.lastImportedCount} importado(s)`
                                                 : 'Ainda não rodou'}
                                         </p>
+                                        {rule.lastError && (
+                                            <p className="text-red-600 dark:text-red-400 mt-0.5" title={rule.lastError}>
+                                                ⚠ Última tentativa falhou: {rule.lastError}
+                                            </p>
+                                        )}
                                     </div>
                                     <button onClick={() => removeRule(rule.id)} className="shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors dark:hover:text-red-400" title="Remover regra">
                                         <Trash2 className="w-4 h-4" />

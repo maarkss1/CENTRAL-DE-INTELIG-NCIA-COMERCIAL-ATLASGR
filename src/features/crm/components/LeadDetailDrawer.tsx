@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
+    CheckCircle2, AlertTriangle, Settings2,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LEAD_STATUS, LeadQualification } from '../../../types';
 import { api } from '../../../lib/api';
@@ -53,6 +54,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [exportingBitrix, setExportingBitrix] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
+    const [bitrixOptionsOpen, setBitrixOptionsOpen] = useState(false);
+    const [bitrixConnectionId, setBitrixConnectionId] = useState<string | null>(null);
+    const [bitrixStatusOptions, setBitrixStatusOptions] = useState<{ id: string; name: string }[]>([]);
+    const [bitrixUserOptions, setBitrixUserOptions] = useState<{ id: string; name: string }[]>([]);
+    const [bitrixStatusId, setBitrixStatusId] = useState('');
+    const [bitrixAssignedById, setBitrixAssignedById] = useState('');
+    const [loadingBitrixOptions, setLoadingBitrixOptions] = useState(false);
 
     const fetchLead = useCallback(async () => {
         try {
@@ -183,13 +191,51 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const handleExportBitrix = async () => {
         setExportingBitrix(true);
         try {
-            await api.post('/api/leads/export/bitrix24', { leadId });
+            await api.post('/api/leads/export/bitrix24', {
+                leadId,
+                connectionId: bitrixConnectionId || undefined,
+                statusId: bitrixStatusId || undefined,
+                assignedById: bitrixAssignedById || undefined,
+            });
             toast.success('Lead exportado para o Bitrix24.');
+            // Sem isto, o badge de status de sync (bitrixSyncStatus/bitrixLeadId) ficava desatualizado
+            // até o próximo carregamento do drawer — e uma segunda exportação antes do refresh podia
+            // ler bitrixLeadId ainda nulo e criar um lead duplicado no Bitrix (ver claimOutboundSync,
+            // que hoje evita isso no backend, mas o refetch aqui evita mesmo a tentativa).
+            await fetchLead();
+            onChanged();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Falha ao exportar para o Bitrix24. Confira a conexão em Integrações.');
         } finally {
             setExportingBitrix(false);
         }
+    };
+
+    const loadBitrixOptions = async () => {
+        if (bitrixStatusOptions.length > 0 || loadingBitrixOptions) return;
+        setLoadingBitrixOptions(true);
+        try {
+            const connections = await api.get<{ id: string }[]>('/api/bitrix/connections');
+            const connectionId = connections[0]?.id;
+            if (!connectionId) return;
+            setBitrixConnectionId(connectionId);
+            const [statuses, users] = await Promise.all([
+                api.get<{ id: string; name: string }[]>(`/api/bitrix/lead-statuses?connectionId=${connectionId}`),
+                api.get<{ id: string; name: string }[]>(`/api/bitrix/users?connectionId=${connectionId}`),
+            ]);
+            setBitrixStatusOptions(statuses);
+            setBitrixUserOptions(users);
+        } catch {
+            // Opções avançadas são um complemento — se a busca falhar, o botão "Exportar p/
+            // Bitrix24" continua funcionando normalmente sem STATUS_ID/ASSIGNED_BY_ID explícitos.
+        } finally {
+            setLoadingBitrixOptions(false);
+        }
+    };
+
+    const toggleBitrixOptions = () => {
+        setBitrixOptionsOpen((open) => !open);
+        if (!bitrixOptionsOpen) void loadBitrixOptions();
     };
 
     const handleDelete = async () => {
@@ -539,7 +585,68 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                 )}
 
                 {/* Rodapé */}
-                <div className="p-4 border-t border-line flex justify-between items-center shrink-0">
+                <div className="border-t border-line shrink-0">
+                    {/* Status de sincronização Bitrix24 — antes desta correção, uma falha no push
+                        automático (na criação do lead) só existia no log do servidor, invisível
+                        aqui (achado P1-3 da auditoria). bitrixLeadId nulo + status nulo = nunca
+                        tentado ainda, então não mostra nada (evita alarmar sobre um lead que
+                        simplesmente não foi exportado por escolha). */}
+                    {lead?.bitrixSyncStatus && (
+                        <div className="px-4 pt-3 flex items-center gap-1.5 text-xs">
+                            {lead.bitrixSyncStatus === 'synced' && (
+                                <span className="flex items-center gap-1 text-ok font-bold" title={lead.bitrixSyncedAt ? `Sincronizado em ${new Date(lead.bitrixSyncedAt).toLocaleString('pt-BR')}` : undefined}>
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Sincronizado com o Bitrix24
+                                </span>
+                            )}
+                            {lead.bitrixSyncStatus === 'failed' && (
+                                <span className="flex items-center gap-1 text-red-600 font-bold" title={lead.bitrixSyncError || undefined}>
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Falha ao sincronizar com o Bitrix24{lead.bitrixSyncError ? ` — ${lead.bitrixSyncError}` : ''}
+                                </span>
+                            )}
+                            {lead.bitrixSyncStatus === 'syncing' && (
+                                <span className="flex items-center gap-1 text-ink-2 font-bold">
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Sincronizando com o Bitrix24…
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    {bitrixOptionsOpen && (
+                        <div className="px-4 pt-3 flex flex-wrap items-center gap-2">
+                            {loadingBitrixOptions ? (
+                                <span className="flex items-center gap-1.5 text-xs text-ink-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando opções do Bitrix24…</span>
+                            ) : bitrixStatusOptions.length === 0 && bitrixUserOptions.length === 0 ? (
+                                <span className="text-xs text-ink-2">Nenhum portal Bitrix24 conectado — configure em Integrações.</span>
+                            ) : (
+                                <>
+                                    <label className="text-xs">
+                                        <span className="sr-only">Status no Bitrix24</span>
+                                        <select
+                                            value={bitrixStatusId}
+                                            onChange={(e) => setBitrixStatusId(e.target.value)}
+                                            className="p-2 bg-surface-2 rounded-lg border border-line text-xs font-bold text-ink outline-none focus:border-brand"
+                                        >
+                                            <option value="">Status padrão do Bitrix24</option>
+                                            {bitrixStatusOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                        </select>
+                                    </label>
+                                    <label className="text-xs">
+                                        <span className="sr-only">Responsável no Bitrix24</span>
+                                        <select
+                                            value={bitrixAssignedById}
+                                            onChange={(e) => setBitrixAssignedById(e.target.value)}
+                                            className="p-2 bg-surface-2 rounded-lg border border-line text-xs font-bold text-ink outline-none focus:border-brand"
+                                        >
+                                            <option value="">Sem responsável definido</option>
+                                            {bitrixUserOptions.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                        </select>
+                                    </label>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="p-4 flex justify-between items-center">
                     <button
                         onClick={handleDelete}
                         disabled={deleting}
@@ -549,6 +656,14 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         Excluir lead
                     </button>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={toggleBitrixOptions}
+                            aria-expanded={bitrixOptionsOpen}
+                            title="Escolher status e responsável no Bitrix24 antes de exportar"
+                            className={`p-2 rounded-xl transition-colors ${bitrixOptionsOpen ? 'bg-surface text-ink' : 'bg-surface-2 text-ink-2 hover:text-ink hover:bg-surface'}`}
+                        >
+                            <Settings2 className="w-4 h-4" />
+                        </button>
                         <button
                             onClick={handleExportBitrix}
                             disabled={exportingBitrix}
@@ -561,6 +676,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
                             Fechar
                         </button>
+                    </div>
                     </div>
                 </div>
             </div>

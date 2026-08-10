@@ -19,15 +19,22 @@
 export { normalizeWebhookUrl, testWebhook, hostnameOf, getConnectionWebhookUrl, callBitrix, getStatusLabels } from './service/client.js';
 
 export type { BitrixConnectionSummary } from './service/connections.js';
-export { listBitrixConnections, connectBitrix, disconnectBitrix, testBitrixConnection } from './service/connections.js';
+export {
+    listBitrixConnections, connectBitrix, disconnectBitrix, testBitrixConnection,
+    regenerateWebhookSecret, setInboundEventsEnabled,
+} from './service/connections.js';
 
 export type { BitrixLeadSummary, BitrixLeadFilters } from './service/leads.js';
-export { getLeadStatuses, listBitrixLeads, importSelectedBitrixLeads } from './service/leads.js';
+export { getLeadStatuses, listBitrixLeads, importSelectedBitrixLeads, findUnimportedBitrixLeadIds } from './service/leads.js';
 
 export type { BitrixDealPipeline, BitrixDealStage, BitrixUserOption, BitrixDealSummary, BitrixDealFilters } from './service/deals.js';
-export { getDealPipelines, getDealStages, getBitrixUsers, listBitrixDeals, importSelectedBitrixDeals } from './service/deals.js';
+export { getDealPipelines, getDealStages, getBitrixUsers, listBitrixDeals, importSelectedBitrixDeals, findUnimportedBitrixDealIds } from './service/deals.js';
 
+export type { SyncLeadOverrides } from './service/outboundSync.js';
 export { pushLeadToBitrix, exportLeadToBitrixNow } from './service/outboundSync.js';
 
 export type { BitrixSyncRuleInput } from './service/syncRules.js';
 export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBitrixSyncTick } from './service/syncRules.js';
+
+export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields } from './service/customFields.js';
+export type { BitrixEntityKind } from './service/customFields.js';
