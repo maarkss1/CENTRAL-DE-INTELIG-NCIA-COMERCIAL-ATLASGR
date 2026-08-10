@@ -405,7 +405,7 @@ export function DecisionMakerSearch({
                 {isSearching ? 'Buscando pessoas...' : 'Buscar Pessoas'}
             </button>
 
-            {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
+            {error && <p className="text-xs text-danger mt-3">{error}</p>}
 
             {results && (
                 <div className="mt-4 border-t border-indigo-100 pt-4">
@@ -492,7 +492,7 @@ export function DecisionMakerSearch({
                                         {dm.email && (
                                             <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success font-medium bg-success/10 px-2 py-0.5 rounded-md hover:underline">
                                                 <Mail size={12} /> {dm.email}
-                                                {dm.emailSource === 'hunter' && <span className="text-[9px] bg-neon-purple/20 text-neon-purple px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
+                                                {dm.emailSource === 'hunter' && <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
                                             </a>
                                         )}
                                         {getTelephoneLink(dm.phone) && (
@@ -538,7 +538,7 @@ export function DecisionMakerSearch({
                                             </p>
                                         )}
                                         {icebreakers[idx]?.error && (
-                                            <p className="w-full text-[11px] text-amber-300 mt-1">{icebreakers[idx].error}</p>
+                                            <p className="w-full text-[11px] text-warn mt-1">{icebreakers[idx].error}</p>
                                         )}
                                     </div>
 

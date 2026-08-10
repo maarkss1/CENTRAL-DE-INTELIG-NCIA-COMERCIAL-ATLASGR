@@ -47,6 +47,6 @@ describe('ContactService', () => {
     vi.mocked(prisma.contact.delete).mockResolvedValue(mockContact as never);
     vi.mocked(prisma.contact.findFirst).mockResolvedValue(mockContact as never);
     await contactService.delete('test-org-id', '1');
-    expect(prisma.contact.delete).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(prisma.contact.delete).toHaveBeenCalledWith({ where: { id: '1', organizationId: 'test-org-id' } });
   });
 });

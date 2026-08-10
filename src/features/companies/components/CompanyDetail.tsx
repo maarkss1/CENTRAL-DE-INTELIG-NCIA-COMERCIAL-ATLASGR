@@ -7,6 +7,7 @@ import { ToolTechPopover } from '../../../components/ui/ToolTechPopover';
 import { ContextualTip } from '../../../components/ui/ContextualTip';
 import { clientLogger } from '../../../lib/clientLogger';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
+import { toast } from '../../../lib/toast';
 
 interface CompanyDetailProps {
     companyId: string;
@@ -54,8 +55,10 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
             // Google Places, icebreaker por IA) — precisa de mais que os 15s padrão do api client.
             await api.post(`/api/companies/${companyId}/enrich`, undefined, { timeoutMs: 60_000 });
             await fetchCompany();
+            toast.success('Empresa enriquecida com sucesso.');
         } catch (error) {
             clientLogger.error({ err: error }, 'Error enriching company');
+            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer a empresa.');
         } finally {
             setEnriching(false);
         }
@@ -65,7 +68,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         return (
             <div className="flex-1 flex items-center justify-center bg-bg min-h-screen">
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-10 h-10 border-4 border-brand dark:border-brand-2 border-t-transparent rounded-full animate-spin" />
                     <p className="text-ink-2 font-medium text-sm">Carregando inteligência da empresa...</p>
                 </div>
             </div>
@@ -148,7 +151,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                 </button>
                                 <span className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold border ${
                                     company.status === 'Ativo' ? 'bg-green-500/10 text-green-400 border-green-500/30' :
-                                    'bg-surface-2 text-ink-2 border-line'
+                                    'bg-surface-2 text-ink/70 dark:text-ink-2 border-line'
                                 }`}>
                                     {company.status === 'Ativo' ? '✅' : '⛔'} {company.status}
                                 </span>
@@ -203,7 +206,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                 <p className="text-xs text-ink-2">Ecossistema de softwares e firmographics detectados no prospect</p>
                             </div>
                         </div>
-                        <span className="text-xs bg-surface-2 px-3 py-1 rounded-full text-ink-2 border border-line font-mono">
+                        <span className="text-xs bg-surface-2 px-3 py-1 rounded-full text-ink/70 dark:text-ink-2 border border-line font-mono">
                             {technologiesList.length} Ferramentas
                         </span>
                     </div>
@@ -252,7 +255,7 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-ink-2 italic text-sm p-4 bg-surface-2 rounded-2xl border border-line">
+                                <p className="text-ink/70 dark:text-ink-2 italic text-sm p-4 bg-surface-2 rounded-2xl border border-line">
                                     Nenhum contato diretamente vinculado. Execute o Enriquecimento com IA para importar decisores via Apollo.
                                 </p>
                             )}

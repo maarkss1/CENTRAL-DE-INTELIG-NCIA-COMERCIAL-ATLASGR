@@ -37,6 +37,30 @@ Texto branco sobre `--brand`/`--brand-2` puro (ex.: item ativo da Sidebar) dava 
 `bg-brand-active`/`--color-brand-active` sempre que precisar de texto branco sobre um fundo de cor
 de marca sólida** — não volte a usar `--brand` puro nesse cenário.
 
+## Acessibilidade executável — inspeção estática não é prova
+
+Achado real do Piloto 002 (Kanban/CrmBoard, ver `.claude/PILOTS.md`): o board já tinha
+`KeyboardSensor` do `@dnd-kit/core` configurado — presente no código, parecendo "drag acessível
+por teclado" numa leitura estática. Só rodando o gesto de verdade (Space → seta → Space, num
+board de múltiplas colunas) o bug apareceu: `sortableKeyboardCoordinates` (a opção nativa do
+dnd-kit) nunca conseguia sair da coluna vizinha, porque sua busca por distância comparava o card
+contra **todos** os droppables (cada card individual + cada coluna inteira), e o droppable da
+coluna (bem maior) sempre "ganhava". A correção real também exigiu entender *closures*: o
+`KeyboardSensor` congela a função `coordinateGetter` no momento em que o Space ativa o drag e
+reusa essa mesma closure pelo resto do gesto — um `coordinateGetter` que lia `leads` (state) direto
+sempre via o valor de quando o drag começou, nunca o atualizado (nem trocar por uma ref sempre-atual
+resolvia sozinho, porque reparentar o card no state também derrubava o foco real do DOM). Ver os
+comentários em `src/components/CrmBoard.tsx` (`columnKeyboardCoordinateGetter`) para o relato
+completo.
+
+**Regra**: presença de um sensor/handler de teclado no código de uma biblioteca de terceiros não é
+prova de que o gesto funciona de ponta a ponta. Para qualquer interação de teclado nova ou tocada
+(drag, listas reordenáveis, comandos compostos), execute o gesto real (Playwright ou manual) antes
+de considerar acessível — não confie só na leitura de código nem na documentação da lib. Isso vale
+em dobro quando a lib gerencia estado internamente via closures ativadas uma única vez (comum em
+sensores/handlers de gesto) — teste explicitamente o comportamento após updates de state
+subsequentes, não só o primeiro passo do gesto.
+
 ## Checklist mínimo para qualquer componente interativo novo
 
 - [ ] Navegável via teclado: Tab alcança o elemento, Enter/Space ativa, Escape fecha (modais/

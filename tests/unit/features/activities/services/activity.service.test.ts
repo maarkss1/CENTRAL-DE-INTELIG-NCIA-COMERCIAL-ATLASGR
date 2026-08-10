@@ -107,6 +107,6 @@ describe('ActivityService', () => {
   it('should delete an activity', async () => {
     vi.mocked(prisma.activity.findFirst).mockResolvedValue(mockActivity as never);
     await activityService.delete('test-org-id', '1');
-    expect(prisma.activity.delete).toHaveBeenCalledWith({ where: { id: '1' } });
+    expect(prisma.activity.delete).toHaveBeenCalledWith({ where: { id: '1', organizationId: 'test-org-id' } });
   });
 });

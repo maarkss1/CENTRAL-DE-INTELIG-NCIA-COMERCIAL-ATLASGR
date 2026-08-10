@@ -46,7 +46,7 @@ export class CompanyUseCases extends BaseUseCases<Company, CompanyRepository> {
         const company = await this.repository.findById!(organizationId, id);
         if (!company) throw new Error('Company not found');
 
-        const result = await enrichCompany(id, { cnpj: data?.cnpj, segmentKeywords: data?.segmentKeywords });
+        const result = await enrichCompany(organizationId, id, { cnpj: data?.cnpj, segmentKeywords: data?.segmentKeywords });
         return result;
     }
 }

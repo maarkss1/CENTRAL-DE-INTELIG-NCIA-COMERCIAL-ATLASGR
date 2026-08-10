@@ -360,7 +360,7 @@ export async function promoteToCrm(input: PromoteInput) {
     let enrichmentResult: Awaited<ReturnType<typeof enrichCompany>> | null = null;
     if (input.autoEnrich !== false) {
         try {
-            enrichmentResult = await enrichCompany(company.id, {
+            enrichmentResult = await enrichCompany(input.organizationId, company.id, {
                 cnpj: company.cnpj || undefined,
                 segmentKeywords: input.segment ? [input.segment] : undefined,
                 fleetSizeHint: input.size || undefined,

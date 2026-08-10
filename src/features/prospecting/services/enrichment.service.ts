@@ -91,9 +91,16 @@ interface CompanyUpdateData {
     newsMentions?: Prisma.InputJsonValue;
 }
 
-/** Orquestra o enriquecimento completo de uma empresa já existente no CRM e grava o histórico. */
-export async function enrichCompany(companyId: string, options: EnrichCompanyOptions = {}) {
-    const company = await prisma.company.findUnique({ where: { id: companyId } });
+/**
+ * Orquestra o enriquecimento completo de uma empresa já existente no CRM e grava o histórico.
+ *
+ * `organizationId` é exigido aqui (não só no chamador) por consistência com o resto do código —
+ * hoje todo chamador real já valida a posse do registro antes de chegar aqui, e `Company` tem RLS
+ * (FORCE ROW LEVEL SECURITY) como segunda camada, então isto não corrige uma falha explorável;
+ * é hardening para que um chamador futuro que esqueça o pré-check não fique dependendo só da RLS.
+ */
+export async function enrichCompany(organizationId: string, companyId: string, options: EnrichCompanyOptions = {}) {
+    const company = await prisma.company.findFirst({ where: { id: companyId, organizationId } });
     if (!company) throw new Error('Company not found');
 
     await prisma.company.update({ where: { id: companyId }, data: { enrichmentStatus: 'Enriquecendo' } });
