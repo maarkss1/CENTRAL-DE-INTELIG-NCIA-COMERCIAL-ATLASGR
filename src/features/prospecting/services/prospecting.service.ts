@@ -343,15 +343,19 @@ export async function promoteToCrm(input: PromoteInput) {
         }
     }
 
-    let contact = null;
+        let contact = null;
     if (input.contact?.name) {
+        // Rotulagem LGPD na observação (já que schema é propriedade do Agente 01)
+        const isFromProvider = input.source.toLowerCase().includes('apollo') || input.source.toLowerCase().includes('hunter');
+        const lgpdNote = isFromProvider ? `[LGPD] Origem: ${input.source} | Base Legal: Legítimo Interesse (B2B)` : `[LGPD] Origem: ${input.source} | Base Legal: Consentimento/Público`;
+        
         contact = await prisma.contact.create({
             data: {
                 name: input.contact.name,
                 role: input.contact.role,
                 companyId: company.id,
                 status: 'Ativo',
-                observations: 'Contato sugerido — confirmar identidade e dados antes da abordagem.',
+                observations: `Contato sugerido — confirmar identidade e dados antes da abordagem.\n${lgpdNote}`,
                 organizationId: input.organizationId,
             },
         });
@@ -411,3 +415,4 @@ export async function promoteToCrm(input: PromoteInput) {
         enrichment: enrichmentResult,
     };
 }
+
