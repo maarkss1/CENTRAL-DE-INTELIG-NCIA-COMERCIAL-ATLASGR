@@ -84,17 +84,20 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
     const handleVoiceCall = useCallback(async () => {
         if (!lead) return;
-        const phone = lead.contact?.phone;
+        const phone = lead.contact?.whatsapp || lead.contact?.phone || lead.company?.phones?.[0];
         if (!phone) {
             toast.error('Este lead não possui telefone cadastrado.');
             return;
         }
         setCallingVoice(true);
         try {
-            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3001';
-            const res = await fetch(`${voiceHubUrl}/api/webhooks/bland`, {
+            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3000';
+            const res = await fetch(`${voiceHubUrl}/api/webhook/atlasgr/outbound`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-atlasgr-webhook-secret': 'segredo_compartilhado_atlasgr_123',
+                },
                 body: JSON.stringify({
                     phone_number: phone,
                     name: lead.contact?.name || 'Cliente',

@@ -19,6 +19,7 @@ Este arquivo é a regra global para qualquer agente que trabalhe neste repositó
 - 09 — Mobile (Capacitor/Android)
 - 10 — Infraestrutura, Observabilidade e SRE
 - 11 — Marca e Ativos Institucionais
+- 12 — Voz e Telefonia (Birthub Voices)
 
 Prompts: `.agents/prompts/`. Nenhum agente edita o próprio prompt ou o prompt de outro agente durante a execução — mudança de prompt é decisão humana, fora do ciclo de ondas.
 

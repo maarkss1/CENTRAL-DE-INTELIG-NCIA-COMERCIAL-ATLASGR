@@ -1,4 +1,4 @@
-import { Activity, ActivityRepository } from '../domain/Activity';
+import { Activity, ActivityRepository, ActivityListFilters, ActivityPage } from '../domain/Activity';
 import { prisma } from '../../../lib/prisma';
 import { Prisma } from '@prisma/client';
 import {
@@ -37,6 +37,55 @@ function serializeActivity<
 }
 
 export class PrismaActivityRepository implements ActivityRepository {
+    async findAllPaginated(
+        organizationId: string,
+        dateStr?: string,
+        page = 1,
+        limit = 50,
+        filters: ActivityListFilters = {}
+    ): Promise<ActivityPage> {
+        const where: Prisma.ActivityWhereInput = { organizationId };
+        if (dateStr) {
+            const searchDate = new Date(dateStr);
+            where.date = {
+                gte: new Date(new Date(searchDate).setHours(0, 0, 0, 0)),
+                lt: new Date(new Date(searchDate).setHours(23, 59, 59, 999))
+            };
+        }
+        if (filters.leadId) where.leadId = filters.leadId;
+        if (filters.status) where.status = filters.status as unknown as Prisma.ActivityWhereInput['status'];
+        if (filters.type) where.type = filters.type as unknown as Prisma.ActivityWhereInput['type'];
+
+        const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+        const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(Math.floor(limit), 200) : 50;
+        const skip = (safePage - 1) * safeLimit;
+
+        const [activities, total] = await prisma.$transaction([
+            prisma.activity.findMany({
+                where,
+                include: { lead: { include: { company: true, contact: true } } },
+                orderBy: { date: 'asc' },
+                skip,
+                take: safeLimit
+            }),
+            prisma.activity.count({ where })
+        ]);
+
+        return {
+            data: activities.map(serializeActivity) as unknown as Activity[],
+            meta: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) }
+        };
+    }
+
+    async findRange(organizationId: string, from: Date, to: Date): Promise<Activity[]> {
+        const activities = await prisma.activity.findMany({
+            where: { organizationId, date: { gte: from, lt: to } },
+            include: { lead: { include: { company: true, contact: true } } },
+            orderBy: { date: 'asc' },
+        });
+        return activities.map(serializeActivity) as unknown as Activity[];
+    }
+
     async findAllWithFilters(organizationId: string, dateStr?: string): Promise<Activity[]> {
         const where: Prisma.ActivityWhereInput = { organizationId };
         if (dateStr) {

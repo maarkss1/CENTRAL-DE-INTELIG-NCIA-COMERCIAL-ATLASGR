@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Download, CheckCircle2, RefreshCw, Search, X, Filter, Tag, Users, CalendarDays, Info, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Download, CheckCircle2, AlertTriangle, RefreshCw, Search, X, Filter, Tag, Users, Lock, CalendarDays, Info, SlidersHorizontal } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 
 interface BitrixLeadSummary {
     id: string;
@@ -59,6 +61,12 @@ interface BitrixImportPanelProps {
 }
 
 export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
+    const { currentUser } = useAuth();
+    // ADMIN/GESTOR escolhem qualquer vendedor; qualquer outro papel (hoje, VENDEDOR) só enxerga e
+    // importa o próprio dado — o backend já força isso independente do que o front manda (ver
+    // resolveScopedAssignedById em bitrix.routes.ts), esconder o seletor aqui é só pra não sugerir
+    // uma escolha que o servidor vai ignorar.
+    const canPickAnyVendor = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
     const [mode, setMode] = useState<'deals' | 'leads'>('deals');
 
     // ── Modo Negócios (pipeline real) ───────────────────────────────────────────────────────
@@ -106,7 +114,10 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
     const [error, setError] = useState('');
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [importing, setImporting] = useState(false);
-    const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+    const [importResult, setImportResult] = useState<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number } | null>(null);
+    // Preenchido quando o backend restringe a busca ao próprio usuário mas não achou nenhum
+    // usuário do Bitrix com esse e-mail — sem isto a lista simplesmente aparece vazia, sem explicar por quê.
+    const [restrictedWarning, setRestrictedWarning] = useState('');
 
     const currentYear = new Date().getFullYear();
 
@@ -156,11 +167,12 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 params.set('customFieldCode', customFieldCode);
                 params.set('customFieldValue', debouncedCustomFieldValue.trim());
             }
-            const data = await api.get<{ deals: BitrixDealSummary[]; next: number | null; total: number }>(`/api/bitrix/deals?${params}`);
+            const { data, meta } = await api.get<{ data: { deals: BitrixDealSummary[]; next: number | null; total: number }; meta: { restricted: boolean; warning?: string } }>(`/api/bitrix/deals?${params}`);
             setDeals(data.deals);
             setNext(data.next);
             setTotal(data.total);
             setStart(from);
+            setRestrictedWarning(meta.warning || '');
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Não foi possível carregar os negócios do Bitrix24.');
         } finally {
@@ -178,11 +190,12 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 params.set('customFieldCode', customFieldCode);
                 params.set('customFieldValue', debouncedCustomFieldValue.trim());
             }
-            const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?${params}`);
+            const { data, meta } = await api.get<{ data: { leads: BitrixLeadSummary[]; next: number | null; total: number }; meta: { restricted: boolean; warning?: string } }>(`/api/bitrix/leads?${params}`);
             setLeads(data.leads);
             setNext(data.next);
             setTotal(data.total);
             setStart(from);
+            setRestrictedWarning(meta.warning || '');
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Não foi possível carregar os leads do Bitrix24.');
         } finally {
@@ -219,7 +232,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             const body = mode === 'deals'
                 ? { connectionId, bitrixDealIds: Array.from(selected) }
                 : { connectionId, bitrixLeadIds: Array.from(selected) };
-            const result = await api.post<{ imported: number; skipped: number }>(endpoint, body, { timeoutMs: 60_000 });
+            const result = await api.post<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }>(endpoint, body, { timeoutMs: 60_000 });
             setImportResult(result);
             setSelected(new Set());
             await load(start);
@@ -307,11 +320,19 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}><Users className="w-3 h-3" /> Vendedor</label>
-                                <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
-                                    <option value="">Todos os vendedores</option>
-                                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                </select>
+                                <label className={filterLabelClass}>
+                                    {canPickAnyVendor ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} Vendedor
+                                </label>
+                                {canPickAnyVendor ? (
+                                    <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
+                                        <option value="">Todos os vendedores</option>
+                                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    </select>
+                                ) : (
+                                    <span className="flex items-center h-9 px-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm" title="Você só vê e importa o seu próprio dado do Bitrix24.">
+                                        Só o seu
+                                    </span>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1">
                                 <label className={filterLabelClass}><CalendarDays className="w-3 h-3" /> Mês</label>
@@ -364,10 +385,27 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             </div>
 
             {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {importResult && (
-                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> {importResult.imported} registro(s) importado(s){importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
+            {!error && restrictedWarning && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {restrictedWarning}
                 </p>
+            )}
+            {importResult && (
+                <div className="text-xs space-y-0.5">
+                    <p className="text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {importResult.imported} registro(s) importado(s){importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
+                    </p>
+                    {importResult.skippedConflicts > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {importResult.skippedConflicts} bloqueado(s) — já pertenciam a outro responsável (notificação enviada).
+                        </p>
+                    )}
+                    {importResult.skippedNotOwned > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <Lock className="w-3.5 h-3.5 shrink-0" /> {importResult.skippedNotOwned} ignorado(s) — não estavam atribuídos a você no Bitrix24.
+                        </p>
+                    )}
+                </div>
             )}
 
             {loading ? (
