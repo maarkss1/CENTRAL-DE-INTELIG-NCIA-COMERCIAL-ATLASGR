@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { KpiTile } from './KpiTile';
+import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import {
     commercialIntelligenceApi, formatCurrency, formatPercent,
     type CommercialFilter, type PerformanceMetrics,
@@ -17,6 +18,7 @@ export function PerformanceTab({ filter }: { filter: CommercialFilter }) {
     const [data, setData] = useState<PerformanceMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [drillDown, setDrillDown] = useState<DrillDownQuery | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -40,11 +42,21 @@ export function PerformanceTab({ filter }: { filter: CommercialFilter }) {
                 <KpiTile label="Win Rate" value={formatPercent(data.winRate)} hint={`${data.wonCount} ganhos / ${data.lostCount} perdidos`} tone={data.winRate != null && data.winRate >= 50 ? 'good' : undefined} metricKey="win_rate" />
                 <KpiTile label="Sales Cycle (mediana)" value={DaysLabel(data.salesCycle.medianDays)} hint={`Amostra: ${data.salesCycle.sampleSize}`} metricKey="sales_cycle" />
                 <KpiTile label="Sales Cycle (média)" value={DaysLabel(data.salesCycle.meanDays)} metricKey="sales_cycle" />
-                <KpiTile label="Oportunidades abertas" value={String(data.opportunities.open)} hint={`${data.opportunities.eligible} elegível(is)`} />
+                <KpiTile
+                    label="Oportunidades abertas"
+                    value={String(data.opportunities.open)}
+                    hint={`${data.opportunities.eligible} elegível(is)`}
+                    onClick={() => setDrillDown({ title: 'Negócios em aberto' })}
+                />
                 <KpiTile label="Ticket médio (aberto)" value={formatCurrency(data.averageTicket.open)} metricKey="ticket_medio" />
                 <KpiTile label="Ticket médio (ganho)" value={formatCurrency(data.averageTicket.won)} tone="good" metricKey="ticket_medio" />
                 <KpiTile label="Oportunidades em risco" value={String(data.opportunities.atRisk)} tone={data.opportunities.atRisk > 0 ? 'critical' : undefined} />
-                <KpiTile label="Paradas (aging crítico)" value={String(data.opportunities.stalled)} tone={data.opportunities.stalled > 0 ? 'critical' : undefined} />
+                <KpiTile
+                    label="Paradas (aging crítico)"
+                    value={String(data.opportunities.stalled)}
+                    tone={data.opportunities.stalled > 0 ? 'critical' : undefined}
+                    onClick={data.opportunities.stalled > 0 ? () => setDrillDown({ title: 'Negócios parados (aging crítico)', agingCritical: true }) : undefined}
+                />
             </div>
 
             <Card padding="sm">
@@ -64,11 +76,16 @@ export function PerformanceTab({ filter }: { filter: CommercialFilter }) {
                                 </div>
                                 <div className="w-16 shrink-0 text-right text-xs [font-variant-numeric:tabular-nums] text-ink">{stage.count}</div>
                                 <div className="w-20 shrink-0 text-right text-[11px] text-ink-2">{stage.conversionFromPrevious != null ? formatPercent(stage.conversionFromPrevious) : '—'}</div>
+                                <div className="w-24 shrink-0 text-right text-[11px] text-ink-2" title="Dias médios na etapa">
+                                    {stage.averageDaysInStage != null ? `${stage.averageDaysInStage}d na etapa` : 'Sem histórico'}
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
             </Card>
+
+            <DealDrillDownDrawer filter={filter} query={drillDown} onClose={() => setDrillDown(null)} />
         </div>
     );
 }

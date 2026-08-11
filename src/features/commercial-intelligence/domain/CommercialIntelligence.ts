@@ -198,6 +198,8 @@ export interface LeadingIndicatorPoint {
     previousWeek: number;
     movingAverage4w: number;
     trend: 'up' | 'down' | 'flat';
+    /** As 4 semanas usadas para calcular `movingAverage4w`, mais antiga → mais recente — habilita o sparkline na UI em vez de só a média. */
+    weeklySeries: number[];
 }
 
 export interface LeadingIndicatorsReport {
@@ -249,6 +251,33 @@ export interface CrmQualityField {
     completeness: number | null;
 }
 
+/**
+ * Saúde da sincronização com o Bitrix24 (seção Qualidade do CRM) — mede quantos negócios abertos
+ * do funil "Negócio" têm um vínculo real com o Bitrix (`Lead.bitrixLeadId`/`bitrixDealId`) e se a
+ * última tentativa de sincronização teve sucesso. Não é sobre completude de campos comerciais (ver
+ * `CrmQualityField` acima), é sobre a integração em si — um negócio pode estar 100% preenchido e
+ * ainda assim nunca ter chegado ao Bitrix, ou ter chegado e falhado na última atualização.
+ */
+export interface BitrixSyncFailure {
+    leadId: string;
+    title: string | null;
+    companyName: string | null;
+    error: string | null;
+    lastAttemptAt: string | null;
+}
+
+export interface BitrixSyncHealth {
+    /** `true` quando a organização não tem nenhuma conexão Bitrix24 ativa — UI mostra CTA para conectar em vez de métricas zeradas. */
+    connected: boolean;
+    totalOpen: number;
+    linked: number;
+    notLinked: number;
+    failed: number;
+    /** `null` quando `totalOpen` é 0. */
+    linkedRate: number | null;
+    failures: BitrixSyncFailure[];
+}
+
 export interface CrmQualityIndex {
     period: PeriodMonth;
     /** Média das completudes por campo, em %. `null` sem negócios abertos no funil. */
@@ -256,6 +285,7 @@ export interface CrmQualityIndex {
     fields: CrmQualityField[];
     suspectedDuplicateGroups: number;
     evaluatedCount: number;
+    bitrixSync: BitrixSyncHealth;
 }
 
 // ─── Drill-down (seção 29) ───────────────────────────────────────────────────
@@ -276,6 +306,8 @@ export interface DealDrillDownRow {
     riskFactors: string[];
     expectedCloseAt: string | null;
     source: string | null;
+    /** `true` quando o negócio tem `bitrixLeadId`/`bitrixDealId` — habilita a ação "Notificar no Bitrix" no drill-down. */
+    bitrixLinked: boolean;
 }
 
 export interface DealDrillDownResult {
@@ -330,6 +362,12 @@ export interface DealRow {
     lossReason: string | null;
     lossObservation: string | null;
     status: string;
+    bitrixLeadId: string | null;
+    bitrixDealId: string | null;
+    /** 'pending' | 'syncing' | 'synced' | 'failed' | null (nunca tentado) — ver comentário em Lead.bitrixSyncStatus no schema. */
+    bitrixSyncStatus: string | null;
+    bitrixSyncError: string | null;
+    bitrixSyncedAt: Date | null;
     pipelineId: string | null;
     pipelineStageId: string | null;
     stageName: string | null;
@@ -374,6 +412,8 @@ export interface CommercialIntelligenceRepository {
     >;
     /** Grupos de negócios abertos (funil Negócio) que compartilham a mesma empresa — heurística de duplicidade suspeita (seção 27), não determinística de identidade. */
     countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number>;
+    /** `true` quando a organização tem ao menos uma conexão Bitrix24 ativa — usado por `bitrixSync` para distinguir "0 vinculado porque não tem Bitrix" de "0 vinculado apesar de ter Bitrix". */
+    hasBitrixConnection(organizationId: string): Promise<boolean>;
 
     getGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric): Promise<CommercialGoalDTO | null>;
     upsertGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO>;

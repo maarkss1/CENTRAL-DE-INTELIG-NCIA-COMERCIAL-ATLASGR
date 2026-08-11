@@ -93,6 +93,7 @@
     "google-auth-library": "^10.9.1",
     "helmet": "^8.3.0",
     "ioredis": "^5.11.0",
+    "langchain": "^1.5.5",
     "langfuse": "^3.38.20",
     "lucide-react": "^0.546.0",
     "mammoth": "^1.12.0",

@@ -15,7 +15,7 @@ export interface SyncLeadOverrides {
 }
 
 async function logSync(params: {
-    organizationId: string; connectionId: string; direction: 'outbound'; entityType: 'lead';
+    organizationId: string; connectionId: string; direction: 'outbound'; entityType: 'lead' | 'deal';
     leadId: string; bitrixRecordId: string | null; status: 'success' | 'failed';
     errorMessage?: string | null; correlationId: string;
 }): Promise<void> {
@@ -162,6 +162,40 @@ async function syncLeadToBitrix(
             logger.error({ err: updateErr, leadId }, '[bitrix] Falha ao registrar status de sync (failed) no lead');
         });
         await logSync({ organizationId, connectionId, direction: 'outbound', entityType: 'lead', leadId, bitrixRecordId: lead.bitrixLeadId, status: 'failed', errorMessage, correlationId });
+        throw err;
+    }
+}
+
+/**
+ * Registra um comentário na timeline do registro Bitrix vinculado a este lead local — usado pelo
+ * módulo Comercial Inteligente para notificar um risco (negócio estagnado, sem próxima ação etc.)
+ * direto no Bitrix, sem exigir que quem está no cockpit abra o Bitrix separadamente. Prioriza o
+ * vínculo de Deal (bitrixDealId) sobre o de Lead: Comercial Inteligente só opera sobre o funil
+ * "Negócio", que é o que o Bitrix normalmente representa como Deal quando importado por lá.
+ */
+export async function postCommentToBitrix(organizationId: string, leadId: string, comment: string): Promise<{ entityType: 'lead' | 'deal'; bitrixRecordId: string }> {
+    const correlationId = randomUUID();
+    const lead = await prisma.lead.findFirst({ where: { id: leadId, organizationId }, select: { bitrixLeadId: true, bitrixDealId: true } });
+    if (!lead) throw new AppError('Negócio não encontrado.', 404);
+
+    const entityType = lead.bitrixDealId ? 'deal' : lead.bitrixLeadId ? 'lead' : null;
+    const bitrixRecordId = lead.bitrixDealId || lead.bitrixLeadId;
+    if (!entityType || !bitrixRecordId) {
+        throw new AppError('Este negócio ainda não está vinculado a um registro do Bitrix24.', 400);
+    }
+
+    const connection = await prisma.bitrixConnection.findFirst({ where: { organizationId }, orderBy: { createdAt: 'asc' } });
+    if (!connection) throw new AppError('Bitrix24 não está conectado para esta organização.', 400);
+
+    try {
+        await callBitrix(connection.webhookUrl, 'crm.timeline.comment.add', {
+            fields: { ENTITY_ID: bitrixRecordId, ENTITY_TYPE: entityType, COMMENT: comment },
+        }, { correlationId });
+        await logSync({ organizationId, connectionId: connection.id, direction: 'outbound', entityType, leadId, bitrixRecordId, status: 'success', correlationId });
+        return { entityType, bitrixRecordId };
+    } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        await logSync({ organizationId, connectionId: connection.id, direction: 'outbound', entityType, leadId, bitrixRecordId, status: 'failed', errorMessage, correlationId });
         throw err;
     }
 }

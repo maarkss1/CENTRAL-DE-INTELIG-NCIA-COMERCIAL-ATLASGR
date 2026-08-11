@@ -21,6 +21,7 @@ import {
     testBitrixConnection,
     getEntityFields,
     getConnectionWebhookUrl,
+    postCommentToBitrix,
 } from './bitrix.service.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
@@ -258,6 +259,25 @@ router.post('/deals/import', managementRoles, async (req: Request, res: Response
             return;
         }
         const result = await importSelectedBitrixDeals(organizationId, connectionId, bitrixDealIds);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Registra um comentário na timeline do Lead/Deal Bitrix vinculado a este negócio local — usado
+// pelo Comercial Inteligente para notificar um risco (estagnação, sem próxima ação etc.) sem sair
+// da plataforma. Mesmo gate de ADMIN/GESTOR das outras escritas nesta rota: é uma ação que grava
+// no CRM do cliente do outro lado do webhook, não uma leitura.
+router.post('/leads/:leadId/comment', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { comment } = req.body as { comment?: unknown };
+        if (typeof comment !== 'string' || !comment.trim()) {
+            res.status(400).json({ success: false, error: 'comment é obrigatório.' });
+            return;
+        }
+        const result = await postCommentToBitrix(organizationId, req.params.leadId, comment.trim());
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

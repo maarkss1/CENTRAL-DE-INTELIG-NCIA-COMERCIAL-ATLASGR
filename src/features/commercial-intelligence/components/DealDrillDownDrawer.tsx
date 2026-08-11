@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Send, CheckCircle2 } from 'lucide-react';
 import { Drawer } from '../../../components/ui/Drawer';
 import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { toast } from '../../../lib/toast';
 import {
     commercialIntelligenceApi, formatCurrency,
     type CommercialFilter, type DealDrillDownRow, type ForecastTier,
@@ -37,6 +39,22 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [notifying, setNotifying] = useState<string | null>(null);
+    const [notified, setNotified] = useState<Set<string>>(new Set());
+
+    const notifyBitrix = async (row: DealDrillDownRow) => {
+        setNotifying(row.id);
+        try {
+            const comment = `⚠️ Risco identificado pelo Comercial Inteligente (AtlasGR Prospector): ${row.riskFactors.join(', ')}.`;
+            await commercialIntelligenceApi.notifyBitrix(row.id, comment);
+            setNotified((prev) => new Set(prev).add(row.id));
+            toast.success('Risco registrado na timeline do Bitrix24.');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Falha ao notificar o Bitrix24.');
+        } finally {
+            setNotifying(null);
+        }
+    };
 
     useEffect(() => {
         if (!query) return;
@@ -100,9 +118,30 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
                                 <div><dt className="inline font-semibold">Última atividade: </dt><dd className="inline">{formatDate(row.lastInteraction)}</dd></div>
                             </dl>
                             {row.riskFactors.length > 0 && (
-                                <p className="text-[11px] text-[#d03b3b] pt-1">
-                                    <span className="font-semibold">Fatores de risco:</span> {row.riskFactors.join(' · ')}
-                                </p>
+                                <div className="flex items-start justify-between gap-2 pt-1">
+                                    <p className="text-[11px] text-[#d03b3b]">
+                                        <span className="font-semibold">Fatores de risco:</span> {row.riskFactors.join(' · ')}
+                                    </p>
+                                    {row.bitrixLinked && (
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="shrink-0 h-6 px-2 text-[10px]"
+                                            disabled={notifying === row.id || notified.has(row.id)}
+                                            onClick={() => notifyBitrix(row)}
+                                            title="Registra os fatores de risco na timeline do Bitrix24"
+                                        >
+                                            {notifying === row.id ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : notified.has(row.id) ? (
+                                                <CheckCircle2 className="w-3 h-3" />
+                                            ) : (
+                                                <Send className="w-3 h-3" />
+                                            )}
+                                            {notified.has(row.id) ? 'Notificado' : 'Notificar Bitrix'}
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </div>
                     ))}

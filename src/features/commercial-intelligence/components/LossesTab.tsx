@@ -40,24 +40,21 @@ export function LossesTab({ filter }: { filter: CommercialFilter }) {
 
             <Card padding="sm">
                 <h3 className="text-sm font-bold text-ink mb-3">Por motivo</h3>
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="text-ink-2 border-b border-line">
-                            <th className="text-left font-semibold py-1.5">Motivo</th>
-                            <th className="text-right font-semibold py-1.5">Qtd.</th>
-                            <th className="text-right font-semibold py-1.5">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody className="[font-variant-numeric:tabular-nums]">
-                        {data.byReason.map((row) => (
-                            <tr key={row.reason} className="border-b border-line last:border-0">
-                                <td className="py-1.5 text-ink">{row.reason}</td>
-                                <td className="py-1.5 text-right text-ink-2">{row.count}</td>
-                                <td className="py-1.5 text-right text-ink-2">{formatCurrency(row.amount)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                <div className="space-y-2">
+                    {data.byReason.map((row) => (
+                        <div key={row.reason} className="flex items-center gap-3">
+                            <div className="w-32 shrink-0 text-xs font-semibold text-ink truncate" title={row.reason}>{row.reason}</div>
+                            <div className="flex-1 h-6 rounded-md bg-surface-2 overflow-hidden">
+                                <div
+                                    className="h-full rounded-md bg-[#d03b3b]/70"
+                                    style={{ width: `${data.totalAmount > 0 ? Math.max(4, (row.amount / data.totalAmount) * 100) : 0}%` }}
+                                />
+                            </div>
+                            <div className="w-12 shrink-0 text-right text-xs [font-variant-numeric:tabular-nums] text-ink">{row.count}</div>
+                            <div className="w-24 shrink-0 text-right text-[11px] text-ink-2 [font-variant-numeric:tabular-nums]">{formatCurrency(row.amount)}</div>
+                        </div>
+                    ))}
+                </div>
             </Card>
 
             {data.sampleObservations.length > 0 && (

@@ -61,6 +61,11 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
                 // comentário no schema). Mantido igual de propósito, não uma inconsistência.
                 lossObservation: lead.lossReason,
                 status: lead.status,
+                bitrixLeadId: lead.bitrixLeadId,
+                bitrixDealId: lead.bitrixDealId,
+                bitrixSyncStatus: lead.bitrixSyncStatus,
+                bitrixSyncError: lead.bitrixSyncError,
+                bitrixSyncedAt: lead.bitrixSyncedAt,
                 pipelineId: lead.pipelineId,
                 pipelineStageId: lead.pipelineStageId,
                 stageName: stage?.name ?? null,
@@ -121,6 +126,11 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
             _count: { _all: true },
         });
         return grouped.filter((g) => g._count._all > 1).length;
+    }
+
+    async hasBitrixConnection(organizationId: string): Promise<boolean> {
+        const count = await prisma.bitrixConnection.count({ where: { organizationId } });
+        return count > 0;
     }
 
     async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {

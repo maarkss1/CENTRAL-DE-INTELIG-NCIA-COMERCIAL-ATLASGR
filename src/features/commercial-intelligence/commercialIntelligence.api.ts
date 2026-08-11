@@ -101,6 +101,7 @@ export interface LossAnalysis {
 
 export interface LeadingIndicatorPoint {
     label: string; current: number; previousWeek: number; movingAverage4w: number; trend: 'up' | 'down' | 'flat';
+    weeklySeries: number[];
 }
 export interface LeadingIndicatorsReport {
     weekStart: string; weekEnd: string; indicators: LeadingIndicatorPoint[]; trackingSince: string | null;
@@ -110,15 +111,23 @@ export type AlertSeverity = 'critical' | 'warning' | 'info';
 export interface ExecutiveAlert { id: string; severity: AlertSeverity; title: string; description: string; metricValue: number | null }
 
 export interface CrmQualityField { field: string; label: string; filled: number; total: number; completeness: number | null }
+
+export interface BitrixSyncFailure { leadId: string; title: string | null; companyName: string | null; error: string | null; lastAttemptAt: string | null }
+export interface BitrixSyncHealth {
+    connected: boolean; totalOpen: number; linked: number; notLinked: number; failed: number;
+    linkedRate: number | null; failures: BitrixSyncFailure[];
+}
+
 export interface CrmQualityIndex {
     period: string; overallScore: number | null; fields: CrmQualityField[]; suspectedDuplicateGroups: number; evaluatedCount: number;
+    bitrixSync: BitrixSyncHealth;
 }
 
 export interface DealDrillDownRow {
     id: string; title: string | null; companyName: string | null; amount: number; owner: string | null;
     stageName: string | null; probability: number | null; weightedProbability: number | null; tier: ForecastTier | null;
     agingDays: number; lastInteraction: string | null; nextAction: string | null; riskFactors: string[];
-    expectedCloseAt: string | null; source: string | null;
+    expectedCloseAt: string | null; source: string | null; bitrixLinked: boolean;
 }
 export interface DealDrillDownResult { total: number; rows: DealDrillDownRow[] }
 
@@ -160,6 +169,10 @@ export const commercialIntelligenceApi = {
     metricsDictionary: () => api.get<MetricDefinition[]>(`${BASE}/metrics-dictionary`),
     getGoal: (month: string) => api.get<CommercialGoalDTO | null>(`${BASE}/goals?month=${month}`),
     setGoal: (period: string, amount: number, currency = 'BRL') => api.put<CommercialGoalDTO>(`${BASE}/goals`, { period, amount, currency }),
+    // Ação de escrita no Bitrix24 — vive na rota do módulo de integração (não duplica a lógica de
+    // sincronização aqui), mas fica exposta neste client porque quem a dispara é a UI do Comercial
+    // Inteligente (drill-down de negócio em risco).
+    notifyBitrix: (leadId: string, comment: string) => api.post<{ entityType: 'lead' | 'deal'; bitrixRecordId: string }>(`/api/bitrix/leads/${leadId}/comment`, { comment }),
 };
 
 export function formatCurrency(value: number | null | undefined, currency = 'BRL'): string {

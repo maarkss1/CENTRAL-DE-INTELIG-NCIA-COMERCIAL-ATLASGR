@@ -16,6 +16,7 @@ import type {
     LeadingIndicatorPoint,
     ExecutiveAlert,
     CrmQualityIndex,
+    BitrixSyncHealth,
     DealDrillDownQuery,
     DealDrillDownResult,
     DealDrillDownRow,
@@ -519,7 +520,7 @@ export class CommercialIntelligenceUseCases {
             const movingAverage4w = roundMoney(weeklyValues.reduce((s, v) => s + v, 0) / weeklyValues.length);
             const delta = previousWeek === 0 ? (current === 0 ? 0 : 1) : (current - previousWeek) / previousWeek;
             const trend: LeadingIndicatorPoint['trend'] = delta > 0.05 ? 'up' : delta < -0.05 ? 'down' : 'flat';
-            return { label, current, previousWeek, movingAverage4w, trend };
+            return { label, current, previousWeek, movingAverage4w, trend, weeklySeries: weeklyValues };
         };
 
         const indicators = await Promise.all([
@@ -645,6 +646,7 @@ export class CommercialIntelligenceUseCases {
         const overallScore = withCompleteness.length > 0 ? roundMoney(withCompleteness.reduce((sum, f) => sum + (f.completeness as number), 0) / withCompleteness.length) : null;
 
         const suspectedDuplicateGroups = await this.repository.countDuplicateCompanyGroupsAmongOpenDeals(organizationId);
+        const bitrixSync = await this.bitrixSyncHealth(organizationId, open);
 
         void now;
         return {
@@ -653,6 +655,35 @@ export class CommercialIntelligenceUseCases {
             fields,
             suspectedDuplicateGroups,
             evaluatedCount: open.length,
+            bitrixSync,
+        };
+    }
+
+    /**
+     * Saúde da integração Bitrix24 sobre os negócios abertos do funil "Negócio" — quantos têm
+     * `bitrixLeadId`/`bitrixDealId` (vínculo real) e quantos tiveram a última sincronização
+     * marcada como `failed` em `Lead.bitrixSyncStatus`. Não faz nenhuma chamada de rede ao Bitrix
+     * — lê só o que já foi gravado localmente pelo `outboundSync`/webhook de entrada.
+     */
+    private async bitrixSyncHealth(organizationId: string, open: DealRow[]): Promise<BitrixSyncHealth> {
+        const connected = await this.repository.hasBitrixConnection(organizationId);
+        const linkedDeals = open.filter((d) => d.bitrixLeadId || d.bitrixDealId);
+        const failedDeals = open.filter((d) => d.bitrixSyncStatus === 'failed');
+
+        return {
+            connected,
+            totalOpen: open.length,
+            linked: linkedDeals.length,
+            notLinked: open.length - linkedDeals.length,
+            failed: failedDeals.length,
+            linkedRate: open.length > 0 ? roundMoney((linkedDeals.length / open.length) * 100) : null,
+            failures: failedDeals.slice(0, 10).map((d) => ({
+                leadId: d.id,
+                title: d.title,
+                companyName: d.companyName,
+                error: d.bitrixSyncError,
+                lastAttemptAt: d.bitrixSyncedAt ? d.bitrixSyncedAt.toISOString() : null,
+            })),
         };
     }
 
@@ -689,6 +720,7 @@ export class CommercialIntelligenceUseCases {
             riskFactors: s.forecast.negativeFactors,
             expectedCloseAt: s.deal.expectedCloseAt ? s.deal.expectedCloseAt.toISOString() : null,
             source: s.deal.source,
+            bitrixLinked: !!(s.deal.bitrixLeadId || s.deal.bitrixDealId),
         });
 
         return { total, rows: page.map(toRow) };

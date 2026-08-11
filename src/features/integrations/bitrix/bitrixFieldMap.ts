@@ -96,4 +96,15 @@ export const BITRIX_FIELD_MAP: BitrixFieldMapping[] = [
     // fazia parte do levantamento original de 2026-08-05 que gerou o resto deste mapa. Só código
     // Lead conhecido; nenhum equivalente Deal foi identificado até agora.
     { label: 'Data do contrato assinado', type: 'date', target: { kind: 'lead', field: 'contractSignedDate' }, leadCode: 'UF_CRM_1770928318695', dealCode: null },
+
+    // ── Novos Campos Adicionados a Pedido do Usuário ─────────────────────────────────────────────
+    { label: 'Fluxo do Lead', type: 'enumeration', target: { kind: 'qualification', field: 'fluxoLead' }, leadCode: 'UF_CRM_1770064518213', dealCode: null },
+    { label: 'Linkedin', type: 'url', target: { kind: 'contact', field: 'linkedin' }, leadCode: 'UF_CRM_1770152500250', dealCode: null },
+    { label: 'Perfil da Operação?', type: 'enumeration', target: { kind: 'qualification', field: 'perfilOperacao' }, leadCode: 'UF_CRM_LEAD_1779122574144', dealCode: null },
+    { label: 'O que você busca?', type: 'string', target: { kind: 'qualification', field: 'oqueBusca' }, leadCode: 'UF_CRM_LEAD_1779122708096', dealCode: null },
+    { label: 'Finalidade Principal', type: 'enumeration', target: { kind: 'qualification', field: 'finalidadePrincipal' }, leadCode: 'UF_CRM_LEAD_1779123387103', dealCode: null },
+    { label: 'Média de Contratações Mês', type: 'double', target: { kind: 'qualification', field: 'mediaContratacoesMes' }, leadCode: 'UF_CRM_LEAD_1779123481887', dealCode: null },
+    { label: 'Segmento', type: 'enumeration', target: { kind: 'qualification', field: 'segmento' }, leadCode: 'UF_CRM_1785868909310', dealCode: null },
+    { label: 'Telefone (Custom)', type: 'string', target: { kind: 'qualification', field: 'telefoneCustom' }, leadCode: 'UF_CRM_1772808964686', dealCode: null },
+    { label: 'Observações (Custom)', type: 'string', target: { kind: 'qualification', field: 'observacoesCustom' }, leadCode: 'UF_CRM_1772808989707', dealCode: null },
 ];

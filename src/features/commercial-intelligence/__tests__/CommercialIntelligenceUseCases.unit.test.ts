@@ -33,6 +33,11 @@ function deal(overrides: Partial<DealRow> & { id: string }): DealRow {
         lossReason: null,
         lossObservation: null,
         status: 'Nova_Oportunidade',
+        bitrixLeadId: null,
+        bitrixDealId: null,
+        bitrixSyncStatus: null,
+        bitrixSyncError: null,
+        bitrixSyncedAt: null,
         pipelineId: 'pipeline-1',
         pipelineStageId: 'stage-nova',
         stageName: 'Nova Oportunidade',
@@ -52,7 +57,8 @@ class FakeRepository implements CommercialIntelligenceRepository {
         public history: Array<{ leadId: string; stageId: string | null; stageName: string; enteredAt: Date; exitedAt: Date | null }> = [],
         public meetingsCount = 0,
         public timelineEventCount = 0,
-        public duplicateGroups = 0
+        public duplicateGroups = 0,
+        public bitrixConnected = false
     ) {}
 
     async findDeals(): Promise<DealRow[]> { return this.deals; }
@@ -61,6 +67,7 @@ class FakeRepository implements CommercialIntelligenceRepository {
     async countTimelineEventsByType(): Promise<number> { return this.timelineEventCount; }
     async findStageHistory() { return this.history; }
     async countDuplicateCompanyGroupsAmongOpenDeals(): Promise<number> { return this.duplicateGroups; }
+    async hasBitrixConnection(): Promise<boolean> { return this.bitrixConnected; }
 
     async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {
         return this.goals.get(`${organizationId}:${period}:${metric}`) ?? null;
@@ -239,5 +246,60 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(result.total).toBe(1);
         expect(result.rows[0].id).toBe('commit-1');
         expect(result.rows[0].tier).toBe('Commit');
+    });
+
+    it('Qualidade do CRM: sem conexão Bitrix24, bitrixSync.connected é false mas os contadores continuam corretos', async () => {
+        const notLinked = deal({ id: 'nl-1', amount: 1_000 });
+        const linked = deal({ id: 'l-1', amount: 2_000, bitrixDealId: 'bx-deal-1', bitrixSyncStatus: 'synced' });
+        const repo = new FakeRepository([notLinked, linked], STAGES, [], 0, 0, 0, false);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const quality = await useCases.crmQuality(ORG, { month: PERIOD }, NOW);
+        expect(quality.bitrixSync.connected).toBe(false);
+        expect(quality.bitrixSync.totalOpen).toBe(2);
+        expect(quality.bitrixSync.linked).toBe(1);
+        expect(quality.bitrixSync.notLinked).toBe(1);
+    });
+
+    it('Qualidade do CRM: com conexão Bitrix24, contabiliza vínculo, falhas e lista as falhas com o motivo', async () => {
+        const linked = deal({ id: 'l-1', amount: 2_000, bitrixLeadId: 'bx-lead-1', bitrixSyncStatus: 'synced' });
+        const notLinked = deal({ id: 'nl-1', amount: 1_000 });
+        const failed = deal({ id: 'f-1', amount: 3_000, bitrixLeadId: 'bx-lead-2', bitrixSyncStatus: 'failed', bitrixSyncError: 'Token expirado' });
+        const repo = new FakeRepository([linked, notLinked, failed], STAGES, [], 0, 0, 0, true);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const quality = await useCases.crmQuality(ORG, { month: PERIOD }, NOW);
+        expect(quality.bitrixSync.connected).toBe(true);
+        expect(quality.bitrixSync.totalOpen).toBe(3);
+        expect(quality.bitrixSync.linked).toBe(2);
+        expect(quality.bitrixSync.notLinked).toBe(1);
+        expect(quality.bitrixSync.failed).toBe(1);
+        expect(quality.bitrixSync.linkedRate).toBeCloseTo((2 / 3) * 100, 1);
+        expect(quality.bitrixSync.failures).toHaveLength(1);
+        expect(quality.bitrixSync.failures[0]).toMatchObject({ leadId: 'f-1', error: 'Token expirado' });
+    });
+
+    it('Leading Indicators: weeklySeries expõe as 4 semanas usadas no cálculo de movingAverage4w, mais antiga → mais recente', async () => {
+        const repo = new FakeRepository([], STAGES, [], 0, 0, 0, false);
+        // countCreated é o único indicador que não depende de countCompletedMeetings/countTimelineEventsByType
+        // (fixos em 0 no FakeRepository) — usa `deals` diretamente, então dá pra construir uma série não-trivial.
+        const oldDeal = deal({ id: 'w1', createdAt: new Date('2026-07-20T00:00:00Z') }); // semana mais antiga da janela de 4
+        const recentDeal = deal({ id: 'w2', createdAt: new Date('2026-08-14T00:00:00Z') }); // semana mais recente
+        repo.deals = [oldDeal, recentDeal];
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const report = await useCases.leadingIndicators(ORG, NOW);
+        const pipelineCriado = report.indicators.find((i) => i.label === 'Pipeline criado');
+        expect(pipelineCriado?.weeklySeries).toHaveLength(4);
+        expect(pipelineCriado?.weeklySeries.reduce((s, v) => s + v, 0)).toBe(2);
+        expect(pipelineCriado?.movingAverage4w).toBeCloseTo((pipelineCriado?.weeklySeries.reduce((s, v) => s + v, 0) ?? 0) / 4, 2);
+    });
+
+    it('Drill-down: bitrixLinked reflete se o negócio tem bitrixLeadId ou bitrixDealId', async () => {
+        const linked = deal({ id: 'l-1', amount: 10_000, bitrixDealId: 'bx-deal-1' });
+        const notLinked = deal({ id: 'nl-1', amount: 10_000 });
+        const repo = new FakeRepository([linked, notLinked]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const result = await useCases.dealsDrillDown(ORG, { month: PERIOD }, NOW);
+        const byId = Object.fromEntries(result.rows.map((r) => [r.id, r]));
+        expect(byId['l-1'].bitrixLinked).toBe(true);
+        expect(byId['nl-1'].bitrixLinked).toBe(false);
     });
 });
