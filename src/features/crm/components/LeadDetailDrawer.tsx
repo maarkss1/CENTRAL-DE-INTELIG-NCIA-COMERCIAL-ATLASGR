@@ -91,10 +91,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         }
         setCallingVoice(true);
         try {
-            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3001';
-            const res = await fetch(`${voiceHubUrl}/api/webhooks/bland`, {
+            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3000';
+            const res = await fetch(`${voiceHubUrl}/api/webhook/atlasgr/outbound`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-atlasgr-webhook-secret': 'segredo_compartilhado_atlasgr_123',
+                },
                 body: JSON.stringify({
                     phone_number: phone,
                     name: lead.contact?.name || 'Cliente',
