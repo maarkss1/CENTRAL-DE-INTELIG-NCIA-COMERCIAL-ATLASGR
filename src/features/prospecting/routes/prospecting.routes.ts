@@ -133,4 +133,27 @@ router.post('/icebreaker', async (req: Request, res: Response, next: NextFunctio
     }
 });
 
+// Import the cold email service
+import { sendColdEmail, ColdEmailCampaign } from '../services/cold-email.service.js';
+
+// Envia um cold email (ex: template de prospecção) com rotulagem LGPD
+router.post('/cold-email', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const campaign = req.body as ColdEmailCampaign;
+        if (!campaign || !campaign.targetEmail) {
+            res.status(400).json({ success: false, error: 'targetEmail é obrigatório' });
+            return;
+        }
+        
+        const success = await sendColdEmail(campaign);
+        if (success) {
+            res.json({ success: true, message: 'Email sent' });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to send cold email' });
+        }
+    } catch (error) {
+        next(error);
+    }
+});
+
 export const prospectingRoutes = router;
