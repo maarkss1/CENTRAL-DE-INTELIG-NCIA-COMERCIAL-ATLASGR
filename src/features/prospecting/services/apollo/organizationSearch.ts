@@ -1,7 +1,7 @@
 import type { ProspectCriteria, ProspectCandidate } from '../prospecting.service';
 import { buildLocationLabel } from '../prospecting.service';
 import { getPaidProspectingKey } from '../../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { validContactEmails } from '../../../../shared/utils/contact-links';
 import { logger } from '../../../../lib/logger';
 import { APOLLO_SEARCH_URL, DECISION_MAKER_PREFETCH_BUDGET_MS } from './client.js';
@@ -150,7 +150,7 @@ export async function fetchApolloCandidates(
     }
 
     try {
-        const res = await fetchWithTimeout(APOLLO_SEARCH_URL, {
+        const res = await fetchWithProviderRetry(APOLLO_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -158,7 +158,7 @@ export async function fetchApolloCandidates(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationSearch' });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

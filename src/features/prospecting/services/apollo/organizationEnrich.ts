@@ -1,5 +1,5 @@
 import { getPaidProspectingKey } from '../../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_ORG_ENRICH_URL } from './client.js';
 import type { ApolloOrganization } from './types.js';
 
@@ -17,9 +17,9 @@ export async function enrichOrganizationByDomain(
 
     try {
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;
-        const res = await fetchWithTimeout(url, {
+        const res = await fetchWithProviderRetry(url, {
             headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationEnrich' });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
