@@ -7,6 +7,7 @@ import { KpiTile } from './KpiTile';
 import { AlertsPanel } from './AlertsPanel';
 import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
+import { AiExecutiveSummaryCard } from './AiExecutiveSummaryCard';
 import {
     commercialIntelligenceApi, formatCurrency, formatPercent, formatMultiple,
     type CommercialFilter, type ExecutiveOverview, type ExecutiveAlert, type LeadingIndicatorsReport,
@@ -158,6 +159,8 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                     </div>
                 </div>
             )}
+
+            <AiExecutiveSummaryCard filter={filter} />
 
             <AlertsPanel alerts={alerts} loading={false} />
 

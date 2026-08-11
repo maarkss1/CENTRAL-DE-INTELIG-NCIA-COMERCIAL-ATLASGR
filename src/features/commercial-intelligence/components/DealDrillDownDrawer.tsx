@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, Send, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Send, CheckCircle2, Sparkles, X } from 'lucide-react';
 import { Drawer } from '../../../components/ui/Drawer';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
@@ -39,20 +39,48 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [notifying, setNotifying] = useState<string | null>(null);
     const [notified, setNotified] = useState<Set<string>>(new Set());
+    const [composerFor, setComposerFor] = useState<string | null>(null);
+    const [draftText, setDraftText] = useState('');
+    const [drafting, setDrafting] = useState(false);
+    const [sending, setSending] = useState(false);
 
-    const notifyBitrix = async (row: DealDrillDownRow) => {
-        setNotifying(row.id);
+    const defaultTemplate = (row: DealDrillDownRow) => `⚠️ Risco identificado pelo Comercial Inteligente (AtlasGR Prospector): ${row.riskFactors.join(', ')}.`;
+
+    const openComposer = (row: DealDrillDownRow) => {
+        setComposerFor(row.id);
+        setDraftText(defaultTemplate(row));
+    };
+
+    const closeComposer = () => {
+        setComposerFor(null);
+        setDraftText('');
+    };
+
+    const suggestWithAi = async (row: DealDrillDownRow) => {
+        setDrafting(true);
         try {
-            const comment = `⚠️ Risco identificado pelo Comercial Inteligente (AtlasGR Prospector): ${row.riskFactors.join(', ')}.`;
-            await commercialIntelligenceApi.notifyBitrix(row.id, comment);
+            const result = await commercialIntelligenceApi.aiBitrixNote(row.id);
+            setDraftText(result.draft);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Falha ao gerar sugestão com IA.');
+        } finally {
+            setDrafting(false);
+        }
+    };
+
+    const sendToBitrix = async (row: DealDrillDownRow) => {
+        if (!draftText.trim()) return;
+        setSending(true);
+        try {
+            await commercialIntelligenceApi.notifyBitrix(row.id, draftText.trim());
             setNotified((prev) => new Set(prev).add(row.id));
             toast.success('Risco registrado na timeline do Bitrix24.');
+            closeComposer();
         } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Falha ao notificar o Bitrix24.');
         } finally {
-            setNotifying(null);
+            setSending(false);
         }
     };
 
@@ -118,28 +146,66 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
                                 <div><dt className="inline font-semibold">Última atividade: </dt><dd className="inline">{formatDate(row.lastInteraction)}</dd></div>
                             </dl>
                             {row.riskFactors.length > 0 && (
-                                <div className="flex items-start justify-between gap-2 pt-1">
-                                    <p className="text-[11px] text-[#d03b3b]">
-                                        <span className="font-semibold">Fatores de risco:</span> {row.riskFactors.join(' · ')}
-                                    </p>
-                                    {row.bitrixLinked && (
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            className="shrink-0 h-6 px-2 text-[10px]"
-                                            disabled={notifying === row.id || notified.has(row.id)}
-                                            onClick={() => notifyBitrix(row)}
-                                            title="Registra os fatores de risco na timeline do Bitrix24"
-                                        >
-                                            {notifying === row.id ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : notified.has(row.id) ? (
-                                                <CheckCircle2 className="w-3 h-3" />
-                                            ) : (
-                                                <Send className="w-3 h-3" />
-                                            )}
-                                            {notified.has(row.id) ? 'Notificado' : 'Notificar Bitrix'}
-                                        </Button>
+                                <div className="pt-1">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="text-[11px] text-[#d03b3b]">
+                                            <span className="font-semibold">Fatores de risco:</span> {row.riskFactors.join(' · ')}
+                                        </p>
+                                        {row.bitrixLinked && composerFor !== row.id && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                className="shrink-0 h-6 px-2 text-[10px]"
+                                                disabled={notified.has(row.id)}
+                                                onClick={() => openComposer(row)}
+                                                title="Registra os fatores de risco na timeline do Bitrix24"
+                                            >
+                                                {notified.has(row.id) ? <CheckCircle2 className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+                                                {notified.has(row.id) ? 'Notificado' : 'Notificar Bitrix'}
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {composerFor === row.id && (
+                                        <div className="mt-2 rounded-lg border border-line bg-surface-2 p-2 space-y-2">
+                                            <label htmlFor={`bitrix-note-${row.id}`} className="sr-only">Nota para o Bitrix24</label>
+                                            <textarea
+                                                id={`bitrix-note-${row.id}`}
+                                                value={draftText}
+                                                onChange={(e) => setDraftText(e.target.value)}
+                                                rows={3}
+                                                className="w-full text-xs rounded-md border border-line bg-surface text-ink p-2 resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                                disabled={drafting || sending}
+                                            />
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    className="h-6 px-2 text-[10px]"
+                                                    disabled={drafting || sending}
+                                                    onClick={() => suggestWithAi(row)}
+                                                    title="Gera a nota com IA a partir dos dados reais deste negócio"
+                                                >
+                                                    {drafting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                                                    Sugerir com IA
+                                                </Button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Button type="button" variant="ghost" className="h-6 px-2 text-[10px]" disabled={drafting || sending} onClick={closeComposer}>
+                                                        <X className="w-3 h-3" /> Cancelar
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="h-6 px-2 text-[10px]"
+                                                        disabled={drafting || sending || !draftText.trim()}
+                                                        onClick={() => sendToBitrix(row)}
+                                                    >
+                                                        {sending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                                        Enviar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}

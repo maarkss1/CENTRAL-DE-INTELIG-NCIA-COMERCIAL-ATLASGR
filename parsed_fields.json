@@ -1,0 +1,202 @@
+[
+  {
+    "code": "UF_CRM_1750448346",
+    "label": "Origem",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_LEAD_1761941620381",
+    "label": "deal_ID",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1770055709670",
+    "label": "Etapa da Cadência",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770064518213",
+    "label": "Fluxo do Lead",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770065854148",
+    "label": "Motivo de desqualificação",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770125490990",
+    "label": "Data de Retomada",
+    "type": "date"
+  },
+  {
+    "code": "UF_CRM_1770145921858",
+    "label": "Segmento da Operação",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770146353739",
+    "label": "Tipo de Carga",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770147938904",
+    "label": "Média mensal de contratação de terceiros",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1770148071015",
+    "label": "Frota Própria (Quantidade)",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1770148150760",
+    "label": "Agregados (Quantidade)",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1770148446038",
+    "label": "Principais Rotas",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770148888607",
+    "label": "ERP/TMS Utilizado",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149168635",
+    "label": "Rastreador Utilizado",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149252221",
+    "label": "Seguradora",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149275773",
+    "label": "Corretora",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770149521989",
+    "label": "Fornecedor de GR Atual",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770149638958",
+    "label": "Possui Gestão de Risco?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149677223",
+    "label": "Usa Motoristas Terceiros?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149731149",
+    "label": "Possui Software Logístico?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770149877991",
+    "label": "Software Logístico Atual",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770150023444",
+    "label": "Possui Consulta e Cadastro de Motorista?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770150125622",
+    "label": "Consulta e Cadastro Atual",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770151930149",
+    "label": "Dor Principal Mapeada",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770152008547",
+    "label": "Detalhamento da dor",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770152253210",
+    "label": "Dor se conecta a qual solução Atlas?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770152500250",
+    "label": "Linkedin",
+    "type": "url"
+  },
+  {
+    "code": "UF_CRM_1770152565002",
+    "label": "Cargo",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1770152630292",
+    "label": "Nível de autoridade",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770152737250",
+    "label": "Interesse percebido",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770152849132",
+    "label": "Horizonte de Decisão",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1770729673990",
+    "label": "Média de viagem / mês",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1772808964686",
+    "label": "Telefone ",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_1772808989707",
+    "label": "Observações",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_LEAD_1779122574144",
+    "label": "Perfil da Operação?",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_LEAD_1779122708096",
+    "label": "O que você busca? ",
+    "type": "string"
+  },
+  {
+    "code": "UF_CRM_LEAD_1779123387103",
+    "label": "Finalidade Principal",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_LEAD_1779123481887",
+    "label": "Média de Contratações Mês",
+    "type": "double"
+  },
+  {
+    "code": "UF_CRM_1785162221346",
+    "label": "Temperatura do Lead",
+    "type": "enumeration"
+  },
+  {
+    "code": "UF_CRM_1785868909310",
+    "label": "Segmento ",
+    "type": "enumeration"
+  }
+]

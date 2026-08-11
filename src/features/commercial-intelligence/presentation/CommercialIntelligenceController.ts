@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { CommercialIntelligenceUseCases, currentPeriod } from '../application/CommercialIntelligenceUseCases';
 import { METRICS_DICTIONARY } from '../application/metricsDictionary';
+import type { CommercialIntelligenceAiService } from '../infra/CommercialIntelligenceAiService';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 import type { CommercialIntelligenceFilter, DealDrillDownQuery, ForecastTier } from '../domain/CommercialIntelligence';
 
@@ -22,7 +23,7 @@ function parseFilter(req: Request): CommercialIntelligenceFilter {
 const VALID_TIERS: ForecastTier[] = ['Commit', 'BestCase', 'Pipeline', 'Upside'];
 
 export class CommercialIntelligenceController {
-    constructor(private useCases: CommercialIntelligenceUseCases) {}
+    constructor(private useCases: CommercialIntelligenceUseCases, private aiService: CommercialIntelligenceAiService) {}
 
     getOverview = async (req: Request, res: Response, next: NextFunction) => {
         try {
@@ -149,6 +150,35 @@ export class CommercialIntelligenceController {
             const { organizationId } = (req as AuthRequest).user;
             const month = parseMonth(req.query.month);
             const data = await this.useCases.getGoal(organizationId, month);
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    postAiExecutiveSummary = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = (req as AuthRequest).user;
+            const data = await this.aiService.generateExecutiveSummary(organizationId, parseFilter(req));
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    postAiBitrixNote = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = (req as AuthRequest).user;
+            const leadId = typeof req.body?.leadId === 'string' ? req.body.leadId : '';
+            if (!leadId) {
+                res.status(400).json({ success: false, error: 'leadId é obrigatório.' });
+                return;
+            }
+            const data = await this.aiService.draftBitrixRiskNote(organizationId, leadId);
+            if (!data) {
+                res.status(404).json({ success: false, error: 'Negócio não encontrado' });
+                return;
+            }
             res.json({ success: true, data });
         } catch (error) {
             next(error);

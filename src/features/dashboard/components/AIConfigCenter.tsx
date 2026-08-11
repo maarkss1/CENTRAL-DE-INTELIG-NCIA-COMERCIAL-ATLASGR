@@ -32,6 +32,10 @@ const TOOLS: { key: string; label: string }[] = [
   { key: 'roi_pitch', label: 'Pitch de ROI' },
   { key: 'competitor_battlecard', label: 'Battlecard de Concorrente' },
   { key: 'cadence_sequence', label: 'Sequência de Cadência' },
+  // Espelha os toolKeys de CommercialIntelligenceAiService.ts (não faz parte de ContentTool —
+  // módulo diferente, grounded em métricas agregadas, não num lead).
+  { key: 'ci_executive_summary', label: 'Comercial Inteligente — Resumo Executivo' },
+  { key: 'ci_bitrix_note', label: 'Comercial Inteligente — Nota de Risco (Bitrix)' },
 ];
 
 const DEFAULT_MODEL = 'local-llama3-fast';
