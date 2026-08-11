@@ -66,6 +66,7 @@ import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/qu
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
+import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -425,6 +426,8 @@ async function startServer() {
             );
         }
     }).catch(() => null);
+
+    ColdLeadsScannerService.start();
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
