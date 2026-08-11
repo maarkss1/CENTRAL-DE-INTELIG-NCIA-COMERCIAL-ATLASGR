@@ -1,7 +1,6 @@
 import { ActivityRepository, ActivityListFilters } from '../domain/Activity';
 import { z } from 'zod';
 import { activitySchema } from '../../../lib/zod';
-import type { ActivityStatus, ActivityType } from '../../../lib/zod';
 
 export class ActivityUseCases {
     constructor(private activityRepository: ActivityRepository) {}
