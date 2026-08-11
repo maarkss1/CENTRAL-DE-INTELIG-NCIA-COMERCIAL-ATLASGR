@@ -1,6 +1,6 @@
 import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js';
 
 export interface PlaceCandidate {
     tradeName: string;
@@ -39,7 +39,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
     if (!apiKey || !query.trim()) return [];
 
     try {
-        const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
+        const res = await fetchWithProviderRetry('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -52,7 +52,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
                 languageCode: 'pt-BR',
                 maxResultCount: Math.min(Math.max(count, 1), 20),
             }),
-        }, 12_000);
+        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-TextSearch', billable: true });
 
         if (!res.ok) {
             logger.error({ status: res.status, body: await res.text() }, 'Google Places (discovery) error');
@@ -106,7 +106,7 @@ export async function searchGooglePlace(
     if (!query) return null;
 
     try {
-        const res = await fetchWithTimeout('https://places.googleapis.com/v1/places:searchText', {
+        const res = await fetchWithProviderRetry('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ export async function searchGooglePlace(
                 textQuery: query,
                 languageCode: 'pt-BR'
             }),
-        }, 12_000);
+        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-Search', billable: true });
 
         if (!res.ok) {
             logger.error({ status: res.status, body: await res.text() }, 'Google Places API error');

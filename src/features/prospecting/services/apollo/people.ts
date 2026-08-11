@@ -1,7 +1,7 @@
 import type { ProspectCandidate, DecisionMaker } from '../prospecting.service';
 import { findEmailViaHunter, findPeopleViaDomainSearch } from '../hunter.service';
 import { getPaidProspectingKey } from '../../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_PEOPLE_SEARCH_URL, APOLLO_PEOPLE_MATCH_URL, MAX_DECISION_MAKER_LOOKUPS, parsePlanRestriction } from './client.js';
 import type { ApolloOrganization, ApolloContact, ApolloPersonRaw, DecisionMakerCriteria } from './types.js';
 
@@ -23,7 +23,7 @@ export async function enrichPersonByName(
     const lastName = rest.join(' ');
 
     try {
-        const res = await fetchWithTimeout(APOLLO_PEOPLE_MATCH_URL, {
+        const res = await fetchWithProviderRetry(APOLLO_PEOPLE_MATCH_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
             body: JSON.stringify({
@@ -33,7 +33,7 @@ export async function enrichPersonByName(
                 organization_name: organizationName || undefined,
                 reveal_personal_emails: true,
             }),
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleMatch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -117,7 +117,7 @@ export async function enrichOrganizationWithContacts(
     if (!apiKey || !domain) return { contacts: [] };
 
     try {
-        const res = await fetchWithTimeout(APOLLO_PEOPLE_SEARCH_URL, {
+        const res = await fetchWithProviderRetry(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ export async function enrichOrganizationWithContacts(
                 per_page: limit,
                 page: 1,
             }),
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -199,7 +199,7 @@ export async function searchDecisionMakersAdvanced(
             body.contact_email_status = ['verified'];
         }
 
-        const res = await fetchWithTimeout(APOLLO_PEOPLE_SEARCH_URL, {
+        const res = await fetchWithProviderRetry(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ export async function searchDecisionMakersAdvanced(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearchAdvanced', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

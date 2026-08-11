@@ -1,6 +1,6 @@
 import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js';
 
 export interface HunterEmailResult {
     email: string | null;
@@ -51,7 +51,7 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
             last_name: lastName,
             api_key: apiKey,
         });
-        const res = await fetchWithTimeout(`https://api.hunter.io/v2/email-finder?${params.toString()}`, {}, 12_000);
+        const res = await fetchWithProviderRetry(`https://api.hunter.io/v2/email-finder?${params.toString()}`, {}, { timeoutMs: 12_000, providerName: 'Hunter-EmailFinder', billable: true });
         if (!res.ok) return { email: null };
         const data = await res.json() as HunterEmailFinderResponse;
         return { email: data?.data?.email || null, score: data?.data?.score };
@@ -83,7 +83,7 @@ export async function findPeopleViaDomainSearch(
             type: 'personal', // só e-mails associados a uma pessoa nomeada, não genéricos (contato@, sac@...)
             limit: String(Math.min(limit, 100)),
         });
-        const res = await fetchWithTimeout(`https://api.hunter.io/v2/domain-search?${params.toString()}`, {}, 12_000);
+        const res = await fetchWithProviderRetry(`https://api.hunter.io/v2/domain-search?${params.toString()}`, {}, { timeoutMs: 12_000, providerName: 'Hunter-DomainSearch', billable: true });
         if (!res.ok) {
             const text = await res.text().catch(() => '');
             return { contacts: [], error: `Hunter Domain Search respondeu ${res.status}: ${text.slice(0, 150)}` };
