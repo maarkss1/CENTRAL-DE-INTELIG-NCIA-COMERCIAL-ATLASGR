@@ -123,7 +123,10 @@ export function GamificationWidget({
             {missions.map((mission) => (
               <div
                 key={mission.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => toggleMission(mission.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleMission(mission.id); }}
                 className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
                   mission.done
                     ? 'bg-success/10 border-success/30 text-ink-2'

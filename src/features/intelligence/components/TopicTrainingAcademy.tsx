@@ -55,9 +55,10 @@ export function TopicTrainingAcademy() {
       </div>
 
       <form onSubmit={handleGenerateTraining} className="space-y-3 bg-surface-2 p-6 rounded-3xl border border-line">
-        <label className="block text-xs font-extrabold text-ink-2 uppercase">Qual tema de vendas você deseja treinar hoje?</label>
+        <label htmlFor="training-topic" className="block text-xs font-extrabold text-ink-2 uppercase">Qual tema de vendas você deseja treinar hoje?</label>
         <div className="flex flex-col sm:flex-row gap-3">
           <input
+            id="training-topic"
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}

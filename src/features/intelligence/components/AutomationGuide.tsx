@@ -296,9 +296,9 @@ if __name__ == "__main__":
                     
                     {/* App Origem */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Link size={14} /> App de Origem (Gatilho / Trigger)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'trigger' ? null : 'trigger')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -329,9 +329,9 @@ if __name__ == "__main__":
 
                     {/* App Destino */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <GitCommit size={14} /> App de Destino (Ação / Action)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'action' ? null : 'action')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -362,9 +362,9 @@ if __name__ == "__main__":
 
                     {/* Ferramenta de Orquestração */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-yellow-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-yellow-400">
                             <Layers size={14} /> Ferramenta de Orquestração
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'tool' ? null : 'tool')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors"
@@ -392,9 +392,9 @@ if __name__ == "__main__":
 
                     {/* Camada de IA */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-rose-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-rose-400">
                             <Bot size={14} /> Camada de Inteligência IA
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'ai' ? null : 'ai')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors"
@@ -423,9 +423,9 @@ if __name__ == "__main__":
 
                 {/* Campo Objetivo */}
                 <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
+                    <p className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
                         Objetivo Principal da Automação
-                    </label>
+                    </p>
                     <input
                         type="text"
                         placeholder="Ex: Enriquecer lead e criar oportunidade no CRM"
