@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
-    CheckCircle2, AlertTriangle, Settings2,
+    CheckCircle2, AlertTriangle, Settings2, PhoneCall,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
@@ -59,6 +59,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
     const [exportingBitrix, setExportingBitrix] = useState(false);
+    const [callingVoice, setCallingVoice] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
     const [bitrixOptionsOpen, setBitrixOptionsOpen] = useState(false);
@@ -80,6 +81,34 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             setLoading(false);
         }
     }, [leadId, onClose]);
+
+    const handleVoiceCall = useCallback(async () => {
+        if (!lead) return;
+        const phone = lead.contact?.phone;
+        if (!phone) {
+            toast.error('Este lead não possui telefone cadastrado.');
+            return;
+        }
+        setCallingVoice(true);
+        try {
+            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3001';
+            const res = await fetch(`${voiceHubUrl}/api/webhooks/bland`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone_number: phone,
+                    name: lead.contact?.name || 'Cliente',
+                    company: lead.company?.tradeName || 'Empresa',
+                }),
+            });
+            if (!res.ok) throw new Error('Falha ao acionar o Birthub Voices');
+            toast.success('Ligacao de qualificacao disparada com sucesso!');
+        } catch {
+            toast.error('Nao foi possivel disparar a ligacao. Verifique se o Birthub Voices esta ativo.');
+        } finally {
+            setCallingVoice(false);
+        }
+    }, [lead]);
 
     useEffect(() => {
         fetchLead();
@@ -671,7 +700,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         >
                             <Settings2 className="w-4 h-4" />
                         </button>
-                        <button
+                         <button
                             onClick={handleExportBitrix}
                             disabled={exportingBitrix}
                             title="Exportar este lead para o Bitrix24 (requer conexão em Integrações)"
@@ -679,6 +708,15 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                         >
                             {exportingBitrix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
                             Exportar p/ Bitrix24
+                        </button>
+                        <button
+                            onClick={handleVoiceCall}
+                            disabled={callingVoice}
+                            title="Acionar ligação de qualificação via IA de voz (Birthub Voices)"
+                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60 shadow-sm"
+                        >
+                            {callingVoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
+                            Qualificar via Voz
                         </button>
                         <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
                             Fechar
