@@ -278,7 +278,7 @@ export function Integrations() {
                                 </div>
                             )}
 
-                            <div className="p-5 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50/50 space-y-4">
+                            <div className="p-5 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50/50 dark:bg-white/[0.03] space-y-4">
                                 <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {bitrixConnections.length > 0 ? 'Conectar outro portal Bitrix24' : 'Conectar Bitrix24'}
                                 </p>
@@ -288,18 +288,18 @@ export function Integrations() {
                                         value={bitrixLabelInput}
                                         onChange={(e) => setBitrixLabelInput(e.target.value)}
                                         placeholder="Nome pra identificar (ex.: AtlasGR, Total Trac)"
-                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                                     />
                                     <input
                                         type="url"
                                         value={bitrixWebhookInput}
                                         onChange={(e) => setBitrixWebhookInput(e.target.value)}
                                         placeholder="https://seudominio.bitrix24.com.br/rest/1/xxxxxxxx/"
-                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                                     />
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Gere em Bitrix24 → Aplicativos → Webhooks → Webhook de entrada, com permissão <strong className="font-bold text-gray-700">crm</strong>.
+                                    Gere em Bitrix24 → Aplicativos → Webhooks → Webhook de entrada, com permissão <strong className="font-bold text-gray-700 dark:text-gray-300">crm</strong>.
                                 </p>
                                 <button
                                     onClick={handleBitrixConnect}
@@ -455,7 +455,7 @@ export function Integrations() {
                                 </div>
                             )}
 
-                            <div className="p-5 rounded-xl border border-dashed border-gray-300 bg-gray-50/50 space-y-4">
+                            <div className="p-5 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50/50 dark:bg-white/[0.03] space-y-4">
                                 <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
                                     {threecxConnections.length > 0 ? 'Conectar outro PABX 3CX' : 'Conectar Servidor 3CX PABX'}
                                 </p>
@@ -465,21 +465,21 @@ export function Integrations() {
                                         value={threecxLabelInput}
                                         onChange={(e) => setThreecxLabelInput(e.target.value)}
                                         placeholder="Nome de exibição (ex.: 3CX Comercial, Ramal 101)"
-                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                                     />
                                     <input
                                         type="url"
                                         value={threecxPbxUrlInput}
                                         onChange={(e) => setThreecxPbxUrlInput(e.target.value)}
                                         placeholder="https://seu-pabx.3cx.us"
-                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                                     />
                                     <input
                                         type="text"
                                         value={threecxExtensionInput}
                                         onChange={(e) => setThreecxExtensionInput(e.target.value)}
                                         placeholder="Ramal (ex.: 101)"
-                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 shadow-sm bg-white text-gray-900 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+                                        className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-white/10 shadow-sm bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                                     />
                                 </div>
                                 <button

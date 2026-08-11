@@ -22,11 +22,40 @@ import {
     getEntityFields,
     getConnectionWebhookUrl,
     postCommentToBitrix,
+    resolveOwnBitrixUserId,
 } from './bitrix.service.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
+// VENDEDOR pode importar/sincronizar Bitrix24 — mas só o próprio dado (ver resolveScopedAssignedById
+// abaixo). VISUALIZADOR continua de fora: é o papel só-leitura em todo o resto do produto.
+const importRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+
+/**
+ * Trava o filtro `ASSIGNED_BY_ID` (Bitrix) ao próprio usuário quando ele não é ADMIN/GESTOR — "cada
+ * usuário só vê/sincroniza o seu próprio dado do Bitrix". ADMIN/GESTOR continuam com escolha livre
+ * (dependem disso o Pipeline CRM e o Comercial Inteligente, que agregam o time inteiro). O
+ * casamento com o usuário Bitrix é por e-mail (ver userMapping.ts) — sem coluna nova no schema.
+ * `matched: false` sinaliza "papel restrito, mas sem usuário Bitrix com este e-mail" — o chamador
+ * decide se isso vira lista vazia ou erro explicativo, mas nunca cai para "sem filtro" (que
+ * vazaria o portal inteiro pra quem não devia ver).
+ */
+async function resolveScopedAssignedById(
+    req: Request,
+    organizationId: string,
+    connectionId: string,
+    requestedAssignedById: string | undefined,
+): Promise<{ assignedById: string | undefined; restricted: boolean; matched: boolean }> {
+    const { role, email } = (req as AuthRequest).user;
+    if (hasRequiredRole(role, ['ADMIN', 'GESTOR'])) {
+        return { assignedById: requestedAssignedById, restricted: false, matched: true };
+    }
+    const bitrixUsers = await getBitrixUsers(organizationId, connectionId);
+    const ownId = resolveOwnBitrixUserId(bitrixUsers, email);
+    return { assignedById: ownId ?? undefined, restricted: true, matched: ownId !== null };
+}
 
 // ── Conexões (uma organização pode ter mais de um portal Bitrix — ex.: AtlasGR e TotalTrac) ────
 
@@ -118,20 +147,25 @@ router.get('/leads', async (req: Request, res: Response, next: NextFunction): Pr
         const connectionId = requireConnectionId(req, res);
         if (!connectionId) return;
         const start = Number(req.query.start) || 0;
+        const scope = await resolveScopedAssignedById(req, organizationId, connectionId, req.query.assignedById ? String(req.query.assignedById) : undefined);
+        if (scope.restricted && !scope.matched) {
+            res.json({ success: true, data: { leads: [], next: null, total: 0 }, meta: { restricted: true, warning: 'Seu e-mail não corresponde a nenhum usuário deste portal Bitrix24 — peça a um Admin/Gestor para conferir.' } });
+            return;
+        }
         const result = await listBitrixLeads(organizationId, connectionId, start, {
             search: req.query.search ? String(req.query.search) : undefined,
             statusId: req.query.statusId ? String(req.query.statusId) : undefined,
-            assignedById: req.query.assignedById ? String(req.query.assignedById) : undefined,
+            assignedById: scope.assignedById,
             customFieldCode: req.query.customFieldCode ? String(req.query.customFieldCode) : undefined,
             customFieldValue: req.query.customFieldValue ? String(req.query.customFieldValue) : undefined,
         });
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: result, meta: { restricted: scope.restricted } });
     } catch (error) {
         next(error);
     }
 });
 
-router.post('/leads/import', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/leads/import', importRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, bitrixLeadIds } = req.body as { connectionId?: unknown; bitrixLeadIds?: unknown };
@@ -143,7 +177,12 @@ router.post('/leads/import', managementRoles, async (req: Request, res: Response
             res.status(400).json({ success: false, error: 'bitrixLeadIds deve ser uma lista de strings.' });
             return;
         }
-        const result = await importSelectedBitrixLeads(organizationId, connectionId, bitrixLeadIds);
+        const scope = await resolveScopedAssignedById(req, organizationId, connectionId, undefined);
+        if (scope.restricted && !scope.matched) {
+            res.status(400).json({ success: false, error: 'Seu e-mail não corresponde a nenhum usuário deste portal Bitrix24 — peça a um Admin/Gestor para conferir.' });
+            return;
+        }
+        const result = await importSelectedBitrixLeads(organizationId, connectionId, bitrixLeadIds, scope.restricted ? scope.assignedById : undefined);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -230,23 +269,28 @@ router.get('/deals', async (req: Request, res: Response, next: NextFunction): Pr
         const start = Number(req.query.start) || 0;
         const month = req.query.month ? Number(req.query.month) : undefined;
         const year = req.query.year ? Number(req.query.year) : undefined;
+        const scope = await resolveScopedAssignedById(req, organizationId, connectionId, req.query.assignedById ? String(req.query.assignedById) : undefined);
+        if (scope.restricted && !scope.matched) {
+            res.json({ success: true, data: { deals: [], next: null, total: 0 }, meta: { restricted: true, warning: 'Seu e-mail não corresponde a nenhum usuário deste portal Bitrix24 — peça a um Admin/Gestor para conferir.' } });
+            return;
+        }
         const result = await listBitrixDeals(organizationId, connectionId, start, {
             categoryId: req.query.categoryId ? String(req.query.categoryId) : undefined,
             stageId: req.query.stageId ? String(req.query.stageId) : undefined,
-            assignedById: req.query.assignedById ? String(req.query.assignedById) : undefined,
+            assignedById: scope.assignedById,
             month: Number.isInteger(month) && month! >= 1 && month! <= 12 ? month : undefined,
             year: Number.isInteger(year) && year! > 2000 ? year : undefined,
             search: req.query.search ? String(req.query.search) : undefined,
             customFieldCode: req.query.customFieldCode ? String(req.query.customFieldCode) : undefined,
             customFieldValue: req.query.customFieldValue ? String(req.query.customFieldValue) : undefined,
         });
-        res.json({ success: true, data: result });
+        res.json({ success: true, data: result, meta: { restricted: scope.restricted } });
     } catch (error) {
         next(error);
     }
 });
 
-router.post('/deals/import', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/deals/import', importRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, bitrixDealIds } = req.body as { connectionId?: unknown; bitrixDealIds?: unknown };
@@ -258,7 +302,12 @@ router.post('/deals/import', managementRoles, async (req: Request, res: Response
             res.status(400).json({ success: false, error: 'bitrixDealIds deve ser uma lista de strings.' });
             return;
         }
-        const result = await importSelectedBitrixDeals(organizationId, connectionId, bitrixDealIds);
+        const scope = await resolveScopedAssignedById(req, organizationId, connectionId, undefined);
+        if (scope.restricted && !scope.matched) {
+            res.status(400).json({ success: false, error: 'Seu e-mail não corresponde a nenhum usuário deste portal Bitrix24 — peça a um Admin/Gestor para conferir.' });
+            return;
+        }
+        const result = await importSelectedBitrixDeals(organizationId, connectionId, bitrixDealIds, scope.restricted ? scope.assignedById : undefined);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -298,7 +347,12 @@ router.get('/sync-rules', async (req: Request, res: Response, next: NextFunction
     }
 });
 
-router.post('/sync-rules', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// VENDEDOR pode criar a PRÓPRIA regra (ver importRoles) — o ASSIGNED_BY_ID é travado no próprio
+// usuário pela mesma resolveScopedAssignedById das rotas de listagem/import acima, então uma regra
+// criada por um vendedor nunca traz o dado de outra pessoa. Editar/remover uma regra já existente
+// (PUT/DELETE abaixo) continua só ADMIN/GESTOR — mudar automação que já está rodando é ação de
+// gestão, criar a sua própria não precisa passar por um gestor.
+router.post('/sync-rules', importRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, source, categoryId, stageId, assignedById } = req.body as {
@@ -316,12 +370,17 @@ router.post('/sync-rules', managementRoles, async (req: Request, res: Response, 
             res.status(400).json({ success: false, error: 'categoryId é obrigatório para regras de Negócio.' });
             return;
         }
+        const scope = await resolveScopedAssignedById(req, organizationId, connectionId, typeof assignedById === 'string' ? assignedById : undefined);
+        if (scope.restricted && !scope.matched) {
+            res.status(400).json({ success: false, error: 'Seu e-mail não corresponde a nenhum usuário deste portal Bitrix24 — peça a um Admin/Gestor para conferir.' });
+            return;
+        }
         const result = await createSyncRule(organizationId, {
             connectionId,
             source,
             categoryId: typeof categoryId === 'string' ? categoryId : null,
             stageId: typeof stageId === 'string' ? stageId : null,
-            assignedById: typeof assignedById === 'string' ? assignedById : null,
+            assignedById: scope.assignedById ?? null,
         });
         res.json({ success: true, data: result });
     } catch (error) {
