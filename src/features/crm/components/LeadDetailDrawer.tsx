@@ -84,7 +84,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
     const handleVoiceCall = useCallback(async () => {
         if (!lead) return;
-        const phone = lead.contact?.phone;
+        const phone = lead.contact?.whatsapp || lead.contact?.phone || lead.company?.phones?.[0];
         if (!phone) {
             toast.error('Este lead não possui telefone cadastrado.');
             return;

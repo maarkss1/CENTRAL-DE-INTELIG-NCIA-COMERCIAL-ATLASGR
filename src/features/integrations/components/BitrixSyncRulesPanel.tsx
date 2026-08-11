@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, Zap } from 'lucide-react';
+import { Loader2, Plus, Trash2, Zap, Lock } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 
 interface BitrixDealPipeline {
     id: string;
@@ -46,6 +48,12 @@ interface BitrixSyncRulesPanelProps {
 }
 
 export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps) {
+    const { currentUser } = useAuth();
+    // ADMIN/GESTOR escolhem qualquer vendedor ao criar a regra; qualquer outro papel (VENDEDOR)
+    // só cria a PRÓPRIA (o backend trava isso em resolveScopedAssignedById, independente do que o
+    // front manda) e não pode editar/remover regra já existente (PUT/DELETE continuam
+    // ADMIN/GESTOR — mudar automação em produção é ação de gestão, criar a sua própria não).
+    const canPickAnyVendor = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
     const [pipelines, setPipelines] = useState<BitrixDealPipeline[]>([]);
     const [leadStatuses, setLeadStatuses] = useState<BitrixStageOption[]>([]);
     const [dealStages, setDealStages] = useState<BitrixStageOption[]>([]);
@@ -160,8 +168,15 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                         <div className="space-y-2">
                             {rules.map((rule) => (
                                 <div key={rule.id} className="flex items-center gap-4 p-4 text-sm rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm transition-all hover:border-gray-200">
-                                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                                        <input type="checkbox" checked={rule.active} onChange={() => toggleRule(rule)} className="sr-only peer" />
+                                    <label className={`relative inline-flex items-center shrink-0 ${canPickAnyVendor ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`} title={canPickAnyVendor ? undefined : 'Requer permissão de Gestor ou Administrador'}>
+                                        <input
+                                            type="checkbox"
+                                            aria-label={rule.active ? 'Desativar regra de sincronização automática' : 'Ativar regra de sincronização automática'}
+                                            checked={rule.active}
+                                            disabled={!canPickAnyVendor}
+                                            onChange={() => toggleRule(rule)}
+                                            className="sr-only peer"
+                                        />
                                         <div className="w-8 h-4.5 bg-gray-200 dark:bg-white/10 rounded-full peer-checked:bg-orange-600 transition-colors" />
                                         <div className="absolute left-0.5 top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform peer-checked:translate-x-3.5" />
                                     </label>
@@ -183,7 +198,12 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                                             </p>
                                         )}
                                     </div>
-                                    <button onClick={() => removeRule(rule.id)} className="shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors dark:hover:text-red-400" title="Remover regra">
+                                    <button
+                                        onClick={() => removeRule(rule.id)}
+                                        disabled={!canPickAnyVendor}
+                                        className="shrink-0 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors dark:hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                                        title={canPickAnyVendor ? 'Remover regra' : 'Requer permissão de Gestor ou Administrador'}
+                                    >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -226,10 +246,16 @@ export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps
                             <option value="">{newSource === 'lead' ? 'Todos os status' : 'Todas as etapas'}</option>
                             {newStageOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
-                        <select value={newAssignedById} onChange={(e) => setNewAssignedById(e.target.value)} className={selectClass}>
-                            <option value="">Todos os vendedores</option>
-                            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
+                        {canPickAnyVendor ? (
+                            <select value={newAssignedById} onChange={(e) => setNewAssignedById(e.target.value)} className={selectClass}>
+                                <option value="">Todos os vendedores</option>
+                                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                            </select>
+                        ) : (
+                            <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm" title="Você só sincroniza o seu próprio dado do Bitrix24.">
+                                <Lock className="w-3.5 h-3.5" /> Só o seu
+                            </span>
+                        )}
                         <button
                             onClick={addRule}
                             disabled={(newSource === 'deal' && !newCategoryId) || creating}
