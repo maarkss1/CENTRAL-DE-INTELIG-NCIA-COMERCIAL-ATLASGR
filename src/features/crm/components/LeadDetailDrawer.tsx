@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
-    CheckCircle2, AlertTriangle, Settings2, PhoneCall,
+    CheckCircle2, AlertTriangle, Settings2, PhoneCall, MessageCircle,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
@@ -15,6 +15,10 @@ import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
+// Painel de conversa real (histórico + envio) já usado pela Prospecção sobre a mesma integração
+// de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
+// de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
+import { WhatsAppChatPanel } from '../../integrations/whatsapp/components/WhatsAppChatPanel';
 
 // Mesmo mapa de emoji por status usado em KanbanColumn.tsx (fonte de verdade visual do board) —
 // mantido em sincronia manualmente até haver um único lugar para essa constante.
@@ -60,6 +64,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [savingQual, setSavingQual] = useState(false);
     const [exportingBitrix, setExportingBitrix] = useState(false);
     const [callingVoice, setCallingVoice] = useState(false);
+    const [whatsappOpen, setWhatsappOpen] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
     const [bitrixOptionsOpen, setBitrixOptionsOpen] = useState(false);
@@ -82,29 +87,20 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         }
     }, [leadId, onClose]);
 
+    // Aciona a ligação via rota própria do backend (src/features/integrations/birth-voice), que já
+    // resolve autenticação, tenant (organizationId), escolha do telefone discável e checagem da
+    // lista de opt-out. Nunca chama o Birth Voices Hub direto do navegador — evita URL hardcoded,
+    // credencial exposta no cliente e bypass do bloqueio de opt-out.
     const handleVoiceCall = useCallback(async () => {
         if (!lead) return;
-        const phone = lead.contact?.whatsapp || lead.contact?.phone || lead.company?.phones?.[0];
-        if (!phone) {
-            toast.error('Este lead não possui telefone cadastrado.');
-            return;
-        }
         setCallingVoice(true);
         try {
-            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3001';
-            const res = await fetch(`${voiceHubUrl}/api/webhooks/bland`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phone_number: phone,
-                    name: lead.contact?.name || 'Cliente',
-                    company: lead.company?.tradeName || 'Empresa',
-                }),
-            });
-            if (!res.ok) throw new Error('Falha ao acionar o Birthub Voices');
-            toast.success('Ligacao de qualificacao disparada com sucesso!');
-        } catch {
-            toast.error('Nao foi possivel disparar a ligacao. Verifique se o Birthub Voices esta ativo.');
+            await api.post(`/api/integrations/birth-voice/call/${lead.id}`);
+            toast.success('Ligação de qualificação disparada com sucesso! O resultado chega de forma assíncrona.');
+        } catch (error) {
+            // A rota devolve mensagem específica por causa (SDR não configurado, lead sem telefone
+            // discável, número em opt-out) — repassar em vez de mascarar com um texto genérico.
+            toast.error(error instanceof Error ? error.message : 'Não foi possível disparar a ligação de qualificação.');
         } finally {
             setCallingVoice(false);
         }
@@ -304,6 +300,9 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     };
 
     const company = lead?.company;
+    // Mesma ordem de prioridade já usada pelo copiloto de e-mail/ligação (AIEmailGenerator) logo
+    // abaixo — mantém um único critério de "qual telefone deste lead é o certo" nesta tela.
+    const leadPhone = lead?.contact?.whatsapp || lead?.contact?.phone || company?.phones?.[0] || null;
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -718,6 +717,15 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                             {callingVoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
                             Qualificar via Voz
                         </button>
+                        <button
+                            onClick={() => setWhatsappOpen(true)}
+                            disabled={!leadPhone}
+                            title={leadPhone ? 'Enviar WhatsApp para este lead (sessão da organização)' : 'Este lead não possui telefone cadastrado'}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                            WhatsApp
+                        </button>
                         <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
                             Fechar
                         </button>
@@ -725,6 +733,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                     </div>
                 </div>
             </div>
+            {whatsappOpen && leadPhone && (
+                <WhatsAppChatPanel
+                    phone={leadPhone}
+                    contactName={lead?.contact?.name || company?.tradeName || undefined}
+                    onClose={() => setWhatsappOpen(false)}
+                />
+            )}
         </div>
     );
 }
