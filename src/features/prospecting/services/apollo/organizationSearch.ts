@@ -158,7 +158,7 @@ export async function fetchApolloCandidates(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationSearch' });
+        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationSearch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

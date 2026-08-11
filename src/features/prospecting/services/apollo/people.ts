@@ -33,7 +33,7 @@ export async function enrichPersonByName(
                 organization_name: organizationName || undefined,
                 reveal_personal_emails: true,
             }),
-        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleMatch' });
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleMatch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -132,7 +132,7 @@ export async function enrichOrganizationWithContacts(
                 per_page: limit,
                 page: 1,
             }),
-        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearch' });
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');
@@ -207,7 +207,7 @@ export async function searchDecisionMakersAdvanced(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearchAdvanced' });
+        }, { timeoutMs: 15_000, providerName: 'Apollo-PeopleSearchAdvanced', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

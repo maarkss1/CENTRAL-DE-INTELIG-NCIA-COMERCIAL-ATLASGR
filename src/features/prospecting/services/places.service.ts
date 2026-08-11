@@ -52,7 +52,7 @@ export async function searchGooglePlacesCandidates(query: string, count: number)
                 languageCode: 'pt-BR',
                 maxResultCount: Math.min(Math.max(count, 1), 20),
             }),
-        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-TextSearch' });
+        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-TextSearch', billable: true });
 
         if (!res.ok) {
             logger.error({ status: res.status, body: await res.text() }, 'Google Places (discovery) error');
@@ -117,7 +117,7 @@ export async function searchGooglePlace(
                 textQuery: query,
                 languageCode: 'pt-BR'
             }),
-        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-Search' });
+        }, { timeoutMs: 12_000, providerName: 'GooglePlaces-Search', billable: true });
 
         if (!res.ok) {
             logger.error({ status: res.status, body: await res.text() }, 'Google Places API error');

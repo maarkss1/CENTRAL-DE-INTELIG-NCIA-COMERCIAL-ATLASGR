@@ -19,7 +19,7 @@ export async function enrichOrganizationByDomain(
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;
         const res = await fetchWithProviderRetry(url, {
             headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json' },
-        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationEnrich' });
+        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationEnrich', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

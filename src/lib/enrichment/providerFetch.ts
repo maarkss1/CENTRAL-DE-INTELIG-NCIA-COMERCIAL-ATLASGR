@@ -29,6 +29,19 @@ export interface ProviderRetryOptions {
     maxDelayMs?: number;
     /** Nome do provider, só para o log de retry (nunca inclui a API key). */
     providerName?: string;
+    /**
+     * Marca a chamada como consumindo cota/crédito pago (Apollo, Hunter.io, Google Places —
+     * diferente de BrasilAPI/Nominatim/GDELT, que são gratuitos). Quando `true`, cada tentativa
+     * HTTP de fato disparada é registrada num log estruturado (`provider`, `attempt`, `billable`)
+     * para permitir contagem de volume de chamadas por provider — requisito da missão da Onda 2
+     * ("registrar/estimar custo por chamada... para permitir handoff de orçamento ao dono do
+     * produto quando o volume crescer"). Deliberadamente NÃO fabricamos um valor em R$/USD por
+     * chamada aqui: Apollo/Hunter vendem crédito por plano (não preço público por requisição), e
+     * "inventar" um número de custo seria uma métrica fabricada — o que a contagem real de
+     * chamadas por provider já habilita é o Coordenador/dono do produto cruzar volume x fatura
+     * real do provider quando decidir revisar orçamento.
+     */
+    billable?: boolean;
     /** Override para testes — evita esperar de verdade no backoff. */
     sleep?: (ms: number) => Promise<void>;
 }
@@ -85,6 +98,7 @@ export async function fetchWithProviderRetry(
         baseDelayMs = 300,
         maxDelayMs = 4_000,
         providerName = 'provider',
+        billable = false,
         sleep = defaultSleep,
     } = options;
 
@@ -93,6 +107,16 @@ export async function fetchWithProviderRetry(
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             const res = await fetchWithTimeout(input, init, timeoutMs);
+
+            if (billable) {
+                // Só volume de chamadas de fato disparadas (não fabricamos R$/USD — ver doc do
+                // campo `billable` acima). Grep por "provider-call-volume" agrega isso por
+                // provider quando o dono do produto precisar decidir sobre orçamento.
+                logger.info(
+                    { event: 'provider-call-volume', provider: providerName, status: res.status, attempt: attempt + 1 },
+                    `Chamada faturável a ${providerName} (tentativa ${attempt + 1})`
+                );
+            }
 
             if (res.ok || isDefinitiveClientError(res.status) || attempt === retries) {
                 return res;

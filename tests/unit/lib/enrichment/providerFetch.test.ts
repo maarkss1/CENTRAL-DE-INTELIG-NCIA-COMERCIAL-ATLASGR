@@ -8,9 +8,10 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('../../../../src/lib/logger.js', () => ({
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+const { mockLogger } = vi.hoisted(() => ({
+    mockLogger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
+vi.mock('../../../../src/lib/logger.js', () => ({ logger: mockLogger }));
 
 import {
     fetchWithProviderRetry,
@@ -27,6 +28,7 @@ const noopSleep = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
     noopSleep.mockClear();
+    mockLogger.info.mockClear();
 });
 
 afterEach(() => {
@@ -168,5 +170,40 @@ describe('fetchWithProviderRetry — falha de rede/timeout', () => {
             fetchWithProviderRetry('https://example.com/api', {}, { retries: 1, sleep: noopSleep, providerName: 'Test' })
         ).rejects.toThrow('fetch failed');
         expect(fetchMock).toHaveBeenCalledTimes(2); // 1 tentativa inicial + 1 retry
+    });
+});
+
+describe('fetchWithProviderRetry — contagem de volume de chamadas faturáveis', () => {
+    it('registra um log estruturado por tentativa quando billable=true, sem inventar um valor em R$/USD', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await fetchWithProviderRetry('https://example.com/api', {}, { sleep: noopSleep, providerName: 'Apollo-Test', billable: true });
+
+        expect(mockLogger.info).toHaveBeenCalledTimes(1);
+        const [meta] = mockLogger.info.mock.calls[0];
+        expect(meta).toMatchObject({ event: 'provider-call-volume', provider: 'Apollo-Test', status: 200 });
+        expect(meta).not.toHaveProperty('costUsd');
+        expect(meta).not.toHaveProperty('cost');
+    });
+
+    it('não registra nada quando billable não é passado (provider gratuito, ex: BrasilAPI)', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { ok: true }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await fetchWithProviderRetry('https://example.com/api', {}, { sleep: noopSleep, providerName: 'BrasilAPI' });
+
+        expect(mockLogger.info).not.toHaveBeenCalled();
+    });
+
+    it('registra uma linha por tentativa, incluindo retries, para refletir o volume real de chamadas disparadas', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse(429, {}))
+            .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await fetchWithProviderRetry('https://example.com/api', {}, { sleep: noopSleep, providerName: 'Hunter-Test', billable: true });
+
+        expect(mockLogger.info).toHaveBeenCalledTimes(2); // uma chamada real por tentativa, mesmo a que deu 429
     });
 });
