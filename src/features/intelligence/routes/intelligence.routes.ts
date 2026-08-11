@@ -176,7 +176,14 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction): 
     }
 });
 
-router.post('/pending/:id/approve', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// SEC-011: aprovar uma AIPendingAction dispara efeito real (enviar e-mail, criar nota/atividade —
+// ver executeAction em aiPendingAction.service.ts), então é uma confirmação humana de ação de alto
+// impacto, não uma leitura. Sem `requireRole` aqui, qualquer papel autenticado do tenant — inclusive
+// VISUALIZADOR (só leitura, ROLE_HIERARCHY=10) — podia aprovar/descartar, contornando a hierarquia
+// de papéis. Mesmo corte de VISUALIZADOR já aplicado por 01 em agent.routes.ts (`/swarm/mission`).
+const pendingActionRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+
+router.post('/pending/:id/approve', pendingActionRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
         const authRequest = req as AuthRequest;
@@ -196,7 +203,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
     }
 });
 
-router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.delete('/pending/:id', pendingActionRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;

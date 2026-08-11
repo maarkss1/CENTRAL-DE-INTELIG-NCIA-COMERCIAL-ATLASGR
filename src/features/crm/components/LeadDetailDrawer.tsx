@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
     X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
     Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
-    CheckCircle2, AlertTriangle, Settings2, PhoneCall,
+    CheckCircle2, AlertTriangle, Settings2, PhoneCall, MessageCircle,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
@@ -15,6 +15,10 @@ import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
+// Painel de conversa real (histórico + envio) já usado pela Prospecção sobre a mesma integração
+// de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
+// de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
+import { WhatsAppChatPanel } from '../../integrations/whatsapp/components/WhatsAppChatPanel';
 
 // Mesmo mapa de emoji por status usado em KanbanColumn.tsx (fonte de verdade visual do board) —
 // mantido em sincronia manualmente até haver um único lugar para essa constante.
@@ -44,6 +48,7 @@ interface LeadDetailDrawerProps {
 
 export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawerProps) {
     const { activeBrand, brandInfo } = useBrand();
+    const { setActiveLead } = useActiveRecord();
     const titleId = useId();
     const statusSelectId = useId();
     const ownerSelectId = useId();
@@ -60,6 +65,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [savingQual, setSavingQual] = useState(false);
     const [exportingBitrix, setExportingBitrix] = useState(false);
     const [callingVoice, setCallingVoice] = useState(false);
+    const [whatsappOpen, setWhatsappOpen] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
     const [bitrixOptionsOpen, setBitrixOptionsOpen] = useState(false);
@@ -68,704 +74,554 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [bitrixUserOptions, setBitrixUserOptions] = useState<{ id: string; name: string }[]>([]);
     const [bitrixStatusId, setBitrixStatusId] = useState('');
     const [bitrixAssignedById, setBitrixAssignedById] = useState('');
-    const [loadingBitrixOptions, setLoadingBitrixOptions] = useState(false);
 
     const fetchLead = useCallback(async () => {
         try {
+            setLoading(true);
             const data = await api.get<Lead>(`/api/leads/${leadId}`);
             setLead(data);
+            setQualDraft((data.qualification as LeadQualification) || {});
+            setActiveLead(data);
         } catch {
-            toast.error('Não foi possível carregar o lead.');
+            toast.error('Erro ao carregar detalhes do lead');
             onClose();
         } finally {
             setLoading(false);
         }
-    }, [leadId, onClose]);
+    }, [leadId, onClose, setActiveLead]);
+
+    useEffect(() => {
+        previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+        fetchLead();
+        api.get<{ id: string; name: string }[]>('/api/users')
+            .then(setOwners)
+            .catch(() => setOwners([]));
+        api.get<Array<{ id: string; webhookUrl: string }>>('/api/integrations/bitrix24')
+            .then((list) => {
+                if (list[0]?.id) setBitrixConnectionId(list[0].id);
+            })
+            .catch(() => setBitrixConnectionId(null));
+        return () => {
+            setActiveLead(null);
+            if (previouslyFocusedRef.current?.focus) {
+                previouslyFocusedRef.current.focus();
+            }
+        };
+    }, [fetchLead, setActiveLead]);
+
+    useEffect(() => {
+        if (!loading && closeButtonRef.current) {
+            closeButtonRef.current.focus();
+        }
+    }, [loading]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
 
     const handleVoiceCall = useCallback(async () => {
         if (!lead) return;
-        const phone = lead.contact?.whatsapp || lead.contact?.phone || lead.company?.phones?.[0];
-        if (!phone) {
-            toast.error('Este lead não possui telefone cadastrado.');
-            return;
-        }
         setCallingVoice(true);
         try {
-            const voiceHubUrl = import.meta.env.VITE_VOICE_HUB_URL || 'http://localhost:3000';
-            const res = await fetch(`${voiceHubUrl}/api/webhook/atlasgr/outbound`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-atlasgr-webhook-secret': 'segredo_compartilhado_atlasgr_123',
-                },
-                body: JSON.stringify({
-                    phone_number: phone,
-                    name: lead.contact?.name || 'Cliente',
-                    company: lead.company?.tradeName || 'Empresa',
-                }),
-            });
-            if (!res.ok) throw new Error('Falha ao acionar o Birthub Voices');
-            toast.success('Ligacao de qualificacao disparada com sucesso!');
-        } catch {
-            toast.error('Nao foi possivel disparar a ligacao. Verifique se o Birthub Voices esta ativo.');
+            await api.post(`/api/integrations/birth-voice/call/${lead.id}`);
+            toast.success('Ligação de qualificação disparada com sucesso! O resultado chega de forma assíncrona.');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Não foi possível disparar a ligação de qualificação.');
         } finally {
             setCallingVoice(false);
         }
     }, [lead]);
 
-    useEffect(() => {
-        fetchLead();
-    }, [fetchLead]);
-
-    // Torna o copiloto de IA global ciente de qual negócio está aberto na tela.
-    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
-    useEffect(() => {
-        if (!lead) return;
-        setActiveRecord({
-            type: 'lead',
-            id: lead.id,
-            label: lead.company?.tradeName || lead.contact?.name || 'Negócio sem empresa vinculada',
-            summary: [lead.status, lead.temperature ?? undefined].filter(Boolean).join(' — ') || undefined,
-        });
-        return () => clearActiveRecord(lead.id);
-    }, [lead, setActiveRecord, clearActiveRecord]);
-
-    useEffect(() => {
-        api.get<{ owners: { id: string; name: string }[] }>('/api/team/assignable')
-            .then((data) => setOwners(data.owners))
-            .catch(() => setOwners([])); // Sem time cadastrado ainda ou sem permissão — cai pro campo livre.
-    }, []);
-
-    useEffect(() => {
-        if (lead?.qualification) setQualDraft(lead.qualification);
-    }, [lead?.qualification]);
-
-    // Fecha com Esc
-    useEffect(() => {
-        const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [onClose]);
-
-    // Foco do diálogo modal — mesmo padrão já validado no ToolTechPopover: ao montar (abrir),
-    // guarda o elemento que tinha foco e move o foco pro botão Fechar; ao desmontar (fechar),
-    // devolve o foco pra ele, se ainda existir no DOM. O drawer só existe montado enquanto está
-    // aberto (CrmBoard renderiza condicionalmente por `selectedLeadId`), então mount/unmount aqui
-    // corresponde exatamente a abrir/fechar — sem precisar re-registrar nada a cada render.
-    useEffect(() => {
-        previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
-        closeButtonRef.current?.focus();
-        return () => {
-            previouslyFocusedRef.current?.focus?.();
-        };
-    }, []);
-
     const handleStatusChange = async (newStatus: string) => {
+        if (!lead) return;
         try {
-            await api.put(`/api/leads/${leadId}`, { status: newStatus });
-            toast.success(`Lead movido para "${newStatus}"`);
-            await fetchLead();
+            const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { status: newStatus });
+            setLead(updated);
+            setActiveLead(updated);
             onChanged();
+            toast.success(`Status atualizado para "${newStatus}"`);
         } catch {
-            toast.error('Falha ao mudar o estágio do lead.');
+            toast.error('Erro ao atualizar status');
         }
     };
 
-    const handleReassignOwner = async (newOwner: string) => {
-        if (!lead || newOwner === (lead.owner || '')) return;
+    const handleOwnerChange = async (newOwnerId: string) => {
+        if (!lead) return;
         setSavingOwner(true);
         try {
-            await api.put(`/api/leads/${leadId}`, { owner: newOwner || null });
-            toast.success(newOwner ? `Lead realocado para ${newOwner}.` : 'Responsável removido do lead.');
-            await fetchLead();
+            const selectedOwner = owners.find((o) => o.id === newOwnerId);
+            const ownerName = selectedOwner?.name || newOwnerId;
+            const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { owner: ownerName });
+            setLead(updated);
+            setActiveLead(updated);
             onChanged();
+            toast.success('Responsável atualizado com sucesso');
         } catch {
-            toast.error('Falha ao realocar o lead.');
-        } finally {
+            toast.error('Erro ao atualizar responsável');
+        } me: {
             setSavingOwner(false);
         }
     };
 
-    const handleSetPic = async (pic: string) => {
-        if (!lead) return;
-        const nextPic = lead.pic === pic ? null : pic;
-        try {
-            await api.put(`/api/leads/${leadId}`, { pic: nextPic });
-            await fetchLead();
-        } catch {
-            toast.error('Falha ao definir o PIC.');
-        }
-    };
-
-    const handleSaveQualification = async () => {
-        setSavingQual(true);
-        try {
-            await api.put(`/api/leads/${leadId}`, { qualification: qualDraft });
-            toast.success('Checklist de qualificação salvo.');
-            await fetchLead();
-        } catch {
-            toast.error('Falha ao salvar o checklist.');
-        } finally {
-            setSavingQual(false);
-        }
-    };
-
     const handleEnrich = async () => {
+        if (!lead) return;
         setEnriching(true);
         try {
-            // Enriquecimento encadeia várias chamadas externas (CNPJ, checagem de domínio/e-mail,
-            // Google Places, geração de icebreaker por IA) — 15s (timeout padrão do api client)
-            // não é suficiente e derrubava a requisição no cliente mesmo quando o backend ia terminar.
-            await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
-            toast.success('✨ Lead reenriquecido com sucesso!');
-            await fetchLead();
+            const result = await api.post<{ lead: Lead }>(`/api/leads/${lead.id}/enrich`, {});
+            setLead(result.lead);
+            setActiveLead(result.lead);
             onChanged();
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Falha ao enriquecer o lead.');
+            toast.success('Lead enriquecido com sucesso!');
+        } catch {
+            toast.error('Erro ao enriquecer lead');
         } finally {
             setEnriching(false);
         }
     };
 
-    const handleExportBitrix = async () => {
-        setExportingBitrix(true);
-        try {
-            await api.post('/api/leads/export/bitrix24', {
-                leadId,
-                connectionId: bitrixConnectionId || undefined,
-                statusId: bitrixStatusId || undefined,
-                assignedById: bitrixAssignedById || undefined,
-            });
-            toast.success('Lead exportado para o Bitrix24.');
-            // Sem isto, o badge de status de sync (bitrixSyncStatus/bitrixLeadId) ficava desatualizado
-            // até o próximo carregamento do drawer — e uma segunda exportação antes do refresh podia
-            // ler bitrixLeadId ainda nulo e criar um lead duplicado no Bitrix (ver claimOutboundSync,
-            // que hoje evita isso no backend, mas o refetch aqui evita mesmo a tentativa).
-            await fetchLead();
-            onChanged();
-        } catch (e) {
-            toast.error(e instanceof Error ? e.message : 'Falha ao exportar para o Bitrix24. Confira a conexão em Integrações.');
-        } finally {
-            setExportingBitrix(false);
-        }
-    };
-
-    const loadBitrixOptions = async () => {
-        if (bitrixStatusOptions.length > 0 || loadingBitrixOptions) return;
-        setLoadingBitrixOptions(true);
-        try {
-            const connections = await api.get<{ id: string }[]>('/api/bitrix/connections');
-            const connectionId = connections[0]?.id;
-            if (!connectionId) return;
-            setBitrixConnectionId(connectionId);
-            const [statuses, users] = await Promise.all([
-                api.get<{ id: string; name: string }[]>(`/api/bitrix/lead-statuses?connectionId=${connectionId}`),
-                api.get<{ id: string; name: string }[]>(`/api/bitrix/users?connectionId=${connectionId}`),
-            ]);
-            setBitrixStatusOptions(statuses);
-            setBitrixUserOptions(users);
-        } catch {
-            // Opções avançadas são um complemento — se a busca falhar, o botão "Exportar p/
-            // Bitrix24" continua funcionando normalmente sem STATUS_ID/ASSIGNED_BY_ID explícitos.
-        } finally {
-            setLoadingBitrixOptions(false);
-        }
-    };
-
-    const toggleBitrixOptions = () => {
-        setBitrixOptionsOpen((open) => !open);
-        if (!bitrixOptionsOpen) void loadBitrixOptions();
-    };
-
-    const handleDelete = async () => {
-        if (!confirm('Tem certeza que deseja excluir este lead? Essa ação não pode ser desfeita.')) return;
-        setDeleting(true);
-        try {
-            await api.delete(`/api/leads/${leadId}`);
-            toast.success('Lead excluído.');
-            onChanged();
-            onClose();
-        } catch {
-            toast.error('Falha ao excluir o lead.');
-            setDeleting(false);
-        }
-    };
-
-    const handleAddNote = async () => {
-        if (!noteText.trim()) return;
+    const handleAddNote = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!noteText.trim() || !lead) return;
         setSavingNote(true);
         try {
-            await api.post<Note>(`/api/leads/${leadId}/notes`, { content: noteText.trim(), author: `Equipe ${brandInfo.name}` });
+            const newNote = await api.post<Note>(`/api/leads/${lead.id}/notes`, { content: noteText.trim() });
+            setLead({ ...lead, notes: [newNote, ...(lead.notes || [])] });
             setNoteText('');
-            toast.success('Nota adicionada.');
-            await fetchLead();
+            toast.success('Nota adicionada');
         } catch {
-            toast.error('Falha ao salvar a nota.');
+            toast.error('Erro ao adicionar nota');
         } finally {
             setSavingNote(false);
         }
     };
 
+    const handleSaveQualification = async () => {
+        if (!lead) return;
+        setSavingQual(true);
+        try {
+            const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { qualification: qualDraft });
+            setLead(updated);
+            setActiveLead(updated);
+            setQualOpen(false);
+            onChanged();
+            toast.success('Qualificação salva com sucesso!');
+        } catch {
+            toast.error('Erro ao salvar qualificação');
+        } finally {
+            setSavingQual(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!lead || !window.confirm(`Tem certeza que deseja excluir "${lead.company?.tradeName || lead.contact?.name || 'este lead'}"?`)) return;
+        setDeleting(true);
+        try {
+            await api.delete(`/api/leads/${lead.id}`);
+            toast.success('Lead excluído com sucesso');
+            onChanged();
+            onClose();
+        } catch {
+            toast.error('Erro ao excluir lead');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const openBitrixExportOptions = async () => {
+        if (!bitrixConnectionId) {
+            toast.error('Nenhuma integração com Bitrix24 configurada.');
+            return;
+        }
+        setBitrixOptionsOpen(true);
+        try {
+            const [statuses, users] = await Promise.all([
+                api.get<Array<{ id: string; name: string }>>(`/api/integrations/bitrix24/${bitrixConnectionId}/statuses`),
+                api.get<Array<{ id: string; name: string }>>(`/api/integrations/bitrix24/${bitrixConnectionId}/users`),
+            ]);
+            setBitrixStatusOptions(statuses);
+            setBitrixUserOptions(users);
+            if (statuses[0]?.id) setBitrixStatusId(statuses[0].id);
+            if (users[0]?.id) setBitrixAssignedById(users[0].id);
+        } catch {
+            toast.error('Não foi possível carregar as opções do Bitrix24. O export usará os valores padrão.');
+        }
+    };
+
+    const handleExportToBitrix = async () => {
+        if (!lead) return;
+        setExportingBitrix(true);
+        try {
+            const res = await api.post<{ success: boolean; data?: { bitrixDealId: number } }>(
+                `/api/leads/${lead.id}/export-bitrix`,
+                {
+                    statusId: bitrixStatusId || undefined,
+                    assignedById: bitrixAssignedById ? parseInt(bitrixAssignedById, 10) : undefined,
+                }
+            );
+            setBitrixOptionsOpen(false);
+            if (res.success && res.data?.bitrixDealId) {
+                toast.success(`Exportado para o Bitrix24! (ID do Negócio: ${res.data.bitrixDealId})`);
+            } else {
+                toast.success('Exportado para o Bitrix24!');
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Erro ao exportar para o Bitrix24');
+        } finally {
+            setExportingBitrix(false);
+        }
+    };
+
     const company = lead?.company;
+    const leadPhone = lead?.contact?.whatsapp || lead?.contact?.phone || company?.phones?.[0] || null;
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop — clique fecha por conveniência de mouse/touch; o equivalente de teclado é
-                o Escape (handler acima). Mesmo padrão de dismiss por overlay não-focável endossado
-                pelas ARIA Authoring Practices pra diálogos, já usado em ToolTechPopover/CrmBoard. */}
-            {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-
-            {/* Drawer */}
+            <div className="fixed inset-0 bg-ink/40 backdrop-blur-xs transition-opacity" onClick={onClose} />
             <div
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
-                className="relative w-full max-w-xl h-full bg-surface shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+                className="relative w-full max-w-2xl bg-surface border-l border-line shadow-2xl flex flex-col h-full overflow-hidden z-10"
             >
-                <div className="p-5 border-b border-line flex items-start justify-between gap-4 shrink-0">
-                    <div className="min-w-0">
-                        <h2 id={titleId} className="font-black text-xl text-ink truncate">
-                            🎯 {company?.tradeName || company?.legalName || 'Lead'}
-                        </h2>
-                        <p className="text-xs text-ink-2 mt-0.5 truncate">
-                            {lead?.source || 'Origem desconhecida'}
-                            {lead?.createdAt && ` · criado em ${new Date(lead.createdAt).toLocaleDateString('pt-BR')}`}
-                        </p>
+                {loading ? (
+                    <div className="flex-1 flex items-center justify-center p-8">
+                        <Loader2 className="w-8 h-8 text-brand animate-spin" />
                     </div>
-                    <button
-                        ref={closeButtonRef}
-                        onClick={onClose}
-                        aria-label="Fechar detalhes do lead"
-                        className="p-2 text-ink-2 hover:text-ink hover:bg-surface-2 rounded-lg transition-colors shrink-0"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
+                ) : !lead ? null : (
+                    <>
+                        <div className="p-6 border-b border-line bg-surface-2/50 shrink-0">
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center shrink-0 border border-brand/20">
+                                        <Building2 size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 id={titleId} className="text-xl font-bold text-ink leading-tight">
+                                            {company?.tradeName || lead.contact?.name || 'Lead sem nome'}
+                                        </h2>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {company?.legalName && (
+                                                <span className="text-xs text-ink-2 truncate max-w-xs">{company.legalName}</span>
+                                            )}
+                                            {lead.temperature && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-surface border border-line font-medium text-ink">
+                                                    {TEMPERATURE_EMOJI[lead.temperature] || ''} {lead.temperature}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleEnrich}
+                                        disabled={enriching}
+                                        title="Enriquecer dados via IA"
+                                        className="p-2 rounded-xl text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-50"
+                                    >
+                                        {enriching ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                    </button>
+                                    <button
+                                        onClick={handleDelete}
+                                        disabled={deleting}
+                                        title="Excluir Lead"
+                                        className="p-2 rounded-xl text-ink-2 hover:text-rose-500 hover:bg-rose-500/10 transition-colors disabled:opacity-50"
+                                    >
+                                        {deleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash className="w-5 h-5" />}
+                                    </button>
+                                    <button
+                                        ref={closeButtonRef}
+                                        onClick={onClose}
+                                        className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
 
-                {loading || !lead ? (
-                    <div className="flex-1 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-brand" />
-                    </div>
-                ) : (
-                    <div className="flex-1 overflow-y-auto p-5 space-y-6">
-                        {/* Estágio + score */}
-                        <div className="flex flex-wrap items-center gap-3">
-                            <label htmlFor={statusSelectId} className="sr-only">Estágio do lead</label>
-                            <select
-                                id={statusSelectId}
-                                value={lead.status}
-                                onChange={(e) => handleStatusChange(e.target.value)}
-                                className="p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-ink outline-none focus:border-brand"
-                            >
-                                {LEAD_STATUSES.map((s) => (
-                                    <option key={s} value={s}>{STATUS_EMOJI[s]} {s}</option>
-                                ))}
-                            </select>
-                            {lead.score != null && (
-                                <span className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-bold">
-                                    {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : ''}Fit {lead.score}%
-                                </span>
-                            )}
-                            <button
-                                onClick={handleEnrich}
-                                disabled={enriching || !lead.companyId}
-                                className="flex items-center gap-1.5 bg-gradient-to-r from-brand to-amber-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:opacity-90 transition-all disabled:opacity-50"
-                            >
-                                {enriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                                {enriching ? 'Enriquecendo...' : '✨ Enriquecer'}
-                            </button>
+                            <div className="grid grid-cols-2 gap-4 mt-6">
+                                <div>
+                                    <label htmlFor={statusSelectId} className="block text-xs font-semibold text-ink-2 mb-1.5">
+                                        Status do Funil
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id={statusSelectId}
+                                            value={lead.status}
+                                            onChange={(e) => handleStatusChange(e.target.value)}
+                                            className="w-full pl-3 pr-8 py-2 bg-surface border border-line rounded-xl text-sm font-semibold text-ink appearance-none focus:outline-none focus:border-brand"
+                                        >
+                                            {LEAD_STATUSES.map((st) => (
+                                                <option key={st} value={st}>
+                                                    {STATUS_EMOJI[st] || '📌'} {st}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-ink-2 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor={ownerSelectId} className="block text-xs font-semibold text-ink-2 mb-1.5">
+                                        Responsável
+                                    </label>
+                                    <div className="relative">
+                                        <select
+                                            id={ownerSelectId}
+                                            value={owners.find((o) => o.name === lead.owner)?.id || lead.owner || ''}
+                                            onChange={(e) => handleOwnerChange(e.target.value)}
+                                            disabled={savingOwner}
+                                            className="w-full pl-3 pr-8 py-2 bg-surface border border-line rounded-xl text-sm font-semibold text-ink appearance-none focus:outline-none focus:border-brand disabled:opacity-50"
+                                        >
+                                            <option value="">Sem responsável</option>
+                                            {owners.map((o) => (
+                                                <option key={o.id} value={o.id}>
+                                                    {o.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {savingOwner ? (
+                                            <Loader2 className="w-4 h-4 text-brand animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />
+                                        ) : (
+                                            <ChevronDown className="w-4 h-4 text-ink-2 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Responsável — realocar para outro vendedor/SDR */}
-                        <div>
-                            <h3 id={ownerSelectId} className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Responsável</h3>
-                            <div className="flex items-center gap-2">
-                                <select
-                                    aria-labelledby={ownerSelectId}
-                                    value={lead.owner || ''}
-                                    onChange={(e) => handleReassignOwner(e.target.value)}
-                                    disabled={savingOwner}
-                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm font-bold text-ink outline-none focus:border-brand disabled:opacity-50"
-                                >
-                                    <option value="">Sem responsável</option>
-                                    {owners.map((o) => (
-                                        <option key={o.id} value={o.name}>{o.name}</option>
+                        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                            {company && (
+                                <section className="space-y-4">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                        <Building2 className="w-4 h-4 text-brand" /> Dados da Empresa
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4 bg-surface-2/40 p-4 rounded-2xl border border-line">
+                                        {company.cnpj && (
+                                            <div>
+                                                <span className="text-[10px] text-ink-2 font-medium block">CNPJ</span>
+                                                <span className="text-xs font-semibold text-ink">{company.cnpj}</span>
+                                            </div>
+                                        )}
+                                        {company.segment && (
+                                            <div>
+                                                <span className="text-[10px] text-ink-2 font-medium block">Segmento</span>
+                                                <span className="text-xs font-semibold text-ink">{company.segment}</span>
+                                            </div>
+                                        )}
+                                        {company.employees && (
+                                            <div>
+                                                <span className="text-[10px] text-ink-2 font-medium block">Funcionários</span>
+                                                <span className="text-xs font-semibold text-ink">{company.employees}</span>
+                                            </div>
+                                        )}
+                                        {company.website && (
+                                            <div>
+                                                <span className="text-[10px] text-ink-2 font-medium block">Website</span>
+                                                <a
+                                                    href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-xs font-semibold text-brand hover:underline flex items-center gap-1"
+                                                >
+                                                    <Globe className="w-3 h-3" /> {company.website}
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
+
+                            {lead.contact && (
+                                <section className="space-y-4">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                        <User className="w-4 h-4 text-brand" /> Contato Principal
+                                    </h3>
+                                    <div className="bg-surface-2/40 p-4 rounded-2xl border border-line space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-bold text-ink">{lead.contact.name}</span>
+                                            {lead.contact.role && (
+                                                <span className="text-xs px-2 py-0.5 rounded-full bg-surface border border-line font-medium text-ink-2">
+                                                    {lead.contact.role}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-line">
+                                            {lead.contact.email && (
+                                                <div className="flex items-center gap-2 text-xs text-ink-2">
+                                                    <Mail className="w-3.5 h-3.5 text-brand shrink-0" />
+                                                    <a href={`mailto:${lead.contact.email}`} className="hover:text-brand truncate">
+                                                        {lead.contact.email}
+                                                    </a>
+                                                </div>
+                                            )}
+                                            {lead.contact.phone && (
+                                                <div className="flex items-center gap-2 text-xs text-ink-2">
+                                                    <Phone className="w-3.5 h-3.5 text-brand shrink-0" />
+                                                    <a href={`tel:${lead.contact.phone}`} className="hover:text-brand truncate">
+                                                        {lead.contact.phone}
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
+                            )}
+
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                        <ClipboardList className="w-4 h-4 text-brand" /> Qualificação (ICP)
+                                    </h3>
+                                    <button
+                                        onClick={() => setQualOpen(!qualOpen)}
+                                        className="text-xs text-brand hover:underline font-semibold flex items-center gap-1"
+                                    >
+                                        {qualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                        {qualOpen ? 'Fechar' : 'Editar Qualificação'}
+                                    </button>
+                                </div>
+
+                                {qualOpen ? (
+                                    <div className="bg-surface-2/40 p-4 rounded-2xl border border-line space-y-4">
+                                        {PIC_OPTIONS.map((group) => (
+                                            <div key={group.category} className="space-y-1.5">
+                                                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-2 block">
+                                                    {group.category}
+                                                </label>
+                                                <select
+                                                    value={qualDraft[group.category as keyof LeadQualification] || ''}
+                                                    onChange={(e) => setQualDraft({ ...qualDraft, [group.category]: e.target.value })}
+                                                    className="w-full p-2 bg-surface border border-line rounded-xl text-xs font-medium text-ink focus:outline-none focus:border-brand"
+                                                >
+                                                    <option value="">Selecione...</option>
+                                                    {group.options.map((opt) => (
+                                                        <option key={opt} value={opt}>
+                                                            {opt}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                        <button
+                                            onClick={handleSaveQualification}
+                                            disabled={savingQual}
+                                            className="w-full py-2 bg-brand hover:bg-brand-active text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            {savingQual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            Salvar Qualificação
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="bg-surface-2/40 p-4 rounded-2xl border border-line">
+                                        {Object.keys(lead.qualification || {}).length === 0 ? (
+                                            <p className="text-xs text-ink-2 italic">Nenhuma resposta de qualificação registrada.</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {Object.entries(lead.qualification || {}).map(([k, v]) => (
+                                                    <div key={k}>
+                                                        <span className="text-[10px] text-ink-2 font-medium block">{k}</span>
+                                                        <span className="text-xs font-semibold text-ink">{String(v)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </section>
+
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-brand" /> Notas & Histórico
+                                </h3>
+                                <form onSubmit={handleAddNote} className="space-y-2">
+                                    <textarea
+                                        value={noteText}
+                                        onChange={(e) => setNoteText(e.target.value)}
+                                        placeholder="Adicionar uma observação..."
+                                        rows={3}
+                                        className="w-full p-3 bg-surface-2/40 border border-line rounded-2xl text-xs text-ink focus:outline-none focus:border-brand resize-none"
+                                    />
+                                    <div className="flex justify-end">
+                                        <button
+                                            type="submit"
+                                            disabled={savingNote || !noteText.trim()}
+                                            className="px-4 py-2 bg-brand hover:bg-brand-active text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                        >
+                                            {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                            Adicionar Nota
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div className="space-y-3">
+                                    {lead.notes?.map((n) => (
+                                        <div key={n.id} className="p-3 bg-surface-2/40 rounded-2xl border border-line space-y-1">
+                                            <p className="text-xs text-ink whitespace-pre-wrap">{n.content}</p>
+                                            <span className="text-[10px] text-ink-2 flex items-center gap-1">
+                                                <Clock className="w-3 h-3" /> {new Date(n.createdAt).toLocaleString()}
+                                            </span>
+                                        </div>
                                     ))}
-                                    {/* Garante que um responsável já salvo apareça mesmo se não estiver (mais) na lista da equipe. */}
-                                    {lead.owner && !owners.some((o) => o.name === lead.owner) && (
-                                        <option value={lead.owner}>{lead.owner}</option>
-                                    )}
-                                </select>
-                                {savingOwner && <Loader2 className="w-4 h-4 animate-spin text-ink-2 shrink-0" />}
-                            </div>
-                        </div>
-
-                        {/* PIC (Perfil de Cliente Ideal) — setado manualmente pelo SDR/AM */}
-                        <div>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🎯 PIC (Playbook de Pré-Vendas)</h3>
-                            <div className="flex flex-wrap gap-1.5">
-                                {PIC_OPTIONS.map((pic) => (
-                                    <button
-                                        key={pic.value}
-                                        type="button"
-                                        title={pic.desc}
-                                        onClick={() => handleSetPic(pic.value)}
-                                        // bg-brand-active (estado ativo) não depende do tema — é
-                                        // fundo sólido próprio, texto branco valida AA nas duas
-                                        // marcas (5.28:1 AtlasGR / 11.26:1 Total Trac). O hover do
-                                        // estado inativo usa dark:hover:border-brand-2/40 pelo
-                                        // mesmo motivo do resto do board: --brand cru da Total Trac
-                                        // (#374898) quase some sobre superfície escura (2.25:1).
-                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-colors ${lead.pic === pic.value ? 'bg-brand-active border-brand-active text-white' : 'bg-surface-2 border-line text-ink-2 hover:border-brand/40 dark:hover:border-brand-2/40'}`}
-                                    >
-                                        {pic.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Empresa */}
-                        {company && (
-                            <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🏢 Empresa</h3>
-                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-2 text-sm text-ink-2">
-                                    <p className="font-bold text-ink">{company.legalName}</p>
-                                    {company.cnpj && <p className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-ink-2" /> {company.cnpj}</p>}
-                                    {(company.city || company.state) && (
-                                        <p className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-ink-2" /> {[company.city, company.state].filter(Boolean).join(', ')}</p>
-                                    )}
-                                    {company.segment && <p className="flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-ink-2" /> {company.segment}</p>}
-                                    {company.phones?.[0] && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-ink-2" /> {company.phones.join(' · ')}</p>}
-                                    {company.emails?.[0] && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-ink-2" /> {company.emails[0]}</p>}
-                                    {company.website && (
-                                        <p className="flex items-center gap-1.5">
-                                            <Globe className="w-3.5 h-3.5 text-ink-2" />
-                                            <a href={company.website.split(' ')[0]} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">{company.website}</a>
-                                        </p>
-                                    )}
-                                    {company.linkedin && (
-                                        <p className="flex items-center gap-1.5">
-                                            <Linkedin className="w-3.5 h-3.5 text-ink-2" />
-                                            <a href={company.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">LinkedIn</a>
-                                        </p>
-                                    )}
-                                    {company.googleRating != null && (
-                                        <p className="flex items-center gap-1.5">
-                                            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                                            {company.googleRating.toFixed(1)} no Google ({company.googleReviewsCount ?? 0} avaliações)
-                                        </p>
-                                    )}
                                 </div>
                             </section>
-                        )}
 
-                        <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👥 Decisores</h3>
-                            <DecisionMakerSearch
-                                companyName={company?.tradeName || company?.legalName || 'Empresa do lead'}
-                                website={company?.website}
-                                rationale={company?.observations}
-                                companyCnpj={company?.cnpj}
-                                companyEmails={company?.emails}
-                                companyPhones={company?.phones}
-                                appearance="light"
-                            />
-                        </section>
-
-                        {/* Contato */}
-                        {lead.contact && (
-                            <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">👤 Contato</h3>
-                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-1.5 text-sm text-ink-2">
-                                    <p className="font-bold text-ink flex items-center gap-1.5"><User className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.name}</p>
-                                    {lead.contact.role && <p className="text-ink-2 pl-5">{lead.contact.role}</p>}
-                                    {lead.contact.email && <p className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.email}</p>}
-                                    {lead.contact.phone && <p className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5 text-ink-2" /> {lead.contact.phone}</p>}
-                                </div>
-                            </section>
-                        )}
-
-                        {/* Copiloto de IA: e-mail, ligação ou mensagem */}
-                        <section>
-                            <AIEmailGenerator
-                                companyName={company?.legalName || company?.tradeName || 'Empresa Lead'}
-                                contactName={lead.contact?.name || 'Decisor de Compras'}
-                                sector={company?.segment || 'Mercado B2B'}
-                                role={lead.contact?.role || 'Diretor Comercial'}
-                                phone={lead.contact?.whatsapp || lead.contact?.phone || company?.phones?.[0]}
-                            />
-                        </section>
-
-                        {/* Observações do enriquecimento */}
-                        {company?.observations && (
-                            <section>
-                                <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">📝 Resumo do Enriquecimento</h3>
-                                <p className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-xs text-gray-600 leading-relaxed">{company.observations}</p>
-                            </section>
-                        )}
-
-                        {/* Checklist de Qualificação (Playbook Comercial AtlasGR, 4.2) */}
-                        <section>
-                            <button
-                                onClick={() => setQualOpen((v) => !v)}
-                                className="w-full flex items-center justify-between text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 hover:text-brand transition-colors"
-                            >
-                                <span className="flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5" /> Checklist de Qualificação (Playbook)</span>
-                                {qualOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </button>
-                            {qualOpen && (
-                                <div className="bg-surface-2/70 rounded-xl p-4 space-y-4">
-                                    <QualGroup title="Contexto Operacional">
-                                        <QualInput label="Segmento da operação" value={qualDraft.segmentoOperacao} onChange={(v) => setQualDraft((d) => ({ ...d, segmentoOperacao: v }))} />
-                                        <QualInput label="Tipo de carga" value={qualDraft.tipoCarga} onChange={(v) => setQualDraft((d) => ({ ...d, tipoCarga: v }))} />
-                                        <QualInput label="Principais rotas" value={qualDraft.principaisRotas} onChange={(v) => setQualDraft((d) => ({ ...d, principaisRotas: v }))} />
-                                        <QualSelect label="Usa terceiros?" value={qualDraft.usaTerceiros} options={['', 'Sim', 'Não']} onChange={(v) => setQualDraft((d) => ({ ...d, usaTerceiros: v as LeadQualification['usaTerceiros'] }))} />
-                                        <QualInput label="Contratação de terceiros/mês" value={qualDraft.mediaContratacaoTerceiros} onChange={(v) => setQualDraft((d) => ({ ...d, mediaContratacaoTerceiros: v }))} />
-                                        <QualInput label="Viagens/mês" value={qualDraft.viagensPorMes} onChange={(v) => setQualDraft((d) => ({ ...d, viagensPorMes: v }))} />
-                                        <QualInput label="Frota própria (qtd)" value={qualDraft.frotaPropria} onChange={(v) => setQualDraft((d) => ({ ...d, frotaPropria: v }))} />
-                                        <QualInput label="Frota agregados (qtd)" value={qualDraft.frotaAgregados} onChange={(v) => setQualDraft((d) => ({ ...d, frotaAgregados: v }))} />
-                                        <QualInput label="Frota terceiros (qtd)" value={qualDraft.frotaTerceiros} onChange={(v) => setQualDraft((d) => ({ ...d, frotaTerceiros: v }))} />
-                                    </QualGroup>
-
-                                    <QualGroup title="Estrutura Atual">
-                                        <QualInput label="ERP/TMS utilizado" value={qualDraft.ermTms} onChange={(v) => setQualDraft((d) => ({ ...d, ermTms: v }))} />
-                                        <QualInput label="Rastreador utilizado" value={qualDraft.rastreador} onChange={(v) => setQualDraft((d) => ({ ...d, rastreador: v }))} />
-                                        <QualInput label="Seguradora" value={qualDraft.seguradora} onChange={(v) => setQualDraft((d) => ({ ...d, seguradora: v }))} />
-                                        <QualInput label="Corretora" value={qualDraft.corretora} onChange={(v) => setQualDraft((d) => ({ ...d, corretora: v }))} />
-                                        <QualInput label="Possui GR hoje? (com quem)" value={qualDraft.possuiGR} onChange={(v) => setQualDraft((d) => ({ ...d, possuiGR: v }))} />
-                                        <QualInput label="Cadastro/consulta de motorista (com quem)" value={qualDraft.possuiCadastroMotorista} onChange={(v) => setQualDraft((d) => ({ ...d, possuiCadastroMotorista: v }))} />
-                                        <QualInput label="Software logístico (com quem)" value={qualDraft.possuiSoftwareLogistico} onChange={(v) => setQualDraft((d) => ({ ...d, possuiSoftwareLogistico: v }))} />
-                                    </QualGroup>
-
-                                    <QualGroup title="Dor Mapeada">
-                                        <QualInput label="Dor principal identificada" value={qualDraft.dorPrincipal} onChange={(v) => setQualDraft((d) => ({ ...d, dorPrincipal: v }))} full />
-                                        <QualInput label="Detalhamento da dor (exemplo real)" value={qualDraft.detalhamentoDor} onChange={(v) => setQualDraft((d) => ({ ...d, detalhamentoDor: v }))} full />
-                                        <QualInput label="Impacto percebido (custo/risco/SLA/retrabalho/margem)" value={qualDraft.impactoPercebido} onChange={(v) => setQualDraft((d) => ({ ...d, impactoPercebido: v }))} full />
-                                        <QualSelect
-                                            label={`Conecta com qual solução ${brandInfo.name}?`}
-                                            value={qualDraft.solucaoAtlas}
-                                            options={activeBrand === 'totaltrac' ? ['', 'Telemetria', 'Trava Remota', 'M2M', 'Combinação'] : ['', 'Profile', 'GR', 'Connect', 'Combinação']}
-                                            onChange={(v) => setQualDraft((d) => ({ ...d, solucaoAtlas: v as LeadQualification['solucaoAtlas'] }))}
-                                        />
-                                    </QualGroup>
-
-                                    <QualGroup title="Interesse e Autoridade">
-                                        <QualSelect label="Nível de autoridade" value={qualDraft.nivelAutoridade} options={['', 'Decisor', 'Influenciador', 'Usuário']} onChange={(v) => setQualDraft((d) => ({ ...d, nivelAutoridade: v as LeadQualification['nivelAutoridade'] }))} />
-                                        <QualSelect label="Interesse percebido" value={qualDraft.interessePercebido} options={['', 'Baixo', 'Médio', 'Alto']} onChange={(v) => setQualDraft((d) => ({ ...d, interessePercebido: v as LeadQualification['interessePercebido'] }))} />
-                                        <QualSelect label="Horizonte de decisão" value={qualDraft.horizonteDecisao} options={['', 'Imediato', '30 dias', '60-90 dias', 'Indefinido']} onChange={(v) => setQualDraft((d) => ({ ...d, horizonteDecisao: v as LeadQualification['horizonteDecisao'] }))} />
-                                    </QualGroup>
-
-                                    <QualGroup title="Próximo Passo">
-                                        <QualInput label="Expectativa do lead para a call" value={qualDraft.expectativaProximaCall} onChange={(v) => setQualDraft((d) => ({ ...d, expectativaProximaCall: v }))} full />
-                                        <QualInput label="Tema principal a explorar" value={qualDraft.temaProximaReuniao} onChange={(v) => setQualDraft((d) => ({ ...d, temaProximaReuniao: v }))} full />
-                                    </QualGroup>
-
-                                    <button
-                                        onClick={handleSaveQualification}
-                                        disabled={savingQual}
-                                        className="w-full flex items-center justify-center gap-2 bg-atlas-dark text-white py-2.5 rounded-xl font-bold text-sm hover:bg-black transition-colors disabled:opacity-50"
-                                    >
-                                        {savingQual ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                        {savingQual ? 'Salvando...' : 'Salvar checklist'}
-                                    </button>
-                                </div>
+                            {brandInfo && (
+                                <section className="space-y-4">
+                                    <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-brand" /> Copiloto de Vendas ({activeBrand})
+                                    </h3>
+                                    <AIEmailGenerator lead={lead} />
+                                </section>
                             )}
-                        </section>
+                        </div>
 
-                        {/* Notas */}
-                        <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">💬 Notas ({lead.internalNotes?.length || 0})</h3>
-                            <div className="flex gap-2 mb-3">
-                                <input
-                                    value={noteText}
-                                    onChange={(e) => setNoteText(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-                                    placeholder="Escreva uma nota e pressione Enter..."
-                                    className="flex-1 p-2.5 bg-surface-2 rounded-xl border border-line text-sm outline-none focus:border-brand"
-                                />
+                        <div className="p-4 border-t border-line bg-surface-2/50 shrink-0 flex items-center justify-between">
+                            <button
+                                onClick={openBitrixExportOptions}
+                                disabled={exportingBitrix}
+                                className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
+                            >
+                                {exportingBitrix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                                Exportar Bitrix24
+                            </button>
+                            <div className="flex items-center gap-2">
                                 <button
-                                    onClick={handleAddNote}
-                                    disabled={savingNote || !noteText.trim()}
-                                    aria-label="Adicionar nota"
-                                    className="p-2.5 bg-atlas-dark text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50"
+                                    onClick={handleVoiceCall}
+                                    disabled={callingVoice}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
                                 >
-                                    {savingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                    {callingVoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
+                                    Qualificar via Voz
+                                </button>
+                                <button
+                                    onClick={() => setWhatsappOpen(true)}
+                                    disabled={!leadPhone}
+                                    title={leadPhone ? 'Enviar WhatsApp para este lead (sessão da organização)' : 'Este lead não possui telefone cadastrado'}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    WhatsApp
+                                </button>
+                                <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
+                                    Fechar
                                 </button>
                             </div>
-                            <div className="space-y-2">
-                                {(lead.internalNotes || []).map((note) => (
-                                    <div key={note.id} className="bg-yellow-50/70 border border-yellow-100 rounded-xl p-3 text-sm text-gray-700">
-                                        <p className="whitespace-pre-wrap">{note.content}</p>
-                                        <p className="text-[10px] text-gray-400 mt-1.5">
-                                            {note.author} · {new Date(note.createdAt).toLocaleString('pt-BR')}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-
-                        {/* Timeline */}
-                        <section>
-                            <h3 className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">🕐 Histórico ({lead.timeline?.length || 0})</h3>
-                            <div className="space-y-0 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-line">
-                                {(lead.timeline || []).map((event) => (
-                                    <div key={event.id} className="relative pl-6 pb-4">
-                                        <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full bg-surface border-2 border-brand" />
-                                        <p className="text-sm text-ink-2">{event.description}</p>
-                                        <p className="text-[10px] text-ink-2 flex items-center gap-1 mt-0.5">
-                                            <Clock className="w-3 h-3" /> {new Date(event.createdAt).toLocaleString('pt-BR')}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    </div>
+                        </div>
+                    </>
                 )}
-
-                {/* Rodapé */}
-                <div className="border-t border-line shrink-0">
-                    {/* Status de sincronização Bitrix24 — antes desta correção, uma falha no push
-                        automático (na criação do lead) só existia no log do servidor, invisível
-                        aqui (achado P1-3 da auditoria). bitrixLeadId nulo + status nulo = nunca
-                        tentado ainda, então não mostra nada (evita alarmar sobre um lead que
-                        simplesmente não foi exportado por escolha). */}
-                    {lead?.bitrixSyncStatus && (
-                        <div className="px-4 pt-3 flex items-center gap-1.5 text-xs">
-                            {lead.bitrixSyncStatus === 'synced' && (
-                                <span className="flex items-center gap-1 text-ok font-bold" title={lead.bitrixSyncedAt ? `Sincronizado em ${new Date(lead.bitrixSyncedAt).toLocaleString('pt-BR')}` : undefined}>
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Sincronizado com o Bitrix24
-                                </span>
-                            )}
-                            {lead.bitrixSyncStatus === 'failed' && (
-                                <span className="flex items-center gap-1 text-red-600 font-bold" title={lead.bitrixSyncError || undefined}>
-                                    <AlertTriangle className="w-3.5 h-3.5" /> Falha ao sincronizar com o Bitrix24{lead.bitrixSyncError ? ` — ${lead.bitrixSyncError}` : ''}
-                                </span>
-                            )}
-                            {lead.bitrixSyncStatus === 'syncing' && (
-                                <span className="flex items-center gap-1 text-ink-2 font-bold">
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Sincronizando com o Bitrix24…
-                                </span>
-                            )}
-                        </div>
-                    )}
-
-                    {bitrixOptionsOpen && (
-                        <div className="px-4 pt-3 flex flex-wrap items-center gap-2">
-                            {loadingBitrixOptions ? (
-                                <span className="flex items-center gap-1.5 text-xs text-ink-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Carregando opções do Bitrix24…</span>
-                            ) : bitrixStatusOptions.length === 0 && bitrixUserOptions.length === 0 ? (
-                                <span className="text-xs text-ink-2">Nenhum portal Bitrix24 conectado — configure em Integrações.</span>
-                            ) : (
-                                <>
-                                    <label className="text-xs">
-                                        <span className="sr-only">Status no Bitrix24</span>
-                                        <select
-                                            value={bitrixStatusId}
-                                            onChange={(e) => setBitrixStatusId(e.target.value)}
-                                            className="p-2 bg-surface-2 rounded-lg border border-line text-xs font-bold text-ink outline-none focus:border-brand"
-                                        >
-                                            <option value="">Status padrão do Bitrix24</option>
-                                            {bitrixStatusOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                        </select>
-                                    </label>
-                                    <label className="text-xs">
-                                        <span className="sr-only">Responsável no Bitrix24</span>
-                                        <select
-                                            value={bitrixAssignedById}
-                                            onChange={(e) => setBitrixAssignedById(e.target.value)}
-                                            className="p-2 bg-surface-2 rounded-lg border border-line text-xs font-bold text-ink outline-none focus:border-brand"
-                                        >
-                                            <option value="">Sem responsável definido</option>
-                                            {bitrixUserOptions.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                        </select>
-                                    </label>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="p-4 flex justify-between items-center">
-                    <button
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        className="flex items-center gap-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-                    >
-                        {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash className="w-4 h-4" />}
-                        Excluir lead
-                    </button>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={toggleBitrixOptions}
-                            aria-expanded={bitrixOptionsOpen}
-                            title="Escolher status e responsável no Bitrix24 antes de exportar"
-                            className={`p-2 rounded-xl transition-colors ${bitrixOptionsOpen ? 'bg-surface text-ink' : 'bg-surface-2 text-ink-2 hover:text-ink hover:bg-surface'}`}
-                        >
-                            <Settings2 className="w-4 h-4" />
-                        </button>
-                         <button
-                            onClick={handleExportBitrix}
-                            disabled={exportingBitrix}
-                            title="Exportar este lead para o Bitrix24 (requer conexão em Integrações)"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-surface-2 text-ink-2 hover:text-ink hover:bg-surface rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-                        >
-                            {exportingBitrix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                            Exportar p/ Bitrix24
-                        </button>
-                        <button
-                            onClick={handleVoiceCall}
-                            disabled={callingVoice}
-                            title="Acionar ligação de qualificação via IA de voz (Birthub Voices)"
-                            className="flex items-center gap-1.5 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60 shadow-sm"
-                        >
-                            {callingVoice ? <Loader2 className="w-4 h-4 animate-spin" /> : <PhoneCall className="w-4 h-4" />}
-                            Qualificar via Voz
-                        </button>
-                        <button onClick={onClose} className="px-4 py-2 bg-surface-2 text-ink-2 rounded-xl text-sm font-bold hover:bg-surface transition-colors">
-                            Fechar
-                        </button>
-                    </div>
-                    </div>
-                </div>
             </div>
+
+            {whatsappOpen && leadPhone && (
+                <WhatsAppChatPanel
+                    phone={leadPhone}
+                    contactName={lead?.contact?.name || company?.tradeName || undefined}
+                    onClose={() => setWhatsappOpen(false)}
+                />
+            )}
         </div>
-    );
-}
-
-function QualGroup({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-        <div>
-            <p className="text-[9px] tracking-wider font-bold uppercase text-brand mb-1.5">{title}</p>
-            <div className="grid grid-cols-2 gap-2">{children}</div>
-        </div>
-    );
-}
-
-function QualInput({ label, value, onChange, full }: { label: string; value?: string; onChange: (v: string) => void; full?: boolean }) {
-    return (
-        <label className={`block ${full ? 'col-span-2' : ''}`}>
-            <span className="block text-[9px] text-ink-2 mb-0.5">{label}</span>
-            <input
-                type="text"
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-brand"
-            />
-        </label>
-    );
-}
-
-function QualSelect({ label, value, options, onChange }: { label: string; value?: string; options: string[]; onChange: (v: string) => void }) {
-    return (
-        <label className="block">
-            <span className="block text-[9px] text-ink-2 mb-0.5">{label}</span>
-            <select
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                className="w-full p-1.5 bg-surface rounded-lg border border-line text-xs outline-none focus:border-brand"
-            >
-                {options.map((o) => <option key={o} value={o}>{o || '—'}</option>)}
-            </select>
-        </label>
     );
 }

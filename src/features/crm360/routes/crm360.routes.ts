@@ -1,129 +1,68 @@
-import { Router, type NextFunction, type Request, type Response } from 'express';
-import { CrmDocumentStatus } from '@prisma/client';
-import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
+import { Router } from 'express';
+import { container } from '../../../shared/di/container.js';
+import type { Crm360Controller } from '../presentation/Crm360Controller.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import {
     crmDealItemSchema,
-    crmDealSchema,
     crmDocumentSchema,
-    crmPipelineSchema,
     crmProductSchema,
     moveCrmRecordSchema,
 } from '../crm360.schema.js';
-import { crm360Service } from '../services/crm360.service.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
 
-function orgId(req: Request): string {
-    return (req as AuthRequest).user.organizationId;
-}
+router.get('/overview', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').getOverview(req, res, next)
+);
 
-function route(handler: (req: Request, res: Response) => Promise<void>) {
-    return (req: Request, res: Response, next: NextFunction) => {
-        void handler(req, res).catch(next);
-    };
-}
+router.get('/pipelines', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').getPipelines(req, res, next)
+);
 
-router.get('/overview', route(async (req, res) => {
-    res.json({ success: true, data: await crm360Service.overview(orgId(req)) });
-}));
+router.get('/board', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').getBoardLeads(req, res, next)
+);
 
-router.get('/pipelines', route(async (req, res) => {
-    res.json({ success: true, data: await crm360Service.listPipelines(orgId(req)) });
-}));
+router.put('/records/:id/stage', writeRoles, (req, res, next) => {
+    moveCrmRecordSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').moveRecord(req, res, next);
+});
 
-router.post('/pipelines', managementRoles, route(async (req, res) => {
-    const input = crmPipelineSchema.parse(req.body);
-    const pipeline = await crm360Service.createPipeline(orgId(req), input);
-    res.status(201).json({ success: true, data: pipeline });
-}));
+router.get('/products', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').listProducts(req, res, next)
+);
 
-router.put('/records/:id/stage', writeRoles, route(async (req, res) => {
-    const { stageId } = moveCrmRecordSchema.parse(req.body);
-    const record = await crm360Service.moveRecord(orgId(req), req.params.id, stageId);
-    res.json({ success: true, data: record });
-}));
+router.post('/products', writeRoles, (req, res, next) => {
+    crmProductSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').createProduct(req, res, next);
+});
 
-router.post('/deals', writeRoles, route(async (req, res) => {
-    const input = crmDealSchema.parse(req.body);
-    const deal = await crm360Service.createDeal(orgId(req), input);
-    res.status(201).json({ success: true, data: deal });
-}));
+router.get('/deals/:leadId/items', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').getDealItems(req, res, next)
+);
 
-router.post('/leads/:id/convert', writeRoles, route(async (req, res) => {
-    const deal = await crm360Service.convertLead(orgId(req), req.params.id);
-    res.json({ success: true, data: deal });
-}));
+router.post('/deals/:leadId/items', writeRoles, (req, res, next) => {
+    crmDealItemSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').addDealItem(req, res, next);
+});
 
-router.get('/products', route(async (req, res) => {
-    const query = typeof req.query.q === 'string' ? req.query.q : undefined;
-    res.json({ success: true, data: await crm360Service.listProducts(orgId(req), query) });
-}));
+router.delete('/deals/:leadId/items/:id', managementRoles, (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').removeDealItem(req, res, next)
+);
 
-router.post('/products', writeRoles, route(async (req, res) => {
-    const input = crmProductSchema.parse(req.body);
-    const product = await crm360Service.createProduct(orgId(req), input);
-    res.status(201).json({ success: true, data: product });
-}));
+router.get('/documents', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').listDocuments(req, res, next)
+);
 
-router.put('/products/:id', writeRoles, route(async (req, res) => {
-    const input = crmProductSchema.partial().parse(req.body);
-    const product = await crm360Service.updateProduct(orgId(req), req.params.id, input);
-    res.json({ success: true, data: product });
-}));
+router.post('/documents', writeRoles, (req, res, next) => {
+    crmDocumentSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').createDocument(req, res, next);
+});
 
-router.delete('/products/:id', managementRoles, route(async (req, res) => {
-    await crm360Service.archiveProduct(orgId(req), req.params.id);
-    res.status(204).send();
-}));
-
-router.get('/deals/:leadId/items', route(async (req, res) => {
-    res.json({ success: true, data: await crm360Service.listDealItems(orgId(req), req.params.leadId) });
-}));
-
-router.post('/deals/:leadId/items', writeRoles, route(async (req, res) => {
-    const input = crmDealItemSchema.parse(req.body);
-    const item = await crm360Service.addDealItem(orgId(req), req.params.leadId, input);
-    res.status(201).json({ success: true, data: item });
-}));
-
-router.put('/deals/:leadId/items/:id', writeRoles, route(async (req, res) => {
-    const input = crmDealItemSchema.parse(req.body);
-    const item = await crm360Service.updateDealItem(orgId(req), req.params.leadId, req.params.id, input);
-    res.json({ success: true, data: item });
-}));
-
-router.delete('/deals/:leadId/items/:id', managementRoles, route(async (req, res) => {
-    await crm360Service.deleteDealItem(orgId(req), req.params.leadId, req.params.id);
-    res.status(204).send();
-}));
-
-router.get('/documents', route(async (req, res) => {
-    const query = typeof req.query.q === 'string' ? req.query.q : undefined;
-    res.json({ success: true, data: await crm360Service.listDocuments(orgId(req), query) });
-}));
-
-router.post('/documents', writeRoles, route(async (req, res) => {
-    const input = crmDocumentSchema.parse(req.body);
-    const document = await crm360Service.createDocument(orgId(req), input);
-    res.status(201).json({ success: true, data: document });
-}));
-
-router.put('/documents/:id/status', writeRoles, route(async (req, res) => {
-    const status = CrmDocumentStatus[req.body?.status as keyof typeof CrmDocumentStatus];
-    if (!status) {
-        res.status(400).json({ success: false, error: 'Status de documento inválido' });
-        return;
-    }
-    const document = await crm360Service.updateDocumentStatus(orgId(req), req.params.id, status);
-    res.json({ success: true, data: document });
-}));
-
-router.get('/search', route(async (req, res) => {
-    const query = typeof req.query.q === 'string' ? req.query.q : '';
-    res.json({ success: true, data: await crm360Service.search(orgId(req), query) });
-}));
+router.put('/documents/:id/status', writeRoles, (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').updateDocumentStatus(req, res, next)
+);
 
 export const crm360Routes = router;
