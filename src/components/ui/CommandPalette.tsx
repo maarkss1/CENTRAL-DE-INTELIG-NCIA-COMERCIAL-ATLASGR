@@ -195,6 +195,7 @@ export function CommandPalette() {
             aria-modal="true"
             aria-label="Command palette"
             onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+            onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
         >
             <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
                 <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">

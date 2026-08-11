@@ -140,9 +140,9 @@ export function RobustScriptGenerator() {
                     
                     {/* Linguagem */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Braces size={14} /> Stack Tecnológico / Linguagem
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'language' ? null : 'language')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -170,9 +170,9 @@ export function RobustScriptGenerator() {
 
                     {/* Propósito */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Globe size={14} /> Vetor de Propósito / Funcionalidade
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'purpose' ? null : 'purpose')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -203,9 +203,9 @@ export function RobustScriptGenerator() {
 
                     {/* Framework */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <Layers size={14} /> Abordagem & Framework
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'framework' ? null : 'framework')}
                             className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -233,9 +233,9 @@ export function RobustScriptGenerator() {
 
                     {/* Complexidade */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.text}`}>
                             <ShieldCheck size={14} /> Nível de Resiliência & Complexidade
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'complexity' ? null : 'complexity')}
                             className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -264,9 +264,9 @@ export function RobustScriptGenerator() {
 
                 {/* Instruções Adicionais */}
                 <div className="relative z-10 max-w-5xl mx-auto mb-8 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                    <label className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
+                    <p className="block text-[10px] tracking-widest font-black uppercase mb-2 text-ink-2">
                         Contexto ou Regras Personalizadas (Opcional)
-                    </label>
+                    </p>
                     <input
                         type="text"
                         placeholder="Ex: Utilizar token Bearer no header, salvar logs no diretório C:\Logs, etc..."

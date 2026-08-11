@@ -272,10 +272,11 @@ function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: E
     <>
       <IcpBadge text={result.icpAnalysis} />
       <div>
-        <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label htmlFor="email-subject" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
           Assunto Recomendado (AIDA Hook)
         </label>
         <input
+          id="email-subject"
           type="text"
           value={result.subject}
           onChange={(e) => onChange({ ...result, subject: e.target.value })}
@@ -283,10 +284,11 @@ function EmailPanel({ result, onChange }: { result: EmailResult; onChange: (r: E
         />
       </div>
       <div>
-        <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label htmlFor="email-body" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
           Corpo da Mensagem (Engenharia de Prompt ICP)
         </label>
         <textarea
+          id="email-body"
           rows={7}
           value={result.body}
           onChange={(e) => onChange({ ...result, body: e.target.value })}
@@ -303,11 +305,11 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
       <IcpBadge text={result.icpAnalysis} />
       <div className="space-y-3 text-xs text-ink">
         <div>
-          <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Abertura (primeiros 10s)</label>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Abertura (primeiros 10s)</p>
           <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">{result.opening}</p>
         </div>
         <div>
-          <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Perguntas de Descoberta</label>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Perguntas de Descoberta</p>
           <ul className="space-y-1.5">
             {result.discoveryQuestions.map((q, i) => (
               <li key={i} className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed">{i + 1}. {q}</li>
@@ -315,7 +317,7 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
           </ul>
         </div>
         <div>
-          <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Contorno de Objeções</label>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Contorno de Objeções</p>
           <div className="space-y-1.5">
             {result.objectionTips.map((o, i) => (
               <div key={i} className="px-3 py-2 rounded-lg bg-surface-2 border border-line leading-relaxed">
@@ -326,7 +328,7 @@ function CallScriptPanel({ result }: { result: CallScriptResult }) {
           </div>
         </div>
         <div>
-          <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Fechamento (próximo passo)</label>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Fechamento (próximo passo)</p>
           <p className="px-3 py-2.5 rounded-lg bg-surface-2 border border-line leading-relaxed">{result.closing}</p>
         </div>
       </div>
@@ -339,10 +341,11 @@ function MessagePanel({ result, onChange }: { result: MessageResult; onChange: (
     <>
       <IcpBadge text={result.icpAnalysis} />
       <div>
-        <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
+        <label htmlFor="msg-body" className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">
           Mensagem (WhatsApp / SMS)
         </label>
         <textarea
+          id="msg-body"
           rows={4}
           value={result.body}
           onChange={(e) => onChange({ ...result, body: e.target.value })}
@@ -350,7 +353,7 @@ function MessagePanel({ result, onChange }: { result: MessageResult; onChange: (
         />
       </div>
       <div>
-        <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Se não responder</label>
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-ink-2 block mb-1">Se não responder</p>
         <p className="px-3 py-2 rounded-lg bg-surface-2 border border-line text-xs text-ink-2 leading-relaxed">{result.followUpSuggestion}</p>
       </div>
     </>

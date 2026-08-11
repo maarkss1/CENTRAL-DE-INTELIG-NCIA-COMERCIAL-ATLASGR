@@ -115,7 +115,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
             <div
                 {...attributes}
                 {...listeners}
+                role="button"
+                tabIndex={0}
                 onClick={() => onClick(lead)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(lead); }}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
             >
                 <div className="flex justify-between items-start gap-2 mb-2">

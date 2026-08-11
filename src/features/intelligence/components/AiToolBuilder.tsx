@@ -52,8 +52,9 @@ export function AiToolBuilder() {
           </h3>
 
           <div>
-            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Nome da Ferramenta IA</label>
+            <label htmlFor="tool-name" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Nome da Ferramenta IA</label>
             <input
+              id="tool-name"
               type="text"
               value={toolName}
               onChange={(e) => setToolName(e.target.value)}
@@ -64,8 +65,9 @@ export function AiToolBuilder() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Categoria de Aplicação</label>
+            <label htmlFor="tool-category" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Categoria de Aplicação</label>
             <select
+              id="tool-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-surface border border-line rounded-2xl px-4 py-3 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none"
@@ -78,8 +80,9 @@ export function AiToolBuilder() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Instruções de Prompt do Sistema (AI Engine)</label>
+            <label htmlFor="tool-prompt" className="block text-[11px] font-bold text-ink-2 uppercase mb-1">Instruções de Prompt do Sistema (AI Engine)</label>
             <textarea
+              id="tool-prompt"
               rows={4}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}

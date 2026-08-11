@@ -331,9 +331,9 @@ $status | ConvertTo-Json -Depth 3
                     
                     {/* Campo 1: Identificação */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Bot size={14} /> Nome e Identificação do Agente
-                        </label>
+                        </p>
                         <input
                             type="text"
                             placeholder="Ex: SDR Alpha Outbound, Insight Bot..."
@@ -345,9 +345,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 2: Papel / Função */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Papel & Especialidade (Role)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'role' ? null : 'role')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -378,9 +378,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 3: Provedor de IA */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-sky-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-sky-400">
                             <Cpu size={14} /> Provedor de IA (Engine Provider)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'provider' ? null : 'provider')}
                             className="w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-sky-400/50 transition-colors"
@@ -409,9 +409,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 4: Modelo Cognitivo */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Modelo Cognitivo Específico
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'model' ? null : 'model')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -440,9 +440,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 5: Temperatura / Criatividade */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
                             <Sliders size={14} /> Temperatura / Criatividade do Motor
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'temp' ? null : 'temp')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-amber-400/50 transition-colors"
@@ -470,9 +470,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 6: Memória / RAG */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-emerald-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-emerald-400">
                             <Database size={14} /> Arquitetura de Memória & RAG
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'memory' ? null : 'memory')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-emerald-400/50 transition-colors"
@@ -505,9 +505,9 @@ $status | ConvertTo-Json -Depth 3
 
                 {/* Seleção de Ferramentas / Capabilities */}
                 <div className="relative z-10 max-w-5xl mx-auto mb-10 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                    <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
+                    <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
                         <Zap size={14} /> Ferramentas & Capabilities Habilitadas para o Agente
-                    </label>
+                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {TOOLS_LIST.map(t => {
                             const isSelected = selectedTools.includes(t.id);
