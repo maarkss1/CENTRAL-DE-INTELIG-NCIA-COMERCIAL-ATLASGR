@@ -23,7 +23,7 @@
     "security:zap": "docker compose -f docker-compose.yml -f docker-compose.opensource.yml --profile tools run --rm zap",
     "security:trivy": "docker compose -f docker-compose.yml -f docker-compose.opensource.yml --profile tools run --rm trivy",
     "clean": "rm -rf dist server.js",
-    "lint": "eslint src",
+    "lint": "eslint src --fix",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "vitest run -c vitest.unit.config.ts --passWithNoTests",
     "pretest:integration": "node scripts/test/prepare-integration-env.js && dotenv -e .env.test -- npx prisma migrate deploy",
