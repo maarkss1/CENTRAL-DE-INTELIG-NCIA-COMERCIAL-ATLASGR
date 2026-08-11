@@ -16,7 +16,7 @@ vi.mock('@/lib/prisma', () => ({
     timelineEvent: {
       create: vi.fn(),
     },
-    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
+    $transaction: vi.fn((ops: Promise<unknown>[]) => Promise.all(ops)), automation: { findMany: vi.fn().mockResolvedValue([]) },
   }
 }));
 

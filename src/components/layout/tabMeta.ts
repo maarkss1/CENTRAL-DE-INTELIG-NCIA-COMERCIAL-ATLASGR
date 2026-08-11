@@ -2,14 +2,16 @@ import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
     Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell,
     BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog, Settings as SettingsIcon,
+    LineChart,
 } from 'lucide-react';
 
 /** Identificador de cada módulo navegável — fonte única usada pela Sidebar, Topbar e Command Palette. */
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     dashboard: { label: 'Painel Central', icon: Home },
+    commercial_intelligence: { label: 'Comercial Inteligente', icon: LineChart },
     prospect: { label: 'Prospecção', icon: Search },
     crm: { label: 'Pipeline CRM', icon: LayoutTemplate },
     contacts: { label: 'Decisores', icon: Users },

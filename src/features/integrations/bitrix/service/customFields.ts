@@ -65,10 +65,51 @@ export async function resolveEnumMaps(webhookUrl: string, entity: BitrixEntityKi
     return maps;
 }
 
+export interface BitrixFieldOption {
+    code: string;
+    label: string;
+}
+
+interface BitrixFieldMetaRaw {
+    title?: string;
+    listLabel?: string;
+    formLabel?: string;
+    filterLabel?: string;
+}
+
+/**
+ * Lista TODOS os campos existentes (fixos do sistema + UF_CRM_* personalizados) de Lead ou
+ * Negócio neste portal — usada pela tela de importação (BitrixImportPanel) para deixar a pessoa
+ * escolher, por nome, um campo personalizado para filtrar a busca (ex.: "Segmento", "Perfil de
+ * Risco") sem precisar saber o código UF_CRM_ de cor. Mesmo método (`crm.lead.fields`/
+ * `crm.deal.fields`) já usado por fetchEnumMaps acima, mas devolvendo o rótulo amigável de cada
+ * campo em vez de só os itens de enum dos campos do BITRIX_FIELD_MAP.
+ */
+export async function getEntityFields(webhookUrl: string, entity: BitrixEntityKind): Promise<BitrixFieldOption[]> {
+    const method = entity === 'lead' ? 'crm.lead.fields' : 'crm.deal.fields';
+    const data = await callBitrix<{ result: Record<string, BitrixFieldMetaRaw> }>(webhookUrl, method, {});
+    return Object.entries(data.result || {})
+        .map(([code, meta]) => ({
+            code,
+            label: meta.title || meta.listLabel || meta.formLabel || meta.filterLabel || code,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+}
+
 function formatBitrixDate(value: unknown): string | null {
     const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
     if (!date || Number.isNaN(date.getTime())) return null;
     return date.toISOString().slice(0, 10);
+}
+
+// Contraparte de formatBitrixDate para o sentido de entrada: os alvos `kind: 'lead'` de campos
+// `type: 'date'` (resumeDate, contractSignedDate) são colunas Prisma DateTime? — precisam de um
+// objeto Date de verdade, não da string "YYYY-MM-DD" truncada que formatBitrixDate produz para o
+// payload de saída (Bitrix aceita data pura, mas o engine do Prisma rejeita DateTime sem
+// componente de hora com "premature end of input. Expected ISO-8601 DateTime").
+function parseInboundBitrixDate(value: unknown): Date | null {
+    const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : null;
+    return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 function getByTarget(source: { lead: Record<string, unknown>; qualification: Record<string, unknown>; contact: Record<string, unknown> }, target: BitrixFieldMapping['target']): unknown {
@@ -131,6 +172,28 @@ interface InboundCustomFieldsResult {
     contactRole: string | null;
 }
 
+// Ao contrário dos outros alvos `kind: 'lead'` deste mapa (todos String?/Boolean? no Prisma), a
+// coluna Lead.temperature é o enum LeadTemperature (Frio|Morno|Quente) — só aceita EXATAMENTE um
+// desses três valores. Um texto do Bitrix que não bata (ou o ID bruto, quando a tradução do enum
+// falha — ver fallback abaixo) faz o Prisma rejeitar o update INTEIRO do Lead, não só este campo.
+// É o que gerava "erro interno" no webhook de entrada e na importação (import/webhook chamam
+// applyInboundCustomFields e gravam leadFields direto via `...leadFields` sem validação).
+const LEAD_ENUM_COLUMNS: Record<string, readonly string[]> = {
+    temperature: ['Frio', 'Morno', 'Quente'],
+};
+
+/**
+ * Garante que um valor destinado a uma coluna `kind: 'lead'` que é enum no Prisma só é gravado
+ * quando bate (case-insensitive) com uma das opções válidas — senão devolve `undefined` para o
+ * campo ser omitido, em vez de quebrar o update inteiro. Campos `kind: 'lead'` sem enum Prisma
+ * (a maioria) passam direto, sem validação.
+ */
+function coerceLeadFieldValue(field: string, value: unknown): unknown {
+    const allowed = LEAD_ENUM_COLUMNS[field];
+    if (!allowed) return value;
+    return allowed.find((option) => option.toLowerCase() === String(value).trim().toLowerCase());
+}
+
 /**
  * Caminho inverso de buildOutboundCustomFields — extrai os `UF_CRM_*` de um registro cru do
  * Bitrix (retorno de crm.lead.get/crm.deal.get, ou de um crm.lead.list cujo `select` os inclui) e
@@ -161,7 +224,7 @@ export function applyInboundCustomFields(
             if (!Number.isFinite(n)) continue;
             value = n;
         } else if (mapping.type === 'date') {
-            value = formatBitrixDate(rawValue);
+            value = parseInboundBitrixDate(rawValue);
             if (!value) continue;
         } else if (mapping.type === 'enumeration' || mapping.type === 'boolean_sim_nao') {
             // Bitrix devolve o ID como string (ou array de 1 item, em alguns campos multi-select
@@ -177,9 +240,18 @@ export function applyInboundCustomFields(
             continue;
         }
 
-        if (mapping.target.kind === 'qualification') qualification[mapping.target.field] = value;
-        else if (mapping.target.kind === 'contact') contactRole = String(value);
-        else leadFields[mapping.target.field] = value;
+        if (mapping.target.kind === 'qualification') {
+            qualification[mapping.target.field] = value;
+        } else if (mapping.target.kind === 'contact') {
+            contactRole = String(value);
+        } else {
+            const coerced = coerceLeadFieldValue(mapping.target.field, value);
+            if (coerced === undefined && value !== undefined) {
+                logger.warn({ code, label: mapping.label, value }, '[bitrix] Valor recebido não corresponde a nenhuma opção válida da coluna local — campo não gravado (evita rejeitar o update inteiro do Lead)');
+                continue;
+            }
+            leadFields[mapping.target.field] = coerced;
+        }
     }
 
     return { qualification, leadFields, contactRole };

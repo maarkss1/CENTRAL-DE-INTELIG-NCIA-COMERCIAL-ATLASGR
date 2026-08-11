@@ -230,7 +230,7 @@
       página, precisa colar de novo.
     </div>
     <label for="webhook">URL do webhook de entrada</label>
-    <input type="password" id="webhook" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/">
+    <input type="password" id="webhook" value="https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/">
     <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
   </div>
 
@@ -295,7 +295,11 @@
     <div class="row" style="margin-bottom:4px;">
       <button type="button" class="secundario" onclick="selecionarCampos(true)">Selecionar todos</button>
       <button type="button" class="secundario" onclick="selecionarCampos(false)">Limpar seleção</button>
+      <button type="button" class="secundario" id="btnCarregarCampos" onclick="carregarTodosCampos()">Carregar todos os campos do Bitrix</button>
     </div>
+    <p class="rodape-nota" id="notaCamposCarregados"></p>
+    <label for="filtroCampos">Buscar campo (nome ou código)</label>
+    <input type="text" id="filtroCampos" placeholder="Ex: telefone, e-mail, UF_CRM, segmento..." oninput="aplicarFiltroCampos()">
     <div id="campos-lista" class="campos-grid"></div>
     <label for="camposExtra">Campos extras (códigos separados por vírgula, ex: UF_CRM_1234567890)</label>
     <input type="text" id="camposExtra" placeholder="UF_CRM_1234567890, UF_CRM_9876543210">
@@ -381,6 +385,7 @@ const ENTIDADES = {
   negocios: {
     label: "Negócios (Deals)",
     method: "crm.deal.list",
+    fieldsMethod: "crm.deal.fields",
     hasCategoria: true,
     categorias: [
       { code: "", label: "Todas as categorias" },
@@ -452,6 +457,7 @@ const ENTIDADES = {
   leads: {
     label: "Leads",
     method: "crm.lead.list",
+    fieldsMethod: "crm.lead.fields",
     hasCategoria: false,
     estagios: [
       { code: "", label: "Todos os estágios" },
@@ -488,6 +494,7 @@ const ENTIDADES = {
   empresas: {
     label: "Empresas",
     method: "crm.company.list",
+    fieldsMethod: "crm.company.fields",
     hasCategoria: false,
     camposData: [{ code: "DATE_CREATE", label: "Data de criação" }],
     campos: [
@@ -502,6 +509,7 @@ const ENTIDADES = {
   contatos: {
     label: "Contatos",
     method: "crm.contact.list",
+    fieldsMethod: "crm.contact.fields",
     hasCategoria: false,
     camposData: [{ code: "DATE_CREATE", label: "Data de criação" }],
     campos: [
@@ -518,6 +526,7 @@ const ENTIDADES = {
   usuarios: {
     label: "Usuários",
     method: "user.get",
+    fieldsMethod: null, // Bitrix não expõe um "user.fields" público — lista fixa abaixo
     hasCategoria: false,
     semFiltroData: true,
     campos: [
@@ -561,6 +570,11 @@ let dadosExtraidos = [];
 let camposExtraidos = [];
 let resultadoCompleto = {};
 let extracaoCancelada = false;
+
+// Cache por entidade da lista completa de campos já carregada direto do Bitrix
+// (via "Carregar todos os campos do Bitrix", passo 4) — evita rebuscar toda vez
+// que o usuário troca de entidade e volta.
+let camposCompletosCache = {};
 
 // ---------------------------------------------------------------------------
 // Montagem da interface
@@ -618,15 +632,109 @@ function aoTrocarEntidade() {
     selData.appendChild(opt);
   });
 
-  const lista = document.getElementById("campos-lista");
-  lista.innerHTML = "";
-  ent.campos.forEach((c) => {
+  document.getElementById("filtroCampos").value = "";
+  const btnCarregarCampos = document.getElementById("btnCarregarCampos");
+  btnCarregarCampos.disabled = !ent.fieldsMethod;
+  btnCarregarCampos.title = ent.fieldsMethod
+    ? ""
+    : "O Bitrix não expõe uma lista dinâmica de campos para esta entidade — use os campos já listados abaixo.";
+
+  const listaCache = camposCompletosCache[chave];
+  renderizarListaCampos(listaCache || ent.campos);
+  document.getElementById("notaCamposCarregados").textContent = listaCache
+    ? `${listaCache.length} campos carregados diretamente do seu Bitrix (incluindo campos personalizados UF_CRM_*).`
+    : "";
+}
+
+// Desenha os checkboxes do passo 4 a partir de uma lista [{code, label, padrao}] —
+// usada tanto para a lista curada padrão quanto para a lista completa buscada
+// dinamicamente em carregarTodosCampos().
+function renderizarListaCampos(lista) {
+  const cont = document.getElementById("campos-lista");
+  cont.innerHTML = "";
+  lista.forEach((c) => {
     const div = document.createElement("div");
     div.className = "campo-item";
     const id = "campo_" + c.code;
     div.innerHTML = `<input type="checkbox" id="${id}" value="${c.code}" ${c.padrao ? "checked" : ""}><label for="${id}" style="margin:0; font-size:13px; color:var(--ink);">${c.label} <span style="color:var(--ink-2); font-size:11px;">(${c.code})</span></label>`;
-    lista.appendChild(div);
+    cont.appendChild(div);
   });
+  aplicarFiltroCampos();
+}
+
+// Filtra os checkboxes já desenhados pelo texto digitado em "Buscar campo" —
+// útil quando a lista completa (passo 4, botão "Carregar todos os campos")
+// traz dezenas de campos UF_CRM_* customizados.
+function aplicarFiltroCampos() {
+  const campoFiltro = document.getElementById("filtroCampos");
+  if (!campoFiltro) return;
+  const filtro = campoFiltro.value.trim().toLowerCase();
+  document.querySelectorAll("#campos-lista .campo-item").forEach((div) => {
+    const texto = div.textContent.toLowerCase();
+    div.style.display = !filtro || texto.includes(filtro) ? "" : "none";
+  });
+}
+
+// Busca, diretamente no Bitrix do usuário, TODOS os campos existentes para a
+// entidade selecionada (crm.deal.fields / crm.lead.fields / crm.company.fields /
+// crm.contact.fields) — inclusive campos personalizados UF_CRM_* criados na
+// conta, que a lista curada acima não tem como prever. Mesma lógica já usada em
+// buscarCamposDinamicos() para a "Extração completa", mas aqui guardando também
+// o rótulo (title/listLabel/formLabel) que o Bitrix devolve para cada campo.
+async function carregarTodosCampos() {
+  const webhook = document.getElementById("webhook").value.trim();
+  const erro = validarWebhook(webhook);
+  if (erro) {
+    mostrarErro(erro);
+    return;
+  }
+  const chave = document.getElementById("entidade").value;
+  const ent = ENTIDADES[chave];
+  if (!ent.fieldsMethod) {
+    mostrarErro("O Bitrix não expõe uma lista dinâmica de campos para esta entidade — use os campos já listados no passo 4 (mais os campos extras, se souber o código).");
+    return;
+  }
+
+  esconderErro();
+  const btn = document.getElementById("btnCarregarCampos");
+  btn.disabled = true;
+  atualizarStatus(`Carregando todos os campos de "${ent.label}" disponíveis no seu Bitrix...`);
+  try {
+    const url = `${webhook.replace(/\/$/, "")}/${ent.fieldsMethod}.json`;
+    const body = await bitrixFetchComRetentativa(url);
+    const camposBitrix = body.result || {};
+
+    const marcadosAntes = new Set(camposSelecionados());
+    const padroesConhecidos = new Set(ent.campos.filter((c) => c.padrao).map((c) => c.code));
+    const rotulosConhecidos = {};
+    ent.campos.forEach((c) => { rotulosConhecidos[c.code] = c.label; });
+
+    const lista = Object.keys(camposBitrix)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+      .map((code) => {
+        const meta = camposBitrix[code] || {};
+        const rotuloBitrix = meta.title || meta.listLabel || meta.formLabel || meta.filterLabel;
+        return {
+          code,
+          label: rotulosConhecidos[code] || rotuloBitrix || code,
+          padrao: marcadosAntes.has(code) || padroesConhecidos.has(code),
+        };
+      });
+
+    camposCompletosCache[chave] = lista;
+    renderizarListaCampos(lista);
+    document.getElementById("notaCamposCarregados").textContent =
+      `${lista.length} campos carregados diretamente do seu Bitrix (incluindo campos personalizados UF_CRM_*).`;
+    atualizarStatus(`${lista.length} campos carregados para "${ent.label}".`);
+  } catch (e) {
+    mostrarErro(
+      "Não consegui carregar a lista completa de campos.\n\nDetalhe técnico: " + e.message + "\n\n" +
+      "Se o erro for de permissão, o webhook precisa de acesso de leitura a " + ent.fieldsMethod +
+      " (categoria \"CRM\" nas permissões do webhook de entrada no Bitrix)."
+    );
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function aoTrocarCategoria() {

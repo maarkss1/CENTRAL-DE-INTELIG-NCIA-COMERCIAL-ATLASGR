@@ -19,6 +19,9 @@ import {
     deleteSyncRule,
     getLeadStatuses,
     testBitrixConnection,
+    getEntityFields,
+    getConnectionWebhookUrl,
+    postCommentToBitrix,
 } from './bitrix.service.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
@@ -119,6 +122,8 @@ router.get('/leads', async (req: Request, res: Response, next: NextFunction): Pr
             search: req.query.search ? String(req.query.search) : undefined,
             statusId: req.query.statusId ? String(req.query.statusId) : undefined,
             assignedById: req.query.assignedById ? String(req.query.assignedById) : undefined,
+            customFieldCode: req.query.customFieldCode ? String(req.query.customFieldCode) : undefined,
+            customFieldValue: req.query.customFieldValue ? String(req.query.customFieldValue) : undefined,
         });
         res.json({ success: true, data: result });
     } catch (error) {
@@ -200,6 +205,23 @@ router.get('/users', async (req: Request, res: Response, next: NextFunction): Pr
     }
 });
 
+// Lista todos os campos (fixos + UF_CRM_* personalizados) de Lead ou Negócio deste portal — a
+// tela de importação usa isso para deixar a pessoa escolher, por nome, um campo para filtrar a
+// busca (ex.: "Segmento") sem precisar saber o código UF_CRM_ de cor.
+router.get('/fields', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const connectionId = requireConnectionId(req, res);
+        if (!connectionId) return;
+        const entity = req.query.entity === 'lead' ? 'lead' : 'deal';
+        const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
+        const result = await getEntityFields(webhookUrl, entity);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.get('/deals', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -215,6 +237,8 @@ router.get('/deals', async (req: Request, res: Response, next: NextFunction): Pr
             month: Number.isInteger(month) && month! >= 1 && month! <= 12 ? month : undefined,
             year: Number.isInteger(year) && year! > 2000 ? year : undefined,
             search: req.query.search ? String(req.query.search) : undefined,
+            customFieldCode: req.query.customFieldCode ? String(req.query.customFieldCode) : undefined,
+            customFieldValue: req.query.customFieldValue ? String(req.query.customFieldValue) : undefined,
         });
         res.json({ success: true, data: result });
     } catch (error) {
@@ -235,6 +259,25 @@ router.post('/deals/import', managementRoles, async (req: Request, res: Response
             return;
         }
         const result = await importSelectedBitrixDeals(organizationId, connectionId, bitrixDealIds);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Registra um comentário na timeline do Lead/Deal Bitrix vinculado a este negócio local — usado
+// pelo Comercial Inteligente para notificar um risco (estagnação, sem próxima ação etc.) sem sair
+// da plataforma. Mesmo gate de ADMIN/GESTOR das outras escritas nesta rota: é uma ação que grava
+// no CRM do cliente do outro lado do webhook, não uma leitura.
+router.post('/leads/:leadId/comment', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { comment } = req.body as { comment?: unknown };
+        if (typeof comment !== 'string' || !comment.trim()) {
+            res.status(400).json({ success: false, error: 'comment é obrigatório.' });
+            return;
+        }
+        const result = await postCommentToBitrix(organizationId, req.params.leadId, comment.trim());
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

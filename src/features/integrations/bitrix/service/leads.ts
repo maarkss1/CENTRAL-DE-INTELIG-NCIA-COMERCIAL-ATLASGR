@@ -66,6 +66,11 @@ export interface BitrixLeadFilters {
     search?: string;
     statusId?: string;
     assignedById?: string;
+    /** Filtro por valor exato de um campo qualquer (ex.: UF_CRM_1234567890) — código resolvido
+     * via getEntityFields, valor digitado livremente pela pessoa na tela. Os dois precisam vir
+     * juntos; um sem o outro é ignorado. */
+    customFieldCode?: string;
+    customFieldValue?: string;
 }
 
 export async function listBitrixLeads(
@@ -82,6 +87,7 @@ export async function listBitrixLeads(
     if (filters.search?.trim()) filter['%TITLE'] = filters.search.trim();
     if (filters.statusId) filter.STATUS_ID = filters.statusId;
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
+    if (filters.customFieldCode && filters.customFieldValue?.trim()) filter[filters.customFieldCode] = filters.customFieldValue.trim();
 
     const [data, labels, imported] = await Promise.all([
         callBitrix<{ result: BitrixLeadRaw[]; next?: number; total: number }>(webhookUrl, 'crm.lead.list', {

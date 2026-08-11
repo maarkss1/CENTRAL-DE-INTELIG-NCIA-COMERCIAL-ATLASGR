@@ -34,8 +34,13 @@ interface SeedUserDefinition {
     passwordEnvVar?: string;
 }
 
+// `role` precisa bater exatamente com as chaves de ROLE_HIERARCHY (src/lib/auth/authorization.ts:
+// 'ADMIN'|'GESTOR'|'VENDEDOR'|'VISUALIZADOR', tudo maiúsculo). `hasRequiredRole`/`isKnownRole`
+// fazem lookup case-sensitive nesse objeto — um valor como 'admin' (minúsculo) é gravado no banco
+// sem erro, mas nunca satisfaz nenhuma checagem de RBAC (cai no fallback `?? 0`, mais restrito que
+// VISUALIZADOR). Bug real encontrado aqui: este script gravava 'admin' minúsculo.
 const USERS: SeedUserDefinition[] = [
-    { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'admin', passwordEnvVar: 'SEED_PASSWORD_MARCELO' },
+    { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'ADMIN', passwordEnvVar: 'SEED_PASSWORD_MARCELO' },
 ];
 
 async function seed() {
@@ -57,10 +62,19 @@ async function seed() {
             // Check if user exists
             const res = await client.query('SELECT id FROM "user" WHERE email = $1', [u.email]);
             if (res.rows.length > 0) {
-                console.log(`User ${u.email} already exists, updating password and role...`);
-                await client.query('UPDATE account SET password = $1 WHERE "userId" = $2 AND "providerId" = $3', [hashedPassword, res.rows[0].id, 'credential']);
+                // Só reseta a senha quando o operador forneceu uma explicitamente via
+                // `passwordEnvVar` — nunca por padrão. Um usuário que já existe (ex.: alguém
+                // promovendo o próprio papel para ADMIN) provavelmente não quer a senha que já usa
+                // trocada por uma gerada aleatoriamente sem aviso.
+                const explicitPassword = u.passwordEnvVar && process.env[u.passwordEnvVar];
+                if (explicitPassword) {
+                    console.log(`User ${u.email} already exists — updating password (from ${u.passwordEnvVar}) and role...`);
+                    await client.query('UPDATE account SET password = $1 WHERE "userId" = $2 AND "providerId" = $3', [hashedPassword, res.rows[0].id, 'credential']);
+                    generatedCredentials.push({ email: u.email, password });
+                } else {
+                    console.log(`User ${u.email} already exists — updating role only (current password preserved).`);
+                }
                 await client.query('UPDATE "user" SET role = $1 WHERE id = $2', [u.role, res.rows[0].id]);
-                generatedCredentials.push({ email: u.email, password });
                 continue;
             }
 

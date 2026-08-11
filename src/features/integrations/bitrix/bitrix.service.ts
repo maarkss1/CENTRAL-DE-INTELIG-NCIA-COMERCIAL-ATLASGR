@@ -31,10 +31,10 @@ export type { BitrixDealPipeline, BitrixDealStage, BitrixUserOption, BitrixDealS
 export { getDealPipelines, getDealStages, getBitrixUsers, listBitrixDeals, importSelectedBitrixDeals, findUnimportedBitrixDealIds } from './service/deals.js';
 
 export type { SyncLeadOverrides } from './service/outboundSync.js';
-export { pushLeadToBitrix, exportLeadToBitrixNow } from './service/outboundSync.js';
+export { pushLeadToBitrix, exportLeadToBitrixNow, postCommentToBitrix } from './service/outboundSync.js';
 
 export type { BitrixSyncRuleInput } from './service/syncRules.js';
 export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBitrixSyncTick } from './service/syncRules.js';
 
-export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields } from './service/customFields.js';
-export type { BitrixEntityKind } from './service/customFields.js';
+export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, getEntityFields } from './service/customFields.js';
+export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';

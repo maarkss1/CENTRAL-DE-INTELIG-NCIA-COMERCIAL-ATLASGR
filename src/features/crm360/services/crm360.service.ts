@@ -10,6 +10,11 @@ import {
 import { prisma } from '../../../lib/prisma.js';
 import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus } from '../../../lib/enumMap.js';
 import type { CrmDealItemInput, CrmDocumentInput } from '../crm360.schema.js';
+// Comercial Inteligente (Aging por Etapa/Sales Cycle) precisa de histórico estruturado de
+// mudança de etapa, que não existia antes (ver prisma/schema.prisma, model LeadStageHistory).
+// Este é o único ponto real onde uma oportunidade do funil "Negócio" muda de etapa — por isso o
+// registro acontece aqui, não duplicado em nenhum outro caminho de escrita.
+import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 
 type DefaultStage = {
     name: string;
@@ -267,7 +272,7 @@ export const crm360Service = {
 
         const funnel = stage.pipeline.entity === CrmPipelineEntity.Negocio ? LeadFunnel.Negocio : LeadFunnel.Lead;
         const isClosed = stage.isWon || stage.isLost;
-        return prisma.lead.update({
+        const updated = await prisma.lead.update({
             where: { id: leadId, organizationId },
             data: {
                 funnel,
@@ -285,6 +290,12 @@ export const crm360Service = {
             },
             include: { company: true, contact: true, pipeline: true, pipelineStage: true },
         });
+
+        if (funnel === LeadFunnel.Negocio) {
+            await recordStageTransition(organizationId, leadId, stage, stage.pipelineId);
+        }
+
+        return updated;
     },
 
     async createDeal(organizationId: string, input: {
@@ -310,7 +321,7 @@ export const crm360Service = {
             : await prisma.crmPipelineStage.findFirst({ where: { pipelineId }, orderBy: { sortOrder: 'asc' } });
         if (!stage) throw new Error('O pipeline não possui etapas');
 
-        return prisma.lead.create({
+        const deal = await prisma.lead.create({
             data: {
                 funnel: LeadFunnel.Negocio,
                 status: stage.leadStatus ?? LeadStatus.Nova_Oportunidade,
@@ -331,13 +342,17 @@ export const crm360Service = {
             },
             include: { company: true, contact: true, pipeline: true, pipelineStage: true },
         });
+
+        await recordStageTransition(organizationId, deal.id, stage, pipelineId);
+
+        return deal;
     },
 
     async convertLead(organizationId: string, leadId: string) {
         const { dealPipeline } = await ensureDefaultPipelines(organizationId);
         const stage = dealPipeline.stages[0];
         if (!stage) throw new Error('O funil de negócios não possui etapa inicial');
-        return prisma.lead.update({
+        const deal = await prisma.lead.update({
             where: { id: leadId, organizationId },
             data: {
                 funnel: LeadFunnel.Negocio,
@@ -350,6 +365,10 @@ export const crm360Service = {
             },
             include: { company: true, contact: true, pipeline: true, pipelineStage: true },
         });
+
+        await recordStageTransition(organizationId, leadId, stage, dealPipeline.id);
+
+        return deal;
     },
 
     async listProducts(organizationId: string, query?: string) {

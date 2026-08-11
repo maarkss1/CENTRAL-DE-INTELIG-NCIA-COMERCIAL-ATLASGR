@@ -4,6 +4,7 @@ import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { RequireRole } from './components/layout/RequireRole';
+import { COMMERCIAL_INTELLIGENCE_ROLES } from './lib/auth/authorization';
 import { BrandProvider } from './contexts/BrandContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -32,6 +33,7 @@ const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHu
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
 const Analytics = lazy(() => import('./features/analytics/components/Analytics').then(m => ({ default: m.Analytics })));
+const CommercialIntelligenceHub = lazy(() => import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then(m => ({ default: m.CommercialIntelligenceHub })));
 const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
 const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
 const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
@@ -84,6 +86,17 @@ function AppLayout() {
           <Route path="integrations" element={<Integrations />} />
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="analytics" element={<Analytics />} />
+          {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
+              direto por URL (não só o item de menu); a autorização real (que nunca confia no
+              frontend) está em requireRole no backend — ver commercialIntelligence.routes.ts. */}
+          <Route
+            path="commercial_intelligence"
+            element={
+              <RequireRole allowedRoles={[...COMMERCIAL_INTELLIGENCE_ROLES]}>
+                <CommercialIntelligenceHub />
+              </RequireRole>
+            }
+          />
           <Route path="calendar" element={<Calendar />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="automations" element={<Automations />} />
