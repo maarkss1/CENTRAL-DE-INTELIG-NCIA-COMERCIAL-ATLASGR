@@ -1,6 +1,5 @@
-import { prisma } from '../../../lib/prisma.js';
-import { generateEmbedding } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
+import { searchService } from '../../knowledge/search.service.js';
 
 export interface SemanticSearchResult {
     id: string;
@@ -9,44 +8,36 @@ export interface SemanticSearchResult {
     distance: number;
 }
 
+/**
+ * RAG-001: esta classe gravava e lia de "KnowledgeChunk", um segundo armazenamento de embeddings
+ * paralelo ao pipeline real da Base de Conhecimento ("Document"/"DocumentChunk", ver
+ * `src/features/knowledge/`). `ingestDocument` nunca teve nenhum chamador em todo o app — a tabela
+ * ficava sempre vazia na prática — então todo consumidor de `searchSimilar` (inclusive o agente de
+ * SDR que redige e-mails automáticos reais, `sdr-agent.ts`) sempre recebia zero resultados e caía no
+ * fallback "Sem contexto adicional no playbook", mesmo com documentos reais indexados pelos usuários
+ * na Base de Conhecimento. Dois pipelines de RAG conflitantes (proibido pela missão de IA da Onda 2)
+ * — este agora delega para o pipeline real em vez de manter uma segunda fonte de verdade morta.
+ */
 export class VectorService {
     /**
-     * Ingests a new document/chunk into the vector database.
-     * Generates the embedding and saves it to KnowledgeChunk.
+     * @deprecated Sem chamador no código (RAG-001). Ingestão real é `ingestionService.ingestText`
+     * (`src/features/knowledge/ingestion.service.ts`), que grava em "Document"/"DocumentChunk" com
+     * RLS e alimenta a busca real. Mantido só para não quebrar import externo eventual; não usar.
      */
-    async ingestDocument(content: string, metadata: Record<string, unknown> = {}): Promise<void> {
-        try {
-            const organizationId = typeof metadata.organizationId === 'string'
-                ? metadata.organizationId
-                : '';
-            if (!organizationId) {
-                throw new Error('organizationId é obrigatório para indexar conhecimento.');
-            }
-            const embedding = await generateEmbedding(content);
-            const metadataJson = JSON.stringify(metadata);
-
-            // Format for pgvector: '[0.1, 0.2, ...]'
-            const vectorString = `[${embedding.join(',')}]`;
-
-            // We must use $executeRaw to insert into Unsupported("vector") column.
-            // organizationId grava na coluna real (indexada, com FK) além de metadata — a coluna é
-            // o que searchSimilar/RLS usam para filtrar; metadata fica só por compatibilidade.
-            await prisma.$executeRaw`
-                INSERT INTO "KnowledgeChunk" (id, content, metadata, embedding, "organizationId", "createdAt", "updatedAt")
-                VALUES (gen_random_uuid()::text, ${content}, ${metadataJson}::jsonb, ${vectorString}::vector, ${organizationId}, now(), now())
-            `;
-            
-            logger.info({ contentLength: content.length }, 'Document ingested into vector store successfully');
-            
-            logger.info({ contentLength: content.length }, 'Document ingested into vector store successfully');
-        } catch (error) {
-            logger.error({ err: error, contentLength: content.length }, 'Failed to ingest document into vector store');
-            throw error;
-        }
+    async ingestDocument(): Promise<void> {
+        throw new Error(
+            'VectorService.ingestDocument está desativado (RAG-001): use ingestionService.ingestText '
+            + '(src/features/knowledge/ingestion.service.ts) para indexar na Base de Conhecimento real.',
+        );
     }
 
     /**
-     * Busca Híbrida: Combina Busca Semântica (pgvector) com Busca Lexical (Full-Text Search BM25-like).
+     * Busca híbrida (RAG-001): delega para o mesmo `searchService.hybridSearch` que alimenta a
+     * Base de Conhecimento (Document/DocumentChunk, com RLS + filtro explícito de tenant), em vez da
+     * tabela "KnowledgeChunk" (sem ingestão real, sempre vazia). `threshold` preserva a semântica
+     * original de "distância máxima aceitável" (0 = idêntico, 1 = sem relação semântica): trechos que
+     * só bateram por palavra-chave (sem embedding) recebem distância 1 e são descartados pelo
+     * threshold padrão, igual ao comportamento anterior de não devolver não-semânticos aqui.
      */
     async searchSimilar(
         query: string,
@@ -59,53 +50,17 @@ export class VectorService {
             return [];
         }
         try {
-            const queryEmbedding = await generateEmbedding(query);
-            const vectorString = `[${queryEmbedding.join(',')}]`;
-
-            // Query Híbrida: Busca Vetorial (pgvector) + Full Text Search
-            // Os resultados vetoriais ganham bônus se também contiverem as palavras-chave (FTS).
-            // Convertendo a query string para tsquery básico substituindo espaços por &
-            const tsQueryString = query.replace(/[^\w\s]/g, '').trim().split(/\s+/).join(' & ');
-
-            const results = await prisma.$queryRaw<SemanticSearchResult[]>`
-                WITH semantic_search AS (
-                    SELECT
-                        id,
-                        content,
-                        metadata,
-                        (embedding <=> ${vectorString}::vector) as semantic_distance
-                    FROM "KnowledgeChunk"
-                    WHERE "organizationId" = ${organizationId}
-                      AND (embedding <=> ${vectorString}::vector) < ${threshold}
-                    ORDER BY semantic_distance ASC
-                    LIMIT ${limit * 2}
-                ),
-                lexical_search AS (
-                    SELECT
-                        id,
-                        ts_rank_cd(to_tsvector('portuguese', content), to_tsquery('portuguese', ${tsQueryString})) as rank
-                    FROM "KnowledgeChunk"
-                    WHERE "organizationId" = ${organizationId}
-                      AND to_tsvector('portuguese', content) @@ to_tsquery('portuguese', ${tsQueryString})
-                )
-                SELECT 
-                    s.id, 
-                    s.content, 
-                    s.metadata, 
-                    -- Cálculo de Score Híbrido: Combina a distância semântica com o bônus léxico
-                    (s.semantic_distance - COALESCE(l.rank, 0) * 0.1) as distance
-                FROM semantic_search s
-                LEFT JOIN lexical_search l ON s.id = l.id
-                ORDER BY distance ASC
-                LIMIT ${limit}
-            `;
-
-            return results.map(row => ({
-                id: row.id,
-                content: row.content,
-                metadata: row.metadata,
-                distance: row.distance
-            }));
+            const response = await searchService.hybridSearch(organizationId, query, Math.max(limit * 2, limit));
+            return response.hits
+                .map((hit) => ({
+                    id: hit.chunkId,
+                    content: hit.content,
+                    metadata: { documentId: hit.documentId, documentTitle: hit.documentTitle, chunkIndex: hit.chunkIndex, matchedBy: hit.matchedBy },
+                    distance: hit.similarity != null ? 1 - hit.similarity : 1,
+                }))
+                .filter((row) => row.distance < threshold)
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
         } catch (error) {
             logger.error({ err: error, query }, 'Failed to perform hybrid semantic search');
             return [];
