@@ -11,6 +11,7 @@ import { PrismaAutomationRepository } from '../../features/automations/infra/Pri
 import { PrismaAnalyticsRepository } from '../../features/analytics/infra/PrismaAnalyticsRepository';
 import { PrismaCommercialIntelligenceRepository } from '../../features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository';
 import { CommercialIntelligenceAiService } from '../../features/commercial-intelligence/infra/CommercialIntelligenceAiService';
+import { PrismaCrm360Repository } from '../../features/crm360/infra/PrismaCrm360Repository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -21,6 +22,7 @@ import { LeadUseCases } from '../../features/crm/application/LeadUseCases';
 import { AutomationUseCases } from '../../features/automations/application/AutomationUseCases';
 import { AnalyticsUseCases } from '../../features/analytics/application/AnalyticsUseCases';
 import { CommercialIntelligenceUseCases } from '../../features/commercial-intelligence/application/CommercialIntelligenceUseCases';
+import { Crm360UseCases } from '../../features/crm360/application/Crm360UseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -31,6 +33,7 @@ import { LeadController } from '../../features/crm/presentation/LeadController';
 import { AutomationController } from '../../features/automations/presentation/AutomationController';
 import { AnalyticsController } from '../../features/analytics/presentation/AnalyticsController';
 import { CommercialIntelligenceController } from '../../features/commercial-intelligence/presentation/CommercialIntelligenceController';
+import { Crm360Controller } from '../../features/crm360/presentation/Crm360Controller';
 
 export function setupDI() {
     // 1. Shared
@@ -46,6 +49,7 @@ export function setupDI() {
     const automationRepository = new PrismaAutomationRepository();
     const analyticsRepository = new PrismaAnalyticsRepository();
     const commercialIntelligenceRepository = new PrismaCommercialIntelligenceRepository();
+    const crm360Repository = new PrismaCrm360Repository();
 
     container.register('NoteRepository', noteRepository);
     container.register('ActivityRepository', activityRepository);
@@ -55,6 +59,7 @@ export function setupDI() {
     container.register('AutomationRepository', automationRepository);
     container.register('AnalyticsRepository', analyticsRepository);
     container.register('CommercialIntelligenceRepository', commercialIntelligenceRepository);
+    container.register('Crm360Repository', crm360Repository);
 
     // 3. Use Cases
     const noteUseCases = new NoteUseCases(noteRepository);
@@ -66,6 +71,7 @@ export function setupDI() {
     const analyticsUseCases = new AnalyticsUseCases(analyticsRepository);
     const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(commercialIntelligenceRepository);
     const commercialIntelligenceAiService = new CommercialIntelligenceAiService(commercialIntelligenceUseCases);
+    const crm360UseCases = new Crm360UseCases(crm360Repository);
 
     container.register('NoteUseCases', noteUseCases);
     container.register('ActivityUseCases', activityUseCases);
@@ -75,6 +81,7 @@ export function setupDI() {
     container.register('AutomationUseCases', automationUseCases);
     container.register('AnalyticsUseCases', analyticsUseCases);
     container.register('CommercialIntelligenceUseCases', commercialIntelligenceUseCases);
+    container.register('Crm360UseCases', crm360UseCases);
 
     // 4. Controllers
     container.register('NoteController', new NoteController(noteUseCases));
@@ -85,4 +92,5 @@ export function setupDI() {
     container.register('AutomationController', new AutomationController(automationUseCases));
     container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
     container.register('CommercialIntelligenceController', new CommercialIntelligenceController(commercialIntelligenceUseCases, commercialIntelligenceAiService));
+    container.register('Crm360Controller', new Crm360Controller(crm360UseCases));
 }
