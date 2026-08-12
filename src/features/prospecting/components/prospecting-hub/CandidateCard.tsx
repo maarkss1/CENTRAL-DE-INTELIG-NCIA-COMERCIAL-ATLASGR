@@ -244,14 +244,16 @@ export function CandidateCard({
                 {promoted ? (
                     <span className="flex items-center gap-2 text-green-700 font-bold text-sm shrink-0"><CheckCircle2 size={16} /> ✅ No CRM</span>
                 ) : (
-                    <button
-                        onClick={onPromote}
-                        disabled={isPromoting}
-                        className="bg-surface-2 text-ink px-6 py-2.5 rounded-full font-bold text-sm hover:bg-brand hover:text-white transition-colors flex items-center gap-2 border border-line hover:border-brand w-full sm:w-auto justify-center shrink-0 disabled:opacity-60"
-                    >
-                        {isPromoting ? <Loader2 className="animate-spin" size={16} /> : <ShieldCheck size={16} />}
-                        {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer e Adicionar'}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+                        <button
+                            onClick={onPromote}
+                            disabled={isPromoting}
+                            className="bg-brand text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
+                        >
+                            {isPromoting ? <Loader2 className="animate-spin" size={15} /> : <ShieldCheck size={15} />}
+                            {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer & Salvar no CRM'}
+                        </button>
+                    </div>
                 )}
             </div>
             {chatTarget && (
