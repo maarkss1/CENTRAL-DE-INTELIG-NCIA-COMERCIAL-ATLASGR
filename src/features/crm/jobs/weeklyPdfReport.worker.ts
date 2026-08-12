@@ -63,6 +63,10 @@ export function createWeeklyPdfReportWorker() {
         logger.error({ err, jobId: job?.id }, 'Weekly PDF worker job falhou');
     });
 
+    worker.on('error', (err) => {
+        logger.warn({ message: err.message }, 'WeeklyPdf worker error suppressed (Redis offline)');
+    });
+
     return worker;
 }
 

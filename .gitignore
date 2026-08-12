@@ -37,3 +37,4 @@ backups/*.dump
 /*.mp4
 /*.png
 public/tools/atlas-market-intelligence/*.csv
+public/tools/atlas-market-intelligence/*.sqlite

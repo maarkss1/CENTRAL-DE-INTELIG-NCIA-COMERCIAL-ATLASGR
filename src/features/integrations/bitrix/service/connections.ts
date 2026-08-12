@@ -25,13 +25,40 @@ function buildWebhookReceiverUrl(connectionId: string): string {
     return `${base}/api/integrations/bitrix/webhook/${connectionId}`;
 }
 
-/** Lista todos os portais Bitrix conectados desta organização — uma organização pode ter mais de um (ex.: AtlasGR e TotalTrac). */
+export const ATLAS_BITRIX_WEBHOOK_URL = process.env.BITRIX_WEBHOOK_URL || 'https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/';
+export const TOTALTRAC_BITRIX_WEBHOOK_URL = process.env.TOTALTRAC_BITRIX_WEBHOOK_URL || 'https://totaltrac.bitrix24.com.br/rest/2486/qq9u2cn62c8sfkxy/';
+
+/** Lista todos os portais Bitrix conectados desta organização — se não houver nenhum, autoconecta o webhook específico da empresa (TotalTrac x AtlasGR). */
 export async function listBitrixConnections(organizationId: string): Promise<BitrixConnectionSummary[]> {
-    const connections = await prisma.bitrixConnection.findMany({
+    let connections = await prisma.bitrixConnection.findMany({
         where: { organizationId },
         select: { id: true, label: true, webhookUrl: true, webhookSecret: true, inboundEventsEnabled: true },
         orderBy: { createdAt: 'asc' },
     });
+
+    if (connections.length === 0) {
+        try {
+            const org = await prisma.organization.findUnique({
+                where: { id: organizationId },
+                select: { name: true },
+            });
+            const orgName = (org?.name || '').toLowerCase();
+            const isTotalTrac = orgName.includes('totaltrac') || orgName.includes('total track');
+
+            const defaultWebhook = isTotalTrac ? TOTALTRAC_BITRIX_WEBHOOK_URL : ATLAS_BITRIX_WEBHOOK_URL;
+            const defaultLabel = isTotalTrac ? 'TotalTrac Bitrix24' : 'AtlasGR Bitrix24';
+
+            await connectBitrix(organizationId, defaultWebhook, defaultLabel);
+            connections = await prisma.bitrixConnection.findMany({
+                where: { organizationId },
+                select: { id: true, label: true, webhookUrl: true, webhookSecret: true, inboundEventsEnabled: true },
+                orderBy: { createdAt: 'asc' },
+            });
+        } catch (err) {
+            logger.warn({ err, organizationId }, 'Não foi possível autoconectar o webhook padrão do Bitrix24.');
+        }
+    }
+
     return connections.map((c) => ({
         id: c.id,
         label: c.label,

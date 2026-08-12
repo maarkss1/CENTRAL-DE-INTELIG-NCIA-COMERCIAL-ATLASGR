@@ -173,7 +173,7 @@ export class LeadController {
             // Dispara a automação para leads que não mudam de status há X dias
             fireAutomations({
                 organizationId: orgId,
-                trigger: 'Follow-up de leads estagnados',
+                trigger: 'Lead mudou de status',
                 entity: 'Lead',
                 entityId: 'BATCH',
                 data: { daysStale: days },
