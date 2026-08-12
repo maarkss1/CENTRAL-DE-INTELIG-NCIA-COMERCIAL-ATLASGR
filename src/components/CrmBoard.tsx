@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, WifiOff } from 'lucide-react';
+import { Download, WifiOff, Sparkles } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
@@ -65,7 +65,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     const [searchParams, setSearchParams] = useSearchParams();
     const funnel: 'Lead' | 'Negocio' = funnelProp ?? (searchParams.get('funnel') === 'Negocio' ? 'Negocio' : 'Lead');
     const columns = funnel === 'Lead' ? LEAD_COLUMNS : DEAL_COLUMNS;
-    const { leads, setLeads, loading, error, fetchLeads, handleConvert, handleImportBitrix, handleCardEnrich } = useCrmBoardController(funnel);
+    const { leads, setLeads, loading, error, fetchLeads, handleConvert, handleImportBitrix, handleCardEnrich, handleBatchEnrich } = useCrmBoardController(funnel);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     /** "Cursor" virtual do drag por teclado — avança/recua com ArrowRight/ArrowLeft, independente
@@ -324,6 +324,17 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                     curto abaixo do breakpoint sm resolve sem esconder nenhuma ação nem criar menu
                     "...". A partir de sm volta ao layout original (flex, largura de conteúdo). */}
                 <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:items-center sm:gap-3">
+                    <Button
+                        onClick={handleBatchEnrich}
+                        disabled={loading}
+                        variant="secondary"
+                        className="text-xs w-full sm:w-auto"
+                        title="Enriquecer leads não enriquecidos em lote"
+                    >
+                        <Sparkles className="w-4 h-4 shrink-0 text-yellow-500" />
+                        <span className="sm:hidden">Enriquecer</span>
+                        <span className="hidden sm:inline">✨ Enriquecer Lote</span>
+                    </Button>
                     <Button
                         onClick={handleImportBitrix}
                         disabled={loading}

@@ -79,6 +79,25 @@ export function useCrmBoardController(funnel: 'Lead' | 'Negocio') {
         }
     }, [fetchLeads]);
 
+    const handleBatchEnrich = async () => {
+        setLoading(true);
+        try {
+            const response = await api.post<{ data: { enqueued: number } }>('/api/leads/enrich-batch');
+            const data = response.data;
+            if (data.enqueued > 0) {
+                toast.success(`${data.enqueued} leads enviados para a fila de enriquecimento! O processo pode levar alguns minutos.`);
+                await fetchLeads(); // para ver o status mudar de pendente
+            } else {
+                toast.info('Nenhum lead pendente de enriquecimento encontrado.');
+            }
+        } catch (err) {
+            clientLogger.error({ err }, 'Error in batch enrichment');
+            toast.error(err instanceof Error ? err.message : 'Falha ao processar o enriquecimento em lote.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         leads,
         setLeads,
@@ -87,6 +106,7 @@ export function useCrmBoardController(funnel: 'Lead' | 'Negocio') {
         fetchLeads,
         handleConvert,
         handleImportBitrix,
-        handleCardEnrich
+        handleCardEnrich,
+        handleBatchEnrich
     };
 }
