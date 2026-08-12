@@ -3,7 +3,7 @@ import {
     ResponsiveContainer, BarChart, Bar, LineChart, Line,
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, LabelList,
 } from 'recharts';
-import { BarChart3, AlertTriangle, Loader2, RefreshCw, Table2 } from 'lucide-react';
+import { BarChart3, AlertTriangle, Loader2, RefreshCw, Table2, Download } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -137,6 +137,10 @@ export function Analytics() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => window.print()} title="Exportar para PDF" className="hidden md:flex gap-2">
+                            <Download className="w-4 h-4" />
+                            <span>Exportar PDF</span>
+                        </Button>
                         <div className="flex items-center rounded-xl border border-line overflow-hidden" role="group" aria-label="Período">
                             {PERIOD_OPTIONS.map((option) => (
                                 <button

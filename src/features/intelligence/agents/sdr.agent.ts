@@ -2,6 +2,7 @@ import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgrap
 import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
+import { marketResearchTool } from '../tools/marketResearchTool.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { Prisma } from '@prisma/client';
@@ -12,7 +13,7 @@ import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
-const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];
+const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool, marketResearchTool];
 const toolNode = new ToolNode(tools);
 
 import { buildModelWithFallbackAndTools } from './fallback.util.js';

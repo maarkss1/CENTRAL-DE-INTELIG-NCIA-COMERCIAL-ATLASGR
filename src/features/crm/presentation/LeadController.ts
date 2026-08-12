@@ -164,4 +164,24 @@ export class LeadController {
             next(error);
         }
     };
+
+    triggerStaleFollowups = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const days = parseInt(req.query.days as string) || 3;
+            
+            // Dispara a automação para leads que não mudam de status há X dias
+            fireAutomations({
+                organizationId: orgId,
+                trigger: 'Follow-up de leads estagnados',
+                entity: 'Lead',
+                entityId: 'BATCH',
+                data: { daysStale: days },
+            });
+            
+            res.json({ success: true, message: `Follow-up automation triggered for leads stale for ${days} days.` });
+        } catch (error) {
+            next(error);
+        }
+    };
 }
