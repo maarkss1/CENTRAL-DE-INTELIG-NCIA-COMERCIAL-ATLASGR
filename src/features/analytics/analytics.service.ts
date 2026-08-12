@@ -1,5 +1,6 @@
 import type { LeadStatus as PrismaLeadStatus } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
+import { connection } from '../../lib/queue/redis.js';
 import {
     fromPrismaLeadStatus,
     fromPrismaActivityType,
@@ -252,6 +253,18 @@ export class AnalyticsService {
 
     /** Monta o dashboard inteiro. Uma chamada só, para a tela não fazer 8 requisições. */
     async dashboard(organizationId: string, months = 6, now = new Date()): Promise<AnalyticsDashboard> {
+        const cacheKey = `analytics:dash:${organizationId}:${months}`;
+        if (connection) {
+            try {
+                const cached = await connection.get(cacheKey);
+                if (cached) {
+                    return JSON.parse(cached);
+                }
+            } catch (err) {
+                // Se falhar o cache, apenas continua e busca do banco
+            }
+        }
+
         const scope = { organizationId, deletedAt: null };
 
         const [
@@ -312,7 +325,7 @@ export class AnalyticsService {
             overview.totalActivities === 0 &&
             funnel.every((stage) => stage.count === 0);
 
-        return {
+        const result = {
             overview,
             funnel,
             monthly,
@@ -327,6 +340,16 @@ export class AnalyticsService {
             tmqMetric,
             isEmpty,
         };
+
+        if (connection) {
+            try {
+                await connection.setex(cacheKey, 60, JSON.stringify(result));
+            } catch (err) {
+                // Silenciosamente ignora falha de gravação de cache
+            }
+        }
+
+        return result;
     }
 
     private async performanceReport(organizationId: string, scope: any) {

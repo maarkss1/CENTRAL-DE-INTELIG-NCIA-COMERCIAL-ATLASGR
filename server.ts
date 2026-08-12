@@ -71,6 +71,8 @@ import { createExecutiveSummaryWorker, scheduleExecutiveSummaryJob } from './src
 import { createDeduplicationWorker, scheduleDeduplicationJob } from './src/features/crm/jobs/deduplication.worker.js';
 import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/features/intelligence/services/winLossAnalysis.worker.js';
 import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
+import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
+import { lgpdRouter } from './src/features/lgpd/lgpd.routes.js';
 import { sendWhatsAppMessage } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
@@ -402,11 +404,11 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     }
 
     // ── Health Checks ──────────────────────────────────────────────────────
-    app.get('/health/live', (_req, res) => {
+    const handleLiveness = (_req: any, res: any) => {
         res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-    });
+    };
 
-    app.get('/health/ready', async (_req, res) => {
+    const handleReadiness = async (_req: any, res: any) => {
         try {
             await prisma.$queryRaw`SELECT 1`;
             res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -414,7 +416,12 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
             logger.error({ err: error }, 'Readiness probe failed');
             res.status(503).json({ status: 'error', message: 'Database unavailable' });
         }
-    });
+    };
+
+    app.get('/health/live', handleLiveness);
+    app.get('/healthz', handleLiveness);
+    app.get('/health/ready', handleReadiness);
+    app.get('/readyz', handleReadiness);
 
     // ── Auth (Better Auth) ─────────────────────────────────────────────────
     // As tabelas Organization/user/session/account/verification têm tenant_isolation_policy via RLS
@@ -468,6 +475,7 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     // include futuro em outro arquivo, etc.) escapa da checagem de papel no servidor.
     app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
     app.use('/api/knowledge', requireTenant, knowledgeRoutes);
+    app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
     
     app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
@@ -533,6 +541,7 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
     const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
     const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
+    const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
@@ -543,6 +552,7 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         scheduleDeduplicationJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de deduplicacao'));
         scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
         scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
+        scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -591,6 +601,7 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         await deduplicationWorker?.close();
         await winLossWorker?.close();
         await pdfWorker?.close();
+        await autoAnonymizeWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
         await shutdownLangfuse();
