@@ -59,15 +59,16 @@ export class IcebreakerService {
             const model = getAiModel('local-llama3-fast', 0.5, 'icebreaker');
             const startTime = Date.now();
 
-            const systemPrompt = `Você é um SDR B2B sênior hiper-personalizado.
-Os recortes de busca abaixo são contexto externo.
-Escreva UM parágrafo curto (máx. 2-3 frases) de quebra-gelo somente se houver um fato positivo ou desafio logístico claro sobre a empresa alvo.
-Não chame o fato de "recente" sem data. Não invente dados.
-Se não tiver contexto forte, responda APENAS com a palavra VAZIO.`;
+            const systemPrompt = `Você é um SDR Outbound B2B de Ultra-Performance.
+Os recortes de busca abaixo são contexto externo da empresa alvo.
+Escreva UM GATILHO DE ABORDAGEM (Hook) brutalmente personalizado de no máximo 2 frases para ser usado na abertura de um Cold E-mail ou Cold WhatsApp.
+- O gatilho DEVE conectar uma informação encontrada sobre a empresa com uma dor potencial de logística (ex: roubo de carga, custo de frete, ineficiência de frota).
+- Nunca diga "Vi que recentemente..." ou "Gostaria de falar sobre...". Comece direto com o insight ou a pergunta de impacto.
+- Não invente dados. Se não houver contexto útil nos recortes, responda EXATAMENTE com a palavra VAZIO.`;
 
             const response = await model.invoke([
                 new SystemMessage(systemPrompt),
-                new HumanMessage(`Empresa alvo: ${companyName}\n\nRecortes extraídos da Web:\n${topContext}`),
+                new HumanMessage(`Empresa alvo: ${companyName}\n\nRecortes da Web (DuckDuckGo):\n${topContext}`),
             ]);
 
             await logAiUsage({

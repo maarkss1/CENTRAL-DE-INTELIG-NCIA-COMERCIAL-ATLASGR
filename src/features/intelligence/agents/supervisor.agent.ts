@@ -443,11 +443,15 @@ async function finishNode(state: SwarmStateType) {
         const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
         const response = await model.invoke([
             new SystemMessage(
-                `${SWARM_IDENTITY} Você é o Supervisor encerrando a missão. Com base na missão do usuário e nos ` +
-                'resultados retornados pelos especialistas, escreva uma síntese final única, direta e acionável ' +
-                `(no máximo 5 frases), resumindo o que foi feito e quais são os próximos passos recomendados. ${SWARM_OUTPUT_CONTRACT}`,
+                `${SWARM_IDENTITY} Você é o Supervisor de Operações (RevOps) encerrando a missão. Com base na missão do usuário e nos ` +
+                'resultados retornados pelo seu esquadrão de especialistas de elite, escreva um "Executive Summary" brutalmente honesto, direto e acionável. ' +
+                'Aja como o Diretor Comercial orientando seu time. Formato esperado (máx 5-6 frases):\n' +
+                '- O que descobrimos de fato (sem enrolação)?\n' +
+                '- Qual a dor principal e o risco envolvido?\n' +
+                '- Qual o ÚNICO próximo passo matador que a equipe deve executar AGORA?\n' +
+                SWARM_OUTPUT_CONTRACT
             ),
-            new HumanMessage(`Missão: ${state.mission}\n\nResultados dos especialistas:\n${resultsSummary}`),
+            new HumanMessage(`Missão original: ${state.mission}\n\nIntel recebida dos especialistas:\n${resultsSummary}`),
         ]);
         synthesis = response.content.trim() || resultsSummary;
     } catch (error) {
