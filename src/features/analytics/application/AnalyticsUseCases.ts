@@ -220,6 +220,10 @@ export class AnalyticsUseCases {
             byOwner,
             activitiesByType: toDistribution(activityTypeRows, fromPrismaActivityType),
             activitiesByStatus: toDistribution(activityStatusRows, fromPrismaActivityStatus),
+            tmqMetric: null,
+            lostReasons: [],
+            callHeatmap: [],
+            performanceReport: [],
             isEmpty,
         };
     }

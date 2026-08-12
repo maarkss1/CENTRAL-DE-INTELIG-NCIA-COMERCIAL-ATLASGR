@@ -1,0 +1,85 @@
+import { Worker, Queue } from 'bullmq';
+import { prisma } from '../../../lib/prisma.js';
+import { logger } from '../../../lib/logger.js';
+import { connection } from '../../../lib/queue/redis.js';
+import { getAiModel } from '../../../lib/ai/gateway.js';
+import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+
+export const WIN_LOSS_QUEUE_NAME = 'win-loss-analysis-queue';
+
+export function createWinLossAnalysisWorker() {
+    const worker = new Worker(WIN_LOSS_QUEUE_NAME, async (job) => {
+        logger.info('Iniciando job de Win/Loss Analysis (IA)');
+        
+        // Pega leads fechados nos últimos 7 dias
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        
+        const leads = await prisma.lead.findMany({
+            where: {
+                status: { in: ['Convertido_em_Oportunidade', 'Lead_Desqualificado', 'Negocios_Perdidos'] },
+                updatedAt: { gte: sevenDaysAgo }
+            },
+            include: {
+                whatsAppMessages: {
+                    select: { body: true, direction: true },
+                    take: 20
+                },
+                timeline: {
+                    select: { description: true },
+                    take: 10
+                }
+            }
+        });
+
+        if (leads.length === 0) {
+            logger.info('Sem leads suficientes para Win/Loss analysis.');
+            return { analysis: 'No data' };
+        }
+
+        const dataStr = leads.map(l => {
+            const msgs = l.whatsAppMessages.map(m => `${m.direction}: ${m.body}`).join(' | ');
+            const tl = l.timeline.map(t => t.description).join(' | ');
+            return `Lead ID: ${l.id} | Status: ${l.status}\nInterações: ${msgs}\nTimeline: ${tl}\n---`;
+        }).join('\n');
+
+        try {
+            const model = getAiModel('local-llama3-fast', 0.3, 'win-loss-analysis');
+            const response = await model.invoke([
+                new SystemMessage('Você é um analista comercial de alto nível. Leia as transcrições e timelines dos leads Fechados (Ganhos vs Perdidos) desta semana. Extraia padrões: o que os leads que compraram têm em comum? Quais foram as objeções principais dos que não compraram? Resuma em 3 tópicos práticos.'),
+                new HumanMessage(`Dados da Semana:\n\n${dataStr}`)
+            ]);
+
+            const analysisText = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+            logger.info({ analysisText }, 'Win/Loss Analysis concluída');
+            
+            return { analysis: analysisText };
+        } catch (err) {
+            logger.error({ err }, 'Falha na análise Win/Loss com IA');
+            throw err;
+        }
+    }, {
+        connection: connection as any,
+        concurrency: 1
+    });
+
+    worker.on('failed', (job, err) => {
+        logger.error({ err, jobId: job?.id }, 'Win/Loss worker job falhou');
+    });
+
+    return worker;
+}
+
+export async function scheduleWinLossAnalysisJob() {
+    const queue = new Queue(WIN_LOSS_QUEUE_NAME, {
+        connection: connection as any
+    });
+    
+    // Roda toda sexta às 19:00
+    await queue.add('weekly-win-loss', {}, {
+        repeat: {
+            pattern: '0 19 * * 5'
+        }
+    });
+    
+    logger.info('Win/Loss Analysis job scheduled (cron: 0 19 * * 5)');
+}

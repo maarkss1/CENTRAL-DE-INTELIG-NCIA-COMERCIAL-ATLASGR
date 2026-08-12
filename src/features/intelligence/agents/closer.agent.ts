@@ -68,11 +68,48 @@ ${SWARM_OUTPUT_CONTRACT}`;
     }
 
     async run(inputData: string, sessionId?: string) {
-        const result = await super.run(inputData, sessionId);
-        return {
-            closePlan: result.output as string | undefined,
-            error: result.error,
-            sessionId: result.sessionId,
-        };
+        const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
+        
+        try {
+            const learnedStyle = await this.loadLearnedStyle();
+            const systemPrompt = this.buildSystemPrompt(learnedStyle);
+
+            const { buildModelWithFallbackAndTools } = await import('./fallback.util.js');
+            const { marketResearchTool } = await import('../tools/marketResearchTool.js');
+            const { createReactAgent } = await import('@langchain/langgraph/prebuilt');
+            const { SystemMessage, HumanMessage } = await import('@langchain/core/messages');
+
+            const tools = [marketResearchTool];
+            const model = buildModelWithFallbackAndTools('llama-3.1-8b-instant', tools);
+            
+            const agent = createReactAgent({ llm: model, tools });
+            
+            const result = await agent.invoke({
+                messages: [
+                    new SystemMessage(systemPrompt),
+                    new HumanMessage(this.buildHumanMessage(inputData))
+                ]
+            });
+
+            const messages = result.messages as any[];
+            const lastMessage = messages[messages.length - 1];
+
+            await this.updateMemory(sid, messages.map(m => ({
+                role: m._getType(),
+                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+            })));
+
+            return {
+                closePlan: lastMessage.content as string,
+                error: undefined,
+                sessionId: sid,
+            };
+        } catch (error) {
+            return {
+                closePlan: undefined,
+                error: error instanceof Error ? error.message : `Falha no Agente ${this.agentType}.`,
+                sessionId: sid,
+            };
+        }
     }
 }

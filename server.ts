@@ -67,6 +67,10 @@ import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/qu
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
 import { createFollowUpWorker, scheduleFollowUpJobs } from './src/features/crm/jobs/followUp.worker.js';
+import { createExecutiveSummaryWorker, scheduleExecutiveSummaryJob } from './src/features/crm/jobs/dailyExecutiveSummary.worker.js';
+import { createDeduplicationWorker, scheduleDeduplicationJob } from './src/features/crm/jobs/deduplication.worker.js';
+import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/features/intelligence/services/winLossAnalysis.worker.js';
+import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
 import { sendWhatsAppMessage } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
@@ -525,12 +529,20 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
     const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
     const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
+    const execSummaryWorker = queuesEnabled ? createExecutiveSummaryWorker() : null;
+    const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
+    const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
+    const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
     if (queuesEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
         scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
+        scheduleExecutiveSummaryJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de summary executivo'));
+        scheduleDeduplicationJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de deduplicacao'));
+        scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
+        scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
     }
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -575,6 +587,10 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         await whatsappSignalWorker?.close();
         await bitrixSyncWorker?.close();
         await followUpWorker?.close();
+        await execSummaryWorker?.close();
+        await deduplicationWorker?.close();
+        await winLossWorker?.close();
+        await pdfWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
         await shutdownLangfuse();

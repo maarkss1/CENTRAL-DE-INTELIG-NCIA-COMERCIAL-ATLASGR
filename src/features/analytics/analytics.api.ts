@@ -39,6 +39,16 @@ export interface AnalyticsDashboard {
     activitiesByType: DistributionSlice[];
     activitiesByStatus: DistributionSlice[];
     monthly: MonthlyPoint[];
+    tmqMetric: number | null; // Tempo médio de qualificação em dias
+    lostReasons: DistributionSlice[];
+    callHeatmap: { dayOfWeek: number, hour: number, count: number }[];
+    performanceReport: {
+        agent: string;
+        isAi: boolean;
+        leadsAssigned: number;
+        leadsQualified: number;
+        conversionRate: number;
+    }[];
     isEmpty: boolean;
 }
 

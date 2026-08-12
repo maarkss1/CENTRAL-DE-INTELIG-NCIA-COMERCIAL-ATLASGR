@@ -74,6 +74,16 @@ export interface AnalyticsDashboard {
     activitiesByType: DistributionSlice[];
     activitiesByStatus: DistributionSlice[];
     monthly: MonthlyPoint[];
+    tmqMetric: number | null;
+    lostReasons: DistributionSlice[];
+    callHeatmap: { dayOfWeek: number, hour: number, count: number }[];
+    performanceReport: {
+        agent: string;
+        isAi: boolean;
+        leadsAssigned: number;
+        leadsQualified: number;
+        conversionRate: number;
+    }[];
     /** `true` quando a organização ainda não tem nenhum dado — o frontend mostra o estado vazio. */
     isEmpty: boolean;
 }
@@ -254,6 +264,10 @@ export class AnalyticsService {
             wonByOwnerRows,
             activityTypeRows,
             activityStatusRows,
+            performanceReport,
+            heatmap,
+            tmqMetric,
+            lostReasonsRows,
         ] = await Promise.all([
             this.overview(organizationId, now),
             this.funnel(organizationId),
@@ -268,6 +282,10 @@ export class AnalyticsService {
             }),
             prisma.activity.groupBy({ by: ['type'], where: scope, _count: { _all: true } }),
             prisma.activity.groupBy({ by: ['status'], where: scope, _count: { _all: true } }),
+            this.performanceReport(organizationId, scope),
+            this.callHeatmap(organizationId, scope),
+            this.tmqMetric(organizationId, scope),
+            prisma.lead.groupBy({ by: ['lossReason'], where: { ...scope, status: { in: CLOSED_LOST_STATUSES } }, _count: { _all: true } }),
         ]);
 
         const wonByOwner = new Map<string, number>();
@@ -303,8 +321,83 @@ export class AnalyticsService {
             byOwner,
             activitiesByType: toDistribution(activityTypeRows, 'type', fromPrismaActivityType),
             activitiesByStatus: toDistribution(activityStatusRows, 'status', fromPrismaActivityStatus),
+            lostReasons: toDistribution(lostReasonsRows, 'lossReason', (v: string) => v, 'Sem motivo registrado'),
+            performanceReport,
+            callHeatmap: heatmap,
+            tmqMetric,
             isEmpty,
         };
+    }
+
+    private async performanceReport(organizationId: string, scope: any) {
+        const ownerStats = await prisma.lead.groupBy({
+            by: ['owner'],
+            where: scope,
+            _count: { _all: true }
+        });
+        const qualifiedStats = await prisma.lead.groupBy({
+            by: ['owner'],
+            where: { ...scope, status: { notIn: ['Lead_Recebido', 'Cadencia_Iniciada', 'Lead_Desqualificado'] } },
+            _count: { _all: true }
+        });
+
+        const qualMap = new Map<string, number>();
+        qualifiedStats.forEach(q => qualMap.set(q.owner || '', q._count._all));
+
+        return ownerStats.map(s => {
+            const owner = s.owner || 'Sem Dono';
+            const assigned = s._count._all;
+            const qualified = qualMap.get(s.owner || '') || 0;
+            return {
+                agent: owner,
+                isAi: owner.includes('IA') || owner.includes('SDR'),
+                leadsAssigned: assigned,
+                leadsQualified: qualified,
+                conversionRate: assigned > 0 ? (qualified / assigned) * 100 : 0
+            };
+        }).sort((a, b) => b.leadsQualified - a.leadsQualified);
+    }
+
+    private async callHeatmap(organizationId: string, scope: any) {
+        const activities = await prisma.activity.findMany({
+            where: { ...scope, type: 'call' },
+            select: { createdAt: true }
+        });
+        const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));
+        
+        activities.forEach(a => {
+            const date = new Date(a.createdAt);
+            heatmap[date.getDay()][date.getHours()]++;
+        });
+
+        const result = [];
+        for (let d = 0; d < 7; d++) {
+            for (let h = 0; h < 24; h++) {
+                if (heatmap[d][h] > 0) {
+                    result.push({ dayOfWeek: d, hour: h, count: heatmap[d][h] });
+                }
+            }
+        }
+        return result;
+    }
+
+    private async tmqMetric(organizationId: string, scope: any): Promise<number | null> {
+        // TMQ: Time to Qualification
+        // Simulação otimizada: calculando a diferença entre createdAt e a data do estágio de qualificação.
+        const qualifiedLeads = await prisma.lead.findMany({
+            where: { ...scope, status: { notIn: ['Lead_Recebido', 'Cadencia_Iniciada'] } },
+            select: { createdAt: true, updatedAt: true },
+            take: 100 // Amostragem por performance
+        });
+
+        if (qualifiedLeads.length === 0) return null;
+        
+        let totalMs = 0;
+        qualifiedLeads.forEach(l => {
+            totalMs += (l.updatedAt.getTime() - l.createdAt.getTime());
+        });
+
+        return (totalMs / qualifiedLeads.length) / (1000 * 60 * 60 * 24); // Em dias
     }
 }
 
