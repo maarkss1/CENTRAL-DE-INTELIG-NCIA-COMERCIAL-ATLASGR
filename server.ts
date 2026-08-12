@@ -1,6 +1,12 @@
 import { initTracing } from './src/lib/tracing.js';
 initTracing();
 
+// Registrado logo no boot: sem Redis configurado, comandos internos do BullMQ rejeitam com
+// "Connection is closed." fora de qualquer await nosso, e a rejeicao nao tratada derrubava o
+// processo poucos segundos depois de o servidor subir (deploy falhando com status 1).
+import { registerProcessGuards } from './src/lib/process-guards.js';
+registerProcessGuards();
+
 import { env } from './src/config/env.js';
 import express from 'express';
 import helmet from 'helmet';
