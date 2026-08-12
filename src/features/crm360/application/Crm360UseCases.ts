@@ -20,6 +20,10 @@ export class Crm360UseCases {
         return this.crm360Repository.updateLeadStage(organizationId, leadId, stageId, expectedCloseDate);
     }
 
+    async convertLead(organizationId: string, leadId: string) {
+        return this.crm360Repository.convertLead(organizationId, leadId);
+    }
+
     async listProducts(organizationId: string, search?: string) {
         return this.crm360Repository.listProducts(organizationId, search);
     }

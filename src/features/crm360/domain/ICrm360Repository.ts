@@ -12,7 +12,8 @@ export interface ICrm360Repository {
     getPipelines(organizationId: string, entity?: string): Promise<CrmPipeline[]>;
     getBoardLeads(organizationId: string, funnel?: string, pipelineId?: string): Promise<{ stages: unknown[]; leads: unknown[] }>;
     updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date): Promise<unknown>;
-    
+    convertLead(organizationId: string, leadId: string): Promise<unknown>;
+
     // Produtos & Itens de Negócio
     listProducts(organizationId: string, search?: string): Promise<CrmProduct[]>;
     createProduct(organizationId: string, data: CrmProductInput): Promise<CrmProduct>;

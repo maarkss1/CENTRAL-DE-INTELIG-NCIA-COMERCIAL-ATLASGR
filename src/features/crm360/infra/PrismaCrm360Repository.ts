@@ -263,6 +263,30 @@ export class PrismaCrm360Repository implements ICrm360Repository {
         return { ...updated, status: fromPrismaLeadStatus(updated.status) };
     }
 
+    async convertLead(organizationId: string, leadId: string) {
+        const { dealPipeline } = await ensureDefaultPipelines(organizationId);
+        const stage = dealPipeline.stages[0];
+        if (!stage) throw new Error('O funil de negócios não possui etapa inicial');
+
+        const updated = await prisma.lead.update({
+            where: { id: leadId, organizationId },
+            data: {
+                funnel: LeadFunnel.Negocio,
+                status: stage.leadStatus ?? LeadStatus.Nova_Oportunidade,
+                pipelineId: dealPipeline.id,
+                pipelineStageId: stage.id,
+                probability: stage.probability,
+                closedAt: null,
+                timeline: { create: { type: 'conversion', description: 'Lead convertido em negócio' } },
+            },
+            include: { company: true, contact: true, pipeline: true, pipelineStage: true },
+        });
+
+        await recordStageTransition(organizationId, leadId, stage, dealPipeline.id);
+
+        return { ...updated, status: fromPrismaLeadStatus(updated.status) };
+    }
+
     async listProducts(organizationId: string, search?: string): Promise<CrmProduct[]> {
         const products = await prisma.crmProduct.findMany({
             where: {

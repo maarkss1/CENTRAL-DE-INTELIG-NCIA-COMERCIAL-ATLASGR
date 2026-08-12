@@ -30,6 +30,10 @@ router.put('/records/:id/stage', writeRoles, (req, res, next) => {
     return container.resolve<Crm360Controller>('Crm360Controller').moveRecord(req, res, next);
 });
 
+router.post('/leads/:id/convert', writeRoles, (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').convertLead(req, res, next)
+);
+
 router.get('/products', (req, res, next) =>
     container.resolve<Crm360Controller>('Crm360Controller').listProducts(req, res, next)
 );

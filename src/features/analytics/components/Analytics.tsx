@@ -4,6 +4,7 @@ import {
     XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, LabelList,
 } from 'recharts';
 import { BarChart3, AlertTriangle, Loader2, RefreshCw, Table2, Download } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -189,7 +190,12 @@ export function Analytics() {
 
                 {data && !data.isEmpty && (
                     /* Mantém o render anterior a 60% durante o refetch em vez de piscar esqueleto. */
-                    <div className={`space-y-6 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
+                    <motion.div 
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: loading ? 0.6 : 1, y: 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="space-y-6"
+                    >
                         {/* Indicadores de topo */}
                         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                             <StatTile label="Leads em aberto" value={String(data.overview.totalLeads)} />
@@ -216,9 +222,9 @@ export function Analytics() {
                             />
                             <StatTile
                                 label="TMQ (dias)"
-                                value={data.tmqMetric !== null ? data.tmqMetric.toFixed(1) : '—'}
+                                value={data.tmqMetric != null ? data.tmqMetric.toFixed(1) : '—'}
                                 hint="tempo médio para qualificar"
-                                tone={data.tmqMetric !== null && data.tmqMetric <= 3 ? 'good' : data.tmqMetric !== null && data.tmqMetric > 7 ? 'critical' : undefined}
+                                tone={data.tmqMetric != null && data.tmqMetric <= 3 ? 'good' : data.tmqMetric != null && data.tmqMetric > 7 ? 'critical' : undefined}
                             />
                         </div>
 
@@ -377,7 +383,7 @@ export function Analytics() {
                                 <LostReasonsWidget data={data.lostReasons} />
                             </Card>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
             </div>
         </div>
