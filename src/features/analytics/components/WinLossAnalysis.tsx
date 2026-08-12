@@ -118,7 +118,7 @@ export function WinLossAnalysis() {
                                     </div>
                                 ))}
                             </div>
-                            <Button variant="primary" onClick={runAnalysis} className="mt-2">
+                            <Button variant="default" onClick={runAnalysis} className="mt-2">
                                 <Brain className="w-4 h-4" />
                                 Gerar Análise Agora
                             </Button>

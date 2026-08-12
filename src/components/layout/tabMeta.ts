@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 /** Identificador de cada módulo navegável — fonte única usada pela Sidebar, Topbar e Command Palette. */
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
@@ -30,6 +30,7 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     integrations: { label: 'Integrações', icon: Globe },
     knowledge: { label: 'Base de Conhecimento', icon: Database },
     analytics: { label: 'Analytics', icon: BarChart3 },
+    winloss: { label: 'Win/Loss', icon: Target },
     calendar: { label: 'Calendário', icon: CalendarDays },
     notifications: { label: 'Notificações', icon: Bell },
     automations: { label: 'Automações', icon: Cpu },

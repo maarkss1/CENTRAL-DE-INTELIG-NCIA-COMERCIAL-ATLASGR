@@ -43,6 +43,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
         { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
+        { id: 'winloss' as TabType, label: 'Win/Loss', icon: <Target size={20} /> },
         { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
         { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
     ];
