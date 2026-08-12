@@ -317,11 +317,31 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
                     }
                 }
 
+                // Phase 6: Competitor Alerts
+                const transcriptLower = (concatenated_transcript || '').toLowerCase();
+                const competitors = ['totvs', 'sap', 'senior', 'omnilink', 'sascar', 'autotrac'];
+                const mentionedCompetitors = competitors.filter(c => transcriptLower.includes(c));
+
+                let sseMessage = `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`;
+
+                if (mentionedCompetitors.length > 0) {
+                    const alertMsg = `⚠️ ALERTA CONCORRENTE: O cliente mencionou: ${mentionedCompetitors.join(', ')}`;
+                    sseMessage = `[ALERTA] SDR concluiu chamada com citação de concorrente!`;
+                    
+                    await prisma.note.create({
+                        data: {
+                            leadId: lead.id,
+                            content: alertMsg,
+                            author: 'Sistema de Alerta (IA)',
+                        },
+                    });
+                }
+
                 // Emite a notificação em tempo real
                 sseService.notifyVoiceQualified(
                     lead.organizationId || '',
                     lead.id,
-                    `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`
+                    sseMessage
                 );
             }
 
