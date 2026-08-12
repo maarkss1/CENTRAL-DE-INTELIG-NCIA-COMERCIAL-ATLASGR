@@ -523,7 +523,6 @@ export function SwarmDashboard() {
                         placeholder="O que você deseja que o Swarm faça? (Clique aqui para digitar)"
                         className={`w-full bg-white/10 border border-white/20 rounded-2xl pl-6 pr-20 py-5 text-white text-[16px] font-medium focus:outline-none focus:ring-1 focus:bg-white/15 transition-all placeholder:text-gray-400 shadow-inner relative z-50 pointer-events-auto ${accent.isAtlas ? 'focus:border-atlas-orange focus:ring-atlas-orange/50' : 'focus:border-totaltrack-blue focus:ring-totaltrack-blue/50'}`}
                         disabled={isExecuting}
-                        autoFocus
                     />
                     {isExecuting ? (
                         <button

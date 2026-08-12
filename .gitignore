@@ -36,3 +36,4 @@ backups/*.dump
 /navigation_flow.mp4
 /*.mp4
 /*.png
+public/tools/atlas-market-intelligence/*.csv

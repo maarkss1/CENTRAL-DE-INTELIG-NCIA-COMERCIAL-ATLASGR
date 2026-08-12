@@ -101,7 +101,7 @@ export function CommercialIntelligenceHub() {
                         type="month"
                         value={month}
                         onChange={(e) => setMonth(e.target.value || currentMonth())}
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <label className="sr-only" htmlFor="ci-owner">Responsável</label>
                     <input
@@ -110,7 +110,7 @@ export function CommercialIntelligenceHub() {
                         value={owner}
                         onChange={(e) => setOwner(e.target.value)}
                         placeholder="Vendedor"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <label className="sr-only" htmlFor="ci-product">Produto</label>
                     <input
@@ -119,7 +119,7 @@ export function CommercialIntelligenceHub() {
                         value={product}
                         onChange={(e) => setFilter('product', e.target.value)}
                         placeholder="Produto"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <label className="sr-only" htmlFor="ci-source">Origem</label>
                     <input
@@ -128,7 +128,7 @@ export function CommercialIntelligenceHub() {
                         value={source}
                         onChange={(e) => setFilter('source', e.target.value)}
                         placeholder="Origem"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <label className="sr-only" htmlFor="ci-icp">ICP</label>
                     <input
@@ -137,7 +137,7 @@ export function CommercialIntelligenceHub() {
                         value={icp}
                         onChange={(e) => setFilter('icp', e.target.value)}
                         placeholder="ICP/Segmento"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                 </div>
             </header>

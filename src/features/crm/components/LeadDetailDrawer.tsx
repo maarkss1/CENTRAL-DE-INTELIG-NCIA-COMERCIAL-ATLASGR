@@ -66,6 +66,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
     const [callingVoice, setCallingVoice] = useState(false);
+    const [agentType, setAgentType] = useState('sdr');
     const [whatsappOpen, setWhatsappOpen] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
@@ -116,7 +117,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         if (!lead) return;
         setCallingVoice(true);
         try {
-            await api.post(`/api/integrations/birth-voice/call/${lead.id}`);
+            await api.post(`/api/integrations/birth-voice/call/${lead.id}`, { agentType });
             toast.success('Ligação de qualificação disparada com sucesso! O resultado chega de forma assíncrona.');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Não foi possível disparar a ligação de qualificação.');
@@ -527,6 +528,15 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                         <div className="p-4 border-t border-line bg-surface-2/50 shrink-0 flex items-center justify-end">
                             <div className="flex items-center gap-2">
+                                <select
+                                    value={agentType}
+                                    onChange={(e) => setAgentType(e.target.value)}
+                                    className="px-2 py-2 bg-surface border border-line rounded-xl text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-brand"
+                                >
+                                    <option value="sdr">SDR Frio</option>
+                                    <option value="reactivation">Reativação</option>
+                                    <option value="nps">NPS</option>
+                                </select>
                                 <button
                                     onClick={handleVoiceCall}
                                     disabled={callingVoice}

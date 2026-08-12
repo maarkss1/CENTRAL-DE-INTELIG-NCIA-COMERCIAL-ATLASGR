@@ -9,6 +9,7 @@ import {
     fromPrismaActivityType,
     fromPrismaActivityStatus,
 } from '../../../lib/enumMap';
+import { searchLeadIds } from '../../../lib/search/index.js';
 
 function serializeLead<
     T extends {
@@ -34,12 +35,29 @@ function serializeLead<
 }
 
 export class PrismaLeadRepository implements LeadRepository {
-    async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel): Promise<{ data: Lead[], meta: unknown }> {
+    async findAllWithFilters(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel, query?: string): Promise<{ data: Lead[], meta: unknown }> {
         const where: Prisma.LeadWhereInput = { organizationId };
         if (status) {
             where.status = toPrismaLeadStatus(status as LeadStatus) as unknown as Prisma.LeadWhereInput['status'];
         }
         if (funnel) where.funnel = funnel;
+
+        if (query) {
+            const matchedIds = await searchLeadIds(organizationId, query, 500);
+            if (matchedIds !== null) {
+                if (matchedIds.length === 0) {
+                    return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+                }
+                where.id = { in: matchedIds };
+            } else {
+                // Fallback to postgres basic search
+                where.OR = [
+                    { title: { contains: query, mode: 'insensitive' } },
+                    { contact: { name: { contains: query, mode: 'insensitive' } } },
+                    { company: { legalName: { contains: query, mode: 'insensitive' } } }
+                ];
+            }
+        }
 
         const skip = (page - 1) * limit;
 

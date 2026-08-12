@@ -31,7 +31,8 @@ export class LeadController {
             const funnel: LeadFunnel | undefined = requestedFunnel === 'Lead' || requestedFunnel === 'Negocio'
                 ? requestedFunnel
                 : undefined;
-            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel);
+            const query = req.query.q as string | undefined;
+            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel, query);
             res.json({ success: true, data: result.data, meta: result.meta });
         } catch (error) {
             next(error);

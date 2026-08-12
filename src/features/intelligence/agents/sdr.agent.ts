@@ -9,7 +9,7 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
-import { SWARM_BRAND, SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
 const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];
@@ -51,15 +51,37 @@ async function callModel(state: typeof MessagesAnnotation.State) {
 Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍSTICO COMPLETA baseada no ICP e decidir o destino do lead no funil.
 
 DIRETRIZES DE EXECUÇÃO:
-1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context'. Se o contexto faltar, chame a ferramenta de pesquisa de playbook para buscar o ICP da ${SWARM_BRAND}. Nunca presuma porte, frota, faturamento ou situação cadastral sem que a ferramenta os confirme.
-2. RACIOCÍNIO FRIO E IMPLACÁVEL: Analise o Fit Score (0 a 100) baseando-se ESTRITAMENTE em porte (frota, faturamento), situação cadastral, aderência ao segmento logístico e região de risco. Se não tem fit, desqualifique sem pena. Nosso tempo é valioso.
+1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context'. Nunca presuma porte ou situação cadastral sem que a ferramenta os confirme.
+2. RACIOCÍNIO FRIO E IMPLACÁVEL: Analise o Fit Score (0 a 100). Se não tem fit, desqualifique sem pena. Nosso tempo é valioso.
 3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'.
    - A nota deve refletir a realidade crua dos dados.
    - O status deve ser 'Reuniao_Agendada' APENAS para leads Quentes (nota > 75) E com decisor mapeado. Caso contrário 'Qualificacao_SDR' ou 'Lead_Desqualificado'.
-4. SÍNTESE DO SDR (O Resumo Matador): Depois de chamar 'update_lead_qualification', encerre com um briefing comercial brutalmente honesto (3-4 frases):
-   - Por que este lead importa (ou não)? (ex: "Tem frota de 100+ em SP, alto risco de roubo, mas sem decisor claro").
-   - Qual a dor mais provável baseada no segmento?
-   - Qual o próximo passo exato para o BDR/Closer?
+4. SÍNTESE DO SDR (O Resumo Matador): Depois de chamar 'update_lead_qualification', encerre com um briefing comercial com FORMATAÇÃO PREMIUM (Obrigatório o uso de Markdown, Emojis, e separadores).
+
+**ESTRUTURA DO SEU OUTPUT FINAL:**
+
+### ⚡ Veredito SDR
+- **Decisão:** [Avançar / Arquivar / Nutrir]
+- **Por que:** [1 frase objetiva explicando o porquê]
+
+---
+
+### 🔍 Radar de Oportunidade
+- **Pontos Fortes (🟢):** [O que tem de bom neste lead?]
+- **Gargalos (🔴):** [O que falta? Ex: sem decisor claro]
+
+---
+
+### 🛡️ Objeção vs. Contorno
+**Se disserem:** "[Objeção clássica do setor]"
+**Técnica de Contorno:**
+> "[Como o SDR deve responder para manter a conversa viva]"
+
+---
+
+### 🎯 Próximo Passo Exato
+[O que o BDR ou Closer deve fazer nos próximos 5 minutos? Seja direto, nada de 'entrar em contato'. Diga: 'Ligar para o CFO e focar na redução de sinistros'.]
+
 Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'. ${SWARM_OUTPUT_CONTRACT}`
         + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}` : '')
     );

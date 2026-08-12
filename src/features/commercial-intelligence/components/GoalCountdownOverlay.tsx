@@ -127,10 +127,15 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                 </div>
 
                 {/* Main Content (Center) */}
-                <div className="relative z-10 flex-1 flex flex-col justify-center px-8 md:px-12 max-w-7xl mx-auto w-full gap-16">
+                <div className="relative z-10 flex-1 flex flex-col justify-center px-8 md:px-12 max-w-[90rem] mx-auto w-full gap-16">
                     
                     {/* Linha Superior: Meta, Batido, % */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center"
+                    >
                         {/* Batido / Progresso */}
                         <div className="space-y-4">
                             <h2 className="text-2xl text-white/60 font-semibold flex items-center gap-2 uppercase tracking-widest">
@@ -170,12 +175,26 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </motion.div>
 
                     {/* Linha Inferior: Secundários (Run Rate, Countdown) */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <motion.div 
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            visible: {
+                                opacity: 1,
+                                transition: { staggerChildren: 0.15, delayChildren: 0.4 }
+                            }
+                        }}
+                        className="grid grid-cols-1 md:grid-cols-3 gap-8"
+                    >
                         {/* Box: Contagem Regressiva */}
-                        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center">
+                        <motion.div 
+                            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                            className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center"
+                        >
                             <div className="flex items-center gap-3 text-white/60 font-medium tracking-wider uppercase mb-6">
                                 <Clock className="w-5 h-5" />
                                 Tempo Restante
@@ -198,21 +217,27 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                                     <span className="text-xs text-brand/60 font-bold uppercase mt-1">Seg</span>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* Box: Dias úteis / Corridos */}
-                        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center">
+                        <motion.div 
+                            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                            className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center"
+                        >
                             <div className="flex items-center gap-3 text-white/60 font-medium tracking-wider uppercase mb-4">
                                 <CalendarDays className="w-5 h-5" />
                                 Horizonte
                             </div>
                             <div className="text-5xl font-black text-white">{daysRemaining}</div>
                             <div className="text-sm text-white/50 font-medium mt-2">Dias corridos até o fechamento</div>
-                        </div>
+                        </motion.div>
 
                         {/* Box: Run Rate */}
                         {isGoalSet && !isGoalHit && (
-                            <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center">
+                            <motion.div 
+                                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                                className="bg-white/5 border border-white/10 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center"
+                            >
                                 <div className="flex items-center gap-3 text-white/60 font-medium tracking-wider uppercase mb-4">
                                     <TrendingUp className="w-5 h-5" />
                                     Esforço Diário
@@ -221,17 +246,20 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                                     {formatCurrency(runRate, currency)}
                                 </div>
                                 <div className="text-sm text-white/50 font-medium mt-2">Necessário por dia p/ atingir a meta</div>
-                            </div>
+                            </motion.div>
                         )}
 
                         {isGoalHit && (
-                            <div className="bg-green-500/10 border border-green-500/20 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center items-center text-center">
+                            <motion.div 
+                                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                                className="bg-green-500/10 border border-green-500/20 backdrop-blur-md rounded-3xl p-8 flex flex-col justify-center items-center text-center"
+                            >
                                 <Trophy className="w-12 h-12 text-yellow-400 mb-4" />
                                 <div className="text-2xl font-black text-white">Objetivo Concluído</div>
                                 <div className="text-sm text-white/70 mt-2">Excelente trabalho do time!</div>
-                            </div>
+                            </motion.div>
                         )}
-                    </div>
+                    </motion.div>
                 </div>
             </motion.div>
         </AnimatePresence>

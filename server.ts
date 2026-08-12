@@ -43,6 +43,7 @@ import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
+import { sseService } from './src/features/notifications/sse.service.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -276,7 +277,22 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
                     },
                 });
 
+                const currentFields = (lead.customFields as Record<string, unknown>) || {};
+                await prisma.lead.update({
+                    where: { id: lead.id },
+                    data: {
+                        customFields: { ...currentFields, voiceQualified: true }
+                    }
+                });
+
                 logger.info(`Voice call transcript successfully attached to lead ${lead.id}`);
+
+                // Emite a notificação em tempo real
+                sseService.notifyVoiceQualified(
+                    lead.organizationId || '',
+                    lead.id,
+                    `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`
+                );
             }
 
             res.status(200).json({ success: true, lead_found: !!lead });
@@ -399,6 +415,12 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
     app.use('/api/knowledge', requireTenant, knowledgeRoutes);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
+    
+    app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
+        const { organizationId } = (req as AuthRequest).user;
+        sseService.addClient(req, res, organizationId);
+    });
+
     app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);

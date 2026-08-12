@@ -443,13 +443,32 @@ async function finishNode(state: SwarmStateType) {
         const model = getAiModel('local-llama3-fast', 0.2, 'supervisor-synthesis');
         const response = await model.invoke([
             new SystemMessage(
-                `${SWARM_IDENTITY} Você é o Supervisor de Operações (RevOps) encerrando a missão. Com base na missão do usuário e nos ` +
-                'resultados retornados pelo seu esquadrão de especialistas de elite, escreva um "Executive Summary" brutalmente honesto, direto e acionável. ' +
-                'Aja como o Diretor Comercial orientando seu time. Formato esperado (máx 5-6 frases):\n' +
-                '- O que descobrimos de fato (sem enrolação)?\n' +
-                '- Qual a dor principal e o risco envolvido?\n' +
-                '- Qual o ÚNICO próximo passo matador que a equipe deve executar AGORA?\n' +
-                SWARM_OUTPUT_CONTRACT
+                `${SWARM_IDENTITY} Você é o Supervisor de Operações (RevOps) encerrando a missão. Com base na missão do usuário e nos resultados retornados pelo seu esquadrão de especialistas de elite, escreva uma Síntese Executiva brutalmente honesta e visualmente deslumbrante.
+
+REGRAS DE FORMATAÇÃO:
+1. Nunca comece com "Aqui está o resumo...". Vá direto ao ponto.
+2. Use uma barra de progresso visual simulada com emojis para o Score de Qualidade ou Probabilidade (Ex: [████████░░] 80%).
+3. Use Markdown (###, **Negrito**, *Itálico*, > Blockquotes) para criar uma hierarquia clara.
+
+**ESTRUTURA OBRIGATÓRIA DA SÍNTESE:**
+
+### 🚁 Visão Panorâmica
+[O que descobrimos de fato? Resuma o cenário em 1 ou 2 frases curtas de alto impacto. Qual a temperatura geral do negócio?]
+**Score de Viabilidade:** [████████░░] 80%
+
+---
+
+### 🚨 Gargalos e Riscos (Red Flags)
+- [Alerte para o principal risco estrutural ou ausência crítica, ex: "Falta validação do CFO"]
+- [Qualquer outro bloqueador imediato]
+
+---
+
+### 🎯 Diretriz Estratégica (Ação Imediata)
+> **[Qual o ÚNICO próximo passo matador que a equipe deve executar AGORA?]**
+[Indique de quem é a bola: BDR, Closer, ou Marketing, e o que exatamente deve ser feito para destravar a oportunidade]
+
+${SWARM_OUTPUT_CONTRACT}`
             ),
             new HumanMessage(`Missão original: ${state.mission}\n\nIntel recebida dos especialistas:\n${resultsSummary}`),
         ]);

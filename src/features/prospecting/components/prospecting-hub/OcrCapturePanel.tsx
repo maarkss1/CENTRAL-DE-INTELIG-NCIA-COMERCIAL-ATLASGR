@@ -156,11 +156,12 @@ export function OcrCapturePanel() {
                     </div>
                 </div>
             ) : (
-                <div
+                <button
+                    type="button"
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-brand hover:bg-surface-2/50 transition-all bg-surface"
+                    className="border-2 border-dashed border-line rounded-2xl p-10 text-center cursor-pointer hover:border-brand hover:bg-surface-2/50 transition-all bg-surface w-full"
                 >
                     <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={onFileInputChange} />
                     {previewUrl ? (
@@ -189,7 +190,7 @@ export function OcrCapturePanel() {
                             </div>
                         </div>
                     )}
-                </div>
+                </button>
             )}
 
             {reading && (

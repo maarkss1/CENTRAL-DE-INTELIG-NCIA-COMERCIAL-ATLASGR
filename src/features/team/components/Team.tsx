@@ -163,8 +163,9 @@ export function Team() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">Nome</label>
+                            <label htmlFor="team-name" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">Nome</label>
                             <input
+                                id="team-name"
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
@@ -174,8 +175,9 @@ export function Team() {
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">E-mail corporativo</label>
+                            <label htmlFor="team-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">E-mail corporativo</label>
                             <input
+                                id="team-email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -185,8 +187,9 @@ export function Team() {
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">Papel</label>
+                            <label htmlFor="team-role" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5">Papel</label>
                             <select
+                                id="team-role"
                                 value={role}
                                 onChange={(e) => setRole(e.target.value)}
                                 className="w-full bg-surface-2 border border-line rounded-xl px-3 py-2.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-brand"

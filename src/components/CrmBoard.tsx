@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, WifiOff } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
@@ -71,6 +71,25 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     /** "Cursor" virtual do drag por teclado — avança/recua com ArrowRight/ArrowLeft, independente
         de `leads`. Ver comentário do coordinateGetter abaixo pra explicação completa. */
     const keyboardDragStatusRef = useRef<LeadStatus | null>(null);
+
+    useEffect(() => {
+        const eventSource = new EventSource('/api/notifications/stream', { withCredentials: true });
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'voice-qualified') {
+                    toast.success(data.message);
+                    // Atualiza a lista para refletir possíveis mudanças
+                    fetchLeads();
+                }
+            } catch (err) {
+                console.error('Erro ao processar evento SSE', err);
+            }
+        };
+        return () => {
+            eventSource.close();
+        };
+    }, [fetchLeads]);
 
     // `sortableKeyboardCoordinates` (@dnd-kit/sortable) foi testado primeiro, por ser a opção
     // nativa do dnd-kit — mas falhou em execução real neste board multi-coluna: sua busca por
@@ -228,26 +247,25 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
         setSearchParams(next === 'Lead' ? {} : { funnel: next }, { replace: true });
     }, [funnelProp, setSearchParams]);
 
-    const handleExportCsv = () => {
-        const headers = ['ID', 'Empresa', 'CNPJ', 'Contato', 'Email', 'Telefone', 'Status', 'Pontuacao'];
-        const rows = leads.map(l => [
-            l.id,
-            l.company?.tradeName || l.company?.legalName || '',
-            l.company?.cnpj || '',
-            l.contact?.name || '',
-            l.contact?.email || '',
-            l.contact?.phone || '',
-            l.status,
-            l.score || ''
-        ]);
-        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `leads_${brandInfo.name.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleExportCsv = async () => {
+        try {
+            const response = await fetch('/api/leads/export/csv', {
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Falha ao exportar');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `leads_${brandInfo.name.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            toast.error('Erro ao exportar leads. Tente novamente.');
+        }
     };
 
     const groupedLeads = useMemo(() => {

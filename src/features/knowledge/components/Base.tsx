@@ -203,6 +203,7 @@ export function Base() {
 
     return (
         <div
+            role="presentation"
             className="flex-1 overflow-y-auto bg-transparent p-8"
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}

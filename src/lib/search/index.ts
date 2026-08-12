@@ -75,3 +75,26 @@ function withMeiliTimeout<T>(promise: Promise<T>): Promise<T> {
         );
     });
 }
+
+/**
+ * Busca full-text tolerante a erros de digitação, restrita ao tenant, sobre Leads.
+ */
+export async function searchLeadIds(
+    organizationId: string,
+    query: string,
+    limit = 50
+): Promise<string[] | null> {
+    try {
+        const result = await withMeiliTimeout(
+            meili.index('leads').search(query, {
+                filter: `organizationId = "${escapeMeiliFilterValue(organizationId)}"`,
+                limit,
+                attributesToRetrieve: ['id'],
+            })
+        );
+        return result.hits.map((hit) => (hit as { id: string }).id);
+    } catch (err) {
+        logger.warn({ err }, 'Busca no Meilisearch indisponível — usando fallback do Postgres (Leads)');
+        return null;
+    }
+}

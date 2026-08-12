@@ -59,7 +59,9 @@ interface LeadCompanyish {
  * Retorna assim que a ligação é aceita — o resultado (atendeu, transcrição, duração) chega depois,
  * de forma assíncrona, no webhook em CALL_RESULT_WEBHOOK_PATH.
  */
-export async function callLead(organizationId: string, leadId: string): Promise<OutboundCallResult> {
+export type VoiceAgentType = 'sdr' | 'nps' | 'reactivation';
+
+export async function callLead(organizationId: string, leadId: string, agentType: VoiceAgentType = 'sdr'): Promise<OutboundCallResult> {
     const config = requireConfig();
 
     const lead = await prisma.lead.findFirst({
@@ -96,6 +98,10 @@ export async function callLead(organizationId: string, leadId: string): Promise<
             agentId: config.agentId,
             targetNumber,
             callbackUrl: config.callbackUrl,
+            agentType,
+            interruption_threshold: 100,
+            reduce_latency: true,
+            voice: 'nat',
             // Devolvido intacto no webhook: é assim que reencontramos o lead sem depender de
             // casar número de telefone, que muda e se repete entre empresas.
             context: {

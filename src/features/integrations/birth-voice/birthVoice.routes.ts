@@ -43,7 +43,8 @@ router.get('/cold-call/status', async (req: Request, res: Response, next: NextFu
 router.post('/call/:leadId', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        const result = await callLead(organizationId, req.params.leadId);
+        const agentType = req.body.agentType || 'sdr';
+        const result = await callLead(organizationId, req.params.leadId, agentType);
         res.status(202).json({ success: true, data: result });
     } catch (error) {
         if (error instanceof BirthVoiceNotConfiguredError) {
