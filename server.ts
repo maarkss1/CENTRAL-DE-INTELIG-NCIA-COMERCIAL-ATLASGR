@@ -227,14 +227,14 @@ async function startServer() {
     // Webhook para receber retorno de transcrição e gravação de chamadas de voz da Bland AI / Birthub Voices
     app.post('/api/webhooks/voice-result', async (req, res) => {
         const secretHeader = req.headers['x-atlasgr-webhook-secret'];
-        const expectedSecret = env.ATLASGR_WEBHOOK_SECRET || 'segredo_compartilhado_atlasgr_123';
+        const expectedSecret = process.env.ATLASGR_WEBHOOK_SECRET || 'segredo_compartilhado_atlasgr_123';
         if (secretHeader !== expectedSecret) {
             res.status(401).json({ success: false, error: 'Unauthorized webhook secret' });
             return;
         }
 
         const { call_id, phone_number, concatenated_transcript, summary, recording_url, call_length } = req.body;
-        logger.info('Voice result received at AtlasGR', { call_id, phone_number });
+        logger.info(`Voice result received at AtlasGR: call_id=${call_id} phone=${phone_number}`);
 
         try {
             const rawDigits = (phone_number || '').replace(/\D/g, '');
@@ -243,9 +243,9 @@ async function startServer() {
             const lead = searchPattern ? await prisma.lead.findFirst({
                 where: {
                     OR: [
-                        { phone: { contains: searchPattern } },
                         { contact: { phone: { contains: searchPattern } } },
-                    ],
+                        { contact: { whatsapp: { contains: searchPattern } } },
+                    ]
                 },
             }) : null;
 
@@ -265,7 +265,6 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
                         leadId: lead.id,
                         content: noteContent,
                         author: 'IA de Voz (Bland AI)',
-                        organizationId: lead.organizationId,
                     },
                 });
 

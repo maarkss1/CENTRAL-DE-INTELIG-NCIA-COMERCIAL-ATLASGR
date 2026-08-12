@@ -6,7 +6,7 @@ import {
     Prisma,
 } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
-import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus } from '../../../lib/enumMap.js';
+import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus } from '../../../lib/enumMap.js';
 import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
@@ -46,13 +46,13 @@ const DEAL_STAGES: DefaultStage[] = [
     { name: 'Negócios Perdidos', code: 'perdido', color: '#dc2626', probability: 0, leadStatus: LeadStatus.Negocios_Perdidos, isLost: true },
 ];
 
-const CLOSED_DEAL_STATUSES = [LeadStatus.Negocios_Ganhos, LeadStatus.Negocios_Perdidos];
+const CLOSED_DEAL_STATUSES: LeadStatus[] = [LeadStatus.Negocios_Ganhos, LeadStatus.Negocios_Perdidos];
 
 function roundMoney(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-function calculateItem(input: CrmDealItemInput) {
+function calculateItem<T extends { quantity: number; unitPrice: number; discountPercent: number; taxPercent: number }>(input: T) {
     const discounted = input.quantity * input.unitPrice * (1 - input.discountPercent / 100);
     return { ...input, total: roundMoney(discounted * (1 + input.taxPercent / 100)) };
 }
@@ -234,7 +234,7 @@ export class PrismaCrm360Repository implements ICrm360Repository {
             funnel: stage.pipeline.entity === CrmPipelineEntity.Lead ? LeadFunnel.Lead : LeadFunnel.Negocio,
         };
 
-        if (expectedCloseDate) updateData.expectedCloseDate = expectedCloseDate;
+        if (expectedCloseDate) updateData.expectedCloseAt = expectedCloseDate;
 
         if (stage.leadStatus) {
             updateData.status = stage.leadStatus;
@@ -252,14 +252,12 @@ export class PrismaCrm360Repository implements ICrm360Repository {
         });
 
         if (previousLead.pipelineStageId !== stage.id) {
-            await recordStageTransition({
-                leadId,
+            await recordStageTransition(
                 organizationId,
-                fromStageId: previousLead.pipelineStageId,
-                toStageId: stage.id,
-                funnel: updated.funnel,
-                amount: updated.amount,
-            });
+                leadId,
+                stage,
+                stage.pipelineId
+            );
         }
 
         return { ...updated, status: fromPrismaLeadStatus(updated.status) };
@@ -278,8 +276,14 @@ export class PrismaCrm360Repository implements ICrm360Repository {
     }
 
     async createProduct(organizationId: string, data: CrmProductInput): Promise<CrmProduct> {
+        const { customFields, currency, ...restData } = data;
         const product = await prisma.crmProduct.create({
-            data: { ...data, currency: data.currency.toUpperCase(), organizationId },
+            data: { 
+                ...restData, 
+                currency: currency.toUpperCase(), 
+                organizationId, 
+                customFields: customFields ? (customFields as Prisma.InputJsonValue) : Prisma.JsonNull 
+            },
         });
         return { ...product, createdAt: product.createdAt.toISOString(), updatedAt: product.updatedAt.toISOString() } as unknown as CrmProduct;
     }
@@ -352,6 +356,7 @@ export class PrismaCrm360Repository implements ICrm360Repository {
         const doc = await prisma.crmCommercialDocument.create({
             data: {
                 ...input,
+                number: input.number ?? `DOC-${Date.now()}`,
                 subtotal,
                 discount,
                 tax,

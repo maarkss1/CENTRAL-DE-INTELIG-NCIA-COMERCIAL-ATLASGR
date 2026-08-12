@@ -16,6 +16,9 @@ export interface CommercialIntelligenceFilter {
     month: PeriodMonth;
     /** Filtra por responsável (Lead.owner) quando informado — mesma semântica usada no Kanban. */
     owner?: string;
+    product?: string;
+    source?: string;
+    icp?: string;
 }
 
 // ─── Metas ──────────────────────────────────────────────────────────────────
@@ -375,6 +378,8 @@ export interface DealRow {
     stageProbability: number | null;
     stageIsWon: boolean;
     stageIsLost: boolean;
+    productSkus: string[];
+    icp: string | null;
 }
 
 export interface StageDefinition {

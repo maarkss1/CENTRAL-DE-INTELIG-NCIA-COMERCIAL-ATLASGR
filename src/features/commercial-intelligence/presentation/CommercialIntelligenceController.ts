@@ -17,7 +17,13 @@ function parseOwner(raw: unknown): string | undefined {
 }
 
 function parseFilter(req: Request): CommercialIntelligenceFilter {
-    return { month: parseMonth(req.query.month), owner: parseOwner(req.query.owner) };
+    return {
+        month: parseMonth(req.query.month),
+        owner: parseOwner(req.query.owner),
+        product: typeof req.query.product === 'string' ? req.query.product.trim() : undefined,
+        source: typeof req.query.source === 'string' ? req.query.source.trim() : undefined,
+        icp: typeof req.query.icp === 'string' ? req.query.icp.trim() : undefined,
+    };
 }
 
 const VALID_TIERS: ForecastTier[] = ['Commit', 'BestCase', 'Pipeline', 'Upside'];

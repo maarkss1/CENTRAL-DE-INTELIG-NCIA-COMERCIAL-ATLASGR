@@ -139,6 +139,9 @@ export interface MetricDefinition {
 export interface CommercialFilter {
     month: string;
     owner?: string;
+    product?: string;
+    source?: string;
+    icp?: string;
 }
 
 export interface ExecutiveSummaryResult { summary: string; generatedAt: string }
@@ -148,6 +151,9 @@ function qs(filter: CommercialFilter, extra?: Record<string, string | number | b
     const params = new URLSearchParams();
     params.set('month', filter.month);
     if (filter.owner) params.set('owner', filter.owner);
+    if (filter.product) params.set('product', filter.product);
+    if (filter.source) params.set('source', filter.source);
+    if (filter.icp) params.set('icp', filter.icp);
     if (extra) {
         for (const [key, value] of Object.entries(extra)) {
             if (value !== undefined && value !== '') params.set(key, String(value));

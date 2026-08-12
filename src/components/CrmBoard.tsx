@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, WifiOff } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
-import { api } from '../lib/api';
 import { leadsDB } from '../lib/db';
 import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';

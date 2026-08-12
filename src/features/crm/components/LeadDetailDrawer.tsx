@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useId } from 'react';
 import {
-    X, Building2, MapPin, Phone, Mail, Linkedin, Globe, Star, Sparkles, Loader2,
-    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save, Link2,
-    CheckCircle2, AlertTriangle, Settings2, PhoneCall, MessageCircle,
+    X, Building2, Phone, Mail, Globe, Sparkles, Loader2,
+    Trash, Send, Clock, User, FileText, ClipboardList, ChevronDown, ChevronUp, Save,
+    PhoneCall, MessageCircle,
 } from 'lucide-react';
 import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
@@ -10,11 +10,9 @@ import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 import { LEAD_STATUS } from '../../../lib/zod';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
-import { PIC_OPTIONS } from '../../../shared/constants/icp-options';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
-import { DecisionMakerSearch } from '../../prospecting/components/ProspectingHub';
 // Painel de conversa real (histórico + envio) já usado pela Prospecção sobre a mesma integração
 // de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
 // de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
@@ -34,10 +32,14 @@ const STATUS_EMOJI: Record<string, string> = {
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
-// Lista completa dos 18 estágios (LEAD_STATUS, fonte única em lib/zod.ts) — antes desta correção
-// esta lista local parava em 11 e nunca incluía os 7 estágios "Piloto" do funil Negócio, que
-// ficavam inalcançáveis por este dropdown mesmo já sendo aceitos pelo backend.
 const LEAD_STATUSES: LeadStatus[] = [...LEAD_STATUS];
+
+const QUALIFICATION_GROUPS = [
+    { category: 'segmentoOperacao', label: 'Segmento', options: ['Transportadora', 'Indústria', 'Operador Logístico'] },
+    { category: 'usaTerceiros', label: 'Usa Terceiros?', options: ['Sim', 'Não'] },
+    { category: 'nivelAutoridade', label: 'Nível de Autoridade', options: ['Decisor', 'Influenciador', 'Usuário'] },
+    { category: 'interessePercebido', label: 'Interesse', options: ['Baixo', 'Médio', 'Alto'] },
+];
 
 interface LeadDetailDrawerProps {
     leadId: string;
@@ -48,7 +50,7 @@ interface LeadDetailDrawerProps {
 
 export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawerProps) {
     const { activeBrand, brandInfo } = useBrand();
-    const { setActiveLead } = useActiveRecord();
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
     const titleId = useId();
     const statusSelectId = useId();
     const ownerSelectId = useId();
@@ -63,32 +65,24 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [qualOpen, setQualOpen] = useState(false);
     const [qualDraft, setQualDraft] = useState<LeadQualification>({});
     const [savingQual, setSavingQual] = useState(false);
-    const [exportingBitrix, setExportingBitrix] = useState(false);
     const [callingVoice, setCallingVoice] = useState(false);
     const [whatsappOpen, setWhatsappOpen] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
-    const [bitrixOptionsOpen, setBitrixOptionsOpen] = useState(false);
-    const [bitrixConnectionId, setBitrixConnectionId] = useState<string | null>(null);
-    const [bitrixStatusOptions, setBitrixStatusOptions] = useState<{ id: string; name: string }[]>([]);
-    const [bitrixUserOptions, setBitrixUserOptions] = useState<{ id: string; name: string }[]>([]);
-    const [bitrixStatusId, setBitrixStatusId] = useState('');
-    const [bitrixAssignedById, setBitrixAssignedById] = useState('');
-
     const fetchLead = useCallback(async () => {
         try {
             setLoading(true);
             const data = await api.get<Lead>(`/api/leads/${leadId}`);
             setLead(data);
             setQualDraft((data.qualification as LeadQualification) || {});
-            setActiveLead(data);
+            setActiveRecord({ type: 'lead', id: data.id, label: data.title || data.company?.legalName || 'Lead' });
         } catch {
             toast.error('Erro ao carregar detalhes do lead');
             onClose();
         } finally {
             setLoading(false);
         }
-    }, [leadId, onClose, setActiveLead]);
+    }, [leadId, onClose, setActiveRecord]);
 
     useEffect(() => {
         previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -96,18 +90,13 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         api.get<{ id: string; name: string }[]>('/api/users')
             .then(setOwners)
             .catch(() => setOwners([]));
-        api.get<Array<{ id: string; webhookUrl: string }>>('/api/integrations/bitrix24')
-            .then((list) => {
-                if (list[0]?.id) setBitrixConnectionId(list[0].id);
-            })
-            .catch(() => setBitrixConnectionId(null));
         return () => {
-            setActiveLead(null);
             if (previouslyFocusedRef.current?.focus) {
                 previouslyFocusedRef.current.focus();
             }
+            clearActiveRecord(leadId);
         };
-    }, [fetchLead, setActiveLead]);
+    }, [fetchLead, leadId, clearActiveRecord]);
 
     useEffect(() => {
         if (!loading && closeButtonRef.current) {
@@ -141,7 +130,6 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         try {
             const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { status: newStatus });
             setLead(updated);
-            setActiveLead(updated);
             onChanged();
             toast.success(`Status atualizado para "${newStatus}"`);
         } catch {
@@ -157,12 +145,11 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             const ownerName = selectedOwner?.name || newOwnerId;
             const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { owner: ownerName });
             setLead(updated);
-            setActiveLead(updated);
             onChanged();
             toast.success('Responsável atualizado com sucesso');
         } catch {
             toast.error('Erro ao atualizar responsável');
-        } me: {
+        } finally {
             setSavingOwner(false);
         }
     };
@@ -173,7 +160,6 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         try {
             const result = await api.post<{ lead: Lead }>(`/api/leads/${lead.id}/enrich`, {});
             setLead(result.lead);
-            setActiveLead(result.lead);
             onChanged();
             toast.success('Lead enriquecido com sucesso!');
         } catch {
@@ -189,7 +175,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         setSavingNote(true);
         try {
             const newNote = await api.post<Note>(`/api/leads/${lead.id}/notes`, { content: noteText.trim() });
-            setLead({ ...lead, notes: [newNote, ...(lead.notes || [])] });
+            setLead((prev) => (prev ? { ...prev, internalNotes: [newNote, ...(prev.internalNotes || [])] } : null));
             setNoteText('');
             toast.success('Nota adicionada');
         } catch {
@@ -205,7 +191,6 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         try {
             const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { qualification: qualDraft });
             setLead(updated);
-            setActiveLead(updated);
             setQualOpen(false);
             onChanged();
             toast.success('Qualificação salva com sucesso!');
@@ -228,50 +213,6 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
             toast.error('Erro ao excluir lead');
         } finally {
             setDeleting(false);
-        }
-    };
-
-    const openBitrixExportOptions = async () => {
-        if (!bitrixConnectionId) {
-            toast.error('Nenhuma integração com Bitrix24 configurada.');
-            return;
-        }
-        setBitrixOptionsOpen(true);
-        try {
-            const [statuses, users] = await Promise.all([
-                api.get<Array<{ id: string; name: string }>>(`/api/integrations/bitrix24/${bitrixConnectionId}/statuses`),
-                api.get<Array<{ id: string; name: string }>>(`/api/integrations/bitrix24/${bitrixConnectionId}/users`),
-            ]);
-            setBitrixStatusOptions(statuses);
-            setBitrixUserOptions(users);
-            if (statuses[0]?.id) setBitrixStatusId(statuses[0].id);
-            if (users[0]?.id) setBitrixAssignedById(users[0].id);
-        } catch {
-            toast.error('Não foi possível carregar as opções do Bitrix24. O export usará os valores padrão.');
-        }
-    };
-
-    const handleExportToBitrix = async () => {
-        if (!lead) return;
-        setExportingBitrix(true);
-        try {
-            const res = await api.post<{ success: boolean; data?: { bitrixDealId: number } }>(
-                `/api/leads/${lead.id}/export-bitrix`,
-                {
-                    statusId: bitrixStatusId || undefined,
-                    assignedById: bitrixAssignedById ? parseInt(bitrixAssignedById, 10) : undefined,
-                }
-            );
-            setBitrixOptionsOpen(false);
-            if (res.success && res.data?.bitrixDealId) {
-                toast.success(`Exportado para o Bitrix24! (ID do Negócio: ${res.data.bitrixDealId})`);
-            } else {
-                toast.success('Exportado para o Bitrix24!');
-            }
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Erro ao exportar para o Bitrix24');
-        } finally {
-            setExportingBitrix(false);
         }
     };
 
@@ -412,10 +353,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                                 <span className="text-xs font-semibold text-ink">{company.segment}</span>
                                             </div>
                                         )}
-                                        {company.employees && (
+                                        {company.employeeCount && company.employeeCount > 0 && (
                                             <div>
                                                 <span className="text-[10px] text-ink-2 font-medium block">Funcionários</span>
-                                                <span className="text-xs font-semibold text-ink">{company.employees}</span>
+                                                <span className="text-xs font-semibold text-ink">{company.employeeCount}</span>
                                             </div>
                                         )}
                                         {company.website && (
@@ -487,10 +428,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
 
                                 {qualOpen ? (
                                     <div className="bg-surface-2/40 p-4 rounded-2xl border border-line space-y-4">
-                                        {PIC_OPTIONS.map((group) => (
+                                        {QUALIFICATION_GROUPS.map((group) => (
                                             <div key={group.category} className="space-y-1.5">
                                                 <label className="text-[10px] font-bold uppercase tracking-wider text-ink-2 block">
-                                                    {group.category}
+                                                    {group.label}
                                                 </label>
                                                 <select
                                                     value={qualDraft[group.category as keyof LeadQualification] || ''}
@@ -558,7 +499,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                 </form>
 
                                 <div className="space-y-3">
-                                    {lead.notes?.map((n) => (
+                                    {lead.internalNotes?.map((n) => (
                                         <div key={n.id} className="p-3 bg-surface-2/40 rounded-2xl border border-line space-y-1">
                                             <p className="text-xs text-ink whitespace-pre-wrap">{n.content}</p>
                                             <span className="text-[10px] text-ink-2 flex items-center gap-1">
@@ -574,20 +515,17 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
                                         <Sparkles className="w-4 h-4 text-brand" /> Copiloto de Vendas ({activeBrand})
                                     </h3>
-                                    <AIEmailGenerator lead={lead} />
+                                    <AIEmailGenerator
+                                        companyName={lead.company?.legalName || lead.company?.tradeName || undefined}
+                                        contactName={lead.contact?.name || undefined}
+                                        role={lead.contact?.role || undefined}
+                                        phone={lead.contact?.phone || undefined}
+                                    />
                                 </section>
                             )}
                         </div>
 
-                        <div className="p-4 border-t border-line bg-surface-2/50 shrink-0 flex items-center justify-between">
-                            <button
-                                onClick={openBitrixExportOptions}
-                                disabled={exportingBitrix}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 shadow-sm"
-                            >
-                                {exportingBitrix ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                                Exportar Bitrix24
-                            </button>
+                        <div className="p-4 border-t border-line bg-surface-2/50 shrink-0 flex items-center justify-end">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleVoiceCall}

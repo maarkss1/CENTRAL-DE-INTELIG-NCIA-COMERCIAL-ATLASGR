@@ -30,6 +30,7 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
             include: {
                 company: { select: { id: true, tradeName: true, legalName: true, cnpj: true } },
                 pipelineStage: { select: { id: true, name: true, sortOrder: true, probability: true, isWon: true, isLost: true } },
+                dealItems: { select: { sku: true, product: { select: { sku: true } } } },
             },
             orderBy: { updatedAt: 'desc' },
         });
@@ -73,6 +74,8 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
                 stageProbability: stage?.probability ?? lead.probability ?? null,
                 stageIsWon,
                 stageIsLost,
+                icp: lead.pic,
+                productSkus: lead.dealItems.flatMap(i => i.sku || i.product?.sku ? [i.sku || i.product?.sku] : []).filter(Boolean) as string[],
             };
         });
     }

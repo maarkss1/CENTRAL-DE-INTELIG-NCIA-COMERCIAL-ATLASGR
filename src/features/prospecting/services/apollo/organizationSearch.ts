@@ -45,13 +45,13 @@ function resolveApolloLocations(criteria: ProspectCriteria): string[] {
  * lista fixa (mercado, loja de roupa, restaurante...) devolvia sempre transportadoras/operadores
  * logísticos em vez do que foi pedido.
  */
-function mapSegmentToKeyword(segmento: string): string {
+function mapSegmentToKeyword(segmento: string): string | null {
     const s = segmento.toLowerCase();
     if (s.includes('transportadora')) return 'trucking';
     if (s.includes('embarcador')) return 'logistics';
     if (s.includes('3pl') || s.includes('operador logístico')) return 'third party logistics';
     if (s.includes('facilities') || s.includes('rh')) return 'facilities services';
-    return segmento.split('(')[0].trim();
+    return null;
 }
 
 /**
@@ -113,17 +113,26 @@ export async function fetchApolloCandidates(
         100
     );
 
+    const mappedKeyword = mapSegmentToKeyword(criteria.segmento);
+    const keywords = [mappedKeyword, ...extraKeywords].filter(Boolean) as string[];
+
     const body: Record<string, unknown> = {
-        q_organization_keyword_tags: [mapSegmentToKeyword(criteria.segmento), ...extraKeywords],
         organization_locations: resolveApolloLocations(criteria),
         per_page: requestSize,
         page: 1,
     };
+
+    if (keywords.length > 0) {
+        body.q_organization_keyword_tags = keywords;
+    }
+
+    const orgName = criteria.nomeEmpresa || (!mappedKeyword && criteria.segmento !== 'Qualquer Segmento' ? criteria.segmento : undefined);
+    if (orgName) {
+        body.q_organization_name = orgName;
+    }
+
     if (criteria.porte) {
         body.organization_num_employees_ranges = [criteria.porte];
-    }
-    if (criteria.nomeEmpresa) {
-        body.q_organization_name = criteria.nomeEmpresa;
     }
     if (criteria.faturamentoMin != null || criteria.faturamentoMax != null) {
         body.revenue_range = {

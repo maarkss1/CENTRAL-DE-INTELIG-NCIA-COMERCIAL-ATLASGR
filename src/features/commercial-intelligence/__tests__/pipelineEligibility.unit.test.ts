@@ -36,8 +36,10 @@ function baseDeal(overrides: Partial<DealRow> = {}): DealRow {
         stageProbability: 15,
         stageIsWon: false,
         stageIsLost: false,
+        productSkus: [],
+        icp: null,
         ...overrides,
-    };
+    } as DealRow;
 }
 
 describe('pipelineEligibility', () => {

@@ -77,6 +77,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     // por isso abre em nova aba em vez de navegar dentro do app.
     const externalTools = [
         { label: 'Extrator Bitrix24', href: '/tools/extrator-bitrix.html', icon: <Download size={20} /> },
+        { label: 'Atlas Market Intelligence', href: '/tools/atlas-market-intelligence/index.html', icon: <LineChart size={20} /> },
     ];
 
     return (
