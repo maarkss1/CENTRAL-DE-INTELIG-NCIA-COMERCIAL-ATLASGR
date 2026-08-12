@@ -392,6 +392,31 @@ const riskFile=document.getElementById('riskFile');riskFile?.addEventListener('c
 
 updateTerritoryHub(selected);
 
+// ─── AUTO-LOAD: carrega os CSVs gerados localmente ao abrir a ferramenta ────
+async function autoLoadCSV(path, importFn, label) {
+  try {
+    const resp = await fetch(path);
+    if (!resp.ok) return; // arquivo ainda não existe, sem erro visível
+    const blob = await resp.blob();
+    const file = new File([blob], path.split('/').pop(), { type: 'text/csv' });
+    console.log(`[AMI] Auto-carregando ${label}…`);
+    await importFn(file);
+    console.log(`[AMI] ${label} carregado com sucesso.`);
+  } catch (e) {
+    console.warn(`[AMI] Auto-load de ${label} falhou:`, e.message);
+  }
+}
+
+// Aguarda a página estabilizar antes de buscar os arquivos
+window.addEventListener('load', () => {
+  setTimeout(async () => {
+    // 1️⃣ ICP/CNPJ — 3 MB, carrega rápido
+    await autoLoadCSV('./atlas_icp_municipios.csv', importIcp, 'ICP/CNPJ Municipal');
+    // 2️⃣ RNTRC — 150 MB, carrega em streaming; pode demorar em conexões lentas
+    await autoLoadCSV('./transportadores_rntrc_07_2026.csv', importRntrc, 'RNTRC Jul/2026');
+  }, 400);
+});
+
 </script>
 </body>
 </html>

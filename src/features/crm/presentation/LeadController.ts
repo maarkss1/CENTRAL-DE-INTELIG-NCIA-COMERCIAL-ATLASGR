@@ -165,6 +165,16 @@ export class LeadController {
         }
     };
 
+    enrichBatch = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const result = await this.leadUseCases.enqueueBatchEnrichment(orgId);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     triggerStaleFollowups = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId: orgId } = (req as AuthRequest).user;

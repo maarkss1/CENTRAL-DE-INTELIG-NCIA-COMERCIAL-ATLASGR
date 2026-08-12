@@ -41,7 +41,7 @@ INSTRUÇÃO ATUAL: Fale com ${contactName || 'o decisor'}, entenda como eles lid
 async function call() {
     console.log("Iniciando chamada direta ao Hub (porta 3001) para Rodrigo...");
     try {
-        const response = await fetch("http://[::1]:3001/api/voice/outbound", {
+        const response = await fetch("http://127.0.0.1:3001/api/voice/outbound", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

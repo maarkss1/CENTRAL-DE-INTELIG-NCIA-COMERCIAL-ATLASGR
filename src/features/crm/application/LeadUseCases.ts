@@ -256,4 +256,43 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         const result = await importSelectedBitrixLeads(organizationId, connection.id, unimportedIds);
         return { ...result, pagesExhausted };
     }
+
+    async enqueueBatchEnrichment(organizationId: string) {
+        const { prisma } = await import('../../../lib/prisma.js');
+        const { enrichmentQueue } = await import('../../../lib/queue/enrichment.queue.js');
+
+        const leadsToEnrich = await prisma.lead.findMany({
+            where: {
+                organizationId,
+                companyId: { not: null },
+                company: { enrichmentStatus: 'Pendente' },
+                // Garantir que não pegamos leads deletados se houver soft delete, mas o prisma de Company não tem deletedAt?
+                // O schema diz que Company tem deletedAt.
+                deletedAt: null
+            },
+            select: { id: true, companyId: true, company: { select: { cnpj: true, segment: true } } }
+        });
+
+        if (leadsToEnrich.length === 0) return { enqueued: 0 };
+
+        const jobs = leadsToEnrich.map(lead => ({
+            name: 'enrichment-job',
+            data: {
+                companyId: lead.companyId!,
+                organizationId,
+                cnpj: lead.company?.cnpj || undefined,
+                segmentKeywords: lead.company?.segment ? [lead.company.segment] : undefined,
+            }
+        }));
+
+        await enrichmentQueue.addBulk(jobs);
+
+        const companyIds = Array.from(new Set(leadsToEnrich.map(l => l.companyId!)));
+        await prisma.company.updateMany({
+            where: { id: { in: companyIds } },
+            data: { enrichmentStatus: 'Enriquecendo' }
+        });
+
+        return { enqueued: leadsToEnrich.length };
+    }
 }
