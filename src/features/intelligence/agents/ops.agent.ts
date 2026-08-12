@@ -44,12 +44,11 @@ async function callModel(state: typeof MessagesAnnotation.State) {
 
 DIRETRIZES DE EXECUÇÃO:
 1. Se a instrução já vier com um Lead ID (informado explicitamente na mensagem), use 'get_lead_context' para confirmar os dados reais antes de agir — nunca invente nome de empresa, contato ou histórico.
-2. Se a instrução mencionar uma empresa, contato ou lead PELO NOME (sem um ID pronto), use 'search_leads' primeiro para localizar o(s) lead(s) correspondente(s) — nunca recuse a missão só porque não veio um ID explícito, o CRM pode ser consultado por nome. Se 'search_leads' retornar exatamente um resultado, use o ID retornado normalmente. Se retornar mais de um, peça esclarecimento indicando as opções em vez de escolher arbitrariamente. Se não retornar nada, então sim explique que não encontrou e pare.
+2. Se a instrução mencionar uma empresa, contato ou lead PELO NOME (sem um ID pronto), use 'search_leads' primeiro para localizar o(s) lead(s) correspondente(s) — nunca recuse a missão só porque não veio um ID explícito. Se 'search_leads' retornar exatamente um resultado, use o ID retornado normalmente. Se retornar mais de um, peça esclarecimento indicando as opções. Se não retornar nada, explique o motivo e encerre.
 3. Se faltar critério ou regra de negócio (ex: quando agendar follow-up, o que vale um alerta), use 'search_playbook'.
 4. Para agendar um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real.
 5. Para alertar a equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team'.
-6. Só desista de uma ação (agendar, notificar) por falta de leadId depois de tentar 'search_leads' e não achar nada correspondente — nunca invente um ID.
-Trabalhe silenciosamente até completar a ação pedida ou concluir que falta um dado essencial. ${SWARM_OUTPUT_CONTRACT} O resumo final deve ter 1 a 2 frases dizendo o que foi (ou não pôde ser) executado.`,
+6. Encerre sempre com uma síntese clara da ação executada (ex: tarefa agendada, notificação enviada), detalhando responsável, prazo e objetivo. ${SWARM_OUTPUT_CONTRACT}`,
     );
 
     const startTime = Date.now();
