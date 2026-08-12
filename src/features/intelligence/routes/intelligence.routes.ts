@@ -135,6 +135,31 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
     }
 });
 
+// A rota acima dispara o SDRQualificationAgent sem aguardar e devolve 202 imediatamente — sem esta
+// rota não havia nenhuma forma de buscar o resultado depois (o cliente ficava sem saber quando/se a
+// qualificação terminou). O agente persiste seu progresso em AgentMemory a cada rodada do grafo
+// (sdr.agent.ts updateMemory), então "ainda não existe registro" é o sinal confiável de "pendente".
+router.get('/agents/sdr/status/:sessionId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { sessionId } = req.params;
+        const authRequest = req as AuthRequest;
+
+        const memory = await prisma.agentMemory.findFirst({
+            where: { sessionId, organizationId: authRequest.user.organizationId, agentType: 'SDR' },
+        });
+
+        if (!memory) {
+            res.status(202).json({ status: 'pending', sessionId });
+            return;
+        }
+
+        res.json({ status: 'completed', sessionId, messages: memory.messages });
+    } catch (error) {
+        logger.error({ err: error }, 'Error fetching SDR agent status');
+        next(error);
+    }
+});
+
 import { VectorSearchService } from '../services/vector-search.service.js';
 
 router.get('/search', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
