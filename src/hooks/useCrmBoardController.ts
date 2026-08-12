@@ -3,7 +3,6 @@ import { api } from '../lib/api';
 import { clientLogger } from '../lib/clientLogger';
 import { toast } from '../lib/toast';
 import { Lead } from '../types';
-import { leadsDB } from '../lib/db';
 
 export function useCrmBoardController(funnel: 'Lead' | 'Negocio') {
     const [leads, setLeads] = useState<Lead[]>([]);
@@ -76,7 +75,7 @@ export function useCrmBoardController(funnel: 'Lead' | 'Negocio') {
             toast.success('Lead enriquecido com sucesso.');
         } catch (error) {
             clientLogger.error({ err: error }, 'Error enriching lead');
-            tlast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
+            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
         }
     }, [fetchLeads]);
 

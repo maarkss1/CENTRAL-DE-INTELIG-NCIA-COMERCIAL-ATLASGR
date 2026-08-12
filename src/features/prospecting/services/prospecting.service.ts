@@ -92,12 +92,17 @@ export function buildLocationLabel(criteria: ProspectCriteria): string {
     return criteria.localizacao;
 }
 
-/** Monta a pesquisa nominal do Google Places/OpenStreetMap, preservando segmento e localização. */
+/** Monta a pesquisa nominal para Google Places/OpenStreetMap, combinando livremente nome, segmento, palavra-chave e localização. */
 function buildPlacesQuery(criteria: ProspectCriteria): string {
     const companyOrPlace = criteria.nomeEmpresa?.trim();
-    const segment = criteria.segmento.split('(')[0].trim();
-    const location = buildLocationLabel(criteria);
-    return [companyOrPlace, companyOrPlace ? segment : null, location ? `em ${location}` : null]
+    const segment = criteria.segmento?.trim();
+    const location = buildLocationLabel(criteria)?.trim();
+    const keywords = criteria.palavrasChave?.trim();
+
+    // Se o usuário digitou uma busca direta por nome ou palavra-chave (ex: "Supermercado", "Academia"), usaremos isso diretamente
+    const term = companyOrPlace || segment || keywords || 'Empresa';
+    
+    return [term, location ? `em ${location}` : null]
         .filter(Boolean)
         .join(' ');
 }
