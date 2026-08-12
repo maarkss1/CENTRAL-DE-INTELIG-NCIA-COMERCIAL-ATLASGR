@@ -12,6 +12,7 @@ import {
     type AnalyticsDashboard,
 } from '../analytics.api';
 import { SINGLE, INK, tooltipStyle } from '../../../shared/constants/chartPalette';
+import { HeatmapWidget, AgentPerformanceWidget, LostReasonsWidget, TmqTile } from './DashboardExtensions';
 
 /**
  * Paleta validada com o script do guia de data-viz contra a superfície escura dos cards
@@ -186,7 +187,7 @@ export function Analytics() {
                     /* Mantém o render anterior a 60% durante o refetch em vez de piscar esqueleto. */
                     <div className={`space-y-6 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
                         {/* Indicadores de topo */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                             <StatTile label="Leads em aberto" value={String(data.overview.totalLeads)} />
                             <StatTile
                                 label="Conversão"
@@ -199,10 +200,21 @@ export function Analytics() {
                                 tone="good"
                             />
                             <StatTile
+                                label="Perdidos no mês"
+                                value={String(data.overview.lostThisMonth)}
+                                tone={data.overview.lostThisMonth > 0 ? 'critical' : undefined}
+                            />
+                            <StatTile
                                 label="Atividades atrasadas"
                                 value={String(data.overview.overdueActivities)}
                                 hint={`${data.overview.pendingActivities} pendentes no total`}
                                 tone={data.overview.overdueActivities > 0 ? 'critical' : undefined}
+                            />
+                            <StatTile
+                                label="TMQ (dias)"
+                                value={data.tmqMetric !== null ? data.tmqMetric.toFixed(1) : '—'}
+                                hint="tempo médio para qualificar"
+                                tone={data.tmqMetric !== null && data.tmqMetric <= 3 ? 'good' : data.tmqMetric !== null && data.tmqMetric > 7 ? 'critical' : undefined}
                             />
                         </div>
 
@@ -328,6 +340,38 @@ export function Analytics() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             </ChartCard>
+                        </div>
+
+                        {/* ── Widgets de segunda camada ── */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Heatmap de Ligações — ocupa 2 colunas */}
+                            <Card padding="sm" className="lg:col-span-2">
+                                <h3 className="text-sm font-bold text-ink mb-4">🔥 Mapa de Calor — Melhor Horário para Ligar</h3>
+                                <HeatmapWidget data={data.callHeatmap} />
+                            </Card>
+
+                            {/* TMQ */}
+                            <Card padding="sm">
+                                <h3 className="text-sm font-bold text-ink mb-2">⏱ Tempo Médio de Qualificação</h3>
+                                <p className="text-[11px] text-ink-2 mb-3">Do lead recebido até a primeira qualificação</p>
+                                <TmqTile value={data.tmqMetric} />
+                            </Card>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Performance IA vs Humanos */}
+                            <Card padding="sm">
+                                <h3 className="text-sm font-bold text-ink mb-1">🤖 Performance: IA vs Humanos</h3>
+                                <p className="text-[11px] text-ink-2 mb-3">Leads qualificados por responsável no período</p>
+                                <AgentPerformanceWidget data={data.performanceReport} />
+                            </Card>
+
+                            {/* Motivos de Perda */}
+                            <Card padding="sm">
+                                <h3 className="text-sm font-bold text-ink mb-1">📉 Principais Motivos de Perda</h3>
+                                <p className="text-[11px] text-ink-2 mb-3">Leads desqualificados/perdidos por motivo</p>
+                                <LostReasonsWidget data={data.lostReasons} />
+                            </Card>
                         </div>
                     </div>
                 )}

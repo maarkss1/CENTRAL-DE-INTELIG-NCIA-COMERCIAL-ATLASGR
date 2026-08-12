@@ -371,4 +371,70 @@ router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFu
     }
 });
 
+// ── Win/Loss Analysis ────────────────────────────────────────────────────────
+// Roda a análise imediatamente (em vez de aguardar o cron de sexta) e devolve
+// o resultado. Útil para o usuário disparar manualmente pela UI.
+router.post('/win-loss-analysis', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const organizationId = (req as AuthRequest).user?.organizationId;
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const leads = await prisma.lead.findMany({
+            where: {
+                ...(organizationId ? { organizationId } : {}),
+                status: { in: ['Convertido_em_Oportunidade', 'Lead_Desqualificado', 'Negocios_Perdidos', 'Negocios_Ganhos'] },
+                updatedAt: { gte: sevenDaysAgo }
+            },
+            include: {
+                whatsAppMessages: {
+                    select: { body: true, direction: true },
+                    take: 15
+                },
+                timeline: {
+                    select: { description: true },
+                    take: 10
+                }
+            },
+            take: 30
+        });
+
+        if (leads.length === 0) {
+            res.json({ analysis: 'Nenhum lead fechado nos últimos 7 dias para analisar. Aguarde o acúmulo de dados ou expanda o período de busca.' });
+            return;
+        }
+
+        const dataStr = leads.map(l => {
+            const msgs = l.whatsAppMessages.map(m => `${m.direction}: ${m.body || '(sem texto)'}`).join(' | ');
+            const tl = l.timeline.map(t => t.description).join(' | ');
+            return `Lead ID: ${l.id} | Status: ${l.status}\nInterações: ${msgs || 'Sem mensagens'}\nTimeline: ${tl || 'Sem timeline'}\n---`;
+        }).join('\n');
+
+        const model = getAiModel('local-llama3-fast', 0.3, 'win-loss-analysis');
+        const response = await model.invoke([
+            new SystemMessage(`Você é um analista comercial sênior especialista em RevOps e vendas B2B.
+Leia as transcrições e timelines dos leads Fechados (Ganhos e Perdidos) desta semana.
+Responda com EXATAMENTE 3 tópicos numerados:
+
+1. **O que os leads ganhos têm em comum**: padrões de comportamento, objeções superadas, sinais de compra
+2. **Principais objeções/motivos de perda**: o que fez os leads não comprarem
+3. **Recomendação prática para o time**: 1 ação concreta para melhorar a taxa de conversão
+
+Seja específico, use dados dos leads. Evite generalizações vagas.`),
+            new HumanMessage(`Dados da semana:\n\n${dataStr}`)
+        ]);
+
+        const analysis = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+        logger.info(
+            { organizationId, leadsAnalyzed: leads.length, tool: 'win-loss-analysis' },
+            '[WinLoss] Análise manual disparada com sucesso'
+        );
+
+        res.json({ analysis, leadsAnalyzed: leads.length });
+    } catch (error) {
+        logger.error({ err: error }, 'Falha no Win/Loss Analysis manual');
+        next(error);
+    }
+});
+
 export const intelligenceRoutes = router;
+
