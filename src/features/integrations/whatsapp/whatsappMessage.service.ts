@@ -53,7 +53,7 @@ async function findOpenLeadForContact(organizationId: string, contactId: string)
             status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
         },
         orderBy: { createdAt: 'desc' },
-        select: { id: true },
+        select: { id: true, customFields: true, organizationId: true },
     });
 }
 
@@ -100,6 +100,18 @@ export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput)
     });
 
     if (lead && input.direction === 'inbound') {
+        const textLower = (input.body || '').trim().toLowerCase();
+        if (['sair', 'parar', 'stop'].includes(textLower)) {
+            const currentFields = (lead.customFields as Record<string, unknown>) || {};
+            await prisma.lead.update({
+                where: { id: lead.id },
+                data: {
+                    customFields: { ...currentFields, optOutWhatsApp: true }
+                }
+            });
+            logger.info({ leadId: lead.id }, 'Lead solicitou opt-out do WhatsApp');
+        }
+
         await prisma.timelineEvent.create({
             data: {
                 type: 'whatsapp',

@@ -114,7 +114,10 @@ export async function fetchApolloCandidates(
     );
 
     const mappedKeyword = mapSegmentToKeyword(criteria.segmento);
-    const keywords = [mappedKeyword, ...extraKeywords].filter(Boolean) as string[];
+    // Se não há um mapeamento específico e não é "Qualquer Segmento", usamos o termo literal como keyword
+    const segmentKeyword = mappedKeyword || (criteria.segmento && criteria.segmento !== 'Qualquer Segmento' ? criteria.segmento : null);
+    
+    const keywords = [segmentKeyword, ...extraKeywords].filter(Boolean) as string[];
 
     const body: Record<string, unknown> = {
         organization_locations: resolveApolloLocations(criteria),
@@ -126,9 +129,8 @@ export async function fetchApolloCandidates(
         body.q_organization_keyword_tags = keywords;
     }
 
-    const orgName = criteria.nomeEmpresa || (!mappedKeyword && criteria.segmento !== 'Qualquer Segmento' ? criteria.segmento : undefined);
-    if (orgName) {
-        body.q_organization_name = orgName;
+    if (criteria.nomeEmpresa) {
+        body.q_organization_name = criteria.nomeEmpresa;
     }
 
     if (criteria.porte) {

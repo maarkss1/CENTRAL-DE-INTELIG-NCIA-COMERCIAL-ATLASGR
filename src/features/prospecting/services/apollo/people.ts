@@ -126,9 +126,8 @@ export async function enrichOrganizationWithContacts(
             },
             body: JSON.stringify({
                 q_organization_domains: domain,
-                // Tentaremos pegar nível Diretor, VP, C-Level ou Gerentes
+                // Buscaremos executivos-chave (Decisores/Gestores) sem restringir a área
                 person_seniorities: ['c_suite', 'vp', 'director', 'manager'],
-                person_titles: ['logistica', 'logística', 'supply chain', 'operações', 'operacoes', 'comercial', 'vendas', 'transporte', 'frota'],
                 per_page: limit,
                 page: 1,
             }),

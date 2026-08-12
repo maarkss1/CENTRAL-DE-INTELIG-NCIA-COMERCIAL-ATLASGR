@@ -66,6 +66,8 @@ import { enabledOrganizations } from './src/features/integrations/birth-voice/co
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
+import { createFollowUpWorker, scheduleFollowUpJobs } from './src/features/crm/jobs/followUp.worker.js';
+import { sendWhatsAppMessage } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
@@ -248,6 +250,7 @@ async function startServer() {
                         { contact: { whatsapp: { contains: searchPattern } } },
                     ]
                 },
+                include: { contact: true }
             }) : null;
 
             if (lead) {
@@ -286,6 +289,33 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
                 });
 
                 logger.info(`Voice call transcript successfully attached to lead ${lead.id}`);
+
+                // Phase 5 Triggers
+                if (!currentFields.optOutWhatsApp && lead.organizationId && lead.contact) {
+                    const phone = (lead.contact as any).whatsapp || (lead.contact as any).phone;
+                    if (phone) {
+                        try {
+                            const isMissed = (call_length || 0) < 0.2 || (summary || '').toLowerCase().includes('não atendeu') || (summary || '').toLowerCase().includes('caixa postal');
+                            
+                            if (isMissed) {
+                                await sendWhatsAppMessage(
+                                    lead.organizationId,
+                                    phone,
+                                    `Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*`
+                                );
+                            } else {
+                                // Assuming successful call means we send a summary/confirmation
+                                await sendWhatsAppMessage(
+                                    lead.organizationId,
+                                    phone,
+                                    `Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*`
+                                );
+                            }
+                        } catch (err) {
+                            logger.warn({ err, leadId: lead.id }, 'Falha ao disparar WhatsApp automático pós-ligação');
+                        }
+                    }
+                }
 
                 // Emite a notificação em tempo real
                 sseService.notifyVoiceQualified(
@@ -474,11 +504,13 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
     const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
     const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
+    const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
     if (queuesEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+        scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
     }
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -522,6 +554,7 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         await enrichmentWorker?.close();
         await whatsappSignalWorker?.close();
         await bitrixSyncWorker?.close();
+        await followUpWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
         await shutdownLangfuse();
