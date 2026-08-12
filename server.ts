@@ -223,6 +223,69 @@ async function startServer() {
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
     app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
+
+    // Webhook para receber retorno de transcrição e gravação de chamadas de voz da Bland AI / Birthub Voices
+    app.post('/api/webhooks/voice-result', async (req, res) => {
+        const secretHeader = req.headers['x-atlasgr-webhook-secret'];
+        const expectedSecret = env.ATLASGR_WEBHOOK_SECRET || 'segredo_compartilhado_atlasgr_123';
+        if (secretHeader !== expectedSecret) {
+            res.status(401).json({ success: false, error: 'Unauthorized webhook secret' });
+            return;
+        }
+
+        const { call_id, phone_number, concatenated_transcript, summary, recording_url, call_length } = req.body;
+        logger.info('Voice result received at AtlasGR', { call_id, phone_number });
+
+        try {
+            const rawDigits = (phone_number || '').replace(/\D/g, '');
+            const searchPattern = rawDigits.length >= 8 ? rawDigits.slice(-8) : rawDigits;
+
+            const lead = searchPattern ? await prisma.lead.findFirst({
+                where: {
+                    OR: [
+                        { phone: { contains: searchPattern } },
+                        { contact: { phone: { contains: searchPattern } } },
+                    ],
+                },
+            }) : null;
+
+            if (lead) {
+                const noteContent = `📞 **Resultado da Ligação de Voz (IA)**
+- **ID da Chamada**: ${call_id}
+- **Duração**: ${Math.round((call_length || 0) * 60)}s
+- **Resumo Inteligente**: ${summary || 'Sem resumo disponível.'}
+- **Gravação em Áudio**: ${recording_url ? `[Ouvir Gravação](${recording_url})` : 'Sem gravação de áudio.'}
+
+---
+### 📝 Transcrição Completa da Conversa:
+${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
+
+                await prisma.note.create({
+                    data: {
+                        leadId: lead.id,
+                        content: noteContent,
+                        author: 'IA de Voz (Bland AI)',
+                        organizationId: lead.organizationId,
+                    },
+                });
+
+                await prisma.timelineEvent.create({
+                    data: {
+                        type: 'activity',
+                        description: `SDR de voz concluiu chamada. Resumo: ${summary || 'Chamada finalizada'}.`,
+                        leadId: lead.id,
+                    },
+                });
+
+                logger.info(`Voice call transcript successfully attached to lead ${lead.id}`);
+            }
+
+            res.status(200).json({ success: true, lead_found: !!lead });
+        } catch (err) {
+            logger.error({ err }, 'Error handling voice result webhook in AtlasGR');
+            res.status(500).json({ success: false, error: 'Internal server error' });
+        }
+    });
     // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
     // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
