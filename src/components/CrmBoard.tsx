@@ -394,7 +394,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                         onDragCancel={handleDragCancel}
                         accessibility={{ announcements }}
                     >
-                        <div className="flex gap-6 h-full items-start">
+                        <div className="flex gap-6 h-full">
                             {columns.map(status => (
                                 <KanbanColumn
                                     key={status}
