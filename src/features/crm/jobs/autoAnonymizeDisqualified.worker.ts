@@ -50,6 +50,10 @@ export function createAutoAnonymizeWorker() {
         }
     }, { connection: connection as any });
 
+    worker.on('error', (err) => {
+        logger.warn({ message: err.message }, 'AutoAnonymize worker error suppressed (Redis offline)');
+    });
+
     return worker;
 }
 

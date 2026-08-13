@@ -1,6 +1,12 @@
 import { initTracing } from './src/lib/tracing.js';
 initTracing();
 
+// Registrado logo no boot: sem Redis configurado, comandos internos do BullMQ rejeitam com
+// "Connection is closed." fora de qualquer await nosso, e a rejeicao nao tratada derrubava o
+// processo poucos segundos depois de o servidor subir (deploy falhando com status 1).
+import { registerProcessGuards } from './src/lib/process-guards.js';
+registerProcessGuards();
+
 import { env } from './src/config/env.js';
 import express from 'express';
 import helmet from 'helmet';
@@ -442,14 +448,16 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
     const serverAdapter = new ExpressAdapter();
     serverAdapter.setBasePath('/admin/queues');
-    createBullBoard({
-        queues: [
-            new BullMQAdapter(leadsQueue),
-            new BullMQAdapter(searchQueue),
-            new BullMQAdapter(agentQueue)
-        ],
-        serverAdapter: serverAdapter,
-    });
+    if (queuesEnabled && leadsQueue && searchQueue && agentQueue) {
+        createBullBoard({
+            queues: [
+                new BullMQAdapter(leadsQueue),
+                new BullMQAdapter(searchQueue),
+                new BullMQAdapter(agentQueue)
+            ],
+            serverAdapter,
+        });
+    }
     // Protegemos o painel de administração com autenticação
     app.use('/admin/queues', authenticateToken, requireTenant, serverAdapter.getRouter());
 
@@ -555,8 +563,8 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
-    const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
-    if (env.ENABLE_SEARCH) {
+    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
+    if (queuesEnabled && env.ENABLE_SEARCH) {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 

@@ -52,6 +52,16 @@ export class Crm360Controller {
         }
     };
 
+    convertLead = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const orgId = (req as AuthRequest).user.organizationId;
+            const data = await this.crm360UseCases.convertLead(orgId, req.params.id);
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     listProducts = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const orgId = (req as AuthRequest).user.organizationId;

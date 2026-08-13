@@ -45,6 +45,7 @@ const Settings = lazy(() => import('./features/settings/components/Settings').th
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
+import { MarketIntelligence } from './pages/MarketIntelligence';
 
 function PageFallback() {
   return (
@@ -88,6 +89,7 @@ function AppLayout() {
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="winloss" element={<WinLossAnalysis />} />
+          <Route path="market-intelligence" element={<MarketIntelligence />} />
           {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
               direto por URL (não só o item de menu); a autorização real (que nunca confia no
               frontend) está em requireRole no backend — ver commercialIntelligence.routes.ts. */}

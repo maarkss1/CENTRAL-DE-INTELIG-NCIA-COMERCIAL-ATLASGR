@@ -70,6 +70,10 @@ ${leadsToday.slice(0, 50).map(l => `- Status: ${l.status}, Score: ${l.score || '
         logger.error({ err, jobId: job?.id }, 'Executive summary worker job falhou');
     });
 
+    worker.on('error', (err) => {
+        logger.warn({ err }, 'ExecutiveSummary worker error suppressed (Redis offline)');
+    });
+
     return worker;
 }
 

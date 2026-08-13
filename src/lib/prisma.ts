@@ -275,7 +275,7 @@ export const prisma = basePrisma.$extends({
              if (queuesEnabled && (model === 'Company' || model === 'Lead')) {
                  const indexName = model === 'Company' ? 'companies' : 'leads';
                  const searchAction = operation === 'delete' ? 'delete' : (operation === 'create' ? 'add' : 'update');
-                 searchQueue.add(searchAction, {
+                 searchQueue?.add(searchAction, {
                      index: indexName,
                      action: searchAction,
                      data: operation === 'delete' ? [result.id] : [{ ...result }]

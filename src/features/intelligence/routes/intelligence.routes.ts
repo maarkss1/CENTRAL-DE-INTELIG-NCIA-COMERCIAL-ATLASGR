@@ -95,7 +95,7 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
         }
 
         // companyInfo é opcional — quando ausente, o worker busca os dados reais da empresa no CRM.
-        const job = await leadsQueue.add('qualify-lead', { leadId, companyInfo: companyInfo || '' });
+        const job = leadsQueue ? await leadsQueue.add('qualify-lead', { leadId, companyInfo: companyInfo || '' }) : { id: 'no-queue' };
 
         res.status(202).json({
             message: 'Lead qualification started in background',

@@ -50,7 +50,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({ status, leads, on
             // escura (#171211) — confirmado via cálculo real, não "parece diferente" (ver matriz
             // no relato da Rodada B). dark:border-brand-2 troca pro azul de acento mais claro
             // (#008FCE) só no tema escuro, que dá 5.15:1 — a AtlasGR também passa nos dois casos.
-            className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-brand dark:border-brand-2 bg-soft' : 'border-line'}`}
+            className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] max-h-full shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-brand dark:border-brand-2 bg-soft' : 'border-line'}`}
         >
             {/* h3 sem tamanho explícito herdava o font-size:2rem global (@layer base em
                 globals.css) — o emoji, no mesmo elemento, ficava do mesmo tamanho gigante e

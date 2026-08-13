@@ -66,6 +66,10 @@ export function createWinLossAnalysisWorker() {
         logger.error({ err, jobId: job?.id }, 'Win/Loss worker job falhou');
     });
 
+    worker.on('error', (err) => {
+        logger.warn({ err }, 'WinLoss worker error suppressed (Redis offline)');
+    });
+
     return worker;
 }
 

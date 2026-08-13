@@ -54,6 +54,10 @@ export function createDeduplicationWorker() {
         logger.error({ err, jobId: job?.id }, 'Deduplication worker job falhou');
     });
 
+    worker.on('error', (err) => {
+        logger.warn({ err }, 'Deduplication worker error suppressed (Redis offline)');
+    });
+
     return worker;
 }
 

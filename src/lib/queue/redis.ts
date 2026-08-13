@@ -8,6 +8,7 @@ export const queuesEnabled =
 // Connection instance for standard queue operations
 export const connection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
+    enableOfflineQueue: queuesEnabled,
     maxRetriesPerRequest: null, // Required by BullMQ
     retryStrategy(times) {
         if (times > 3 && !process.env.REDIS_URL) {
@@ -18,8 +19,8 @@ export const connection = new Redis(redisUrl, {
 });
 
 connection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    // Log as debug/warn in dev mode if Redis is offline
+    // Suppress unhandled ioredis errors in dev mode if Redis is not configured
+    if (!queuesEnabled || !process.env.REDIS_URL) return;
     if (process.env.NODE_ENV === 'development') {
         logger.warn({ message: err.message }, 'Redis offline or connecting...');
     } else {
@@ -41,6 +42,7 @@ connection.on('connect', () => {
 // of seconds and blew through the rate limit before real traffic ever arrived.
 export const rateLimiterConnection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
+    enableOfflineQueue: queuesEnabled,
     maxRetriesPerRequest: 1,
     retryStrategy(times) {
         if (times > 3 && !process.env.REDIS_URL) {
@@ -51,7 +53,7 @@ export const rateLimiterConnection = new Redis(redisUrl, {
 });
 
 rateLimiterConnection.on('error', (err) => {
-    if (!queuesEnabled) return;
+    if (!queuesEnabled || !process.env.REDIS_URL) return;
     if (process.env.NODE_ENV === 'development') {
         logger.warn({ message: err.message }, 'Rate limiter Redis connection offline or connecting...');
     } else {

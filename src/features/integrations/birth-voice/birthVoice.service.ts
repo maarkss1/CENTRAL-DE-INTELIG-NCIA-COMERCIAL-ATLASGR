@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { pickCallablePhone } from './birthVoice.helpers.js';
 import { isSuppressed } from './callSuppression.service.js';
+import { buildVoicePromptForLead } from './atlasProductPlaybook.js';
 
 /** Caminho do webhook que o Birth Voices Hub chama com o resultado da ligação. */
 export const CALL_RESULT_WEBHOOK_PATH = '/api/integrations/birth-voice/webhook';
@@ -88,6 +89,9 @@ export async function callLead(organizationId: string, leadId: string, agentType
     }
 
     const company = lead.company as LeadCompanyish | null;
+    const companyName = company?.tradeName ?? company?.legalName ?? null;
+    const contactName = (lead.contact as LeadContactish | null)?.name ?? null;
+
     const response = await fetch(`${config.baseUrl}/api/voice/outbound`, {
         method: 'POST',
         headers: {
@@ -102,13 +106,14 @@ export async function callLead(organizationId: string, leadId: string, agentType
             interruption_threshold: 100,
             reduce_latency: true,
             voice: 'nat',
+            task: buildVoicePromptForLead(companyName, contactName),
             // Devolvido intacto no webhook: é assim que reencontramos o lead sem depender de
             // casar número de telefone, que muda e se repete entre empresas.
             context: {
                 leadId: lead.id,
                 organizationId,
-                name: (lead.contact as LeadContactish | null)?.name ?? null,
-                company: company?.tradeName ?? company?.legalName ?? null,
+                name: contactName,
+                company: companyName,
             },
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),

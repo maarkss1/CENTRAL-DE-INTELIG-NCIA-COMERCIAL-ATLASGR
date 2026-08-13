@@ -31,6 +31,12 @@ const dashboardCheio = {
     activitiesByType: [{ label: 'Ligação', count: 33 }],
     activitiesByStatus: [{ label: 'Pendente', count: 12 }],
     monthly: [{ month: '2026-07', created: 9, won: 3, lost: 1 }],
+    tmqMetric: 2.4,
+    lostReasons: [{ label: 'Preço', count: 5 }],
+    callHeatmap: [{ dayOfWeek: 2, hour: 10, count: 7 }],
+    performanceReport: [
+        { agent: 'Marcelo', isAi: false, leadsAssigned: 20, leadsQualified: 8, conversionRate: 40 },
+    ],
     isEmpty: false,
 };
 

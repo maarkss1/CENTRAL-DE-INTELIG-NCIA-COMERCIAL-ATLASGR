@@ -218,7 +218,7 @@ def load_estabelecimentos(db: sqlite3.Connection, paths: list[Path]):
                 # Layout oficial Estabelecimentos:
                 # 0 base,1 ordem,2 dv,3 matriz/filial,4 fantasia,5 situação,6 data sit,7 motivo,
                 # 8 cidade exterior,9 país,10 abertura,11 cnae principal,...,19 CEP,20 UF,21 município...
-                if len(r) < 22:
+                if len(r) < 21:
                     continue
                 situation = clean_code(r[5])[:2]
                 if situation != "02":  # ativa
@@ -229,8 +229,8 @@ def load_estabelecimentos(db: sqlite3.Connection, paths: list[Path]):
                 if not classified:
                     continue
                 segment, weight = classified
-                uf = (r[20] or "").strip().upper()
-                mun = clean_code(r[21])
+                uf = (r[19] or "").strip().upper()
+                mun = clean_code(r[20])
                 base = clean_code(r[0])[:8]
                 if not uf or not mun or not base:
                     continue

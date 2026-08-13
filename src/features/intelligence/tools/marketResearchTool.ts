@@ -1,71 +1,67 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
-import * as cheerio from 'cheerio';
-import { search } from 'duck-duck-scrape';
 import { logger } from '../../../lib/logger.js';
 
 /**
- * Busca o conteúdo textual de uma URL e limpa o HTML desnecessário.
- */
-async function scrapeUrlContent(url: string): Promise<string> {
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            },
-        });
-        
-        if (!response.ok) {
-            return `Falha ao carregar a página: Status ${response.status}`;
-        }
-        
-        const html = await response.text();
-        const $ = cheerio.load(html);
-        
-        // Remove scripts, styles, navegação, rodapé, etc.
-        $('script, style, noscript, iframe, img, svg, nav, footer, header, aside').remove();
-        
-        // Extrai o texto limpo
-        const text = $('body').text().replace(/\s+/g, ' ').trim();
-        
-        // Limita o tamanho para não estourar o limite de tokens do LLM (aprox 3000 caracteres)
-        return text.substring(0, 3000);
-    } catch (error) {
-        logger.error({ err: error, url }, 'Falha ao realizar web scraping');
-        return 'Erro ao acessar a página da web.';
-    }
-}
-
-/**
- * Ferramenta Robusta de Pesquisa de Mercado (Web Search + Scrape)
+ * Ferramenta Robusta de Pesquisa de Mercado com Tavily API
  */
 export const marketResearchTool = tool(
     async ({ query }: { query: string }) => {
         try {
-            logger.info({ query }, 'Iniciando pesquisa de mercado (DuckDuckGo)');
+            logger.info({ query }, 'Iniciando pesquisa de mercado (Tavily API)');
             
-            // Passo 1: Busca na web usando DuckDuckGo
-            const searchResults = await search(query);
+            const apiKey = process.env.TAVILY_API_KEY;
             
-            if (!searchResults.results || searchResults.results.length === 0) {
+            if (!apiKey) {
+                logger.warn('TAVILY_API_KEY não configurada. A pesquisa de mercado falhará.');
+                return 'A ferramenta de pesquisa na web está temporariamente indisponível (Chave da API Tavily não configurada).';
+            }
+
+            const response = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    api_key: apiKey,
+                    query: query,
+                    search_depth: "advanced",
+                    include_answer: true,
+                    include_images: false,
+                    include_raw_content: true,
+                    max_results: 3,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error({ status: response.status, errorText }, 'Falha na API da Tavily');
+                return `Erro ao realizar a pesquisa na web: Falha na comunicação com o servidor de buscas (Status ${response.status}).`;
+            }
+
+            const data = await response.json();
+
+            if (!data.results || data.results.length === 0) {
                 return 'A busca na web não retornou nenhum resultado. Tente pesquisar com termos mais amplos.';
             }
 
-            // Pega os 2 primeiros resultados relevantes
-            const topResults = searchResults.results.slice(0, 2);
-            
             let finalReport = `Resultados da Pesquisa para: "${query}"\n\n`;
             
-            // Passo 2: Faz o scrape profundo das URLs principais
-            for (let i = 0; i < topResults.length; i++) {
-                const result = topResults[i];
+            if (data.answer) {
+                finalReport += `Resposta Direta da IA: ${data.answer}\n\n`;
+            }
+
+            for (let i = 0; i < data.results.length; i++) {
+                const result = data.results[i];
                 finalReport += `--- Fonte ${i + 1}: ${result.title} ---\n`;
                 finalReport += `URL: ${result.url}\n`;
-                finalReport += `Resumo Rápido: ${result.description}\n\n`;
+                finalReport += `Resumo Rápido: ${result.content}\n\n`;
                 
-                // Extrai o conteúdo real da página para contexto profundo
-                const scrapedContent = await scrapeUrlContent(result.url);
-                finalReport += `Conteúdo da Página (Extração):\n${scrapedContent}\n\n`;
+                if (result.raw_content) {
+                    // Limita o raw_content para não estourar tokens do contexto do agente
+                    const cleanContent = result.raw_content.substring(0, 2000);
+                    finalReport += `Conteúdo Extraído da Página:\n${cleanContent}\n\n`;
+                }
             }
 
             return finalReport;
@@ -76,7 +72,7 @@ export const marketResearchTool = tool(
     },
     {
         name: 'market_research',
-        description: 'Pesquisa DADOS REAIS e ATUAIS na internet. Use esta ferramenta para pesquisar notícias recentes sobre uma empresa, descobrir concorrentes de um lead, buscar o perfil corporativo de um prospect, ou validar informações de mercado que você desconhece. Esta ferramenta LÊ o conteúdo real dos sites encontrados.',
+        description: 'Pesquisa DADOS REAIS e ATUAIS na internet. Use esta ferramenta para pesquisar notícias recentes sobre uma empresa, descobrir concorrentes de um lead, buscar o perfil corporativo de um prospect, ou validar informações de mercado que você desconhece. Esta ferramenta LÊ o conteúdo real dos sites encontrados via Tavily.',
         schema: z.object({
             query: z.string().describe('O termo exato de busca, ex: "notícias recentes sobre a empresa Loggi" ou "concorrentes da FedEx no Brasil"'),
         }),

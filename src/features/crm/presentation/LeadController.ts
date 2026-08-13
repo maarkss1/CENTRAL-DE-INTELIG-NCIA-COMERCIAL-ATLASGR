@@ -165,6 +165,16 @@ export class LeadController {
         }
     };
 
+    enrichBatch = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const result = await this.leadUseCases.enqueueBatchEnrichment(orgId);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
+
     triggerStaleFollowups = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId: orgId } = (req as AuthRequest).user;
@@ -173,7 +183,7 @@ export class LeadController {
             // Dispara a automação para leads que não mudam de status há X dias
             fireAutomations({
                 organizationId: orgId,
-                trigger: 'Follow-up de leads estagnados',
+                trigger: 'Lead mudou de status',
                 entity: 'Lead',
                 entityId: 'BATCH',
                 data: { daysStale: days },

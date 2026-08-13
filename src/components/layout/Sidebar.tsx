@@ -63,6 +63,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'objections_matrix' as TabType, label: 'Matriz de Objeções', icon: <Shield size={20} /> },
         { id: 'chatbook' as TabType, label: 'Chatbook', icon: <MessageSquare size={20} /> },
         { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
+        { id: 'market-intelligence' as TabType, label: 'Market Intelligence', icon: <LineChart size={20} /> },
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
         { id: 'bitrix' as TabType, label: 'Guia Bitrix24', icon: <Layers size={20} /> },
         { id: 'integrations' as TabType, label: 'Integrações', icon: <Plug size={20} /> },
@@ -78,7 +79,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     // por isso abre em nova aba em vez de navegar dentro do app.
     const externalTools = [
         { label: 'Extrator Bitrix24', href: '/tools/extrator-bitrix.html', icon: <Download size={20} /> },
-        { label: 'Atlas Market Intelligence', href: '/tools/atlas-market-intelligence/index.html', icon: <LineChart size={20} /> },
     ];
 
     return (

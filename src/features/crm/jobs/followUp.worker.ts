@@ -62,6 +62,10 @@ export function createFollowUpWorker() {
         logger.error({ err, jobId: job?.id }, 'Follow-up worker job falhou');
     });
 
+    followUpWorker.on('error', (err) => {
+        logger.warn({ err }, 'FollowUp worker error suppressed (Redis offline)');
+    });
+
     return followUpWorker;
 }
 

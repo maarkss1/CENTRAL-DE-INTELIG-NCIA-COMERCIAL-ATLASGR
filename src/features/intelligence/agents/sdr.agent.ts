@@ -3,6 +3,8 @@ import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { marketResearchTool } from '../tools/marketResearchTool.js';
+import { copywriterTool } from '../tools/copywriterTool.js';
+import { summarizeLeadTool } from '../tools/summarizeLeadTool.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { Prisma } from '@prisma/client';
@@ -14,7 +16,14 @@ import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { rehydratePii } from '../services/guardrails.service.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
-const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool, marketResearchTool];
+const tools = [
+    getLeadContextTool, 
+    searchPlaybookTool, 
+    updateLeadQualificationTool, 
+    marketResearchTool,
+    copywriterTool,
+    summarizeLeadTool
+];
 const toolNode = new ToolNode(tools);
 
 import { buildModelWithFallbackAndTools } from './fallback.util.js';
@@ -53,12 +62,13 @@ async function callModel(state: typeof MessagesAnnotation.State) {
 Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍSTICO COMPLETA baseada no ICP e decidir o destino do lead no funil.
 
 DIRETRIZES DE EXECUÇÃO:
-1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context'. Nunca presuma porte ou situação cadastral sem que a ferramenta os confirme.
+1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context' e 'summarize_lead_history'. Nunca presuma porte ou situação cadastral sem que as ferramentas confirmem.
 2. RACIOCÍNIO FRIO E IMPLACÁVEL: Analise o Fit Score (0 a 100). Se não tem fit, desqualifique sem pena. Nosso tempo é valioso.
 3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'.
    - A nota deve refletir a realidade crua dos dados.
    - O status deve ser 'Reuniao_Agendada' APENAS para leads Quentes (nota > 75) E com decisor mapeado. Caso contrário 'Qualificacao_SDR' ou 'Lead_Desqualificado'.
-4. SÍNTESE DO SDR (O Resumo Matador): Depois de chamar 'update_lead_qualification', encerre com um briefing comercial com FORMATAÇÃO PREMIUM (Obrigatório o uso de Markdown, Emojis, e separadores).
+4. COPY AUTOMÁTICA: Se o lead for qualificado, USE 'generate_cold_email_copy' para deixar um template pronto de email para o Closer.
+5. SÍNTESE DO SDR (O Resumo Matador): Depois de todas as ações de sistema, encerre com um briefing comercial com FORMATAÇÃO PREMIUM (Obrigatório o uso de Markdown, Emojis, e separadores).
 
 **ESTRUTURA DO SEU OUTPUT FINAL:**
 
@@ -81,8 +91,9 @@ DIRETRIZES DE EXECUÇÃO:
 
 ---
 
-### 🎯 Próximo Passo Exato
-[O que o BDR ou Closer deve fazer nos próximos 5 minutos? Seja direto, nada de 'entrar em contato'. Diga: 'Ligar para o CFO e focar na redução de sinistros'.]
+### 🎯 Próximo Passo Exato e Ações
+[O que o BDR ou Closer deve fazer nos próximos 5 minutos?]
+*(Nota: O histórico foi resumido e uma Copy de E-mail foi gerada e salva no sistema para uso imediato).*
 
 Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'. ${SWARM_OUTPUT_CONTRACT}`
         + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}` : '')

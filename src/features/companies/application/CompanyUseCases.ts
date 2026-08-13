@@ -24,7 +24,7 @@ export class CompanyUseCases extends BaseUseCases<Company, CompanyRepository> {
 
         // Dispatch para a fila de enriquecimento — organizationId é obrigatório para o
         // worker injetar o tenantId no requestContext e o Prisma/RLS encontrar a empresa.
-        await enrichmentQueue.add('enrich-company', {
+        await enrichmentQueue?.add('enrich-company', {
             companyId: company.id,
             organizationId,
             cnpj: company.cnpj || undefined,
