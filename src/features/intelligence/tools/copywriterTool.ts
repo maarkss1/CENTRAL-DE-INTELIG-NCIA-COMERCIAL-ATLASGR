@@ -27,13 +27,14 @@ export const copywriterTool = tool(
             
             const finalCopy = `Assunto: ${subject}\n\n${body}`;
 
-            // Salva como uma nota interna para o SDR usar depois
+            // Salva como uma nota interna para o SDR usar depois. O model `Note` não tem `type`
+            // nem `organizationId` (escopo de organização vem do `leadId` -> `lead.organizationId`)
+            // e exige `author` — ver padrão em note.service.ts/abTesting.service.ts.
             await prisma.note.create({
                 data: {
                     content: `[Gerado por IA] Sugestão de Cold Email:\n\n${finalCopy}`,
-                    type: 'internal',
+                    author: 'Agente de IA (Copywriter)',
                     leadId: args.leadId,
-                    organizationId,
                 }
             });
 

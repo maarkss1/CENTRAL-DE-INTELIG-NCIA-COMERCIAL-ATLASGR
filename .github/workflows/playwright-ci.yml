@@ -10,7 +10,53 @@ jobs:
   e2e-tests:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    
+
+    # Réplica exata do setup de serviços/credenciais do job "CI" (ci.yml), que já roda esta mesma
+    # suíte com sucesso. Este workflow historicamente usava `docker compose up -d` (docker-compose.yml
+    # de dev) com DATABASE_URL apontando pra localhost:5432/postgres:postgres/atlasgr_test — nada
+    # disso existe nesse compose (que expõe 5434, usuário "prospector", banco "prospectordb"), então
+    # todo run falhava em "Can't reach database server at localhost:5432" antes mesmo dos testes
+    # começarem. Trocado pra containers de serviço nativos do Actions (mesma imagem/porta/credenciais
+    # do ci.yml) em vez de tentar concertar o docker-compose só pra CI.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: prospector
+          POSTGRES_PASSWORD: prospector_test_pass
+          POSTGRES_DB: prospectordb_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      MEILI_HOST: http://localhost:7700
+      MEILI_MASTER_KEY: ci-test-meili-key
+      BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOW_DEV_AUTH_BYPASS: true
+      ALLOWED_ORIGINS: http://localhost:3000
+      # Ver comentário equivalente em ci.yml: os 29 specs de tests/e2e rodam sequencialmente contra
+      # o mesmo authLimiter de produção e batem no limite default (20 POSTs/15min) bem antes do fim.
+      AUTH_RATE_LIMIT_MAX: 500
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -18,22 +64,42 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
-        node-version: 20
+        node-version: 22
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      run: npm ci
+
+    - name: Bootstrap papel NOSUPERUSER da aplicação
+      env:
+        PGPASSWORD: prospector_test_pass
+        APP_DB_PASSWORD: ci_app_test_pass
+      run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
 
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps chromium
 
-    - name: Start services (Supabase/Chroma/Postgres)
-      run: docker compose up -d
+    # vitest.integration.config.ts e o pretest:e2e (dotenv -e .env.test) esperam este arquivo — ver
+    # comentário equivalente em ci.yml.
+    - name: Criar .env.test para o E2E
+      run: |
+        cat > .env.test <<EOF
+        NODE_ENV=$NODE_ENV
+        PORT=$PORT
+        DATABASE_URL=$DATABASE_URL
+        REDIS_URL=$REDIS_URL
+        MEILI_HOST=$MEILI_HOST
+        MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+        BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+        ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+        AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+        EOF
 
     - name: Run E2E Tests
       run: npm run test:e2e
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/atlasgr_test
 
     - name: Upload Playwright Report
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
