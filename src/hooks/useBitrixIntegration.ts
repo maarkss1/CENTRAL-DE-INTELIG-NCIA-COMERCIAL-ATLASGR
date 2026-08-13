@@ -15,8 +15,8 @@ interface BitrixConnectionSummary {
 export function useBitrixIntegration() {
     const [bitrixConnections, setBitrixConnections] = useState<BitrixConnectionSummary[]>([]);
     const [selectedBitrixConnectionId, setSelectedBitrixConnectionId] = useState<string | null>(null);
-    const [bitrixWebhookInput, setBitrixWebhookInput] = useState('');
-    const [bitrixLabelInput, setBitrixLabelInput] = useState('');
+    const [bitrixWebhookInput, setBitrixWebhookInput] = useState('https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/');
+    const [bitrixLabelInput, setBitrixLabelInput] = useState('AtlasGR Bitrix24');
     const [bitrixLoading, setBitrixLoading] = useState(false);
 
     const fetchBitrixConnections = async () => {

@@ -6,7 +6,9 @@ import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getStatusLabels, getConnectionWebhookUrl } from './client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
 import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
-import type { BitrixDealStage } from './deals.js';
+import { getBitrixUsers, type BitrixDealStage } from './deals.js';
+import { resolveAtlasUserNameByEmail } from './userMapping.js';
+import { findOwnershipConflict, notifyOwnershipConflict } from './ownershipGuard.js';
 
 const LEAD_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.leadCode).filter((c): c is string => Boolean(c));
 
@@ -32,6 +34,7 @@ interface BitrixLeadRaw {
     SOURCE_ID?: string;
     DATE_CREATE?: string;
     COMMENTS?: string;
+    ASSIGNED_BY_ID?: string;
     // Índice aberto para os UF_CRM_* de BITRIX_FIELD_MAP — pedidos explicitamente no `select` de
     // listBitrixLeads/crm.lead.get e lidos por applyInboundCustomFields (service/customFields.ts).
     [ufCrmCode: string]: unknown;
@@ -95,7 +98,7 @@ export async function listBitrixLeads(
             // UF_CRM_* incluídos aqui (não só em crm.lead.get) para que a importação em massa via
             // regra automática (runSyncRule) também traga os campos de qualificação — sem isso a
             // paginação corrigida em runSyncRule ainda importaria leads "vazios" de qualificação.
-            select: ['ID', 'TITLE', 'NAME', 'LAST_NAME', 'COMPANY_TITLE', 'PHONE', 'EMAIL', 'STATUS_ID', 'SOURCE_ID', 'DATE_CREATE', ...LEAD_UF_CRM_CODES],
+            select: ['ID', 'TITLE', 'NAME', 'LAST_NAME', 'COMPANY_TITLE', 'PHONE', 'EMAIL', 'STATUS_ID', 'SOURCE_ID', 'DATE_CREATE', 'ASSIGNED_BY_ID', ...LEAD_UF_CRM_CODES],
             order: { DATE_CREATE: 'DESC' },
             start,
         }),
@@ -170,17 +173,25 @@ export async function importSelectedBitrixLeads(
     organizationId: string,
     connectionId: string,
     bitrixLeadIds: string[],
-): Promise<{ imported: number; skipped: number }> {
+    /** Quando informado (usuário VENDEDOR — ver bitrix.routes.ts), qualquer lead cujo ASSIGNED_BY_ID
+     * não bata é ignorado, mesmo que o ID tenha vindo explícito no corpo da requisição — a lista já
+     * vem filtrada pela mesma trava, mas isso fecha a brecha de alguém montar a requisição na mão. */
+    restrictToAssignedById?: string,
+): Promise<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
-    if (bitrixLeadIds.length === 0) return { imported: 0, skipped: 0 };
+    if (bitrixLeadIds.length === 0) return { imported: 0, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 };
     if (bitrixLeadIds.length > 100) throw new AppError('Selecione no máximo 100 leads por vez.', 400);
 
-    const [labels, enumMaps] = await Promise.all([
+    const [labels, enumMaps, bitrixUsers] = await Promise.all([
         getStatusLabels(webhookUrl),
         resolveEnumMaps(webhookUrl, 'lead'),
+        getBitrixUsers(organizationId, connectionId),
     ]);
+    const bitrixUserEmailById = new Map(bitrixUsers.map((u) => [u.id, u.email]));
     let imported = 0;
     let skipped = 0;
+    let skippedConflicts = 0;
+    let skippedNotOwned = 0;
 
     for (const bitrixLeadId of bitrixLeadIds) {
         const existing = await prisma.lead.findFirst({ where: { organizationId, bitrixLeadId }, select: { id: true } });
@@ -190,6 +201,10 @@ export async function importSelectedBitrixLeads(
         }
 
         const { result: raw } = await callBitrix<{ result: BitrixLeadRaw }>(webhookUrl, 'crm.lead.get', { id: bitrixLeadId });
+        if (restrictToAssignedById && raw.ASSIGNED_BY_ID !== restrictToAssignedById) {
+            skippedNotOwned++;
+            continue;
+        }
         const tradeName = raw.TITLE || raw.COMPANY_TITLE || `${raw.NAME || ''} ${raw.LAST_NAME || ''}`.trim() || `Lead Bitrix #${raw.ID}`;
         const contactName = [raw.NAME, raw.LAST_NAME].filter(Boolean).join(' ');
         const phone = raw.PHONE?.[0]?.VALUE || null;
@@ -201,6 +216,17 @@ export async function importSelectedBitrixLeads(
         // separadamente sem introduzir uma coluna nova fora do escopo desta correção.
         const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
         void _bitrixOrigemIgnorada;
+
+        const assigneeEmail = raw.ASSIGNED_BY_ID ? bitrixUserEmailById.get(raw.ASSIGNED_BY_ID) ?? null : null;
+        const ownerName = await resolveAtlasUserNameByEmail(organizationId, assigneeEmail);
+
+        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerName);
+        if (conflict) {
+            skippedConflicts++;
+            await notifyOwnershipConflict(organizationId, conflict, tradeName);
+            logger.info({ organizationId, bitrixLeadId, conflict }, '[bitrix] Import bloqueado — contato já pertence a outro responsável');
+            continue;
+        }
 
         try {
             const company = await prisma.company.create({
@@ -229,6 +255,7 @@ export async function importSelectedBitrixLeads(
                     companyId: company.id,
                     contactId: contact?.id,
                     organizationId,
+                    owner: ownerName,
                     bitrixLeadId: raw.ID,
                     bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
                     qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
@@ -251,6 +278,6 @@ export async function importSelectedBitrixLeads(
         }
     }
 
-    logger.info({ organizationId, imported, skipped }, '[bitrix] Importação seletiva concluída');
-    return { imported, skipped };
+    logger.info({ organizationId, imported, skipped, skippedConflicts, skippedNotOwned }, '[bitrix] Importação seletiva concluída');
+    return { imported, skipped, skippedConflicts, skippedNotOwned };
 }

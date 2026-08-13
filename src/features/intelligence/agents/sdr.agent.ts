@@ -2,6 +2,9 @@ import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgrap
 import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
+import { marketResearchTool } from '../tools/marketResearchTool.js';
+import { copywriterTool } from '../tools/copywriterTool.js';
+import { summarizeLeadTool } from '../tools/summarizeLeadTool.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import type { Prisma } from '@prisma/client';
@@ -9,10 +12,18 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
-import { SWARM_BRAND, SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { rehydratePii } from '../services/guardrails.service.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
-const tools = [getLeadContextTool, searchPlaybookTool, updateLeadQualificationTool];
+const tools = [
+    getLeadContextTool, 
+    searchPlaybookTool, 
+    updateLeadQualificationTool, 
+    marketResearchTool,
+    copywriterTool,
+    summarizeLeadTool
+];
 const toolNode = new ToolNode(tools);
 
 import { buildModelWithFallbackAndTools } from './fallback.util.js';
@@ -47,18 +58,45 @@ async function loadLearnedStyle(): Promise<string | null> {
 async function callModel(state: typeof MessagesAnnotation.State) {
     const learnedStyle = await loadLearnedStyle();
     const systemPrompt = new SystemMessage(
-        `${SWARM_IDENTITY} Você é a IA de Pré-Vendas (SDR Autônomo), arquitetada para qualificação cirúrgica de leads B2B.
-Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍSTICO COMPLETA baseada no ICP.
+        `${SWARM_IDENTITY} Você é a IA de Pré-Vendas (SDR Autônomo) de Elite, arquitetada para qualificação cirúrgica de leads B2B no setor logístico.
+Sua missão não é apenas ler dados, mas EXECUTAR UMA ANÁLISE DE RISCO LOGÍSTICO COMPLETA baseada no ICP e decidir o destino do lead no funil.
 
 DIRETRIZES DE EXECUÇÃO:
-1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context'. Se o contexto faltar, chame a ferramenta de pesquisa de playbook para buscar o ICP da ${SWARM_BRAND}. Nunca presuma porte, frota, faturamento ou situação cadastral sem que a ferramenta os confirme.
-2. RACIOCÍNIO FRIO: Analise o Fit Score (0 a 100) baseando-se ESTRITAMENTE em porte (frota, faturamento), situação cadastral e aderência ao segmento logístico.
+1. USE FERRAMENTAS: Obtenha os dados do Lead com 'get_lead_context' e 'summarize_lead_history'. Nunca presuma porte ou situação cadastral sem que as ferramentas confirmem.
+2. RACIOCÍNIO FRIO E IMPLACÁVEL: Analise o Fit Score (0 a 100). Se não tem fit, desqualifique sem pena. Nosso tempo é valioso.
 3. SAÍDA FINAL OBRIGATÓRIA: Após compilar as evidências, USE a ferramenta 'update_lead_qualification'.
    - A nota deve refletir a realidade crua dos dados.
-   - O status deve ser 'Reuniao_Agendada' apenas para leads com nota > 75, caso contrário 'Qualificacao_SDR' ou 'Lead_Desqualificado'.
-4. RESPOSTA FINAL: depois de chamar 'update_lead_qualification', encerre com um resumo direto de 1 a 3 frases (nota, status e o motivo principal) — é esse texto que a equipe comercial vai ler.
+   - O status deve ser 'Reuniao_Agendada' APENAS para leads Quentes (nota > 75) E com decisor mapeado. Caso contrário 'Qualificacao_SDR' ou 'Lead_Desqualificado'.
+4. COPY AUTOMÁTICA: Se o lead for qualificado, USE 'generate_cold_email_copy' para deixar um template pronto de email para o Closer.
+5. SÍNTESE DO SDR (O Resumo Matador): Depois de todas as ações de sistema, encerre com um briefing comercial com FORMATAÇÃO PREMIUM (Obrigatório o uso de Markdown, Emojis, e separadores).
+
+**ESTRUTURA DO SEU OUTPUT FINAL:**
+
+### ⚡ Veredito SDR
+- **Decisão:** [Avançar / Arquivar / Nutrir]
+- **Por que:** [1 frase objetiva explicando o porquê]
+
+---
+
+### 🔍 Radar de Oportunidade
+- **Pontos Fortes (🟢):** [O que tem de bom neste lead?]
+- **Gargalos (🔴):** [O que falta? Ex: sem decisor claro]
+
+---
+
+### 🛡️ Objeção vs. Contorno
+**Se disserem:** "[Objeção clássica do setor]"
+**Técnica de Contorno:**
+> "[Como o SDR deve responder para manter a conversa viva]"
+
+---
+
+### 🎯 Próximo Passo Exato e Ações
+[O que o BDR ou Closer deve fazer nos próximos 5 minutos?]
+*(Nota: O histórico foi resumido e uma Copy de E-mail foi gerada e salva no sistema para uso imediato).*
+
 Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'. ${SWARM_OUTPUT_CONTRACT}`
-        + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência, sem contrariar as regras acima):\n${learnedStyle}` : '')
+        + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}` : '')
     );
 
     const startTime = Date.now();
@@ -141,21 +179,42 @@ export class SDRQualificationAgent {
         }
 
         const messages = finalState.messages as BaseMessage[];
-        
+
+        // SEC-013b (continuação): get_lead_context troca o nome real do contato pelo token
+        // '[NOME_DO_CONTATO]' antes de entrar no loop multi-turn do LLM (crmTools.ts) — sem esta
+        // reidratação, o token cru podia vazar no resumo de qualificação mostrado ao vendedor
+        // sempre que o modelo ecoasse o texto da ferramenta de volta na resposta final.
+        const contactName = await this.getContactName(leadId);
+        const rehydrate = (text: string) => (contactName
+            ? rehydratePii(text, [{ token: '[NOME_DO_CONTATO]', value: contactName }])
+            : text);
+
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
         await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => {
             const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
+            const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
             return {
                 role: m.type,
-                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+                content: rehydrate(content),
                 toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
             };
         }));
 
         const lastMessage = messages[messages.length - 1];
-        const detailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
+        const rawDetailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
+        const detailedContent = rehydrate(rawDetailedContent);
 
         return { success: true, sessionId: sid, detailedLog: detailedContent };
+    }
+
+    private async getContactName(leadId: string): Promise<string | null> {
+        const organizationId = getTenantId();
+        if (!organizationId) return null;
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, organizationId },
+            select: { contact: { select: { name: true } } },
+        });
+        return lead?.contact?.name ?? null;
     }
 
     private async updateMemory(sessionId: string, messages: SerializedMessage[]) {

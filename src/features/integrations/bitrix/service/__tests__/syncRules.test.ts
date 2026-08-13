@@ -62,7 +62,7 @@ describe('runBitrixSyncTick — bloqueador #11 (sincronização não pode falhar
         vi.mocked(findUnimportedBitrixLeadIds)
             .mockRejectedValueOnce(new Error('falha na regra 1'))
             .mockResolvedValueOnce({ ids: ['L1'], pagesExhausted: true, pagesScanned: 1 });
-        vi.mocked(importSelectedBitrixLeads).mockResolvedValue({ imported: 1, skipped: 0 });
+        vi.mocked(importSelectedBitrixLeads).mockResolvedValue({ imported: 1, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 });
 
         prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1' }]);
         prismaMock.bitrixSyncRule.findMany.mockResolvedValue([
@@ -95,7 +95,7 @@ describe('runBitrixSyncTick — bloqueador #11 (sincronização não pode falhar
         // página 2 tinha um registro novo — exatamente o cenário que o antigo `start=0` fixo
         // nunca alcançava.
         vi.mocked(findUnimportedBitrixLeadIds).mockResolvedValue({ ids: ['L99'], pagesExhausted: true, pagesScanned: 3 });
-        vi.mocked(importSelectedBitrixLeads).mockResolvedValue({ imported: 1, skipped: 0 });
+        vi.mocked(importSelectedBitrixLeads).mockResolvedValue({ imported: 1, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 });
 
         prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-1' }]);
         prismaMock.bitrixSyncRule.findMany.mockResolvedValue([

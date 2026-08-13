@@ -1,0 +1,12 @@
+municipio,uf,nome,categoria,presenca_peso,escopo,cobertura,foco,fonte,confianca,data_verificacao,censo_status
+Rio Verde,GO,Consultebras,GERENCIADORA_GR,1.0,origem/sede local,atendimento ao transporte rodoviario,analise e gerenciamento de risco,https://www.consultebras.com.br/,alta,2026-08-11,PARCIAL
+Uberlandia,MG,Insignia GR,GERENCIADORA_GR,1.0,empresa criada na cidade,nacional,gerenciamento de riscos logisticos 24x7,https://www.insigniagr.com/empresa,alta,2026-08-11,PARCIAL
+Uberlandia,MG,Gertran,GERENCIADORA_GR,0.8,escritorio comercial,abrangencia nacional,gerenciamento de riscos monitoramento e rastreamento,https://gertran.com.br/quem-somos/,alta,2026-08-11,PARCIAL
+Cuiaba,MT,Rondon GR,GERENCIADORA_GR,1.0,sede atual e postos avancados,Brasil,GR e monitoramento logistico focados no agronegocio,https://rondongr.com/,alta,2026-08-11,PARCIAL
+Rondonopolis,MT,Global Rastreamento,GERENCIADORA_GR,1.0,central local,regional/nacional conforme operacao,gerenciamento de risco monitoramento e rastreamento,https://grglobal.com.br/institucional,alta,2026-08-11,PARCIAL
+Rondonopolis,MT,America SAT,RASTREAMENTO,0.65,sede/endereco local,tecnologia para transportadoras,rastreamento de veiculos equipamentos e cargas,https://americasat.com.br/,alta,2026-08-11,PARCIAL
+Rondonopolis,MT,MT Trac / Autotrac,RASTREAMENTO,0.65,concessionario local,sul de Mato Grosso e clientes nacionais,rastreamento monitoramento telemetria e gestao de frotas,https://mttrac.com.br/sobre,alta,2026-08-11,PARCIAL
+Chapeco,SC,Angel Lira,GERENCIADORA_GR,1.0,sede,nacional (SP e RS tambem possuem unidades),gerenciamento de riscos logisticos premiada como referencia no Oeste Catarinense,https://angellira.com/,alta,2026-08-12,PARCIAL
+Chapeco,SC,Vetta GR,GERENCIADORA_GR,0.8,filial,nacional (matriz em Sao Paulo/SP),gerenciamento de risco,http://www.vettagr.com.br/ondeestamos.html,alta,2026-08-12,PARCIAL
+Cascavel,PR,Gerensat,GERENCIADORA_GR,0.9,sede,Oeste do Parana,monitoramento e gerenciamento de riscos de veiculos e cargas,https://www.econodata.com.br/consulta-empresa/08718709000139-gerensat-monitoramento-e-gerenciamento-de-riscos-de-veiculos-e-cargas-ltda,media-alta,2026-08-12,PARCIAL
+Goiania,GO,Federal Solucoes Tecnicas,GERENCIADORA_GR,0.9,sede,nacional,gerenciamento de riscos logisticos,https://www.federalst.com.br/,alta,2026-08-12,PARCIAL

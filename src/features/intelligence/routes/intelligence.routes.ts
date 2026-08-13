@@ -95,7 +95,7 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
         }
 
         // companyInfo é opcional — quando ausente, o worker busca os dados reais da empresa no CRM.
-        const job = await leadsQueue.add('qualify-lead', { leadId, companyInfo: companyInfo || '' });
+        const job = leadsQueue ? await leadsQueue.add('qualify-lead', { leadId, companyInfo: companyInfo || '' }) : { id: 'no-queue' };
 
         res.status(202).json({
             message: 'Lead qualification started in background',
@@ -131,6 +131,31 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
         });
     } catch (error) {
         logger.error({ err: error }, 'Error starting SDR Agent');
+        next(error);
+    }
+});
+
+// A rota acima dispara o SDRQualificationAgent sem aguardar e devolve 202 imediatamente — sem esta
+// rota não havia nenhuma forma de buscar o resultado depois (o cliente ficava sem saber quando/se a
+// qualificação terminou). O agente persiste seu progresso em AgentMemory a cada rodada do grafo
+// (sdr.agent.ts updateMemory), então "ainda não existe registro" é o sinal confiável de "pendente".
+router.get('/agents/sdr/status/:sessionId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { sessionId } = req.params;
+        const authRequest = req as AuthRequest;
+
+        const memory = await prisma.agentMemory.findFirst({
+            where: { sessionId, organizationId: authRequest.user.organizationId, agentType: 'SDR' },
+        });
+
+        if (!memory) {
+            res.status(202).json({ status: 'pending', sessionId });
+            return;
+        }
+
+        res.json({ status: 'completed', sessionId, messages: memory.messages });
+    } catch (error) {
+        logger.error({ err: error }, 'Error fetching SDR agent status');
         next(error);
     }
 });
@@ -176,7 +201,14 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction): 
     }
 });
 
-router.post('/pending/:id/approve', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// SEC-011: aprovar uma AIPendingAction dispara efeito real (enviar e-mail, criar nota/atividade —
+// ver executeAction em aiPendingAction.service.ts), então é uma confirmação humana de ação de alto
+// impacto, não uma leitura. Sem `requireRole` aqui, qualquer papel autenticado do tenant — inclusive
+// VISUALIZADOR (só leitura, ROLE_HIERARCHY=10) — podia aprovar/descartar, contornando a hierarquia
+// de papéis. Mesmo corte de VISUALIZADOR já aplicado por 01 em agent.routes.ts (`/swarm/mission`).
+const pendingActionRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+
+router.post('/pending/:id/approve', pendingActionRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
         const authRequest = req as AuthRequest;
@@ -196,7 +228,7 @@ router.post('/pending/:id/approve', async (req: Request, res: Response, next: Ne
     }
 });
 
-router.delete('/pending/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.delete('/pending/:id', pendingActionRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const authRequest = req as AuthRequest;
         const db = authRequest.db || prisma;
@@ -364,4 +396,70 @@ router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFu
     }
 });
 
+// ── Win/Loss Analysis ────────────────────────────────────────────────────────
+// Roda a análise imediatamente (em vez de aguardar o cron de sexta) e devolve
+// o resultado. Útil para o usuário disparar manualmente pela UI.
+router.post('/win-loss-analysis', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const organizationId = (req as AuthRequest).user?.organizationId;
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        const leads = await prisma.lead.findMany({
+            where: {
+                ...(organizationId ? { organizationId } : {}),
+                status: { in: ['Convertido_em_Oportunidade', 'Lead_Desqualificado', 'Negocios_Perdidos', 'Negocios_Ganhos'] },
+                updatedAt: { gte: sevenDaysAgo }
+            },
+            include: {
+                whatsAppMessages: {
+                    select: { body: true, direction: true },
+                    take: 15
+                },
+                timeline: {
+                    select: { description: true },
+                    take: 10
+                }
+            },
+            take: 30
+        });
+
+        if (leads.length === 0) {
+            res.json({ analysis: 'Nenhum lead fechado nos últimos 7 dias para analisar. Aguarde o acúmulo de dados ou expanda o período de busca.' });
+            return;
+        }
+
+        const dataStr = leads.map(l => {
+            const msgs = l.whatsAppMessages.map(m => `${m.direction}: ${m.body || '(sem texto)'}`).join(' | ');
+            const tl = l.timeline.map(t => t.description).join(' | ');
+            return `Lead ID: ${l.id} | Status: ${l.status}\nInterações: ${msgs || 'Sem mensagens'}\nTimeline: ${tl || 'Sem timeline'}\n---`;
+        }).join('\n');
+
+        const model = getAiModel('local-llama3-fast', 0.3, 'win-loss-analysis');
+        const response = await model.invoke([
+            new SystemMessage(`Você é um analista comercial sênior especialista em RevOps e vendas B2B.
+Leia as transcrições e timelines dos leads Fechados (Ganhos e Perdidos) desta semana.
+Responda com EXATAMENTE 3 tópicos numerados:
+
+1. **O que os leads ganhos têm em comum**: padrões de comportamento, objeções superadas, sinais de compra
+2. **Principais objeções/motivos de perda**: o que fez os leads não comprarem
+3. **Recomendação prática para o time**: 1 ação concreta para melhorar a taxa de conversão
+
+Seja específico, use dados dos leads. Evite generalizações vagas.`),
+            new HumanMessage(`Dados da semana:\n\n${dataStr}`)
+        ]);
+
+        const analysis = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+        logger.info(
+            { organizationId, leadsAnalyzed: leads.length, tool: 'win-loss-analysis' },
+            '[WinLoss] Análise manual disparada com sucesso'
+        );
+
+        res.json({ analysis, leadsAnalyzed: leads.length });
+    } catch (error) {
+        logger.error({ err: error }, 'Falha no Win/Loss Analysis manual');
+        next(error);
+    }
+});
+
 export const intelligenceRoutes = router;
+

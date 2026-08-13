@@ -207,8 +207,9 @@ export function SalesMethodologyStudio() {
 
           <div className="space-y-3.5 text-xs">
             <div>
-              <label className="font-bold text-ink-2 block mb-1">Cargo da Persona Target (Decisor C-Level/VP)</label>
+              <label htmlFor="sales-target-persona" className="font-bold text-ink-2 block mb-1">Cargo da Persona Target (Decisor C-Level/VP)</label>
               <input
+                id="sales-target-persona"
                 type="text"
                 value={form.targetPersona}
                 onChange={(e) => setForm({ ...form, targetPersona: e.target.value })}
@@ -218,8 +219,9 @@ export function SalesMethodologyStudio() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-ink-2 block mb-1">Porte do ICP (Tamanho)</label>
+                <label htmlFor="sales-icp-size" className="font-bold text-ink-2 block mb-1">Porte do ICP (Tamanho)</label>
                 <select
+                  id="sales-icp-size"
                   value={form.icpSize}
                   onChange={(e) => setForm({ ...form, icpSize: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-surface-2 text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
@@ -231,8 +233,9 @@ export function SalesMethodologyStudio() {
               </div>
 
               <div>
-                <label className="font-bold text-ink-2 block mb-1">Segmento da Empresa</label>
+                <label htmlFor="sales-company-segment" className="font-bold text-ink-2 block mb-1">Segmento da Empresa</label>
                 <input
+                  id="sales-company-segment"
                   type="text"
                   value={form.companySegment}
                   onChange={(e) => setForm({ ...form, companySegment: e.target.value })}
@@ -242,8 +245,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label className="font-bold text-ink-2 block mb-1">Stack Tecnológica Mapeada (Firmographics)</label>
+              <label htmlFor="sales-tech-stack" className="font-bold text-ink-2 block mb-1">Stack Tecnológica Mapeada (Firmographics)</label>
               <input
+                id="sales-tech-stack"
                 type="text"
                 value={form.techStack}
                 onChange={(e) => setForm({ ...form, techStack: e.target.value })}
@@ -252,8 +256,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label className="font-bold text-ink-2 block mb-1">Nome da Sua Solução / Produto</label>
+              <label htmlFor="sales-solution-name" className="font-bold text-ink-2 block mb-1">Nome da Sua Solução / Produto</label>
               <input
+                id="sales-solution-name"
                 type="text"
                 value={form.solutionName}
                 onChange={(e) => setForm({ ...form, solutionName: e.target.value })}
@@ -262,8 +267,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label className="font-bold text-ink-2 block mb-1">Dor Principal do Cliente (Problem Statement)</label>
+              <label htmlFor="sales-main-pain-point" className="font-bold text-ink-2 block mb-1">Dor Principal do Cliente (Problem Statement)</label>
               <textarea
+                id="sales-main-pain-point"
                 rows={2}
                 value={form.mainPainPoint}
                 onChange={(e) => setForm({ ...form, mainPainPoint: e.target.value })}
@@ -272,8 +278,9 @@ export function SalesMethodologyStudio() {
             </div>
 
             <div>
-              <label className="font-bold text-ink-2 block mb-1">Hipótese de benefício / ROI a validar</label>
+              <label htmlFor="sales-main-benefit" className="font-bold text-ink-2 block mb-1">Hipótese de benefício / ROI a validar</label>
               <textarea
+                id="sales-main-benefit"
                 rows={2}
                 value={form.mainBenefit}
                 onChange={(e) => setForm({ ...form, mainBenefit: e.target.value })}

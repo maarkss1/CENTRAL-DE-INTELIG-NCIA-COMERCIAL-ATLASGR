@@ -27,8 +27,14 @@ dump.rdb
 # controle de versão (DEVOPS-008).
 whatsapp_auth/
 
+# Dumps de banco com dado pessoal real de prospecção — nunca devem ir para o controle de
+# versão (AGENTS.md → "Segurança e higiene", achado backups/prospector-*.dump).
+backups/*.dump
+
 # Artefatos de vídeo/imagem gerados sob demanda por script na raiz do repo — a documentação
 # oficial vive em documentacao-aplicacao/ (versionada de propósito, não afetada por esta regra).
 /navigation_flow.mp4
 /*.mp4
 /*.png
+public/tools/atlas-market-intelligence/*.csv
+public/tools/atlas-market-intelligence/*.sqlite

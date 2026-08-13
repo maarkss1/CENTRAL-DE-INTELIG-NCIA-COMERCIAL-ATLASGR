@@ -43,6 +43,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
         { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
+        { id: 'winloss' as TabType, label: 'Win/Loss', icon: <Target size={20} /> },
         { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
         { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
     ];
@@ -62,6 +63,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'objections_matrix' as TabType, label: 'Matriz de Objeções', icon: <Shield size={20} /> },
         { id: 'chatbook' as TabType, label: 'Chatbook', icon: <MessageSquare size={20} /> },
         { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
+        { id: 'market-intelligence' as TabType, label: 'Market Intelligence', icon: <LineChart size={20} /> },
         { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
         { id: 'bitrix' as TabType, label: 'Guia Bitrix24', icon: <Layers size={20} /> },
         { id: 'integrations' as TabType, label: 'Integrações', icon: <Plug size={20} /> },

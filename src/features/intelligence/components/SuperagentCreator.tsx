@@ -331,9 +331,9 @@ $status | ConvertTo-Json -Depth 3
                     
                     {/* Campo 1: Identificação */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Bot size={14} /> Nome e Identificação do Agente
-                        </label>
+                        </p>
                         <input
                             type="text"
                             placeholder="Ex: SDR Alpha Outbound, Insight Bot..."
@@ -345,9 +345,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 2: Papel / Função */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Papel & Especialidade (Role)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'role' ? null : 'role')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -361,15 +361,16 @@ $status | ConvertTo-Json -Depth 3
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-64 overflow-y-auto"
                                 >
                                     {ROLES.map(r => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={r.id} onClick={() => { setRole(r.title); setActiveDropdown(null); }}
-                                            className="px-5 py-3.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col border-b border-line last:border-none"
+                                            className="w-full text-left px-5 py-3.5 text-sm text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-ink">
+                                            <div className="flex justify-between items-center font-bold text-ink w-full">
                                                 {r.title} {role === r.title && <Check size={16} className={accent.text} />}
                                             </div>
                                             <span className="text-xs text-ink-2 mt-0.5">{r.desc}</span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -378,9 +379,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 3: Provedor de IA */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-sky-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-sky-400">
                             <Cpu size={14} /> Provedor de IA (Engine Provider)
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'provider' ? null : 'provider')}
                             className="w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-sky-400/50 transition-colors"
@@ -395,12 +396,13 @@ $status | ConvertTo-Json -Depth 3
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {PROVIDERS.map(p => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={p.id} onClick={() => handleProviderChange(p.id)}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-sky-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="w-full text-left px-5 py-3 text-sm font-medium text-ink-2 hover:bg-sky-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {p.name} {provider === p.id && <Check size={16} className="text-sky-400" />}
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -409,9 +411,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 4: Modelo Cognitivo */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
+                        <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 ${accent.textSoft}`}>
                             <Brain size={14} /> Modelo Cognitivo Específico
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'model' ? null : 'model')}
                             className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
@@ -426,12 +428,13 @@ $status | ConvertTo-Json -Depth 3
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {currentProviderObj.models.map(m => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={m} onClick={() => { setModel(m); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
+                                            className="w-full text-left px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {m} {model === m && <Check size={16} className={accent.text} />}
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -440,9 +443,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 5: Temperatura / Criatividade */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-amber-400">
                             <Sliders size={14} /> Temperatura / Criatividade do Motor
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'temp' ? null : 'temp')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-amber-400/50 transition-colors"
@@ -456,12 +459,13 @@ $status | ConvertTo-Json -Depth 3
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {TEMPERATURES.map(t => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={t.value} onClick={() => { setTemperature(t.value); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-xs font-medium text-ink-2 hover:bg-amber-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="w-full text-left px-5 py-3 text-xs font-medium text-ink-2 hover:bg-amber-900/30 hover:text-white cursor-pointer flex justify-between items-center"
                                         >
                                             {t.label} {temperature === t.value && <Check size={16} className="text-amber-400" />}
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -470,9 +474,9 @@ $status | ConvertTo-Json -Depth 3
 
                     {/* Campo 6: Memória / RAG */}
                     <div className="bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md relative">
-                        <label className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-emerald-400">
+                        <p className="flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-3 text-emerald-400">
                             <Database size={14} /> Arquitetura de Memória & RAG
-                        </label>
+                        </p>
                         <button
                             onClick={() => setActiveDropdown(activeDropdown === 'memory' ? null : 'memory')}
                             className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-emerald-400/50 transition-colors"
@@ -486,15 +490,16 @@ $status | ConvertTo-Json -Depth 3
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {MEMORIES.map(m => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={m.id} onClick={() => { setMemory(m.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-xs font-medium text-ink-2 hover:bg-emerald-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5"
+                                            className="w-full text-left px-5 py-3 text-xs font-medium text-ink-2 hover:bg-emerald-900/30 hover:text-white cursor-pointer flex flex-col gap-0.5"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-ink">
+                                            <div className="flex justify-between items-center font-bold text-ink w-full">
                                                 {m.title} {memory === m.id && <Check size={16} className="text-emerald-400" />}
                                             </div>
                                             <span className="text-[11px] text-ink-2">{m.desc}</span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -505,9 +510,9 @@ $status | ConvertTo-Json -Depth 3
 
                 {/* Seleção de Ferramentas / Capabilities */}
                 <div className="relative z-10 max-w-5xl mx-auto mb-10 bg-surface-2 border border-line rounded-2xl p-6 backdrop-blur-md">
-                    <label className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
+                    <p className={`flex items-center gap-2 text-[10px] tracking-widest font-black uppercase mb-4 ${accent.textSoft}`}>
                         <Zap size={14} /> Ferramentas & Capabilities Habilitadas para o Agente
-                    </label>
+                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {TOOLS_LIST.map(t => {
                             const isSelected = selectedTools.includes(t.id);

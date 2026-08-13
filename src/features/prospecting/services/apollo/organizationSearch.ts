@@ -1,7 +1,7 @@
 import type { ProspectCriteria, ProspectCandidate } from '../prospecting.service';
 import { buildLocationLabel } from '../prospecting.service';
 import { getPaidProspectingKey } from '../../../../config/prospecting-integrations.js';
-import { fetchWithTimeout } from '../../../../lib/http.js';
+import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { validContactEmails } from '../../../../shared/utils/contact-links';
 import { logger } from '../../../../lib/logger';
 import { APOLLO_SEARCH_URL, DECISION_MAKER_PREFETCH_BUDGET_MS } from './client.js';
@@ -45,13 +45,13 @@ function resolveApolloLocations(criteria: ProspectCriteria): string[] {
  * lista fixa (mercado, loja de roupa, restaurante...) devolvia sempre transportadoras/operadores
  * logísticos em vez do que foi pedido.
  */
-function mapSegmentToKeyword(segmento: string): string {
+function mapSegmentToKeyword(segmento: string): string | null {
     const s = segmento.toLowerCase();
     if (s.includes('transportadora')) return 'trucking';
     if (s.includes('embarcador')) return 'logistics';
     if (s.includes('3pl') || s.includes('operador logístico')) return 'third party logistics';
     if (s.includes('facilities') || s.includes('rh')) return 'facilities services';
-    return segmento.split('(')[0].trim();
+    return null;
 }
 
 /**
@@ -113,17 +113,28 @@ export async function fetchApolloCandidates(
         100
     );
 
+    const mappedKeyword = mapSegmentToKeyword(criteria.segmento);
+    // Se não há um mapeamento específico e não é "Qualquer Segmento", usamos o termo literal como keyword
+    const segmentKeyword = mappedKeyword || (criteria.segmento && criteria.segmento !== 'Qualquer Segmento' ? criteria.segmento : null);
+    
+    const keywords = [segmentKeyword, ...extraKeywords].filter(Boolean) as string[];
+
     const body: Record<string, unknown> = {
-        q_organization_keyword_tags: [mapSegmentToKeyword(criteria.segmento), ...extraKeywords],
         organization_locations: resolveApolloLocations(criteria),
         per_page: requestSize,
         page: 1,
     };
-    if (criteria.porte) {
-        body.organization_num_employees_ranges = [criteria.porte];
+
+    if (keywords.length > 0) {
+        body.q_organization_keyword_tags = keywords;
     }
+
     if (criteria.nomeEmpresa) {
         body.q_organization_name = criteria.nomeEmpresa;
+    }
+
+    if (criteria.porte) {
+        body.organization_num_employees_ranges = [criteria.porte];
     }
     if (criteria.faturamentoMin != null || criteria.faturamentoMax != null) {
         body.revenue_range = {
@@ -150,7 +161,7 @@ export async function fetchApolloCandidates(
     }
 
     try {
-        const res = await fetchWithTimeout(APOLLO_SEARCH_URL, {
+        const res = await fetchWithProviderRetry(APOLLO_SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -158,7 +169,7 @@ export async function fetchApolloCandidates(
                 'X-Api-Key': apiKey,
             },
             body: JSON.stringify(body),
-        }, 15_000);
+        }, { timeoutMs: 15_000, providerName: 'Apollo-OrganizationSearch', billable: true });
 
         if (!res.ok) {
             const text = await res.text().catch(() => '');

@@ -270,7 +270,6 @@ export function Intelligence() {
                                 <div className="relative mb-3">
                                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" />
                                     <input
-                                        autoFocus
                                         type="text"
                                         placeholder="Pesquisar por empresa ou contato..."
                                         value={leadQuery}
@@ -312,8 +311,9 @@ export function Intelligence() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {/* Dropdown Tom de Voz */}
                             <div className="relative">
-                                <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Matriz de Tom</label>
+                                <label htmlFor="dropdown-tone" className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Matriz de Tom</label>
                                 <button
+                                    id="dropdown-tone"
                                     onClick={() => setActiveDropdown(activeDropdown === 'tone' ? null : 'tone')}
                                     className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                 >
@@ -326,12 +326,13 @@ export function Intelligence() {
                                             className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                         >
                                             {TONES.map(t => (
-                                                <div
+                                                <button
+                                                    type="button"
                                                     key={t} onClick={() => { setTone(t); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
+                                                    className="w-full px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                 >
                                                     {t} {tone === t && <Check size={14} className="text-brand" />}
-                                                </div>
+                                                </button>
                                             ))}
                                         </motion.div>
                                     )}
@@ -340,8 +341,9 @@ export function Intelligence() {
 
                             {/* Dropdown Objetivo */}
                             <div className="relative">
-                                <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Vetor de Objetivo</label>
+                                <label htmlFor="dropdown-objective" className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Vetor de Objetivo</label>
                                 <button
+                                    id="dropdown-objective"
                                     onClick={() => setActiveDropdown(activeDropdown === 'objective' ? null : 'objective')}
                                     className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                 >
@@ -354,12 +356,13 @@ export function Intelligence() {
                                             className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                         >
                                             {OBJECTIVES.map(o => (
-                                                <div
+                                                <button
+                                                    type="button"
                                                     key={o} onClick={() => { setObjective(o); setActiveDropdown(null); }}
-                                                    className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
+                                                    className="w-full px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                 >
                                                     {o} {objective === o && <Check size={14} className="text-brand" />}
-                                                </div>
+                                                </button>
                                             ))}
                                         </motion.div>
                                     )}
@@ -369,8 +372,9 @@ export function Intelligence() {
                             {/* Dropdown Persona (Fallback) */}
                             {!selectedLead && (
                                 <div className="relative sm:col-span-2">
-                                    <label className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Persona Simulada</label>
+                                    <label htmlFor="dropdown-persona" className="block text-[10px] font-bold uppercase text-ink-2 mb-1.5">Persona Simulada</label>
                                     <button
+                                        id="dropdown-persona"
                                         onClick={() => setActiveDropdown(activeDropdown === 'persona' ? null : 'persona')}
                                         className="w-full px-3 py-2.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink-2 flex items-center justify-between hover:border-line focus:outline-none"
                                     >
@@ -383,12 +387,13 @@ export function Intelligence() {
                                                 className="absolute left-0 right-0 mt-1 bg-surface border border-line shadow-xl rounded-xl z-50 overflow-hidden"
                                             >
                                                 {personas.map(p => (
-                                                    <div
+                                                    <button
+                                                        type="button"
                                                         key={p} onClick={() => { setPersonaFallback(p); setActiveDropdown(null); }}
-                                                        className="px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
+                                                        className="w-full px-4 py-2.5 text-xs font-medium text-ink-2 hover:bg-orange-50 hover:text-brand cursor-pointer flex justify-between items-center"
                                                     >
                                                         {p} {personaFallback === p && <Check size={14} className="text-brand" />}
-                                                    </div>
+                                                    </button>
                                                 ))}
                                             </motion.div>
                                         )}

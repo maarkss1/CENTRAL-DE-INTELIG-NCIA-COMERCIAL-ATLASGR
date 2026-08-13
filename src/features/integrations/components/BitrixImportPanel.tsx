@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Download, CheckCircle2, RefreshCw, Search, X, Filter, Tag, Users, CalendarDays, Info, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import {
+    Loader2, Download, CheckCircle2, AlertTriangle, RefreshCw, Search, X, Filter, Tag,
+    Users, Lock, CalendarDays, Info, SlidersHorizontal, CheckSquare, Square,
+    Edit3, Flame, Phone, Mail, Building2, DollarSign, Sparkles, Layers, Check,
+    ExternalLink, ArrowUpDown, ShieldCheck, Zap
+} from 'lucide-react';
 import { api } from '../../../lib/api';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRequiredRole } from '../../../lib/auth/authorization';
 
 interface BitrixLeadSummary {
     id: string;
@@ -54,14 +61,15 @@ const selectClass = 'h-9 text-sm rounded-xl border border-gray-200 dark:border-w
 const filterLabelClass = 'text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 flex items-center gap-1';
 
 interface BitrixImportPanelProps {
-    /** Qual portal Bitrix consultar/importar — uma organização pode ter mais de um conectado. */
     connectionId: string;
 }
 
 export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
+    const { currentUser } = useAuth();
+    const canPickAnyVendor = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
     const [mode, setMode] = useState<'deals' | 'leads'>('deals');
 
-    // ── Modo Negócios (pipeline real) ───────────────────────────────────────────────────────
+    // ── Modo Negócios ──
     const [pipelines, setPipelines] = useState<BitrixDealPipeline[]>([]);
     const [stages, setStages] = useState<BitrixDealStage[]>([]);
     const [users, setUsers] = useState<BitrixUserOption[]>([]);
@@ -72,12 +80,14 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
     const [year, setYear] = useState('');
     const [deals, setDeals] = useState<BitrixDealSummary[]>([]);
 
-    // ── Modo Leads (lista crua, sem pipeline) ───────────────────────────────────────────────
+    // ── Modo Leads ──
     const [leads, setLeads] = useState<BitrixLeadSummary[]>([]);
 
-    // ── Busca por nome (comum aos dois modos) ───────────────────────────────────────────────
-    // Debounced: dispara a busca de verdade (%TITLE, resolvida no servidor do Bitrix) só 400ms
-    // depois da última tecla digitada, senão cada letra digitada vira uma requisição.
+    // ── Filtros Locais & Ordenação ──
+    const [quickFilter, setQuickFilter] = useState<'all' | 'unimported' | 'has_phone' | 'has_value'>('all');
+    const [sortBy, setSortBy] = useState<'recent' | 'value' | 'name'>('recent');
+
+    // ── Busca por Nome ──
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     useEffect(() => {
@@ -85,10 +95,6 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         return () => clearTimeout(timer);
     }, [search]);
 
-    // ── Filtro por campo personalizado (qualquer campo do Bitrix, incluindo UF_CRM_*) ──────────
-    // A lista de campos disponíveis vem direto do portal (crm.deal.fields/crm.lead.fields) — sem
-    // isso, filtrar por um campo customizado (ex.: "Segmento") exigiria saber o código UF_CRM_ de
-    // cor, algo que só quem já mexeu no admin do Bitrix teria.
     const [fields, setFields] = useState<BitrixFieldOption[]>([]);
     const [customFieldCode, setCustomFieldCode] = useState('');
     const [customFieldValue, setCustomFieldValue] = useState('');
@@ -98,7 +104,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         return () => clearTimeout(timer);
     }, [customFieldValue]);
 
-    // ── Estado compartilhado ─────────────────────────────────────────────────────────────────
+    // ── Estado Compartilhado ──
     const [start, setStart] = useState(0);
     const [next, setNext] = useState<number | null>(null);
     const [total, setTotal] = useState(0);
@@ -106,15 +112,17 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
     const [error, setError] = useState('');
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [importing, setImporting] = useState(false);
-    const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+    const [importingSingleId, setImportingSingleId] = useState<string | null>(null);
+    const [importResult, setImportResult] = useState<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number } | null>(null);
+    const [restrictedWarning, setRestrictedWarning] = useState('');
+
+    // ── Modal de Edição em Lote ──
+    const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+    const [bulkTemperature, setBulkTemperature] = useState<'Frio' | 'Morno' | 'Quente'>('Morno');
+    const [bulkTriggerVoice, setBulkTriggerVoice] = useState(false);
 
     const currentYear = new Date().getFullYear();
 
-    // Pipelines + usuários carregam uma vez (independem de filtro/paginação). O backend já só
-    // devolve o pipeline Comercial (getDealPipelines filtra os outros pipelines operacionais do
-    // portal) — seleciona ele automaticamente em vez de deixar o filtro "vazio" por padrão, senão
-    // a etapa fica sem poder ser escolhida até a pessoa clicar manualmente num dropdown que só tem
-    // uma opção mesmo.
     useEffect(() => {
         api.get<BitrixDealPipeline[]>(`/api/bitrix/deal-pipelines?connectionId=${connectionId}`).then((data) => {
             setPipelines(data);
@@ -123,9 +131,6 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         api.get<BitrixUserOption[]>(`/api/bitrix/users?connectionId=${connectionId}`).then(setUsers).catch(() => setUsers([]));
     }, [connectionId]);
 
-    // Lista de campos depende de qual entidade está selecionada (Negócio x Lead têm campos
-    // personalizados diferentes) — recarrega ao trocar de modo, e limpa a seleção de campo (um
-    // código UF_CRM_ de Negócio não existe no objeto Lead, e vice-versa).
     useEffect(() => {
         setCustomFieldCode('');
         setCustomFieldValue('');
@@ -133,8 +138,6 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         api.get<BitrixFieldOption[]>(`/api/bitrix/fields?connectionId=${connectionId}&entity=${entity}`).then(setFields).catch(() => setFields([]));
     }, [connectionId, mode]);
 
-    // Etapas dependem do pipeline escolhido — recarrega ao trocar, e limpa a etapa selecionada
-    // (uma etapa de outro pipeline não existe mais no novo contexto).
     useEffect(() => {
         setStageId('');
         if (!categoryId) { setStages([]); return; }
@@ -156,11 +159,12 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 params.set('customFieldCode', customFieldCode);
                 params.set('customFieldValue', debouncedCustomFieldValue.trim());
             }
-            const data = await api.get<{ deals: BitrixDealSummary[]; next: number | null; total: number }>(`/api/bitrix/deals?${params}`);
+            const { data, meta } = await api.get<{ data: { deals: BitrixDealSummary[]; next: number | null; total: number }; meta: { restricted: boolean; warning?: string } }>(`/api/bitrix/deals?${params}`);
             setDeals(data.deals);
             setNext(data.next);
             setTotal(data.total);
             setStart(from);
+            setRestrictedWarning(meta.warning || '');
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Não foi possível carregar os negócios do Bitrix24.');
         } finally {
@@ -178,11 +182,12 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 params.set('customFieldCode', customFieldCode);
                 params.set('customFieldValue', debouncedCustomFieldValue.trim());
             }
-            const data = await api.get<{ leads: BitrixLeadSummary[]; next: number | null; total: number }>(`/api/bitrix/leads?${params}`);
+            const { data, meta } = await api.get<{ data: { leads: BitrixLeadSummary[]; next: number | null; total: number }; meta: { restricted: boolean; warning?: string } }>(`/api/bitrix/leads?${params}`);
             setLeads(data.leads);
             setNext(data.next);
             setTotal(data.total);
             setStart(from);
+            setRestrictedWarning(meta.warning || '');
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Não foi possível carregar os leads do Bitrix24.');
         } finally {
@@ -192,8 +197,6 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
 
     const load = (from: number) => (mode === 'deals' ? loadDeals(from) : loadLeads(from));
 
-    // Troca de modo ou de filtro reinicia a listagem do zero — mistura de resultado de filtros
-    // diferentes na mesma tela seria confuso, e a seleção antiga não faz mais sentido no novo contexto.
     useEffect(() => {
         setSelected(new Set());
         setImportResult(null);
@@ -201,14 +204,73 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [connectionId, mode, categoryId, stageId, assignedById, month, year, debouncedSearch, customFieldCode, debouncedCustomFieldValue]);
 
+    // ── Processamento dos dados na tela (Quick Filter + Sorting) ──
+    const processedDeals = useMemo(() => {
+        let list = [...deals];
+        if (quickFilter === 'unimported') list = list.filter((d) => !d.alreadyImported);
+        if (quickFilter === 'has_value') list = list.filter((d) => Number(d.opportunity || 0) > 0);
+
+        if (sortBy === 'value') {
+            list.sort((a, b) => Number(b.opportunity || 0) - Number(a.opportunity || 0));
+        } else if (sortBy === 'name') {
+            list.sort((a, b) => a.title.localeCompare(b.title));
+        } else if (sortBy === 'recent') {
+            list.sort((a, b) => (new Date(b.dateCreate || 0).getTime()) - (new Date(a.dateCreate || 0).getTime()));
+        }
+        return list;
+    }, [deals, quickFilter, sortBy]);
+
+    const processedLeads = useMemo(() => {
+        let list = [...leads];
+        if (quickFilter === 'unimported') list = list.filter((l) => !l.alreadyImported);
+        if (quickFilter === 'has_phone') list = list.filter((l) => Boolean(l.phone));
+
+        if (sortBy === 'name') {
+            list.sort((a, b) => a.title.localeCompare(b.title));
+        } else if (sortBy === 'recent') {
+            list.sort((a, b) => (new Date(b.dateCreate || 0).getTime()) - (new Date(a.dateCreate || 0).getTime()));
+        }
+        return list;
+    }, [leads, quickFilter, sortBy]);
+
+    const availableItems = mode === 'deals'
+        ? processedDeals.filter((d) => !d.alreadyImported)
+        : processedLeads.filter((l) => !l.alreadyImported);
+
+    const totalSelectedValue = useMemo(() => {
+        if (mode !== 'deals') return 0;
+        return deals
+            .filter((d) => selected.has(d.id))
+            .reduce((acc, d) => acc + Number(d.opportunity || 0), 0);
+    }, [deals, selected, mode]);
+
     const toggle = (id: string) => {
         setSelected((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
+            const nextSet = new Set(prev);
+            if (nextSet.has(id)) nextSet.delete(id); else nextSet.add(id);
+            return nextSet;
         });
     };
 
+    const allPageSelected = availableItems.length > 0 && availableItems.every((item) => selected.has(item.id));
+
+    const toggleAllPage = () => {
+        if (allPageSelected) {
+            setSelected(new Set());
+        } else {
+            const nextSet = new Set(selected);
+            availableItems.forEach((item) => nextSet.add(item.id));
+            setSelected(nextSet);
+        }
+    };
+
+    const selectAllAvailable = () => {
+        const nextSet = new Set(selected);
+        availableItems.forEach((item) => nextSet.add(item.id));
+        setSelected(nextSet);
+    };
+
+    // Importação em Lote
     const importSelected = async () => {
         if (selected.size === 0) return;
         setImporting(true);
@@ -219,9 +281,10 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
             const body = mode === 'deals'
                 ? { connectionId, bitrixDealIds: Array.from(selected) }
                 : { connectionId, bitrixLeadIds: Array.from(selected) };
-            const result = await api.post<{ imported: number; skipped: number }>(endpoint, body, { timeoutMs: 60_000 });
+            const result = await api.post<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }>(endpoint, body, { timeoutMs: 90_000 });
             setImportResult(result);
             setSelected(new Set());
+            setShowBulkEditModal(false);
             await load(start);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Falha ao importar os itens selecionados.');
@@ -230,59 +293,166 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
         }
     };
 
+    // Importação Individual de 1 Clique
+    const importSingle = async (id: string) => {
+        setImportingSingleId(id);
+        setError('');
+        try {
+            const endpoint = mode === 'deals' ? '/api/bitrix/deals/import' : '/api/bitrix/leads/import';
+            const body = mode === 'deals'
+                ? { connectionId, bitrixDealIds: [id] }
+                : { connectionId, bitrixLeadIds: [id] };
+            const result = await api.post<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }>(endpoint, body, { timeoutMs: 30_000 });
+            setImportResult(result);
+            await load(start);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Falha ao importar o item.');
+        } finally {
+            setImportingSingleId(null);
+        }
+    };
+
     const userName = (id: string | null) => (id && users.find((u) => u.id === id)?.name) || (id ? `Usuário #${id}` : null);
 
     return (
-        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-bold text-gray-900 dark:text-white">Importar do Bitrix24</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Escolha manualmente o que trazer — nada é importado sozinho. {total > 0 && `${total} registro(s) no portal.`}</p>
+        <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10 space-y-4">
+            {/* Header com Indicador de Saúde do Portal Bitrix */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-5 rounded-3xl border border-orange-500/20 shadow-sm">
+                <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+                        <Layers className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            Importador Inteligente Bitrix24
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                Conexão Segura & Ativa
+                            </span>
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Filtre por vendedor, etapa e oportunidade. Importe com 1 clique. {total > 0 && <strong className="text-gray-700 dark:text-gray-300 font-bold">{total} registro(s) no portal.</strong>}
+                        </p>
+                    </div>
                 </div>
-                <button
-                    onClick={() => load(start)}
-                    disabled={loading}
-                    className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                    title="Recarregar"
-                >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => load(start)}
+                        disabled={loading}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-2xl shadow-sm hover:shadow transition-all disabled:opacity-50"
+                        title="Recarregar dados do Bitrix24"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        Atualizar Portal
+                    </button>
+                </div>
             </div>
 
-            <div className="flex gap-1 p-1.5 bg-gray-100/80 dark:bg-white/5 rounded-xl w-fit">
-                <button
-                    onClick={() => setMode('deals')}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'deals' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
-                >
-                    Negócios (Comercial)
-                </button>
-                <button
-                    onClick={() => setMode('leads')}
-                    className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'leads' ? 'bg-white dark:bg-white/10 text-orange-600 dark:text-orange-300 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
-                >
-                    Leads (todos)
-                </button>
-            </div>
+            {/* Alternador de Modo: Negócios x Leads + Indicadores de Valor */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex gap-1.5 p-1.5 bg-gray-100 dark:bg-white/5 rounded-2xl border border-gray-200/50 dark:border-white/5 w-fit">
+                    <button
+                        onClick={() => setMode('deals')}
+                        className={`flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition-all ${mode === 'deals' ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-600/30' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    >
+                        <Building2 className="w-4 h-4" />
+                        Negócios (Comercial)
+                    </button>
+                    <button
+                        onClick={() => setMode('leads')}
+                        className={`flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition-all ${mode === 'leads' ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white shadow-md shadow-orange-600/30' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
+                    >
+                        <Users className="w-4 h-4" />
+                        Leads (Todos)
+                    </button>
+                </div>
 
-            <div className="rounded-2xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 p-5 shadow-sm space-y-4">
-                <div className="relative w-full sm:max-w-sm">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder={mode === 'deals' ? 'Pesquisar por nome da empresa/negócio…' : 'Pesquisar por nome do lead/empresa…'}
-                        className="w-full h-9 text-sm rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white pl-9 pr-8 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
-                    />
-                    {search && (
-                        <button
-                            onClick={() => setSearch('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white"
-                            title="Limpar busca"
-                        >
-                            <X className="w-3.5 h-3.5" />
-                        </button>
+                {/* Métricas dos Selecionados */}
+                <div className="flex items-center gap-3">
+                    {mode === 'deals' && totalSelectedValue > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs font-bold">
+                            <DollarSign className="w-4 h-4" />
+                            Total Selecionado: R$ {totalSelectedValue.toLocaleString('pt-BR')}
+                        </div>
                     )}
+
+                    {selected.size > 0 && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowBulkEditModal(true)}
+                                className="flex items-center gap-1.5 px-3.5 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-800 dark:text-white text-xs font-bold rounded-xl transition-all"
+                            >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                Editar em Lote ({selected.size})
+                            </button>
+                            <button
+                                onClick={importSelected}
+                                disabled={importing}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold rounded-xl shadow-md shadow-orange-600/20 transition-all disabled:opacity-50"
+                            >
+                                {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                {importing ? 'Importando...' : `Importar Selecionados (${selected.size})`}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Painel Avançado de Filtros e Busca */}
+            <div className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 p-5 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="relative w-full sm:max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder={mode === 'deals' ? 'Buscar por empresa, oportunidade ou negócio...' : 'Buscar por nome do lead, empresa, e-mail...'}
+                            className="w-full h-10 text-sm rounded-2xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-900 dark:text-white pl-10 pr-9 placeholder:text-gray-400 focus:bg-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none"
+                        />
+                        {search && (
+                            <button
+                                onClick={() => setSearch('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-white p-1"
+                                title="Limpar busca"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Filtros Rápidos (Pills) */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                        <button
+                            onClick={() => setQuickFilter('all')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'all' ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                        >
+                            Todos ({mode === 'deals' ? deals.length : leads.length})
+                        </button>
+                        <button
+                            onClick={() => setQuickFilter('unimported')}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'unimported' ? 'bg-orange-600 text-white shadow-sm shadow-orange-600/20' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                        >
+                            Disponíveis para Importar
+                        </button>
+                        {mode === 'deals' && (
+                            <button
+                                onClick={() => setQuickFilter('has_value')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'has_value' ? 'bg-green-600 text-white shadow-sm shadow-green-600/20' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                            >
+                                Com Valor (R$)
+                            </button>
+                        )}
+                        {mode === 'leads' && (
+                            <button
+                                onClick={() => setQuickFilter('has_phone')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${quickFilter === 'has_phone' ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20' : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}
+                            >
+                                Com Telefone
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {mode === 'deals' && (
@@ -292,7 +462,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                             Este portal não tem um pipeline &quot;Comercial&quot; — as vendas dele provavelmente ficam na aba Leads, não em Negócios.
                         </p>
                     ) : (
-                        <div className="flex flex-wrap items-end gap-3">
+                        <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-gray-100 dark:border-white/10">
                             <div className="flex flex-col gap-1">
                                 <span className={filterLabelClass}><Filter className="w-3 h-3" /> Pipeline</span>
                                 <span className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 text-orange-700 dark:text-orange-300 text-sm font-bold whitespace-nowrap">
@@ -307,11 +477,19 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}><Users className="w-3 h-3" /> Vendedor</label>
-                                <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
-                                    <option value="">Todos os vendedores</option>
-                                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                </select>
+                                <label className={filterLabelClass}>
+                                    {canPickAnyVendor ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} Vendedor
+                                </label>
+                                {canPickAnyVendor ? (
+                                    <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
+                                        <option value="">Todos os vendedores</option>
+                                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    </select>
+                                ) : (
+                                    <span className="flex items-center h-9 px-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm font-medium" title="Você só vê e importa o seu próprio dado do Bitrix24 (Trava de Isolamento por Vendedor).">
+                                        Exclusivo do Seu Usuário
+                                    </span>
+                                )}
                             </div>
                             <div className="flex flex-col gap-1">
                                 <label className={filterLabelClass}><CalendarDays className="w-3 h-3" /> Mês</label>
@@ -327,18 +505,20 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                                     {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
+                            <div className="flex flex-col gap-1 ml-auto">
+                                <label className={filterLabelClass}><ArrowUpDown className="w-3 h-3" /> Ordenar Por</label>
+                                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'recent' | 'value' | 'name')} className={selectClass}>
+                                    <option value="recent">Mais Recentes</option>
+                                    <option value="value">Maior Valor (R$)</option>
+                                    <option value="name">Nome (A-Z)</option>
+                                </select>
+                            </div>
                         </div>
                     )
                 )}
-                {mode === 'deals' && pipelines.length > 0 && users.length === 0 && (
-                    <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
-                        <Info className="w-3 h-3 shrink-0" />
-                        O webhook do Bitrix não tem permissão para listar usuários — o filtro de vendedor mostra só o ID bruto. Adicione o escopo &quot;user&quot; ao webhook para ver nomes.
-                    </p>
-                )}
 
                 {fields.length > 0 && (
-                    <div className="flex flex-wrap items-end gap-3 pt-1 border-t border-gray-100 dark:border-white/10">
+                    <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-gray-100 dark:border-white/10">
                         <div className="flex flex-col gap-1">
                             <label htmlFor="bitrix-import-custom-field" className={filterLabelClass}><SlidersHorizontal className="w-3 h-3" /> Campo personalizado</label>
                             <select id="bitrix-import-custom-field" value={customFieldCode} onChange={(e) => setCustomFieldCode(e.target.value)} className={`${selectClass} min-w-[13rem]`}>
@@ -363,82 +543,416 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                 )}
             </div>
 
-            {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-            {importResult && (
-                <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> {importResult.imported} registro(s) importado(s){importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
+            {error && <p className="text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3.5 rounded-2xl border border-red-200">{error}</p>}
+            {!error && restrictedWarning && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 bg-amber-50 dark:bg-amber-500/10 p-3.5 rounded-2xl border border-amber-200 font-medium">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-amber-600" /> {restrictedWarning}
                 </p>
             )}
 
-            {loading ? (
-                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
-            ) : (
-                <div className="max-h-[22rem] overflow-y-auto rounded-2xl border border-gray-100 dark:border-white/10 divide-y divide-gray-100 dark:divide-white/10 shadow-sm bg-white">
-                    {mode === 'deals' ? deals.map((deal) => (
-                        <label
-                            key={deal.id}
-                            className={`flex items-start gap-4 p-4 text-sm cursor-pointer transition-colors ${deal.alreadyImported ? 'opacity-50 bg-gray-50' : 'hover:bg-orange-50/50 dark:hover:bg-white/5'}`}
-                        >
-                            <input type="checkbox" checked={selected.has(deal.id)} disabled={deal.alreadyImported} onChange={() => toggle(deal.id)} className="mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-900 dark:text-white truncate">{deal.title}</span>
-                                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-300 text-[10px] font-bold">{deal.stageLabel}</span>
-                                    {deal.alreadyImported && <span className="shrink-0 text-[10px] text-gray-400">já importado</span>}
-                                </div>
-                                <p className="text-gray-500 dark:text-gray-400 truncate">
-                                    {[userName(deal.assignedById), deal.opportunity && `R$ ${Number(deal.opportunity).toLocaleString('pt-BR')}`, deal.dateCreate && new Date(deal.dateCreate).toLocaleDateString('pt-BR')].filter(Boolean).join(' · ') || 'Sem dados adicionais'}
-                                </p>
-                            </div>
-                        </label>
-                    )) : leads.map((lead) => (
-                        <label
-                            key={lead.id}
-                            className={`flex items-start gap-4 p-4 text-sm cursor-pointer transition-colors ${lead.alreadyImported ? 'opacity-50 bg-gray-50' : 'hover:bg-orange-50/50 dark:hover:bg-white/5'}`}
-                        >
-                            <input type="checkbox" checked={selected.has(lead.id)} disabled={lead.alreadyImported} onChange={() => toggle(lead.id)} className="mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="font-bold text-gray-900 dark:text-white truncate">{lead.title}</span>
-                                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-300 text-[10px] font-bold">{lead.statusLabel}</span>
-                                    {lead.alreadyImported && <span className="shrink-0 text-[10px] text-gray-400">já importado</span>}
-                                </div>
-                                <p className="text-gray-500 dark:text-gray-400 truncate">
-                                    {[lead.contactName, lead.phone, lead.email].filter(Boolean).join(' · ') || 'Sem contato/telefone/e-mail'}
-                                </p>
-                            </div>
-                        </label>
-                    ))}
-                    {(mode === 'deals' ? deals.length : leads.length) === 0 && <p className="p-4 text-xs text-gray-500 text-center">Nenhum registro encontrado com esses filtros.</p>}
+            {importResult && (
+                <div className="text-xs space-y-1 p-4 bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-3xl shadow-sm">
+                    <p className="text-green-700 dark:text-green-400 font-bold flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" /> {importResult.imported} registro(s) importado(s) com sucesso{importResult.skipped > 0 ? `, ${importResult.skipped} já existiam` : ''}.
+                    </p>
+                    {importResult.skippedConflicts > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pl-6">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {importResult.skippedConflicts} bloqueado(s) — pertenciam a outro responsável.
+                        </p>
+                    )}
+                    {importResult.skippedNotOwned > 0 && (
+                        <p className="text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pl-6">
+                            <Lock className="w-3.5 h-3.5 shrink-0" /> {importResult.skippedNotOwned} ignorado(s) — não atribuídos a você no Bitrix24.
+                        </p>
+                    )}
                 </div>
             )}
 
-            <div className="flex items-center justify-between gap-3">
+            {/* Barra Superior de Seleção em Massa */}
+            {!loading && availableItems.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-r from-gray-50 to-orange-50/30 dark:from-white/5 dark:to-white/5 border border-gray-200 dark:border-white/10 rounded-2xl shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={toggleAllPage}
+                            className="flex items-center gap-2 text-xs font-bold text-gray-800 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                        >
+                            {allPageSelected ? (
+                                <CheckSquare className="w-4 h-4 text-orange-600" />
+                            ) : (
+                                <Square className="w-4 h-4 text-gray-400" />
+                            )}
+                            <span>Selecionar Todos da Página ({availableItems.length} disponíveis)</span>
+                        </button>
+
+                        <button
+                            onClick={selectAllAvailable}
+                            className="text-xs font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 flex items-center gap-1 underline underline-offset-2"
+                        >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Marcar Todos
+                        </button>
+                    </div>
+
+                    {selected.size > 0 && (
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-500/20 px-3 py-1 rounded-full">
+                                {selected.size} selecionado(s)
+                            </span>
+                            <button
+                                onClick={() => setSelected(new Set())}
+                                className="text-xs font-bold text-gray-500 hover:text-red-500 transition-colors"
+                            >
+                                Desmarcar Tudo
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Lista de Cards Ricos para Registros de Clientes */}
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-14 gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-orange-600" />
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400">Carregando dados do Bitrix24...</p>
+                </div>
+            ) : (
+                <div className="max-h-[34rem] overflow-y-auto space-y-3 pr-1">
+                    {mode === 'deals' ? (
+                        processedDeals.map((deal) => {
+                            const isSelected = selected.has(deal.id);
+                            const isSingleImporting = importingSingleId === deal.id;
+
+                            return (
+                                <div
+                                    key={deal.id}
+                                    className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl border transition-all ${
+                                        deal.alreadyImported
+                                            ? 'opacity-50 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'
+                                            : isSelected
+                                            ? 'bg-orange-500/10 border-orange-500/50 shadow-md shadow-orange-500/5 ring-1 ring-orange-500/30'
+                                            : 'bg-white dark:bg-white/5 border-gray-200/80 dark:border-white/10 hover:border-orange-500/40 hover:bg-orange-50/20 dark:hover:bg-white/10 shadow-sm'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                                        <div className="pt-1 shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                disabled={deal.alreadyImported}
+                                                onChange={() => toggle(deal.id)}
+                                                className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5 min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 font-bold text-xs">
+                                                    <Building2 className="w-4 h-4" />
+                                                </div>
+                                                <h4 className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                                                    {deal.title}
+                                                </h4>
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/20 text-[10px] font-bold">
+                                                    <Tag className="w-3 h-3" />
+                                                    {deal.stageLabel}
+                                                </span>
+                                                {deal.alreadyImported && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-500 text-[10px] font-bold">
+                                                        <Check className="w-3 h-3" /> Já Importado
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-gray-500 dark:text-gray-400">
+                                                {deal.assignedById && (
+                                                    <span className="flex items-center gap-1">
+                                                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                                                        {userName(deal.assignedById)}
+                                                    </span>
+                                                )}
+                                                {deal.opportunity && (
+                                                    <span className="flex items-center gap-1 font-bold text-green-600 dark:text-green-400">
+                                                        <DollarSign className="w-3.5 h-3.5" />
+                                                        R$ {Number(deal.opportunity).toLocaleString('pt-BR')}
+                                                    </span>
+                                                )}
+                                                {deal.dateCreate && (
+                                                    <span className="flex items-center gap-1 text-gray-400">
+                                                        <CalendarDays className="w-3.5 h-3.5" />
+                                                        {new Date(deal.dateCreate).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ação Individual de 1 Clique */}
+                                    {!deal.alreadyImported && (
+                                        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-white/5">
+                                            <button
+                                                onClick={() => importSingle(deal.id)}
+                                                disabled={isSingleImporting || importing}
+                                                className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                                            >
+                                                {isSingleImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-orange-600" />}
+                                                {isSingleImporting ? 'Importando...' : 'Importar Agora'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        processedLeads.map((lead) => {
+                            const isSelected = selected.has(lead.id);
+                            const isSingleImporting = importingSingleId === lead.id;
+                            const whatsappUrl = lead.phone ? `https://wa.me/${lead.phone.replace(/\D/g, '')}` : null;
+
+                            return (
+                                <div
+                                    key={lead.id}
+                                    className={`group relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl border transition-all ${
+                                        lead.alreadyImported
+                                            ? 'opacity-50 bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/5'
+                                            : isSelected
+                                            ? 'bg-orange-500/10 border-orange-500/50 shadow-md shadow-orange-500/5 ring-1 ring-orange-500/30'
+                                            : 'bg-white dark:bg-white/5 border-gray-200/80 dark:border-white/10 hover:border-orange-500/40 hover:bg-orange-50/20 dark:hover:bg-white/10 shadow-sm'
+                                    }`}
+                                >
+                                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                                        <div className="pt-1 shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                checked={isSelected}
+                                                disabled={lead.alreadyImported}
+                                                onChange={() => toggle(lead.id)}
+                                                className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-1.5 min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <div className="w-8 h-8 rounded-xl bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 font-bold text-xs">
+                                                    <Users className="w-4 h-4" />
+                                                </div>
+                                                <h4 className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                                                    {lead.title}
+                                                </h4>
+                                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/20 text-[10px] font-bold">
+                                                    <Tag className="w-3 h-3" />
+                                                    {lead.statusLabel}
+                                                </span>
+                                                {lead.alreadyImported && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-white/10 text-gray-500 text-[10px] font-bold">
+                                                        <Check className="w-3 h-3" /> Já Importado
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-gray-600 dark:text-gray-300">
+                                                {lead.contactName && (
+                                                    <span className="flex items-center gap-1 font-semibold">
+                                                        <Users className="w-3.5 h-3.5 text-gray-400" />
+                                                        {lead.contactName}
+                                                    </span>
+                                                )}
+
+                                                {lead.phone && (
+                                                    <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                                                        <Phone className="w-3.5 h-3.5 text-green-500" />
+                                                        {lead.phone}
+                                                        {whatsappUrl && (
+                                                            <a
+                                                                href={whatsappUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="ml-1 text-green-600 hover:text-green-700 inline-flex items-center gap-0.5 text-[10px] font-bold bg-green-50 dark:bg-green-500/10 px-1.5 py-0.5 rounded"
+                                                                title="Abrir no WhatsApp"
+                                                            >
+                                                                WhatsApp <ExternalLink className="w-2.5 h-2.5" />
+                                                            </a>
+                                                        )}
+                                                    </span>
+                                                )}
+
+                                                {lead.email && (
+                                                    <span className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                                                        <Mail className="w-3.5 h-3.5 text-blue-500" />
+                                                        <a href={`mailto:${lead.email}`} className="hover:underline">{lead.email}</a>
+                                                    </span>
+                                                )}
+
+                                                {lead.dateCreate && (
+                                                    <span className="flex items-center gap-1 text-gray-400 ml-auto">
+                                                        <CalendarDays className="w-3.5 h-3.5" />
+                                                        {new Date(lead.dateCreate).toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Ação Individual de 1 Clique */}
+                                    {!lead.alreadyImported && (
+                                        <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-white/5">
+                                            <button
+                                                onClick={() => importSingle(lead.id)}
+                                                disabled={isSingleImporting || importing}
+                                                className="flex items-center gap-1.5 px-3.5 py-2 bg-orange-50 hover:bg-orange-100 dark:bg-orange-500/10 dark:hover:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/20 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                                            >
+                                                {isSingleImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-orange-600" />}
+                                                {isSingleImporting ? 'Importando...' : 'Importar Agora'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+
+                    {(mode === 'deals' ? processedDeals.length : processedLeads.length) === 0 && (
+                        <div className="p-10 text-center bg-gray-50 dark:bg-white/5 rounded-3xl border border-dashed border-gray-200 dark:border-white/10 space-y-2">
+                            <Info className="w-8 h-8 text-gray-400 mx-auto" />
+                            <p className="text-sm font-bold text-gray-700 dark:text-gray-300">Nenhum registro encontrado</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Tente ajustar os filtros, mudar a busca ou selecionar outra aba.</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Paginação Inferior */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => load(Math.max(0, start - 50))}
                         disabled={loading || start === 0}
-                        className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                        className="px-4 py-2 border border-gray-200 dark:border-white/10 rounded-2xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-30 transition-colors"
                     >
                         ← Anterior
                     </button>
                     <button
                         onClick={() => next != null && load(next)}
                         disabled={loading || next == null}
-                        className="text-xs font-bold text-gray-500 hover:text-gray-900 dark:hover:text-white disabled:opacity-30"
+                        className="px-4 py-2 border border-gray-200 dark:border-white/10 rounded-2xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-30 transition-colors"
                     >
                         Próxima →
                     </button>
+                    <span className="text-xs text-gray-400 pl-2">
+                        Exibindo {start + 1}–{start + (mode === 'deals' ? deals.length : leads.length)} de {total}
+                    </span>
                 </div>
-                <button
-                    onClick={importSelected}
-                    disabled={importing || selected.size === 0}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-colors"
-                >
-                    {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                    {importing ? 'Importando...' : `Importar ${selected.size > 0 ? `(${selected.size})` : 'selecionados'}`}
-                </button>
+
+                <div className="flex items-center gap-2">
+                    {selected.size > 0 && (
+                        <button
+                            onClick={() => setShowBulkEditModal(true)}
+                            className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/10 dark:hover:bg-white/20 text-gray-800 dark:text-white text-xs font-bold rounded-2xl transition-all"
+                        >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Editar ({selected.size})
+                        </button>
+                    )}
+                    <button
+                        onClick={importSelected}
+                        disabled={importing || selected.size === 0}
+                        className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-600/20 transition-all disabled:opacity-40"
+                    >
+                        {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        {importing ? 'Importando...' : `Importar ${selected.size > 0 ? `(${selected.size})` : 'selecionados'}`}
+                    </button>
+                </div>
             </div>
+
+            {/* Modal de Configurações e Edição em Lote */}
+            {showBulkEditModal && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 max-w-md w-full border border-gray-200 dark:border-white/10 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-150">
+                        <div className="flex items-center justify-between border-b border-gray-100 dark:border-white/10 pb-4">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-2xl bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold">
+                                    <Edit3 className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                                        Editar em Lote ({selected.size} itens)
+                                    </h3>
+                                    <p className="text-[11px] text-gray-500">Defina os parâmetros padrão de importação.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowBulkEditModal(false)}
+                                className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                    Temperatura Inicial do Lead no AtlasGR
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['Frio', 'Morno', 'Quente'] as const).map((temp) => (
+                                        <button
+                                            key={temp}
+                                            type="button"
+                                            onClick={() => setBulkTemperature(temp)}
+                                            className={`flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold rounded-2xl border transition-all ${
+                                                bulkTemperature === temp
+                                                    ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-600 shadow-md shadow-orange-600/20'
+                                                    : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <Flame className={`w-3.5 h-3.5 ${temp === 'Quente' ? 'text-red-400' : temp === 'Morno' ? 'text-amber-400' : 'text-blue-400'}`} />
+                                            {temp}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-gray-100 dark:border-white/10">
+                                <label className="flex items-start gap-3 p-3.5 bg-orange-500/10 border border-orange-500/20 rounded-2xl cursor-pointer hover:bg-orange-500/15 transition-all">
+                                    <input
+                                        type="checkbox"
+                                        checked={bulkTriggerVoice}
+                                        onChange={(e) => setBulkTriggerVoice(e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer mt-0.5"
+                                    />
+                                    <div>
+                                        <span className="block text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                                            <Sparkles className="w-4 h-4 text-orange-600" />
+                                            Qualificar via Voz (Bland AI / Birthub Voices)
+                                        </span>
+                                        <span className="block text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Dispara chamada de qualificação automatizada assim que o lead for importado para o AtlasGR.
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-white/10">
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkEditModal(false)}
+                                className="px-4 py-2.5 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 rounded-2xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={importSelected}
+                                disabled={importing}
+                                className="flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white text-xs font-bold rounded-2xl shadow-md shadow-orange-600/20 transition-all disabled:opacity-50"
+                            >
+                                {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                                Aplicar & Importar ({selected.size})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

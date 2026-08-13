@@ -33,6 +33,10 @@ export abstract class BaseAgent {
     protected abstract agentType: string;
     protected modelName: string = 'local-llama3-fast';
     protected temperature: number = 0.4;
+    // Nome real do modelo Groq usado por runWithTools (namespace diferente de `modelName`, que é
+    // o nome lógico resolvido pelo gateway.ts em `run()`) — runWithTools fala direto com
+    // LangChain/Groq via bindTools, que o gateway não transporta.
+    protected toolsModelName: string = 'llama-3.1-8b-instant';
 
     protected abstract buildSystemPrompt(learnedStyle: string | null): string;
     protected abstract buildHumanMessage(input: string): string;
@@ -95,6 +99,51 @@ export abstract class BaseAgent {
             output: lastMessage.content as string,
             sessionId: sid,
         };
+    }
+
+    /**
+     * Variante de `run()` para agentes que precisam de ferramentas com loop de tool-calling (ReAct)
+     * em vez do turno único do StateGraph acima — usa buildModelWithFallback com bindTools em cada
+     * candidato, para que um fallback assumindo no meio da execução não perca acesso às ferramentas.
+     * Extraído de BDRAgent/CloserAgent, que tinham essa lógica duplicada linha a linha.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected async runWithTools(inputData: string, tools: any[], sessionId?: string): Promise<AgentRunResult & Record<string, unknown>> {
+        const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
+
+        try {
+            const learnedStyle = await this.loadLearnedStyle();
+            const systemPrompt = this.buildSystemPrompt(learnedStyle);
+
+            const { buildModelWithFallback } = await import('./fallback.util.js');
+            const { createReactAgent } = await import('@langchain/langgraph/prebuilt');
+            const { SystemMessage, HumanMessage } = await import('@langchain/core/messages');
+
+            const model = buildModelWithFallback(this.toolsModelName, tools);
+            const agent = createReactAgent({ llm: model, tools });
+
+            const result = await agent.invoke({
+                messages: [
+                    new SystemMessage(systemPrompt),
+                    new HumanMessage(this.buildHumanMessage(inputData)),
+                ],
+            });
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const messages = result.messages as any[];
+            const lastMessage = messages[messages.length - 1];
+
+            await this.updateMemory(sid, messages.map((m): SerializedMessage => ({
+                role: m._getType(),
+                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+            })));
+
+            return { output: lastMessage.content as string, sessionId: sid };
+        } catch (error) {
+            logger.error({ err: error, sessionId: sid, agentType: this.agentType }, 'Agent run (with tools) failed');
+            const message = error instanceof Error ? error.message : `Falha desconhecida no Agente ${this.agentType}.`;
+            return { error: message, sessionId: sid };
+        }
     }
 
     protected async loadLearnedStyle(): Promise<string | null> {

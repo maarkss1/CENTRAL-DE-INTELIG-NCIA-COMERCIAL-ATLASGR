@@ -11,10 +11,7 @@ const config: CapacitorConfig = {
   appId: 'br.com.atlasgr.prospector',
   appName: 'AtlasGR Prospector',
   webDir: 'dist',
-  server: {
-    url: PRODUCTION_URL,
-    cleartext: IS_LOCAL_TEST_URL,
-  },
+  
 };
 
 export default config;

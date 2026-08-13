@@ -6,6 +6,8 @@ import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
 import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
+import { resolveAtlasUserNameByEmail } from './userMapping.js';
+import { findOwnershipConflict, notifyOwnershipConflict } from './ownershipGuard.js';
 
 const DEAL_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.dealCode).filter((c): c is string => Boolean(c));
 
@@ -29,6 +31,7 @@ export interface BitrixDealStage {
 export interface BitrixUserOption {
     id: string;
     name: string;
+    email: string | null;
 }
 
 /**
@@ -69,13 +72,13 @@ export async function getBitrixUsers(organizationId: string, connectionId: strin
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
 
     try {
-        const data = await callBitrix<{ result: Array<{ ID: string; NAME?: string; LAST_NAME?: string }> }>(
+        const data = await callBitrix<{ result: Array<{ ID: string; NAME?: string; LAST_NAME?: string; EMAIL?: string }> }>(
             webhookUrl,
             'user.get',
             { filter: { ACTIVE: true } },
         );
         return data.result
-            .map((u) => ({ id: u.ID, name: [u.NAME, u.LAST_NAME].filter(Boolean).join(' ') || `Usuário #${u.ID}` }))
+            .map((u) => ({ id: u.ID, name: [u.NAME, u.LAST_NAME].filter(Boolean).join(' ') || `Usuário #${u.ID}`, email: u.EMAIL?.trim().toLowerCase() || null }))
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     } catch (err) {
         logger.warn({ err, organizationId }, '[bitrix] Sem escopo "user" no webhook — filtro de vendedor cairá para ID bruto');
@@ -236,14 +239,23 @@ export async function importSelectedBitrixDeals(
     organizationId: string,
     connectionId: string,
     bitrixDealIds: string[],
-): Promise<{ imported: number; skipped: number }> {
+    /** Mesmo raciocínio de importSelectedBitrixLeads: fecha a brecha de um VENDEDOR montar a
+     * requisição de import na mão com IDs fora do próprio escopo. */
+    restrictToAssignedById?: string,
+): Promise<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }> {
     const webhookUrl = await getConnectionWebhookUrl(organizationId, connectionId);
-    if (bitrixDealIds.length === 0) return { imported: 0, skipped: 0 };
+    if (bitrixDealIds.length === 0) return { imported: 0, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 };
     if (bitrixDealIds.length > 100) throw new AppError('Selecione no máximo 100 negócios por vez.', 400);
 
-    const enumMaps = await resolveEnumMaps(webhookUrl, 'deal');
+    const [enumMaps, bitrixUsers] = await Promise.all([
+        resolveEnumMaps(webhookUrl, 'deal'),
+        getBitrixUsers(organizationId, connectionId),
+    ]);
+    const bitrixUserEmailById = new Map(bitrixUsers.map((u) => [u.id, u.email]));
     let imported = 0;
     let skipped = 0;
+    let skippedConflicts = 0;
+    let skippedNotOwned = 0;
 
     for (const bitrixDealId of bitrixDealIds) {
         const existing = await prisma.lead.findFirst({ where: { organizationId, bitrixDealId }, select: { id: true } });
@@ -253,6 +265,10 @@ export async function importSelectedBitrixDeals(
         }
 
         const { result: deal } = await callBitrix<{ result: BitrixDealRaw }>(webhookUrl, 'crm.deal.get', { id: bitrixDealId });
+        if (restrictToAssignedById && deal.ASSIGNED_BY_ID !== restrictToAssignedById) {
+            skippedNotOwned++;
+            continue;
+        }
 
         let contactName = '';
         let phone: string | null = null;
@@ -292,6 +308,17 @@ export async function importSelectedBitrixDeals(
         const { source: _bitrixOrigemIgnorada, ...leadFields } = rawLeadFields;
         void _bitrixOrigemIgnorada;
 
+        const assigneeEmail = deal.ASSIGNED_BY_ID ? bitrixUserEmailById.get(deal.ASSIGNED_BY_ID) ?? null : null;
+        const ownerName = await resolveAtlasUserNameByEmail(organizationId, assigneeEmail);
+
+        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerName);
+        if (conflict) {
+            skippedConflicts++;
+            await notifyOwnershipConflict(organizationId, conflict, tradeName);
+            logger.info({ organizationId, bitrixDealId, conflict }, '[bitrix] Import bloqueado — contato já pertence a outro responsável');
+            continue;
+        }
+
         try {
             const company = await prisma.company.create({
                 data: {
@@ -319,6 +346,7 @@ export async function importSelectedBitrixDeals(
                     companyId: company.id,
                     contactId: contact?.id,
                     organizationId,
+                    owner: ownerName,
                     bitrixDealId: deal.ID,
                     bitrixStageLabel: stageLabel,
                     qualification: Object.keys(qualification).length > 0 ? qualification : undefined,
@@ -337,6 +365,6 @@ export async function importSelectedBitrixDeals(
         }
     }
 
-    logger.info({ organizationId, imported, skipped }, '[bitrix] Importação de negócios concluída');
-    return { imported, skipped };
+    logger.info({ organizationId, imported, skipped, skippedConflicts, skippedNotOwned }, '[bitrix] Importação de negócios concluída');
+    return { imported, skipped, skippedConflicts, skippedNotOwned };
 }

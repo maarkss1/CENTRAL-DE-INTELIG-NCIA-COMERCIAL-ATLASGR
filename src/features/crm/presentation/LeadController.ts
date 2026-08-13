@@ -31,7 +31,8 @@ export class LeadController {
             const funnel: LeadFunnel | undefined = requestedFunnel === 'Lead' || requestedFunnel === 'Negocio'
                 ? requestedFunnel
                 : undefined;
-            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel);
+            const query = req.query.q as string | undefined;
+            const result = await this.leadUseCases.findLeads(orgId, req.query.status as string | undefined, page, limit, funnel, query);
             res.json({ success: true, data: result.data, meta: result.meta });
         } catch (error) {
             next(error);
@@ -159,6 +160,36 @@ export class LeadController {
             const { organizationId: orgId } = (req as AuthRequest).user;
             const result = await this.leadUseCases.importRecentBitrixLeads(orgId);
             res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    enrichBatch = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const result = await this.leadUseCases.enqueueBatchEnrichment(orgId);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    triggerStaleFollowups = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const days = parseInt(req.query.days as string) || 3;
+            
+            // Dispara a automação para leads que não mudam de status há X dias
+            fireAutomations({
+                organizationId: orgId,
+                trigger: 'Lead mudou de status',
+                entity: 'Lead',
+                entityId: 'BATCH',
+                data: { daysStale: days },
+            });
+            
+            res.json({ success: true, message: `Follow-up automation triggered for leads stale for ${days} days.` });
         } catch (error) {
             next(error);
         }

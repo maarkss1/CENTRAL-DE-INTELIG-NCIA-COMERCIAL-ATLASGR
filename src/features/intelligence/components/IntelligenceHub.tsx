@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-    Database, Zap, Target, Bot, GraduationCap, Settings, Sparkles,
+    Database, Bot, GraduationCap, Settings, Sparkles,
     FileText, Workflow, CheckSquare, Wand2, Search, ArrowLeft, ArrowRight,
+    Loader2, AlertTriangle, ArrowUpRight,
 } from 'lucide-react';
 import { AIPendingActions } from './AIPendingActions';
 import { B2BGenerator } from './B2BGenerator';
@@ -13,8 +15,10 @@ import { AutomationGuide } from './AutomationGuide';
 import { SalesMethodologyStudio } from './SalesMethodologyStudio';
 import { AIConfigCenter } from '../../dashboard/components/AIConfigCenter';
 import { Card, CardTitle, CardDescription } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { fadeInUp, staggerContainer, staggerItem, SPRING_SOFT } from '../../../lib/motion';
+import { knowledgeApi, type KnowledgeDocumentSummary } from '../../knowledge/knowledge.api';
 
 import { SwarmDashboard } from './SwarmDashboard';
 
@@ -40,9 +44,45 @@ const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot; descrip
     { id: 'rag', label: 'Conhecimento Vetorial (RAG)', icon: Database, description: 'Base de embeddings que o Agente SDR consulta para gerar abordagens contextuais.' },
 ];
 
+function formatRelativeDate(iso: string): string {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const diffMin = Math.round(diffMs / 60_000);
+    if (diffMin < 1) return 'agora mesmo';
+    if (diffMin < 60) return `há ${diffMin} min`;
+    const diffHours = Math.round(diffMin / 60);
+    if (diffHours < 24) return `há ${diffHours}h`;
+    const diffDays = Math.round(diffHours / 24);
+    return `há ${diffDays} dia${diffDays === 1 ? '' : 's'}`;
+}
+
 export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
     const [activeTab, setActiveTab] = useState<IntelligenceTab | null>(initialTab ?? null);
     const accent = useBrandAccent();
+
+    // Estado real da Base de Conhecimento (RAG) — nunca dados fabricados. Ver AGENTS.md, bloqueador
+    // #6 ("dados fictícios misturados a dados reais"): o card desta aba já mostrou "última
+    // sincronização há 2 horas" hardcoded para documentos que não existiam no banco. Reaproveita o
+    // mesmo `knowledgeApi` já usado pela tela completa de Base de Conhecimento (`/knowledge`), sem
+    // duplicar o pipeline de ingestão/busca — só um resumo, com link para a tela cheia.
+    const [ragDocuments, setRagDocuments] = useState<KnowledgeDocumentSummary[] | null>(null);
+    const [ragError, setRagError] = useState<string | null>(null);
+    const [ragLoading, setRagLoading] = useState(false);
+
+    const loadRagSummary = useCallback(async () => {
+        setRagLoading(true);
+        setRagError(null);
+        try {
+            setRagDocuments(await knowledgeApi.list());
+        } catch (err) {
+            setRagError((err as Error).message);
+        } finally {
+            setRagLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === 'rag') void loadRagSummary();
+    }, [activeTab, loadRagSummary]);
 
     if (activeTab === null) {
         return (
@@ -125,44 +165,89 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
 
                 {activeTab === 'rag' && (
                     <Card variant="default" padding="lg" accentBar>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
-                                <Database size={22} />
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 flex items-center justify-center text-brand shrink-0">
+                                    <Database size={22} />
+                                </div>
+                                <div>
+                                    <CardTitle>Conhecimento Vetorial (RAG)</CardTitle>
+                                    <CardDescription>
+                                        Documentos reais indexados nesta organização. O Agente SDR consulta esta mesma
+                                        base (busca híbrida semântica + palavra-chave) para gerar abordagens contextuais —
+                                        nunca inventa uma fonte que não está aqui.
+                                    </CardDescription>
+                                </div>
                             </div>
-                            <div>
-                                <CardTitle>Conhecimento Vetorial (RAG)</CardTitle>
-                                <CardDescription>
-                                    Base de dados de embeddings ativa. O Agente SDR varre essas diretrizes (playbooks, manuais e histórico) em milissegundos para gerar abordagens impecáveis e contextuais.
-                                </CardDescription>
-                            </div>
+                            <Button asChild variant="outline" className="shrink-0 whitespace-nowrap">
+                                <Link to="/knowledge">
+                                    Gerenciar base <ArrowUpRight className="w-4 h-4 ml-1.5" />
+                                </Link>
+                            </Button>
                         </div>
 
-                        <div className="space-y-3">
-                            <div className={`p-5 bg-surface-2 border border-line rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-full ${accent.bgSoft} flex items-center justify-center ${accent.text} shrink-0`}>
-                                        <Target size={18} />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-ink text-sm">Playbook Estratégico - Vendas B2B {accent.brandName}</p>
-                                        <p className="text-[11px] font-semibold text-ink-2 mt-0.5 uppercase tracking-wider">Última sincronização há 2 horas</p>
-                                    </div>
-                                </div>
-                                <div className="px-3 py-1 bg-success/15 text-success text-[10px] font-black uppercase tracking-widest rounded-lg border border-success/30">Ativo</div>
+                        {ragLoading && (
+                            <div className="flex items-center justify-center gap-2 text-sm text-ink-2 py-8">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Carregando documentos…
                             </div>
-                            <div className={`p-5 bg-surface-2 border border-line rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-info/15 flex items-center justify-center text-info shrink-0">
-                                        <Zap size={18} />
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-ink text-sm">{accent.isAtlas ? 'Regras ICP B2B - Logística & Frotas' : 'Regras ICP B2B - Frotas & Telemetria'}</p>
-                                        <p className="text-[11px] font-semibold text-ink-2 mt-0.5 uppercase tracking-wider">Última sincronização há 5 dias</p>
-                                    </div>
-                                </div>
-                                <div className="px-3 py-1 bg-success/15 text-success text-[10px] font-black uppercase tracking-widest rounded-lg border border-success/30">Ativo</div>
+                        )}
+
+                        {!ragLoading && ragError && (
+                            <div className="text-center py-8">
+                                <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-amber-400" />
+                                <p className="text-sm text-ink-2 mb-4">{ragError}</p>
+                                <Button variant="outline" onClick={() => void loadRagSummary()}>Tentar novamente</Button>
                             </div>
-                        </div>
+                        )}
+
+                        {!ragLoading && !ragError && ragDocuments !== null && ragDocuments.length === 0 && (
+                            <div className="text-center py-8 border border-dashed border-line rounded-card">
+                                <Database className="w-10 h-10 mx-auto mb-3 text-ink-2" />
+                                <p className="text-sm font-semibold text-ink mb-1">Nenhum documento indexado ainda</p>
+                                <p className="text-xs text-ink-2 mb-4 max-w-sm mx-auto">
+                                    Sem documentos, o Agente SDR não tem playbook para consultar — ele avisa isso em
+                                    vez de inventar uma resposta.
+                                </p>
+                                <Button asChild variant="outline">
+                                    <Link to="/knowledge">Enviar o primeiro documento</Link>
+                                </Button>
+                            </div>
+                        )}
+
+                        {!ragLoading && !ragError && ragDocuments !== null && ragDocuments.length > 0 && (
+                            <div className="space-y-3">
+                                <p className="text-xs font-semibold text-ink-2 uppercase tracking-wider">
+                                    {ragDocuments.length} documento{ragDocuments.length === 1 ? '' : 's'} ·{' '}
+                                    {ragDocuments.reduce((sum, d) => sum + d.chunkCount, 0)} trecho(s) vetorizado(s)
+                                </p>
+                                {ragDocuments.slice(0, 5).map((doc) => (
+                                    <div
+                                        key={doc.id}
+                                        className={`p-5 bg-surface-2 border border-line rounded-card flex items-center justify-between group ${accent.hoverBorder} transition-colors`}
+                                    >
+                                        <div className="flex items-center gap-4 min-w-0">
+                                            <div className={`w-10 h-10 rounded-full ${accent.bgSoft} flex items-center justify-center ${accent.text} shrink-0`}>
+                                                <FileText size={18} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-ink text-sm truncate">{doc.title}</p>
+                                                <p className="text-[11px] font-semibold text-ink-2 mt-0.5 uppercase tracking-wider">
+                                                    {doc.chunkCount} trecho{doc.chunkCount === 1 ? '' : 's'} · atualizado {formatRelativeDate(doc.updatedAt)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={`shrink-0 px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${doc.chunkCount > 0 ? 'bg-success/15 text-success border-success/30' : 'bg-amber-500/15 text-amber-400 border-amber-500/30'}`}>
+                                            {doc.chunkCount > 0 ? 'Indexado' : 'Sem trechos'}
+                                        </div>
+                                    </div>
+                                ))}
+                                {ragDocuments.length > 5 && (
+                                    <Link to="/knowledge" className="block text-center text-xs font-semibold text-ink-2 hover:text-ink transition-colors pt-1">
+                                        Ver todos os {ragDocuments.length} documentos →
+                                    </Link>
+                                )}
+                            </div>
+                        )}
                     </Card>
                 )}
             </motion.div>

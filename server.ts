@@ -1,6 +1,12 @@
 import { initTracing } from './src/lib/tracing.js';
 initTracing();
 
+// Registrado logo no boot: sem Redis configurado, comandos internos do BullMQ rejeitam com
+// "Connection is closed." fora de qualquer await nosso, e a rejeicao nao tratada derrubava o
+// processo poucos segundos depois de o servidor subir (deploy falhando com status 1).
+import { registerProcessGuards } from './src/lib/process-guards.js';
+registerProcessGuards();
+
 import { env } from './src/config/env.js';
 import express from 'express';
 import helmet from 'helmet';
@@ -43,6 +49,7 @@ import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
+import { sseService } from './src/features/notifications/sse.service.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
 import { createLeadsWorker } from './src/lib/queue/index.js';
@@ -65,7 +72,16 @@ import { enabledOrganizations } from './src/features/integrations/birth-voice/co
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
 import { createBitrixSyncWorker, scheduleBitrixSync } from './src/lib/queue/bitrixSync.worker.js';
+import { createFollowUpWorker, scheduleFollowUpJobs } from './src/features/crm/jobs/followUp.worker.js';
+import { createExecutiveSummaryWorker, scheduleExecutiveSummaryJob } from './src/features/crm/jobs/dailyExecutiveSummary.worker.js';
+import { createDeduplicationWorker, scheduleDeduplicationJob } from './src/features/crm/jobs/deduplication.worker.js';
+import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/features/intelligence/services/winLossAnalysis.worker.js';
+import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
+import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
+import { lgpdRouter } from './src/features/lgpd/lgpd.routes.js';
+import { sendWhatsAppMessage } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
+import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -222,6 +238,131 @@ async function startServer() {
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
     app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
+
+    // Webhook para receber retorno de transcrição e gravação de chamadas de voz da Bland AI / Birthub Voices
+    app.post('/api/webhooks/voice-result', async (req, res) => {
+        const secretHeader = req.headers['x-atlasgr-webhook-secret'];
+        const expectedSecret = process.env.ATLASGR_WEBHOOK_SECRET || 'segredo_compartilhado_atlasgr_123';
+        if (secretHeader !== expectedSecret) {
+            res.status(401).json({ success: false, error: 'Unauthorized webhook secret' });
+            return;
+        }
+
+        const { call_id, phone_number, concatenated_transcript, summary, recording_url, call_length } = req.body;
+        logger.info(`Voice result received at AtlasGR: call_id=${call_id} phone=${phone_number}`);
+
+        try {
+            const rawDigits = (phone_number || '').replace(/\D/g, '');
+            const searchPattern = rawDigits.length >= 8 ? rawDigits.slice(-8) : rawDigits;
+
+            const lead = searchPattern ? await prisma.lead.findFirst({
+                where: {
+                    OR: [
+                        { contact: { phone: { contains: searchPattern } } },
+                        { contact: { whatsapp: { contains: searchPattern } } },
+                    ]
+                },
+                include: { contact: true }
+            }) : null;
+
+            if (lead) {
+                const noteContent = `📞 **Resultado da Ligação de Voz (IA)**
+- **ID da Chamada**: ${call_id}
+- **Duração**: ${Math.round((call_length || 0) * 60)}s
+- **Resumo Inteligente**: ${summary || 'Sem resumo disponível.'}
+- **Gravação em Áudio**: ${recording_url ? `[Ouvir Gravação](${recording_url})` : 'Sem gravação de áudio.'}
+
+---
+### 📝 Transcrição Completa da Conversa:
+${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
+
+                await prisma.note.create({
+                    data: {
+                        leadId: lead.id,
+                        content: noteContent,
+                        author: 'IA de Voz (Bland AI)',
+                    },
+                });
+
+                await prisma.timelineEvent.create({
+                    data: {
+                        type: 'activity',
+                        description: `SDR de voz concluiu chamada. Resumo: ${summary || 'Chamada finalizada'}.`,
+                        leadId: lead.id,
+                    },
+                });
+
+                const currentFields = (lead.customFields as Record<string, unknown>) || {};
+                await prisma.lead.update({
+                    where: { id: lead.id },
+                    data: {
+                        customFields: { ...currentFields, voiceQualified: true }
+                    }
+                });
+
+                logger.info(`Voice call transcript successfully attached to lead ${lead.id}`);
+
+                // Phase 5 Triggers
+                if (!currentFields.optOutWhatsApp && lead.organizationId && lead.contact) {
+                    const phone = (lead.contact as any).whatsapp || (lead.contact as any).phone;
+                    if (phone) {
+                        try {
+                            const isMissed = (call_length || 0) < 0.2 || (summary || '').toLowerCase().includes('não atendeu') || (summary || '').toLowerCase().includes('caixa postal');
+                            
+                            if (isMissed) {
+                                await sendWhatsAppMessage(
+                                    lead.organizationId,
+                                    phone,
+                                    `Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*`
+                                );
+                            } else {
+                                // Assuming successful call means we send a summary/confirmation
+                                await sendWhatsAppMessage(
+                                    lead.organizationId,
+                                    phone,
+                                    `Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*`
+                                );
+                            }
+                        } catch (err) {
+                            logger.warn({ err, leadId: lead.id }, 'Falha ao disparar WhatsApp automático pós-ligação');
+                        }
+                    }
+                }
+
+                // Phase 6: Competitor Alerts
+                const transcriptLower = (concatenated_transcript || '').toLowerCase();
+                const competitors = ['totvs', 'sap', 'senior', 'omnilink', 'sascar', 'autotrac'];
+                const mentionedCompetitors = competitors.filter(c => transcriptLower.includes(c));
+
+                let sseMessage = `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`;
+
+                if (mentionedCompetitors.length > 0) {
+                    const alertMsg = `⚠️ ALERTA CONCORRENTE: O cliente mencionou: ${mentionedCompetitors.join(', ')}`;
+                    sseMessage = `[ALERTA] SDR concluiu chamada com citação de concorrente!`;
+                    
+                    await prisma.note.create({
+                        data: {
+                            leadId: lead.id,
+                            content: alertMsg,
+                            author: 'Sistema de Alerta (IA)',
+                        },
+                    });
+                }
+
+                // Emite a notificação em tempo real
+                sseService.notifyVoiceQualified(
+                    lead.organizationId || '',
+                    lead.id,
+                    sseMessage
+                );
+            }
+
+            res.status(200).json({ success: true, lead_found: !!lead });
+        } catch (err) {
+            logger.error({ err }, 'Error handling voice result webhook in AtlasGR');
+            res.status(500).json({ success: false, error: 'Internal server error' });
+        }
+    });
     // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
     // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
@@ -254,9 +395,14 @@ async function startServer() {
     // implicitamente em produção).
     if (env.NODE_ENV !== 'production' || env.EXPOSE_API_DOCS) {
         try {
-            const openApiDocument = parseYaml(
-                readFileSync(path.join(process.cwd(), 'docs', 'openapi.yaml'), 'utf-8'),
-            );
+            const openApiYaml = readFileSync(path.join(process.cwd(), 'docs', 'openapi.yaml'), 'utf-8');
+            const openApiDocument = parseYaml(openApiYaml);
+            // Spec bruta, registrada antes da Swagger UI abaixo para não ser interceptada pelo
+            // middleware estático dela — é o que scanners como o ZAP (docker-compose.opensource.yml,
+            // security:zap) precisam buscar; a UI em si serve HTML, não o YAML.
+            app.get('/api-docs/openapi.yaml', (_req, res) => {
+                res.type('application/yaml').send(openApiYaml);
+            });
             app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
         } catch (err) {
             logger.warn({ err }, 'Falha ao carregar docs/openapi.yaml — /api-docs não foi montado');
@@ -264,11 +410,11 @@ async function startServer() {
     }
 
     // ── Health Checks ──────────────────────────────────────────────────────
-    app.get('/health/live', (_req, res) => {
+    const handleLiveness = (_req: any, res: any) => {
         res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-    });
+    };
 
-    app.get('/health/ready', async (_req, res) => {
+    const handleReadiness = async (_req: any, res: any) => {
         try {
             await prisma.$queryRaw`SELECT 1`;
             res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -276,7 +422,12 @@ async function startServer() {
             logger.error({ err: error }, 'Readiness probe failed');
             res.status(503).json({ status: 'error', message: 'Database unavailable' });
         }
-    });
+    };
+
+    app.get('/health/live', handleLiveness);
+    app.get('/healthz', handleLiveness);
+    app.get('/health/ready', handleReadiness);
+    app.get('/readyz', handleReadiness);
 
     // ── Auth (Better Auth) ─────────────────────────────────────────────────
     // As tabelas Organization/user/session/account/verification têm tenant_isolation_policy via RLS
@@ -297,14 +448,16 @@ async function startServer() {
     // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
     const serverAdapter = new ExpressAdapter();
     serverAdapter.setBasePath('/admin/queues');
-    createBullBoard({
-        queues: [
-            new BullMQAdapter(leadsQueue),
-            new BullMQAdapter(searchQueue),
-            new BullMQAdapter(agentQueue)
-        ],
-        serverAdapter: serverAdapter,
-    });
+    if (queuesEnabled && leadsQueue && searchQueue && agentQueue) {
+        createBullBoard({
+            queues: [
+                new BullMQAdapter(leadsQueue),
+                new BullMQAdapter(searchQueue),
+                new BullMQAdapter(agentQueue)
+            ],
+            serverAdapter,
+        });
+    }
     // Protegemos o painel de administração com autenticação
     app.use('/admin/queues', authenticateToken, requireTenant, serverAdapter.getRouter());
 
@@ -330,7 +483,14 @@ async function startServer() {
     // include futuro em outro arquivo, etc.) escapa da checagem de papel no servidor.
     app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
     app.use('/api/knowledge', requireTenant, knowledgeRoutes);
+    app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
+    
+    app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
+        const { organizationId } = (req as AuthRequest).user;
+        sseService.addClient(req, res, organizationId);
+    });
+
     app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
     app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
@@ -384,15 +544,27 @@ async function startServer() {
     const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
     const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
     const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
+    const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
+    const execSummaryWorker = queuesEnabled ? createExecutiveSummaryWorker() : null;
+    const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
+    const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
+    const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
+    const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
     if (queuesEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
+        scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
+        scheduleExecutiveSummaryJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de summary executivo'));
+        scheduleDeduplicationJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de deduplicacao'));
+        scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
+        scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
+        scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
-    const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
-    if (env.ENABLE_SEARCH) {
+    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
+    if (queuesEnabled && env.ENABLE_SEARCH) {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 
@@ -421,6 +593,8 @@ async function startServer() {
         }
     }).catch(() => null);
 
+    ColdLeadsScannerService.start();
+
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
@@ -430,6 +604,12 @@ async function startServer() {
         await enrichmentWorker?.close();
         await whatsappSignalWorker?.close();
         await bitrixSyncWorker?.close();
+        await followUpWorker?.close();
+        await execSummaryWorker?.close();
+        await deduplicationWorker?.close();
+        await winLossWorker?.close();
+        await pdfWorker?.close();
+        await autoAnonymizeWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
         await shutdownLangfuse();

@@ -114,7 +114,7 @@ describe('importSelectedBitrixLeads — corrida de importação concorrente (P2-
         const { importSelectedBitrixLeads } = await import('../leads.js');
         const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['42']);
 
-        expect(result).toEqual({ imported: 0, skipped: 1 });
+        expect(result).toEqual({ imported: 0, skipped: 1, skippedConflicts: 0, skippedNotOwned: 0 });
     });
 
     it('propaga erros que não são P2002 em vez de engolir silenciosamente', async () => {

@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, WifiOff } from 'lucide-react';
+import { Download, WifiOff, Sparkles } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
-import { api } from '../lib/api';
 import { leadsDB } from '../lib/db';
 import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
@@ -13,6 +12,7 @@ import { Button } from './ui/Button';
 import { useBrand } from '../contexts/BrandContext';
 import { toast } from '../lib/toast';
 import { clientLogger } from '../lib/clientLogger';
+import { useCrmBoardController } from '../hooks/useCrmBoardController';
 import {
     DndContext,
     closestCenter,
@@ -65,14 +65,31 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     const [searchParams, setSearchParams] = useSearchParams();
     const funnel: 'Lead' | 'Negocio' = funnelProp ?? (searchParams.get('funnel') === 'Negocio' ? 'Negocio' : 'Lead');
     const columns = funnel === 'Lead' ? LEAD_COLUMNS : DEAL_COLUMNS;
-    const [leads, setLeads] = useState<Lead[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { leads, setLeads, loading, error, fetchLeads, handleConvert, handleImportBitrix, handleCardEnrich, handleBatchEnrich } = useCrmBoardController(funnel);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
     /** "Cursor" virtual do drag por teclado — avança/recua com ArrowRight/ArrowLeft, independente
         de `leads`. Ver comentário do coordinateGetter abaixo pra explicação completa. */
     const keyboardDragStatusRef = useRef<LeadStatus | null>(null);
+
+    useEffect(() => {
+        const eventSource = new EventSource('/api/notifications/stream', { withCredentials: true });
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'voice-qualified') {
+                    toast.success(data.message);
+                    // Atualiza a lista para refletir possíveis mudanças
+                    fetchLeads();
+                }
+            } catch (err) {
+                console.error('Erro ao processar evento SSE', err);
+            }
+        };
+        return () => {
+            eventSource.close();
+        };
+    }, [fetchLeads]);
 
     // `sortableKeyboardCoordinates` (@dnd-kit/sortable) foi testado primeiro, por ser a opção
     // nativa do dnd-kit — mas falhou em execução real neste board multi-coluna: sua busca por
@@ -137,30 +154,6 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
             coordinateGetter: columnKeyboardCoordinateGetter,
         })
     );
-
-    const fetchLeads = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const url = `/api/leads?limit=1000&funnel=${funnel}`;
-            const response = await api.get<{data: Lead[], meta?: { total: number, page: number, limit: number, totalPages: number }}>(url);
-
-            if (Array.isArray(response)) {
-                setLeads(response);
-            } else if (response && response.data) {
-                setLeads(response.data);
-            }
-        } catch (err) {
-            clientLogger.error({ err }, 'Error fetching leads');
-            setError(err instanceof Error ? err.message : 'Não foi possível carregar o pipeline comercial.');
-        } finally {
-            setLoading(false);
-        }
-    }, [funnel]);
-
-    useEffect(() => {
-        fetchLeads();
-    }, [fetchLeads]);
 
     /** Resolve a coluna de destino a partir do `over.id` do dnd-kit — pode ser o id da própria
         coluna (drop numa coluna vazia) ou o id de um card dentro dela (drop entre dois cards). */
@@ -254,48 +247,25 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
         setSearchParams(next === 'Lead' ? {} : { funnel: next }, { replace: true });
     }, [funnelProp, setSearchParams]);
 
-    const handleCardEnrich = useCallback(async (leadId: string) => {
+    const handleExportCsv = async () => {
         try {
-            await api.post(`/api/leads/${leadId}/enrich`, undefined, { timeoutMs: 60_000 });
-            await fetchLeads();
-            toast.success('Lead enriquecido com sucesso.');
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Error enriching lead');
-            toast.error(error instanceof Error ? error.message : 'Falha ao enriquecer o lead.');
+            const response = await fetch('/api/leads/export/csv', {
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error('Falha ao exportar');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `leads_${brandInfo.name.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            toast.error('Erro ao exportar leads. Tente novamente.');
         }
-    }, [fetchLeads]);
-
-    const handleConvert = useCallback(async (leadId: string) => {
-        try {
-            await api.post(`/api/crm/leads/${leadId}/convert`);
-            toast.success('Lead convertido em negócio e enviado ao pipeline comercial.');
-            await fetchLeads();
-        } catch (error) {
-            clientLogger.error({ err: error }, 'Error converting lead to deal');
-            toast.error(error instanceof Error ? error.message : 'Falha ao converter o lead.');
-        }
-    }, [fetchLeads]);
-
-    const handleExportCsv = () => {
-        const headers = ['ID', 'Empresa', 'CNPJ', 'Contato', 'Email', 'Telefone', 'Status', 'Pontuacao'];
-        const rows = leads.map(l => [
-            l.id,
-            l.company?.tradeName || l.company?.legalName || '',
-            l.company?.cnpj || '',
-            l.contact?.name || '',
-            l.contact?.email || '',
-            l.contact?.phone || '',
-            l.status,
-            l.score || ''
-        ]);
-        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `leads_${brandInfo.name.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     const groupedLeads = useMemo(() => {
@@ -307,27 +277,6 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
         });
         return grouped;
     }, [leads, columns]);
-
-    const handleImportBitrix = async () => {
-        setLoading(true);
-        try {
-            const response = await api.post<{ data: { imported: number, skipped: number } }>('/api/leads/import/bitrix24');
-            const data = response.data;
-            if (data.imported > 0) {
-                toast.success(`${data.imported} novos leads importados do Bitrix24!`);
-                await fetchLeads();
-            } else if (data.skipped > 0) {
-                toast.info(`Nenhum novo lead. ${data.skipped} leads recentes já estavam no sistema.`);
-            } else {
-                toast.info('Nenhum lead novo encontrado no Bitrix24.');
-            }
-        } catch (err) {
-            clientLogger.error({ err }, 'Error importing from Bitrix24');
-            toast.error(err instanceof Error ? err.message : 'Falha ao importar do Bitrix24.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     return (
         <div className={`flex-1 flex flex-col bg-bg text-ink animate-in fade-in duration-500 overflow-hidden ${embedded ? 'min-h-[680px] h-full' : 'h-full'}`}>
@@ -375,6 +324,17 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                     curto abaixo do breakpoint sm resolve sem esconder nenhuma ação nem criar menu
                     "...". A partir de sm volta ao layout original (flex, largura de conteúdo). */}
                 <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:items-center sm:gap-3">
+                    <Button
+                        onClick={handleBatchEnrich}
+                        disabled={loading}
+                        variant="secondary"
+                        className="text-xs w-full sm:w-auto"
+                        title="Enriquecer leads não enriquecidos em lote"
+                    >
+                        <Sparkles className="w-4 h-4 shrink-0 text-yellow-500" />
+                        <span className="sm:hidden">Enriquecer</span>
+                        <span className="hidden sm:inline">✨ Enriquecer Lote</span>
+                    </Button>
                     <Button
                         onClick={handleImportBitrix}
                         disabled={loading}
@@ -445,7 +405,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                         onDragCancel={handleDragCancel}
                         accessibility={{ announcements }}
                     >
-                        <div className="flex gap-6 h-full items-start">
+                        <div className="flex gap-6 h-full">
                             {columns.map(status => (
                                 <KanbanColumn
                                     key={status}

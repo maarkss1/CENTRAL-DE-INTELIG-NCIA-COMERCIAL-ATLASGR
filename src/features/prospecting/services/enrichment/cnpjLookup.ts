@@ -1,4 +1,6 @@
 import { isValidCnpj, sanitizeCnpj, formatCnpj } from '../cnpj.util';
+import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
+import { HttpTimeoutError } from '../../../../lib/http.js';
 
 const BRASIL_API_BASE = 'https://brasilapi.com.br/api';
 
@@ -71,29 +73,26 @@ export interface CnpjLookupResult {
     error?: string;
 }
 
-/** Fetch com timeout + retry (1 nova tentativa em erro de rede/timeout) — BrasilAPI ocasionalmente é lenta ou instável. */
+/**
+ * Fetch com timeout + retry com backoff+jitter, distinguindo 429/5xx (transitório — BrasilAPI
+ * ocasionalmente rate-limita ou fica instável) de outro 4xx definitivo (ex: 404 = CNPJ não
+ * encontrado, não deve ser retentado). Antes, o retry local aqui só cobria erro de
+ * rede/timeout e 5xx — um 429 real da BrasilAPI já caía direto em `upstream_error_429` sem
+ * nenhuma nova tentativa, e sem nenhum backoff entre tentativas (risco de piorar o rate limit).
+ * Delegado a `fetchWithProviderRetry` (lib/enrichment/providerFetch.ts), compartilhado com
+ * Apollo/Hunter/Google Places.
+ */
 async function fetchWithRetry(url: string, init: RequestInit, attempts = 2, timeoutMs = 8000): Promise<Response> {
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'brasilapi.com.br') {
         throw new Error('invalid_upstream_url');
     }
 
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-            const res = await fetch(url, { ...init, signal: controller.signal });
-            clearTimeout(timeout);
-            if (res.status >= 500 && attempt < attempts) continue; // erro do servidor upstream — tenta de novo
-            return res;
-        } catch (error) {
-            clearTimeout(timeout);
-            lastError = error;
-            if (attempt >= attempts) throw error;
-        }
-    }
-    throw lastError;
+    return fetchWithProviderRetry(url, init, {
+        retries: Math.max(0, attempts - 1),
+        timeoutMs,
+        providerName: 'BrasilAPI',
+    });
 }
 
 function formatPhone(ddd_telefone: string): string | null {
@@ -117,7 +116,9 @@ export async function fetchCnpjData(cnpjRaw: string): Promise<CnpjLookupResult> 
     try {
         res = await fetchWithRetry(`${BRASIL_API_BASE}/cnpj/v1/${cnpj}`, { headers: BRASIL_API_HEADERS });
     } catch (error) {
-        const reason = error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'network_error';
+        const reason = error instanceof HttpTimeoutError || (error instanceof Error && error.name === 'AbortError')
+            ? 'timeout'
+            : 'network_error';
         return { found: false, cnpj: formatCnpj(cnpj), source: 'BrasilAPI-CNPJ', error: reason };
     }
     if (res.status === 404) {

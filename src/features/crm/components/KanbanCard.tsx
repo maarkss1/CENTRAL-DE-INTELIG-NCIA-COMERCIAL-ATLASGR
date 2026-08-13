@@ -115,7 +115,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
             <div
                 {...attributes}
                 {...listeners}
+                role="button"
+                tabIndex={0}
                 onClick={() => onClick(lead)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(lead); }}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
             >
                 <div className="flex justify-between items-start gap-2 mb-2">
@@ -139,6 +142,14 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                         </span>
                     )}
                 </div>
+                
+                {Boolean(lead.customFields?.voiceQualified) && (
+                    <div className="mb-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                            🎤 Voz Qualificada
+                        </span>
+                    </div>
+                )}
 
                 <div className="space-y-2 mt-2 text-xs text-ink-2">
                     {lead.contact && (

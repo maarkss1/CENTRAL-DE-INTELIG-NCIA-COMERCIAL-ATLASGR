@@ -33,6 +33,7 @@ const ChatbookHub = lazy(() => import('./features/chatbook/components/ChatbookHu
 const Integrations = lazy(() => import('./features/integrations/components/Integrations').then(m => ({ default: m.Integrations })));
 const KnowledgeBase = lazy(() => import('./features/knowledge/components/Base').then(m => ({ default: m.Base })));
 const Analytics = lazy(() => import('./features/analytics/components/Analytics').then(m => ({ default: m.Analytics })));
+const WinLossAnalysis = lazy(() => import('./features/analytics/components/WinLossAnalysis').then(m => ({ default: m.WinLossAnalysis })));
 const CommercialIntelligenceHub = lazy(() => import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then(m => ({ default: m.CommercialIntelligenceHub })));
 const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
 const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
@@ -44,6 +45,7 @@ const Settings = lazy(() => import('./features/settings/components/Settings').th
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
+import { MarketIntelligence } from './pages/MarketIntelligence';
 
 function PageFallback() {
   return (
@@ -86,6 +88,8 @@ function AppLayout() {
           <Route path="integrations" element={<Integrations />} />
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="analytics" element={<Analytics />} />
+          <Route path="winloss" element={<WinLossAnalysis />} />
+          <Route path="market-intelligence" element={<MarketIntelligence />} />
           {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
               direto por URL (não só o item de menu); a autorização real (que nunca confia no
               frontend) está em requireRole no backend — ver commercialIntelligence.routes.ts. */}

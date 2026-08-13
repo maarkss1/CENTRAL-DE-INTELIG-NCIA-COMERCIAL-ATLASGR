@@ -38,8 +38,8 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         super(leadRepository);
     }
 
-    async findLeads(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel) {
-        return this.repository.findAllWithFilters(organizationId, status, page, limit, funnel);
+    async findLeads(organizationId: string, status?: string, page: number = 1, limit: number = 50, funnel?: LeadFunnel, query?: string) {
+        return this.repository.findAllWithFilters(organizationId, status, page, limit, funnel, query);
     }
 
     async findLeadById(organizationId: string, id: string) {
@@ -48,7 +48,23 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
     async createLead(organizationId: string, data: z.infer<typeof leadSchema>) {
         const validated = leadSchema.parse(data);
-        return this.create(organizationId, validated);
+        const lead = await this.create(organizationId, validated);
+        
+        // Se o lead foi criado sem dono, tenta atribuir via Round-Robin
+        if (!validated.owner) {
+            try {
+                const { assignLeadRoundRobin } = await import('../services/assignment.service.js');
+                const owner = await assignLeadRoundRobin(organizationId, lead.id);
+                if (owner) {
+                    lead.owner = owner;
+                }
+            } catch (err) {
+                // Log and swallow so the creation succeeds even if assignment fails
+                console.error('Failed to assign lead via Round-Robin', err);
+            }
+        }
+        
+        return lead;
     }
 
     async updateLead(organizationId: string, id: string, data: Partial<z.infer<typeof leadSchema>>) {
@@ -239,5 +255,44 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
         const result = await importSelectedBitrixLeads(organizationId, connection.id, unimportedIds);
         return { ...result, pagesExhausted };
+    }
+
+    async enqueueBatchEnrichment(organizationId: string) {
+        const { prisma } = await import('../../../lib/prisma.js');
+        const { enrichmentQueue } = await import('../../../lib/queue/enrichment.queue.js');
+
+        const leadsToEnrich = await prisma.lead.findMany({
+            where: {
+                organizationId,
+                companyId: { not: null },
+                company: { enrichmentStatus: 'Pendente' },
+                // Garantir que não pegamos leads deletados se houver soft delete, mas o prisma de Company não tem deletedAt?
+                // O schema diz que Company tem deletedAt.
+                deletedAt: null
+            },
+            select: { id: true, companyId: true, company: { select: { cnpj: true, segment: true } } }
+        });
+
+        if (leadsToEnrich.length === 0) return { enqueued: 0 };
+
+        const jobs = leadsToEnrich.map(lead => ({
+            name: 'enrichment-job',
+            data: {
+                companyId: lead.companyId!,
+                organizationId,
+                cnpj: lead.company?.cnpj || undefined,
+                segmentKeywords: lead.company?.segment ? [lead.company.segment] : undefined,
+            }
+        }));
+
+        await enrichmentQueue?.addBulk(jobs);
+
+        const companyIds = Array.from(new Set(leadsToEnrich.map(l => l.companyId!)));
+        await prisma.company.updateMany({
+            where: { id: { in: companyIds } },
+            data: { enrichmentStatus: 'Enriquecendo' }
+        });
+
+        return { enqueued: leadsToEnrich.length };
     }
 }

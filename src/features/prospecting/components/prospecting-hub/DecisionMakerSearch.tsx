@@ -201,8 +201,9 @@ export function DecisionMakerSearch({
             </div>
 
             <div className="mb-4">
-                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Domínio da empresa</label>
+                <label htmlFor="domain-input" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Domínio da empresa</label>
                 <input
+                    id="domain-input"
                     type="text"
                     placeholder="empresa.com.br"
                     value={domainInput}
@@ -305,8 +306,9 @@ export function DecisionMakerSearch({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cargos Específicos (Vírgula)</label>
+                    <label htmlFor="criteria-cargos" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cargos Específicos (Vírgula)</label>
                     <input
+                        id="criteria-cargos"
                         type="text"
                         placeholder="Ex: Diretor de Logística, CEO"
                         value={criteria.cargos || ''}
@@ -315,8 +317,9 @@ export function DecisionMakerSearch({
                     />
                 </div>
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavras-chave (Perfil LinkedIn)</label>
+                    <label htmlFor="criteria-keywords" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavras-chave (Perfil LinkedIn)</label>
                     <input
+                        id="criteria-keywords"
                         type="text"
                         placeholder="Ex: agile, supply chain"
                         value={criteria.palavrasChavePerfil || ''}
@@ -363,8 +366,9 @@ export function DecisionMakerSearch({
                 <div className="flex gap-2">
 
                 <div className="flex-1">
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
+                        <label htmlFor="criteria-city" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
                         <input
+                            id="criteria-city"
                             type="text"
                             value={criteria.cidade || ''}
                             onChange={(e) => setCriteria({ ...criteria, cidade: e.target.value || undefined })}
@@ -373,8 +377,9 @@ export function DecisionMakerSearch({
                     </div>
 
                 <div className="flex-1">
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado (opcional)</label>
+                        <label htmlFor="criteria-state" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado (opcional)</label>
                         <input
+                            id="criteria-state"
                             type="text"
                             value={criteria.estado || ''}
                             onChange={(e) => setCriteria({ ...criteria, estado: e.target.value || undefined })}

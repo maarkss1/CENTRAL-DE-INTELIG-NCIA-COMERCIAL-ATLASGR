@@ -230,9 +230,9 @@ export async function logoutWhatsApp(organizationId: string) {
 }
 
 /**
- * Envia uma mensagem de texto simples pela sessão de um tenant
+ * Envia uma mensagem de texto simples (ou com botões iterativos formatados em texto) pela sessão de um tenant
  */
-export async function sendWhatsAppMessage(organizationId: string, number: string, text: string) {
+export async function sendWhatsAppMessage(organizationId: string, number: string, text: string, buttons?: string[]) {
     const session = sessions.get(organizationId);
     if (!session?.sock || session.status !== 'connected') {
         // AppError (não Error genérico): sem isso, o errorHandler global substitui a mensagem por
@@ -262,7 +262,11 @@ export async function sendWhatsAppMessage(organizationId: string, number: string
     }
 
     try {
-        await withTimeout(sock.sendMessage(result.jid, { text }), BAILEYS_CALL_TIMEOUT_MS);
+        let finalMessage = text;
+        if (buttons && buttons.length > 0) {
+            finalMessage += '\n\n' + buttons.map((b, i) => `[${i + 1}] ${b}`).join('\n');
+        }
+        await withTimeout(sock.sendMessage(result.jid, { text: finalMessage }), BAILEYS_CALL_TIMEOUT_MS);
     } catch (err) {
         logger.warn({ err, organizationId }, '[whatsapp] Falha/timeout ao enviar mensagem');
         throw new AppError('Não foi possível enviar a mensagem agora (timeout ou falha de conexão).', 502);

@@ -59,6 +59,16 @@ export interface AnalyticsDashboard {
     activitiesByType: DistributionSlice[];
     activitiesByStatus: DistributionSlice[];
     monthly: MonthlyPoint[];
+    tmqMetric: number | null;
+    lostReasons: DistributionSlice[];
+    callHeatmap: { dayOfWeek: number, hour: number, count: number }[];
+    performanceReport: {
+        agent: string;
+        isAi: boolean;
+        leadsAssigned: number;
+        leadsQualified: number;
+        conversionRate: number;
+    }[];
     /** `true` quando a organização ainda não tem nenhum dado — o frontend mostra o estado vazio. */
     isEmpty: boolean;
 }

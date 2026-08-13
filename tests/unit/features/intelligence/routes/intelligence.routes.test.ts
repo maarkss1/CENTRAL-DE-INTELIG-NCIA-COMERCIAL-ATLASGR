@@ -18,6 +18,16 @@ vi.mock('@/features/intelligence/services/ai-settings.service', () => ({
     saveAiSettings: (...args: unknown[]) => saveAiSettingsMock(...args),
 }));
 
+const listPendingActionsMock = vi.fn();
+const approvePendingActionMock = vi.fn();
+const discardPendingActionMock = vi.fn();
+
+vi.mock('@/features/intelligence/services/pending-actions.service', () => ({
+    listPendingActions: (...args: unknown[]) => listPendingActionsMock(...args),
+    approvePendingAction: (...args: unknown[]) => approvePendingActionMock(...args),
+    discardPendingAction: (...args: unknown[]) => discardPendingActionMock(...args),
+}));
+
 import { intelligenceRoutes } from '@/features/intelligence/routes/intelligence.routes';
 import { errorHandler } from '@/shared/middlewares/errorHandler';
 
@@ -45,6 +55,63 @@ beforeEach(() => {
     vi.clearAllMocks();
     listAiSettingsMock.mockResolvedValue([]);
     saveAiSettingsMock.mockResolvedValue([{ toolKey: 'copilot' }]);
+    approvePendingActionMock.mockResolvedValue({
+        action: { id: 'pending-1' },
+        execution: { sent: true },
+    });
+    discardPendingActionMock.mockResolvedValue(true);
+});
+
+/**
+ * SEC-011: aprovar/descartar uma AIPendingAction dispara efeito real (enviar e-mail, criar
+ * nota/atividade — ver executeAction em aiPendingAction.service.ts). Antes desta correção, as duas
+ * rotas não tinham `requireRole` — qualquer papel autenticado do tenant, inclusive VISUALIZADOR
+ * (só leitura), podia confirmar uma ação de alto impacto. Este teste tranca que só
+ * ADMIN/GESTOR/VENDEDOR podem aprovar/descartar.
+ */
+describe('POST /api/intelligence/pending/:id/approve — autorização (ação de alto impacto)', () => {
+    it.each(['ADMIN', 'GESTOR', 'VENDEDOR'])('%s aprova com sucesso (papel permitido)', async (role) => {
+        const res = await request(buildApp(role)).post('/api/intelligence/pending/pending-1/approve');
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(approvePendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1');
+    });
+
+    it('VISUALIZADOR recebe 403 e não aprova (papel negado)', async () => {
+        const res = await request(buildApp('VISUALIZADOR')).post('/api/intelligence/pending/pending-1/approve');
+
+        expect(res.status).toBe(403);
+        expect(approvePendingActionMock).not.toHaveBeenCalled();
+    });
+
+    it('sem sessão autenticada recebe 401 e não aprova', async () => {
+        const app = express();
+        app.use(express.json());
+        app.use('/api/intelligence', intelligenceRoutes);
+        app.use(errorHandler);
+
+        const res = await request(app).post('/api/intelligence/pending/pending-1/approve');
+
+        expect(res.status).toBe(401);
+        expect(approvePendingActionMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('DELETE /api/intelligence/pending/:id — autorização (descarte de ação de alto impacto)', () => {
+    it.each(['ADMIN', 'GESTOR', 'VENDEDOR'])('%s descarta com sucesso (papel permitido)', async (role) => {
+        const res = await request(buildApp(role)).delete('/api/intelligence/pending/pending-1');
+
+        expect(res.status).toBe(204);
+        expect(discardPendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1');
+    });
+
+    it('VISUALIZADOR recebe 403 e não descarta (papel negado)', async () => {
+        const res = await request(buildApp('VISUALIZADOR')).delete('/api/intelligence/pending/pending-1');
+
+        expect(res.status).toBe(403);
+        expect(discardPendingActionMock).not.toHaveBeenCalled();
+    });
 });
 
 describe('PUT /api/intelligence/ai-settings — autorização (config global, sem tenant)', () => {

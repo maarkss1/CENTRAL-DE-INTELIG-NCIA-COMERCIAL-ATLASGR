@@ -1,0 +1,40 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --legacy-peer-deps
+
+    - name: Build Web App
+      run: npm run build
+
+    - name: Sync Capacitor
+      run: npx cap sync ios
+
+    - name: Build iOS App (Archive)
+      working-directory: ./ios/App
+      run: |
+        xcodebuild -workspace App.xcworkspace -scheme App -configuration Release archive -archivePath $PWD/build/App.xcarchive CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+
+    - name: Upload iOS Archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: atlasgr-ios-xcarchive
+        path: ios/App/build/App.xcarchive

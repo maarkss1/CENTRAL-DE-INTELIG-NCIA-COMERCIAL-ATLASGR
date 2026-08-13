@@ -57,7 +57,7 @@ export interface Lead {
 }
 
 export interface LeadRepository extends Repository<Lead> {
-    findAllWithFilters(organizationId: string, status?: string, page?: number, limit?: number, funnel?: LeadFunnel): Promise<{ data: Lead[], meta: unknown }>;
+    findAllWithFilters(organizationId: string, status?: string, page?: number, limit?: number, funnel?: LeadFunnel, query?: string): Promise<{ data: Lead[], meta: unknown }>;
     updateStatus(organizationId: string, id: string, newStatus: string): Promise<Lead>;
     findAllForExport(organizationId: string): Promise<Lead[]>;
 }

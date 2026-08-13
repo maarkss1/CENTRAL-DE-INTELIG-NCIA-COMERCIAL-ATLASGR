@@ -148,12 +148,23 @@ export class CommercialIntelligenceUseCases {
         return this.repository.upsertGoal(organizationId, period, metric, amount, currency, createdBy);
     }
 
+    private applyScope(scored: ScoredDeal[], filter: CommercialIntelligenceFilter): ScoredDeal[] {
+        return scored.filter((s) => {
+            if (filter.owner && s.deal.owner !== filter.owner) return false;
+            if (filter.source && s.deal.source !== filter.source) return false;
+            // O ICP / Produto ainda não estão em DealRow, precisaremos adicioná-los no findDeals.
+            if (filter.icp && s.deal.icp !== filter.icp) return false;
+            if (filter.product && !s.deal.productSkus?.includes(filter.product)) return false;
+            return true;
+        });
+    }
+
     // ─── Fase 2 + 3 — Cockpit executivo ─────────────────────────────────────
 
     async executiveOverview(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<ExecutiveOverview> {
         const { start, end, daysInMonth } = monthRange(filter.month);
         const { scored } = await this.loadScoredDeals(organizationId, now);
-        const inScope = filter.owner ? scored.filter((s) => s.deal.owner === filter.owner) : scored;
+        const inScope = this.applyScope(scored, filter);
 
         const goal = await this.repository.getGoal(organizationId, filter.month, 'NEW_MRR');
 
@@ -238,9 +249,9 @@ export class CommercialIntelligenceUseCases {
 
     async pipelineCreation(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<PipelineCreation> {
         const { start, end, daysInMonth } = monthRange(filter.month);
-        const deals = await this.repository.findDeals(organizationId);
-        const inScope = filter.owner ? deals.filter((d) => d.owner === filter.owner) : deals;
-        const created = inScope.filter((d) => d.createdAt >= start && d.createdAt < end);
+        const { scored } = await this.loadScoredDeals(organizationId, now);
+        const inScope = this.applyScope(scored, filter);
+        const created = inScope.filter((s) => s.deal.createdAt >= start && s.deal.createdAt < end).map((s) => s.deal);
 
         const amount = roundMoney(created.reduce((sum, d) => sum + d.amount, 0));
 
@@ -259,7 +270,7 @@ export class CommercialIntelligenceUseCases {
         };
 
         const goal = await this.repository.getGoal(organizationId, filter.month, 'NEW_MRR');
-        const closed = inScope.filter((d) => (d.stageIsWon || d.stageIsLost) && d.closedAt && d.closedAt >= start && d.closedAt < end);
+        const closed = inScope.filter((s) => (s.deal.stageIsWon || s.deal.stageIsLost) && s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end).map((s) => s.deal);
         const won = closed.filter((d) => d.stageIsWon).length;
         const lost = closed.filter((d) => d.stageIsLost).length;
         const winRate = won + lost > 0 ? won / (won + lost) : null;
@@ -288,7 +299,7 @@ export class CommercialIntelligenceUseCases {
     async performance(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<PerformanceMetrics> {
         const { start, end } = monthRange(filter.month);
         const { scored, stages, history } = await this.loadScoredDeals(organizationId, now);
-        const inScope = filter.owner ? scored.filter((s) => s.deal.owner === filter.owner) : scored;
+        const inScope = this.applyScope(scored, filter);
 
         const createdInPeriod = inScope.filter((s) => s.deal.createdAt >= start && s.deal.createdAt < end);
         const closedInPeriod = inScope.filter((s) => (s.deal.stageIsWon || s.deal.stageIsLost) && s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end);
@@ -457,10 +468,11 @@ export class CommercialIntelligenceUseCases {
 
     // ─── Fase 7 — Motivos de perda ───────────────────────────────────────────
 
-    async losses(organizationId: string, filter: CommercialIntelligenceFilter): Promise<LossAnalysis> {
+    async losses(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<LossAnalysis> {
         const { start, end } = monthRange(filter.month);
-        const deals = await this.repository.findDeals(organizationId);
-        const lost = deals.filter((d) => d.stageIsLost && d.closedAt && d.closedAt >= start && d.closedAt < end);
+        const { scored } = await this.loadScoredDeals(organizationId, now);
+        const inScope = this.applyScope(scored, filter);
+        const lost = inScope.filter((s) => s.deal.stageIsLost && s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end).map((s) => s.deal);
 
         const byReasonMap = new Map<string, { count: number; amount: number }>();
         for (const deal of lost) {
@@ -691,9 +703,8 @@ export class CommercialIntelligenceUseCases {
 
     async dealsDrillDown(organizationId: string, query: DealDrillDownQuery, now = new Date()): Promise<DealDrillDownResult> {
         const { scored } = await this.loadScoredDeals(organizationId, now);
-        let rows = scored.filter((s) => isDealOpen(s.deal));
+        let rows = this.applyScope(scored, { month: query.month, owner: query.owner, product: undefined, source: undefined, icp: undefined }).filter((s) => isDealOpen(s.deal));
 
-        if (query.owner) rows = rows.filter((s) => s.deal.owner === query.owner);
         if (query.tier) rows = rows.filter((s) => s.forecast.tier === query.tier);
         if (query.stageId) rows = rows.filter((s) => s.deal.pipelineStageId === query.stageId);
         if (query.agingCritical) rows = rows.filter((s) => s.agingDays > STAGE_AGING_CRITICAL_DAYS);

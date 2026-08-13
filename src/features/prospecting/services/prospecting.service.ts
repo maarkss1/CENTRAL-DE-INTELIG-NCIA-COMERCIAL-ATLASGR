@@ -92,12 +92,17 @@ export function buildLocationLabel(criteria: ProspectCriteria): string {
     return criteria.localizacao;
 }
 
-/** Monta a pesquisa nominal do Google Places/OpenStreetMap, preservando segmento e localização. */
+/** Monta a pesquisa nominal para Google Places/OpenStreetMap, combinando livremente nome, segmento, palavra-chave e localização. */
 function buildPlacesQuery(criteria: ProspectCriteria): string {
     const companyOrPlace = criteria.nomeEmpresa?.trim();
-    const segment = criteria.segmento.split('(')[0].trim();
-    const location = buildLocationLabel(criteria);
-    return [companyOrPlace, companyOrPlace ? segment : null, location ? `em ${location}` : null]
+    const segment = criteria.segmento?.trim();
+    const location = buildLocationLabel(criteria)?.trim();
+    const keywords = criteria.palavrasChave?.trim();
+
+    // Se o usuário digitou uma busca direta por nome ou palavra-chave (ex: "Supermercado", "Academia"), usaremos isso diretamente
+    const term = companyOrPlace || segment || keywords || 'Empresa';
+    
+    return [term, location ? `em ${location}` : null]
         .filter(Boolean)
         .join(' ');
 }
@@ -343,15 +348,19 @@ export async function promoteToCrm(input: PromoteInput) {
         }
     }
 
-    let contact = null;
+        let contact = null;
     if (input.contact?.name) {
+        // Rotulagem LGPD na observação (já que schema é propriedade do Agente 01)
+        const isFromProvider = input.source.toLowerCase().includes('apollo') || input.source.toLowerCase().includes('hunter');
+        const lgpdNote = isFromProvider ? `[LGPD] Origem: ${input.source} | Base Legal: Legítimo Interesse (B2B)` : `[LGPD] Origem: ${input.source} | Base Legal: Consentimento/Público`;
+        
         contact = await prisma.contact.create({
             data: {
                 name: input.contact.name,
                 role: input.contact.role,
                 companyId: company.id,
                 status: 'Ativo',
-                observations: 'Contato sugerido — confirmar identidade e dados antes da abordagem.',
+                observations: `Contato sugerido — confirmar identidade e dados antes da abordagem.\n${lgpdNote}`,
                 organizationId: input.organizationId,
             },
         });
@@ -411,3 +420,4 @@ export async function promoteToCrm(input: PromoteInput) {
         enrichment: enrichmentResult,
     };
 }
+

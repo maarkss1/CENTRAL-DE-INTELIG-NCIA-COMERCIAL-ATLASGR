@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Link2, Link2Off, RefreshCw, Loader2, PlugZap } from 'lucide-react';
+import { AlertTriangle, Link2, Link2Off, RefreshCw, Loader2, PlugZap, Zap } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Button } from '../../../components/ui/Button';
 import { BitrixImportPanel } from '../../integrations/components/BitrixImportPanel';
+import { BitrixSyncRulesPanel } from '../../integrations/components/BitrixSyncRulesPanel';
 import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
 import { toast } from '../../../lib/toast';
 import { api } from '../../../lib/api';
@@ -137,11 +138,24 @@ export function CrmQualityTab({ filter }: { filter: CommercialFilter }) {
             {data.bitrixSync.connected && selectedBitrixConnectionId && (
                 <Card padding="sm">
                     <div className="flex items-center gap-2 mb-1">
-                        {data.bitrixSync.notLinked > 0 ? <Link2Off className="w-4 h-4 text-[#b8860b]" /> : <Link2 className="w-4 h-4 text-[#0ca30c]" />}
-                        <h3 className="text-sm font-bold text-ink">Negócios do Bitrix24 ainda não importados</h3>
+                        <Zap className="w-4 h-4 text-brand" />
+                        <h3 className="text-sm font-bold text-ink">Integração automática com o Bitrix24</h3>
                     </div>
                     <p className="text-xs text-ink-2 mb-1">
-                        Busque e importe direto daqui — sem sair da plataforma. Negócios do Bitrix que não entram aqui ficam invisíveis no forecast e no pipeline do Comercial Inteligente.
+                        Defina uma regra por pipeline/etapa/vendedor uma única vez — o Atlas verifica a cada 15 minutos e traz sozinho os negócios que baterem, sem precisar buscar manualmente toda vez. O Comercial Inteligente sempre calcula sobre o mês selecionado no filtro no topo da página, então assim que um negócio entra por aqui ele já aparece no mês vigente (ou no mês em que a data dele cair) sem nenhum passo extra.
+                    </p>
+                    <BitrixSyncRulesPanel connectionId={selectedBitrixConnectionId} />
+                </Card>
+            )}
+
+            {data.bitrixSync.connected && selectedBitrixConnectionId && (
+                <Card padding="sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        {data.bitrixSync.notLinked > 0 ? <Link2Off className="w-4 h-4 text-[#b8860b]" /> : <Link2 className="w-4 h-4 text-[#0ca30c]" />}
+                        <h3 className="text-sm font-bold text-ink">Buscar e importar manualmente</h3>
+                    </div>
+                    <p className="text-xs text-ink-2 mb-1">
+                        Para trazer algo pontual sem esperar o próximo ciclo automático, ou negócios fora do escopo de qualquer regra ativa.
                     </p>
                     <BitrixImportPanel connectionId={selectedBitrixConnectionId} />
                 </Card>

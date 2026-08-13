@@ -38,3 +38,5 @@ export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBi
 
 export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, getEntityFields } from './service/customFields.js';
 export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';
+
+export { resolveOwnBitrixUserId, resolveAtlasUserNameByEmail } from './service/userMapping.js';

@@ -13,7 +13,7 @@ export const options = {
 const baseUrl = __ENV.BASE_URL || 'http://host.docker.internal:3000';
 
 export default function () {
-  const response = http.get(`${baseUrl}/health`);
-  check(response, { 'health responde com sucesso': (result) => result.status < 500 });
+  const response = http.get(`${baseUrl}/health/live`);
+  check(response, { 'health responde 200': (result) => result.status === 200 });
   sleep(1);
 }

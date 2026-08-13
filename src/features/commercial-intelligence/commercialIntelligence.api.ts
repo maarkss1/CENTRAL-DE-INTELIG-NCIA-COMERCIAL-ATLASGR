@@ -139,12 +139,21 @@ export interface MetricDefinition {
 export interface CommercialFilter {
     month: string;
     owner?: string;
+    product?: string;
+    source?: string;
+    icp?: string;
 }
+
+export interface ExecutiveSummaryResult { summary: string; generatedAt: string }
+export interface BitrixNoteDraftResult { draft: string }
 
 function qs(filter: CommercialFilter, extra?: Record<string, string | number | boolean | undefined>): string {
     const params = new URLSearchParams();
     params.set('month', filter.month);
     if (filter.owner) params.set('owner', filter.owner);
+    if (filter.product) params.set('product', filter.product);
+    if (filter.source) params.set('source', filter.source);
+    if (filter.icp) params.set('icp', filter.icp);
     if (extra) {
         for (const [key, value] of Object.entries(extra)) {
             if (value !== undefined && value !== '') params.set(key, String(value));
@@ -173,6 +182,10 @@ export const commercialIntelligenceApi = {
     // sincronização aqui), mas fica exposta neste client porque quem a dispara é a UI do Comercial
     // Inteligente (drill-down de negócio em risco).
     notifyBitrix: (leadId: string, comment: string) => api.post<{ entityType: 'lead' | 'deal'; bitrixRecordId: string }>(`/api/bitrix/leads/${leadId}/comment`, { comment }),
+    // Chamadas de IA (custo/latência reais) — POST de propósito, nunca disparadas automaticamente
+    // ao carregar a tela, sempre por ação explícita da pessoa.
+    aiExecutiveSummary: (filter: CommercialFilter) => api.post<ExecutiveSummaryResult>(`${BASE}/ai/executive-summary`, filter),
+    aiBitrixNote: (leadId: string) => api.post<BitrixNoteDraftResult>(`${BASE}/ai/bitrix-note`, { leadId }),
 };
 
 export function formatCurrency(value: number | null | undefined, currency = 'BRL'): string {

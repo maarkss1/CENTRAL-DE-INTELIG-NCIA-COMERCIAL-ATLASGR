@@ -78,6 +78,7 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' && !preventClose) onClose(); }}
       className={cn(
         'backdrop:bg-ink/50 backdrop:backdrop-blur-sm bg-surface rounded-card-lg shadow-card w-full p-0 outline-none overflow-hidden max-h-[90vh] flex flex-col',
         maxWidth

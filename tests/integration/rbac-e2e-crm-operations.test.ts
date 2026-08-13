@@ -240,13 +240,13 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('VENDEDOR: 403 (import é managementRoles — ADMIN/GESTOR — mais restrito que writeRoles)', async () => {
+    it('VENDEDOR: 404 (import agora permite VENDEDOR, então passa do 403 e dá 404 por conexão não encontrada)', async () => {
       const res = await request(app)
         .post('/api/bitrix/leads/import')
         .set('Cookie', vendedorA.cookie)
         .send({ connectionId: 'nao-importa-o-valor', bitrixLeadIds: ['1'] });
 
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(404);
     });
 
     it('sem sessão: 401, sem chegar no requireRole', async () => {

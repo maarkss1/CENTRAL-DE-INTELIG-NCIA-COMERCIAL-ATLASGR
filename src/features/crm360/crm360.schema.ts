@@ -101,5 +101,6 @@ export const crmDealSchema = z.object({
     customFields: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 
+export type CrmProductInput = z.infer<typeof crmProductSchema>;
 export type CrmDealItemInput = z.infer<typeof crmDealItemSchema>;
 export type CrmDocumentInput = z.infer<typeof crmDocumentSchema>;

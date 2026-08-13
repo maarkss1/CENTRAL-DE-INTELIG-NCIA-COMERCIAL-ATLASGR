@@ -29,8 +29,9 @@ export function DiscoveryFilterPanel({
 
             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento (ICP)</label>
+                    <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento (ICP)</label>
                     <input
+                        id="discovery-segmento"
                         type="text"
                         list="segmento-suggestions"
                         placeholder="Ex: Transportadora / Frotista, Logística..."
@@ -45,8 +46,9 @@ export function DiscoveryFilterPanel({
 
                 <div className="grid grid-cols-2 gap-2">
                     <div>
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado</label>
+                        <label htmlFor="discovery-estado" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado</label>
                         <input
+                            id="discovery-estado"
                             type="text"
                             list="estado-suggestions"
                             placeholder="Ex: São Paulo, SP, Sul..."
@@ -66,8 +68,9 @@ export function DiscoveryFilterPanel({
                         </datalist>
                     </div>
                     <div>
-                        <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
+                        <label htmlFor="discovery-cidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
                         <input
+                            id="discovery-cidade"
                             type="text"
                             list="cidade-suggestions"
                             placeholder="Ex: Campinas, Santos..."
@@ -91,10 +94,11 @@ export function DiscoveryFilterPanel({
                 </div>
 
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Pesquisar por nome ou empresa</label>
+                    <label htmlFor="discovery-pesquisar" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Pesquisar por nome ou empresa</label>
                     <div className="relative">
                         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-2 pointer-events-none" />
                         <input
+                            id="discovery-pesquisar"
                             type="search"
                             placeholder="Ex: Transportadora ABC, armazém..."
                             value={criteria.nomeEmpresa || ''}
@@ -107,8 +111,9 @@ export function DiscoveryFilterPanel({
                 </div>
 
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Quantidade de Leads</label>
+                    <label htmlFor="discovery-quantidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Quantidade de Leads</label>
                     <input
+                        id="discovery-quantidade"
                         type="number"
                         min={1}
                         max={500}
@@ -130,8 +135,9 @@ export function DiscoveryFilterPanel({
                 {showAdvanced && (
                     <div className="space-y-4 pt-1">
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Porte (nº de funcionários)</label>
+                            <label htmlFor="discovery-porte" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Porte (nº de funcionários)</label>
                             <select
+                                id="discovery-porte"
                                 className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 value={criteria.porte || ''}
                                 onChange={(e) => setCriteria({ ...criteria, porte: e.target.value || undefined })}
@@ -140,9 +146,10 @@ export function DiscoveryFilterPanel({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Faturamento Anual Estimado (USD)</label>
+                            <label htmlFor="discovery-faturamento-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Faturamento Anual Estimado (USD)</label>
                             <div className="flex gap-2">
                                 <input
+                                    id="discovery-faturamento-min"
                                     type="number"
                                     placeholder="Mínimo"
                                     value={criteria.faturamentoMin ?? ''}
@@ -160,8 +167,9 @@ export function DiscoveryFilterPanel({
                             <p className="text-[10px] text-ink-2 mt-1">Dado da Apollo é normalizado em dólar, independente do mercado.</p>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavras-chave adicionais</label>
+                            <label htmlFor="discovery-palavras-chave" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavras-chave adicionais</label>
                             <input
+                                id="discovery-palavras-chave"
                                 type="text"
                                 placeholder="Ex: refrigerated, cargo, fleet"
                                 value={criteria.palavrasChave || ''}
@@ -171,9 +179,10 @@ export function DiscoveryFilterPanel({
                             <p className="text-[10px] text-ink-2 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Ano de Fundação (Mín e Máx)</label>
+                            <label htmlFor="discovery-ano-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Ano de Fundação (Mín e Máx)</label>
                             <div className="flex gap-2">
                                 <input
+                                    id="discovery-ano-min"
                                     type="number"
                                     placeholder="De"
                                     value={criteria.anoFundacaoMin ?? ''}
@@ -237,8 +246,9 @@ export function DiscoveryFilterPanel({
                             <p className="text-[10px] text-ink-2 mt-1">Útil para descartar empresas que já usam a solução de um concorrente, por exemplo.</p>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Excluir Localização</label>
+                            <label htmlFor="discovery-localizacao-excluir" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Excluir Localização</label>
                             <input
+                                id="discovery-localizacao-excluir"
                                 type="text"
                                 placeholder="Ex: São Paulo, Minas Gerais"
                                 value={criteria.localizacaoExcluir || ''}

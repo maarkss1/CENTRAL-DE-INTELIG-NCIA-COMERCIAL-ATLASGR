@@ -42,8 +42,17 @@ export function CommercialIntelligenceHub() {
     const tab = (searchParams.get('tab') as TabId) || 'overview';
     const month = searchParams.get('month') || currentMonth();
     const owner = searchParams.get('owner') || '';
+    const product = searchParams.get('product') || '';
+    const source = searchParams.get('source') || '';
+    const icp = searchParams.get('icp') || '';
 
-    const filter: CommercialFilter = useMemo(() => ({ month, owner: owner || undefined }), [month, owner]);
+    const filter: CommercialFilter = useMemo(() => ({
+        month,
+        owner: owner || undefined,
+        product: product || undefined,
+        source: source || undefined,
+        icp: icp || undefined,
+    }), [month, owner, product, source, icp]);
 
     const setTab = (next: TabId) => {
         const params = new URLSearchParams(searchParams);
@@ -64,6 +73,13 @@ export function CommercialIntelligenceHub() {
         setSearchParams(params, { replace: true });
     };
 
+    const setFilter = (key: 'product' | 'source' | 'icp', next: string) => {
+        const params = new URLSearchParams(searchParams);
+        if (next) params.set(key, next);
+        else params.delete(key);
+        setSearchParams(params, { replace: true });
+    };
+
     return (
         <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
             <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
@@ -78,14 +94,14 @@ export function CommercialIntelligenceHub() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
                     <label className="sr-only" htmlFor="ci-month">Mês</label>
                     <input
                         id="ci-month"
                         type="month"
                         value={month}
                         onChange={(e) => setMonth(e.target.value || currentMonth())}
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                     <label className="sr-only" htmlFor="ci-owner">Responsável</label>
                     <input
@@ -93,8 +109,35 @@ export function CommercialIntelligenceHub() {
                         type="text"
                         value={owner}
                         onChange={(e) => setOwner(e.target.value)}
-                        placeholder="Filtrar por responsável"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-44 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        placeholder="Vendedor"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                    <label className="sr-only" htmlFor="ci-product">Produto</label>
+                    <input
+                        id="ci-product"
+                        type="text"
+                        value={product}
+                        onChange={(e) => setFilter('product', e.target.value)}
+                        placeholder="Produto"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                    <label className="sr-only" htmlFor="ci-source">Origem</label>
+                    <input
+                        id="ci-source"
+                        type="text"
+                        value={source}
+                        onChange={(e) => setFilter('source', e.target.value)}
+                        placeholder="Origem"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                    <label className="sr-only" htmlFor="ci-icp">ICP</label>
+                    <input
+                        id="ci-icp"
+                        type="text"
+                        value={icp}
+                        onChange={(e) => setFilter('icp', e.target.value)}
+                        placeholder="ICP/Segmento"
+                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
                 </div>
             </header>
