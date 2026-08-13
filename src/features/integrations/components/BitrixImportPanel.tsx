@@ -621,7 +621,6 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                         processedDeals.map((deal) => {
                             const isSelected = selected.has(deal.id);
                             const isSingleImporting = importingSingleId === deal.id;
-                            const cleanPhone = deal.title ? null : null; // reserva para extensões
 
                             return (
                                 <div

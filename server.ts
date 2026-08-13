@@ -448,14 +448,16 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
     // ── BullBoard (UI de Monitoramento de Filas) ──────────────────────────
     const serverAdapter = new ExpressAdapter();
     serverAdapter.setBasePath('/admin/queues');
-    createBullBoard({
-        queues: [
-            new BullMQAdapter(leadsQueue),
-            new BullMQAdapter(searchQueue),
-            new BullMQAdapter(agentQueue)
-        ],
-        serverAdapter: serverAdapter,
-    });
+    if (queuesEnabled && leadsQueue && searchQueue && agentQueue) {
+        createBullBoard({
+            queues: [
+                new BullMQAdapter(leadsQueue),
+                new BullMQAdapter(searchQueue),
+                new BullMQAdapter(agentQueue)
+            ],
+            serverAdapter,
+        });
+    }
     // Protegemos o painel de administração com autenticação
     app.use('/admin/queues', authenticateToken, requireTenant, serverAdapter.getRouter());
 

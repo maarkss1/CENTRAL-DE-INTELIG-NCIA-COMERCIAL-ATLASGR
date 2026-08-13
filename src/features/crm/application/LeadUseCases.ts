@@ -285,7 +285,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             }
         }));
 
-        await enrichmentQueue.addBulk(jobs);
+        await enrichmentQueue?.addBulk(jobs);
 
         const companyIds = Array.from(new Set(leadsToEnrich.map(l => l.companyId!)));
         await prisma.company.updateMany({
