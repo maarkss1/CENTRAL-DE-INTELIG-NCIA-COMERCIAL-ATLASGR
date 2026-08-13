@@ -82,11 +82,12 @@ export async function scheduleExecutiveSummaryJob() {
         connection: connection as any
     });
     
-    // Roda todo dia as 18:00
-    await queue.add('daily-summary', {}, {
-        repeat: {
-            pattern: '0 18 * * *'
-        }
+    // Roda todo dia as 18:00.
+    // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
+    // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
+    await queue.upsertJobScheduler('daily-executive-summary', { pattern: '0 18 * * *' }, {
+        name: 'daily-summary',
+        data: {},
     });
     
     logger.info('Executive summary job scheduled (cron: 0 18 * * *)');

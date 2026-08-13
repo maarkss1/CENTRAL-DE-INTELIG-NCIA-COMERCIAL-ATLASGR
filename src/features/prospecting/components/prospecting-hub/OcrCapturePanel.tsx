@@ -197,7 +197,7 @@ export function OcrCapturePanel() {
                             </div>
                         </div>
                     )}
-                </button>
+                </div>
             )}
 
             {reading && (
