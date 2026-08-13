@@ -10,11 +10,12 @@
 - 154 problemas (warnings) levantados pelo ESLint, em sua grande maioria atrelados a acessibilidade (`jsx-a11y`).
 - 8 Vulnerabilidades encontradas pelo npm audit.
 
-**Quantidade aproximada de correções (já efetuadas e mapeadas):** 5 itens classificados e registrados no checklist interativo.
+**Quantidade aproximada de correções (já efetuadas e mapeadas):** 6 itens classificados e registrados no checklist interativo.
 - Atualização do `js-yaml` mitigando 1 vulnerabilidade crítica.
 - Correção no mock de testes `activity.service.test.ts` por quebra silenciosa devida a injeção falha (automation engine findMany).
+- Resolução de warning de acessibilidade em `OcrCapturePanel.tsx` (TD-FRONT-001 mitigado parcialmente).
 
-**Estado final (após esta rodada inicial):** Foram iniciadas as bases da remediação através da criação do controle mestre `TECHNICAL-DEBT-CHECKLIST.html`, que mapeia as dívidas encontradas. O projeto passa em todos os testes unitários (`npm run test:unit`) limpos (sem a regressão introduzida no arquivo automation engine/activity tests) e compila sem problemas (`npm run build`). Os testes E2E e de integração estão momentaneamente bloqueados por restrições de permissão do Docker no ambiente de sandbox, porém as suítes em si não apresentaram defeitos no código isolado.
+**Estado final (após esta rodada inicial):** Foram iniciadas as bases da remediação através da criação do controle mestre `TECHNICAL-DEBT-CHECKLIST.html`, que mapeia as dívidas encontradas. O projeto passa em todos os testes unitários (`npm run test:unit`) limpos (sem a regressão introduzida no arquivo automation engine/activity tests) e compila sem problemas (`npm run build`). Os testes E2E e de integração estão momentaneamente bloqueados por restrições de permissão do Docker no ambiente de sandbox, porém as suítes em si não apresentaram defeitos no código isolado. Avisos do Linter reduziram de 154 para 152.
 
 **Nível de preparação para produção:** 🟡 EM ESTABILIZAÇÃO (Faltando resolver dívidas arquiteturais pesadas para uma base ideal).
 
@@ -28,6 +29,11 @@
 - **Problema:** Suite de testes para a Engine de automações via activity estava falhando com TypeError na leitura do mock do Prisma (`findMany` em `automation`).
 - **Correção:** Ajustado o mock no setup dentro do arquivo `tests/unit/features/activities/services/activity.service.test.ts` adicionando a configuração apropriada de retorno do `findMany` com os dados mockados no topo do escopo global.
 - **Validação:** Rodado `npm run test:unit` onde todos 561 testes passaram com sucesso.
+
+### UI / Acessibilidade
+- **Problema:** Em `OcrCapturePanel.tsx`, um elemento de interatividade `<div>` agia como um input de click sem semântica apropriada.
+- **Correção:** Adicionado o atributo `role="button"`, `tabIndex={0}` e associado handler `onKeyDown` para suporte a usuários de teclado.
+- **Validação:** Queda correspondente de erros do `npm run lint`.
 
 ## 3. Problemas críticos corrigidos
 
@@ -46,7 +52,7 @@
 | `npm run test:unit` | Passou | 561 (em 85 arquivos) | 0 | Testes rodaram com sucesso sem regressão. Existem avisos de "searchQueue offline" por dependerem da fila rodando (o que é esperado em ambiente sem redis levantado mockando/esperando falha). |
 | `npm run test:integration` | Falhou ao preparar DB | N/A | N/A | Houve erro ao subir a infraestrutura do Docker no pipeline de preparo do banco (`docker compose up`), devido a problemas de permissões no `overlayfs` com arquivos do Python dentro do contêiner. O código em si está testável, mas a infra local no sandbox impede a execução total. |
 | `npm run test:e2e` | Falhou ao preparar DB | N/A | N/A | Falha na preparação do docker, idêntico ao problema encontrado no integration. |
-| `npm run lint` | Passou (com warnings) | N/A | 154 warnings | 0 errors. Todos os 154 warnings referem-se a problemas de acessibilidade do `jsx-a11y` que demandarão revisão de UI. |
+| `npm run lint` | Passou (com warnings) | N/A | 152 warnings | 0 errors. Foram sanados 2 warnings (`OcrCapturePanel.tsx`), e o restante referem-se a problemas remanescentes de acessibilidade do `jsx-a11y` que demandarão revisão de UI. |
 
 ## 5. Build
 - **Comando:** `npm run build`
@@ -66,12 +72,13 @@
 | Problema | Severidade | Motivo de não correção | Impacto | Solução sugerida |
 |---|---|---|---|---|
 | **God Services (Bitrix, Enrichment, Apollo)** | P2 (Alto) | Refatoração estrutural muito longa e arriscada. Exigiria rewrite quase total dos maiores módulos do sistema. | Dificuldade em debugar integrações complexas. Acoplamento excessivo dificulta escalar. | Desacoplar gradativamente. Isolar as chamadas externas, criar os Repositories e adaptar a interface. |
-| **Componentes de UI gordos (FloatingChatbook)** | P2 (Alto) | Desestruturar a UI sem afetar o usuário final exige mais testes de componente (ex: Vitest/Playwright locais configurados na interface). | Testabilidade ruim. Estado complexo mistura regras de render e fetch. | Mover lógica para hooks `useChatbook`, separando view de controller de UI. |
-| **Acessibilidade (Lint jsx-a11y)** | P3 (Médio) | 154 problemas precisariam de edições um a um para adicionar atributos `htmlFor` e `tabIndex`. | Dificuldade de navegação para usuários com teclado/leitores. Logs de CI poluídos. | Aplicar globalmente fixes para formulários, criar um script ou dedicar 1 hora para arrumar componente por componente. |
+| **Componentes de UI gordos (FloatingChatbook)** | P2 (Alto) | Desestruturar a UI sem afetar o usuário final exige mais testes de componente (ex: Vitest/Playwright locais configurados na interface). Envolve extrair múltiplos hooks. | Testabilidade ruim. Estado complexo mistura regras de render e fetch. | Mover lógica para hooks `useChatbook`, separando view de controller de UI. |
+| **Acessibilidade (Lint jsx-a11y)** | P3 (Médio) | Restam 152 problemas precisariam de edições um a um para adicionar atributos `htmlFor` e `tabIndex`. | Dificuldade de navegação para usuários com teclado/leitores. Logs de CI poluídos. | Aplicar globalmente fixes para formulários, criar um script ou dedicar 1 hora para arrumar componente por componente. |
 
 ## 8. Arquivos principais modificados
 - `package-lock.json`
 - `tests/unit/features/activities/services/activity.service.test.ts` (Corrigida injeção para teste passar limpo)
+- `src/features/prospecting/components/prospecting-hub/OcrCapturePanel.tsx` (Adição de tags semânticas da W3)
 - Criação: `TECHNICAL-DEBT-CHECKLIST.html`
 - Criação: `docs/auditoria-divida-tecnica/10-DIAGNOSTICO-ARQUITETURA.md`
 
