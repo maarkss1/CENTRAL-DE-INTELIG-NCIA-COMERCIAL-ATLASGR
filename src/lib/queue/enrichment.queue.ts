@@ -1,5 +1,5 @@
 import { Queue, Worker, Job } from 'bullmq';
-import { connection } from './redis.js';
+import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { enrichCompany } from '../../features/prospecting/services/enrichment.service.js';
 import { requestContext } from '../async-context.js';
