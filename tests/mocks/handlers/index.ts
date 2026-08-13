@@ -6,6 +6,7 @@ import { knowledgeHandlers } from './knowledge';
 import { automationsHandlers } from './automations';
 import { nominatimHandlers } from './nominatim';
 import { gdeltHandlers } from './gdelt';
+import { companiesContactsHandlers } from './companies-contacts';
 
 /** Handlers MSW padrão, registrados no server global (ver `tests/mocks/server.ts`). */
 export const handlers = [
@@ -17,4 +18,5 @@ export const handlers = [
     ...automationsHandlers,
     ...nominatimHandlers,
     ...gdeltHandlers,
+    ...companiesContactsHandlers,
 ];
