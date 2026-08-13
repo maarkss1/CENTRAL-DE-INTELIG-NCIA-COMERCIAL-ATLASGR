@@ -118,7 +118,19 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 role="button"
                 tabIndex={0}
                 onClick={() => onClick(lead)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(lead); }}
+                // BUG real (causava as 3 falhas E2E de "drag por teclado"): um `onKeyDown` literal
+                // depois do spread de `{...listeners}` SUBSTITUI por completo o onKeyDown do
+                // dnd-kit (mesma prop, a última declaração ganha em JSX) — não só pro Space do
+                // pickup, mas TAMBÉM pras setas de movimento e o Escape de cancelamento, porque
+                // tudo isso chega pelo mesmo handler de teclado do KeyboardSensor. O card nunca
+                // recebia nenhum evento de teclado do dnd-kit; aria-pressed nunca virava "true".
+                // Chamar `listeners.onKeyDown` primeiro devolve o comportamento de drag (Space
+                // pickup/drop, setas, Escape); só depois tratamos Enter pra abrir o drawer — Space
+                // nunca chamava `onClick` aqui mesmo antes (só Enter tinha essa finalidade real).
+                onKeyDown={(e) => {
+                    listeners?.onKeyDown?.(e);
+                    if (e.key === 'Enter') onClick(lead);
+                }}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
             >
                 <div className="flex justify-between items-start gap-2 mb-2">

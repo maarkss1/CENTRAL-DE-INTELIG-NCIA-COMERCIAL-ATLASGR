@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { signUp, uniqueTestEmail } from './helpers';
 
 test.describe('CRM Board', () => {
     test.beforeEach(async ({ page }) => {
-        // Assume we have a mechanism to login or bypass auth in test environment
+        // Não existe bypass de auth real neste app (ALLOW_DEV_AUTH_BYPASS é só uma guarda de
+        // ambiente em src/config/env.ts, nunca consumida para pular login) — precisa de signup real,
+        // mesmo padrão de crm-kanban.spec.ts, senão /app/crm redireciona para /login e os cabeçalhos
+        // de coluna nunca aparecem.
+        await signUp(page, { email: uniqueTestEmail('board') });
         await page.goto('/app/crm');
     });
 

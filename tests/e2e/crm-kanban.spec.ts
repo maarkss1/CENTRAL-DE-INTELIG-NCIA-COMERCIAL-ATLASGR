@@ -246,7 +246,10 @@ test.describe('Kanban do CRM — LeadDetailDrawer', () => {
     await expect(drawer).toBeVisible();
 
     const putResponse = page.waitForResponse((res) => res.url().includes('/api/leads/') && res.request().method() === 'PUT');
-    await drawer.getByLabel('Estágio do lead').selectOption('Qualificação (SDR)');
+    // Label real do <select> em LeadDetailDrawer.tsx é "Status do Funil" (não "Estágio do lead"
+    // — string antiga, nunca existiu no componente; getByLabel nunca encontrava o elemento e o
+    // teste travava 45s até o timeout do waitForResponse).
+    await drawer.getByLabel('Status do Funil').selectOption('Qualificação (SDR)');
     const res = await putResponse;
     expect(res.status()).toBe(200);
 
