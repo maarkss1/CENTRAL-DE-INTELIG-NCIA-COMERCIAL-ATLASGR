@@ -13,6 +13,7 @@ import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { rehydratePii } from '../services/guardrails.service.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
 const tools = [
@@ -178,21 +179,42 @@ export class SDRQualificationAgent {
         }
 
         const messages = finalState.messages as BaseMessage[];
-        
+
+        // SEC-013b (continuação): get_lead_context troca o nome real do contato pelo token
+        // '[NOME_DO_CONTATO]' antes de entrar no loop multi-turn do LLM (crmTools.ts) — sem esta
+        // reidratação, o token cru podia vazar no resumo de qualificação mostrado ao vendedor
+        // sempre que o modelo ecoasse o texto da ferramenta de volta na resposta final.
+        const contactName = await this.getContactName(leadId);
+        const rehydrate = (text: string) => (contactName
+            ? rehydratePii(text, [{ token: '[NOME_DO_CONTATO]', value: contactName }])
+            : text);
+
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
         await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => {
             const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
+            const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
             return {
                 role: m.type,
-                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+                content: rehydrate(content),
                 toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
             };
         }));
 
         const lastMessage = messages[messages.length - 1];
-        const detailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
+        const rawDetailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
+        const detailedContent = rehydrate(rawDetailedContent);
 
         return { success: true, sessionId: sid, detailedLog: detailedContent };
+    }
+
+    private async getContactName(leadId: string): Promise<string | null> {
+        const organizationId = getTenantId();
+        if (!organizationId) return null;
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, organizationId },
+            select: { contact: { select: { name: true } } },
+        });
+        return lead?.contact?.name ?? null;
     }
 
     private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
