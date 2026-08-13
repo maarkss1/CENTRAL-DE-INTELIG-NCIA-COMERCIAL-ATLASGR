@@ -11,12 +11,14 @@ import { prisma } from '../prisma.js';
  */
 export const LEADS_QUEUE_NAME = 'leads-enrichment';
 
-export const leadsQueue = new Queue(LEADS_QUEUE_NAME, { connection });
+export const leadsQueue = queuesEnabled
+    ? new Queue(LEADS_QUEUE_NAME, { connection })
+    : null;
 export const leadsQueueEvents = queuesEnabled
     ? new QueueEvents(LEADS_QUEUE_NAME, { connection })
     : null;
 
-leadsQueue.on('error', (err) => logger.warn({ message: err.message }, 'leadsQueue offline'));
+leadsQueue?.on('error', (err) => logger.warn({ message: err.message }, 'leadsQueue offline'));
 leadsQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'leadsQueueEvents offline'));
 
 leadsQueueEvents?.on('completed', ({ jobId }) => {

@@ -561,8 +561,8 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
-    const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
-    if (env.ENABLE_SEARCH) {
+    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
+    if (queuesEnabled && env.ENABLE_SEARCH) {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
 

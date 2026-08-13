@@ -6,8 +6,10 @@ import { requestContext } from '../async-context.js';
 
 export const ENRICHMENT_QUEUE_NAME = 'enrichment-queue';
 
-export const enrichmentQueue = new Queue(ENRICHMENT_QUEUE_NAME, { connection });
-enrichmentQueue.on('error', (err) => logger.warn({ message: err.message }, 'enrichmentQueue offline'));
+export const enrichmentQueue = queuesEnabled
+    ? new Queue(ENRICHMENT_QUEUE_NAME, { connection })
+    : null;
+enrichmentQueue?.on('error', (err) => logger.warn({ message: err.message }, 'enrichmentQueue offline'));
 
 interface EnrichmentJobData {
     companyId: string;

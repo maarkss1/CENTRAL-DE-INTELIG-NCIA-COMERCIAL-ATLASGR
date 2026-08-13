@@ -16,8 +16,10 @@ interface WhatsAppSignalJobData {
     organizationId: string;
 }
 
-export const whatsappSignalQueue = new Queue<WhatsAppSignalJobData>(WHATSAPP_SIGNAL_QUEUE_NAME, { connection });
-whatsappSignalQueue.on('error', (err) => logger.warn({ message: err.message }, 'whatsappSignalQueue offline'));
+export const whatsappSignalQueue = queuesEnabled
+    ? new Queue<WhatsAppSignalJobData>(WHATSAPP_SIGNAL_QUEUE_NAME, { connection })
+    : null;
+whatsappSignalQueue?.on('error', (err) => logger.warn({ message: err.message }, 'whatsappSignalQueue offline'));
 
 /**
  * (Re)agenda a leitura da conversa deste lead, adiando `DEBOUNCE_MS` a partir de agora.
@@ -29,6 +31,7 @@ whatsappSignalQueue.on('error', (err) => logger.warn({ message: err.message }, '
  * rodada normalmente.
  */
 export async function scheduleConversationAnalysis(leadId: string, organizationId: string): Promise<void> {
+    if (!whatsappSignalQueue) return;
     const jobId = `conversation-signal:${leadId}`;
 
     try {

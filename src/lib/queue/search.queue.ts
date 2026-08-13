@@ -5,12 +5,14 @@ import { meili } from '../search/index.js';
 
 export const SEARCH_QUEUE_NAME = 'search-indexing';
 
-export const searchQueue = new Queue(SEARCH_QUEUE_NAME, { connection });
+export const searchQueue = queuesEnabled
+    ? new Queue(SEARCH_QUEUE_NAME, { connection })
+    : null;
 export const searchQueueEvents = queuesEnabled
     ? new QueueEvents(SEARCH_QUEUE_NAME, { connection })
     : null;
 
-searchQueue.on('error', (err) => logger.warn({ message: err.message }, 'searchQueue offline'));
+searchQueue?.on('error', (err) => logger.warn({ message: err.message }, 'searchQueue offline'));
 searchQueueEvents?.on('error', (err) => logger.warn({ message: err.message }, 'searchQueueEvents offline'));
 
 searchQueueEvents?.on('completed', ({ jobId }) => {
