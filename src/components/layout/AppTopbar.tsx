@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Sun, Moon, Menu } from 'lucide-react';
 import { TabType, TAB_META } from './tabMeta';
 import { useLiveClock } from '../../hooks/useLiveClock';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { OPEN_COMMAND_PALETTE_EVENT } from '../../lib/paletteIntent';
+import { notificationsApi } from '../../features/notifications/notifications.api';
 
 interface AppTopbarProps {
     activeTab: TabType;
@@ -15,8 +18,35 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
     const now = useLiveClock();
     const { currentUser } = useAuth();
     const { theme, toggleTheme } = useTheme();
+    const navigate = useNavigate();
     const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
     const Icon = meta.icon;
+
+    // Contagem real de não lidas — GET /api/notifications?unread=1 (mesmo endpoint usado pela
+    // tela de Notificações). Sem isso o sino era cenográfico: nenhum clique navegava e o ponto
+    // vermelho aparecia sempre, mesmo com a caixa zerada. Recarrega ao montar e ao focar a aba
+    // (sem polling contínuo — este produto evita loop/timer sem necessidade comprovada, ver
+    // CLAUDE.md seção 8/11) para refletir notificações lidas/criadas em outra aba ou sessão.
+    const [unreadCount, setUnreadCount] = useState(0);
+    useEffect(() => {
+        let cancelled = false;
+        const loadUnread = async () => {
+            try {
+                const { unread } = await notificationsApi.list(true);
+                if (!cancelled) setUnreadCount(unread);
+            } catch {
+                // Falha ao consultar não derruba o topbar — o sino continua navegando de verdade,
+                // só fica sem o indicador até a próxima tentativa bem-sucedida.
+                if (!cancelled) setUnreadCount(0);
+            }
+        };
+        void loadUnread();
+        window.addEventListener('focus', loadUnread);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('focus', loadUnread);
+        };
+    }, []);
 
     const dateLabel = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short' });
     const timeLabel = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -68,11 +98,14 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
 
                 <button
                     type="button"
+                    onClick={() => navigate('/app/notifications')}
                     className="relative flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2"
-                    aria-label="Notificações"
+                    aria-label={unreadCount > 0 ? `Notificações — ${unreadCount} não lida${unreadCount === 1 ? '' : 's'}` : 'Notificações'}
                 >
                     <Bell className="h-5 w-5" />
-                    <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand" />
+                    {unreadCount > 0 && (
+                        <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true" />
+                    )}
                 </button>
 
                 <div
