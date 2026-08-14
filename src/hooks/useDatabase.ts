@@ -156,9 +156,15 @@ export function useLeads(params?: { page?: number; limit?: number; status?: stri
 // ACTIVITIES HOOK
 // ─────────────────────────────────────────────────────────────────────────────
 export function useActivities(params?: { page?: number; limit?: number; leadId?: string; status?: string; type?: string; from?: string; to?: string }) {
+  // `from`/`to` faltavam neste array de deps: o efeito em useFetch só reagia a page/limit/leadId/
+  // status/type, então trocar o intervalo de datas (ex.: navegar de mês no calendário) nunca
+  // disparava um novo fetch — a tela ficava presa nos dados do primeiro intervalo carregado.
+  // `from`/`to` já chegam como string (YYYY-MM-DD), não `Date`, então comparam por valor de forma
+  // estável entre renders — adicioná-los aqui não reintroduz o problema de um `new Date()` que
+  // mudaria de identidade a cada render.
   const { data, loading, error, refetch } = useFetch(
     () => activitiesDB.list(params),
-    [params?.page, params?.limit, params?.leadId, params?.status, params?.type]
+    [params?.page, params?.limit, params?.leadId, params?.status, params?.type, params?.from, params?.to]
   );
 
   const createActivity = useCallback(async (newData: Partial<Activity>) => {

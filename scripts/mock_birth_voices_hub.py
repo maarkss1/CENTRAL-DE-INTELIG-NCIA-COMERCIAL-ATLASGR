@@ -22,7 +22,7 @@ class SimpleHubHandler(BaseHTTPRequestHandler):
         except Exception:
             payload = {}
 
-        target_number = payload.get("targetNumber", "+5516993924196")
+        target_number = payload.get("targetNumber", "+5500000000000")
         context = payload.get("context", {})
         name = context.get("name", "Juliana")
         voice = payload.get("voice", "gessica")

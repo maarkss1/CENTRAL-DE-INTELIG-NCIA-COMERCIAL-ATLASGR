@@ -258,9 +258,23 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         return { ...result, pagesExhausted };
     }
 
+    /**
+     * Enfileira o enriquecimento em lote dos leads com empresa pendente.
+     *
+     * Honesto sobre o resultado: quando as filas estão desabilitadas (`queuesEnabled=false`,
+     * `enrichmentQueue` é `null` — ver src/lib/queue/enrichment.queue.ts), `enrichmentQueue?.addBulk`
+     * antes desta correção era um no-op silencioso que MESMO ASSIM marcava as empresas como
+     * "Enriquecendo" e devolvia `{ enqueued: N }` — o chamador (LeadController.enrichBatch,
+     * exposto na resposta da rota como `data`) acreditava que N leads seriam enriquecidos, mas
+     * nenhum job era criado e as empresas ficavam presas em "Enriquecendo" para sempre, já que
+     * nenhum worker jamais processaria esses jobs inexistentes. Agora, sem filas, nada é marcado
+     * como "Enriquecendo" e o retorno expõe `enfileirado: false` + `motivo` para o cliente da API
+     * distinguir "nada pendente" de "havia leads pendentes, mas a fila está fora do ar".
+     */
     async enqueueBatchEnrichment(organizationId: string) {
         const { prisma } = await import('../../../lib/prisma.js');
         const { enrichmentQueue } = await import('../../../lib/queue/enrichment.queue.js');
+        const { queuesEnabled } = await import('../../../lib/queue/redis.js');
 
         const leadsToEnrich = await prisma.lead.findMany({
             where: {
@@ -274,7 +288,16 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             select: { id: true, companyId: true, company: { select: { cnpj: true, segment: true } } }
         });
 
-        if (leadsToEnrich.length === 0) return { enqueued: 0 };
+        if (leadsToEnrich.length === 0) return { enqueued: 0, enfileirado: true as const };
+
+        if (!queuesEnabled || !enrichmentQueue) {
+            return {
+                enqueued: 0,
+                enfileirado: false as const,
+                motivo: 'filas desabilitadas' as const,
+                leadsPendentes: leadsToEnrich.length,
+            };
+        }
 
         const jobs = leadsToEnrich.map(lead => ({
             name: 'enrichment-job',
@@ -286,7 +309,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             }
         }));
 
-        await enrichmentQueue?.addBulk(jobs);
+        await enrichmentQueue.addBulk(jobs);
 
         const companyIds = Array.from(new Set(leadsToEnrich.map(l => l.companyId!)));
         await prisma.company.updateMany({
@@ -294,6 +317,6 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             data: { enrichmentStatus: 'Enriquecendo' }
         });
 
-        return { enqueued: leadsToEnrich.length };
+        return { enqueued: leadsToEnrich.length, enfileirado: true as const };
     }
 }

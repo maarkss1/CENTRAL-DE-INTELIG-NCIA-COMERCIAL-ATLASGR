@@ -5,8 +5,20 @@ import { requestContext } from '../src/lib/async-context.js';
 const DEFAULT_TEMP_PASSWORD = '00000000';
 
 async function main() {
-  const targetEmail = process.argv[2]?.trim().toLowerCase();
+  const targetArg = process.argv[2]?.trim();
   const password = process.argv[3] ?? DEFAULT_TEMP_PASSWORD;
+
+  // Alvo explícito obrigatório: rodar sem argumento resetava a senha de TODOS os usuários da
+  // base para o valor temporário — destrutivo demais para acontecer por engano. Para atingir
+  // todo mundo, a intenção precisa ser literal: `--all`.
+  if (!targetArg) {
+    console.error('Uso: tsx scripts/reset-passwords.ts <email|--all> [senha]');
+    console.error('Sem alvo explícito nada é alterado. Use --all somente se quiser resetar TODOS os usuários.');
+    process.exit(1);
+  }
+
+  const resetAll = targetArg === '--all';
+  const targetEmail = resetAll ? undefined : targetArg.toLowerCase();
 
   requestContext.enterWith({ bypassRls: true });
 

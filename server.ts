@@ -40,6 +40,7 @@ import { commercialIntelligenceRoutes } from './src/features/commercial-intellig
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthVoice.routes.js';
 import { birthVoiceWebhookRoutes } from './src/features/integrations/birth-voice/birthVoice.webhook.js';
+import { voiceResultWebhookRoutes } from './src/features/integrations/birth-voice/voiceResult.webhook.js';
 import { googleRoutes } from './src/features/integrations/google/google.routes.js';
 import { bitrixRoutes } from './src/features/integrations/bitrix/bitrix.routes.js';
 import { bitrixWebhookRoutes } from './src/features/integrations/bitrix/bitrix.webhook.js';
@@ -79,7 +80,6 @@ import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/f
 import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { lgpdRouter } from './src/features/lgpd/lgpd.routes.js';
-import { sendWhatsAppMessage } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
@@ -239,130 +239,11 @@ async function startServer() {
     app.use('/api/integrations/birth-voice', birthVoiceWebhookRoutes);
     app.use('/api/integrations/3cx/webhook', threecxWebhookRouter);
 
-    // Webhook para receber retorno de transcrição e gravação de chamadas de voz da Bland AI / Birthub Voices
-    app.post('/api/webhooks/voice-result', async (req, res) => {
-        const secretHeader = req.headers['x-atlasgr-webhook-secret'];
-        const expectedSecret = process.env.ATLASGR_WEBHOOK_SECRET || 'segredo_compartilhado_atlasgr_123';
-        if (secretHeader !== expectedSecret) {
-            res.status(401).json({ success: false, error: 'Unauthorized webhook secret' });
-            return;
-        }
-
-        const { call_id, phone_number, concatenated_transcript, summary, recording_url, call_length } = req.body;
-        logger.info(`Voice result received at AtlasGR: call_id=${call_id} phone=${phone_number}`);
-
-        try {
-            const rawDigits = (phone_number || '').replace(/\D/g, '');
-            const searchPattern = rawDigits.length >= 8 ? rawDigits.slice(-8) : rawDigits;
-
-            const lead = searchPattern ? await prisma.lead.findFirst({
-                where: {
-                    OR: [
-                        { contact: { phone: { contains: searchPattern } } },
-                        { contact: { whatsapp: { contains: searchPattern } } },
-                    ]
-                },
-                include: { contact: true }
-            }) : null;
-
-            if (lead) {
-                const noteContent = `📞 **Resultado da Ligação de Voz (IA)**
-- **ID da Chamada**: ${call_id}
-- **Duração**: ${Math.round((call_length || 0) * 60)}s
-- **Resumo Inteligente**: ${summary || 'Sem resumo disponível.'}
-- **Gravação em Áudio**: ${recording_url ? `[Ouvir Gravação](${recording_url})` : 'Sem gravação de áudio.'}
-
----
-### 📝 Transcrição Completa da Conversa:
-${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
-
-                await prisma.note.create({
-                    data: {
-                        leadId: lead.id,
-                        content: noteContent,
-                        author: 'IA de Voz (Bland AI)',
-                    },
-                });
-
-                await prisma.timelineEvent.create({
-                    data: {
-                        type: 'activity',
-                        description: `SDR de voz concluiu chamada. Resumo: ${summary || 'Chamada finalizada'}.`,
-                        leadId: lead.id,
-                    },
-                });
-
-                const currentFields = (lead.customFields as Record<string, unknown>) || {};
-                await prisma.lead.update({
-                    where: { id: lead.id },
-                    data: {
-                        customFields: { ...currentFields, voiceQualified: true }
-                    }
-                });
-
-                logger.info(`Voice call transcript successfully attached to lead ${lead.id}`);
-
-                // Phase 5 Triggers
-                if (!currentFields.optOutWhatsApp && lead.organizationId && lead.contact) {
-                    const phone = (lead.contact as any).whatsapp || (lead.contact as any).phone;
-                    if (phone) {
-                        try {
-                            const isMissed = (call_length || 0) < 0.2 || (summary || '').toLowerCase().includes('não atendeu') || (summary || '').toLowerCase().includes('caixa postal');
-                            
-                            if (isMissed) {
-                                await sendWhatsAppMessage(
-                                    lead.organizationId,
-                                    phone,
-                                    `Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*`
-                                );
-                            } else {
-                                // Assuming successful call means we send a summary/confirmation
-                                await sendWhatsAppMessage(
-                                    lead.organizationId,
-                                    phone,
-                                    `Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*`
-                                );
-                            }
-                        } catch (err) {
-                            logger.warn({ err, leadId: lead.id }, 'Falha ao disparar WhatsApp automático pós-ligação');
-                        }
-                    }
-                }
-
-                // Phase 6: Competitor Alerts
-                const transcriptLower = (concatenated_transcript || '').toLowerCase();
-                const competitors = ['totvs', 'sap', 'senior', 'omnilink', 'sascar', 'autotrac'];
-                const mentionedCompetitors = competitors.filter(c => transcriptLower.includes(c));
-
-                let sseMessage = `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`;
-
-                if (mentionedCompetitors.length > 0) {
-                    const alertMsg = `⚠️ ALERTA CONCORRENTE: O cliente mencionou: ${mentionedCompetitors.join(', ')}`;
-                    sseMessage = `[ALERTA] SDR concluiu chamada com citação de concorrente!`;
-                    
-                    await prisma.note.create({
-                        data: {
-                            leadId: lead.id,
-                            content: alertMsg,
-                            author: 'Sistema de Alerta (IA)',
-                        },
-                    });
-                }
-
-                // Emite a notificação em tempo real
-                sseService.notifyVoiceQualified(
-                    lead.organizationId || '',
-                    lead.id,
-                    sseMessage
-                );
-            }
-
-            res.status(200).json({ success: true, lead_found: !!lead });
-        } catch (err) {
-            logger.error({ err }, 'Error handling voice result webhook in AtlasGR');
-            res.status(500).json({ success: false, error: 'Internal server error' });
-        }
-    });
+    // Webhook de resultado de chamadas de voz da Bland AI. O handler vive em
+    // voiceResult.webhook.ts: o inline anterior tinha segredo com fallback hardcoded, busca de
+    // lead cross-tenant sem RLS, nenhuma idempotência e req.body undefined (montado antes do
+    // express.json() global sem parser próprio) — ver o comentário no topo daquele arquivo.
+    app.use('/api/webhooks/voice-result', voiceResultWebhookRoutes);
     // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
     // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
@@ -458,8 +339,12 @@ ${concatenated_transcript || 'Nenhuma transcrição gravada.'}`;
             serverAdapter,
         });
     }
-    // Protegemos o painel de administração com autenticação
-    app.use('/admin/queues', authenticateToken, requireTenant, serverAdapter.getRouter());
+    // Painel administrativo de filas: além de autenticação, exige papel ADMIN — os jobs exibidos
+    // aqui carregam dados de TODAS as organizações (filas são globais, não por tenant), então
+    // qualquer usuário comum autenticado poder abrir isso era exposição cross-tenant. Restringir a
+    // ADMIN reduz a superfície ao papel mais alto existente; o risco residual (ADMIN de uma
+    // organização enxergar jobs de outra) fica documentado no relatório de segurança.
+    app.use('/admin/queues', authenticateToken, requireTenant, requireRole(['ADMIN']), serverAdapter.getRouter());
 
     // ── Rotas protegidas ───────────────────────────────────────────────────
     app.use(observabilityMiddleware);

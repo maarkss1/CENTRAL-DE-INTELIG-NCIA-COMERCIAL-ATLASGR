@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/MaarksN/PROSPECTOR-ATLASGR.git'
+    repoURL: 'https://github.com/MaarksN/CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR.git'
     targetRevision: develop
     path: charts/prospector-atlas
     helm:

@@ -107,21 +107,28 @@ export async function runColdLeadsScan(): Promise<{ runId: string; organizations
         }
 
         for (const organizationId of organizationIds) {
-            const coldLeads = await prisma.lead.findMany({
-                where: { organizationId, temperature: 'Frio' },
-                take: SCAN_LIMIT_PER_ORG,
-                orderBy: { updatedAt: 'asc' },
-                include: { company: true },
-            });
-            totalScanned += coldLeads.length;
+            // A busca de leads frios (`prisma.lead.findMany`) precisa rodar DENTRO do mesmo
+            // `requestContext.run` que o processamento — antes desta correção ela rodava fora,
+            // sem `app.current_tenant_id` setado na transação da extensão RLS de
+            // src/lib/prisma.ts. Com FORCE ROW LEVEL SECURITY, isso faz a query devolver
+            // silenciosamente zero linhas (ou vazar entre tenants, dependendo do papel de banco em
+            // uso) mesmo com o filtro explícito de `organizationId` no WHERE — mesmo padrão já
+            // corrigido em `runBitrixSyncTick` (syncRules.ts).
+            const failures = await requestContext.run({ tenantId: organizationId }, async () => {
+                const coldLeads = await prisma.lead.findMany({
+                    where: { organizationId, temperature: 'Frio' },
+                    take: SCAN_LIMIT_PER_ORG,
+                    orderBy: { updatedAt: 'asc' },
+                    include: { company: true },
+                });
+                totalScanned += coldLeads.length;
 
-            const failures = await requestContext.run({ tenantId: organizationId }, () =>
-                withConcurrency(coldLeads, SEARCH_CONCURRENCY, async (lead) => {
+                return withConcurrency(coldLeads, SEARCH_CONCURRENCY, async (lead) => {
                     const query = `Segmento: ${lead.company?.segment ?? 'geral'} Porte: ${lead.company?.size ?? 'geral'} Nome: ${lead.company?.tradeName ?? 'geral'}`;
                     const insights = await VectorSearchService.searchChunks(query, organizationId, 3);
                     logger.info({ runId, organizationId, leadId: lead.id, insightsCount: insights.length }, 'RAG insights for cold lead');
-                }),
-            );
+                });
+            });
             totalFailures += failures;
         }
 

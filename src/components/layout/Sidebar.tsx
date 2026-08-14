@@ -2,7 +2,7 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart, Gauge
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
@@ -30,15 +30,21 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         onCloseMobile?.();
     };
 
+    // "Equipe" é administrativo de verdade (gestão de usuários da organização) — fica só aqui.
+    // "Configurações" (tema, marca ativa, dados do próprio perfil — ver Settings.tsx) não é
+    // administrativo: qualquer papel autenticado usa essas preferências pessoais, e a rota em
+    // App.tsx já é acessível por URL direta para todos. Antes, o item só aparecia pra admin,
+    // então não-admins só chegavam lá digitando a URL — inconsistência entre menu e rota
+    // corrigida movendo "Configurações" para fora do bloco admin-only, abaixo.
     const adminTools = [
         { id: 'team' as TabType, label: 'Equipe', icon: <UserCog size={20} /> },
-        { id: 'settings' as TabType, label: 'Configurações', icon: <SettingsIcon size={20} /> },
     ];
 
     const coreTools = [
         { id: 'dashboard' as TabType, label: 'Painel Central', icon: <Home size={20} /> },
         { id: 'prospect' as TabType, label: 'Prospecção', icon: <Search size={20} /> },
         { id: 'crm' as TabType, label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
+        { id: 'crm360' as TabType, label: 'Cockpit CRM', icon: <Gauge size={20} /> },
         { id: 'contacts' as TabType, label: 'Decisores', icon: <Users size={20} /> },
         { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
@@ -46,6 +52,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'winloss' as TabType, label: 'Win/Loss', icon: <Target size={20} /> },
         { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
         { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
+        { id: 'settings' as TabType, label: 'Configurações', icon: <SettingsIcon size={20} /> },
     ];
 
     // Comercial Inteligente — módulo executivo restrito (Gestor/Diretor/CEO, mapeados hoje para
