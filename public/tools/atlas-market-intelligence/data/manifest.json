@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-13T23:00:00-03:00",
+  "generatedAt": "2026-08-14T03:20:13.612749+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
@@ -23,10 +23,13 @@
     {
       "id": "rntrc",
       "label": "ANTT / RNTRC transportadores",
-      "status": "PARCIAL",
+      "status": "ATUALIZADO",
       "source": "ANTT / Portal de Dados Abertos",
       "geography": "Município",
-      "note": "Fonte oficial e histórico mensal localizados. O arquivo bruto não será carregado no navegador; falta gerar agregado municipal compacto."
+      "note": "Snapshot oficial Jul/2026 processado em 5422 municipios com transportadores; 391 linhas ativas sem match IBGE (0.0435%). Base bruta permanece fora do bundle web.",
+      "competence": "2026-07",
+      "downloadedAt": "2026-08-14T03:20:13.612749+00:00",
+      "sha256": "a7e9379fef70cd8bcfb57621defa72dae12bb2b7da4f2b8dc74c1b9218013eca"
     },
     {
       "id": "fleet",
