@@ -1,17 +1,21 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
+import { requireRole } from '../../shared/middlewares/requireRole.js';
 import { lgpdService } from './lgpd.service.js';
 
 export const lgpdRouter = Router();
 
-// Exclusão / Anonimização de Titular (LGPD Art. 18)
-lgpdRouter.delete('/titular/:contactId', (req: Request, res: Response, next: NextFunction): void => {
+// Exclusão / Anonimização de Titular (LGPD Art. 18) — irreversível, por isso exige um papel
+// mínimo (ADMIN/GESTOR), mesmo padrão de src/features/commercial-intelligence/routes/
+// commercialIntelligence.routes.ts. Este router é montado em server.ts com
+// `authenticateToken, requireTenant`, então `req.user` sempre existe aqui.
+lgpdRouter.delete('/titular/:contactId', requireRole(['ADMIN', 'GESTOR']), (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
-        const organizationId = (req as any).user?.organizationId || req.headers['x-organization-id'] as string;
-        if (!organizationId) {
-            res.status(400).json({ error: 'organizationId é obrigatório' });
-            return;
-        }
-
+        // organizationId vem exclusivamente do usuário autenticado (req.user, populado por
+        // authenticateToken a partir da sessão) — nunca de um header controlado pelo cliente.
+        // Um fallback para `x-organization-id` aqui permitiria que qualquer requisição forjasse
+        // esse header e apagasse/anonimizasse dados de OUTRO tenant.
+        const { organizationId } = (req as AuthRequest).user;
         const { contactId } = req.params;
         const result = await lgpdService.eraseContact(organizationId, contactId);
 
@@ -25,12 +29,8 @@ lgpdRouter.delete('/titular/:contactId', (req: Request, res: Response, next: Nex
 // Exportação / Portabilidade de Titular (LGPD Art. 18 V)
 lgpdRouter.get('/titular/:contactId/export', (req: Request, res: Response, next: NextFunction): void => {
     (async () => {
-        const organizationId = (req as any).user?.organizationId || req.headers['x-organization-id'] as string;
-        if (!organizationId) {
-            res.status(400).json({ error: 'organizationId é obrigatório' });
-            return;
-        }
-
+        // Mesmo raciocínio da rota de exclusão acima: organizationId só do usuário autenticado.
+        const { organizationId } = (req as AuthRequest).user;
         const { contactId } = req.params;
         const data = await lgpdService.exportContactData(organizationId, contactId);
 
