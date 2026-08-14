@@ -37,7 +37,13 @@ const TEST_DB_NAME = 'prospectordb_test';
 const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
 if (!isCI) {
-  const result = { status: 0 };
+  // Sobe só o que os testes precisam (postgres/redis/meilisearch) — o serviço litellm do mesmo
+  // compose não é dependência de teste. Um stub `{ status: 0 }` chegou a substituir este spawn e
+  // o script passou a EXIGIR os containers já de pé sem nunca subi-los, contradizendo o próprio
+  // comentário do topo ("local, continuamos subindo a stack normalmente").
+  const result = spawnSync('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'meilisearch'], {
+    stdio: 'inherit',
+  });
   if (result.status !== 0) {
     console.error('Falha ao subir docker-compose (postgres/redis/meilisearch). Veja a saída acima.');
     process.exit(result.status || 1);
