@@ -36,31 +36,42 @@
 | 16 | test:integration não subia a stack (stub no prepare script) + corrida com initdb | ✅ `f089dee` + `26444355` — 43/43 verdes |
 | 17 | npm audit high (sharp/libvips CVEs via cópia aninhada + nanoid) | ✅ `d6d30ce0` — 0 high |
 
-## Altos — em remediação na Onda 1 (3 especialistas em worktrees)
+## Altos — Onda 1 concluída e integrada (16 commits cherry-picked)
 
 _Nota de execução: a primeira tentativa (via Workflow) falhou nos 3 agentes por limite de sessão da
-conta; branches/worktrees vazios foram removidos e a onda foi relançada via Agent tool com
-isolamento de worktree individual, mesmo limite de 3 especialistas simultâneos._
+conta; relançada via Agent tool com isolamento de worktree individual. Os 3 worktrees nasceram, por
+uma condição de corrida com outra sessão que manipulava o checkout compartilhado, a partir de `main`
+em vez de `fable/finalizacao-plataforma` — em vez de merge de branch (que arrastaria ~15 commits
+alheios), cada um dos 16 commits foi cherry-picked individualmente após confirmar escopo de arquivo
+por commit. Gate pós-integração: TSC ✅ / Lint ✅ (0 erros) / Unit 672/672 ✅ / Integration 43/43 ✅ /
+Build ✅._
 
-| # | Achado | Dono |
-|---|---|---|
-| 18 | render.yaml sem migrations no deploy (docs divergem) | 08 |
-| 19 | qualidade-ci.yml + playwright-ci.yml quebrados/redundantes | 08 |
-| 20 | GitOps (charts/argocd) apontando p/ repositório antigo, sem aviso de status | 08 |
-| 21 | Sem secret scan no CI | 08 |
-| 22 | Pages publica versão pública não-funcional a cada push | 08 |
-| 23 | vectorStore RAG com SQL cru sem RLS (busca sempre vazia/cross-tenant) | 01 |
-| 24 | whatsappMessage vínculo com SQL cru sem RLS | 01 |
-| 25 | Enfileiramento de enriquecimento reporta sucesso sem Redis | 01 |
-| 26 | cold-leads-scanner query fora de contexto RLS | 01 |
-| 27 | LGPD: tenant via header do cliente + exclusão sem RBAC | 01 |
-| 28 | cold-email fake-success + PII em log | 01 |
-| 29 | Sino de notificações cenográfico | 02 |
-| 30 | Tutoriais Bitrix com botões falsos | 02 |
-| 31 | useActivities não refaz fetch em mudança de intervalo | 02 |
-| 32 | LoginScreen signup gate (verificar se servidor já bloqueia) | 02 |
-| 33 | Settings sem entrada p/ não-admins vs rota aberta | 02 |
-| 34 | crm360 com backend completo e tela órfã | 02 |
+| # | Achado | Dono | Commit |
+|---|---|---|---|
+| 18 | render.yaml sem migrations no deploy — corrigido via startCommand (free tier sem preDeployCommand) | 08 | `99abf23d` |
+| 19 | qualidade-ci.yml + playwright-ci.yml quebrados/redundantes — removidos (confirmado: `npm install --legacy-peer-deps` e DB/porta incompatíveis com docker-compose.yml) | 08 | `9aa934c9` |
+| 20 | GitOps (charts/argocd) apontando p/ repositório antigo — corrigido + README declarando status (deploy ativo é Render+Vercel) | 08 | `9c3c3fe8` |
+| 21 | Sem secret scan no CI — gitleaks adicionado | 08 | `65e90487` |
+| 22 | Pages publica versão pública não-funcional a cada push — gatilho manual | 08 | `0f000c3e` |
+| 23 | vectorStore RAG com SQL cru sem RLS — `withRlsContext` + filtro organizationId defesa em profundidade | 01 | `695e2a7a` |
+| 24 | whatsappMessage vínculo com SQL cru sem RLS — `withRlsContext` | 01 | `74dcb448` |
+| 25 | Enfileiramento de enriquecimento reporta sucesso sem Redis — retorna `{enqueued:0, enfileirado:false, motivo}` | 01 | `9f216006` |
+| 26 | cold-leads-scanner query fora de contexto RLS — `requestContext.run` por organização | 01 | `9723e261` |
+| 27 | LGPD: tenant via header do cliente + exclusão sem RBAC — header removido, `requireRole(['ADMIN','GESTOR'])` na exclusão | 01 | `18eeac1b` |
+| 28 | cold-email fake-success + PII em log — envia de verdade via mailer real, loga só domínio | 01 | `2e42a557` |
+| 29 | Sino de notificações cenográfico — navega + contagem real | 02 | `099507ee` |
+| 30 | Tutoriais Bitrix com botões falsos — estado honesto "em breve" | 02 | `566aa08a` |
+| 31 | useActivities não refaz fetch em mudança de intervalo — deps corrigidas | 02 | `e8115ee5` |
+| 32 | LoginScreen signup gate — **não_aplicável**: servidor já bloqueia via `isAuthorizedLoginEmail` em 3 hooks do Better Auth (`src/lib/auth.ts`) | 02 | — |
+| 33 | Settings sem entrada p/ não-admins vs rota aberta — aberto a todos (conteúdo é só preferências pessoais) | 02 | `e99313b1` |
+| 34 | crm360 com backend completo e tela órfã — rota + menu ligados ("Cockpit CRM"); 2 de 4 quick-actions viraram cards informativos (sem UI de destino construída) | 02 | `3f6e336e` |
+
+### Achado adicional durante a integração (fora do escopo original, corrigido direto em `main`)
+Regressão de segurança ativa encontrada em `main` (linha de trabalho paralela nunca recebeu a
+remediação P0 acima): tokens reais dos webhooks Bitrix24 (AtlasGR + TotalTrac) e telefone pessoal
+real seguiam versionados em `connections.ts`, `useBitrixIntegration.ts`,
+`public/tools/extrator-bitrix.html` e `extrator_bitrix (1).html`/`scripts/call_rodrigo.{js,ts}`.
+Corrigido e enviado diretamente a `main` (commit `0c6a6dfd`), aprovado explicitamente pelo usuário.
 
 ## Débitos arquiteturais documentados (não bloqueiam release; Onda 3+)
 
