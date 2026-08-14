@@ -26,7 +26,7 @@ env:
 jobs:
   aggregate-fleet:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -43,31 +43,55 @@ jobs:
           transporters="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/transportadores_rntrc_07_2026.csv"
           vehicles="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
 
-          download() {
+          download_resumable() {
             url="$1"
             referer="$2"
             target="$3"
             min_bytes="$4"
-            curl --fail-with-body --location --compressed \
-              --retry 5 --retry-all-errors --retry-delay 5 \
-              --connect-timeout 30 --max-time 1000 \
-              --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
-              --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
-              --header "Referer: $referer" \
-              --output "$target" \
-              "$url"
-            bytes=$(wc -c < "$target")
-            echo "Downloaded $(basename "$target"): $bytes bytes"
-            if [ "$bytes" -lt "$min_bytes" ]; then
-              echo "::error::Payload oficial incompatível com o tamanho mínimo esperado: $target"
-              file "$target" || true
-              head -c 512 "$target" | tr -cd '\11\12\15\40-\176' | head -c 512 || true
-              exit 1
-            fi
+            label="$5"
+            rm -f "$target"
+            touch "$target"
+
+            for attempt in 1 2 3 4 5 6 7 8 9 10; do
+              before=$(wc -c < "$target")
+              echo "$label download attempt $attempt/10; bytes already present: $before"
+
+              set +e
+              curl --fail-with-body --location \
+                --continue-at - \
+                --connect-timeout 30 --max-time 360 \
+                --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
+                --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
+                --header 'Accept-Encoding: identity' \
+                --header "Referer: $referer" \
+                --output "$target" \
+                "$url"
+              status=$?
+              set -e
+
+              bytes=$(wc -c < "$target")
+              echo "$label bytes after attempt $attempt: $bytes; curl status: $status"
+              if [ "$bytes" -ge "$min_bytes" ]; then
+                echo "$label reached minimum integrity size."
+                return 0
+              fi
+
+              if [ "$status" -eq 33 ]; then
+                echo "Server rejected byte-range resume; restarting this file cleanly on next attempt."
+                rm -f "$target"
+                touch "$target"
+              fi
+              sleep $((attempt * 3))
+            done
+
+            echo "::error::$label não atingiu o tamanho mínimo esperado após 10 tentativas."
+            file "$target" || true
+            head -c 512 "$target" | tr -cd '\11\12\15\40-\176' | head -c 512 || true
+            return 1
           }
 
-          download "$RNTRC_SOURCE_URL" "$RNTRC_RESOURCE_PAGE" "$transporters" 100000000
-          download "$FLEET_SOURCE_URL" "$FLEET_RESOURCE_PAGE" "$vehicles" 1000000
+          download_resumable "$RNTRC_SOURCE_URL" "$RNTRC_RESOURCE_PAGE" "$transporters" 150000000 "RNTRC transportadores Jul/2026"
+          download_resumable "$FLEET_SOURCE_URL" "$FLEET_RESOURCE_PAGE" "$vehicles" 1000000 "RNTRC veículos Jul/2026"
 
       - name: Aggregate fleet by transporter RNTRC and canonical IBGE municipality
         run: |
@@ -177,5 +201,17 @@ jobs:
             exit 0
           fi
           git commit -m "data(rntrc): publica frota municipal oficial Jul/2026"
-          git pull --rebase origin feat/atlas-national-territory-intelligence
-          git push origin HEAD:feat/atlas-national-territory-intelligence
+
+          for attempt in 1 2 3 4 5; do
+            echo "Publication attempt $attempt/5"
+            git fetch origin feat/atlas-national-territory-intelligence
+            git rebase origin/feat/atlas-national-territory-intelligence
+            if git push origin HEAD:feat/atlas-national-territory-intelligence; then
+              echo "Derived fleet snapshot published successfully."
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+
+          echo "::error::Frota validada, mas publicação falhou após 5 tentativas de reconciliação."
+          exit 1
