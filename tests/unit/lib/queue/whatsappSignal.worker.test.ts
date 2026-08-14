@@ -30,7 +30,10 @@ vi.mock('../../../../src/lib/queue/redis.js', () => ({
     connection: {},
     cacheConnection: {},
     rateLimiterConnection: {},
-    queuesEnabled: false,
+    // Precisa ser `true`: com `false`, `whatsappSignalQueue` fica `null` e
+    // `scheduleConversationAnalysis` retorna antes de chamar getJob/add — os mocks abaixo nunca
+    // seriam invocados e os testes ficariam vazios (checando um retorno que nunca aconteceu).
+    queuesEnabled: true,
 }));
 
 vi.mock('../../../../src/lib/logger.js', () => ({
