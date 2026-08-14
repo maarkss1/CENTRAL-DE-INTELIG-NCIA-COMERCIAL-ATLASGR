@@ -74,11 +74,12 @@ export async function scheduleFollowUpJobs() {
         connection: connection as any
     });
     
-    // Roda todo dia as 09:00
-    await queue.add('daily-followups', {}, {
-        repeat: {
-            pattern: '0 9 * * *'
-        }
+    // Roda todo dia as 09:00.
+    // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
+    // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
+    await queue.upsertJobScheduler('daily-followups', { pattern: '0 9 * * *' }, {
+        name: 'daily-followups',
+        data: {},
     });
     
     logger.info('Follow-up jobs scheduled (cron: 0 9 * * *)');

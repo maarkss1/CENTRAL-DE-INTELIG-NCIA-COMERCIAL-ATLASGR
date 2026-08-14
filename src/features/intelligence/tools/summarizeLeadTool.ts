@@ -39,7 +39,8 @@ export const summarizeLeadTool = tool(
             if (lead.timeline.length > 0) {
                 resumo += `\n\n**Últimos Eventos:**\n`;
                 lead.timeline.forEach(t => {
-                    resumo += `- [${t.createdAt.toISOString().split('T')[0]}] ${t.title}\n`;
+                    // TimelineEvent não tem `title`, e sim `description` (ver prisma/schema.prisma).
+                    resumo += `- [${t.createdAt.toISOString().split('T')[0]}] ${t.description}\n`;
                 });
             }
 

@@ -78,11 +78,12 @@ export async function scheduleWinLossAnalysisJob() {
         connection: connection as any
     });
     
-    // Roda toda sexta às 19:00
-    await queue.add('weekly-win-loss', {}, {
-        repeat: {
-            pattern: '0 19 * * 5'
-        }
+    // Roda toda sexta às 19:00.
+    // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
+    // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
+    await queue.upsertJobScheduler('weekly-win-loss', { pattern: '0 19 * * 5' }, {
+        name: 'weekly-win-loss',
+        data: {},
     });
     
     logger.info('Win/Loss Analysis job scheduled (cron: 0 19 * * 5)');

@@ -41,19 +41,26 @@ export async function scheduleSwarmScheduler(): Promise<number> {
     const organizations = await enabledOrganizations();
     if (organizations.length === 0) return 0;
 
-    await swarmSchedulerQueue.addBulk(
-        organizations.map((organizationId) => ({
-            name: 'run-swarm-scheduler',
-            data: { organizationId },
-            opts: {
-                repeat: { every: RUN_EVERY_MS },
-                jobId: `swarm-scheduler-${organizationId}`,
-                removeOnComplete: true,
-                // A rodada reexecuta sozinha em minutos; reprocessar uma falha só produziria
-                // recomendações duplicadas pros mesmos leads.
-                attempts: 1,
-            },
-        }))
+    // BullMQ v6 removeu `repeat` de `Queue.add`/`addBulk` (viraria um job avulso, nunca mais se
+    // repete) — agendamento recorrente agora exige `upsertJobScheduler`, chamado por organização
+    // pois cada uma precisa do seu próprio `jobSchedulerId` idempotente.
+    await Promise.all(
+        organizations.map((organizationId) =>
+            swarmSchedulerQueue.upsertJobScheduler(
+                `swarm-scheduler-${organizationId}`,
+                { every: RUN_EVERY_MS },
+                {
+                    name: 'run-swarm-scheduler',
+                    data: { organizationId },
+                    opts: {
+                        removeOnComplete: true,
+                        // A rodada reexecuta sozinha em minutos; reprocessar uma falha só produziria
+                        // recomendações duplicadas pros mesmos leads.
+                        attempts: 1,
+                    },
+                },
+            )
+        )
     );
 
     logger.info({ organizations }, 'Enxame autônomo agendado.');
