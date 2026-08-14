@@ -277,6 +277,8 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     <button
                                         ref={closeButtonRef}
                                         onClick={onClose}
+                                        aria-label="Fechar detalhes do lead"
+                                        title="Fechar detalhes do lead"
                                         className="p-2 rounded-xl text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                                     >
                                         <X className="w-5 h-5" />

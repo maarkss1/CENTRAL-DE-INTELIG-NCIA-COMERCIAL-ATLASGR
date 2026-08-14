@@ -58,6 +58,14 @@ describe('AILog: contrato RLS da Onda 2.5', () => {
         ).rejects.toThrow();
     });
 
+    it('bloqueia tenant que tenta fabricar telemetria não atribuída', async () => {
+        await expect(
+            requestContext.run({ tenantId: ORG_A }, () =>
+                createLog(null, 'onda-2.5-ailog-tenant-null'),
+            ),
+        ).rejects.toThrow();
+    });
+
     it('permite telemetria interna não atribuída sem transformar NULL em bypass de leitura', async () => {
         const unattributed = await createLog(null, 'onda-2.5-ailog-internal-unattributed');
         expect(unattributed.organizationId).toBeNull();
