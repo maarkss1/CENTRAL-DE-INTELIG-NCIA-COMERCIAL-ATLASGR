@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import sqlite3
 import sys
 import tempfile
 import unittest
@@ -12,9 +11,9 @@ sys.path.insert(0, str(MODULE_DIR))
 
 from etl_rntrc_atlas import extract_uf  # noqa: E402
 from etl_rntrc_veiculos_atlas import (  # noqa: E402
-    aggregate_vehicles,
-    build_transport_geography,
-    classify_vehicle,
+    aggregate,
+    classify_transporter,
+    classify_vehicle_type,
 )
 
 
@@ -24,10 +23,7 @@ class IbgeGeographyTests(unittest.TestCase):
             "microrregiao": None,
             "regiao-imediata": {
                 "regiao-intermediaria": {
-                    "UF": {
-                        "sigla": "SP",
-                        "regiao": {"nome": "Sudeste"},
-                    }
+                    "UF": {"sigla": "SP", "regiao": {"nome": "Sudeste"}}
                 }
             },
         }
@@ -37,10 +33,7 @@ class IbgeGeographyTests(unittest.TestCase):
         row = {
             "microrregiao": {
                 "mesorregiao": {
-                    "UF": {
-                        "sigla": "GO",
-                        "regiao": {"nome": "Centro-Oeste"},
-                    }
+                    "UF": {"sigla": "GO", "regiao": {"nome": "Centro-Oeste"}}
                 }
             }
         }
@@ -48,71 +41,67 @@ class IbgeGeographyTests(unittest.TestCase):
 
 
 class FleetClassificationTests(unittest.TestCase):
-    def test_vehicle_classification(self) -> None:
-        self.assertEqual(classify_vehicle("Caminhão Trator", ""), "traction")
-        self.assertEqual(classify_vehicle("Semi-Reboque", "Baú"), "implement")
-        self.assertEqual(classify_vehicle("Tipo não mapeado", ""), "other")
+    def test_official_vehicle_type_classification(self) -> None:
+        self.assertEqual(classify_vehicle_type("Tração"), "traction")
+        self.assertEqual(classify_vehicle_type("Implemento"), "implement")
+        self.assertEqual(classify_vehicle_type("Não informado"), "other")
+
+    def test_transporter_category_classification(self) -> None:
+        self.assertEqual(classify_transporter("ETC"), "etc")
+        self.assertEqual(classify_transporter("ETC - EQUIPARADO"), "etc_equiparada")
+        self.assertEqual(classify_transporter("TAC"), "tac")
+        self.assertEqual(classify_transporter("CTC"), "ctc")
 
 
-class FleetJoinFixtureTests(unittest.TestCase):
-    def test_small_fixture_joins_rntrc_to_ibge_and_aggregates(self) -> None:
+class FleetOfficialSchemaFixtureTests(unittest.TestCase):
+    def test_small_fixture_aggregates_quantities_by_uf_without_inventing_municipality(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            transporters = root / "transportadores.csv"
-            vehicles = root / "veiculos.csv"
-
-            with transporters.open("w", encoding="utf-8", newline="") as handle:
-                writer = csv.writer(handle, delimiter=";")
-                writer.writerow(["RNTRC", "Município", "UF", "Situação RNTRC"])
-                writer.writerow(["12345678", "Ribeirão Preto", "SP", "ATIVO"])
-                writer.writerow(["87654321", "Goiânia", "GO", "ATIVO"])
-                writer.writerow(["99999999", "Ribeirão Preto", "SP", "INATIVO"])
-
+            vehicles = Path(tmp) / "rntrc-veiculos.csv"
             with vehicles.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.writer(handle, delimiter=";")
-                writer.writerow(["RNTRC", "Tipo Veículo", "Carroceria"])
-                writer.writerow(["12345678", "Caminhão Trator", ""])
-                writer.writerow(["12345678", "Semi-Reboque", "Baú"])
-                writer.writerow(["87654321", "Caminhonete", ""])
-                writer.writerow(["99999999", "Caminhão", ""])
+                writer.writerow([
+                    "Categoria do Transportador",
+                    "Tipo de Veículo",
+                    "UF do Veículo",
+                    "Categoria",
+                    "Carroceria",
+                    "Ano de Fabricação do Veículo",
+                    "Quantidade",
+                ])
+                writer.writerow(["ETC", "Tração", "SP", "Caminhão Trator", "Não se aplica", "2022", "10"])
+                writer.writerow(["ETC - EQUIPARADO", "Implemento", "SP", "Semirreboque", "Baú", "2020", "15"])
+                writer.writerow(["TAC", "Tração", "GO", "Caminhão", "Aberta", "2018", "7"])
+                writer.writerow(["CTC", "Implemento", "GO", "Reboque", "Tanque", "2019", "3"])
+                writer.writerow(["ETC", "Tração", "XX", "Caminhão", "Baú", "2021", "99"])
+                writer.writerow(["ETC", "Tração", "SP", "Caminhão", "Baú", "2021", "abc"])
 
-            ibge = {
-                ("SP", "RIBEIRAO PRETO"): {
-                    "ibge_code": "3543402",
-                    "municipality": "Ribeirão Preto",
-                    "uf": "SP",
-                    "region": "Sudeste",
-                },
-                ("GO", "GOIANIA"): {
-                    "ibge_code": "5208707",
-                    "municipality": "Goiânia",
-                    "uf": "GO",
-                    "region": "Centro-Oeste",
-                },
-            }
+            rows, stats, diagnostics = aggregate(vehicles)
+            by_uf = {row["uf"]: row for row in rows}
 
-            db = sqlite3.connect(":memory:")
-            try:
-                transport_stats = build_transport_geography(transporters, ibge, db)
-                totals, vehicle_stats, _ = aggregate_vehicles(vehicles, db)
-            finally:
-                db.close()
+            self.assertEqual(set(by_uf), {"GO", "SP"})
+            self.assertEqual(stats["rows_processed"], 6)
+            self.assertEqual(stats["rows_valid"], 4)
+            self.assertEqual(stats["rows_invalid_uf"], 1)
+            self.assertEqual(stats["rows_invalid_quantity"], 1)
+            self.assertEqual(stats["quantity_total"], 35)
 
-            self.assertEqual(transport_stats["transporters_active"], 2)
-            self.assertEqual(transport_stats["transporters_with_geo"], 2)
-            self.assertEqual(vehicle_stats["vehicles_processed"], 4)
-            self.assertEqual(vehicle_stats["vehicles_matched_transporters"], 3)
-            self.assertEqual(vehicle_stats["vehicles_unmatched_rntrc"], 1)
+            sp = by_uf["SP"]
+            self.assertEqual(sp["fleetTotal"], 25)
+            self.assertEqual(sp["tractionVehicles"], 10)
+            self.assertEqual(sp["implements"], 15)
+            self.assertEqual(sp["municipalUse"], "PROXY_UF")
+            self.assertEqual(sp["geographyLevel"], "UF")
+            self.assertEqual(sp["fleetByTransporterCategory"]["ETC"], 10)
+            self.assertEqual(sp["fleetByTransporterCategory"]["ETC_EQUIPARADA"], 15)
 
-            rp = totals["3543402"]
-            self.assertEqual(rp.total, 2)
-            self.assertEqual(rp.traction, 1)
-            self.assertEqual(rp.implements, 1)
-            self.assertEqual(rp.other, 0)
+            go = by_uf["GO"]
+            self.assertEqual(go["fleetTotal"], 10)
+            self.assertEqual(go["tractionVehicles"], 7)
+            self.assertEqual(go["implements"], 3)
+            self.assertEqual(go["fleetByTransporterCategory"]["TAC"], 7)
+            self.assertEqual(go["fleetByTransporterCategory"]["CTC"], 3)
 
-            goiania = totals["5208707"]
-            self.assertEqual(goiania.total, 1)
-            self.assertEqual(goiania.traction, 1)
+            self.assertEqual(diagnostics["observedVehicleCategories"]["CAMINHAO TRATOR"], 10)
 
 
 if __name__ == "__main__":
