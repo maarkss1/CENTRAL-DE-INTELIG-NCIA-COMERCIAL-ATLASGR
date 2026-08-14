@@ -1,10 +1,10 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-14T03:20:13.612749+00:00",
+  "generatedAt": "2026-08-14T03:34:01.165670+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
-    "RNTRC e frota ainda não foram agregados nacionalmente por código IBGE nesta branch.",
+    "RNTRC municipal Jul/2026 está publicado; frota oficial permanece NÃO DISPONÍVEL no recurso vigente. Pelo dicionário ANTT, a frota pública tem granularidade UF e qualquer uso municipal é somente PROXY_UF.",
     "Base CNPJ/ICP nacional atual ainda não foi processada para o snapshot municipal.",
     "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
@@ -34,10 +34,15 @@
     {
       "id": "fleet",
       "label": "ANTT / RNTRC veículos",
-      "status": "PARCIAL",
+      "status": "NAO_DISPONIVEL",
       "source": "ANTT / Portal de Dados Abertos",
-      "geography": "Transportador -> Município",
-      "note": "Fonte oficial localizada. Falta join reprodutível com transportadores e agregação de tração/implementos/frota ativa."
+      "geography": "UF",
+      "note": "Recurso oficial vigente auditado, porém payload não validável (124 bytes observados). O recurso histórico Jul/2026, catalogado com 10.5 MiB, retornou HTTP 404 em 14/08/2026. Nenhum número de frota foi inferido ou publicado.",
+      "competence": "2026-08",
+      "downloadedAt": null,
+      "probedAt": "2026-08-14T03:34:01.165670+00:00",
+      "sha256": null,
+      "municipalUse": "PROXY_UF"
     },
     {
       "id": "cnpj",
