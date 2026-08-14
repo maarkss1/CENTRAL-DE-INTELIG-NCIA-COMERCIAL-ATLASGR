@@ -1,12 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// findContactByPhone roda SQL cru (regexp_replace nos últimos 9 dígitos) fora do que a extensão
+// $allOperations de prisma.ts intercepta — por isso passa por withRlsContext (ver
+// src/lib/prisma.ts) em vez de prisma.$queryRaw direto. O mock simula a transação: `fn` recebe um
+// client (`tx`) com o próprio $queryRaw mockado.
+const txQueryRaw = vi.fn();
+const withRlsContextMock = vi.fn((fn: (tx: { $queryRaw: typeof txQueryRaw }) => unknown) => fn({ $queryRaw: txQueryRaw }));
+
 vi.mock('../../../../lib/prisma.js', () => ({
     prisma: {
         whatsAppMessage: { findUnique: vi.fn(), create: vi.fn() },
         lead: { findFirst: vi.fn() },
         timelineEvent: { create: vi.fn() },
-        $queryRaw: vi.fn(),
     },
+    withRlsContext: (fn: (tx: { $queryRaw: typeof txQueryRaw }) => unknown) => withRlsContextMock(fn),
 }));
 
 vi.mock('../../../../lib/logger.js', () => ({
@@ -19,7 +26,7 @@ import { extractMessageText, persistWhatsAppMessage } from '../whatsappMessage.s
 const messageMock = prisma.whatsAppMessage as unknown as { findUnique: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
 const leadMock = prisma.lead as unknown as { findFirst: ReturnType<typeof vi.fn> };
 const timelineMock = prisma.timelineEvent as unknown as { create: ReturnType<typeof vi.fn> };
-const queryRawMock = prisma.$queryRaw as unknown as ReturnType<typeof vi.fn>;
+const queryRawMock = txQueryRaw;
 
 const ORG = 'org-1';
 
@@ -30,6 +37,21 @@ beforeEach(() => {
     leadMock.findFirst.mockResolvedValue(null);
     timelineMock.create.mockResolvedValue({});
     queryRawMock.mockResolvedValue([]);
+});
+
+describe('findContactByPhone — contexto de RLS', () => {
+    it('roda a busca por telefone dentro de withRlsContext (não em prisma.$queryRaw direto)', async () => {
+        await persistWhatsAppMessage({
+            organizationId: ORG,
+            waMessageId: 'm-rls',
+            direction: 'inbound',
+            remoteJid: '5511999998888@s.whatsapp.net',
+            body: 'oi',
+        });
+
+        expect(withRlsContextMock).toHaveBeenCalledTimes(1);
+        expect(queryRawMock).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('extractMessageText', () => {
