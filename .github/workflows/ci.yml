@@ -37,32 +37,22 @@ jobs:
 
     env:
       NODE_ENV: test
-      # Papel NOSUPERUSER — nunca o superusuário de bootstrap (prospector) — pra que os testes de
-      # integração de RLS (tests/integration/tenant-isolation-db001.test.ts e afins) rodem sob as
-      # mesmas condições de produção. Ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md.
       DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: ci-test-meili-key
       PORT: 3000
-      # better-auth precisa disto pra assinar cookie de sessão; test:e2e sobe o servidor Express
-      # real (ver TEST-002/playwright.config.ts) e faz login de verdade contra ele.
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
-      # tests/e2e cria uma conta real por teste (ver tests/e2e/helpers.ts) e todos os 29 specs
-      # rodam sequencialmente a partir do mesmo IP — o default de produção (20 POSTs/15min em
-      # /api/auth, ver server.ts authLimiter) derrubava os testes depois dos ~19 primeiros com
-      # 429, sem nenhuma falha de asserção real por trás (só timeout esperando a navegação pro
-      # /app que o 429 nunca deixava acontecer).
       AUTH_RATE_LIMIT_MAX: 500
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: 'npm'
@@ -81,7 +71,7 @@ jobs:
 
       - name: Audit for vulnerabilities
         run: npm audit --audit-level=high
-        continue-on-error: true # Known issue with better-auth pending upstream resolution
+        continue-on-error: true
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -98,11 +88,6 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
-      # vitest.integration.config.ts e o pretest:integration (dotenv -e .env.test) esperam este
-      # arquivo — sem ele, localmente cai pro .env.test.example versionado, mas no CI não há
-      # fallback, então escrevemos aqui com os valores reais do job (ver TEST-003 em
-      # docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md). scripts/test/prepare-integration-env.js
-      # pula o docker-compose up no CI porque os service containers acima já ocupam essas portas.
       - name: Criar .env.test para os testes de integração e E2E
         run: |
           cat > .env.test <<EOF
@@ -123,24 +108,22 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # TEST-002 (docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md): playwright.config.ts agora
-      # sobe o servidor Express real (start:e2e) em vez do `vite preview` estático — os specs fazem
-      # cadastro/login reais contra better-auth e CRUD real contra /api/leads.
       - name: Run E2E Tests
         run: npm run test:e2e
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-report
           path: playwright-report/
         if: failure()
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: coverage-reports
           path: coverage/
         if: always()
+
       - name: Run Build
         run: npm run build
