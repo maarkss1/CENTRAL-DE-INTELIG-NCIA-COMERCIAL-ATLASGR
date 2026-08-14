@@ -33,9 +33,12 @@ jobs:
     - name: Sync Capacitor
       run: npx cap sync android
 
+    - name: Grant execute permission to gradlew
+      run: chmod +x android/gradlew
+
     - name: Build APK
       working-directory: ./android
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
