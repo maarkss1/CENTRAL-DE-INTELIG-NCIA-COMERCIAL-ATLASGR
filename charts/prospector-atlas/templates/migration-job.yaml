@@ -1,0 +1,67 @@
+{{- if .Values.migrations.enabled }}
+# Hook pre-install/pre-upgrade: roda `prisma migrate deploy` ANTES do Helm aplicar o
+# Deployment/Rollout novo. Se este Job falhar, o hook falha e o `helm upgrade`
+# (e, por extensão, o sync do ArgoCD nas Applications em argocd/) é abortado — o
+# Deployment/Rollout com a imagem nova nunca chega a ser aplicado contra um schema
+# desatualizado ou uma migração quebrada. Implementa, na camada de orquestração de
+# cluster, a mesma garantia que `render.yaml` já tem no caminho de deploy real
+# (`startCommand: npx prisma migrate deploy && npm run start`) — ver
+# /AGENTS.md → bloqueador #5 ("Deploy capaz de iniciar sem aplicar migrações").
+#
+# CAVEAT CONHECIDO (ver handoff .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md):
+# a imagem publicada por `.github/workflows/cd-homolog.yml`/`production.yaml` é construída a
+# partir do `Dockerfile` da raiz, cujo estágio final roda `npm prune --omit=dev` — isso remove o
+# pacote `prisma` (a CLI, hoje em devDependencies) da imagem, deixando só `@prisma/client`
+# (runtime). `npx prisma migrate deploy` neste Job só funciona se a imagem consumida aqui
+# contiver a CLI `prisma`. Enquanto esse gap não for resolvido por quem é dono do Dockerfile
+# (Agente 08), este Job falhará em qualquer cluster real que sincronizar este chart — o que hoje
+# não acontece porque nenhum cluster real está registrado (ver charts/README.md). O manifest é
+# entregue correto/completo desde já para não represar a correção quando o caminho k8s/Helm for
+# ativado de fato.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # sufixo por revisão: cada `helm upgrade` cria um Job novo (nomes de Job são imutáveis em
+  # campos como `spec.template`, então reaproveitar o nome quebraria upgrades subsequentes).
+  name: {{ include "prospector-atlas.fullname" . }}-migrate-{{ .Release.Revision }}
+  labels:
+    {{- include "prospector-atlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    # before-hook-creation evita acumular Jobs de tentativas antigas; hook-succeeded remove o
+    # Job assim que a migração passa (mantém histórico de um Job falho para investigação caso
+    # o hook aborte o release).
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migrations.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "prospector-atlas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: prisma-migrate
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.migrations.image.repository | default .Values.image.repository }}:{{ .Values.migrations.image.tag | default .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["npx", "prisma", "migrate", "deploy"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "prospector-atlas.fullname" . }}-config
+            - secretRef:
+                name: {{ include "prospector-atlas.fullname" . }}-secret
+          resources:
+            {{- toYaml .Values.migrations.resources | nindent 12 }}
+{{- end }}

@@ -7,7 +7,12 @@ metadata:
     {{- include "prospector-atlas.labels" . | nindent 4 }}
     app.kubernetes.io/component: worker
 spec:
+  {{- if not .Values.worker.autoscaling.enabled }}
+  # Omitido quando o HPA do worker está ligado (worker-hpa.yaml) — do contrário, todo
+  # `helm upgrade`/sync do ArgoCD reverte o worker para `replicaCount` fixo e briga com o HPA
+  # (mesmo padrão já usado em deployment.yaml/rollout.yaml para o Deployment/Rollout principal).
   replicas: {{ .Values.worker.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
