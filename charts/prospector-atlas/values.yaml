@@ -1,8 +1,11 @@
 # Default values for prospector-atlas.
 replicaCount: 2
 
+# repository aponta para o registro real onde .github/workflows/cd-homolog.yml publica a imagem
+# (ghcr.io/${{ github.repository }}, resolvido em minúsculas pelo GHCR) — antes apontava só para
+# "prospector-atlas", um nome de imagem sem registro/owner que não corresponde a nada publicado.
 image:
-  repository: prospector-atlas
+  repository: ghcr.io/maarksn/central-de-inteligencia-comecial-atlasgr
   pullPolicy: IfNotPresent
   tag: "latest"
 
