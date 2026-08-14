@@ -17,9 +17,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FLEET_SOURCE_URL: https://dados.antt.gov.br/dataset/2b564396-5593-4b5c-ba2c-3de3fa0a92c0/resource/7d348e97-d124-4eb6-951f-75b0506237ed/download/rntrc-veiculos.csv
-  FLEET_RESOURCE_PAGE: https://dados.antt.gov.br/dataset/rntrc-veiculos/resource/7d348e97-d124-4eb6-951f-75b0506237ed
+  FLEET_SOURCE_URL: https://dados.antt.gov.br/dataset/2b564396-5593-4b5c-ba2c-3de3fa0a92c0/resource/69b79c0a-6fc9-42be-b014-224dff171915/download/rntrc-veiculos.csv
+  FLEET_RESOURCE_PAGE: https://dados.antt.gov.br/dataset/rntrc-veiculos/resource/69b79c0a-6fc9-42be-b014-224dff171915
   FLEET_DICTIONARY_URL: https://dados.antt.gov.br/dataset/2b564396-5593-4b5c-ba2c-3de3fa0a92c0/resource/f2451b92-f5d0-4d76-bda8-ce8137c365fd/download/dicionario-de-dados-veiculos.pdf
+  HISTORICAL_JULY_RESOURCE_PAGE: https://dados.antt.gov.br/dataset/rntrc-veiculos/resource/7d348e97-d124-4eb6-951f-75b0506237ed
 
 jobs:
   aggregate-fleet:
@@ -35,60 +36,168 @@ jobs:
       - name: Show Python runtime
         run: python3 --version
 
-      - name: Download official Jul/2026 RNTRC vehicles
+      - name: Probe current official Aug/2026 RNTRC vehicles resource
+        id: probe
+        shell: bash
         run: |
-          mkdir -p .cache/market-intelligence/raw/rntrc/2026-07
-          target="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
-          rm -f "$target"
-          touch "$target"
+          mkdir -p .cache/market-intelligence/raw/rntrc/2026-08
+          target="$PWD/.cache/market-intelligence/raw/rntrc/2026-08/rntrc-veiculos.csv"
+          headers="$PWD/.cache/market-intelligence/raw/rntrc/2026-08/headers.txt"
+          rm -f "$target" "$headers"
 
-          for attempt in 1 2 3 4 5 6 7 8; do
-            before=$(wc -c < "$target")
-            echo "Fleet download attempt $attempt/8; bytes already present: $before"
-            set +e
-            curl --fail-with-body --location \
-              --continue-at - \
-              --connect-timeout 30 --max-time 240 \
-              --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
-              --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
-              --header 'Accept-Encoding: identity' \
-              --header "Referer: $FLEET_RESOURCE_PAGE" \
-              --output "$target" \
-              "$FLEET_SOURCE_URL"
-            status=$?
-            set -e
+          set +e
+          http_code=$(curl --silent --show-error --location \
+            --connect-timeout 30 --max-time 180 \
+            --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
+            --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
+            --header 'Accept-Encoding: identity' \
+            --header "Referer: $FLEET_RESOURCE_PAGE" \
+            --dump-header "$headers" \
+            --output "$target" \
+            --write-out '%{http_code}' \
+            "$FLEET_SOURCE_URL")
+          curl_status=$?
+          set -e
+
+          if [ -f "$target" ]; then
             bytes=$(wc -c < "$target")
-            echo "Fleet bytes after attempt $attempt: $bytes; curl status: $status"
-            if [ "$bytes" -ge 1000000 ]; then
-              break
-            fi
-            if [ "$status" -eq 33 ]; then
-              rm -f "$target"
-              touch "$target"
-            fi
-            sleep $((attempt * 3))
-          done
-
-          bytes=$(wc -c < "$target")
-          if [ "$bytes" -lt 1000000 ]; then
-            echo "::error::RNTRC-Dados de Veículos não atingiu o tamanho mínimo esperado."
-            file "$target" || true
-            head -c 512 "$target" | tr -cd '\11\12\15\40-\176' | head -c 512 || true
-            exit 1
+            sha=$(sha256sum "$target" | awk '{print $1}')
+            mime=$(file --brief --mime-type "$target" || true)
+          else
+            bytes=0
+            sha=""
+            mime=""
           fi
 
+          echo "HTTP code: $http_code"
+          echo "curl status: $curl_status"
+          echo "observed bytes: $bytes"
+          echo "observed mime: $mime"
+
+          valid=false
+          if [ "$curl_status" -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ] && [ "$bytes" -ge 1000000 ]; then
+            case "$mime" in
+              text/plain|text/csv|application/csv|application/octet-stream) valid=true ;;
+            esac
+          fi
+
+          echo "valid=$valid" >> "$GITHUB_OUTPUT"
+          echo "http_code=$http_code" >> "$GITHUB_OUTPUT"
+          echo "curl_status=$curl_status" >> "$GITHUB_OUTPUT"
+          echo "bytes=$bytes" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
+          echo "mime=$mime" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
       - name: Aggregate fleet at official UF granularity
+        if: steps.probe.outputs.valid == 'true'
         run: |
-          vehicles="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
           python3 public/tools/atlas-market-intelligence/etl_rntrc_veiculos_atlas.py \
-            --vehicles "$vehicles" \
-            --competence '2026-07' \
+            --vehicles "${{ steps.probe.outputs.target }}" \
+            --competence '2026-08' \
             --source-url "$FLEET_SOURCE_URL" \
             --dictionary-url "$FLEET_DICTIONARY_URL" \
             --output public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json \
             --metadata public/tools/atlas-market-intelligence/data/rntrc_frota_uf.metadata.json
 
-      - name: Validate fleet dataset and update manifest
+      - name: Record official fleet unavailability without inventing data
+        if: steps.probe.outputs.valid != 'true'
+        env:
+          PROBE_HTTP_CODE: ${{ steps.probe.outputs.http_code }}
+          PROBE_CURL_STATUS: ${{ steps.probe.outputs.curl_status }}
+          PROBE_BYTES: ${{ steps.probe.outputs.bytes }}
+          PROBE_SHA256: ${{ steps.probe.outputs.sha256 }}
+          PROBE_MIME: ${{ steps.probe.outputs.mime }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          root = Path('public/tools/atlas-market-intelligence/data')
+          root.mkdir(parents=True, exist_ok=True)
+          data_path = root / 'rntrc_frota_uf.json'
+          meta_path = root / 'rntrc_frota_uf.metadata.json'
+          manifest_path = root / 'manifest.json'
+
+          # Nunca deixa um snapshot numérico antigo parecer atual quando o recurso vigente
+          # não pode ser validado.
+          if data_path.exists():
+              data_path.unlink()
+
+          now = datetime.now(timezone.utc).isoformat()
+          observed_bytes = int(os.environ.get('PROBE_BYTES') or 0)
+          metadata = {
+              'dataset': 'ANTT RNTRC-Dados de Veículos',
+              'competence': '2026-08',
+              'probedAt': now,
+              'health': 'NAO_DISPONIVEL',
+              'sourceUrl': os.environ['FLEET_SOURCE_URL'],
+              'sourcePage': os.environ['FLEET_RESOURCE_PAGE'],
+              'dictionaryUrl': os.environ['FLEET_DICTIONARY_URL'],
+              'geographyLevel': 'UF',
+              'municipalUse': 'PROXY_UF',
+              'probe': {
+                  'httpCode': os.environ.get('PROBE_HTTP_CODE') or None,
+                  'curlStatus': int(os.environ.get('PROBE_CURL_STATUS') or 0),
+                  'observedBytes': observed_bytes,
+                  'sha256': os.environ.get('PROBE_SHA256') or None,
+                  'mimeType': os.environ.get('PROBE_MIME') or None,
+                  'minimumAcceptedBytes': 1000000,
+              },
+              'historicalEvidence': {
+                  'july2026ResourcePage': os.environ['HISTORICAL_JULY_RESOURCE_PAGE'],
+                  'julyCatalogReportedSize': '10.5 MiB',
+                  'julyPhysicalDownloadObservedOn': '2026-08-14',
+                  'julyPhysicalDownloadResult': 'HTTP 404 / HTML; rejeitado pelo pipeline',
+              },
+              'limitations': [
+                  'o recurso público oficial vigente não entregou um payload nacional validável no probe automatizado',
+                  'o dicionário oficial possui granularidade geográfica UF, não município',
+                  'o recurso público não fornece número RNTRC individual para join municipal',
+                  'nenhum valor de frota municipal pode ser publicado como observado; uso municipal é somente PROXY_UF',
+              ],
+              'nextAction': 'reprocessar automaticamente quando o recurso oficial voltar a entregar CSV nacional válido',
+          }
+          meta_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          blockers = manifest.get('decisionBlockers', [])
+          stale = 'RNTRC e frota ainda não foram agregados nacionalmente por código IBGE nesta branch.'
+          replacement = (
+              'RNTRC municipal Jul/2026 está publicado; frota oficial permanece NÃO DISPONÍVEL no recurso vigente. '
+              'Pelo dicionário ANTT, a frota pública tem granularidade UF e qualquer uso municipal é somente PROXY_UF.'
+          )
+          manifest['decisionBlockers'] = [replacement if item == stale else item for item in blockers]
+          if replacement not in manifest['decisionBlockers']:
+              manifest['decisionBlockers'].insert(0, replacement)
+
+          for dataset in manifest['datasets']:
+              if dataset['id'] == 'fleet':
+                  dataset.update({
+                      'status': 'NAO_DISPONIVEL',
+                      'competence': '2026-08',
+                      'downloadedAt': None,
+                      'probedAt': now,
+                      'sha256': None,
+                      'geography': 'UF',
+                      'municipalUse': 'PROXY_UF',
+                      'note': (
+                          f"Recurso oficial vigente auditado, porém payload não validável ({observed_bytes} bytes observados). "
+                          'O recurso histórico Jul/2026, catalogado com 10.5 MiB, retornou HTTP 404 em 14/08/2026. '
+                          'Nenhum número de frota foi inferido ou publicado.'
+                      ),
+                  })
+                  break
+
+          manifest['generatedAt'] = now
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(metadata, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Validate available fleet dataset and update manifest
+        if: steps.probe.outputs.valid == 'true'
         run: |
           python3 - <<'PY'
           import json
@@ -109,19 +218,14 @@ jobs:
           total = traction = implements = other = 0
           for row in rows:
               uf = row.get('uf')
-              if uf not in valid_ufs:
-                  raise SystemExit(f'UF inválida: {uf!r}')
-              if uf in seen:
-                  raise SystemExit(f'duplicidade de UF: {uf}')
+              if uf not in valid_ufs or uf in seen:
+                  raise SystemExit(f'UF inválida ou duplicada: {uf!r}')
               seen.add(uf)
               if row.get('geographyLevel') != 'UF' or row.get('municipalUse') != 'PROXY_UF':
                   raise SystemExit(f'governança geográfica inválida em {uf}')
-              values = {}
-              for key in ('fleetTotal', 'tractionVehicles', 'implements', 'otherVehicleType'):
-                  value = row.get(key)
-                  if not isinstance(value, int) or value < 0:
-                      raise SystemExit(f'valor inválido em {uf}/{key}: {value!r}')
-                  values[key] = value
+              values = {key: row.get(key) for key in ('fleetTotal','tractionVehicles','implements','otherVehicleType')}
+              if any(not isinstance(value, int) or value < 0 for value in values.values()):
+                  raise SystemExit(f'valor de frota inválido em {uf}: {values!r}')
               if values['fleetTotal'] != values['tractionVehicles'] + values['implements'] + values['otherVehicleType']:
                   raise SystemExit(f'balanço de frota inconsistente em {uf}')
               total += values['fleetTotal']
@@ -137,49 +241,40 @@ jobs:
               if dataset['id'] == 'fleet':
                   dataset.update({
                       'status': status,
-                      'competence': '2026-07',
+                      'competence': '2026-08',
                       'downloadedAt': meta.get('generatedAt'),
+                      'probedAt': meta.get('generatedAt'),
                       'sha256': meta.get('outputSha256'),
                       'geography': 'UF',
                       'municipalUse': 'PROXY_UF',
                       'note': (
-                          f"Snapshot oficial Jul/2026: {total} veículos em {len(seen)} UFs; "
+                          f"Snapshot oficial Ago/2026: {total} veículos em {len(seen)} UFs; "
                           f"tração={traction}, implementos={implements}, outros={other}. "
-                          "O dicionário oficial não fornece município nem RNTRC individual neste recurso; "
-                          "uso municipal é sempre PROXY_UF."
+                          'O dicionário oficial não fornece município; uso municipal é sempre PROXY_UF.'
                       )
                   })
                   break
 
           manifest['generatedAt'] = meta.get('generatedAt') or manifest['generatedAt']
           manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-          print(json.dumps({
-              'ufs': len(seen),
-              'fleet_total': total,
-              'traction': traction,
-              'implements': implements,
-              'other': other,
-              'health': status,
-              'geography': 'UF',
-              'municipal_use': 'PROXY_UF',
-              'raw_sha256': meta.get('rawSha256'),
-              'derived_sha256': meta.get('outputSha256')
-          }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Commit compact derived fleet data only
+      - name: Commit fleet health or compact derived data
         run: |
           git config user.name "atlas-market-data-bot"
           git config user.email "130610135+MaarksN@users.noreply.github.com"
           git add \
-            public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json \
             public/tools/atlas-market-intelligence/data/rntrc_frota_uf.metadata.json \
             public/tools/atlas-market-intelligence/data/manifest.json
+          if [ -f public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json ]; then
+            git add public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json
+          fi
+
           if git diff --cached --quiet; then
-            echo "No derived fleet-data changes to commit."
+            echo "No fleet-data health changes to commit."
             exit 0
           fi
-          git commit -m "data(rntrc): publica frota oficial por UF Jul/2026"
+          git commit -m "data(rntrc): registra saúde da frota oficial Ago/2026"
 
           for attempt in 1 2 3 4 5; do
             git fetch origin feat/atlas-national-territory-intelligence
@@ -189,5 +284,5 @@ jobs:
             fi
             sleep $((attempt * 3))
           done
-          echo "::error::Frota validada, mas publicação falhou após 5 tentativas."
+          echo "::error::Saúde da frota foi validada, mas a publicação falhou após 5 tentativas."
           exit 1
