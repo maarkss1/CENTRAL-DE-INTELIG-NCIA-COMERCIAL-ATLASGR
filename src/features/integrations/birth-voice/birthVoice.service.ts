@@ -92,39 +92,64 @@ export async function callLead(organizationId: string, leadId: string, agentType
     const companyName = company?.tradeName ?? company?.legalName ?? null;
     const contactName = (lead.contact as LeadContactish | null)?.name ?? null;
 
-    const response = await fetch(`${config.baseUrl}/api/voice/outbound`, {
+    const isBland = config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY;
+    const endpoint = isBland ? 'https://api.bland.ai/v1/calls' : `${config.baseUrl}/api/voice/outbound`;
+    const apiKeyHeader = isBland ? (process.env.BLAND_API_KEY || config.apiKey) : `Bearer ${config.apiKey}`;
+    
+    const requestBody = isBland ? {
+        phone_number: targetNumber,
+        task: buildVoicePromptForLead(companyName, contactName),
+        language: 'pt-BR',
+        voice: 'nat',
+        wait_for_greeting: true,
+        record: true,
+        max_duration: 15,
+        request_data: {
+            leadId: lead.id,
+            organizationId,
+            contact_name: contactName,
+            company: companyName,
+            agent_name: 'Gessica'
+        }
+    } : {
+        agentId: config.agentId,
+        targetNumber,
+        callbackUrl: config.callbackUrl,
+        agentType,
+        interruption_threshold: 100,
+        reduce_latency: true,
+        voice: 'nat',
+        task: buildVoicePromptForLead(companyName, contactName),
+        context: {
+            leadId: lead.id,
+            organizationId,
+            name: contactName,
+            company: companyName,
+        },
+    };
+
+    const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.apiKey}`,
+            Authorization: apiKeyHeader,
         },
-        body: JSON.stringify({
-            agentId: config.agentId,
-            targetNumber,
-            callbackUrl: config.callbackUrl,
-            agentType,
-            interruption_threshold: 100,
-            reduce_latency: true,
-            voice: 'nat',
-            task: buildVoicePromptForLead(companyName, contactName),
-            // Devolvido intacto no webhook: é assim que reencontramos o lead sem depender de
-            // casar número de telefone, que muda e se repete entre empresas.
-            context: {
-                leadId: lead.id,
-                organizationId,
-                name: contactName,
-                company: companyName,
-            },
-        }),
+        body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
 
     if (!response.ok) {
         const detail = await response.text().catch(() => '');
-        throw new Error(`Birth Voices Hub recusou a chamada (HTTP ${response.status}): ${detail.slice(0, 200)}`);
+        throw new Error(`Provedor de Voz recusou a chamada (HTTP ${response.status}): ${detail.slice(0, 200)}`);
     }
 
-    const result = (await response.json()) as OutboundCallResult;
-    logger.info({ leadId, sessionId: result.sessionId, callSid: result.callSid }, 'Ligação de SDR enfileirada');
+    const rawData = (await response.json()) as any;
+    const result: OutboundCallResult = {
+        sessionId: rawData.call_id || rawData.sessionId || `sess-${lead.id}`,
+        callSid: rawData.call_id || rawData.callSid || `CA_${lead.id}`,
+        status: rawData.status || 'queued',
+    };
+
+    logger.info({ leadId, sessionId: result.sessionId, callSid: result.callSid }, 'Ligação de SDR enfileirada com sucesso');
     return result;
 }
