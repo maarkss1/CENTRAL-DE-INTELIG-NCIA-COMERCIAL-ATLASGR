@@ -1,0 +1,50 @@
+# Job avulso (sem Helm/hook) que roda `npx prisma migrate deploy` contra o mesmo Postgres que
+# postgres-statefulset.yaml sobe. Estes manifests em k8s/ não passam por Helm/ArgoCD (ver
+# k8s/README.md — é o caminho local/minikube, sem hook de "rodar antes"), então a ordem de
+# aplicação precisa ser manual e sequencial:
+#
+#   kubectl apply -f k8s/postgres-statefulset.yaml
+#   kubectl wait --for=condition=ready pod -l app=postgres --timeout=120s
+#   kubectl apply -f k8s/migration-job.yaml
+#   kubectl wait --for=condition=complete job/prospector-migrate --timeout=300s
+#   kubectl apply -f k8s/redis-deployment.yaml -f k8s/api-deployment.yaml -f k8s/ingress.yaml
+#
+# Sem essa ordem, api-deployment.yaml (que não roda `prisma migrate deploy` — o CMD da imagem é
+# `npm run start`, ver Dockerfile) pode subir e servir tráfego contra um schema desatualizado ou
+# inexistente. Ver /AGENTS.md → bloqueador #5.
+#
+# Mesmo caveat conhecido do chart Helm (ver charts/README.md): a imagem publicada pelo Dockerfile
+# da raiz roda `npm prune --omit=dev`, removendo a CLI `prisma` — este Job só funciona se a
+# imagem local usada aqui (`prospector-atlas:latest`, buildada sem esse prune, ou com a etapa de
+# prune ajustada) ainda contiver a CLI. Handoff:
+# .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prospector-migrate
+  labels:
+    app: prospector-migrate
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: prospector-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: prisma-migrate
+        image: prospector-atlas:latest
+        imagePullPolicy: Never # using local docker image for minikube — mesmo padrão de api-deployment.yaml
+        command: ["npx", "prisma", "migrate", "deploy"]
+        envFrom:
+        - secretRef:
+            name: prospector-secrets
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
