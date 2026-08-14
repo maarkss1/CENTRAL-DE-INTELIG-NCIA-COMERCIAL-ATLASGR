@@ -1,8 +1,19 @@
 name: Deploy to GitHub Pages
 
+# Gatilho manual apenas (workflow_dispatch), não automático em push.
+#
+# Este build publica só o frontend estático (`vite build`) sem o backend Express/Prisma que a
+# aplicação real precisa (autenticação, API, banco) — ver server.ts e docs/deploy/producao.md
+# (arquitetura "monólito único no Render": o mesmo serviço Express serve API e o estático do
+# Vite). Publicado assim, a URL do GitHub Pages carrega a SPA mas nenhuma chamada a `/api/*`
+# funciona: não é um ambiente utilizável, só um artefato de build visualmente navegável.
+# Rodar em todo push em `main` expunha automaticamente, a cada commit, uma versão pública
+# não-funcional do produto sem necessidade real — nenhum outro arquivo do repositório referencia
+# a URL do GitHub Pages como ambiente de demo/preview legítimo (varredura feita antes desta
+# mudança). Mantido como `workflow_dispatch` para permitir gerar esse artefato estático sob
+# demanda (ex.: revisão visual isolada de UI sem precisar do backend), sem publicar
+# automaticamente a cada push.
 on:
-  push:
-    branches: ["main", "master"]
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
