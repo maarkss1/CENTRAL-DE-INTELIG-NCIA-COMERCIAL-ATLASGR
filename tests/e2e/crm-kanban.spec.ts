@@ -246,7 +246,9 @@ test.describe('Kanban do CRM — LeadDetailDrawer', () => {
     await expect(drawer).toBeVisible();
 
     const putResponse = page.waitForResponse((res) => res.url().includes('/api/leads/') && res.request().method() === 'PUT');
-    await drawer.getByLabel('Estágio do lead').selectOption('Qualificação (SDR)');
+    // Rótulo real do campo é "Status do Funil" (LeadDetailDrawer.tsx) — "Estágio do lead" nunca
+    // existiu no componente.
+    await drawer.getByLabel('Status do Funil').selectOption('Qualificação (SDR)');
     const res = await putResponse;
     expect(res.status()).toBe(200);
 

@@ -123,7 +123,16 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 // teclado (só a pista visual de isDragging, que é invisível pra quem usa teclado+leitor).
                 aria-pressed={isDragging}
                 onClick={() => onClick(lead)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(lead); }}
+                // `onKeyDown` sobrescreve o de `{...listeners}` (mesma prop, spread antes — a última
+                // declaração vence) — sem encaminhar pro handler do dnd-kit primeiro, o Space de
+                // pickup nunca chegava ao KeyboardSensor e o drag por teclado nunca ativava de
+                // verdade, apesar dos atributos ARIA de sortable estarem todos presentes. O sensor
+                // agora só escuta Space (ver CrmBoard.tsx KEYBOARD_DRAG_CODES), então Enter aqui é
+                // exclusivamente "abrir detalhes", sem ambiguidade com o pickup do drag.
+                onKeyDown={(e) => {
+                    listeners?.onKeyDown?.(e);
+                    if (e.key === 'Enter') onClick(lead);
+                }}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
             >
                 <div className="flex justify-between items-start gap-2 mb-2">
