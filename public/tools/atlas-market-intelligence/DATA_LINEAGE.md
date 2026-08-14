@@ -54,6 +54,8 @@ municipios.json
 - normalização textual apenas para lookup de contingência;
 - código IBGE como chave final;
 - município homônimo nunca é unido apenas pelo nome;
+- parser aceita tanto a hierarquia histórica `microrregiao -> mesorregiao -> UF` quanto `regiao-imediata -> regiao-intermediaria -> UF`;
+- o lookup é rejeitado se não cobrir pelo menos 5.500 municípios;
 - latitude/longitude devem vir de fonte documentada e não de inferência textual.
 
 ---
@@ -61,17 +63,15 @@ municipios.json
 ## 2. RNTRC - transportadores
 
 ```text
-ANTT CKAN / pacote RNTRC
+ANTT / recurso oficial RNTRC Jul/2026
 ↓
-descoberta automática do recurso mensal mais recente
+transportadores_rntrc_07_2026.csv
 ↓
-transportadores_rntrc_MM_AAAA.csv
-↓
-.cache/market-intelligence/raw/rntrc/<competencia>/
+.cache/market-intelligence/raw/rntrc/2026-07/
 ↓
 etl_rntrc_atlas.py
 ↓
-filtro de situação ativa quando disponível
+filtro de situação ativa
 ↓
 lookup município + UF → codigo_ibge
 ↓
@@ -84,6 +84,17 @@ Demand Score / Territory Optimizer
 ↓
 Interface
 ```
+
+### Snapshot publicado
+
+- competência: `2026-07`;
+- atualização declarada do recurso: `2026-08-10`;
+- bruto: `158.740.046` bytes;
+- linhas processadas: `1.158.159`;
+- transportadores ativos: `899.249`;
+- municípios com presença RNTRC: `5.422`;
+- linhas ativas sem match IBGE: `391` (`0,0435%`);
+- SHA-256 bruto e derivado persistidos em metadata.
 
 ### Controles
 
@@ -100,26 +111,59 @@ Interface
 
 ## 3. RNTRC - frota
 
+O dicionário oficial do recurso `RNTRC-Dados de Veículos` define os campos públicos como:
+
 ```text
-ANTT / perfil do TRC / recurso oficial de veículos
+Categoria do Transportador
+Tipo de Veículo
+UF do Veículo
+Categoria
+Carroceria
+Ano de Fabricação do Veículo
+Quantidade
+```
+
+Ele **não fornece município nem número RNTRC individual**. Portanto a linhagem correta é:
+
+```text
+ANTT / RNTRC-Dados de Veículos
++ dicionário oficial
 ↓
-validação de integridade do recurso
+probe de disponibilidade e integridade do recurso corrente
 ↓
-SE payload válido:
-    snapshot bruto
+SE payload nacional válido:
+    CSV bruto
     ↓
-    join transportador → município
+    etl_rntrc_veiculos_atlas.py
     ↓
-    tração / implementos / frota ativa
+    soma de Quantidade por UF
+    + Tipo de Veículo: Tração / Implemento
+    + Categoria do Transportador: ETC / ETC Equiparada / TAC / CTC
+    + ano médio ponderado quando disponível
     ↓
-    fact_frota_municipio
-SE payload vazio/inválido:
-    status = NÃO DISPONÍVEL ou PARCIAL
+    rntrc_frota_uf.json
+    + rntrc_frota_uf.metadata.json
+    ↓
+    indicador observado em UF
+    ↓
+    município = PROXY_UF somente quando metodologicamente permitido
+SE payload inválido/indisponível:
+    NÃO publicar valores de frota
+    ↓
+    rntrc_frota_uf.metadata.json = NAO_DISPONIVEL
+    ↓
+    manifest = NAO_DISPONIVEL
     ↓
     decisão registra bloqueio
 ```
 
-A camada de frota não será estimada a partir do número de transportadores.
+### Estado auditado em 14/08/2026
+
+- recurso histórico Jul/2026: catálogo declarava aproximadamente `10,5 MiB`, porém o arquivo físico retornou HTTP 404/HTML no CI;
+- recurso vigente Ago/2026: sujeito a `probe` automatizado; payload abaixo do piso de integridade é registrado como `NAO_DISPONIVEL`, não como zero;
+- granularidade permitida: `UF`;
+- uso municipal: `PROXY_UF`;
+- a camada de frota nunca é estimada a partir do número de transportadores.
 
 ---
 
@@ -398,7 +442,7 @@ datasets[]
 files{}
 ```
 
-O front consulta o manifest antes dos derivados. Portanto, um arquivo ausente, uma competência inválida ou um dataset parcial aparece como estado de dados e não como tela silenciosamente vazia.
+O front consulta o manifest antes dos derivados. Portanto, um arquivo ausente, uma competência inválida, um recurso upstream inválido ou um dataset parcial aparece como estado de dados e não como tela silenciosamente vazia.
 
 ---
 
