@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { defineConfig } from '@prisma/config';
 
 const LOCAL_FALLBACK_URL = 'postgresql://postgres:postgres@localhost:5432/prospector';
-const RENDER_RECOVERY_MIGRATION = '20260808120000_ai_autonomy_action_lifecycle';
+const RENDER_RECOVERY_MIGRATION = '20260808183000_crm_suite_parity';
 
 /**
  * Resolve a connection suitable for Prisma CLI operations such as `migrate deploy`.

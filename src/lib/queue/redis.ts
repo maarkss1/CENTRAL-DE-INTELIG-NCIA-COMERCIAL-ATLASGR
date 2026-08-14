@@ -2,8 +2,14 @@ import Redis from 'ioredis';
 import { logger } from '../logger.js';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+// An explicit ENABLE_QUEUES=false must win even when a stale/optional REDIS_URL exists.
+// This matches render.yaml, where Redis is optional and queues stay disabled until both
+// the operator opts in and a working Redis service is configured.
+const queuesExplicitlyDisabled = process.env.ENABLE_QUEUES === 'false';
 export const queuesEnabled =
-    process.env.ENABLE_QUEUES === 'true' || Boolean(process.env.REDIS_URL);
+    !queuesExplicitlyDisabled &&
+    (process.env.ENABLE_QUEUES === 'true' || Boolean(process.env.REDIS_URL));
 
 // Connection instance for standard queue operations
 export const connection = new Redis(redisUrl, {
@@ -19,7 +25,8 @@ export const connection = new Redis(redisUrl, {
 });
 
 connection.on('error', (err) => {
-    // Suppress unhandled ioredis errors in dev mode if Redis is not configured
+    // Suppress Redis errors entirely while queues are explicitly disabled. No queue or
+    // rate-limiter consumer should initiate a connection in this mode.
     if (!queuesEnabled || !process.env.REDIS_URL) return;
     if (process.env.NODE_ENV === 'development') {
         logger.warn({ message: err.message }, 'Redis offline or connecting...');
