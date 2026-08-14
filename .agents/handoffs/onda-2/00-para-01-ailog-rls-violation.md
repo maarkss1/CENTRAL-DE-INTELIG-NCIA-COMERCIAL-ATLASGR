@@ -81,3 +81,18 @@ TRUE)` pode não estar retornando vazio/NULL quando nenhum tenant está ativo na
 Voltando `Status` para `aberto` — quem pegar este handoff deve investigar com a extensão real do
 Prisma (`src/lib/prisma.ts`) como/quando `app.current_tenant_id` é setado por conexão vs. por
 transação, não só reler a migration.
+
+## Resolução (real, confirmada — reconciliação com origin/main)
+A causa raiz não era a policy de RLS, e sim um bug no PRÓPRIO teste: `PrismaPromise` é lazy, então
+`requestContext.run(ctx, () => prisma.model.create(...))` sem `await` **dentro** do callback deixa a
+query realmente executar depois que o `AsyncLocalStorage` já restaurou o contexto externo — a
+inserção acontecia fora do tenant que o teste pensava estar ativo. Corrigido em commits que já
+estavam em `origin/main` quando mesclei com o trabalho desta sessão (`git merge origin/main`):
+`withTenant`/`withoutTenant` (helpers que fazem `await fn()` dentro do `requestContext.run`) agora
+envolvem toda chamada do arquivo. Não pude re-executar `test:integration` para confirmar ao vivo
+neste momento (Docker Desktop caiu no ambiente local durante esta sessão), mas a correção bate
+exatamente com o padrão de bug já suspeitado. A policy de RLS em si (migration
+`20260813230000_fix_ailog_rls_unattributed_internal_writes`) nunca esteve errada — peço desculpa
+pela reabertura anterior, que também foi apressada (dessa vez sem rodar contra Docker disponível).
+Recomendo ao dono humano rodar `npm run test:integration` uma vez com Docker de volta para
+confirmar 5/5 verdes antes de considerar isto definitivamente fechado.
