@@ -7,7 +7,6 @@ on:
     paths:
       - '.github/workflows/market-intelligence-fleet.yml'
       - 'public/tools/atlas-market-intelligence/etl_rntrc_veiculos_atlas.py'
-      - 'public/tools/atlas-market-intelligence/etl_rntrc_atlas.py'
   workflow_dispatch:
 
 permissions:
@@ -18,15 +17,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RNTRC_SOURCE_URL: https://dados.antt.gov.br/dataset/b4a055d1-97a2-46f1-9461-cb17fbc6b6b3/resource/42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3/download/transportadores_rntrc_07_2026.csv
-  RNTRC_RESOURCE_PAGE: https://dados.antt.gov.br/dataset/rntrc/resource/42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3
   FLEET_SOURCE_URL: https://dados.antt.gov.br/dataset/2b564396-5593-4b5c-ba2c-3de3fa0a92c0/resource/7d348e97-d124-4eb6-951f-75b0506237ed/download/rntrc-veiculos.csv
   FLEET_RESOURCE_PAGE: https://dados.antt.gov.br/dataset/rntrc-veiculos/resource/7d348e97-d124-4eb6-951f-75b0506237ed
+  FLEET_DICTIONARY_URL: https://dados.antt.gov.br/dataset/2b564396-5593-4b5c-ba2c-3de3fa0a92c0/resource/f2451b92-f5d0-4d76-bda8-ce8137c365fd/download/dicionario-de-dados-veiculos.pdf
 
 jobs:
   aggregate-fleet:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - name: Checkout branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -37,75 +35,58 @@ jobs:
       - name: Show Python runtime
         run: python3 --version
 
-      - name: Download aligned official Jul/2026 RNTRC transporters and vehicles
+      - name: Download official Jul/2026 RNTRC vehicles
         run: |
           mkdir -p .cache/market-intelligence/raw/rntrc/2026-07
-          transporters="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/transportadores_rntrc_07_2026.csv"
-          vehicles="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
+          target="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
+          rm -f "$target"
+          touch "$target"
 
-          download_resumable() {
-            url="$1"
-            referer="$2"
-            target="$3"
-            min_bytes="$4"
-            label="$5"
-            rm -f "$target"
-            touch "$target"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            before=$(wc -c < "$target")
+            echo "Fleet download attempt $attempt/8; bytes already present: $before"
+            set +e
+            curl --fail-with-body --location \
+              --continue-at - \
+              --connect-timeout 30 --max-time 240 \
+              --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
+              --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
+              --header 'Accept-Encoding: identity' \
+              --header "Referer: $FLEET_RESOURCE_PAGE" \
+              --output "$target" \
+              "$FLEET_SOURCE_URL"
+            status=$?
+            set -e
+            bytes=$(wc -c < "$target")
+            echo "Fleet bytes after attempt $attempt: $bytes; curl status: $status"
+            if [ "$bytes" -ge 1000000 ]; then
+              break
+            fi
+            if [ "$status" -eq 33 ]; then
+              rm -f "$target"
+              touch "$target"
+            fi
+            sleep $((attempt * 3))
+          done
 
-            for attempt in 1 2 3 4 5 6 7 8 9 10; do
-              before=$(wc -c < "$target")
-              echo "$label download attempt $attempt/10; bytes already present: $before"
-
-              set +e
-              curl --fail-with-body --location \
-                --continue-at - \
-                --connect-timeout 30 --max-time 360 \
-                --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/151.0 Safari/537.36' \
-                --header 'Accept: text/csv,text/plain;q=0.9,*/*;q=0.8' \
-                --header 'Accept-Encoding: identity' \
-                --header "Referer: $referer" \
-                --output "$target" \
-                "$url"
-              status=$?
-              set -e
-
-              bytes=$(wc -c < "$target")
-              echo "$label bytes after attempt $attempt: $bytes; curl status: $status"
-              if [ "$bytes" -ge "$min_bytes" ]; then
-                echo "$label reached minimum integrity size."
-                return 0
-              fi
-
-              if [ "$status" -eq 33 ]; then
-                echo "Server rejected byte-range resume; restarting this file cleanly on next attempt."
-                rm -f "$target"
-                touch "$target"
-              fi
-              sleep $((attempt * 3))
-            done
-
-            echo "::error::$label não atingiu o tamanho mínimo esperado após 10 tentativas."
+          bytes=$(wc -c < "$target")
+          if [ "$bytes" -lt 1000000 ]; then
+            echo "::error::RNTRC-Dados de Veículos não atingiu o tamanho mínimo esperado."
             file "$target" || true
             head -c 512 "$target" | tr -cd '\11\12\15\40-\176' | head -c 512 || true
-            return 1
-          }
+            exit 1
+          fi
 
-          download_resumable "$RNTRC_SOURCE_URL" "$RNTRC_RESOURCE_PAGE" "$transporters" 150000000 "RNTRC transportadores Jul/2026"
-          download_resumable "$FLEET_SOURCE_URL" "$FLEET_RESOURCE_PAGE" "$vehicles" 1000000 "RNTRC veículos Jul/2026"
-
-      - name: Aggregate fleet by transporter RNTRC and canonical IBGE municipality
+      - name: Aggregate fleet at official UF granularity
         run: |
-          transporters="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/transportadores_rntrc_07_2026.csv"
           vehicles="$PWD/.cache/market-intelligence/raw/rntrc/2026-07/rntrc-veiculos.csv"
           python3 public/tools/atlas-market-intelligence/etl_rntrc_veiculos_atlas.py \
-            --transporters "$transporters" \
             --vehicles "$vehicles" \
-            --workdir .cache/market-intelligence \
-            --transporters-competence '2026-07' \
-            --vehicles-competence '2026-07' \
-            --vehicles-source-url "$FLEET_SOURCE_URL" \
-            --output public/tools/atlas-market-intelligence/data/rntrc_frota_municipios.json \
-            --metadata public/tools/atlas-market-intelligence/data/rntrc_frota_municipios.metadata.json
+            --competence '2026-07' \
+            --source-url "$FLEET_SOURCE_URL" \
+            --dictionary-url "$FLEET_DICTIONARY_URL" \
+            --output public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json \
+            --metadata public/tools/atlas-market-intelligence/data/rntrc_frota_uf.metadata.json
 
       - name: Validate fleet dataset and update manifest
         run: |
@@ -114,46 +95,44 @@ jobs:
           from pathlib import Path
 
           root = Path('public/tools/atlas-market-intelligence/data')
-          data_path = root / 'rntrc_frota_municipios.json'
-          meta_path = root / 'rntrc_frota_municipios.metadata.json'
+          data_path = root / 'rntrc_frota_uf.json'
+          meta_path = root / 'rntrc_frota_uf.metadata.json'
           manifest_path = root / 'manifest.json'
           rows = json.loads(data_path.read_text(encoding='utf-8'))
           meta = json.loads(meta_path.read_text(encoding='utf-8'))
           manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
 
+          valid_ufs = {'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'}
           if not rows:
               raise SystemExit('Frota RNTRC derivada vazia')
           seen = set()
           total = traction = implements = other = 0
           for row in rows:
-              code = str(row.get('ibgeCode', ''))
-              if not code.isdigit() or len(code) != 7:
-                  raise SystemExit(f'codigo IBGE invalido: {code!r}')
-              if code in seen:
-                  raise SystemExit(f'duplicidade municipal: {code}')
-              seen.add(code)
+              uf = row.get('uf')
+              if uf not in valid_ufs:
+                  raise SystemExit(f'UF inválida: {uf!r}')
+              if uf in seen:
+                  raise SystemExit(f'duplicidade de UF: {uf}')
+              seen.add(uf)
+              if row.get('geographyLevel') != 'UF' or row.get('municipalUse') != 'PROXY_UF':
+                  raise SystemExit(f'governança geográfica inválida em {uf}')
               values = {}
-              for key in ('fleetTotal', 'tractionVehicles', 'implements', 'otherVehicles'):
+              for key in ('fleetTotal', 'tractionVehicles', 'implements', 'otherVehicleType'):
                   value = row.get(key)
                   if not isinstance(value, int) or value < 0:
-                      raise SystemExit(f'valor de frota invalido em {code}/{key}: {value!r}')
+                      raise SystemExit(f'valor inválido em {uf}/{key}: {value!r}')
                   values[key] = value
-              if values['fleetTotal'] != values['tractionVehicles'] + values['implements'] + values['otherVehicles']:
-                  raise SystemExit(f'balanco de frota inconsistente em {code}')
+              if values['fleetTotal'] != values['tractionVehicles'] + values['implements'] + values['otherVehicleType']:
+                  raise SystemExit(f'balanço de frota inconsistente em {uf}')
               total += values['fleetTotal']
               traction += values['tractionVehicles']
               implements += values['implements']
-              other += values['otherVehicles']
+              other += values['otherVehicleType']
 
-          stats = meta['stats']
-          processed = max(int(stats.get('vehicles_processed') or 0), 1)
-          unmatched = int(stats.get('vehicles_unmatched_rntrc') or 0)
-          missing = int(stats.get('vehicles_missing_rntrc') or 0)
-          other_count = int(stats.get('vehicles_other_classification') or 0)
-          unmatched_rate = (unmatched + missing) / processed
-          other_rate = other_count / max(total, 1)
-          status = 'ATUALIZADO' if unmatched_rate <= 0.001 and other_rate <= 0.01 else 'PARCIAL'
+          if len(seen) < 20:
+              raise SystemExit(f'cobertura UF materialmente incompleta: {len(seen)} UFs')
 
+          status = meta.get('health', 'PARCIAL')
           for dataset in manifest['datasets']:
               if dataset['id'] == 'fleet':
                   dataset.update({
@@ -161,11 +140,13 @@ jobs:
                       'competence': '2026-07',
                       'downloadedAt': meta.get('generatedAt'),
                       'sha256': meta.get('outputSha256'),
+                      'geography': 'UF',
+                      'municipalUse': 'PROXY_UF',
                       'note': (
-                          f"Snapshot oficial alinhado Jul/2026: {total} veículos em {len(rows)} municípios; "
+                          f"Snapshot oficial Jul/2026: {total} veículos em {len(seen)} UFs; "
                           f"tração={traction}, implementos={implements}, outros={other}. "
-                          f"Sem match RNTRC={unmatched + missing} ({unmatched_rate:.4%}); "
-                          f"classificação outros={other_rate:.4%}. Dados individuais não entram no bundle."
+                          "O dicionário oficial não fornece município nem RNTRC individual neste recurso; "
+                          "uso municipal é sempre PROXY_UF."
                       )
                   })
                   break
@@ -173,17 +154,15 @@ jobs:
           manifest['generatedAt'] = meta.get('generatedAt') or manifest['generatedAt']
           manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           print(json.dumps({
-              'municipalities': len(rows),
+              'ufs': len(seen),
               'fleet_total': total,
               'traction': traction,
               'implements': implements,
               'other': other,
-              'unmatched_rate': unmatched_rate,
-              'other_rate': other_rate,
               'health': status,
-              'competence': '2026-07',
-              'transporters_raw_sha256': meta.get('transportersRawSha256'),
-              'vehicles_raw_sha256': meta.get('vehiclesRawSha256'),
+              'geography': 'UF',
+              'municipal_use': 'PROXY_UF',
+              'raw_sha256': meta.get('rawSha256'),
               'derived_sha256': meta.get('outputSha256')
           }, ensure_ascii=False, indent=2))
           PY
@@ -193,25 +172,22 @@ jobs:
           git config user.name "atlas-market-data-bot"
           git config user.email "130610135+MaarksN@users.noreply.github.com"
           git add \
-            public/tools/atlas-market-intelligence/data/rntrc_frota_municipios.json \
-            public/tools/atlas-market-intelligence/data/rntrc_frota_municipios.metadata.json \
+            public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json \
+            public/tools/atlas-market-intelligence/data/rntrc_frota_uf.metadata.json \
             public/tools/atlas-market-intelligence/data/manifest.json
           if git diff --cached --quiet; then
             echo "No derived fleet-data changes to commit."
             exit 0
           fi
-          git commit -m "data(rntrc): publica frota municipal oficial Jul/2026"
+          git commit -m "data(rntrc): publica frota oficial por UF Jul/2026"
 
           for attempt in 1 2 3 4 5; do
-            echo "Publication attempt $attempt/5"
             git fetch origin feat/atlas-national-territory-intelligence
             git rebase origin/feat/atlas-national-territory-intelligence
             if git push origin HEAD:feat/atlas-national-territory-intelligence; then
-              echo "Derived fleet snapshot published successfully."
               exit 0
             fi
             sleep $((attempt * 3))
           done
-
-          echo "::error::Frota validada, mas publicação falhou após 5 tentativas de reconciliação."
+          echo "::error::Frota validada, mas publicação falhou após 5 tentativas."
           exit 1
