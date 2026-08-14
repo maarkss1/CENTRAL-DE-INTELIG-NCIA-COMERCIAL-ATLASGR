@@ -153,5 +153,17 @@ jobs:
             exit 0
           fi
           git commit -m "data(rntrc): atualiza snapshot municipal oficial"
-          git pull --rebase origin feat/atlas-national-territory-intelligence
-          git push origin HEAD:feat/atlas-national-territory-intelligence
+
+          for attempt in 1 2 3 4 5; do
+            echo "Publication attempt $attempt/5"
+            git fetch origin feat/atlas-national-territory-intelligence
+            git rebase origin/feat/atlas-national-territory-intelligence
+            if git push origin HEAD:feat/atlas-national-territory-intelligence; then
+              echo "Derived RNTRC snapshot published successfully."
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+
+          echo "::error::RNTRC snapshot validado, mas publicação falhou após 5 tentativas de reconciliação."
+          exit 1
