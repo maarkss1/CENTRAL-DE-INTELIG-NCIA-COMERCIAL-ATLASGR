@@ -25,7 +25,7 @@
 2. Dê ao coordenador acesso ao repositório completo.
 3. Ele deve ler `/AGENTS.md`.
 4. Ele cria a branch de integração da onda e um `git worktree` por especialista ativo (ver `/AGENTS.md` → "Isolamento de execução").
-5. Execute no máximo 3 especialistas simultâneos, cada um no próprio worktree.
+5. Execute os especialistas conforme `/AGENTS.md` → "Regra de concorrência" (até 8 simultâneos, com propriedade disjunta verificada antes de disparar e gate a cada 2–3 merges), cada um no próprio worktree.
 6. Siga `EXECUCAO-ONDAS.md`, incluindo a Onda 4 (09 Mobile, 10 Infraestrutura/SRE, 11 Marca) quando aplicável.
 7. Não pule gates de typecheck/lint/tests/build.
 8. Não aceite "auditoria concluída" quando existe correção executável.

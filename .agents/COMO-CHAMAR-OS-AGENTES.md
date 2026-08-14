@@ -26,7 +26,7 @@ baseline de typecheck/lint/test/build e registre em `.agents/runs/baseline.md`.
 
 Depois, monte o plano de disparo dos especialistas da Onda 1 (Agentes 01, 02 e 06):
 - se você conseguir operar subagentes/sessões paralelas dentro desta mesma ferramenta,
-  dispare-os você mesmo, respeitando o limite de 3 especialistas simultâneos e o
+  dispare-os você mesmo, respeitando a regra de concorrência de `/AGENTS.md` e o
   isolamento por branch/worktree descrito em /AGENTS.md → "Isolamento de execução";
 - se não conseguir, pare aqui e me diga exatamente: quais branches/worktrees eu preciso
   criar manualmente, e para qual eu devo direcionar cada uma das sessões que vou abrir
@@ -271,6 +271,6 @@ não está sendo consumido pelo código sem coordenar com o Agente 03. Ao final,
 ## Dica prática
 Se você for rodar isso manualmente (um terminal por agente), a sequência mais simples é:
 1. Cole o prompt do Agente 00 numa sessão, deixe ele preparar a Onda 0 e te dizer o que abrir.
-2. Abra uma sessão por especialista da onda atual (máximo 3 de cada vez), cole o prompt correspondente.
+2. Abra uma sessão por especialista da onda atual (quantidade conforme `/AGENTS.md` → "Regra de concorrência"), cole o prompt correspondente.
 3. Quando os três terminarem, volte para a sessão do Agente 00 e peça para ele revisar `git diff` de cada branch, integrar em `integracao/onda-<n>` e rodar o gate da onda.
 4. Repita para a onda seguinte.

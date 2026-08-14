@@ -64,9 +64,9 @@ Mais duas atualizações:
 - `.agents/COMO-CHAMAR-OS-AGENTES.md` — acrescentar o bloco pronto para colar de cada um, no mesmo
   padrão dos existentes.
 
-**Não edite `/AGENTS.md`.** A emenda da regra de concorrência (necessária para rodar 5–10 agentes) já
-está redigida em `03-ondas-de-finalizacao.md` §0 e depende de aprovação humana. Em vez de aplicá-la,
-termine sua entrega com um lembrete explícito de que ela está pendente.
+**Não edite `/AGENTS.md`.** A regra de concorrência já foi emendada (teto de 8 simultâneos,
+condicionado a propriedade disjunta verificada antes de disparar e gate por leva de 2–3 merges) —
+leia a versão vigente, não a reescreva.
 
 **Não edite prompts existentes** (00–11, 06A). Se você encontrar um conflito de escopo entre um
 agente novo e um existente, resolva **estreitando o agente novo** e registre o conflito na entrega.
@@ -208,8 +208,9 @@ Ao terminar, produza um relatório com:
    você esperava encontrar e não existe);
 4. conflitos de escopo encontrados entre agentes novos e existentes, e como você estreitou o novo;
 5. divergências entre `03-ondas-de-finalizacao.md` e o código real;
-6. o lembrete final de que a emenda da regra de concorrência em `/AGENTS.md` **continua pendente de
-   aprovação humana** e que, sem ela, nenhuma onda pode rodar com mais de 3 especialistas.
+6. o lembrete final de que `.agents/prompts/00-coordenador.md` ainda carrega o teto antigo de 3
+   especialistas simultâneos e **não pode ser editado por você** — enquanto o dono do repositório não
+   atualizar esse prompt, o Coordenador vai anular na prática a regra de concorrência vigente.
 
 Commits pequenos, prefixados: `docs(agentes): criar prompt do agente <NN>`.
 
@@ -230,7 +231,8 @@ Commits pequenos, prefixados: `docs(agentes): criar prompt do agente <NN>`.
 
 ## Depois que os prompts existirem
 
-1. Aplicar (ou rejeitar) a emenda da regra de concorrência em `/AGENTS.md` §"Regra de concorrência".
+1. Atualizar `.agents/prompts/00-coordenador.md` para a regra de concorrência vigente de
+   `/AGENTS.md` (decisão humana — é o único ponto que ainda aplica o teto antigo de 3).
 2. Coordenador (00) publica a matriz de propriedade da Onda 6 em `.agents/runs/onda-6.md`.
 3. Criar `integracao/onda-6` a partir de `main` e um worktree por especialista ativo.
 4. Disparar a Onda 6 — **14 primeiro**: enquanto ENV-001 existir, nenhuma outra aprovação de onda é

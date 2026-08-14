@@ -7,40 +7,54 @@
 
 ---
 
-## 0. Conflito de governança que precisa ser resolvido antes
+## 0. Regra de concorrência — já emendada
 
-`AGENTS.md` → "Regra de concorrência" hoje diz, literalmente:
+Ondas de 5 a 10 agentes violavam a regra global anterior de `AGENTS.md` ("no máximo 3 especialistas
+simultâneos... nunca iniciar 4 ao mesmo tempo"). **A emenda foi aplicada** (autorização explícita do
+dono do repositório, 2026-08-14): o teto passou a 8 simultâneos, condicionado.
 
-> O coordenador ocupa 1 slot. No máximo 3 especialistas podem executar simultaneamente, em qualquer
-> onda. **Nunca iniciar 4 especialistas ao mesmo tempo.**
+O que motivou a revisão foi o histórico executado do próprio repositório, não preferência de
+processo. Nenhuma falha real de execução foi causada pela quantidade de agentes:
 
-Ondas de 5 a 10 agentes **violam essa regra**. Não dá para simplesmente ignorá-la: ela é a regra
-global do repositório e vence qualquer `AGENTS.md` local.
+| Onda | Especialistas | Simultâneos | Conflito de merge | Incidente |
+|---|---|---|---|---|
+| 1 | 3 | 3 | — | Workflow falhou nos 3 por **limite de sessão da conta**; worktrees nasceram da branch errada por corrida do Coordenador com outra sessão → 16 commits cherry-picked um a um |
+| 2 | 3 | 3 | nenhum | — |
+| 4 | 2 | 2 | nenhum | — |
+| 5 | 4 | 3 | **1** (`src/lib/queue/bitrixSync.worker.ts`) | Gate da integração pegou falha de RLS do `AILog` que os gates individuais não pegaram |
 
-**O limite de 3 não era técnico.** Lendo `.agents/runs/onda-2.md` e `onda-5.md`, o motivo real do
-teto foi (a) limite de sessão da conta na primeira tentativa via Workflow e (b) medo de corromper o
-working tree — e (b) já está resolvido pelo isolamento por `git worktree`, que a própria `AGENTS.md`
-formaliza. O que de fato limita paralelismo seguro é **disjunção de propriedade de arquivo**, não a
-contagem de agentes.
+Leitura dos três incidentes:
 
-### Emenda proposta (aplicar em `AGENTS.md` antes da Onda 6)
+- **O único conflito de merge da história** foi sobreposição legítima de propriedade — 06 é dono do
+  sync Bitrix, 07 é dono das métricas de fila, e aquele worker é os dois. Teria acontecido com 2
+  agentes. É problema de **matriz de propriedade**, não de contagem.
+- **O incidente mais caro** (16 cherry-picks) foi corrida do Coordenador sobre checkout
+  compartilhado. Problema de **isolamento**, não de contagem.
+- **A falha da primeira tentativa** foi limite de sessão/token da conta. Problema de **capacidade da
+  ferramenta**, não de contagem.
 
-> **Regra de concorrência.** O Coordenador ocupa 1 slot. Podem executar simultaneamente até **8
-> especialistas**, desde que **todas** as condições abaixo sejam verdadeiras:
-> 1. cada especialista roda em `git worktree` + branch própria (regra de isolamento já existente);
-> 2. os conjuntos de arquivos sob propriedade dos agentes ativos são **disjuntos** — o Coordenador
->    publica a matriz de propriedade da onda antes de disparar o primeiro agente;
-> 3. nenhum par de agentes ativos depende de um handoff `bloqueador` mútuo em aberto;
-> 4. o Coordenador integra e roda o gate **incrementalmente** (a cada 2–3 merges), nunca acumulando
->    8 merges para um único gate no fim;
-> 5. arquivos de propriedade compartilhada (`server.ts`, `package.json`, `prisma/schema.prisma`)
->    continuam com dono único por onda — quem precisar deles abre handoff, não edita.
->
-> Se a ferramenta de execução não sustentar N worktrees simultâneos, reduza N — nunca compartilhe
-> working tree.
+Conclusão que ficou escrita na regra: o que escala mal não é o número de agentes trabalhando em
+paralelo, é o número de **merges acumulados sem gate** — porque o custo de bisect quando a branch de
+integração fica vermelha cresce mais que linearmente.
 
-**Esta emenda não foi aplicada por mim.** `AGENTS.md` é governança e o próprio arquivo determina que
-mudança de regra é decisão humana. O texto acima está pronto para colar.
+### O que a regra emendada exige (resumo — texto normativo em `/AGENTS.md`)
+
+1. isolamento por worktree/branch (inalterado, vale em qualquer N);
+2. **propriedade disjunta verificada antes de disparar**, com matriz publicada em
+   `.agents/runs/onda-<n>.md` — sobreposição se resolve no papel, não no merge;
+3. **gate por leva de 2–3 merges**, nunca a onda inteira num gate só;
+4. sem handoff `bloqueador` mútuo entre agentes ativos;
+5. dono único para `server.ts`, `package.json`/lockfile e `prisma/schema.prisma`;
+6. reduzir N se a ferramenta ou o limite de sessão não sustentarem — agente derrubado no meio da
+   missão custa mais que agente que esperou a vez.
+
+E uma orientação de adoção: ao subir de 3 pela primeira vez, escalonar `3 → 4 → 6` em vez de ir
+direto ao teto.
+
+> **Pendência conhecida:** `.agents/prompts/00-coordenador.md` ainda carrega a frase "no máximo 3
+> especialistas trabalham simultaneamente". `/AGENTS.md` determina que prompt de agente é decisão
+> humana fora do ciclo de execução, então esse arquivo **não foi editado**. Enquanto ele não for
+> atualizado, o Coordenador vai aplicar o teto antigo e anular a emenda na prática.
 
 ---
 
@@ -155,8 +169,8 @@ executado".
 ## 4. Matriz de propriedade (obrigatória antes de disparar cada onda)
 
 O Coordenador publica isto em `.agents/runs/onda-<n>.md` **antes** do primeiro agente. Sem a matriz
-publicada, a condição 2 da emenda de concorrência não está satisfeita e a onda não pode rodar com
-mais de 3 especialistas.
+publicada, a condição 2 da regra de concorrência de `/AGENTS.md` não está satisfeita e a onda não
+pode rodar com mais de 3 especialistas.
 
 Arquivos de dono único que **nunca** entram na matriz de mais de um agente:
 
