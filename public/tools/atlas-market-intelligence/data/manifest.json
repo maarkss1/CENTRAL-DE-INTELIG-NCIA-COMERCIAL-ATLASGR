@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1.0",
+  "generatedAt": "2026-08-13T23:00:00-03:00",
+  "methodologyVersion": "national-v1-draft",
+  "decisionReady": false,
+  "decisionBlockers": [
+    "RNTRC e frota ainda não foram agregados nacionalmente por código IBGE nesta branch.",
+    "Base CNPJ/ICP nacional atual ainda não foi processada para o snapshot municipal.",
+    "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
+    "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
+    "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
+    "Premissas econômicas reais da Atlas para ticket, margem, win rate, ciclo e custo do vendedor ainda não foram informadas/calibradas."
+  ],
+  "datasets": [
+    {
+      "id": "ibge",
+      "label": "IBGE / geografia municipal",
+      "status": "PARCIAL",
+      "source": "IBGE",
+      "geography": "Município / UF / Região",
+      "note": "Fonte oficial localizada; cadastro canônico com código IBGE, coordenadas e divisões territoriais ainda será gerado pelo pipeline."
+    },
+    {
+      "id": "rntrc",
+      "label": "ANTT / RNTRC transportadores",
+      "status": "PARCIAL",
+      "source": "ANTT / Portal de Dados Abertos",
+      "geography": "Município",
+      "note": "Fonte oficial e histórico mensal localizados. O arquivo bruto não será carregado no navegador; falta gerar agregado municipal compacto."
+    },
+    {
+      "id": "fleet",
+      "label": "ANTT / RNTRC veículos",
+      "status": "PARCIAL",
+      "source": "ANTT / Portal de Dados Abertos",
+      "geography": "Transportador -> Município",
+      "note": "Fonte oficial localizada. Falta join reprodutível com transportadores e agregação de tração/implementos/frota ativa."
+    },
+    {
+      "id": "cnpj",
+      "label": "Receita Federal / CNPJ + ICP Atlas",
+      "status": "NAO_DISPONIVEL",
+      "source": "Receita Federal / Dados Abertos do CNPJ",
+      "geography": "Estabelecimento -> Município",
+      "note": "ETL v0.1 existe, mas nenhum snapshot nacional atual agregado está versionado nesta branch."
+    },
+    {
+      "id": "mdfe",
+      "label": "ANTT / MDF-e movimentação de cargas",
+      "status": "NAO_DISPONIVEL",
+      "source": "ANTT / Dados do TRC",
+      "geography": "Origem / Destino / Corredor",
+      "note": "Normalizador v0.4 existe; agregado nacional auditável ainda não foi produzido."
+    },
+    {
+      "id": "risk",
+      "label": "MJSP / Sinesp VDE",
+      "status": "NAO_DISPONIVEL",
+      "source": "MJSP / Sinesp",
+      "geography": "Município quando disponível; PROXY UF quando necessário",
+      "note": "ETL existe; snapshot nacional da janela definida ainda não foi produzido."
+    },
+    {
+      "id": "competition",
+      "label": "Censo nacional de concorrência",
+      "status": "PARCIAL",
+      "source": "Fontes empresariais primárias + registros públicos",
+      "geography": "Município / presença comercial / cobertura",
+      "note": "Seed verificado é propositalmente parcial. White Space competitivo e ranking final permanecem bloqueados."
+    }
+  ],
+  "files": {}
+}
