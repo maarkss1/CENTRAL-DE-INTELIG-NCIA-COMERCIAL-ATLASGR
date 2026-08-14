@@ -19,6 +19,16 @@ RUN npm run build
 # de produção (DEVOPS-005 na auditoria de dívida técnica).
 RUN npm prune --omit=dev
 
+# npm prune acima remove também a CLI do prisma (devDependency), que o Job de migração
+# k8s/Helm quebra sem ela ("npx prisma migrate deploy": command not found) — ver handoff
+# .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md. O deploy real hoje
+# (Render, render.yaml) não usa este Dockerfile e não é afetado, mas o caminho
+# k8s/Helm/ArgoCD (charts/prospector-atlas/templates/migration-job.yaml,
+# k8s/migration-job.yaml — aspiracional) precisa da CLI presente na imagem final.
+# Reinstala só a CLI, na mesma versão fixada em devDependencies, sem tocar em
+# package.json/lockfile (--no-save) e sem reintroduzir o restante das devDependencies.
+RUN npm install --no-save prisma@$(node -p "require('./package.json').devDependencies.prisma")
+
 # Stage 2: Production
 FROM node:22-slim AS runner
 
