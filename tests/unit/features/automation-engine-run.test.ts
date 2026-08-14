@@ -1,7 +1,6 @@
 /**
- * Exercita o caminho completo do motor de automações — o que até aqui nunca havia rodado de fato,
- * só a lógica isolada de condição e template. Aqui a regra é buscada, filtrada, executada, e
- * verificamos o efeito colateral real (notificação criada, atividade agendada, contador somado).
+ * Exercita o caminho completo do motor de automações: regra buscada, filtrada, executada,
+ * efeito colateral aplicado, telemetria agregada atualizada e execução persistida no AuditLog.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -10,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
         automation: { findMany: vi.fn(), update: vi.fn() },
         notification: { create: vi.fn() },
         activity: { create: vi.fn() },
+        auditLog: { create: vi.fn() },
     },
 }));
 
@@ -19,6 +19,7 @@ vi.mock('@/lib/logger', () => ({
 
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { requestContext } from '@/lib/async-context';
 import { automationEngine, type AutomationEvent } from '@/features/automations/automation.engine';
 
 const automationMock = prisma.automation as unknown as {
@@ -26,6 +27,7 @@ const automationMock = prisma.automation as unknown as {
 };
 const notificationMock = prisma.notification as unknown as { create: ReturnType<typeof vi.fn> };
 const activityMock = prisma.activity as unknown as { create: ReturnType<typeof vi.fn> };
+const auditLogMock = prisma.auditLog as unknown as { create: ReturnType<typeof vi.fn> };
 
 const ORG = 'org-1';
 
@@ -53,6 +55,7 @@ beforeEach(() => {
     automationMock.update.mockResolvedValue({});
     notificationMock.create.mockResolvedValue({ id: 'notif-1' });
     activityMock.create.mockResolvedValue({ id: 'act-1' });
+    auditLogMock.create.mockResolvedValue({ id: 'audit-1' });
 });
 
 describe('AutomationEngine.handle — execução real', () => {
@@ -102,14 +105,13 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(data.leadId).toBe('lead-9');
         expect(data.organizationId).toBe(ORG);
         expect(data.status).toBe('Pendente');
-        // O dono sai do evento quando o config não define um.
         expect(data.owner).toBe('Marcelo');
 
         const dias = Math.round((data.date.getTime() - Date.now()) / 86_400_000);
         expect(dias).toBe(3);
     });
 
-    it('registra a execução: soma o contador e carimba a data', async () => {
+    it('registra a execução: soma o contador, carimba a data e persiste status success', async () => {
         automationMock.findMany.mockResolvedValue([regra()]);
         await automationEngine.handle(eventoLead);
 
@@ -118,6 +120,20 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(call.where).toEqual({ id: 'auto-1' });
         expect(call.data.runCount).toEqual({ increment: 1 });
         expect(call.data.lastRunAt).toBeInstanceOf(Date);
+
+        expect(auditLogMock.create).toHaveBeenCalledTimes(1);
+        const audit = auditLogMock.create.mock.calls[0][0].data;
+        expect(audit.action).toBe('AUTOMATION_EXECUTION');
+        expect(audit.entity).toBe('Automation');
+        expect(audit.entityId).toBe('auto-1');
+        expect(audit.tenantId).toBe(ORG);
+        const details = JSON.parse(audit.details);
+        expect(details.status).toBe('success');
+        expect(details.trigger).toBe('Lead mudou de status');
+        expect(details.entityId).toBe('lead-9');
+        expect(details.correlationId).toEqual(expect.any(String));
+        expect(details.startedAt).toEqual(expect.any(String));
+        expect(details.finishedAt).toEqual(expect.any(String));
     });
 
     it('pula a regra cuja condição não casa, sem executar nem contar', async () => {
@@ -130,6 +146,7 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(executadas).toBe(0);
         expect(notificationMock.create).not.toHaveBeenCalled();
         expect(automationMock.update).not.toHaveBeenCalled();
+        expect(auditLogMock.create).not.toHaveBeenCalled();
     });
 
     it('executa a regra cuja condição casa', async () => {
@@ -139,7 +156,7 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(await automationEngine.handle(eventoLead)).toBe(1);
     });
 
-    it('uma regra que falha não impede as demais', async () => {
+    it('uma regra que falha não impede as demais e a falha fica persistida', async () => {
         automationMock.findMany.mockResolvedValue([
             regra({ id: 'quebrada', action: 'Ação inexistente' }),
             regra({ id: 'boa' }),
@@ -150,6 +167,16 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(executadas).toBe(1);
         expect(notificationMock.create).toHaveBeenCalledTimes(1);
         expect(logger.error).toHaveBeenCalled();
+        expect(auditLogMock.create).toHaveBeenCalledTimes(2);
+
+        const failure = auditLogMock.create.mock.calls
+            .map((call) => call[0].data)
+            .find((data) => data.entityId === 'quebrada');
+        expect(failure).toBeTruthy();
+        const details = JSON.parse(failure.details);
+        expect(details.status).toBe('failed');
+        expect(details.error).toContain('Ação desconhecida');
+        expect(details.correlationId).toEqual(expect.any(String));
     });
 
     it('recusa "Criar atividade" em evento de atividade sem lead vinculado, sem derrubar o motor', async () => {
@@ -166,9 +193,11 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(executadas).toBe(0);
         expect(activityMock.create).not.toHaveBeenCalled();
         expect(logger.error).toHaveBeenCalled();
+        const details = JSON.parse(auditLogMock.create.mock.calls[0][0].data.details);
+        expect(details.status).toBe('failed');
     });
 
-    it('cria "Criar atividade" a partir de um evento de atividade concluída, usando o leadId do evento', async () => {
+    it('cria "Criar atividade" a partir de atividade concluída, usando o leadId do evento', async () => {
         automationMock.findMany.mockResolvedValue([
             regra({ action: 'Criar atividade', actionConfig: { dueInDays: 2, type: 'Follow_up' } }),
         ]);
@@ -189,7 +218,36 @@ describe('AutomationEngine.handle — execução real', () => {
         expect(data.owner).toBe('Marcelo');
     });
 
-    it('não propaga erro quando o banco cai: automação não pode derrubar o fluxo principal', async () => {
+    it('cria contexto RLS a partir do tenant do evento quando chamado por worker sem contexto', async () => {
+        automationMock.findMany.mockImplementation(async () => {
+            expect(requestContext.getStore()?.tenantId).toBe(ORG);
+            return [];
+        });
+
+        await expect(automationEngine.handle(eventoLead)).resolves.toBe(0);
+    });
+
+    it('recusa evento cross-tenant quando já existe contexto autenticado de outro tenant', async () => {
+        await requestContext.run({ tenantId: 'org-outra' }, async () => {
+            await expect(automationEngine.handle(eventoLead)).resolves.toBe(0);
+        });
+
+        expect(automationMock.findMany).not.toHaveBeenCalled();
+        expect(auditLogMock.create).not.toHaveBeenCalled();
+        expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('falha de persistência do histórico não desfaz uma ação já concluída', async () => {
+        automationMock.findMany.mockResolvedValue([regra()]);
+        auditLogMock.create.mockRejectedValue(new Error('audit indisponível'));
+
+        await expect(automationEngine.handle(eventoLead)).resolves.toBe(1);
+        expect(notificationMock.create).toHaveBeenCalledTimes(1);
+        expect(automationMock.update).toHaveBeenCalledTimes(1);
+        expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('não propaga erro quando o banco cai antes de avaliar regras', async () => {
         automationMock.findMany.mockRejectedValue(new Error('banco fora do ar'));
 
         await expect(automationEngine.handle(eventoLead)).resolves.toBe(0);
