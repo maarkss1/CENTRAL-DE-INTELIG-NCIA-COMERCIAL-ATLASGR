@@ -72,6 +72,10 @@ const envSchema = z.object({
   SDR_MAX_CALLS_PER_RUN: z.coerce.number().int().positive().default(10),
   SDR_MAX_ATTEMPTS_PER_LEAD: z.coerce.number().int().positive().default(3),
 
+  // Segredo do webhook /api/webhooks/voice-result (Bland AI). Fail-closed: sem ele o webhook
+  // responde 503 (ver voiceResult.webhook.ts) — nunca cai para um valor default versionado.
+  ATLASGR_WEBHOOK_SECRET: z.string().optional(),
+
   // ── Telefonia PABX 3CX ────────────────────────────────────────────────────
   // Segredo compartilhado que valida a assinatura HMAC do webhook de eventos de chamada do 3CX
   // (mesmo esquema do BIRTH_VOICES_WEBHOOK_SECRET). Sem ele o webhook fica fail-closed (503):

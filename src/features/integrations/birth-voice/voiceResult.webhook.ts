@@ -1,0 +1,249 @@
+import express, { Router, Request, Response } from 'express';
+import { createHash, timingSafeEqual } from 'crypto';
+import { env } from '../../../config/env.js';
+import { prisma } from '../../../lib/prisma.js';
+import { logger } from '../../../lib/logger.js';
+import { requestContext } from '../../../lib/async-context.js';
+import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
+import { sseService } from '../../notifications/sse.service.js';
+
+/**
+ * Webhook de resultado de ligação da Bland AI (rota legada /api/webhooks/voice-result).
+ *
+ * Substitui o handler inline que vivia em server.ts, que tinha quatro defeitos graves:
+ *  1. Montado antes do express.json() global — req.body chegava undefined e o handler quebrava
+ *     na desestruturação (o webhook nunca funcionou nessa forma).
+ *  2. Segredo com fallback hardcoded ('segredo_compartilhado_atlasgr_123') versionado no git —
+ *     sem a env definida, qualquer um que lesse o repositório podia forjar resultados de chamada.
+ *     Agora é fail-closed: sem ATLASGR_WEBHOOK_SECRET configurado, responde 503 (mesmo padrão do
+ *     BIRTH_VOICES_WEBHOOK_SECRET em birthVoice.webhook.ts).
+ *  3. Busca de lead por sufixo de telefone SEM filtro de organização e fora de qualquer
+ *     requestContext — dependendo do papel do Postgres, ou vazava cross-tenant ou a RLS fazia a
+ *     query nunca achar nada (falha silenciosa). Agora o tenant vem do request_data que NÓS
+ *     enviamos ao criar a chamada (ver birthVoice.service.ts) e toda leitura/escrita roda dentro
+ *     de requestContext.run({ tenantId }) — a RLS prova que o lead pertence à organização.
+ *  4. Sem idempotência — cada reentrega do webhook duplicava nota e evento de timeline.
+ */
+
+interface VoiceResultContext {
+    organizationId: string | null;
+    leadId: string | null;
+}
+
+interface VoiceResultPayload {
+    call_id?: unknown;
+    phone_number?: unknown;
+    to?: unknown;
+    concatenated_transcript?: unknown;
+    summary?: unknown;
+    recording_url?: unknown;
+    call_length?: unknown;
+    request_data?: unknown;
+    metadata?: unknown;
+    variables?: unknown;
+}
+
+const COMPETITORS = ['totvs', 'sap', 'senior', 'omnilink', 'sascar', 'autotrac'];
+
+function asString(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+/**
+ * O contexto (leadId/organizationId) foi enviado por nós em `request_data` ao criar a chamada
+ * (birthVoice.service.ts). A Bland ecoa esse objeto no callback; algumas versões da API o expõem
+ * como `metadata` ou `variables`, então os três são aceitos — sempre com a mesma validação.
+ */
+function extractContext(payload: VoiceResultPayload): VoiceResultContext {
+    for (const source of [payload.request_data, payload.metadata, payload.variables]) {
+        if (source && typeof source === 'object') {
+            const record = source as Record<string, unknown>;
+            const organizationId = asString(record.organizationId);
+            const leadId = asString(record.leadId);
+            if (organizationId || leadId) {
+                return { organizationId, leadId };
+            }
+        }
+    }
+    return { organizationId: null, leadId: null };
+}
+
+/** Comparação em tempo constante — o hash iguala os comprimentos antes do timingSafeEqual. */
+function secretMatches(provided: string | undefined, expected: string): boolean {
+    if (!provided) return false;
+    const a = createHash('sha256').update(provided).digest();
+    const b = createHash('sha256').update(expected).digest();
+    return timingSafeEqual(a, b);
+}
+
+async function handleVoiceResult(req: Request, res: Response): Promise<void> {
+    const expectedSecret = env.ATLASGR_WEBHOOK_SECRET;
+    if (!expectedSecret) {
+        // Fail-closed: sem segredo configurado não há como distinguir a Bland de qualquer um que
+        // descubra esta URL. Nunca cair para um valor default versionado no repositório.
+        logger.error('Webhook voice-result recebido, mas ATLASGR_WEBHOOK_SECRET não está configurado.');
+        res.status(503).json({ success: false, error: 'Webhook não configurado.' });
+        return;
+    }
+
+    const provided = req.headers['x-atlasgr-webhook-secret'];
+    if (!secretMatches(typeof provided === 'string' ? provided : undefined, expectedSecret)) {
+        res.status(401).json({ success: false, error: 'Unauthorized webhook secret' });
+        return;
+    }
+
+    const payload = (req.body ?? {}) as VoiceResultPayload;
+    const callId = asString(payload.call_id) ?? 'sem-id';
+    const phoneNumber = asString(payload.phone_number) ?? asString(payload.to) ?? '';
+    const summary = asString(payload.summary);
+    const transcript = asString(payload.concatenated_transcript);
+    const recordingUrl = asString(payload.recording_url);
+    const callLength = typeof payload.call_length === 'number' ? payload.call_length : 0;
+
+    const { organizationId, leadId } = extractContext(payload);
+    logger.info({ callId, organizationId, leadId }, 'Voice result recebido da Bland AI');
+
+    if (!organizationId) {
+        // Sem tenant não há busca segura possível: varrer todos os tenants por sufixo de telefone
+        // (comportamento antigo) anexava resultado de chamada ao lead de OUTRA organização com
+        // final de número igual. 200 de propósito — reentregar não criaria o contexto que faltou.
+        logger.warn({ callId }, 'Voice result sem organizationId no request_data — descartado com aviso.');
+        res.status(200).json({ success: true, lead_found: false, reason: 'sem contexto de organização' });
+        return;
+    }
+
+    try {
+        const outcome = await requestContext.run({ tenantId: organizationId }, async () => {
+            // Prioridade: id explícito do lead (enviado por nós na criação da chamada). O sufixo de
+            // telefone é só fallback, e sempre DENTRO da organização do contexto (RLS + filtro).
+            const rawDigits = phoneNumber.replace(/\D/g, '');
+            const searchPattern = rawDigits.length >= 8 ? rawDigits.slice(-8) : rawDigits;
+
+            const lead = leadId
+                ? await prisma.lead.findFirst({
+                    where: { id: leadId, organizationId },
+                    include: { contact: true },
+                })
+                : searchPattern
+                    ? await prisma.lead.findFirst({
+                        where: {
+                            organizationId,
+                            OR: [
+                                { contact: { phone: { contains: searchPattern } } },
+                                { contact: { whatsapp: { contains: searchPattern } } },
+                            ],
+                        },
+                        include: { contact: true },
+                    })
+                    : null;
+
+            if (!lead) return { leadFound: false as const, duplicate: false };
+
+            // Idempotência: a Bland reentrega o callback em falha/timeout — a nota desta chamada
+            // só pode existir uma vez. O call_id no corpo da nota é o marcador.
+            const marker = `ID da Chamada**: ${callId}`;
+            const existing = callId !== 'sem-id'
+                ? await prisma.note.findFirst({ where: { leadId: lead.id, content: { contains: marker } } })
+                : null;
+            if (existing) return { leadFound: true as const, duplicate: true, leadId: lead.id };
+
+            const noteContent = `📞 **Resultado da Ligação de Voz (IA)**
+- **ID da Chamada**: ${callId}
+- **Duração**: ${Math.round(callLength * 60)}s
+- **Resumo Inteligente**: ${summary || 'Sem resumo disponível.'}
+- **Gravação em Áudio**: ${recordingUrl ? `[Ouvir Gravação](${recordingUrl})` : 'Sem gravação de áudio.'}
+
+---
+### 📝 Transcrição Completa da Conversa:
+${transcript || 'Nenhuma transcrição gravada.'}`;
+
+            await prisma.note.create({
+                data: {
+                    leadId: lead.id,
+                    content: noteContent,
+                    author: 'IA de Voz (Bland AI)',
+                },
+            });
+
+            await prisma.timelineEvent.create({
+                data: {
+                    type: 'activity',
+                    description: `SDR de voz concluiu chamada. Resumo: ${summary || 'Chamada finalizada'}.`,
+                    leadId: lead.id,
+                },
+            });
+
+            const currentFields = (lead.customFields as Record<string, unknown>) || {};
+            await prisma.lead.update({
+                where: { id: lead.id },
+                data: {
+                    customFields: { ...currentFields, voiceQualified: true },
+                },
+            });
+
+            // Follow-up automático via WhatsApp — respeita opt-out e nunca derruba o webhook.
+            if (!currentFields.optOutWhatsApp && lead.contact) {
+                const contact = lead.contact as { whatsapp?: string | null; phone?: string | null };
+                const phone = contact.whatsapp || contact.phone;
+                if (phone) {
+                    try {
+                        const summaryLower = (summary || '').toLowerCase();
+                        const isMissed = callLength < 0.2
+                            || summaryLower.includes('não atendeu')
+                            || summaryLower.includes('caixa postal');
+
+                        await sendWhatsAppMessage(
+                            organizationId,
+                            phone,
+                            isMissed
+                                ? 'Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*'
+                                : 'Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*',
+                        );
+                    } catch (err) {
+                        logger.warn({ err, leadId: lead.id }, 'Falha ao disparar WhatsApp automático pós-ligação');
+                    }
+                }
+            }
+
+            // Alerta de concorrente citado na transcrição.
+            const transcriptLower = (transcript || '').toLowerCase();
+            const mentionedCompetitors = COMPETITORS.filter((c) => transcriptLower.includes(c));
+
+            let sseMessage = `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`;
+            if (mentionedCompetitors.length > 0) {
+                sseMessage = '[ALERTA] SDR concluiu chamada com citação de concorrente!';
+                await prisma.note.create({
+                    data: {
+                        leadId: lead.id,
+                        content: `⚠️ ALERTA CONCORRENTE: O cliente mencionou: ${mentionedCompetitors.join(', ')}`,
+                        author: 'Sistema de Alerta (IA)',
+                    },
+                });
+            }
+
+            sseService.notifyVoiceQualified(organizationId, lead.id, sseMessage);
+            return { leadFound: true as const, duplicate: false, leadId: lead.id };
+        });
+
+        if (!outcome.leadFound) {
+            logger.warn({ callId, organizationId, leadId }, 'Voice result sem lead correspondente nesta organização.');
+        } else if (!outcome.duplicate) {
+            logger.info({ callId, leadId: outcome.leadId }, 'Voice result registrado no lead.');
+        }
+        res.status(200).json({ success: true, lead_found: outcome.leadFound, duplicate: outcome.duplicate });
+    } catch (err) {
+        // 5xx de propósito: a Bland reentrega com backoff, e o marcador de idempotência acima
+        // garante que a reentrega não duplica a nota caso a falha tenha sido depois da escrita.
+        logger.error({ err, callId }, 'Erro ao processar voice result da Bland AI');
+        res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+}
+
+const router = Router();
+
+// Parser local: esta rota é montada antes do express.json() global (junto dos outros webhooks) e
+// precisa parsear o próprio corpo — era exatamente a ausência disto que deixava req.body undefined
+// na versão inline.
+router.post('/', express.json({ limit: '1mb' }), handleVoiceResult);
+
+export const voiceResultWebhookRoutes = router;
