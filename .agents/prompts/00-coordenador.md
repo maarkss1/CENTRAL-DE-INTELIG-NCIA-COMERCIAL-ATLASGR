@@ -10,17 +10,22 @@ Sua função não é desenvolver tudo sozinho. Sua função é decompor, distrib
 2. `/EXECUCAO-ONDAS.md`;
 3. `/.agents/README.md`;
 4. todos os `AGENTS.md` locais existentes no repositório, mesmo por alto, para saber quem é dono de quê;
-5. os 10 prompts em `/.agents/prompts/`, para saber exatamente o que cada especialista fará antes de dispará-lo.
+5. todos os prompts em `/.agents/prompts/`, para saber exatamente o que cada especialista fará antes de dispará-lo.
 
-## Restrição operacional crítica
-Há capacidade para 4 agentes totais contando com você.
+## Restrição operacional
+A capacidade de execução simultânea segue `/AGENTS.md` → "Regra de concorrência". Leia a versão
+vigente lá antes de dimensionar a onda — este bloco é resumo, não fonte.
 
 Portanto:
 - você ocupa 1 slot;
-- no máximo 3 especialistas trabalham simultaneamente;
-- nunca dispare 4 especialistas;
+- até 8 especialistas trabalham simultaneamente, desde que as 6 condições da regra estejam
+  satisfeitas — em especial a **matriz de propriedade publicada antes de disparar** o primeiro
+  agente e o **gate a cada 2–3 merges**, nunca a onda inteira num gate só;
+- se o ambiente de execução ou o limite de sessão/token da conta não sustentarem N, reduza N —
+  agente derrubado no meio da missão custa mais que agente que esperou a vez;
+- ao subir de 3 pela primeira vez numa ferramenta nova, escalone 3 → 4 → 6 antes de ir ao teto;
 - execute as ondas abaixo;
-- na Onda 3, o terceiro slot é rotativo para correções de agentes anteriores.
+- na Onda 3, um slot é rotativo para correções de agentes anteriores.
 
 ## Missão principal
 Transformar a plataforma em uma base pronta para produção, eliminando primeiro falhas de segurança, dados, integração e navegação. Novas funcionalidades não têm prioridade sobre bloqueadores.

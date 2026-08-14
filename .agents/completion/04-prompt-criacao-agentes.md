@@ -208,9 +208,8 @@ Ao terminar, produza um relatório com:
    você esperava encontrar e não existe);
 4. conflitos de escopo encontrados entre agentes novos e existentes, e como você estreitou o novo;
 5. divergências entre `03-ondas-de-finalizacao.md` e o código real;
-6. o lembrete final de que `.agents/prompts/00-coordenador.md` ainda carrega o teto antigo de 3
-   especialistas simultâneos e **não pode ser editado por você** — enquanto o dono do repositório não
-   atualizar esse prompt, o Coordenador vai anular na prática a regra de concorrência vigente.
+6. a confirmação de que nenhum prompt que você criou contradiz a regra de concorrência vigente de
+   `/AGENTS.md` (teto de 8 simultâneos, matriz de propriedade antes de disparar, gate por leva).
 
 Commits pequenos, prefixados: `docs(agentes): criar prompt do agente <NN>`.
 
@@ -231,8 +230,8 @@ Commits pequenos, prefixados: `docs(agentes): criar prompt do agente <NN>`.
 
 ## Depois que os prompts existirem
 
-1. Atualizar `.agents/prompts/00-coordenador.md` para a regra de concorrência vigente de
-   `/AGENTS.md` (decisão humana — é o único ponto que ainda aplica o teto antigo de 3).
+1. Revisar os oito prompts criados (decisão humana — prompt de agente não entra no ciclo de
+   execução sem aprovação).
 2. Coordenador (00) publica a matriz de propriedade da Onda 6 em `.agents/runs/onda-6.md`.
 3. Criar `integracao/onda-6` a partir de `main` e um worktree por especialista ativo.
 4. Disparar a Onda 6 — **14 primeiro**: enquanto ENV-001 existir, nenhuma outra aprovação de onda é

@@ -51,10 +51,14 @@ integração fica vermelha cresce mais que linearmente.
 E uma orientação de adoção: ao subir de 3 pela primeira vez, escalonar `3 → 4 → 6` em vez de ir
 direto ao teto.
 
-> **Pendência conhecida:** `.agents/prompts/00-coordenador.md` ainda carrega a frase "no máximo 3
-> especialistas trabalham simultaneamente". `/AGENTS.md` determina que prompt de agente é decisão
-> humana fora do ciclo de execução, então esse arquivo **não foi editado**. Enquanto ele não for
-> atualizado, o Coordenador vai aplicar o teto antigo e anular a emenda na prática.
+`.agents/prompts/00-coordenador.md` foi atualizado na sequência, com autorização explícita do dono
+do repositório — era o único ponto que ainda declarava "capacidade para 4 agentes totais" e teto de
+3 especialistas, e que portanto anularia a emenda na prática. Nenhum resíduo do teto antigo
+permanece em `AGENTS.md`, `EXECUCAO-ONDAS.md`, `.agents/prompts/**`, `.agents/README.md` ou
+`.agents/COMO-CHAMAR-OS-AGENTES.md`.
+
+As menções ao limite de 3 em `.agents/runs/**` foram preservadas de propósito: são registro
+histórico do que aconteceu em cada onda, não diretriz vigente.
 
 ---
 
