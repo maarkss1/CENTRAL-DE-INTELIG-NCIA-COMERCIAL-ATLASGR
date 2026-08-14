@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { defineConfig } from '@prisma/config';
 
 const LOCAL_FALLBACK_URL = 'postgresql://postgres:postgres@localhost:5432/prospector';
-const RENDER_RLS_RECOVERY_MIGRATION = '20260807100000_enable_rls_remaining_tables';
+const RENDER_RECOVERY_MIGRATION = '20260808120000_ai_autonomy_action_lifecycle';
 
 /**
  * Resolve a connection suitable for Prisma CLI operations such as `migrate deploy`.
@@ -44,19 +44,18 @@ function resolvePrismaCliUrl(): string {
 }
 
 /**
- * Temporary one-shot recovery hook for the Render production database.
+ * Temporary one-shot recovery hook for one known failed Render production migration.
  *
- * The RLS migration reached CREATE POLICY in production before failing because that
- * policy was already present. Prisma correctly records P3018 and then blocks every
- * later `migrate deploy` until that failed attempt is explicitly resolved. The SQL
- * migration is now idempotent, so the safe recovery is to mark only that exact failed
- * attempt as rolled back and let the parent `migrate deploy` apply it again.
+ * Production contains part of this migration's end-state, but Prisma recorded P3018
+ * when the original non-idempotent SQL collided with an existing object. The migration
+ * SQL is now safe to re-run, so the supported recovery is to mark only this exact
+ * failed attempt as rolled back and let the parent `migrate deploy` apply it again.
  *
  * This runs only on Render and only while the parent command is `prisma migrate deploy`.
- * The child receives PRISMA_RENDER_RECOVERY_CHILD=1 to prevent recursion. After the
- * production migration succeeds, this hook is removed in a cleanup commit.
+ * The child receives PRISMA_RENDER_RECOVERY_CHILD=1 to prevent recursion. Once production
+ * migrations are healthy, this temporary hook is removed in a cleanup commit.
  */
-function recoverFailedRenderRlsMigrationOnce(): void {
+function recoverFailedRenderMigrationOnce(): void {
   const isRender = process.env.RENDER === 'true';
   const isChild = process.env.PRISMA_RENDER_RECOVERY_CHILD === '1';
   const isMigrateDeploy = process.argv.includes('migrate') && process.argv.includes('deploy');
@@ -64,12 +63,12 @@ function recoverFailedRenderRlsMigrationOnce(): void {
   if (!isRender || isChild || !isMigrateDeploy) return;
 
   console.warn(
-    `[prisma.config] Attempting one-time recovery of failed migration ${RENDER_RLS_RECOVERY_MIGRATION}.`,
+    `[prisma.config] Attempting one-time recovery of failed migration ${RENDER_RECOVERY_MIGRATION}.`,
   );
 
   const result = spawnSync(
     'npx',
-    ['prisma', 'migrate', 'resolve', '--rolled-back', RENDER_RLS_RECOVERY_MIGRATION],
+    ['prisma', 'migrate', 'resolve', '--rolled-back', RENDER_RECOVERY_MIGRATION],
     {
       stdio: 'inherit',
       env: {
@@ -88,7 +87,7 @@ function recoverFailedRenderRlsMigrationOnce(): void {
 
   if (result.status === 0) {
     console.warn(
-      `[prisma.config] Failed migration ${RENDER_RLS_RECOVERY_MIGRATION} marked rolled back; parent migrate deploy will reapply the idempotent SQL.`,
+      `[prisma.config] Failed migration ${RENDER_RECOVERY_MIGRATION} marked rolled back; parent migrate deploy will reapply the idempotent SQL.`,
     );
     return;
   }
@@ -98,7 +97,7 @@ function recoverFailedRenderRlsMigrationOnce(): void {
   );
 }
 
-recoverFailedRenderRlsMigrationOnce();
+recoverFailedRenderMigrationOnce();
 
 // O Prisma CLI (migrate/generate) usa só este `url`, nunca o Pool/adapter de src/lib/prisma.ts.
 // DIRECT_URL é sempre preferida. Em Render/Supabase, se DATABASE_URL vier por engano no
