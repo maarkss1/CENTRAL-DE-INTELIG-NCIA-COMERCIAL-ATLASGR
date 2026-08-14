@@ -28,12 +28,13 @@ export const copywriterTool = tool(
             const finalCopy = `Assunto: ${subject}\n\n${body}`;
 
             // Salva como uma nota interna para o SDR usar depois
+            // O model Note não tem `type` nem `organizationId` (ver prisma/schema.prisma) — o
+            // isolamento de tenant vem do lead (RLS via requestContext), e `author` é obrigatório.
             await prisma.note.create({
                 data: {
                     content: `[Gerado por IA] Sugestão de Cold Email:\n\n${finalCopy}`,
-                    type: 'internal',
+                    author: 'IA (Copywriter)',
                     leadId: args.leadId,
-                    organizationId,
                 }
             });
 
