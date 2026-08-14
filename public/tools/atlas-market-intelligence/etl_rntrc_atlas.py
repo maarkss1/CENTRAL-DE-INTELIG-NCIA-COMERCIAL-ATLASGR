@@ -123,24 +123,56 @@ def download_cached(resource: ResourceMeta, workdir: Path) -> Path:
     return target
 
 
+def as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def extract_uf(row: dict[str, Any]) -> dict[str, Any]:
+    """Resolve a UF nos dois esquemas geográficos atuais do endpoint de municípios do IBGE."""
+    micro = as_dict(row.get("microrregiao"))
+    meso = as_dict(micro.get("mesorregiao"))
+    uf = as_dict(meso.get("UF"))
+    if uf:
+        return uf
+
+    immediate = as_dict(row.get("regiao-imediata"))
+    intermediate = as_dict(immediate.get("regiao-intermediaria"))
+    return as_dict(intermediate.get("UF"))
+
+
 def load_ibge(path: Path | None, workdir: Path) -> tuple[dict[tuple[str, str], dict[str, Any]], Path]:
     cache = path or (workdir / "raw" / "ibge" / "municipios.json")
     cache.parent.mkdir(parents=True, exist_ok=True)
     if not cache.exists():
         cache.write_bytes(request_bytes(IBGE_MUNICIPIOS))
     rows = json.loads(cache.read_text(encoding="utf-8"))
+    if not isinstance(rows, list):
+        raise RuntimeError("Cadastro municipal do IBGE retornou estrutura incompatível: lista esperada")
+
     lookup: dict[tuple[str, str], dict[str, Any]] = {}
-    for row in rows:
-        uf = row.get("microrregiao", {}).get("mesorregiao", {}).get("UF", {})
-        if not uf:
-            immediate = row.get("regiao-imediata") or {}
-            uf = ((immediate.get("regiao-intermediaria") or {}).get("UF")) or {}
+    rows_without_uf = 0
+    for raw_row in rows:
+        if not isinstance(raw_row, dict):
+            continue
+        uf = extract_uf(raw_row)
         sigla = str(uf.get("sigla") or "").upper()
-        if sigla:
-            lookup[(sigla, norm(row.get("nome")))] = {
-                "ibge_code": str(row.get("id")), "municipality": row.get("nome"),
-                "uf": sigla, "region": (uf.get("regiao") or {}).get("nome"),
-            }
+        if not sigla:
+            rows_without_uf += 1
+            continue
+        lookup[(sigla, norm(raw_row.get("nome")))] = {
+            "ibge_code": str(raw_row.get("id")),
+            "municipality": raw_row.get("nome"),
+            "uf": sigla,
+            "region": as_dict(uf.get("regiao")).get("nome"),
+        }
+
+    # O Brasil possui mais de 5.500 municípios. Abaixo desse piso, o lookup nacional
+    # é materialmente incompleto e não deve ser usado para publicar um snapshot.
+    if len(lookup) < 5500:
+        raise RuntimeError(
+            f"Cadastro municipal IBGE incompleto: apenas {len(lookup)} municípios com UF "
+            f"({rows_without_uf} registros sem UF resolvida)"
+        )
     return lookup, cache
 
 
