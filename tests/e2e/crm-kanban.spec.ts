@@ -246,7 +246,7 @@ test.describe('Kanban do CRM — LeadDetailDrawer', () => {
     await expect(drawer).toBeVisible();
 
     const putResponse = page.waitForResponse((res) => res.url().includes('/api/leads/') && res.request().method() === 'PUT');
-    await drawer.getByLabel('Estágio do lead').selectOption('Qualificação (SDR)');
+    await drawer.getByLabel('Status do Funil').selectOption('Qualificação (SDR)');
     const res = await putResponse;
     expect(res.status()).toBe(200);
 
