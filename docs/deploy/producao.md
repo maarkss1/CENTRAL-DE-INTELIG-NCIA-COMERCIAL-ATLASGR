@@ -103,7 +103,9 @@ serviço a partir dele.
 
 1. [Dashboard do Render](https://dashboard.render.com) → **New → Blueprint** → conecte o
    repositório GitHub → selecione a branch de produção (`main`).
-2. O Render lê `render.yaml` e cria o serviço `prospector-atlas` (web, Node, plano `starter`).
+2. O Render lê `render.yaml` e cria o serviço `prospector-atlas` (web, Node, plano `free` até o
+   workspace ter cartão cadastrado — trocar para `starter` no dashboard depois, ver comentário em
+   `render.yaml`; note que `preDeployCommand` só existe em planos pagos, ver seção 2.2).
    Não cria mais um Postgres do Render — o banco é o Supabase externo (seção 1).
 3. Em **Environment**, preencha todas as variáveis marcadas `sync: false` no `render.yaml`:
 
@@ -129,15 +131,25 @@ Com o serviço conectado ao GitHub, **todo push na branch configurada** dispara,
 manual:
 
 1. Render clona o commit novo.
-2. `buildCommand`: `npm ci && npm run build` (build do Vite + bundle do server via esbuild).
-3. `preDeployCommand`: `npx prisma migrate deploy` — roda com a instância **antiga** ainda
-   servindo tráfego (zero-downtime); só migrations novas desde o baseline aplicado na seção 1
-   são executadas.
-4. `startCommand`: `npm run start` sobe a instância nova.
-5. Render bate em `healthCheckPath: /health/ready` (checa `SELECT 1` no banco, não só "processo
+2. `buildCommand`: `npm ci --include=dev && npm run build` (build do Vite + bundle do server via
+   esbuild).
+3. `startCommand`: `npx prisma migrate deploy && npm run start` — só migrations novas desde o
+   baseline aplicado na seção 1 são executadas; a instância nova só fica pronta para o health
+   check depois que a migração terminar com sucesso.
+   > **Nota sobre o plano `free`**: o ideal seria `preDeployCommand: npx prisma migrate deploy`
+   > (roda numa instância efêmera separada, com a instância antiga ainda servindo tráfego —
+   > verdadeiro zero-downtime), mas esse recurso só existe em planos pagos do Render
+   > (["The pre-deploy command is available for paid web services, private services, and
+   > background workers"](https://render.com/docs/deploys)). Enquanto o serviço estiver em
+   > `plan: free` (`render.yaml`, sem cartão cadastrado no workspace), a migração roda dentro do
+   > `startCommand` — a garantia de "nunca servir tráfego contra schema desatualizado" continua
+   > valendo (ver passo 5), só perde a instância efêmera separada. Ao migrar para `plan: starter`,
+   > trocar para `preDeployCommand` + `startCommand: npm run start` (ver comentário em
+   > `render.yaml`).
+4. Render bate em `healthCheckPath: /health/ready` (checa `SELECT 1` no banco, não só "processo
    no ar" — ver `server.ts`) até responder `200` antes de rotear tráfego pra ela.
-6. Se o health check falhar, o deploy é abortado e a instância antiga continua servindo — nunca
-   fica no ar uma versão quebrada.
+5. Se a migração falhar ou o health check falhar, o deploy é abortado e a instância antiga
+   continua servindo — nunca fica no ar uma versão quebrada.
 
 > Corrigido nesta sessão: `healthCheckPath` apontava para `/api/health`, rota que não existe
 > (cai no 404 genérico de `/api/*` em `server.ts`) — o Render não tinha como saber se o banco
@@ -202,7 +214,7 @@ Nada precisou mudar nos workflows existentes — já cobrem o necessário:
 | `production.yaml` | Mesmo gate de testes + build de imagem Docker (`ghcr.io`) com aprovação manual — caminho K8s/Helm/ArgoCD, não usado pelo Render |
 | `cd-homolog.yml` | Deploy de homologação (branch `develop`) via imagem Docker + Helm |
 | `sonarqube.yml` | Análise estática de qualidade/cobertura |
-| `deploy-pages.yml` | Publica build estático no GitHub Pages (demo/preview, não é a URL de produção) |
+| `deploy-pages.yml` | Publica build estático (sem backend) no GitHub Pages — gatilho manual (`workflow_dispatch`), não roda mais em todo push em `main`; não é a URL de produção nem um ambiente funcional (API não existe nesse build) |
 | `android-build.yml` | Gera APK do app mobile via Capacitor |
 
 O único ajuste recomendado (manual, seção 2.3) é a branch protection rule em `main` exigindo o

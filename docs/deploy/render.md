@@ -53,8 +53,12 @@ O webhook de saída do Bitrix24 deve apontar para a URL pública do Render, não
 ## Deploy automático a cada push
 
 Com o serviço conectado ao GitHub (feito no passo 1), todo push na branch configurada dispara,
-sem nenhum passo manual: `buildCommand` → `preDeployCommand` (`npx prisma migrate deploy`,
-zero-downtime — a instância antiga continua servindo enquanto migra) → `startCommand` → health
-check em `healthCheckPath` (`/health/ready`, checa conexão real com o banco) antes de rotear
-tráfego pra instância nova. Detalhes e o gate de CI recomendado (branch protection em `main`) em
-[`producao.md`](producao.md#23-gate-de-qualidade-antes-do-deploy).
+sem nenhum passo manual: `buildCommand` → `startCommand` (que roda `npx prisma migrate deploy &&
+npm run start` — a instância antiga continua servindo tráfego até a nova passar no health check,
+que só acontece depois da migração terminar) → health check em `healthCheckPath`
+(`/health/ready`, checa conexão real com o banco) antes de rotear tráfego pra instância nova.
+`preDeployCommand` (instância efêmera separada para a migração, zero-downtime "de verdade") só
+existe em planos pagos do Render — enquanto o serviço estiver em `plan: free`, a migração roda
+dentro do `startCommand`; ver comentário em `render.yaml` e `producao.md` seção 2.2 para o plano
+de migração ao trocar para `plan: starter`. Detalhes e o gate de CI recomendado (branch protection
+em `main`) em [`producao.md`](producao.md#23-gate-de-qualidade-antes-do-deploy).
