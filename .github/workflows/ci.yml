@@ -7,6 +7,25 @@ on:
     branches: [ main, master ]
 
 jobs:
+  # Varredura de segredo versionado no diff do push/PR. Este repositório já teve credenciais reais
+  # e PII versionadas por engano (ver commit 40a99c31 "fix(seguranca): expurga credenciais reais e
+  # PII versionadas no repositorio") — este job existe para que isso não aconteça de novo em
+  # silêncio. gitleaks-action@v2 funciona sem licença para repositórios de conta pessoal/
+  # organização gratuita (o Enterprise/licença só é exigido para o dashboard "gitleaks Enterprise",
+  # não para rodar o scanner em CI). Ver AGENTS.md → "Segurança e higiene" (varredura de segredo
+  # obrigatória antes de finalizar qualquer onda).
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks (varredura de segredo versionado)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-test:
     runs-on: ubuntu-latest
 
