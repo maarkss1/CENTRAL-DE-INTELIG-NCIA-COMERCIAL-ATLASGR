@@ -136,7 +136,7 @@ function applyScenario(model: SellerModelAssumptions, scenario: CommercialScenar
     const variableCommission = Math.min(1, pct(revenue.variableCommissionPctOfNewMrr));
     const salesCycleMonths = Math.max(0, Math.ceil(nonNegative(revenue.salesCycleDays) / 30));
     const maxCaptureContracts = revenue.samAccounts === null ? null : Math.floor(Math.max(0, revenue.samAccounts) * penetration);
-    return { ticket, winRate, margin, penetration, churn, meetingsToOpportunity, opportunitiesAtFullProductivity, fixedCost, variableCommission, salesCycleMonths, maxCaptureContracts };
+    return { ticket, winRate, margin, churn, meetingsToOpportunity, opportunitiesAtFullProductivity, fixedCost, variableCommission, salesCycleMonths, maxCaptureContracts };
 }
 
 export function calculateSellerEconomicScenario(
@@ -157,8 +157,6 @@ export function calculateSellerEconomicScenario(
     let activeContracts = 0;
     let cumulativeNetContribution = 0;
     let capturedContracts = 0;
-    let cumulativeCost = 0;
-    let cumulativeGrossContribution = 0;
     let paybackMonth: number | null = null;
 
     for (let month = 1; month <= Math.max(1, months); month += 1) {
@@ -180,8 +178,6 @@ export function calculateSellerEconomicScenario(
         const variableCommission = expectedNewContracts * p.ticket * p.variableCommission;
         const netContribution = grossContribution - p.fixedCost - variableCommission;
         cumulativeNetContribution += netContribution;
-        cumulativeCost += p.fixedCost + variableCommission;
-        cumulativeGrossContribution += grossContribution;
         if (paybackMonth === null && cumulativeNetContribution >= 0 && month > p.salesCycleMonths) paybackMonth = month;
 
         forecast.push({
@@ -203,7 +199,8 @@ export function calculateSellerEconomicScenario(
         const window = forecast.filter((row) => row.month <= month);
         const cost = window.reduce((sum, row) => sum + row.fixedCost + row.variableCommission, 0);
         const contribution = window.reduce((sum, row) => sum + row.grossContribution, 0);
-        return safeDivide(contribution - cost, cost) === null ? null : ((contribution - cost) / cost) * 100;
+        const ratio = safeDivide(contribution - cost, cost);
+        return ratio === null ? null : ratio * 100;
     };
 
     return {
