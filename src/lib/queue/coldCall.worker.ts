@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runColdCallCampaign, enabledOrganizations } from '../../features/integrations/birth-voice/coldCall.service.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const COLD_CALL_QUEUE_NAME = 'sdr-cold-call';
 
@@ -10,6 +11,7 @@ const RUN_EVERY_MS = 15 * 60 * 1000;
 
 export const coldCallQueue = new Queue(COLD_CALL_QUEUE_NAME, { connection });
 coldCallQueue.on('error', (err) => logger.warn({ message: err.message }, 'coldCallQueue offline'));
+registerQueueForMetrics(COLD_CALL_QUEUE_NAME, coldCallQueue);
 
 interface ColdCallJobData {
     organizationId: string;
@@ -27,6 +29,8 @@ export function createColdCallWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Campanha de prospecção fria falhou.');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(COLD_CALL_QUEUE_NAME));
 
     return worker;
 }

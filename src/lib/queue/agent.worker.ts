@@ -3,10 +3,12 @@ import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 import { SDROutboundDraftAgent } from '../../features/intelligence/agents/sdr-agent.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const AGENT_QUEUE_NAME = 'intelligence-agents';
 export const agentQueue = new Queue(AGENT_QUEUE_NAME, { connection });
 agentQueue.on('error', (err) => logger.warn({ message: err.message }, 'agentQueue offline'));
+registerQueueForMetrics(AGENT_QUEUE_NAME, agentQueue);
 
 export interface AgentJobData {
     agentType: 'SDR_OUTBOUND';
@@ -74,6 +76,8 @@ export function createAgentWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Worker job permanently failed');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(AGENT_QUEUE_NAME));
 
     return worker;
 }

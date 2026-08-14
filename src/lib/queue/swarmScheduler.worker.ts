@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runSwarmScheduler, enabledOrganizations } from '../../features/intelligence/services/swarmScheduler.service.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const SWARM_SCHEDULER_QUEUE_NAME = 'swarm-scheduler';
 
@@ -10,6 +11,7 @@ const RUN_EVERY_MS = 15 * 60 * 1000;
 
 export const swarmSchedulerQueue = new Queue(SWARM_SCHEDULER_QUEUE_NAME, { connection });
 swarmSchedulerQueue.on('error', (err) => logger.warn({ message: err.message }, 'swarmSchedulerQueue offline'));
+registerQueueForMetrics(SWARM_SCHEDULER_QUEUE_NAME, swarmSchedulerQueue);
 
 interface SwarmSchedulerJobData {
     organizationId: string;
@@ -27,6 +29,8 @@ export function createSwarmSchedulerWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Execução do enxame autônomo falhou.');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(SWARM_SCHEDULER_QUEUE_NAME));
 
     return worker;
 }

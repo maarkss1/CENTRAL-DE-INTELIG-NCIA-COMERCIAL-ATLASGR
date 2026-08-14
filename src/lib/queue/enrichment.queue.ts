@@ -3,12 +3,14 @@ import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { enrichCompany } from '../../features/prospecting/services/enrichment.service.js';
 import { requestContext } from '../async-context.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const ENRICHMENT_QUEUE_NAME = 'enrichment-queue';
 
 export const enrichmentQueue = queuesEnabled
     ? new Queue(ENRICHMENT_QUEUE_NAME, { connection })
     : null;
+registerQueueForMetrics(ENRICHMENT_QUEUE_NAME, enrichmentQueue);
 enrichmentQueue?.on('error', (err) => logger.warn({ message: err.message }, 'enrichmentQueue offline'));
 
 interface EnrichmentJobData {
@@ -43,6 +45,8 @@ export function createEnrichmentWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Enrichment worker job permanently failed');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(ENRICHMENT_QUEUE_NAME));
 
     return worker;
 }

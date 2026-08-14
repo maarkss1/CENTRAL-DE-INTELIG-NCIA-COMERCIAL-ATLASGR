@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runBitrixSyncTick } from '../../features/integrations/bitrix/bitrix.service.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const BITRIX_SYNC_QUEUE_NAME = 'bitrix-sync';
 
@@ -10,6 +11,7 @@ const RUN_EVERY_MS = 15 * 60 * 1000;
 
 export const bitrixSyncQueue = new Queue(BITRIX_SYNC_QUEUE_NAME, { connection });
 bitrixSyncQueue.on('error', (err) => logger.warn({ message: err.message }, 'bitrixSyncQueue offline'));
+registerQueueForMetrics(BITRIX_SYNC_QUEUE_NAME, bitrixSyncQueue);
 
 export function createBitrixSyncWorker() {
     // Um único job global (não um por organização): diferente do enxame autônomo/prospecção fria,
@@ -26,6 +28,8 @@ export function createBitrixSyncWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Execução da sincronização automática do Bitrix falhou.');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(BITRIX_SYNC_QUEUE_NAME));
 
     return worker;
 }

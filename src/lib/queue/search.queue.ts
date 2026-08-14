@@ -2,12 +2,14 @@ import { Queue, Worker, QueueEvents, Job } from 'bullmq';
 import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { meili } from '../search/index.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const SEARCH_QUEUE_NAME = 'search-indexing';
 
 export const searchQueue = queuesEnabled
     ? new Queue(SEARCH_QUEUE_NAME, { connection })
     : null;
+registerQueueForMetrics(SEARCH_QUEUE_NAME, searchQueue);
 export const searchQueueEvents = queuesEnabled
     ? new QueueEvents(SEARCH_QUEUE_NAME, { connection })
     : null;
@@ -53,6 +55,8 @@ export const createSearchWorker = () => {
     worker.on('error', (err) => {
         logger.error({ err }, 'Search Worker error');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(SEARCH_QUEUE_NAME));
 
     return worker;
 };
