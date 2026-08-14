@@ -9,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
         automation: { findMany: vi.fn(), update: vi.fn() },
         notification: { create: vi.fn() },
         activity: { create: vi.fn() },
+        auditLog: { create: vi.fn() },
     },
 }));
 
@@ -32,6 +33,9 @@ import { automationEngine, type AutomationEvent } from '@/features/automations/a
 const automationMock = prisma.automation as unknown as {
     findMany: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+};
+const auditLogMock = prisma.auditLog as unknown as {
+    create: ReturnType<typeof vi.fn>;
 };
 const mockCallLead = vi.mocked(callLead);
 
@@ -59,6 +63,7 @@ function regraLigar(over: Record<string, unknown> = {}) {
 beforeEach(() => {
     vi.clearAllMocks();
     automationMock.update.mockResolvedValue({});
+    auditLogMock.create.mockResolvedValue({});
     mockCallLead.mockResolvedValue({ sessionId: 'sess-1', callSid: 'CA1', status: 'queued' });
 });
 
@@ -70,6 +75,7 @@ describe('Automação "Ligar via SDR de Voz"', () => {
 
         expect(executadas).toBe(1);
         expect(mockCallLead).toHaveBeenCalledWith(ORG, 'lead-9');
+        expect(auditLogMock.create).toHaveBeenCalled();
     });
 
     it('respeita a condição da regra — não liga para lead que não casa com o filtro', async () => {
@@ -107,6 +113,7 @@ describe('Automação "Ligar via SDR de Voz"', () => {
         expect(executadas).toBe(1);
         expect(logger.error).not.toHaveBeenCalled();
         expect(logger.info).toHaveBeenCalled();
+        expect(auditLogMock.create).toHaveBeenCalled();
     });
 
     it('recusa o evento de atividade, que não tem lead para ligar', async () => {

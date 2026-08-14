@@ -52,7 +52,7 @@ function isKnownTab(tab: string): tab is TabType {
 // já que TypeScript não expõe os literais de um type alias em runtime.
 const TAB_ROUTE_SET: Record<TabType, true> = {
     dashboard: true, companies: true, contacts: true, crm: true, activities: true, prospect: true,
-    enrich: true, intelligence: true, prompts: true, chatbook: true, roleplay: true,
+    enrich: true, intelligence: true, 'market-intelligence': true, prompts: true, chatbook: true, roleplay: true,
     qualification_matrix: true, objections_matrix: true, topic_training: true, bitrix: true,
     reports: true, integrations: true, knowledge: true, analytics: true, winloss: true, calendar: true,
     notifications: true, automations: true, usage: true, editor: true, team: true, settings: true,

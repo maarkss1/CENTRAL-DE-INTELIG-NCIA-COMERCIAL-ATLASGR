@@ -66,11 +66,12 @@ export async function scheduleDeduplicationJob() {
         connection: connection as any
     });
     
-    // Roda domingo meia-noite (0 0 * * 0)
-    await queue.add('weekly-dedup', {}, {
-        repeat: {
-            pattern: '0 0 * * 0'
-        }
+    // Roda domingo meia-noite (0 0 * * 0).
+    // BullMQ v6 removeu `repeat` de `Queue.add` (viraria um job avulso, nunca mais se repete) —
+    // agendamento recorrente agora exige `upsertJobScheduler`, idempotente pelo id abaixo.
+    await queue.upsertJobScheduler('weekly-dedup', { pattern: '0 0 * * 0' }, {
+        name: 'weekly-dedup',
+        data: {},
     });
     
     logger.info('Deduplication job scheduled (cron: 0 0 * * 0)');
