@@ -15,7 +15,9 @@ interface BitrixConnectionSummary {
 export function useBitrixIntegration() {
     const [bitrixConnections, setBitrixConnections] = useState<BitrixConnectionSummary[]>([]);
     const [selectedBitrixConnectionId, setSelectedBitrixConnectionId] = useState<string | null>(null);
-    const [bitrixWebhookInput, setBitrixWebhookInput] = useState('https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/');
+    // Nunca pré-preencher com uma URL real: a URL de webhook do Bitrix É a credencial (token no
+    // path) e um valor default real neste arquivo ficaria versionado no git.
+    const [bitrixWebhookInput, setBitrixWebhookInput] = useState('');
     const [bitrixLabelInput, setBitrixLabelInput] = useState('AtlasGR Bitrix24');
     const [bitrixLoading, setBitrixLoading] = useState(false);
 

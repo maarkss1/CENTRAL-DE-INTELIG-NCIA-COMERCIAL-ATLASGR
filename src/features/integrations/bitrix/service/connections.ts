@@ -25,10 +25,17 @@ function buildWebhookReceiverUrl(connectionId: string): string {
     return `${base}/api/integrations/bitrix/webhook/${connectionId}`;
 }
 
-export const ATLAS_BITRIX_WEBHOOK_URL = process.env.BITRIX_WEBHOOK_URL || 'https://atlasgr.bitrix24.com.br/rest/450/xa4srbrft9jpe880/';
-export const TOTALTRAC_BITRIX_WEBHOOK_URL = process.env.TOTALTRAC_BITRIX_WEBHOOK_URL || 'https://totaltrac.bitrix24.com.br/rest/2486/qq9u2cn62c8sfkxy/';
+// URLs de webhook do Bitrix24 SÃO credenciais (o token de acesso fica no path) — nunca podem ter
+// fallback hardcoded aqui: as duas URLs reais que existiam neste arquivo ficaram expostas no git e
+// devem ser consideradas comprometidas/rotacionadas. Sem a env correspondente, o autoconnect
+// simplesmente não acontece (a organização conecta manualmente pela tela de Integrações).
+// BITRIX24_WEBHOOK_URL é o nome documentado em .env.example (BITRIX_WEBHOOK_URL aceito como alias
+// legado); TOTALTRAC_BITRIX24_WEBHOOK_URL idem para o portal TotalTrac.
+export const ATLAS_BITRIX_WEBHOOK_URL = process.env.BITRIX24_WEBHOOK_URL || process.env.BITRIX_WEBHOOK_URL || null;
+export const TOTALTRAC_BITRIX_WEBHOOK_URL = process.env.TOTALTRAC_BITRIX24_WEBHOOK_URL || process.env.TOTALTRAC_BITRIX_WEBHOOK_URL || null;
 
-/** Lista todos os portais Bitrix conectados desta organização — se não houver nenhum, autoconecta o webhook específico da empresa (TotalTrac x AtlasGR). */
+/** Lista todos os portais Bitrix conectados desta organização — se não houver nenhum e a env do
+ * webhook da marca estiver configurada, autoconecta o portal correspondente (TotalTrac x AtlasGR). */
 export async function listBitrixConnections(organizationId: string): Promise<BitrixConnectionSummary[]> {
     let connections = await prisma.bitrixConnection.findMany({
         where: { organizationId },
@@ -44,16 +51,22 @@ export async function listBitrixConnections(organizationId: string): Promise<Bit
             });
             const orgName = (org?.name || '').toLowerCase();
             const isTotalTrac = orgName.includes('totaltrac') || orgName.includes('total track');
+            const isAtlas = orgName.includes('atlas');
 
-            const defaultWebhook = isTotalTrac ? TOTALTRAC_BITRIX_WEBHOOK_URL : ATLAS_BITRIX_WEBHOOK_URL;
+            // Só as duas marcas conhecidas herdam webhook padrão. Qualquer outra organização
+            // (tenant novo/desconhecido) NUNCA recebe credencial de outra empresa por default —
+            // era exatamente o vazamento cross-tenant apontado no inventário de segurança.
+            const defaultWebhook = isTotalTrac ? TOTALTRAC_BITRIX_WEBHOOK_URL : isAtlas ? ATLAS_BITRIX_WEBHOOK_URL : null;
             const defaultLabel = isTotalTrac ? 'TotalTrac Bitrix24' : 'AtlasGR Bitrix24';
 
-            await connectBitrix(organizationId, defaultWebhook, defaultLabel);
-            connections = await prisma.bitrixConnection.findMany({
-                where: { organizationId },
-                select: { id: true, label: true, webhookUrl: true, webhookSecret: true, inboundEventsEnabled: true },
-                orderBy: { createdAt: 'asc' },
-            });
+            if (defaultWebhook) {
+                await connectBitrix(organizationId, defaultWebhook, defaultLabel);
+                connections = await prisma.bitrixConnection.findMany({
+                    where: { organizationId },
+                    select: { id: true, label: true, webhookUrl: true, webhookSecret: true, inboundEventsEnabled: true },
+                    orderBy: { createdAt: 'asc' },
+                });
+            }
         } catch (err) {
             logger.warn({ err, organizationId }, 'Não foi possível autoconectar o webhook padrão do Bitrix24.');
         }
