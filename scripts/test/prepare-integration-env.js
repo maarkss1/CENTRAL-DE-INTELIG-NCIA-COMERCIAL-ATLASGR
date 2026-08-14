@@ -66,6 +66,23 @@ if (!existsSync(envTestPath)) {
 // Só local: no CI, o service container do Postgres já sobe com POSTGRES_DB=prospectordb_test
 // (ver .github/workflows/ci.yml), e um step dedicado do workflow já roda o mesmo bootstrap.
 if (!isCI) {
+  // O compose up retorna assim que o container inicia — o postgres dentro dele ainda está no
+  // initdb (primeiro boot demora vários segundos). Sem esta espera, o docker exec psql abaixo
+  // falhava com "connection to server on socket ... failed" em toda primeira execução.
+  const readyDeadline = Date.now() + 60000;
+  for (;;) {
+    const ready = spawnSync('docker', [
+      'exec', POSTGRES_CONTAINER, 'pg_isready', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB,
+    ], { encoding: 'utf-8' });
+    if (ready.status === 0) break;
+    if (Date.now() > readyDeadline) {
+      console.error('Timeout esperando o Postgres do container ficar pronto (pg_isready).');
+      process.exit(1);
+    }
+    // Sleep portátil (o `timeout` do Windows recusa stdin redirecionado; `sleep` não existe lá).
+    spawnSync(process.execPath, ['-e', 'setTimeout(() => {}, 2000)'], { stdio: 'ignore' });
+  }
+
   const exists = spawnSync('docker', [
     'exec', POSTGRES_CONTAINER, 'psql', '-U', BOOTSTRAP_SUPERUSER, '-d', BOOTSTRAP_DB, '-tAc',
     `SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'`,
