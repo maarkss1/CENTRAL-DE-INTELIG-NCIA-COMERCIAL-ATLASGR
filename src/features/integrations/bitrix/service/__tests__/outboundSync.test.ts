@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { bitrixSyncFailuresTotal } from '../metrics.js';
 
 vi.mock('@/lib/logger', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -40,6 +41,7 @@ const baseLead = {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    bitrixSyncFailuresTotal.reset();
     prismaMock.bitrixSyncLog.create.mockResolvedValue({});
     prismaMock.lead.update.mockResolvedValue({});
     prismaMock.lead.updateMany.mockResolvedValue({ count: 1 }); // reivindica a corrida por padrão
@@ -140,6 +142,12 @@ describe('syncLeadToBitrix — criação (P1-3, P2-2, P2-3 da auditoria)', () =>
         expect(prismaMock.bitrixSyncLog.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({ status: 'failed' }),
         }));
+
+        // Handoff 10-para-06 (bloqueador #11): a falha também precisa incrementar o Counter
+        // Prometheus consumido pelo alerta BitrixSyncFailuresHigh, não só o log/BitrixSyncLog.
+        const metric = await bitrixSyncFailuresTotal.get();
+        const point = metric.values.find((v) => v.labels.tenant === 'org-1' && v.labels.entity === 'lead');
+        expect(point?.value).toBe(1);
     });
 
     it('inclui STATUS_ID/ASSIGNED_BY_ID no payload quando overrides são passados (P3-2)', async () => {

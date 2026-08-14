@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { bitrixSyncFailuresTotal } from '../metrics.js';
 
 vi.mock('@/lib/logger', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -26,6 +27,7 @@ vi.mock('../deals.js', () => ({
 
 beforeEach(() => {
     vi.clearAllMocks();
+    bitrixSyncFailuresTotal.reset();
     prismaMock.bitrixSyncLog.create.mockResolvedValue({});
 });
 
@@ -55,6 +57,12 @@ describe('runBitrixSyncTick — bloqueador #11 (sincronização não pode falhar
         expect(prismaMock.bitrixSyncLog.create).toHaveBeenCalledWith(
             expect.objectContaining({ data: expect.objectContaining({ status: 'failed', errorMessage: 'webhook desconectado' }) }),
         );
+
+        // Handoff 10-para-06 (bloqueador #11): a falha de regra também precisa incrementar o
+        // Counter Prometheus consumido pelo alerta BitrixSyncFailuresHigh.
+        const metric = await bitrixSyncFailuresTotal.get();
+        const point = metric.values.find((v) => v.labels.tenant === 'org-1' && v.labels.entity === 'lead');
+        expect(point?.value).toBe(1);
     });
 
     it('uma regra com falha não impede as demais regras/organizações de rodar', async () => {

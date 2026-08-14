@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runBitrixSyncTick } from '../../features/integrations/bitrix/bitrix.service.js';
+import { bitrixSyncFailuresTotal } from '../../features/integrations/bitrix/service/metrics.js';
 
 export const BITRIX_SYNC_QUEUE_NAME = 'bitrix-sync';
 
@@ -25,6 +26,12 @@ export function createBitrixSyncWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Execução da sincronização automática do Bitrix falhou.');
+        // runBitrixSyncTick já captura e conta (bitrixSyncFailuresTotal) toda falha POR REGRA
+        // internamente — chegar aqui significa que o tick inteiro rejeitou antes disso (ex.: a
+        // própria query que lista as organizações falhou), sem contexto de tenant/entidade
+        // específico. "unknown"/"tick" torna essa falha visível na mesma métrica em vez de só no
+        // log, sem fingir que ela pertence a uma organização ou regra que nunca chegou a rodar.
+        bitrixSyncFailuresTotal.inc({ tenant: 'unknown', entity: 'tick' });
     });
 
     return worker;

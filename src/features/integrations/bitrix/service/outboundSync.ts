@@ -6,6 +6,7 @@ import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { fromPrismaLeadStatus } from '../../../../lib/enumMap.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
 import { resolveEnumMaps, buildOutboundCustomFields } from './customFields.js';
+import { bitrixSyncFailuresTotal } from './metrics.js';
 
 export interface SyncLeadOverrides {
     /** STATUS_ID de destino no Bitrix — sem isto, o Bitrix aplica o status padrão do funil ao criar. */
@@ -19,6 +20,12 @@ async function logSync(params: {
     leadId: string; bitrixRecordId: string | null; status: 'success' | 'failed';
     errorMessage?: string | null; correlationId: string;
 }): Promise<void> {
+    // Sinal agregado/acionável por alerta (bloqueador #11 de /AGENTS.md) — antes desta métrica, uma
+    // falha de push só existia como uma linha de BitrixSyncLog, sem nenhum jeito de disparar um
+    // alerta quando o mesmo tenant acumulasse várias falhas seguidas. Ver metrics.ts.
+    if (params.status === 'failed') {
+        bitrixSyncFailuresTotal.inc({ tenant: params.organizationId, entity: params.entityType });
+    }
     await prisma.bitrixSyncLog.create({
         data: {
             organizationId: params.organizationId,
