@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { PageHeader } from '../components/ui/PageHeader';
 import { LineChart } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
