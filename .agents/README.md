@@ -14,10 +14,19 @@
 - `prompts/09-mobile.md`
 - `prompts/10-infraestrutura-sre.md`
 - `prompts/11-marca-institucional.md`
+- `prompts/12-voz-telefonia.md`
+- `prompts/13-enxame-governanca-agentes.md`
+- `prompts/14-ambiente-execucao-harness.md`
+- `prompts/15-seguranca-aplicada.md`
+- `prompts/16-runtime-workers-escala.md`
+- `prompts/17-cadencia-ciclo-receita.md`
+- `prompts/18-contratos-api-docs.md`
+- `prompts/01A-dados-rls-retencao.md` — especialista interno do Agente 01, mesmo slot
 - `COMO-CHAMAR-OS-AGENTES.md` — prompts prontos para colar, um por agente, para abrir a sessão correspondente em qualquer ferramenta de agente de código
 
 ## Pastas de execução (criadas em runtime, não versionadas com conteúdo sensível)
-- `runs/` — relatórios de onda do Coordenador (`onda-1.md`, `onda-2.md`, `onda-3.md`, `baseline.md`). Somente o Coordenador escreve aqui.
+- `runs/` — relatórios de onda do Coordenador (`baseline.md`, `onda-2.md`, `onda-2.5.md`, `onda-4.md`, `onda-5.md`, …). Somente o Coordenador escreve aqui. Inclui a matriz de propriedade que `/AGENTS.md` → "Regra de concorrência" exige antes de disparar uma onda com mais de 3 especialistas.
+- `completion/` — mapa da plataforma, inventário, bloqueadores e o plano das Ondas 6–8 de finalização.
 - `handoffs/onda-<n>/` — um arquivo por handoff, formato definido em `/AGENTS.md` → "Protocolo de handoff". Qualquer agente cria o próprio arquivo.
 
 ## Como executar
