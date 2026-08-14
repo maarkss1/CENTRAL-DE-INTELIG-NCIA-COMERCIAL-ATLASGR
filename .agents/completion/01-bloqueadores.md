@@ -38,6 +38,10 @@
 
 ## Altos — em remediação na Onda 1 (3 especialistas em worktrees)
 
+_Nota de execução: a primeira tentativa (via Workflow) falhou nos 3 agentes por limite de sessão da
+conta; branches/worktrees vazios foram removidos e a onda foi relançada via Agent tool com
+isolamento de worktree individual, mesmo limite de 3 especialistas simultâneos._
+
 | # | Achado | Dono |
 |---|---|---|
 | 18 | render.yaml sem migrations no deploy (docs divergem) | 08 |
