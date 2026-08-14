@@ -3,7 +3,7 @@
 - **De**: 07 (IA e Automações)
 - **Para**: 11 (Marca e Ativos Institucionais)
 - **Onda**: 3
-- **Status**: aberto
+- **Status**: resolvido
 - **Prioridade**: bloqueador
 
 ## Problema
@@ -23,3 +23,19 @@ Compilação TypeScript falha no arquivo `src/features/lgpd/lgpd.service.ts` com
 
 ## Contexto adicional
 Esses erros surgiram após a integração da nova rota LGPD e impedem o merge na branch de integração. São bloqueadores críticos que precisam ser resolvidos antes de avançar.
+
+## Resolução
+Este handoff parece ter sido endereçado ao agente errado por engano: `src/features/lgpd/
+lgpd.service.ts` é um arquivo de backend (fora de `identidade-visual/**` e
+`documentacao-aplicacao/**`, o escopo exclusivo do Agente 11) — normalmente seria trabalho do
+Agente 01 (Plataforma, Segurança e Dados) ou do próprio Agente 07.
+
+Verificado durante a Onda 4 (Agente 11, 14/08/2026): `contact.leads`, `contact.
+whatsAppMessages` e `status` já existem e são usados corretamente no arquivo hoje, e `npx tsc
+--noEmit` na branch atual não reporta nenhum erro relacionado a `lgpd.service.ts` (o único erro de
+compilação encontrado nesta rodada é sobre `crm360`/`TabType`, tratado em handoff separado
+`.agents/handoffs/onda-4/11-para-02-crm360-rota-ausente.md`, sem relação com este). A correção já
+foi aplicada em algum ponto da integração da Onda 3/merge para `main`, antes desta sessão começar —
+não fui eu quem corrigiu. Fechando como resolvido para não ficar como bloqueador pendente
+apontando para o dono errado; se o Coordenador quiser confirmar quem aplicou a correção original,
+não há atribuição registrada em `.agents/handoffs/**` para isso.
