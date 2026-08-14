@@ -1,6 +1,6 @@
 # FONTES - Atlas GR National Market & Territory Intelligence System
 
-**Última revisão do catálogo:** 2026-08-13/14  
+**Última revisão do catálogo:** 2026-08-14  
 **Regra:** fonte catalogada não significa automaticamente dataset processado. O estado real de ingestão é controlado por `data/manifest.json`.
 
 ## Prioridade de fontes
@@ -22,9 +22,11 @@
 **Órgão:** Agência Nacional de Transportes Terrestres  
 **Conjunto:** RNTRC  
 **Catálogo:** `https://dados.antt.gov.br/dataset/rntrc`  
-**API CKAN usada pelo ETL:** `https://dados.antt.gov.br/api/3/action/package_show?id=rntrc`  
-**Competência:** mensal, registrada automaticamente pelo snapshot  
-**Data de acesso desta revisão:** 2026-08-13/14
+**Recurso publicado nesta versão:** `Jul26 - RNTRC`  
+**Resource ID:** `42a9f5fb-494f-4ad8-acc3-e8d836dbf0c3`  
+**Competência:** `2026-07`  
+**Última atualização declarada do recurso:** `2026-08-10`  
+**Data de processamento:** `2026-08-14`
 
 ### Dados utilizados
 
@@ -38,36 +40,76 @@
 - CTC;
 - ETC equiparada quando identificável.
 
+### Snapshot publicado
+
+- bruto: `158.740.046` bytes;
+- linhas processadas: `1.158.159`;
+- transportadores ativos: `899.249`;
+- municípios com presença RNTRC: `5.422`;
+- linhas ativas sem match IBGE: `391` (`0,0435%`);
+- SHA-256 bruto: `0c23cdf826bb3cd943827a5972b7a2b98cb4b5a3111d1feb80eec5ce382101eb`;
+- SHA-256 derivado: `a7e9379fef70cd8bcfb57621defa72dae12bb2b7da4f2b8dc74c1b9218013eca`.
+
 ### Transformação
 
-`etl_rntrc_atlas.py` descobre o recurso mensal mais recente no CKAN, baixa para cache fora do bundle, calcula hash, valida situação e agrega por código IBGE.
+`etl_rntrc_atlas.py` baixa para cache fora do bundle, calcula hash, filtra situação ativa, resolve geografia pelo IBGE e agrega por código municipal IBGE.
 
 ### Limitações
 
-- o arquivo bruto é grande e não deve ser carregado no navegador;
+- o arquivo bruto é grande e não entra no navegador;
 - nomes municipais exigem casamento com geografia oficial;
-- frota/veículos é camada separada;
-- uma linha sem match IBGE reduz qualidade e é contabilizada no metadata.
+- `391` linhas ativas do snapshot não casaram com IBGE e permanecem contabilizadas como perda de cobertura;
+- frota/veículos é camada separada e possui outra granularidade pública.
 
 ---
 
-## 2. ANTT - Veículos / frota RNTRC
+## 2. ANTT - RNTRC-Dados de Veículos / frota
 
-**Órgão:** ANTT  
-**Referência institucional:** perfil/dados do Transporte Rodoviário de Cargas no portal ANTT  
-**Data de acesso desta revisão:** 2026-08-13/14
+**Órgão:** Agência Nacional de Transportes Terrestres  
+**Conjunto:** `RNTRC-Dados de Veículos`  
+**Data de auditoria:** `2026-08-14`  
+**Dicionário oficial:** recurso `dicionario-de-dados-veiculos.pdf` do próprio conjunto ANTT.
 
-### Dados pretendidos
+### Schema oficial auditado
 
-- veículos ativos;
-- frota;
-- veículos de tração;
-- implementos;
-- vínculo com transportador/categoria.
+O dicionário oficial lista:
 
-### Limitação observada nesta revisão
+```text
+Categoria do Transportador
+Tipo de Veículo
+UF do Veículo
+Categoria
+Carroceria
+Ano de Fabricação do Veículo
+Quantidade
+```
 
-O recurso público de veículos encontrado no catálogo atual apresentou payload vazio ou tamanho incompatível com uma base nacional utilizável. Portanto, a plataforma **não estima frota** a partir do número de transportadores. Enquanto não houver recurso oficial íntegro ou exportação oficial alternativa validada, a camada deve permanecer `NÃO DISPONÍVEL` ou `PARCIAL` no manifest.
+Portanto:
+
+- a granularidade factual disponível neste recurso é **UF**;
+- `Tipo de Veículo` separa **Tração** e **Implemento**;
+- `Quantidade` é a medida aditiva da frota;
+- o recurso público **não contém município**;
+- o recurso público **não contém número RNTRC individual** para join com a base de transportadores;
+- qualquer uso municipal é obrigatoriamente `PROXY_UF`.
+
+### Evidência de disponibilidade
+
+**Recurso histórico Jul/2026:** o catálogo registrava aproximadamente `10,5 MiB`, porém o endereço físico devolveu HTTP 404 com HTML no CI em `2026-08-14`. O payload foi rejeitado e nenhum número foi publicado.
+
+**Recurso vigente Ago/2026:** Resource ID `69b79c0a-6fc9-42be-b014-224dff171915`. O catálogo oficial expõe tamanho incompatível com uma base nacional válida. O workflow `market-intelligence-fleet.yml` agora executa um `probe` de integridade: somente um CSV com HTTP válido e tamanho mínimo de segurança segue para o ETL.
+
+### Estado da plataforma
+
+Enquanto o recurso vigente não entregar payload nacional íntegro:
+
+```text
+status = NAO_DISPONIVEL
+geography = UF
+municipalUse = PROXY_UF
+```
+
+A plataforma não estima frota a partir do número de transportadores e não transforma ausência de arquivo em zero.
 
 ---
 
@@ -91,7 +133,7 @@ O recurso público de veículos encontrado no catálogo atual apresentou payload
 
 ### Limitações
 
-A disponibilidade de visualização institucional não implica existência de download automatizável no mesmo formato. A plataforma só publicará agregado MDF-e quando houver exportação oficial reproduzível e competência registrada. O ETL v0.4 existente é apenas um normalizador e será evoluído.
+A disponibilidade de visualização institucional não implica existência de download automatizável no mesmo formato. A plataforma só publicará agregado MDF-e quando houver exportação oficial reproduzível e competência registrada.
 
 ---
 
@@ -135,7 +177,7 @@ A disponibilidade de visualização institucional não implica existência de do
 
 **Órgão:** Instituto Brasileiro de Geografia e Estatística  
 **API de municípios:** `https://servicodados.ibge.gov.br/api/v1/localidades/municipios`  
-**Data de acesso desta revisão:** 2026-08-13/14
+**Data de acesso desta revisão:** 2026-08-14
 
 ### Dados utilizados
 
@@ -147,11 +189,11 @@ A disponibilidade de visualização institucional não implica existência de do
 
 ### Regra
 
-`codigo_ibge` é a chave nacional canônica para integração municipal. Nome normalizado serve apenas como apoio de lookup.
+`codigo_ibge` é a chave nacional canônica para integração municipal. Nome normalizado serve apenas como apoio de lookup. O parser suporta a hierarquia geográfica histórica e o esquema atual da API, inclusive linhas com `microrregiao = null`.
 
 ### Limitações
 
-Divisões geográficas históricas, atuais e unidades político-administrativas não devem ser misturadas. A contagem do universo municipal será lida do snapshot e explicitada no metadata, sem número hardcoded na interface.
+Divisões geográficas históricas, atuais e unidades político-administrativas não devem ser misturadas. O ETL rejeita cadastro municipal materialmente incompleto.
 
 ---
 
@@ -281,7 +323,7 @@ Cada dataset publicado deve registrar no mínimo:
 fonte
 URL
 competencia
-data de download
+data de download ou probe
 nivel geografico
 ultima atualizacao quando disponível
 transformacoes
