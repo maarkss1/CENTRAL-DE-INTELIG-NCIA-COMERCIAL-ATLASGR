@@ -1,7 +1,7 @@
 - De: Agente 01 (Plataforma, Segurança e Dados)
 - Para: Agente 07 (IA, RAG, Agentes, Filas e Automações)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -52,3 +52,9 @@ proposital dado o schema atual (não é um bug de "esqueceram o filtro"), mas fi
 porque é fácil de reintroduzir a mesma falha de autorização se um dia esse modelo ganhar
 `organizationId` e alguém remover o `requireRole(['ADMIN'])` achando que o filtro de tenant já
 resolve.
+
+## Resolução — Onda 2.5
+O handoff estava documentalmente aberto apesar de o próprio conteúdo registrar a correção como
+concluída e testada. A Onda 2.5 fecha o status para refletir o estado técnico já entregue. Nenhuma
+regra de autorização foi relaxada e nenhuma alteração funcional adicional foi necessária neste
+fechamento documental.
