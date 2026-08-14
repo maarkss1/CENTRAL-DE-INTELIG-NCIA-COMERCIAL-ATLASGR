@@ -2,16 +2,15 @@
 --
 -- Corrige a falha observada em `npm run verify:ai`: chamadas de IA executadas fora de uma
 -- request HTTP (scripts, workers e verificadores) chegam a `logAiUsage()` sem tenant no
--- AsyncLocalStorage. Nesses casos o gateway grava `organizationId = NULL`, mas a policy antiga
--- era `FOR ALL` sem `WITH CHECK` explícito; no PostgreSQL o predicado de USING também acabava
--- validando INSERT e rejeitava a linha.
+-- AsyncLocalStorage. Nesses casos o gateway grava `organizationId = NULL`.
 --
--- Segurança: não usamos `WITH CHECK (true)` para AILog. Isso permitiria que roles expostas pelo
--- PostgREST fabricassem logs atribuídos a qualquer organização. Em vez disso separamos as
--- operações e permitimos uma linha não atribuída SOMENTE para uma conexão interna do banco, nunca
--- para as roles `anon` / `authenticated` usadas pelo PostgREST do Supabase.
+-- Prisma usa INSERT ... RETURNING. Portanto a linha recém-inserida também precisa satisfazer
+-- uma policy de SELECT no mesmo contexto; permitir NULL apenas no WITH CHECK de INSERT não basta.
 --
--- Leitura, update e delete continuam isolados por tenant (ou bypass explícito da aplicação).
+-- Segurança: NULL não é bypass de tenant. Uma linha não atribuída só pode ser criada/retornada
+-- quando NÃO existe tenant ativo na sessão e a conexão é interna do banco. Se houver
+-- app.current_tenant_id, mesmo uma conexão interna não pode fabricar nem enxergar AILog NULL.
+-- Roles expostas pelo PostgREST (anon/authenticated) nunca entram nesse corredor interno.
 
 DROP POLICY IF EXISTS tenant_isolation_policy ON "AILog";
 DROP POLICY IF EXISTS ailog_tenant_select_policy ON "AILog";
@@ -24,6 +23,11 @@ FOR SELECT
 USING (
     current_setting('app.current_tenant_id', TRUE) = "organizationId"
     OR current_setting('app.bypass_rls', TRUE) = 'on'
+    OR (
+        "organizationId" IS NULL
+        AND COALESCE(current_setting('app.current_tenant_id', TRUE), '') = ''
+        AND current_user NOT IN ('anon', 'authenticated')
+    )
 );
 
 CREATE POLICY ailog_tenant_insert_policy ON "AILog"
@@ -33,6 +37,7 @@ WITH CHECK (
     OR current_setting('app.bypass_rls', TRUE) = 'on'
     OR (
         "organizationId" IS NULL
+        AND COALESCE(current_setting('app.current_tenant_id', TRUE), '') = ''
         AND current_user NOT IN ('anon', 'authenticated')
     )
 );
