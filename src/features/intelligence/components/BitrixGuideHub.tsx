@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layers, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Layers, CheckCircle2, Clock } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 
@@ -101,6 +101,12 @@ export function BitrixGuideHub() {
 
       {activeTab === 'tutorials' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Estes vídeos ainda não existem — o roteiro (título, duração e nível estimados) está
+              pronto, mas gravar/publicar cada um é trabalho pendente de outro time. Antes disto,
+              o card tinha um botão "Assistir Tutorial" que não tocava nada (nenhum vídeo estava
+              linkado). Preservamos o roteiro (conteúdo real, não decorativo — CLAUDE.md seção 6)
+              e trocamos só o CTA por um estado honesto de "em produção", sem fingir um play que
+              não funciona. */}
           {tutorials.map((t, idx) => (
             <div key={idx} className="p-5 rounded-3xl bg-surface border border-line shadow-sm space-y-3 flex flex-col justify-between">
               <div>
@@ -109,9 +115,12 @@ export function BitrixGuideHub() {
                 </span>
                 <h4 className="font-extrabold text-xs text-ink mt-3">{t.title}</h4>
               </div>
-              <button className={`w-full ${accent.solidBg} text-white py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer`}>
-                <span>Assistir Tutorial</span> <ExternalLink className="w-3.5 h-3.5" />
-              </button>
+              <div
+                className="w-full bg-surface-2 text-ink-2 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-2 border border-line border-dashed"
+                aria-label={`${t.title} — vídeo em produção, ainda não disponível`}
+              >
+                <Clock className="w-3.5 h-3.5" /> <span>Em produção — em breve</span>
+              </div>
             </div>
           ))}
         </div>
