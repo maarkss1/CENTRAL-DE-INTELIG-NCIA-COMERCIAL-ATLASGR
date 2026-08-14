@@ -4,6 +4,7 @@ import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 import { cacheConnection } from '../queue/redis.js';
 import { getLangfuseClient } from '../langfuse.js';
+import { recordAiUsageCost } from './metrics.js';
 
 /**
  * Envia um trace de observabilidade para o Langfuse (se LANGFUSE_PUBLIC_KEY/SECRET_KEY estiverem
@@ -544,6 +545,20 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
 
             const usage = response.usage;
             const content = response.choices?.[0]?.message?.content?.trim() ?? '';
+
+            // Métrica de custo (ai_usage_cost_usd_total): registrada aqui, não em logAiUsage(), porque
+            // aqui já temos o provedor real que atendeu a chamada (providerUsed) — logAiUsage() só
+            // recebe model/usage, sem saber se veio de Groq/OpenAI/Gemini/LiteLLM. Dispara sempre que
+            // a chamada teve sucesso, independentemente de o chamador decidir persistir o AILog.
+            recordAiUsageCost(
+                providerUsed,
+                requestContext.getStore()?.tenantId,
+                estimateCostUsd(response.model || resolvedModel, {
+                    totalTokens: usage?.total_tokens ?? 0,
+                    promptTokens: usage?.prompt_tokens ?? 0,
+                    completionTokens: usage?.completion_tokens ?? 0,
+                }),
+            );
 
             traceAiGeneration({
                 provider: providerUsed,
