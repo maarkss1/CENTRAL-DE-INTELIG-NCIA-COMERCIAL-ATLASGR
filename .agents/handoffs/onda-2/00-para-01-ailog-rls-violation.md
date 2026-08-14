@@ -1,7 +1,7 @@
 - De: Agente 00 (Coordenador)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 2
-- Status: resolvido
+- Status: aberto
 - Prioridade: alto
 
 ## Problema
@@ -52,12 +52,32 @@ a aprovação da Onda 2 (script `verify:ai` retorna exit 0 porque a geração de
 sucesso — só o log de uso falha silenciosamente, exatamente o tipo de "falha silenciosa" que o
 `AGENTS.md` pede para nunca aceitar como sucesso).
 
-## Resolução
-Resolvido na Onda 2.5 pelo Agente 01 (ver `.agents/runs/onda-2.5.md`): migration
-`20260813230000_fix_ailog_rls_unattributed_internal_writes` separa a policy monolítica em
-SELECT/INSERT/UPDATE/DELETE — leitura/mutação atribuída continua tenant-scoped, e log sem
-atribuição (`organizationId = null`, telemetria interna) passa a ser aceito só por conexão interna,
-nunca pelas roles PostgREST `anon`/`authenticated`. Cobertura em
-`tests/integration/ailog-rls.test.ts` (escrita do tenant correto, bloqueio cross-tenant, telemetria
-interna não atribuída, invisibilidade para tenant comum, ausência de vazamento no SELECT).
-Confirmado presente em `main` nesta sessão (Onda 4).
+## Reabertura (correção de registro — Onda 5)
+Eu (Coordenador) tinha marcado este handoff como "resolvido" na integração da Onda 4 só por
+confirmar que a migration `20260813230000_fix_ailog_rls_unattributed_internal_writes` e o teste
+`tests/integration/ailog-rls.test.ts` EXISTEM no código — sem rodar o teste de fato. Isso foi um
+erro meu: rodei a suíte de integração de verdade durante o gate da rodada de remediação (Onda 5) e
+2 dos 5 testes do arquivo continuam falhando, tanto em `integracao/onda-5` quanto em `main` puro
+(confirmado fazendo checkout limpo de `main` e rodando `npx vitest run tests/integration/ailog-rls.test.ts`
+isoladamente — não é regressão desta rodada):
+
+```
+FAIL tests/integration/ailog-rls.test.ts > permite telemetria interna não atribuída sem
+     transformar NULL em bypass de leitura
+FAIL tests/integration/ailog-rls.test.ts > SELECT continua isolado por tenant e não expõe logs de
+     outra organização
+DriverAdapterError: new row violates row-level security policy for table "AILog"
+```
+
+Os 3 testes de escrita tenant-scoped/cross-tenant passam (a policy básica de tenant funciona). Os 2
+que falham são justamente os dois cenários que a migration da Onda 2.5 deveria ter corrigido:
+telemetria interna sem tenant (`organizationId = NULL`, insert fora de `requestContext.run(...)`) e
+isolamento de SELECT entre duas organizações reais criadas em sequência. A causa raiz não foi
+investigada a fundo por mim — hipóteses não confirmadas: `current_setting('app.current_tenant_id',
+TRUE)` pode não estar retornando vazio/NULL quando nenhum tenant está ativo na conexão pooled
+(possível vazamento de `SET` entre requisições reaproveitando a mesma conexão do pool, em vez de
+`SET LOCAL` escopado à transação), ou `current_user` na conexão de teste não é o que a policy espera.
+
+Voltando `Status` para `aberto` — quem pegar este handoff deve investigar com a extensão real do
+Prisma (`src/lib/prisma.ts`) como/quando `app.current_tenant_id` é setado por conexão vs. por
+transação, não só reler a migration.
