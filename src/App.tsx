@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
@@ -19,6 +19,7 @@ const LoginScreen = lazy(() => import('./features/auth/components/LoginScreen').
 const ResetPasswordScreen = lazy(() => import('./features/auth/components/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })));
 const ProspectingHub = lazy(() => import('./features/prospecting/components/ProspectingHub').then(m => ({ default: m.ProspectingHub })));
 const CrmBoard = lazy(() => import('./components/CrmBoard').then(m => ({ default: m.CrmBoard })));
+const CrmOverview = lazy(() => import('./features/crm360/components/CrmOverview').then(m => ({ default: m.CrmOverview })));
 const IntelligenceHub = lazy(() => import('./features/intelligence/components/IntelligenceHub').then(m => ({ default: m.IntelligenceHub })));
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
@@ -64,6 +65,21 @@ function PageFallback() {
   );
 }
 
+// Ponte entre o `onNavigate(chave semântica)` do CrmOverview (módulo crm360 — cockpit com KPIs
+// reais vindos de /api/crm/overview, órfão até aqui: rota/menu inexistentes apesar do backend
+// completo, ver crm360.routes.ts) e a navegação real de rota do app. Só 'foco' e 'negocios' têm
+// destino real hoje (Agenda e Pipeline CRM); os quick-actions de documentos/pipeline-config do
+// componente foram deixados não-clicáveis nele mesmo, então este mapeamento nunca recebe outra
+// chave — ver CrmOverview.tsx para o raciocínio completo.
+function CrmOverviewRoute() {
+  const navigate = useNavigate();
+  return (
+    <CrmOverview
+      onNavigate={(tab) => navigate(`/app/${tab === 'foco' ? 'activities' : 'crm'}`)}
+    />
+  );
+}
+
 function AppLayout() {
   return (
     <MainLayout>
@@ -74,6 +90,7 @@ function AppLayout() {
           <Route index element={<SinglePageDashboard />} />
           <Route path="prospect" element={<ProspectingHub />} />
           <Route path="crm" element={<CrmBoard />} />
+          <Route path="crm360" element={<CrmOverviewRoute />} />
           <Route path="intelligence" element={<IntelligenceHub />} />
           <Route path="companies" element={<CompanyList />} />
           <Route path="contacts" element={<ContactList />} />

@@ -181,9 +181,23 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
             </section>
 
             <div className="grid gap-3 sm:grid-cols-3">
-                <button onClick={() => onNavigate('documentos')} className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"><span><strong className="block text-ink">Documentos comerciais</strong><small className="text-ink-2">{data.kpis.pendingDocuments} em aberto</small></span><FileClock className="h-5 w-5 text-brand" /></button>
+                {/* "Documentos comerciais" e "Saúde do CRM" mostram KPIs reais (contagem vinda de
+                    /api/crm/overview), mas o backend de orçamentos/propostas (crm360.routes.ts:
+                    /documents, /pipelines, /products) ainda não tem nenhuma tela própria no app —
+                    só esta visão geral foi construída. Virar onNavigate('documentos'/'configuracoes')
+                    levaria a uma rota inexistente, redirecionada de volta ao dashboard sem aviso.
+                    Mantemos o número real visível (conteúdo, não decorativo) e tiramos só a
+                    afirmação de clique — ver CLAUDE.md seção 6 (preservar conteúdo, remover só o
+                    que promete algo que não existe) e o item 6 da auditoria (registrado como
+                    "parcial": cockpit ligado e funcional, sub-telas de documentos/pipeline
+                    ainda não construídas). */}
+                <div className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80" aria-label="Documentos comerciais — tela dedicada ainda não disponível">
+                    <span><strong className="block text-ink">Documentos comerciais</strong><small className="text-ink-2">{data.kpis.pendingDocuments} em aberto · tela dedicada em breve</small></span><FileClock className="h-5 w-5 text-ink-2" />
+                </div>
                 <button onClick={() => onNavigate('foco')} className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"><span><strong className="block text-ink">Agenda inteligente</strong><small className="text-ink-2">{data.kpis.todayActivities} compromissos hoje</small></span><CalendarClock className="h-5 w-5 text-brand" /></button>
-                <button onClick={() => onNavigate('configuracoes')} className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"><span><strong className="block text-ink">Saúde do CRM</strong><small className="text-ink-2">Pipelines e etapas configuráveis</small></span><Gauge className="h-5 w-5 text-brand" /></button>
+                <div className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80" aria-label="Saúde do CRM — configuração de pipelines ainda não disponível">
+                    <span><strong className="block text-ink">Saúde do CRM</strong><small className="text-ink-2">Pipelines e etapas · tela dedicada em breve</small></span><Gauge className="h-5 w-5 text-ink-2" />
+                </div>
             </div>
         </div>
     );

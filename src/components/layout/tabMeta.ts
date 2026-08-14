@@ -2,11 +2,11 @@ import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
     Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell,
     BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog, Settings as SettingsIcon,
-    LineChart,
+    LineChart, Gauge,
 } from 'lucide-react';
 
 /** Identificador de cada módulo navegável — fonte única usada pela Sidebar, Topbar e Command Palette. */
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'market-intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'crm360' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'market-intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
@@ -14,6 +14,7 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     commercial_intelligence: { label: 'Comercial Inteligente', icon: LineChart },
     prospect: { label: 'Prospecção', icon: Search },
     crm: { label: 'Pipeline CRM', icon: LayoutTemplate },
+    crm360: { label: 'Cockpit CRM', icon: Gauge },
     contacts: { label: 'Decisores', icon: Users },
     companies: { label: 'Empresas', icon: Building2 },
     activities: { label: 'Agenda', icon: Activity },
