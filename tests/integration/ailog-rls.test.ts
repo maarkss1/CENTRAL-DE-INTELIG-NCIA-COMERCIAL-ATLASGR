@@ -18,6 +18,20 @@ function createLog(organizationId: string | null, promptId: string) {
     });
 }
 
+/**
+ * PrismaPromise é lazy. Fazer `requestContext.run(ctx, () => prisma.model...)` pode devolver o
+ * thenable antes de a query realmente começar, deixando a execução acontecer depois que o
+ * AsyncLocalStorage já restaurou o contexto externo do setup global. O await precisa acontecer
+ * dentro do callback para que cada asserção exercite de fato o tenant declarado pelo teste.
+ */
+function withTenant<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    return requestContext.run({ tenantId }, async () => await fn());
+}
+
+function withoutTenant<T>(fn: () => Promise<T>): Promise<T> {
+    return requestContext.run({}, async () => await fn());
+}
+
 describe('AILog: contrato RLS da Onda 2.5', () => {
     beforeEach(async () => {
         await requestContext.run({ bypassRls: true }, async () => {
@@ -43,7 +57,7 @@ describe('AILog: contrato RLS da Onda 2.5', () => {
     });
 
     it('permite escrita tenant-scoped quando o tenant da sessão coincide com organizationId', async () => {
-        const row = await requestContext.run({ tenantId: ORG_A }, () =>
+        const row = await withTenant(ORG_A, () =>
             createLog(ORG_A, 'onda-2.5-ailog-tenant-a'),
         );
 
@@ -52,7 +66,7 @@ describe('AILog: contrato RLS da Onda 2.5', () => {
 
     it('bloqueia escrita cross-tenant mesmo quando o payload tenta atribuir outro organizationId', async () => {
         await expect(
-            requestContext.run({ tenantId: ORG_A }, () =>
+            withTenant(ORG_A, () =>
                 createLog(ORG_B, 'onda-2.5-ailog-cross-tenant'),
             ),
         ).rejects.toThrow();
@@ -60,17 +74,19 @@ describe('AILog: contrato RLS da Onda 2.5', () => {
 
     it('bloqueia tenant que tenta fabricar telemetria não atribuída', async () => {
         await expect(
-            requestContext.run({ tenantId: ORG_A }, () =>
+            withTenant(ORG_A, () =>
                 createLog(null, 'onda-2.5-ailog-tenant-null'),
             ),
         ).rejects.toThrow();
     });
 
     it('permite telemetria interna não atribuída sem transformar NULL em bypass de leitura', async () => {
-        const unattributed = await createLog(null, 'onda-2.5-ailog-internal-unattributed');
+        const unattributed = await withoutTenant(() =>
+            createLog(null, 'onda-2.5-ailog-internal-unattributed'),
+        );
         expect(unattributed.organizationId).toBeNull();
 
-        const visibleToTenant = await requestContext.run({ tenantId: ORG_A }, () =>
+        const visibleToTenant = await withTenant(ORG_A, () =>
             prisma.aILog.findMany({
                 where: { promptId: 'onda-2.5-ailog-internal-unattributed' },
             }),
@@ -79,14 +95,14 @@ describe('AILog: contrato RLS da Onda 2.5', () => {
     });
 
     it('SELECT continua isolado por tenant e não expõe logs de outra organização', async () => {
-        await requestContext.run({ tenantId: ORG_A }, () =>
+        await withTenant(ORG_A, () =>
             createLog(ORG_A, 'onda-2.5-ailog-visible-a'),
         );
-        await requestContext.run({ tenantId: ORG_B }, () =>
+        await withTenant(ORG_B, () =>
             createLog(ORG_B, 'onda-2.5-ailog-hidden-b'),
         );
 
-        const rows = await requestContext.run({ tenantId: ORG_A }, () =>
+        const rows = await withTenant(ORG_A, () =>
             prisma.aILog.findMany({
                 where: { promptId: { startsWith: 'onda-2.5-ailog-' } },
                 orderBy: { promptId: 'asc' },
