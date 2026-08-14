@@ -1,7 +1,7 @@
 - De: 11 (Marca e Ativos Institucionais)
 - Para: 02 (Produto e UX)
 - Onda: 4
-- Status: aberto
+- Status: resolvido
 - Prioridade: bloqueador
 
 ## Problema
@@ -69,3 +69,18 @@ sem rota alguma: `enrich` ("Enriquecer") e `prompts` ("Commercial OS") — só e
 bloqueador (não há promessa de navegação visível ao usuário para eles, já que não aparecem em
 nenhuma lista de Sidebar), mas é código morto que vale limpar quando o Agente 02 mexer neste
 arquivo novamente — prioridade normal, não abri isso como um segundo handoff separado.
+
+## Resolução
+Corrigido diretamente pelo Coordenador (00) durante a integração da Onda 4, por ser pequeno,
+mecânico e seguir exatamente o padrão das outras 20+ rotas de `App.tsx` — em vez de esperar um ciclo
+de remediação do Agente 02 para destravar o gate da onda:
+- `src/lib/navigationBus.ts`: `crm360: true,` adicionado a `TAB_ROUTE_SET` (commit `7040c003`).
+- `src/App.tsx`: lazy import de `CrmOverview` + `<Route path="crm360" element={<CrmOverview
+  onNavigate={handleCrmOverviewNavigate} />} />`, com `handleCrmOverviewNavigate` usando
+  `useNavigate()` para navegar para `/app/<tab>` (commit `241afea0`).
+
+Verificado: `npx tsc --noEmit` limpo, `npm run lint` sem novos erros, `npm run build` passa. Não
+verificado visualmente no navegador nesta sessão (rota exige Postgres/Redis locais e login
+autenticado, não provisionados no ambiente desta execução) — recomendo ao dono humano confirmar
+visualmente (login → Sidebar → "Cockpit CRM") antes do release. Os dois itens de código morto
+(`enrich`/`prompts` sem rota) seguem como nota, não bloqueador.
