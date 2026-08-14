@@ -1,7 +1,7 @@
 - De: Agente 00 (Coordenador)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 2
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -51,3 +51,13 @@ Onda 0 não tinha credencial válida disponível e não chegou a exercitar este 
 a aprovação da Onda 2 (script `verify:ai` retorna exit 0 porque a geração de conteúdo em si teve
 sucesso — só o log de uso falha silenciosamente, exatamente o tipo de "falha silenciosa" que o
 `AGENTS.md` pede para nunca aceitar como sucesso).
+
+## Resolução
+Resolvido na Onda 2.5 pelo Agente 01 (ver `.agents/runs/onda-2.5.md`): migration
+`20260813230000_fix_ailog_rls_unattributed_internal_writes` separa a policy monolítica em
+SELECT/INSERT/UPDATE/DELETE — leitura/mutação atribuída continua tenant-scoped, e log sem
+atribuição (`organizationId = null`, telemetria interna) passa a ser aceito só por conexão interna,
+nunca pelas roles PostgREST `anon`/`authenticated`. Cobertura em
+`tests/integration/ailog-rls.test.ts` (escrita do tenant correto, bloqueio cross-tenant, telemetria
+interna não atribuída, invisibilidade para tenant comum, ausência de vazamento no SELECT).
+Confirmado presente em `main` nesta sessão (Onda 4).

@@ -1,7 +1,7 @@
 - De: 10
 - Para: 08
 - Onda: 4
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 ## Problema
 Ao rodar o gate obrigatório (`npm run lint`) no meu worktree (`agente/10-infraestrutura-sre`,

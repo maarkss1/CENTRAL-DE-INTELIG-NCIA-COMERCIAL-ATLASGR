@@ -1,7 +1,7 @@
 - De: 10
 - Para: 02
 - Onda: 4
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 ## Problema
 Ao rodar o gate obrigatório (`npx tsc --noEmit`) no meu worktree (`agente/10-infraestrutura-sre`,

@@ -1,7 +1,7 @@
 - De: Agente 04 (CRM e BI)
 - Para: Agente 05 (Prospecção)
 - Onda: 2
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -56,3 +56,12 @@ A integração real está em `src/features/integrations/whatsapp/`:
 - `components/WhatsAppChatPanel.tsx` + `hooks/useWhatsAppMessages.ts` — painel de conversa pronto,
   reusável (já usado por `src/features/prospecting/components/prospecting-hub/CandidateCard.tsx` e,
   a partir desta onda, também por `src/features/crm/components/LeadDetailDrawer.tsx`).
+
+## Resolução
+Opção 2 (re-arquitetar) foi aplicada: `whatsapp.service.ts` hoje é um wrapper fino
+(`ProspectingWhatsAppService`) que delega para `sendWhatsAppMessage`/`getWhatsAppStatus` da
+integração real (`src/features/integrations/whatsapp/whatsapp.service.ts`), sem mais nenhuma
+referência a `whatsapp-web.js`/`qrcode-terminal`. Confirmado nesta sessão (Onda 4): `npx tsc
+--noEmit` limpo, sem import quebrado. O wrapper em si não é importado por nenhum consumidor hoje
+(código morto benigno, não quebra build/typecheck) — decisão de remover ou conectar fica para quem
+mexer em `src/features/prospecting/**` novamente.

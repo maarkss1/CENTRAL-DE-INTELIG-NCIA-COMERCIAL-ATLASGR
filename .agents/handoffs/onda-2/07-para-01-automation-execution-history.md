@@ -1,7 +1,7 @@
 - De: Agente 07 (IA, RAG, Agentes, Filas e Automações)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 2
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -81,3 +81,14 @@ existe. Enquanto a migração não chega, `cold-leads-scanner.service.ts`
 (`src/features/automations/application/`) e `automation.engine.ts` já usam `runId`/log estruturado
 com correlação nos logs — não é histórico persistente/consultável pela UI, mas evita a automação
 "desaparecer" completamente sem rastro nenhum.
+
+## Resolução
+Resolvido na Onda 2.5 (ver `.agents/runs/onda-2.5.md`), sem criar uma tabela redundante: a
+implementação reutiliza `AuditLog` (já persistente, tenant-scoped, sob RLS) em vez do modelo
+`AutomationExecution` sugerido aqui. Contrato persistido por execução: `automationId`/nome,
+`organizationId`, `correlationId` único, trigger/entidade/`entityId`, snapshot sanitizado de
+`actionConfig`, status `success`/`failed`, início/fim/duração, `retryCount`, erro sanitizado — cobre
+o mesmo requisito (auditoria pós-fato, correlação, retry, isolamento de tenant). Ver
+`src/features/automations/automation-history.service.ts` e
+`tests/unit/features/automation-engine-run.test.ts`. Confirmado presente em `main` nesta sessão
+(Onda 4).
