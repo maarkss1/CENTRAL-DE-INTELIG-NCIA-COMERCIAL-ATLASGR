@@ -1,0 +1,118 @@
+name: Market Intelligence - RNTRC Snapshot
+
+on:
+  push:
+    branches:
+      - feat/atlas-national-territory-intelligence
+    paths:
+      - '.github/workflows/market-intelligence-rntrc.yml'
+      - 'public/tools/atlas-market-intelligence/etl_rntrc_atlas.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-intelligence-rntrc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aggregate-rntrc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: feat/atlas-national-territory-intelligence
+
+      - name: Show Python runtime
+        run: python3 --version
+
+      - name: Download and aggregate latest official RNTRC
+        run: |
+          python3 public/tools/atlas-market-intelligence/etl_rntrc_atlas.py \
+            --workdir .cache/market-intelligence \
+            --output public/tools/atlas-market-intelligence/data/rntrc_municipios.json \
+            --metadata public/tools/atlas-market-intelligence/data/rntrc_municipios.metadata.json
+
+      - name: Validate derived dataset and update manifest health
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('public/tools/atlas-market-intelligence/data')
+          data_path = root / 'rntrc_municipios.json'
+          meta_path = root / 'rntrc_municipios.metadata.json'
+          manifest_path = root / 'manifest.json'
+
+          rows = json.loads(data_path.read_text(encoding='utf-8'))
+          meta = json.loads(meta_path.read_text(encoding='utf-8'))
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+
+          if not rows:
+              raise SystemExit('RNTRC derivado vazio')
+
+          seen = set()
+          for row in rows:
+              code = str(row.get('ibgeCode', ''))
+              if not code.isdigit() or len(code) != 7:
+                  raise SystemExit(f'codigo IBGE invalido: {code!r}')
+              if code in seen:
+                  raise SystemExit(f'duplicidade municipal: {code}')
+              seen.add(code)
+              for key in ('transporters', 'etc', 'tac', 'ctc', 'etcEquiparada'):
+                  value = row.get(key)
+                  if not isinstance(value, int) or value < 0:
+                      raise SystemExit(f'valor RNTRC invalido em {code}/{key}: {value!r}')
+
+          stats = meta['stats']
+          active = max(int(stats.get('rows_active') or 0), 1)
+          unmatched = int(stats.get('rows_unmatched_geography') or 0)
+          unmatched_rate = unmatched / active
+          status = 'ATUALIZADO' if unmatched_rate <= 0.001 else 'PARCIAL'
+
+          for dataset in manifest['datasets']:
+              if dataset['id'] == 'rntrc':
+                  dataset.update({
+                      'status': status,
+                      'competence': meta['resource'].get('competence') or 'NAO_DISPONIVEL',
+                      'downloadedAt': meta.get('downloadedAt'),
+                      'sha256': meta.get('outputSha256'),
+                      'note': (
+                          f"Snapshot oficial processado em {len(rows)} municipios com transportadores; "
+                          f"{unmatched} linhas ativas sem match IBGE ({unmatched_rate:.4%}). "
+                          "Base bruta permanece fora do bundle web."
+                      ),
+                  })
+                  break
+
+          manifest['generatedAt'] = meta.get('downloadedAt') or manifest['generatedAt']
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          print(json.dumps({
+              'municipalities': len(rows),
+              'active_rows': active,
+              'unmatched_rows': unmatched,
+              'unmatched_rate': unmatched_rate,
+              'health': status,
+              'competence': meta['resource'].get('competence'),
+              'sha256': meta.get('outputSha256'),
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Commit compact derived data only
+        run: |
+          git config user.name "atlas-market-data-bot"
+          git config user.email "130610135+MaarksN@users.noreply.github.com"
+          git add \
+            public/tools/atlas-market-intelligence/data/rntrc_municipios.json \
+            public/tools/atlas-market-intelligence/data/rntrc_municipios.metadata.json \
+            public/tools/atlas-market-intelligence/data/manifest.json
+          if git diff --cached --quiet; then
+            echo "No derived-data changes to commit."
+            exit 0
+          fi
+          git commit -m "data(rntrc): atualiza snapshot municipal oficial"
+          git push origin HEAD:feat/atlas-national-territory-intelligence
