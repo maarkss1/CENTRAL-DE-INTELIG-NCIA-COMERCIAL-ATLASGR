@@ -1,7 +1,7 @@
 - De: Agente 06 (Integrações, Bitrix, Google, WhatsApp, 3CX e Voz)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -44,3 +44,18 @@ Bitrix client: nunca expor detalhe de infraestrutura (stack trace, IP interno, n
 mensagem que vai parar na tela de um usuário de negócio — só a causa em linguagem simples (ex.:
 "Webhook do Bitrix24 sem permissão ou token revogado", já é o padrão de mensagem usado em
 `BitrixDefinitiveError`/`AppError` no restante do arquivo).
+
+## Resolução
+
+Já implementado antes desta rodada de remediação (confirmado pelo Agente 01, não recriado do
+zero) — o campo existe em `prisma/schema.prisma`, model `BitrixSyncRule`, como `lastError String?
+@db.Text` (mesmo espírito do `lastErrorMessage` pedido, nome diferente), com migração aplicada em
+`prisma/migrations/20260810000000_bitrix_full_wiring_sync_status_audit/migration.sql`
+(`ALTER TABLE "BitrixSyncRule" ADD COLUMN "lastError" TEXT;`). `runBitrixSyncTick` em
+`src/features/integrations/bitrix/service/syncRules.ts` já grava `lastError: errorMessage`
+(`err instanceof Error ? err.message : String(err)`) no bloco de falha junto com `lastRunAt`, e
+limpa para `lastError: null` no bloco de sucesso (junto de `lastImportedCount`). Validado nesta
+rodada: `prisma validate`/`prisma migrate status` confirmam a coluna aplicada no banco de
+desenvolvimento local; `npx tsc --noEmit`, `npm run lint` e `npm run build` seguem verdes com este
+código presente. Não foi necessária nenhuma alteração de schema ou de `syncRules.ts` nesta rodada —
+handoff fechado por já estar implementado.

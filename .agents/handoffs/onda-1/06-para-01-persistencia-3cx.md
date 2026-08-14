@@ -1,7 +1,7 @@
 - De: Agente 06 (Integrações, Bitrix, Google, WhatsApp, 3CX e Voz)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -61,3 +61,37 @@ documentação do PABX do cliente antes de confiar nisto em produção. `process
 — eventos de chamada vindos do PABX (ex.: chamada atendida, encerrada) são descartados; não mexi
 nisso porque não conheço o formato real do payload do webhook o suficiente pra implementar direito
 sem adivinhar — registrado aqui como pendência conhecida, não como "resolvido".
+
+## Resolução
+
+Implementado por completo (Agente 01, remediação Onda 5) — os dois itens do handoff:
+
+1. **Modelo `ThreeCXConnection`** criado em `prisma/schema.prisma` (logo após `BitrixSyncLog`):
+   `id`, `organizationId` (+ relação `Organization.threeCXConnections[]`, `@@index([organizationId])`,
+   `onDelete: Cascade`), `label` (`@default("3CX")`), `pbxUrl`, `extension`, `apiKey`/`apiSecret`
+   (`String? @db.Text`), `autoDialEnabled` (`@default(true)`), `createdAt`/`updatedAt`. Mesmo padrão
+   de `BitrixConnection`: não é `@unique` por `organizationId` (uma organização pode ter mais de um
+   PABX). RLS habilitada com o mesmo `tenant_isolation_policy` (`ENABLE`+`FORCE ROW LEVEL SECURITY`,
+   policy comparando `app.current_tenant_id`/`app.bypass_rls`) das demais tabelas de conexão.
+   `apiKey`/`apiSecret` adicionados a `ENCRYPTED_FIELDS` em `src/lib/prisma.ts` — cifrados/decifrados
+   em repouso (AES-256-GCM) de forma transparente, mesmo tratamento de
+   `BitrixConnection.webhookUrl`/`webhookSecret`.
+2. **Migração** `prisma/migrations/20260814120000_three_cx_connection/migration.sql` — `CREATE TABLE`
+   + índice + FK + RLS, aplicada e validada localmente contra Postgres real (`prisma migrate deploy`
+   limpo em cima das 45 migrações já existentes, `prisma migrate status` confirma "up to date",
+   `prisma migrate diff` não mostra mais nenhuma divergência de `ThreeCXConnection` entre schema e
+   banco).
+3. **`threecx.service.ts`**: `memory3CXStore` (o `Map` em memória) removido. `get3CXConnectionsForOrg`
+   /`save3CXConnectionForOrg`/`delete3CXConnectionForOrg` agora são `async` e chamam
+   `prisma.threeCXConnection.findMany`/`create`/`deleteMany` (delete sempre escopado por
+   `{ id, organizationId }`, nunca só por `id`). Assinatura pública de
+   `list3CXConnections`/`connect3CX`/`test3CXConnection`/`disconnect3CX`/`make3CXCall` (o que as
+   rotas em `threecx.routes.ts` consomem) não mudou — só passaram a `await` as chamadas internas.
+   Testes: `src/features/integrations/threecx/__tests__/threecx.service.test.ts` (novo, 8 casos —
+   persistência via Prisma, delete escopado por tenant, resumo nunca expõe apiKey/apiSecret) e
+   `tests/unit/features/integrations/threecx/threecx.service.test.ts` (pré-existente, do próprio
+   Agente 06 — mock de `prisma.threeCXConnection` atualizado para o novo storage, os 4 testes de
+   honestidade de `make3CXCall` continuam verdes).
+
+Ver `.agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md` para o aviso formal ao
+Agente 06.

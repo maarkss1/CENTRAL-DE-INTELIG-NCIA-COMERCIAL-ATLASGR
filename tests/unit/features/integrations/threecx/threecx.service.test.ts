@@ -8,8 +8,32 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const createActivityMock = vi.fn();
 
+// ThreeCXConnection agora é persistida via Prisma (ver handoff
+// .agents/handoffs/onda-1/06-para-01-persistencia-3cx.md, resolvido em
+// .agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md) em vez do antigo `Map` em
+// memória — o mock abaixo simula a tabela com um array local por teste (resetado no beforeEach),
+// o suficiente para `seedConnection()` (via connect3CX/create) alimentar o que `make3CXCall`
+// (via get3CXConnectionsForOrg/findMany) lê depois.
+let threeCXStore: Array<Record<string, unknown>> = [];
+const createThreeCXMock = vi.fn((args: { data: Record<string, unknown> }) => {
+    const record = { ...args.data };
+    threeCXStore.push(record);
+    return Promise.resolve(record);
+});
+const findManyThreeCXMock = vi.fn((args: { where: { organizationId: string } }) => {
+    return Promise.resolve(threeCXStore.filter((c) => c.organizationId === args.where.organizationId));
+});
+const deleteManyThreeCXMock = vi.fn().mockResolvedValue({ count: 0 });
+
 vi.mock('@/lib/prisma', () => ({
-    prisma: { activity: { create: (...args: unknown[]) => createActivityMock(...args) } },
+    prisma: {
+        activity: { create: (...args: unknown[]) => createActivityMock(...args) },
+        threeCXConnection: {
+            create: (...args: [{ data: Record<string, unknown> }]) => createThreeCXMock(...args),
+            findMany: (...args: [{ where: { organizationId: string } }]) => findManyThreeCXMock(...args),
+            deleteMany: (...args: unknown[]) => deleteManyThreeCXMock(...args),
+        },
+    },
 }));
 
 // assertSafeWebhookUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
@@ -29,6 +53,8 @@ async function seedConnection() {
 beforeEach(() => {
     vi.clearAllMocks();
     createActivityMock.mockResolvedValue({});
+    threeCXStore = [];
+    deleteManyThreeCXMock.mockResolvedValue({ count: 0 });
 });
 
 afterEach(() => {

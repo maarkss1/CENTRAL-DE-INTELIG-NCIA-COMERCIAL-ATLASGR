@@ -18,6 +18,9 @@ const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 const ENCRYPTED_FIELDS: Record<string, readonly string[]> = {
   GoogleWorkspaceConnection: ['accessToken', 'refreshToken'],
   BitrixConnection: ['webhookUrl', 'webhookSecret'],
+  // Credencial de PABX 3CX (Call Control API) — mesmo tratamento das duas linhas acima. Ver
+  // .agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md.
+  ThreeCXConnection: ['apiKey', 'apiSecret'],
 };
 
 function encryptSensitiveFields(model: string, data: Record<string, unknown>): Record<string, unknown> {

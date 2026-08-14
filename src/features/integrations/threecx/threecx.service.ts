@@ -1,3 +1,4 @@
+import type { ThreeCXConnection } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
@@ -21,8 +22,22 @@ export interface ThreeCXConnectionSummary {
     createdAt: Date;
 }
 
-// Em-memória / fallback store para configurações 3CX quando não há migration customizada
-const memory3CXStore = new Map<string, Array<{
+// Persistência real via Prisma (model ThreeCXConnection, prisma/schema.prisma) — antes disso,
+// estas três funções liam/escreviam um `Map` em memória (`memory3CXStore`), perdido a cada
+// restart/redeploy do processo e inconsistente entre instâncias quando há mais de um processo do
+// servidor rodando ao mesmo tempo. Ver handoff
+// .agents/handoffs/onda-1/06-para-01-persistencia-3cx.md (resolvido em
+// .agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md). apiKey/apiSecret são
+// cifrados/decifrados em repouso de forma transparente pela extensão Prisma em src/lib/prisma.ts
+// (ver ENCRYPTED_FIELDS) — mesmo tratamento de BitrixConnection.webhookUrl/webhookSecret.
+export async function get3CXConnectionsForOrg(organizationId: string): Promise<ThreeCXConnection[]> {
+    return prisma.threeCXConnection.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+    });
+}
+
+export async function save3CXConnectionForOrg(organizationId: string, conn: {
     id: string;
     label: string;
     pbxUrl: string;
@@ -31,35 +46,33 @@ const memory3CXStore = new Map<string, Array<{
     apiSecret?: string;
     autoDialEnabled: boolean;
     createdAt: Date;
-}>>();
-
-export function get3CXConnectionsForOrg(organizationId: string) {
-    return memory3CXStore.get(organizationId) || [];
+}): Promise<void> {
+    // `id` é gerado pelo caller (connect3CX, formato "3cx-<timestamp>-<random>") em vez do
+    // cuid() padrão do model — preservado aqui para não mudar o formato de id já em uso na UI/logs.
+    await prisma.threeCXConnection.create({
+        data: {
+            id: conn.id,
+            organizationId,
+            label: conn.label,
+            pbxUrl: conn.pbxUrl,
+            extension: conn.extension,
+            apiKey: conn.apiKey,
+            apiSecret: conn.apiSecret,
+            autoDialEnabled: conn.autoDialEnabled,
+        },
+    });
 }
 
-export function save3CXConnectionForOrg(organizationId: string, conn: {
-    id: string;
-    label: string;
-    pbxUrl: string;
-    extension: string;
-    apiKey?: string;
-    apiSecret?: string;
-    autoDialEnabled: boolean;
-    createdAt: Date;
-}) {
-    const list = get3CXConnectionsForOrg(organizationId);
-    list.unshift(conn);
-    memory3CXStore.set(organizationId, list);
-}
-
-export function delete3CXConnectionForOrg(organizationId: string, connectionId: string) {
-    const list = get3CXConnectionsForOrg(organizationId).filter((c) => c.id !== connectionId);
-    memory3CXStore.set(organizationId, list);
+export async function delete3CXConnectionForOrg(organizationId: string, connectionId: string): Promise<void> {
+    // deleteMany (não delete) porque o filtro já inclui organizationId — nunca apaga uma conexão
+    // de outra organização mesmo que connectionId seja adivinhado/manipulado (0 linhas afetadas
+    // em vez de erro "not found" ambíguo entre "não existe" e "existe em outro tenant").
+    await prisma.threeCXConnection.deleteMany({ where: { id: connectionId, organizationId } });
 }
 
 /** Lista todas as conexões 3CX PABX ativas desta organização */
 export async function list3CXConnections(organizationId: string): Promise<ThreeCXConnectionSummary[]> {
-    const list = get3CXConnectionsForOrg(organizationId);
+    const list = await get3CXConnectionsForOrg(organizationId);
     return list.map((c) => ({
         id: c.id,
         label: c.label,
@@ -94,7 +107,7 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
         createdAt: new Date(),
     };
 
-    save3CXConnectionForOrg(organizationId, newConn);
+    await save3CXConnectionForOrg(organizationId, newConn);
     logger.info({ organizationId, connectionId, pbxUrl, extension: input.extension }, '[3cx] PABX 3CX conectado com sucesso');
 
     return {
@@ -109,7 +122,7 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
 
 /** Testa a comunicação com o servidor 3CX PABX */
 export async function test3CXConnection(organizationId: string, connectionId: string): Promise<{ success: boolean; message: string; pbxUrl: string }> {
-    const connections = get3CXConnectionsForOrg(organizationId);
+    const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId);
     if (!conn) throw new AppError('Conexão 3CX PABX não encontrada.', 404);
 
@@ -148,7 +161,7 @@ export async function test3CXConnection(organizationId: string, connectionId: st
 
 /** Desconecta um PABX 3CX */
 export async function disconnect3CX(organizationId: string, connectionId: string): Promise<void> {
-    delete3CXConnectionForOrg(organizationId, connectionId);
+    await delete3CXConnectionForOrg(organizationId, connectionId);
     logger.info({ organizationId, connectionId }, '[3cx] Conexão 3CX removida');
 }
 
@@ -181,7 +194,7 @@ export async function make3CXCall(
     destinationNumber: string,
     leadId?: string
 ): Promise<{ success: boolean; callId: string; status: string }> {
-    const connections = get3CXConnectionsForOrg(organizationId);
+    const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId) || connections[0];
     if (!conn) throw new AppError('Nenhum PABX 3CX conectado para esta organização.', 400);
 
