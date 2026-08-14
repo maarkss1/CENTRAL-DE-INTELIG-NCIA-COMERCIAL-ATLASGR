@@ -78,20 +78,48 @@ CNAE principal/secundário
 
 quando as bases permitirem.
 
-### 4.2 RNTRC
+### 4.2 RNTRC transportadores
 
-Mede **estoque/presença logística**:
+Mede **estoque/presença logística municipal** quando o recurso oficial permite join município + UF com o IBGE:
 
 - transportadores ativos;
 - ETC;
 - TAC;
 - CTC;
-- ETC equiparada;
-- frota ativa;
-- veículos de tração;
-- implementos.
+- ETC equiparada.
 
-### 4.3 MDF-e
+O snapshot nacional publicado na ONDA 2 usa competência `2026-07` e permanece separado de MDF-e.
+
+### 4.3 RNTRC frota
+
+A frota é uma camada distinta. O dicionário oficial `RNTRC-Dados de Veículos` expõe:
+
+```text
+Categoria do Transportador
+Tipo de Veículo
+UF do Veículo
+Categoria
+Carroceria
+Ano de Fabricação do Veículo
+Quantidade
+```
+
+Consequências metodológicas obrigatórias:
+
+```text
+granularidade observada = UF
+uso municipal = PROXY_UF
+```
+
+O recurso público não fornece município nem número RNTRC individual. Portanto:
+
+- frota total, tração e implementos só podem ser `OBSERVADO` em UF quando o CSV oficial estiver íntegro;
+- um valor de frota estadual nunca é rotulado como observação municipal;
+- não é permitido dividir frota estadual entre municípios por RNTRC, população, CNPJ ou qualquer rateio implícito;
+- não é permitido usar quantidade de transportadores como substituto de frota;
+- se o recurso oficial não passar no gate de integridade, `fleet = NAO_DISPONIVEL`.
+
+### 4.4 MDF-e
 
 Mede **fluxo logístico observado**:
 
@@ -260,12 +288,13 @@ cada cidade-base elegível × [100,150,200,250,300,400] km
 
 Cada candidato agrega os municípios dentro do raio.
 
-Valor territorial considera:
+Valor territorial considera, quando observável e metodologicamente compatível:
 
 - Opportunity ajustado;
 - contas ICP;
 - Tier A/B;
-- RNTRC/frota;
+- RNTRC municipal;
+- frota apenas na granularidade permitida (`UF` / `PROXY_UF`);
 - MDF-e;
 - confiança;
 - densidade;
@@ -393,5 +422,7 @@ A plataforma só publica ordem nacional de contratação como decisão quando:
 8. Territory Optimizer executado;
 9. premissas econômicas preenchidas para MRR/break-even;
 10. evidências e competências visíveis.
+
+Frota indisponível não pode ser substituída por número inventado. Se a versão metodológica aprovada considerar frota obrigatória, ela é bloqueio; se for opcional, o score deve registrar explicitamente a ausência e reduzir a confiança conforme regra versionada.
 
 Até lá, qualquer cluster anterior é rotulado **HIPÓTESE DE TRIAGEM**.
