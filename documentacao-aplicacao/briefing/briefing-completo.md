@@ -7,9 +7,14 @@
 A plataforma visa atuar como um sistema central para times de vendas B2B (SDRs, Executivos, Gestores), consolidando em um único lugar a busca por novos leads, o acompanhamento do funil de vendas, a agenda de interações e o auxílio de IA generativa para treinamento e análise de dados.
 
 ## 3. Estrutura da navegação
-A aplicação conta com um Menu Principal (Sidebar lateral) segmentado da seguinte forma:
-- **Core Modules:** Painel Central (Dashboard), Prospecção, Pipeline CRM, Decisores, Empresas, Agenda, Analytics, Calendário, Notificações.
-- **Inteligência:** Dojo de Vendas, Hub de IA, Academy, Bitrix24 (Integração), Relatórios IA, Base de Conhecimento, Editor de Documentos, Automações, Consumo de IA.
+A aplicação conta com um Menu Principal (Sidebar lateral) segmentado da seguinte forma (conferido
+contra `src/components/layout/Sidebar.tsx` em 14/08/2026 — ver detalhamento completo em
+`/inventario/mapa-de-navegacao.md`):
+- **Core Modules:** Painel Central (Dashboard), Prospecção, Pipeline CRM, Cockpit CRM, Decisores, Empresas, Agenda, Analytics, Win/Loss, Calendário, Notificações, Configurações.
+- **Executivo** (só Gestor/Admin): Comercial Inteligente.
+- **Inteligência:** Roleplay ("Dojo de Vendas"), Matriz de Qualificação, Matriz de Objeções, Chatbook, Hub de IA, Market Intelligence, Academy, Bitrix24 (Integração), Integrações, Relatórios IA, Base de Conhecimento, Editor de Documentos, Automações, Consumo de IA.
+- **Ferramentas:** Extrator Bitrix24 (link externo, fora da SPA).
+- **Administração** (só papel administrativo): Equipe.
 Há também configurações globais como alternância de temas, comandos de voz e um chat bot persistente flutuante.
 
 ## 4. Inventário de telas
