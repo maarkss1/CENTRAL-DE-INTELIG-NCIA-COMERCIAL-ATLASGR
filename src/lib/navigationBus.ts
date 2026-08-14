@@ -51,7 +51,7 @@ function isKnownTab(tab: string): tab is TabType {
 // inteiro (que carrega ícones) neste módulo — mantido em sincronia manualmente com o union type,
 // já que TypeScript não expõe os literais de um type alias em runtime.
 const TAB_ROUTE_SET: Record<TabType, true> = {
-    dashboard: true, companies: true, contacts: true, crm: true, activities: true, prospect: true,
+    dashboard: true, companies: true, contacts: true, crm: true, crm360: true, activities: true, prospect: true,
     enrich: true, intelligence: true, prompts: true, chatbook: true, roleplay: true,
     qualification_matrix: true, objections_matrix: true, topic_training: true, bitrix: true,
     reports: true, integrations: true, knowledge: true, analytics: true, winloss: true, calendar: true,
