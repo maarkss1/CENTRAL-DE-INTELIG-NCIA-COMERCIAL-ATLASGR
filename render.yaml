@@ -12,12 +12,20 @@ services:
     # typescript (usados só no build, nunca em runtime) estão todos lá. Sem essa flag o build
     # falha com ERR_MODULE_NOT_FOUND ao carregar vite.config.ts.
     buildCommand: npm ci --include=dev && npm run build
-    # preDeployCommand roda ANTES da nova instância receber tráfego (Render "Pre-Deploy Command"),
-    # com a instância antiga ainda no ar — é o ponto certo para `prisma migrate deploy`: zero
-    # downtime, e um deploy nunca serve tráfego contra um schema desatualizado. Ver
-    # docs/deploy/render.md para o fluxo completo de deploy automático.
-    # preDeployCommand: npx prisma migrate deploy # Comentado porque não é suportado no free tier
-    startCommand: npm run start
+    # preDeployCommand (Render "Pre-Deploy Command") é o ponto ideal para `prisma migrate deploy`:
+    # roda numa instância efêmera separada, ANTES da nova instância receber tráfego, com a
+    # instância antiga ainda no ar. Mas a Render só oferece esse recurso em planos pagos
+    # ("The pre-deploy command is available for paid web services, private services, and
+    # background workers" — https://render.com/docs/deploys) e este serviço está em `plan: free`
+    # (linha acima) até o workspace ter cartão cadastrado. Sem preDeployCommand disponível, migrar
+    # o schema como parte do `startCommand` (abaixo) é a alternativa correta: a instância nova só
+    # passa no healthCheckPath (linha ~24) depois que `prisma migrate deploy` terminar com sucesso,
+    # então o Render continua roteando tráfego para a instância antiga enquanto a migração roda —
+    # preserva a garantia real (nunca servir tráfego contra schema desatualizado, nunca subir com
+    # migração pendente) mesmo sem a zero-downtime "instância efêmera separada" do plano pago.
+    # Quando o workspace migrar para plano pago (starter, como docs/deploy/producao.md já assume),
+    # trocar para: `preDeployCommand: npx prisma migrate deploy` + `startCommand: npm run start`.
+    startCommand: npx prisma migrate deploy && npm run start
     # Bate no endpoint com checagem real de banco (SELECT 1), não só "processo respondeu" — ver
     # server.ts. Corrigido de /api/health (rota inexistente; cai no 404 genérico de /api/*) para
     # /health/ready.
