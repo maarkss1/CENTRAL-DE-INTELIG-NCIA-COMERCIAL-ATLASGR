@@ -9,8 +9,11 @@
 | `confidence` | enum/number | Confiança executiva (`ALTO`, `MEDIO`, `BAIXO`, `BLOQUEADO`) e, internamente, fator 0-1. |
 | `competence` | string | Período de referência do dado, nunca presumido pela data de download. |
 | `downloadedAt` | datetime | Momento em que o snapshot foi obtido. |
+| `probedAt` | datetime | Momento em que um recurso foi testado quanto à disponibilidade/integridade, mesmo sem snapshot utilizável. |
 | `sha256` | string | Hash do arquivo bruto ou derivado quando aplicável. |
 | `evidenceIds` | string[] | Chaves das evidências que sustentam o registro/score. |
+| `geographyLevel` | enum | Granularidade observada: `MUNICIPIO`, `UF`, `REGIAO`, conforme dataset. |
+| `municipalUse` | enum/null | Regra de uso municipal de dado supramunicipal; `PROXY_UF` quando o valor observado é estadual. |
 
 ## Geografia
 
@@ -35,18 +38,53 @@
 | `icp.tierC` | integer/null | Mercados adjacentes com exposição rodoviária relevante. |
 | `productFit` | object | Aderência relativa da conta/segmento aos produtos Atlas comprovadamente existentes. |
 
-## RNTRC
+## RNTRC - transportadores municipais
+
+Dataset derivado: `rntrc_municipios.json`. Competência publicada na ONDA 2: `2026-07`.
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `rntrc.transporters` | integer/null | Transportadores RNTRC ativos agregados no município. |
-| `rntrc.etc` | integer/null | Empresas de Transporte Rodoviário de Cargas. |
-| `rntrc.tac` | integer/null | Transportadores Autônomos de Cargas. |
-| `rntrc.ctc` | integer/null | Cooperativas de Transporte Rodoviário de Cargas. |
-| `rntrc.etcEquiparada` | integer/null | ETC equiparada quando o campo estiver disponível/identificável. |
-| `rntrc.activeVehicles` | integer/null | Veículos ativos observados em fonte oficial. Não inferido. |
-| `rntrc.tractionVehicles` | integer/null | Veículos de tração. |
-| `rntrc.implements` | integer/null | Implementos rodoviários. |
+| `transporters` | integer | Transportadores RNTRC ativos agregados no município. |
+| `etc` | integer | Empresas de Transporte Rodoviário de Cargas. |
+| `tac` | integer | Transportadores Autônomos de Cargas. |
+| `ctc` | integer | Cooperativas de Transporte Rodoviário de Cargas. |
+| `etcEquiparada` | integer | ETC equiparada quando identificável no campo oficial. |
+| `ibgeCode` | string(7) | Município canônico resultante do join município + UF contra o IBGE. |
+
+## RNTRC - frota por UF
+
+Dataset derivado quando disponível: `rntrc_frota_uf.json`. Metadata de saúde: `rntrc_frota_uf.metadata.json`.
+
+O dicionário oficial ANTT do recurso de veículos contém `Categoria do Transportador`, `Tipo de Veículo`, `UF do Veículo`, `Categoria`, `Carroceria`, `Ano de Fabricação do Veículo` e `Quantidade`. Não contém município nem RNTRC individual. Por isso estes campos são **observados em UF**:
+
+| Campo | Tipo | Definição |
+|---|---:|---|
+| `uf` | string(2) | UF do veículo informada na base oficial. |
+| `geographyLevel` | literal `UF` | Granularidade factual do recurso público. |
+| `municipalUse` | literal `PROXY_UF` | Proíbe apresentação do valor estadual como observação municipal. |
+| `fleetTotal` | integer | Soma de `Quantidade` na UF. |
+| `tractionVehicles` | integer | Soma de `Quantidade` para `Tipo de Veículo = Tração`. |
+| `implements` | integer | Soma de `Quantidade` para `Tipo de Veículo = Implemento`. |
+| `otherVehicleType` | integer | Quantidade em tipo não mapeado, mantida separada e nunca redistribuída. |
+| `fleetByTransporterCategory.ETC` | integer | Frota associada à categoria ETC. |
+| `fleetByTransporterCategory.ETC_EQUIPARADA` | integer | Frota associada à ETC equiparada. |
+| `fleetByTransporterCategory.TAC` | integer | Frota associada à categoria TAC. |
+| `fleetByTransporterCategory.CTC` | integer | Frota associada à categoria CTC. |
+| `averageManufactureYear` | number/null | Ano médio de fabricação ponderado por `Quantidade`, quando disponível. |
+| `estimatedAverageVehicleAgeYears` | number/null | Derivado aritmético do ano médio de fabricação; deve ser rotulado como derivado, não campo bruto. |
+
+### Regra de indisponibilidade
+
+Se o recurso oficial vigente não entregar payload nacional válido:
+
+```text
+status = NAO_DISPONIVEL
+fleetTotal = não publicado
+tractionVehicles = não publicado
+implements = não publicado
+```
+
+Nunca usar número de transportadores como substituto de frota.
 
 ## MDF-e / movimentação
 
@@ -162,7 +200,7 @@ Cada componente é representado por:
 | `ATUALIZADO` | Snapshot/derivado com competência e qualidade dentro do critério vigente. |
 | `PARCIAL` | Fonte ou cobertura existe, mas não satisfaz integralmente o critério de decisão. |
 | `DESATUALIZADO` | Competência excede a tolerância metodológica. |
-| `NAO_DISPONIVEL` | Dataset utilizável não foi obtido/publicado. |
+| `NAO_DISPONIVEL` | Dataset utilizável não foi obtido/publicado; pode ser falha/ausência na fonte upstream e não erro de software. |
 
 ## Regra de NULL
 
