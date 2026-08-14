@@ -25,6 +25,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: feat/atlas-national-territory-intelligence
+          fetch-depth: 0
 
       - name: Show Python runtime
         run: python3 --version
@@ -115,4 +116,5 @@ jobs:
             exit 0
           fi
           git commit -m "data(rntrc): atualiza snapshot municipal oficial"
+          git pull --rebase origin feat/atlas-national-territory-intelligence
           git push origin HEAD:feat/atlas-national-territory-intelligence
