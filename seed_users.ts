@@ -32,6 +32,13 @@ interface SeedUserDefinition {
     role: string;
     /** Nome da variável de ambiente que pode fornecer uma senha específica para este usuário. Opcional. */
     passwordEnvVar?: string;
+    /**
+     * E-mail de um usuário já existente cuja organização este usuário deve integrar, em vez de
+     * fundar uma organização nova e ficar sozinho nela. Resolvido em runtime (nunca um id fixo
+     * aqui) para o script continuar funcionando igual em qualquer banco (dev, staging, prod) desde
+     * que o e-mail referenciado já exista lá.
+     */
+    joinOrganizationOfEmail?: string;
 }
 
 // `role` precisa bater exatamente com as chaves de ROLE_HIERARCHY (src/lib/auth/authorization.ts:
@@ -41,6 +48,8 @@ interface SeedUserDefinition {
 // VISUALIZADOR). Bug real encontrado aqui: este script gravava 'admin' minúsculo.
 const USERS: SeedUserDefinition[] = [
     { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'ADMIN', passwordEnvVar: 'SEED_PASSWORD_MARCELO' },
+    { name: 'Kaue Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'VISUALIZADOR', passwordEnvVar: 'SEED_PASSWORD_KAUE', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
+    { name: 'Joao Reis', email: 'joao.reis@atlasgr.com.br', role: 'VISUALIZADOR', passwordEnvVar: 'SEED_PASSWORD_JOAO', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
 ];
 
 async function seed() {
@@ -78,12 +87,22 @@ async function seed() {
                 continue;
             }
 
-            // Create organization
-            await client.query('INSERT INTO "Organization" (id, name, "updatedAt") VALUES ($1, $2, NOW())', [orgId, `${u.name}'s Organization`]);
+            let targetOrgId = orgId;
+            if (u.joinOrganizationOfEmail) {
+                const orgRes = await client.query('SELECT "organizationId" FROM "user" WHERE email = $1', [u.joinOrganizationOfEmail]);
+                if (orgRes.rows.length === 0 || !orgRes.rows[0].organizationId) {
+                    console.error(`Não encontrei a organização de ${u.joinOrganizationOfEmail} (referenciada por ${u.email}). Rode o seed desse usuário primeiro. Pulando ${u.email}.`);
+                    continue;
+                }
+                targetOrgId = orgRes.rows[0].organizationId;
+            } else {
+                // Create organization
+                await client.query('INSERT INTO "Organization" (id, name, "updatedAt") VALUES ($1, $2, NOW())', [orgId, `${u.name}'s Organization`]);
+            }
 
             // Create user
             await client.query('INSERT INTO "user" (id, name, email, role, "organizationId", "emailVerified", "updatedAt") VALUES ($1, $2, $3, $4, $5, $6, NOW())',
-                [userId, u.name, u.email, u.role, orgId, true]);
+                [userId, u.name, u.email, u.role, targetOrgId, true]);
 
             // Create account
             await client.query('INSERT INTO account (id, "accountId", "providerId", "userId", password, "updatedAt") VALUES ($1, $2, $3, $4, $5, NOW())',
