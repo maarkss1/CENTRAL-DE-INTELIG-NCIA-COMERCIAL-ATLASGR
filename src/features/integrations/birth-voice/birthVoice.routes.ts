@@ -83,7 +83,9 @@ const addSuppressionSchema = z.object({
 });
 
 // Bloqueio manual — pedido que chegou por outro canal (e-mail, WhatsApp, atendimento humano).
-router.post('/suppressions', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// VENDEDOR também pode registrar: opt-out é uma obrigação imediata do atendimento e não deve
+// depender da disponibilidade de um gestor. VISUALIZADOR continua estritamente somente leitura.
+router.post('/suppressions', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const parsed = addSuppressionSchema.safeParse(req.body);
