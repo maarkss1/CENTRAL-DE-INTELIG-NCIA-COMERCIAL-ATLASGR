@@ -3,6 +3,7 @@ import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runBitrixSyncTick } from '../../features/integrations/bitrix/bitrix.service.js';
 import { bitrixSyncFailuresTotal } from '../../features/integrations/bitrix/service/metrics.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const BITRIX_SYNC_QUEUE_NAME = 'bitrix-sync';
 
@@ -11,6 +12,7 @@ const RUN_EVERY_MS = 15 * 60 * 1000;
 
 export const bitrixSyncQueue = new Queue(BITRIX_SYNC_QUEUE_NAME, { connection });
 bitrixSyncQueue.on('error', (err) => logger.warn({ message: err.message }, 'bitrixSyncQueue offline'));
+registerQueueForMetrics(BITRIX_SYNC_QUEUE_NAME, bitrixSyncQueue);
 
 export function createBitrixSyncWorker() {
     // Um único job global (não um por organização): diferente do enxame autônomo/prospecção fria,
@@ -33,6 +35,8 @@ export function createBitrixSyncWorker() {
         // log, sem fingir que ela pertence a uma organização ou regra que nunca chegou a rodar.
         bitrixSyncFailuresTotal.inc({ tenant: 'unknown', entity: 'tick' });
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(BITRIX_SYNC_QUEUE_NAME));
 
     return worker;
 }

@@ -4,9 +4,10 @@ import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { aiService } from '../../features/intelligence/services/ai.service.js';
 import { prisma } from '../prisma.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 /**
- * Base queue setup. 
+ * Base queue setup.
  * As an example for the Enterprise architecture, we'll setup a standard Lead Enrichment queue.
  */
 export const LEADS_QUEUE_NAME = 'leads-enrichment';
@@ -14,6 +15,7 @@ export const LEADS_QUEUE_NAME = 'leads-enrichment';
 export const leadsQueue = queuesEnabled
     ? new Queue(LEADS_QUEUE_NAME, { connection })
     : null;
+registerQueueForMetrics(LEADS_QUEUE_NAME, leadsQueue);
 export const leadsQueueEvents = queuesEnabled
     ? new QueueEvents(LEADS_QUEUE_NAME, { connection })
     : null;
@@ -73,6 +75,8 @@ export const createLeadsWorker = () => {
     worker.on('error', (err) => {
         logger.error({ err }, 'Worker error');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(LEADS_QUEUE_NAME));
 
     return worker;
 };

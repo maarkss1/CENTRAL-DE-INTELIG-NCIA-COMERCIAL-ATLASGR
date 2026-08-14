@@ -2,6 +2,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { analyzeConversation } from '../../features/integrations/whatsapp/conversation-intelligence.service.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 
 export const WHATSAPP_SIGNAL_QUEUE_NAME = 'whatsapp-conversation-signal';
 
@@ -20,6 +21,7 @@ export const whatsappSignalQueue = queuesEnabled
     ? new Queue<WhatsAppSignalJobData>(WHATSAPP_SIGNAL_QUEUE_NAME, { connection })
     : null;
 whatsappSignalQueue?.on('error', (err) => logger.warn({ message: err.message }, 'whatsappSignalQueue offline'));
+registerQueueForMetrics(WHATSAPP_SIGNAL_QUEUE_NAME, whatsappSignalQueue);
 
 /**
  * (Re)agenda a leitura da conversa deste lead, adiando `DEBOUNCE_MS` a partir de agora.
@@ -67,6 +69,8 @@ export function createWhatsAppSignalWorker() {
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id, leadId: job?.data.leadId }, 'Falha ao analisar conversa de WhatsApp');
     });
+
+    worker.on('completed', () => recordQueueJobCompleted(WHATSAPP_SIGNAL_QUEUE_NAME));
 
     return worker;
 }
