@@ -3,6 +3,12 @@
 **Data:** 2026-08-09
 **Método:** leitura direta do código executável (não documentação), 4 frentes de pesquisa paralelas + verificação manual + execução de testes unitários reais. Toda afirmação abaixo tem evidência em `arquivo:linha`.
 
+> **STATUS (2026-08-10):** os achados P0-1, P0-2, P1-3, P2-2 e P2-3 desta auditoria foram
+> remediados no commit `5f5cf12` (`fix(bitrix): remedia achados da auditoria de ponta a ponta`),
+> incluindo a remoção do código órfão citado em P1-2/P2-5. Antes de agir sobre qualquer achado
+> abaixo, confirme o estado atual do código — este documento descreve o estado em 2026-08-09, não
+> o estado corrente. Ver `.platform-completion/FINDINGS.md` para a verificação mais recente.
+
 ---
 
 ## 1. Resumo executivo

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
     summarizeLead,
@@ -290,8 +291,25 @@ const reportSchema = z.object({
     brandId: z.enum(['atlasgr', 'totaltrac']).default('atlasgr'),
 });
 
+// PC-008: o relatório era devolvido ao frontend e nunca persistido — sumia ao navegar/recarregar
+// a tela (ReportsHub mantinha só em estado local). Persiste aqui e expõe GET /report/latest
+// abaixo para a tela carregar o último relatório gerado da organização ao montar.
+router.get('/report/latest', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const organizationId = (req as AuthRequest).user.organizationId;
+        const latest = await prisma.report.findFirst({
+            where: { organizationId },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json({ success: true, data: latest });
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.post('/report', validateRequest(reportSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+        const organizationId = (req as AuthRequest).user.organizationId;
         const { metrics, brandId } = req.body as z.infer<typeof reportSchema>;
         const brandContext = brandId === 'totaltrac'
             ? 'TotalTrac (tecnologia para telemetria, videotelemetria, jornada e proteção de frotas)'
@@ -319,7 +337,16 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
             latencyMs,
         });
 
-        res.json({ result: response.content });
+        const saved = await prisma.report.create({
+            data: {
+                organizationId,
+                brandId,
+                content: String(response.content),
+                metrics: metrics as Prisma.InputJsonValue,
+            },
+        });
+
+        res.json({ result: saved.content, reportId: saved.id, createdAt: saved.createdAt });
     } catch (error) {
         logger.error({ err: error }, 'Error generating report interpretation');
         next(error);

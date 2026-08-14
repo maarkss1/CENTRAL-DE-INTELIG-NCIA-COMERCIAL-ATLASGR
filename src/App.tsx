@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
@@ -65,6 +65,15 @@ function PageFallback() {
 }
 
 function AppLayout() {
+  // OnboardingTour importa AtlasOrb (@react-three/fiber/three), um chunk de ~900kB — React.lazy
+  // só adia QUANDO o import roda, não SE ele roda. Sem esta checagem aqui, <OnboardingTour />
+  // sendo renderizado incondicionalmente disparava esse import em toda montagem do MainLayout
+  // (ou seja, em toda navegação autenticada), mesmo para quem já viu o tour — a checagem de
+  // "já viu?" só existia dentro do próprio componente, tarde demais para evitar o fetch do chunk.
+  const [showOnboardingTour] = useState(
+    () => typeof window !== 'undefined' && !window.localStorage.getItem('@prospector:has_seen_tour')
+  );
+
   return (
     <MainLayout>
       {/* Rotas relativas a /app — a wildcard "/app/*" na Route pai (mais abaixo) faz o React
@@ -113,9 +122,11 @@ function AppLayout() {
       </Suspense>
 
       {/* Gamification and Navigation Global Layers */}
-      <Suspense fallback={null}>
-        <OnboardingTour />
-      </Suspense>
+      {showOnboardingTour && (
+        <Suspense fallback={null}>
+          <OnboardingTour />
+        </Suspense>
+      )}
     </MainLayout>
   );
 }

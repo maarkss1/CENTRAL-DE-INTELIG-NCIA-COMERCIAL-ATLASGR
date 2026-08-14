@@ -5,6 +5,7 @@ import { enrichCompany } from '../../prospecting/services/enrichment.service';
 import { fromPrismaLeadStatus } from '../../../lib/enumMap';
 import type { LeadFunnel } from '@prisma/client';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
+import { AppError } from '../../../shared/middlewares/errorHandler';
 
 /** Shape of the company relation when Lead is fetched with `include: { company: true }` */
 interface LeadCompanyRelation {
@@ -81,8 +82,8 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
     async enrichLead(organizationId: string, id: string) {
         const lead = await this.repository.findById!(organizationId, id);
-        if (!lead) throw new Error('Lead not found');
-        if (!lead.companyId) throw new Error('Lead sem empresa vinculada — não é possível enriquecer');
+        if (!lead) throw new AppError('Lead not found', 404);
+        if (!lead.companyId) throw new AppError('Lead sem empresa vinculada — não é possível enriquecer', 400);
 
         const company = lead.company as LeadCompanyRelation | undefined;
         const result = await enrichCompany(organizationId, lead.companyId, {
@@ -240,7 +241,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         }
 
         if (!connection) {
-            throw new Error('Nenhuma conexão Bitrix24 configurada.');
+            throw new AppError('Nenhuma conexão Bitrix24 configurada.', 400);
         }
 
         // findUnimportedBitrixLeadIds pagina de verdade (segue o cursor `next` do Bitrix) em vez

@@ -9,15 +9,6 @@ datasource db {
   extensions = [vector]
 }
 
-model KnowledgeDocument {
-  id        String                      @id @default(uuid())
-  title     String
-  content   String                      @db.Text
-  embedding Unsupported("vector(768)")?
-  createdAt DateTime                    @default(now())
-  updatedAt DateTime                    @updatedAt
-}
-
 enum CompanyStatus {
   Ativo
   Inativo
@@ -459,6 +450,7 @@ model Organization {
   notifications             Notification[]
   automations               Automation[]
   aiLogs                    AILog[]
+  reports                   Report[]
   aiPendingActions          AIPendingAction[]
   knowledgeChunks           KnowledgeChunk[]
   prompts                   Prompt[]
@@ -833,6 +825,22 @@ model AILog {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+/// Relatório executivo gerado por IA em ReportsHub (POST /api/intelligence/report) a partir das
+/// métricas ao vivo da plataforma. Antes desta correção (PC-008) o relatório só existia em estado
+/// local do React — sumia ao navegar ou recarregar. `metrics` guarda o snapshot usado para gerar o
+/// texto, para o histórico continuar fazendo sentido mesmo depois dos números mudarem.
+model Report {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandId        String
+  content        String
+  metrics        Json
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
 }
