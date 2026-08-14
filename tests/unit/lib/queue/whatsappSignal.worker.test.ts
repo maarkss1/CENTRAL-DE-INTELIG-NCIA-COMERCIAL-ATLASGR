@@ -26,11 +26,14 @@ vi.mock('bullmq', () => {
 // corta essa cadeia inteira em vez de precisar simular cada fila transitiva.
 vi.mock('../../../../src/lib/prisma.js', () => ({ prisma: {} }));
 
+// `queuesEnabled: true` de propósito: com `false`, `whatsappSignalQueue` nem é instanciada
+// (ver whatsappSignal.worker.ts) e `scheduleConversationAnalysis` retorna cedo sem tocar a fila —
+// o que tornaria estes testes de debounce vácuos (add/remove nunca chamados).
 vi.mock('../../../../src/lib/queue/redis.js', () => ({
     connection: {},
     cacheConnection: {},
     rateLimiterConnection: {},
-    queuesEnabled: false,
+    queuesEnabled: true,
 }));
 
 vi.mock('../../../../src/lib/logger.js', () => ({
