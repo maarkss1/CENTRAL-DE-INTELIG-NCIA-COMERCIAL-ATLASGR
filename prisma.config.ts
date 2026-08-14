@@ -1,7 +1,9 @@
 import 'dotenv/config';
+import { spawnSync } from 'node:child_process';
 import { defineConfig } from '@prisma/config';
 
 const LOCAL_FALLBACK_URL = 'postgresql://postgres:postgres@localhost:5432/prospector';
+const RENDER_RLS_RECOVERY_MIGRATION = '20260807100000_enable_rls_remaining_tables';
 
 /**
  * Resolve a connection suitable for Prisma CLI operations such as `migrate deploy`.
@@ -40,6 +42,63 @@ function resolvePrismaCliUrl(): string {
 
   return databaseUrl;
 }
+
+/**
+ * Temporary one-shot recovery hook for the Render production database.
+ *
+ * The RLS migration reached CREATE POLICY in production before failing because that
+ * policy was already present. Prisma correctly records P3018 and then blocks every
+ * later `migrate deploy` until that failed attempt is explicitly resolved. The SQL
+ * migration is now idempotent, so the safe recovery is to mark only that exact failed
+ * attempt as rolled back and let the parent `migrate deploy` apply it again.
+ *
+ * This runs only on Render and only while the parent command is `prisma migrate deploy`.
+ * The child receives PRISMA_RENDER_RECOVERY_CHILD=1 to prevent recursion. After the
+ * production migration succeeds, this hook is removed in a cleanup commit.
+ */
+function recoverFailedRenderRlsMigrationOnce(): void {
+  const isRender = process.env.RENDER === 'true';
+  const isChild = process.env.PRISMA_RENDER_RECOVERY_CHILD === '1';
+  const isMigrateDeploy = process.argv.includes('migrate') && process.argv.includes('deploy');
+
+  if (!isRender || isChild || !isMigrateDeploy) return;
+
+  console.warn(
+    `[prisma.config] Attempting one-time recovery of failed migration ${RENDER_RLS_RECOVERY_MIGRATION}.`,
+  );
+
+  const result = spawnSync(
+    'npx',
+    ['prisma', 'migrate', 'resolve', '--rolled-back', RENDER_RLS_RECOVERY_MIGRATION],
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        PRISMA_RENDER_RECOVERY_CHILD: '1',
+      },
+    },
+  );
+
+  if (result.error) {
+    console.warn(
+      `[prisma.config] Could not launch one-time migration recovery: ${result.error.message}. Parent migrate deploy will report the database state.`,
+    );
+    return;
+  }
+
+  if (result.status === 0) {
+    console.warn(
+      `[prisma.config] Failed migration ${RENDER_RLS_RECOVERY_MIGRATION} marked rolled back; parent migrate deploy will reapply the idempotent SQL.`,
+    );
+    return;
+  }
+
+  console.warn(
+    `[prisma.config] One-time migration recovery exited with status ${result.status ?? 'unknown'}; parent migrate deploy will continue and report the database state.`,
+  );
+}
+
+recoverFailedRenderRlsMigrationOnce();
 
 // O Prisma CLI (migrate/generate) usa só este `url`, nunca o Pool/adapter de src/lib/prisma.ts.
 // DIRECT_URL é sempre preferida. Em Render/Supabase, se DATABASE_URL vier por engano no

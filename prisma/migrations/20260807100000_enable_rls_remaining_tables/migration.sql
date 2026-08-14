@@ -12,6 +12,10 @@
 -- documentado na migration de 08/01: a extensão do Prisma só intercepta chamadas de model,
 -- não `$queryRaw`, e algumas escritas legitimamente acontecem sem `app.current_tenant_id` setado.
 --
+-- Esta migration pode ter sido parcialmente aplicada antes de ser registrada como falha. Por isso,
+-- cada policy é substituída de forma idempotente com DROP POLICY IF EXISTS + CREATE POLICY.
+-- Isso não remove dados; apenas garante que uma reexecução produza exatamente a policy versionada.
+--
 -- IMPORTANTE antes de aplicar em produção: testar o fluxo de login/signup/reset de senha
 -- (Better Auth) após esta migration — é a parte mais delicada (tabelas session/account/verification).
 
@@ -27,6 +31,7 @@ ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "EnrichmentLog" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "EnrichmentLog" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "EnrichmentLog";
 CREATE POLICY tenant_isolation_policy ON "EnrichmentLog" FOR ALL
 USING (
     "companyId" IN (
@@ -45,6 +50,7 @@ WITH CHECK (true);
 ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AuditLog" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "AuditLog";
 CREATE POLICY tenant_isolation_policy ON "AuditLog" FOR ALL
 USING (
     current_setting('app.current_tenant_id', TRUE) = "tenantId"
@@ -58,6 +64,7 @@ WITH CHECK (true);
 ALTER TABLE "session" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "session" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "session";
 CREATE POLICY tenant_isolation_policy ON "session" FOR ALL
 USING (
     "userId" IN (
@@ -73,6 +80,7 @@ WITH CHECK (true);
 ALTER TABLE "account" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "account" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "account";
 CREATE POLICY tenant_isolation_policy ON "account" FOR ALL
 USING (
     "userId" IN (
@@ -92,6 +100,7 @@ WITH CHECK (true);
 ALTER TABLE "verification" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "verification" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS bypass_only_policy ON "verification";
 CREATE POLICY bypass_only_policy ON "verification" FOR ALL
 USING (current_setting('app.bypass_rls', TRUE) = 'on')
 WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
@@ -101,6 +110,7 @@ WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
 ALTER TABLE "AIGovernancePolicy" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AIGovernancePolicy" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "AIGovernancePolicy";
 CREATE POLICY tenant_isolation_policy ON "AIGovernancePolicy" FOR ALL
 USING (
     current_setting('app.current_tenant_id', TRUE) = "tenantId"
@@ -115,6 +125,7 @@ WITH CHECK (true);
 ALTER TABLE "AIEvaluation" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AIEvaluation" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS bypass_only_policy ON "AIEvaluation";
 CREATE POLICY bypass_only_policy ON "AIEvaluation" FOR ALL
 USING (current_setting('app.bypass_rls', TRUE) = 'on')
 WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
@@ -125,6 +136,7 @@ WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
 ALTER TABLE "KnowledgeDocument" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "KnowledgeDocument" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS bypass_only_policy ON "KnowledgeDocument";
 CREATE POLICY bypass_only_policy ON "KnowledgeDocument" FOR ALL
 USING (current_setting('app.bypass_rls', TRUE) = 'on')
 WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
@@ -141,6 +153,7 @@ WITH CHECK (current_setting('app.bypass_rls', TRUE) = 'on');
 ALTER TABLE "AiEngineSetting" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "AiEngineSetting" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS app_context_policy ON "AiEngineSetting";
 CREATE POLICY app_context_policy ON "AiEngineSetting" FOR ALL
 USING (
     (
@@ -156,6 +169,7 @@ WITH CHECK (true);
 ALTER TABLE "ConversationSignal" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ConversationSignal" FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_policy ON "ConversationSignal";
 CREATE POLICY tenant_isolation_policy ON "ConversationSignal" FOR ALL
 USING (
     current_setting('app.current_tenant_id', TRUE) = "organizationId"
