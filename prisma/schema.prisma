@@ -463,6 +463,7 @@ model Organization {
   bitrixConnections         BitrixConnection[]
   bitrixSyncRules           BitrixSyncRule[]
   bitrixSyncLogs            BitrixSyncLog[]
+  threeCXConnections        ThreeCXConnection[]
   crmPipelines              CrmPipeline[]
   crmProducts               CrmProduct[]
   crmDealItems              CrmDealItem[]
@@ -1164,6 +1165,44 @@ model BitrixSyncLog {
   @@index([organizationId, createdAt])
   @@index([leadId])
   @@index([connectionId, createdAt])
+}
+
+/// Conexão de PABX 3CX de uma organização (Click-to-Call / Call Control API) — antes deste modelo,
+/// threecx.service.ts guardava tudo (URL do PABX, ramal, apiKey/apiSecret) num `Map` em memória
+/// (`memory3CXStore`), perdido a cada restart/redeploy do processo e inconsistente entre
+/// instâncias quando há mais de um processo do servidor rodando (ver handoff
+/// .agents/handoffs/onda-1/06-para-01-persistencia-3cx.md). Mesmo padrão de BitrixConnection: uma
+/// organização pode ter mais de um PABX 3CX (ex.: AtlasGR e TotalTrac com telefonia separada), por
+/// isso não é @unique por organizationId.
+model ThreeCXConnection {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Nome de exibição pra distinguir as conexões na tela — livre, mesmo espírito de
+  /// BitrixConnection.label.
+  label String @default("3CX")
+
+  /// URL completa do servidor 3CX PABX (ex.: https://my-pbx.3cx.us), sem barra final.
+  pbxUrl String
+
+  /// Ramal 3CX usado para originar chamadas (Click-to-Call).
+  extension String
+
+  /// Credenciais de API do PABX (Call Control). Cifradas em repouso (AES-256-GCM) de forma
+  /// transparente pela extensão Prisma em src/lib/prisma.ts — ver src/lib/crypto/secretFields.ts,
+  /// mesmo tratamento de BitrixConnection.webhookUrl/GoogleWorkspaceConnection.accessToken.
+  /// Nullable: nem todo PABX exige API key/secret configurados para Call Control básico.
+  apiKey    String? @db.Text
+  apiSecret String? @db.Text
+
+  /// Liga/desliga o disparo automático de chamada (ex.: a partir de uma automação) para este PABX.
+  autoDialEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
 }
 
 /// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a
