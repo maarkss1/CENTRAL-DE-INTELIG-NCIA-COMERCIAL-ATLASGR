@@ -1,5 +1,5 @@
-import { lazy, Suspense, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useState } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { MotionConfig } from 'framer-motion';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
@@ -19,6 +19,7 @@ const LoginScreen = lazy(() => import('./features/auth/components/LoginScreen').
 const ResetPasswordScreen = lazy(() => import('./features/auth/components/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })));
 const ProspectingHub = lazy(() => import('./features/prospecting/components/ProspectingHub').then(m => ({ default: m.ProspectingHub })));
 const CrmBoard = lazy(() => import('./components/CrmBoard').then(m => ({ default: m.CrmBoard })));
+const CrmOverview = lazy(() => import('./features/crm360/components/CrmOverview').then(m => ({ default: m.CrmOverview })));
 const IntelligenceHub = lazy(() => import('./features/intelligence/components/IntelligenceHub').then(m => ({ default: m.IntelligenceHub })));
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
@@ -73,6 +74,10 @@ function AppLayout() {
   const [showOnboardingTour] = useState(
     () => typeof window !== 'undefined' && !window.localStorage.getItem('@prospector:has_seen_tour')
   );
+  const navigate = useNavigate();
+  // CrmOverview dispara navegação entre tabs a partir de cards de atalho (ex.: KPI -> board de
+  // leads); reaproveita a mesma URL de rota usada pelo Sidebar em vez de um mecanismo à parte.
+  const handleCrmOverviewNavigate = useCallback((tab: string) => navigate(`/app/${tab}`), [navigate]);
 
   return (
     <MainLayout>
@@ -83,6 +88,7 @@ function AppLayout() {
           <Route index element={<SinglePageDashboard />} />
           <Route path="prospect" element={<ProspectingHub />} />
           <Route path="crm" element={<CrmBoard />} />
+          <Route path="crm360" element={<CrmOverview onNavigate={handleCrmOverviewNavigate} />} />
           <Route path="intelligence" element={<IntelligenceHub />} />
           <Route path="companies" element={<CompanyList />} />
           <Route path="contacts" element={<ContactList />} />
