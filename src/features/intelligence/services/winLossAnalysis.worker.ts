@@ -78,11 +78,9 @@ export async function scheduleWinLossAnalysisJob() {
         connection: connection as any
     });
     
-    // Roda toda sexta às 19:00
-    await queue.add('weekly-win-loss', {}, {
-        repeat: {
-            pattern: '0 19 * * 5'
-        }
+    // Roda toda sexta às 19:00 — BullMQ 6: Job Scheduler idempotente por id.
+    await queue.upsertJobScheduler('weekly-win-loss', { pattern: '0 19 * * 5' }, {
+        name: 'weekly-win-loss'
     });
     
     logger.info('Win/Loss Analysis job scheduled (cron: 0 19 * * 5)');

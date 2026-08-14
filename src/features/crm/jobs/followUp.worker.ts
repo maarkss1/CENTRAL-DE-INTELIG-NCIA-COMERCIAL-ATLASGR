@@ -74,11 +74,9 @@ export async function scheduleFollowUpJobs() {
         connection: connection as any
     });
     
-    // Roda todo dia as 09:00
-    await queue.add('daily-followups', {}, {
-        repeat: {
-            pattern: '0 9 * * *'
-        }
+    // Roda todo dia as 09:00 — BullMQ 6: Job Scheduler idempotente por id.
+    await queue.upsertJobScheduler('daily-followups', { pattern: '0 9 * * *' }, {
+        name: 'daily-followups'
     });
     
     logger.info('Follow-up jobs scheduled (cron: 0 9 * * *)');

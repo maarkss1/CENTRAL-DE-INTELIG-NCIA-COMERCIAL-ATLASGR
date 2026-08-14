@@ -66,11 +66,9 @@ export async function scheduleDeduplicationJob() {
         connection: connection as any
     });
     
-    // Roda domingo meia-noite (0 0 * * 0)
-    await queue.add('weekly-dedup', {}, {
-        repeat: {
-            pattern: '0 0 * * 0'
-        }
+    // Roda domingo meia-noite (0 0 * * 0) — BullMQ 6: Job Scheduler idempotente por id.
+    await queue.upsertJobScheduler('weekly-dedup', { pattern: '0 0 * * 0' }, {
+        name: 'weekly-dedup'
     });
     
     logger.info('Deduplication job scheduled (cron: 0 0 * * 0)');

@@ -32,14 +32,15 @@ export function createBitrixSyncWorker() {
 
 /** Idempotente: jobId fixo faz o BullMQ substituir o agendamento anterior em vez de acumular a cada reinício. */
 export async function scheduleBitrixSync(): Promise<void> {
-    await bitrixSyncQueue.add(
-        'run-bitrix-sync',
-        {},
+    // BullMQ 6 removeu `repeat` de JobsOptions — agendamento recorrente virou Job Scheduler
+    // (upsertJobScheduler), idempotente pelo id: substitui o agendamento anterior em vez de acumular.
+    await bitrixSyncQueue.upsertJobScheduler(
+        'bitrix-sync-tick',
+        { every: RUN_EVERY_MS },
         {
-            repeat: { every: RUN_EVERY_MS },
-            jobId: 'bitrix-sync-tick',
-            removeOnComplete: true,
-            attempts: 1,
+            name: 'run-bitrix-sync',
+            data: {},
+            opts: { removeOnComplete: true, attempts: 1 },
         },
     );
     logger.info('Sincronização automática do Bitrix agendada.');

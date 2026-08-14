@@ -43,16 +43,16 @@ export async function scheduleColdCallCampaigns(): Promise<number> {
     if (organizations.length === 0) return 0;
 
     for (const organizationId of organizations) {
-        await coldCallQueue.add(
-            'run-campaign',
-            { organizationId },
+        // BullMQ 6: agendamento recorrente é um Job Scheduler idempotente por id (um por organização).
+        await coldCallQueue.upsertJobScheduler(
+            `cold-call-${organizationId}`,
+            { every: RUN_EVERY_MS },
             {
-                repeat: { every: RUN_EVERY_MS },
-                jobId: `cold-call-${organizationId}`,
-                removeOnComplete: true,
+                name: 'run-campaign',
+                data: { organizationId },
                 // A campanha reexecuta sozinha em minutos; reprocessar uma falha só produziria
                 // ligações repetidas para os mesmos leads.
-                attempts: 1,
+                opts: { removeOnComplete: true, attempts: 1 },
             },
         );
     }

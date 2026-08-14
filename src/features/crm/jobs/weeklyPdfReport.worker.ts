@@ -75,11 +75,9 @@ export async function scheduleWeeklyPdfReportJob() {
         connection: connection as any
     });
     
-    // Roda sexta-feira 20:00 (0 20 * * 5)
-    await queue.add('weekly-pdf', {}, {
-        repeat: {
-            pattern: '0 20 * * 5'
-        }
+    // Roda sexta-feira 20:00 (0 20 * * 5) — BullMQ 6: Job Scheduler idempotente por id.
+    await queue.upsertJobScheduler('weekly-pdf', { pattern: '0 20 * * 5' }, {
+        name: 'weekly-pdf'
     });
     
     logger.info('Weekly PDF Report job scheduled (cron: 0 20 * * 5)');
