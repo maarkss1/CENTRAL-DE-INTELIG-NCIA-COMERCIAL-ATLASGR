@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
+import { requestContext } from '../../lib/async-context.js';
 import { notificationService, type NotificationKind } from '../notifications/notification.service.js';
 import { toPrismaAutomationTrigger, fromPrismaAutomationAction } from '../../lib/enumMap.js';
+import { automationHistoryService } from './automation-history.service.js';
 
 export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
 export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
@@ -74,15 +77,48 @@ export class AutomationEngine {
      * Roda todas as automações ativas que casam com o evento.
      *
      * Nunca lança: automação é efeito colateral do fluxo principal. Uma regra mal configurada não
-     * pode impedir que o lead seja salvo — o erro vai para o log e as demais regras seguem.
+     * pode impedir que o lead seja salvo. Cada execução, inclusive falhas, ganha trilha persistente
+     * no AuditLog com correlationId e dados sanitizados.
      */
     async handle(event: AutomationEvent): Promise<number> {
+        const store = requestContext.getStore();
+
+        // Um evento nunca pode trocar silenciosamente o tenant de uma request já autenticada.
+        if (store?.tenantId && store.tenantId !== event.organizationId) {
+            logger.error(
+                {
+                    contextTenantId: store.tenantId,
+                    eventTenantId: event.organizationId,
+                    trigger: event.trigger,
+                    entityId: event.entityId,
+                },
+                'Automação recusada por divergência de tenant',
+            );
+            return 0;
+        }
+
+        // Workers e consumidores de fila podem disparar o motor sem AsyncLocalStorage prévio.
+        // Nesse caso o próprio evento carrega o tenant e passa a ser o contexto RLS desta execução.
+        if (!store?.tenantId) {
+            return requestContext.run(
+                {
+                    tenantId: event.organizationId,
+                    userId: store?.userId,
+                    role: store?.role,
+                },
+                () => this.handleScoped(event),
+            );
+        }
+
+        return this.handleScoped(event);
+    }
+
+    private async handleScoped(event: AutomationEvent): Promise<number> {
         let executed = 0;
         try {
             const automations = await prisma.automation.findMany({
                 // O Prisma Client só aceita o identificador do enum (`Lead_Mudou_Status`), nunca o
-                // rótulo humano mapeado (`@map`) que trafega no resto do sistema — mesma conversão
-                // que PrismaAutomationRepository já faz para as rotas de CRUD (ver enumMap.ts).
+                // rótulo humano mapeado (`@map`) que trafega no resto do sistema.
                 where: {
                     organizationId: event.organizationId,
                     enabled: true,
@@ -92,9 +128,14 @@ export class AutomationEngine {
 
             for (const automation of automations) {
                 if (!matchesConditions(automation.conditions, event.data)) continue;
+
+                const startedAt = new Date();
+                const correlationId = randomUUID();
+                const action = fromPrismaAutomationAction(automation.action);
+
                 try {
                     await this.runAction(
-                        { ...automation, action: fromPrismaAutomationAction(automation.action) },
+                        { ...automation, action },
                         event,
                     );
                     await prisma.automation.update({
@@ -102,9 +143,39 @@ export class AutomationEngine {
                         data: { lastRunAt: new Date(), runCount: { increment: 1 } },
                     });
                     executed++;
+
+                    await this.recordHistorySafely({
+                        automationId: automation.id,
+                        automationName: automation.name,
+                        organizationId: event.organizationId,
+                        correlationId,
+                        trigger: event.trigger,
+                        entity: event.entity,
+                        entityId: event.entityId,
+                        action,
+                        actionConfig: automation.actionConfig,
+                        status: 'success',
+                        startedAt,
+                        finishedAt: new Date(),
+                    });
                 } catch (err) {
+                    await this.recordHistorySafely({
+                        automationId: automation.id,
+                        automationName: automation.name,
+                        organizationId: event.organizationId,
+                        correlationId,
+                        trigger: event.trigger,
+                        entity: event.entity,
+                        entityId: event.entityId,
+                        action,
+                        actionConfig: automation.actionConfig,
+                        status: 'failed',
+                        startedAt,
+                        finishedAt: new Date(),
+                        error: err,
+                    });
                     logger.error(
-                        { err, automationId: automation.id, name: automation.name },
+                        { err, automationId: automation.id, name: automation.name, correlationId },
                         'Automação falhou ao executar',
                     );
                 }
@@ -113,6 +184,22 @@ export class AutomationEngine {
             logger.error({ err, trigger: event.trigger }, 'Falha ao avaliar automações');
         }
         return executed;
+    }
+
+    private async recordHistorySafely(
+        input: Parameters<typeof automationHistoryService.record>[0],
+    ): Promise<void> {
+        try {
+            await automationHistoryService.record(input);
+        } catch (err) {
+            // A trilha de auditoria é obrigatória para observabilidade, mas continua sendo efeito
+            // colateral: uma indisponibilidade do AuditLog não pode desfazer a ação comercial que
+            // já aconteceu nem derrubar o salvamento do lead que originou o evento.
+            logger.error(
+                { err, automationId: input.automationId, correlationId: input.correlationId },
+                'Falha ao persistir histórico da automação',
+            );
+        }
     }
 
     private async runAction(
@@ -137,8 +224,7 @@ export class AutomationEngine {
 
         if (automation.action === 'Criar atividade') {
             // Em evento de Lead, o próprio evento É o lead. Em evento de Activity (ex.: "Atividade
-            // concluída"), o lead vem em event.data.leadId — permite regras como "toda vez que uma
-            // atividade for concluída, agende um follow-up no mesmo lead".
+            // concluída"), o lead vem em event.data.leadId.
             const leadId = event.entity === 'Lead'
                 ? event.entityId
                 : (typeof event.data.leadId === 'string' ? event.data.leadId : null);
@@ -170,17 +256,11 @@ export class AutomationEngine {
             if (event.entity !== 'Lead') {
                 throw new Error('A ação "Ligar via SDR de Voz" só se aplica a eventos de lead.');
             }
-            // Import tardio (mesmo padrão do Bitrix24Adapter em LeadUseCases): o serviço carrega
-            // configuração de ambiente e o cliente HTTP do Hub, que não fazem falta para nenhuma
-            // outra ação — e um deployment que não usa SDR de voz nunca chega a carregá-lo.
             const { callLead, SuppressedNumberError } = await import('../integrations/birth-voice/birthVoice.service.js');
             try {
                 await callLead(event.organizationId, event.entityId);
             } catch (error) {
-                // Número com opt-out é a regra funcionando, não uma falha: registrar como erro
-                // encheria o log de alarme falso e faria a automação parecer quebrada toda vez que
-                // ela respeitasse um bloqueio. Qualquer outro erro (lead sem telefone, Hub fora do
-                // ar) continua subindo, para quem chama isolar por automação e registrar no log.
+                // Número com opt-out é a regra funcionando, não uma falha.
                 if (!(error instanceof SuppressedNumberError)) throw error;
                 logger.info(
                     { automationId: automation.id, leadId: event.entityId },
