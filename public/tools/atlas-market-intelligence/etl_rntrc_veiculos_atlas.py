@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""ETL de frota RNTRC -> município IBGE para Atlas Market Intelligence.
+"""ETL oficial ANTT RNTRC-Dados de Veículos -> agregado por UF.
 
-A base pública de veículos da ANTT tem granularidade por veículo/transportador.
-Este ETL não publica placas, documentos ou linhas brutas. Ele cruza o RNTRC do
-veículo com o transportador ativo e publica somente contagens municipais.
+O dicionário oficial da ANTT informa que o recurso público possui os campos:
+Categoria do Transportador, Tipo de Veículo, UF do Veículo, Categoria,
+Carroceria, Ano de Fabricação do Veículo e Quantidade.
+
+A base NÃO possui RNTRC individual nem município. Portanto este ETL publica a
+frota somente no nível UF. Qualquer consumo municipal deve tratá-la como
+PROXY_UF e nunca como observação municipal.
 """
 from __future__ import annotations
 
 import argparse
 import csv
 import json
-import sqlite3
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -18,7 +21,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from etl_rntrc_atlas import is_active, load_ibge, norm, sha256_file, sniff_csv
+from etl_rntrc_atlas import norm, sha256_file, sniff_csv
+
+VALID_UFS = {
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+    "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
+    "SP", "SE", "TO",
+}
 
 
 @dataclass
@@ -26,7 +35,14 @@ class FleetAgg:
     total: int = 0
     traction: int = 0
     implements: int = 0
-    other: int = 0
+    other_type: int = 0
+    etc: int = 0
+    etc_equiparada: int = 0
+    tac: int = 0
+    ctc: int = 0
+    other_transporter_category: int = 0
+    manufacture_year_weighted_sum: int = 0
+    manufacture_year_quantity: int = 0
 
 
 def normalized_reader(path: Path) -> Iterable[dict[str, str]]:
@@ -42,11 +58,7 @@ def normalized_reader(path: Path) -> Iterable[dict[str, str]]:
 
 
 def resolve_column(
-    headers: set[str],
-    aliases: tuple[str, ...],
-    tokens: tuple[str, ...],
-    *,
-    required: bool = True,
+    headers: set[str], aliases: tuple[str, ...], tokens: tuple[str, ...], *, required: bool = True
 ) -> str | None:
     for alias in aliases:
         if alias in headers:
@@ -56,274 +68,243 @@ def resolve_column(
         return candidates[0]
     if required:
         raise RuntimeError(
-            f"Não foi possível resolver coluna lógica aliases={aliases!r} tokens={tokens!r}. "
+            f"Não foi possível resolver coluna aliases={aliases!r} tokens={tokens!r}. "
             f"Cabeçalhos observados: {sorted(headers)!r}"
         )
     return candidates[0] if len(candidates) == 1 else None
 
 
-def clean_rntrc(value: str) -> str:
-    return "".join(char for char in (value or "") if char.isdigit())
+def parse_quantity(value: str) -> int | None:
+    text = (value or "").strip().replace(".", "").replace(",", ".")
+    try:
+        number = float(text)
+    except ValueError:
+        return None
+    if number < 0 or not number.is_integer():
+        return None
+    return int(number)
 
 
-def classify_vehicle(vehicle_type: str, bodywork: str) -> str:
-    text = norm(f"{vehicle_type} {bodywork}")
-    # Implementos não possuem unidade motriz própria. Mantemos a regra textual
-    # explícita e auditável em vez de inferir por marca/modelo.
-    if any(token in text for token in ("SEMI REBOQUE", "SEMIRREBOQUE", "REBOQUE", "DOLLY")):
-        return "implement"
-    if any(token in text for token in ("CAMINHAO", "CAMINHONETE", "UTILITARIO", "TRATOR", "AUTOMOTOR")):
+def classify_vehicle_type(value: str) -> str:
+    normalized = norm(value)
+    if normalized in {"TRACAO", "VEICULO DE TRACAO"} or "TRACAO" in normalized:
         return "traction"
+    if normalized in {"IMPLEMENTO", "IMPLEMENTO RODOVIARIO"} or "IMPLEMENTO" in normalized:
+        return "implement"
     return "other"
 
 
-def build_transport_geography(
-    transporters_path: Path,
-    ibge: dict[tuple[str, str], dict],
-    db: sqlite3.Connection,
-) -> dict[str, int]:
-    iterator = iter(normalized_reader(transporters_path))
+def classify_transporter(value: str) -> str:
+    normalized = norm(value).replace(" - ", " ")
+    if "EQUIPAR" in normalized:
+        return "etc_equiparada"
+    if normalized.startswith("ETC") or "EMPRESA DE TRANSPORTE" in normalized:
+        return "etc"
+    if normalized.startswith("TAC") or "AUTONOMO" in normalized:
+        return "tac"
+    if normalized.startswith("CTC") or "COOPERATIVA" in normalized:
+        return "ctc"
+    return "other"
+
+
+def aggregate(path: Path) -> tuple[list[dict], dict, dict]:
+    iterator = iter(normalized_reader(path))
     first = next(iterator, None)
     if first is None:
-        raise RuntimeError("Arquivo RNTRC de transportadores vazio")
+        raise RuntimeError("Arquivo RNTRC-Dados de Veículos vazio")
 
     headers = set(first)
-    rntrc_col = resolve_column(
+    transporter_col = resolve_column(
         headers,
-        ("rntrc", "numero_rntrc", "num_rntrc", "registro_rntrc"),
-        ("rntrc",),
-    )
-    municipality_col = resolve_column(
-        headers,
-        ("municipio", "nome_municipio", "municipio_transportador"),
-        ("municipio",),
-    )
-    uf_col = resolve_column(headers, ("uf", "sg_uf", "sigla_uf"), ("uf",))
-    status_col = resolve_column(
-        headers,
-        ("situacao_rntrc", "situacao", "status"),
-        ("situacao",),
-        required=False,
-    )
-
-    db.execute(
-        "CREATE TABLE IF NOT EXISTS rntrc_geo (rntrc TEXT PRIMARY KEY, ibge_code TEXT NOT NULL) WITHOUT ROWID"
-    )
-    db.execute("DELETE FROM rntrc_geo")
-
-    processed = active = matched_geo = missing_rntrc = unmatched_geo = 0
-
-    def consume(row: dict[str, str]) -> None:
-        nonlocal processed, active, matched_geo, missing_rntrc, unmatched_geo
-        processed += 1
-        if status_col and row.get(status_col) and not is_active(row[status_col]):
-            return
-        active += 1
-        rntrc = clean_rntrc(row.get(rntrc_col) or "")
-        if not rntrc:
-            missing_rntrc += 1
-            return
-        uf = (row.get(uf_col) or "").upper().strip()
-        municipality = row.get(municipality_col) or ""
-        geo = ibge.get((uf, norm(municipality)))
-        if not geo:
-            unmatched_geo += 1
-            return
-        db.execute(
-            "INSERT INTO rntrc_geo(rntrc, ibge_code) VALUES (?, ?) "
-            "ON CONFLICT(rntrc) DO UPDATE SET ibge_code=excluded.ibge_code",
-            (rntrc, geo["ibge_code"]),
-        )
-        matched_geo += 1
-
-    consume(first)
-    for row in iterator:
-        consume(row)
-    db.commit()
-    return {
-        "transporters_processed": processed,
-        "transporters_active": active,
-        "transporters_with_geo": matched_geo,
-        "transporters_missing_rntrc": missing_rntrc,
-        "transporters_unmatched_geo": unmatched_geo,
-    }
-
-
-def aggregate_vehicles(
-    vehicles_path: Path,
-    db: sqlite3.Connection,
-) -> tuple[dict[str, FleetAgg], dict[str, int], Counter[str]]:
-    iterator = iter(normalized_reader(vehicles_path))
-    first = next(iterator, None)
-    if first is None:
-        raise RuntimeError("Arquivo RNTRC de veículos vazio")
-
-    headers = set(first)
-    rntrc_col = resolve_column(
-        headers,
-        ("rntrc", "numero_rntrc", "num_rntrc", "registro_rntrc"),
-        ("rntrc",),
+        ("categoria_do_transportador", "categoria_transportador"),
+        ("categoria", "transportador"),
     )
     type_col = resolve_column(
         headers,
-        ("tipo_veiculo", "descricao_tipo_veiculo", "tipo_do_veiculo"),
+        ("tipo_de_veiculo", "tipo_do_veiculo", "tipo_veiculo"),
         ("tipo", "veiculo"),
-        required=False,
     )
-    body_col = resolve_column(
+    uf_col = resolve_column(
         headers,
-        ("tipo_carroceria", "carroceria", "descricao_carroceria"),
-        ("carroceria",),
+        ("uf_do_veiculo", "uf_veiculo", "uf"),
+        ("uf", "veiculo"),
+    )
+    category_col = resolve_column(headers, ("categoria", "categoria_do_veiculo"), ("categoria",), required=False)
+    body_col = resolve_column(headers, ("carroceria", "tipo_de_carroceria"), ("carroceria",), required=False)
+    year_col = resolve_column(
+        headers,
+        ("ano_de_fabricacao_do_veiculo", "ano_fabricacao_do_veiculo", "ano_fabricacao"),
+        ("ano", "fabricacao"),
         required=False,
     )
-    if not type_col and not body_col:
-        raise RuntimeError(
-            "Base de veículos não possui coluna de tipo/carroceria reconhecível. "
-            f"Cabeçalhos observados: {sorted(headers)!r}"
-        )
+    quantity_col = resolve_column(headers, ("quantidade", "qtd", "qtde"), ("quantidade",))
 
-    totals: dict[str, FleetAgg] = defaultdict(FleetAgg)
-    type_counts: Counter[str] = Counter()
-    processed = matched = missing_rntrc = unmatched_rntrc = unknown_class = 0
-
-    lookup = db.cursor()
+    by_uf: dict[str, FleetAgg] = defaultdict(FleetAgg)
+    vehicle_categories: Counter[str] = Counter()
+    bodyworks: Counter[str] = Counter()
+    stats = {
+        "rows_processed": 0,
+        "rows_valid": 0,
+        "rows_invalid_uf": 0,
+        "rows_invalid_quantity": 0,
+        "quantity_total": 0,
+        "quantity_other_vehicle_type": 0,
+        "quantity_other_transporter_category": 0,
+    }
 
     def consume(row: dict[str, str]) -> None:
-        nonlocal processed, matched, missing_rntrc, unmatched_rntrc, unknown_class
-        processed += 1
-        rntrc = clean_rntrc(row.get(rntrc_col) or "")
-        if not rntrc:
-            missing_rntrc += 1
+        stats["rows_processed"] += 1
+        uf = (row.get(uf_col) or "").upper().strip()
+        if uf not in VALID_UFS:
+            stats["rows_invalid_uf"] += 1
             return
-        found = lookup.execute("SELECT ibge_code FROM rntrc_geo WHERE rntrc=?", (rntrc,)).fetchone()
-        if not found:
-            unmatched_rntrc += 1
+        quantity = parse_quantity(row.get(quantity_col) or "")
+        if quantity is None:
+            stats["rows_invalid_quantity"] += 1
             return
-        code = str(found[0])
-        vehicle_type = row.get(type_col) if type_col else ""
-        bodywork = row.get(body_col) if body_col else ""
-        classification = classify_vehicle(vehicle_type or "", bodywork or "")
-        normalized_type = norm(vehicle_type or bodywork or "NAO INFORMADO") or "NAO INFORMADO"
-        type_counts[normalized_type] += 1
 
-        agg = totals[code]
-        agg.total += 1
-        if classification == "traction":
-            agg.traction += 1
-        elif classification == "implement":
-            agg.implements += 1
+        stats["rows_valid"] += 1
+        stats["quantity_total"] += quantity
+        agg = by_uf[uf]
+        agg.total += quantity
+
+        vehicle_type = classify_vehicle_type(row.get(type_col) or "")
+        if vehicle_type == "traction":
+            agg.traction += quantity
+        elif vehicle_type == "implement":
+            agg.implements += quantity
         else:
-            agg.other += 1
-            unknown_class += 1
-        matched += 1
+            agg.other_type += quantity
+            stats["quantity_other_vehicle_type"] += quantity
+
+        transporter = classify_transporter(row.get(transporter_col) or "")
+        if transporter == "etc":
+            agg.etc += quantity
+        elif transporter == "etc_equiparada":
+            agg.etc_equiparada += quantity
+        elif transporter == "tac":
+            agg.tac += quantity
+        elif transporter == "ctc":
+            agg.ctc += quantity
+        else:
+            agg.other_transporter_category += quantity
+            stats["quantity_other_transporter_category"] += quantity
+
+        if category_col:
+            category = norm(row.get(category_col) or "NAO INFORMADO") or "NAO INFORMADO"
+            vehicle_categories[category] += quantity
+        if body_col:
+            body = norm(row.get(body_col) or "NAO INFORMADO") or "NAO INFORMADO"
+            bodyworks[body] += quantity
+        if year_col:
+            raw_year = (row.get(year_col) or "").strip()
+            if raw_year.isdigit():
+                year = int(raw_year)
+                if 1900 <= year <= datetime.now(timezone.utc).year + 1:
+                    agg.manufacture_year_weighted_sum += year * quantity
+                    agg.manufacture_year_quantity += quantity
 
     consume(first)
     for row in iterator:
         consume(row)
 
-    return totals, {
-        "vehicles_processed": processed,
-        "vehicles_matched_transporters": matched,
-        "vehicles_missing_rntrc": missing_rntrc,
-        "vehicles_unmatched_rntrc": unmatched_rntrc,
-        "vehicles_other_classification": unknown_class,
-    }, type_counts
+    rows = []
+    current_year = datetime.now(timezone.utc).year
+    for uf, agg in sorted(by_uf.items()):
+        avg_year = (
+            agg.manufacture_year_weighted_sum / agg.manufacture_year_quantity
+            if agg.manufacture_year_quantity
+            else None
+        )
+        rows.append({
+            "uf": uf,
+            "geographyLevel": "UF",
+            "fleetTotal": agg.total,
+            "tractionVehicles": agg.traction,
+            "implements": agg.implements,
+            "otherVehicleType": agg.other_type,
+            "fleetByTransporterCategory": {
+                "ETC": agg.etc,
+                "ETC_EQUIPARADA": agg.etc_equiparada,
+                "TAC": agg.tac,
+                "CTC": agg.ctc,
+                "OTHER": agg.other_transporter_category,
+            },
+            "averageManufactureYear": round(avg_year, 1) if avg_year is not None else None,
+            "estimatedAverageVehicleAgeYears": round(current_year - avg_year, 1) if avg_year is not None else None,
+            "municipalUse": "PROXY_UF",
+        })
+
+    if not rows:
+        raise RuntimeError("Agregação oficial de frota não produziu nenhuma UF")
+
+    diagnostics = {
+        "observedVehicleCategories": dict(vehicle_categories.most_common()),
+        "observedBodyworks": dict(bodyworks.most_common()),
+    }
+    return rows, stats, diagnostics
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--transporters", type=Path, required=True)
     parser.add_argument("--vehicles", type=Path, required=True)
-    parser.add_argument("--workdir", type=Path, default=Path(".cache/market-intelligence"))
-    parser.add_argument("--ibge-json", type=Path)
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=Path("public/tools/atlas-market-intelligence/data/rntrc_frota_municipios.json"),
-    )
+    parser.add_argument("--output", type=Path, default=Path("public/tools/atlas-market-intelligence/data/rntrc_frota_uf.json"))
     parser.add_argument("--metadata", type=Path)
-    parser.add_argument("--transporters-competence", default="2026-07")
-    parser.add_argument("--vehicles-competence")
-    parser.add_argument("--vehicles-source-url")
+    parser.add_argument("--competence", default="2026-07")
+    parser.add_argument("--source-url")
+    parser.add_argument("--dictionary-url")
     args = parser.parse_args()
 
-    args.workdir.mkdir(parents=True, exist_ok=True)
-    ibge, ibge_path = load_ibge(args.ibge_json, args.workdir)
-    db_path = args.workdir / "rntrc_fleet_join.sqlite"
-    db = sqlite3.connect(db_path)
-    try:
-        transport_stats = build_transport_geography(args.transporters, ibge, db)
-        totals, vehicle_stats, type_counts = aggregate_vehicles(args.vehicles, db)
-    finally:
-        db.close()
-
-    by_code = {geo["ibge_code"]: geo for geo in ibge.values()}
-    rows = []
-    for code, agg in totals.items():
-        geo = by_code.get(code)
-        if not geo:
-            continue
-        rows.append({
-            "ibgeCode": code,
-            "name": geo["municipality"],
-            "uf": geo["uf"],
-            "region": geo["region"],
-            "fleetTotal": agg.total,
-            "tractionVehicles": agg.traction,
-            "implements": agg.implements,
-            "otherVehicles": agg.other,
-        })
-    rows.sort(key=lambda row: (row["uf"], row["name"]))
-
-    if not rows:
-        raise RuntimeError("Agregação de frota não produziu nenhum município")
-
+    rows, stats, diagnostics = aggregate(args.vehicles)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+    processed = max(stats["rows_processed"], 1)
+    total = max(stats["quantity_total"], 1)
+    invalid_row_rate = (stats["rows_invalid_uf"] + stats["rows_invalid_quantity"]) / processed
+    unknown_type_rate = stats["quantity_other_vehicle_type"] / total
+    unknown_transporter_rate = stats["quantity_other_transporter_category"] / total
+    status = "ATUALIZADO" if invalid_row_rate <= 0.001 and unknown_type_rate <= 0.001 else "PARCIAL"
+
     metadata_path = args.metadata or args.output.with_suffix(".metadata.json")
     metadata = {
         "dataset": "ANTT RNTRC-Dados de Veículos",
+        "competence": args.competence,
         "generatedAt": datetime.now(timezone.utc).isoformat(),
-        "transportersCompetence": args.transporters_competence,
-        "vehiclesCompetence": args.vehicles_competence,
-        "vehiclesSourceUrl": args.vehicles_source_url,
-        "transportersRawSha256": sha256_file(args.transporters),
-        "vehiclesRawSha256": sha256_file(args.vehicles),
-        "transportersRawBytes": args.transporters.stat().st_size,
-        "vehiclesRawBytes": args.vehicles.stat().st_size,
+        "sourceUrl": args.source_url,
+        "dictionaryUrl": args.dictionary_url,
+        "geographyLevel": "UF",
+        "municipalUse": "PROXY_UF",
+        "rawSha256": sha256_file(args.vehicles),
+        "rawBytes": args.vehicles.stat().st_size,
         "outputSha256": sha256_file(args.output),
-        "ibgeCache": str(ibge_path),
-        "municipalitiesWithFleet": len(rows),
-        "stats": {**transport_stats, **vehicle_stats},
-        "observedVehicleTypes": dict(type_counts.most_common()),
-        "classificationMethod": {
-            "implement": ["SEMI REBOQUE", "SEMIRREBOQUE", "REBOQUE", "DOLLY"],
-            "traction": ["CAMINHAO", "CAMINHONETE", "UTILITARIO", "TRATOR", "AUTOMOTOR"],
-            "other": "qualquer tipo não coberto pelas regras anteriores; preservado separadamente, nunca redistribuído",
+        "health": status,
+        "stats": stats,
+        "qualityRates": {
+            "invalidRowRate": invalid_row_rate,
+            "unknownVehicleTypeRate": unknown_type_rate,
+            "unknownTransporterCategoryRate": unknown_transporter_rate,
         },
+        "diagnostics": diagnostics,
         "transformations": [
-            "transportador ativo -> município/UF -> código IBGE",
-            "RNTRC do veículo -> RNTRC do transportador via SQLite temporário",
-            "agregação municipal de frota total, veículos de tração, implementos e outros",
-            "nenhuma placa, CPF/CNPJ ou identificador individual é publicado no dataset derivado",
+            "preserva a granularidade geográfica oficial UF",
+            "soma o campo Quantidade por UF",
+            "usa Tipo de Veículo oficial para separar Tração e Implemento",
+            "agrega Categoria do Transportador em ETC, ETC Equiparada, TAC e CTC",
+            "calcula ano médio ponderado pela Quantidade quando Ano de Fabricação está disponível",
+            "marca qualquer consumo municipal como PROXY_UF",
+        ],
+        "limitations": [
+            "o recurso público de veículos não contém município",
+            "o recurso público de veículos não contém número RNTRC individual para join com transportadores",
+            "frota por município não é observável a partir deste recurso e não deve ser inferida como fato",
         ],
     }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(metadata, ensure_ascii=False, indent=2))
 
-    matched = max(vehicle_stats["vehicles_matched_transporters"], 1)
-    unmatched_rate = vehicle_stats["vehicles_unmatched_rntrc"] / max(vehicle_stats["vehicles_processed"], 1)
-    if unmatched_rate > 0.01:
-        print(
-            f"AVISO: {unmatched_rate:.2%} dos veículos não casaram com transportador; dataset deve permanecer PARCIAL.",
-            file=sys.stderr,
-        )
-    other_rate = vehicle_stats["vehicles_other_classification"] / matched
-    if other_rate > 0.05:
-        print(
-            f"AVISO: {other_rate:.2%} dos veículos ficaram em otherVehicles; revisar taxonomia antes de promover classificação.",
-            file=sys.stderr,
-        )
+    if status != "ATUALIZADO":
+        print("AVISO: snapshot de frota permaneceu PARCIAL devido aos gates de qualidade.", file=sys.stderr)
     return 0
 
 
