@@ -1,5 +1,5 @@
 import type { WAMessage } from '@whiskeysockets/baileys';
-import { prisma } from '../../../lib/prisma.js';
+import { prisma, withRlsContext } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { scheduleConversationAnalysis } from '../../../lib/queue/whatsappSignal.worker.js';
@@ -26,13 +26,19 @@ export function extractMessageText(message: WAMessage): string | null {
  * Compara pelos últimos 9 dígitos em vez de exigir formato idêntico: o cadastro do Contact aceita
  * texto livre (com/sem "+55", com/sem o 9 inicial de celular), então uma igualdade exata deixaria
  * de casar contatos reais por uma diferença só de formatação.
+ *
+ * `$queryRaw` não passa pela extensão `$allOperations` de `src/lib/prisma.ts` (RLS/tenant
+ * scoping) — roda via `withRlsContext` (seta `app.current_tenant_id` na transação; sem isso a
+ * policy de RLS de "Contact" devolve zero linhas sempre, mesmo com o WHERE certo) e mantém o
+ * filtro explícito de `organizationId` como defesa em profundidade, igual ao padrão já usado em
+ * `src/features/knowledge/search.service.ts`.
  */
 async function findContactByPhone(organizationId: string, phoneE164: string) {
     const digits = phoneE164.replace(/\D/g, '');
     const significant = digits.slice(-9);
     if (significant.length < 8) return null;
 
-    const [found] = await prisma.$queryRaw<{ id: string }[]>`
+    const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM "Contact"
         WHERE "organizationId" = ${organizationId}
           AND (
@@ -40,7 +46,7 @@ async function findContactByPhone(organizationId: string, phoneE164: string) {
             OR regexp_replace(COALESCE(whatsapp, ''), '\D', '', 'g') LIKE ${'%' + significant}
           )
         LIMIT 1
-    `;
+    `);
     return found ?? null;
 }
 
