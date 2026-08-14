@@ -48,8 +48,8 @@ interface SeedUserDefinition {
 // VISUALIZADOR). Bug real encontrado aqui: este script gravava 'admin' minúsculo.
 const USERS: SeedUserDefinition[] = [
     { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'ADMIN', passwordEnvVar: 'SEED_PASSWORD_MARCELO' },
-    { name: 'Kaue Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'VISUALIZADOR', passwordEnvVar: 'SEED_PASSWORD_KAUE', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
-    { name: 'Joao Reis', email: 'joao.reis@atlasgr.com.br', role: 'VISUALIZADOR', passwordEnvVar: 'SEED_PASSWORD_JOAO', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
+    { name: 'Kaue Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'VENDEDOR', passwordEnvVar: 'SEED_PASSWORD_KAUE', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
+    { name: 'Joao Reis', email: 'joao.reis@atlasgr.com.br', role: 'VENDEDOR', passwordEnvVar: 'SEED_PASSWORD_JOAO', joinOrganizationOfEmail: 'marcelo.nascimento@atlasgr.com.br' },
 ];
 
 async function seed() {

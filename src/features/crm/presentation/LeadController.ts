@@ -55,8 +55,8 @@ export class LeadController {
 
     createLead = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { organizationId: orgId } = (req as AuthRequest).user;
-            const lead = await this.leadUseCases.createLead(orgId, req.body);
+            const { organizationId: orgId, id: userId, role } = (req as AuthRequest).user;
+            const lead = await this.leadUseCases.createLead(orgId, req.body, { userId, role });
             fireAutomations({
                 organizationId: orgId,
                 trigger: 'Lead criado',

@@ -47,11 +47,41 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         return this.findById(organizationId, id);
     }
 
-    async createLead(organizationId: string, data: z.infer<typeof leadSchema>) {
+    async createLead(organizationId: string, data: z.infer<typeof leadSchema>, actor?: { userId: string; role: string }) {
         const validated = leadSchema.parse(data);
+
+        // VENDEDOR sempre captura para si mesmo — nunca cria um lead em nome de outra pessoa
+        // (só GESTOR/ADMIN podem reatribuir, via update). Isso é o que torna a checagem de posse em
+        // requireLeadOwnership.ts significativa: sem isto, um VENDEDOR podia informar `owner` de
+        // outra pessoa no corpo da requisição e escapar da própria regra.
+        if (actor?.role === 'VENDEDOR') {
+            validated.owner = actor.userId;
+        }
+
+        // Bloqueia lead duplicado para a mesma empresa no mesmo funil (Lead x Negócio já são
+        // objetos distintos por natureza, ver LeadFunnel — não impedimos os dois coexistirem).
+        // Cobre o caso de um vendedor tentar capturar uma empresa que outro já capturou.
+        if (validated.companyId) {
+            const { prisma } = await import('../../../lib/prisma.js');
+            const funnel = validated.funnel ?? 'Lead';
+            const existing = await prisma.lead.findFirst({
+                where: { organizationId, companyId: validated.companyId, funnel, deletedAt: null },
+                select: { id: true, owner: true },
+            });
+            if (existing) {
+                let ownerLabel = existing.owner ?? 'outro usuário';
+                if (existing.owner) {
+                    const ownerUser = await prisma.user.findUnique({ where: { id: existing.owner }, select: { name: true } });
+                    if (ownerUser?.name) ownerLabel = ownerUser.name;
+                }
+                throw new AppError(`Esta empresa já tem um lead capturado por ${ownerLabel}.`, 409, { existingLeadId: existing.id });
+            }
+        }
+
         const lead = await this.create(organizationId, validated);
-        
-        // Se o lead foi criado sem dono, tenta atribuir via Round-Robin
+
+        // Se o lead foi criado sem dono (fluxo de gestão, sem VENDEDOR atribuído explicitamente),
+        // tenta atribuir via Round-Robin.
         if (!validated.owner) {
             try {
                 const { assignLeadRoundRobin } = await import('../services/assignment.service.js');
@@ -64,7 +94,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
                 console.error('Failed to assign lead via Round-Robin', err);
             }
         }
-        
+
         return lead;
     }
 
