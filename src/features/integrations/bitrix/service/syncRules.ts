@@ -6,6 +6,7 @@ import { requestContext } from '../../../../lib/async-context.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { findUnimportedBitrixLeadIds, importSelectedBitrixLeads } from './leads.js';
 import { findUnimportedBitrixDealIds, importSelectedBitrixDeals } from './deals.js';
+import { bitrixSyncFailuresTotal } from './metrics.js';
 
 // ── Sincronização automática (regras) — ver bitrixSync.worker.ts ───────────────────────────────
 //
@@ -175,6 +176,11 @@ export async function runBitrixSyncTick(): Promise<{ organizationsProcessed: num
                     }
                 } catch (err) {
                     rulesFailed++;
+                    // Sinal agregado/acionável por alerta (mesmo bloqueador #11) — complementa o
+                    // lastError abaixo (visível só na tela de Integrações desta organização) com
+                    // uma série Prometheus que o BitrixSyncFailuresHigh consegue somar entre
+                    // execuções e disparar sozinho. Ver metrics.ts.
+                    bitrixSyncFailuresTotal.inc({ tenant: organizationId, entity: rule.source });
                     // BUG CORRIGIDO (bloqueador #11 — "sincronização não pode falhar silenciosamente"):
                     // antes desta correção, uma regra que falhasse em TODA execução nunca tinha
                     // `lastRunAt` atualizado, então a tela de Integrações mostrava "Ainda não rodou"

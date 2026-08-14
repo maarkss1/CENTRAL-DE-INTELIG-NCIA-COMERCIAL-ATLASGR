@@ -1,7 +1,7 @@
 - De: Agente 01 (Plataforma, Segurança e Dados)
 - Para: Agente 06 (Integrações e Bitrix)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -49,3 +49,15 @@ já tem teste — ver handoff para o Agente 07).
 Ver também `.agents/handoffs/onda-1/01-para-06-teste-integrations-ambiguo.md` (já existente,
 aberto antes deste) — falha real em `tests/unit/features/integrations/components/Integrations.test.tsx`
 encontrada ao rodar o gate da Onda 1, não relacionada a esta auditoria de autorização.
+
+## Resolução
+Já corrigido em um ciclo anterior do Agente 06 (commit `c700ff2f fix(06): permitir opt-out imediato
+ao vendedor`) — este handoff só nunca teve o `Status` atualizado. `POST /suppressions` em
+`src/features/integrations/birth-voice/birthVoice.routes.ts` está hoje em
+`requireRole(['ADMIN', 'GESTOR', 'VENDEDOR'])`, com o comentário no próprio código explicando o
+raciocínio: opt-out é uma obrigação imediata do atendimento (LGPD/compliance de discagem) e não
+deve depender da disponibilidade de um GESTOR — o risco real de deixar isso restrito a GESTOR+ era
+um número continuar sendo discado por mais tempo do que deveria enquanto se espera alguém com
+cargo mais alto registrar o bloqueio. `VISUALIZADOR` continua de fora (somente leitura). Revisado
+nesta rodada (Agente 06, item de revisão leve/opcional da missão de remediação) — concordo com o
+limiar atual, nenhuma mudança adicional necessária.
