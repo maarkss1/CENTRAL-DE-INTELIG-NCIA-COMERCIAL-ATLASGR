@@ -3,13 +3,12 @@ import { logger } from '../logger.js';
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-// An explicit ENABLE_QUEUES=false must win even when a stale/optional REDIS_URL exists.
-// This matches render.yaml, where Redis is optional and queues stay disabled until both
-// the operator opts in and a working Redis service is configured.
-const queuesExplicitlyDisabled = process.env.ENABLE_QUEUES === 'false';
+// Redis-backed queues are opt-in. A REDIS_URL by itself is not enough to activate
+// background workers or distributed rate limiting; operators must explicitly set
+// ENABLE_QUEUES=true as documented in render.yaml. This keeps an old/stale optional
+// Redis URL from participating in the web process boot.
 export const queuesEnabled =
-    !queuesExplicitlyDisabled &&
-    (process.env.ENABLE_QUEUES === 'true' || Boolean(process.env.REDIS_URL));
+    process.env.ENABLE_QUEUES === 'true' && Boolean(process.env.REDIS_URL);
 
 // Connection instance for standard queue operations
 export const connection = new Redis(redisUrl, {
@@ -17,17 +16,13 @@ export const connection = new Redis(redisUrl, {
     enableOfflineQueue: queuesEnabled,
     maxRetriesPerRequest: null, // Required by BullMQ
     retryStrategy(times) {
-        if (times > 3 && !process.env.REDIS_URL) {
-            return null; // Stop retrying if Redis is not explicitly configured
-        }
+        if (!queuesEnabled) return null;
         return Math.min(times * 500, 5000);
     },
 });
 
 connection.on('error', (err) => {
-    // Suppress Redis errors entirely while queues are explicitly disabled. No queue or
-    // rate-limiter consumer should initiate a connection in this mode.
-    if (!queuesEnabled || !process.env.REDIS_URL) return;
+    if (!queuesEnabled) return;
     if (process.env.NODE_ENV === 'development') {
         logger.warn({ message: err.message }, 'Redis offline or connecting...');
     } else {
@@ -42,25 +37,19 @@ connection.on('connect', () => {
 // Dedicated connection for express-rate-limit (via rate-limit-redis).
 // Must NOT reuse `connection` above: that one sets maxRetriesPerRequest: null
 // (required by BullMQ, which needs blocking commands to retry forever). Rate-limit
-// checks run on the hot request path, so a transient Redis hiccup (e.g. NOSCRIPT
-// right after a fresh container start) must fail fast instead of retrying the
-// EVALSHA command indefinitely — which is exactly what happened when this shared
-// the BullMQ connection: a single request produced ~500 EVALSHA calls in a couple
-// of seconds and blew through the rate limit before real traffic ever arrived.
+// checks run on the hot request path, so a transient Redis hiccup must fail fast.
 export const rateLimiterConnection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
     enableOfflineQueue: queuesEnabled,
     maxRetriesPerRequest: 1,
     retryStrategy(times) {
-        if (times > 3 && !process.env.REDIS_URL) {
-            return null;
-        }
+        if (!queuesEnabled) return null;
         return Math.min(times * 500, 5000);
     },
 });
 
 rateLimiterConnection.on('error', (err) => {
-    if (!queuesEnabled || !process.env.REDIS_URL) return;
+    if (!queuesEnabled) return;
     if (process.env.NODE_ENV === 'development') {
         logger.warn({ message: err.message }, 'Rate limiter Redis connection offline or connecting...');
     } else {
@@ -76,9 +65,7 @@ export const cacheConnection = new Redis(redisUrl, {
     maxRetriesPerRequest: 1,
     enableOfflineQueue: false,
     retryStrategy(times) {
-        if (times > 3 && !process.env.REDIS_URL) {
-            return null;
-        }
+        if (!queuesEnabled) return null;
         return Math.min(times * 500, 5000);
     },
 });
