@@ -117,6 +117,11 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                 {...listeners}
                 role="button"
                 tabIndex={0}
+                // dnd-kit não expõe o estado de "pego" via aria-pressed sozinho — attributes/listeners
+                // só trazem role/aria-roledescription/aria-describedby. Sem isto, um leitor de tela não
+                // tem como saber, depois do Espaço de pickup, que o card está em modo de arrasto por
+                // teclado (só a pista visual de isDragging, que é invisível pra quem usa teclado+leitor).
+                aria-pressed={isDragging}
                 onClick={() => onClick(lead)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(lead); }}
                 className="p-4 pb-0 cursor-grab active:cursor-grabbing"
