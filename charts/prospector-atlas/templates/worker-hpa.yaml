@@ -1,0 +1,38 @@
+{{- if and .Values.worker.enabled .Values.worker.autoscaling.enabled }}
+# Sem isto, o worker (filas BullMQ: enriquecimento, sync Bitrix, IA, WhatsApp, relatórios — ver
+# src/lib/queue/**) ficava travado em `worker.replicaCount` fixo, sem reagir a acúmulo de fila.
+# Ainda é CPU/memória (não há métrica de profundidade de fila exposta ao Prometheus hoje — ver
+# infrastructure/observability/alert.rules.yml e o handoff para o Agente 07 sobre isso), mas já
+# reduz o cenário de fila crescendo indefinidamente com worker parado em réplica única sob carga.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "prospector-atlas.fullname" . }}-worker
+  labels:
+    {{- include "prospector-atlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "prospector-atlas.fullname" . }}-worker
+  minReplicas: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.worker.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.worker.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.worker.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.worker.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}

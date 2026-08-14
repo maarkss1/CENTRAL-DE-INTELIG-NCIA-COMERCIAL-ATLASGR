@@ -71,9 +71,53 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
 
+# Job Helm (pre-install/pre-upgrade hook, ver templates/migration-job.yaml) que roda
+# `npx prisma migrate deploy` antes de qualquer Deployment/Rollout novo ser aplicado. Se o Job
+# falhar, o release inteiro (helm upgrade / sync do ArgoCD) é abortado — nenhuma versão nova do
+# app inicia contra um schema desatualizado ou uma migração quebrada (mesma garantia que
+# render.yaml já tem no deploy real via Render). Ver o comentário no topo do template para o
+# caveat conhecido: a imagem publicada hoje pelo Dockerfile da raiz não contém a CLI `prisma`
+# (só @prisma/client) — handoff aberto para o Agente 08 em
+# .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md.
+migrations:
+  enabled: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  # Por padrão usa a mesma imagem do app (image.repository/image.tag acima). Só preencha aqui se
+  # quiser rodar a migração a partir de uma imagem "migrator" separada que preserve a CLI prisma.
+  image:
+    repository: ""
+    tag: ""
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+# PodDisruptionBudget do Deployment/Rollout principal e do worker — evita que um drain de nó
+# (manutenção, cluster autoscaler removendo nó ocioso) derrube todas as réplicas de uma vez.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+  workerMinAvailable: 1
+
 worker:
   enabled: true
   replicaCount: 2
+  # Desligado por padrão: sem uma métrica real de profundidade de fila exposta ao Prometheus
+  # hoje (ver infrastructure/observability/alert.rules.yml), autoscaling do worker só por
+  # CPU/memória é uma aproximação grosseira — fila BullMQ pode crescer com CPU ociosa (worker
+  # esperando I/O de rede em chamadas de IA/Bitrix). Ligue explicitamente
+  # (worker.autoscaling.enabled=true) se aceitar essa aproximação, ou depois que o Agente 07
+  # expuser métrica de profundidade de fila (ver handoff correspondente).
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
   resources:
     limits:
       cpu: 500m

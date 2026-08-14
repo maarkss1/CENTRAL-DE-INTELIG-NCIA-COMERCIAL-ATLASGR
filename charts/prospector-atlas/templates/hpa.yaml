@@ -7,8 +7,20 @@ metadata:
     {{- include "prospector-atlas.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
+    {{- if .Values.blueGreen.enabled }}
+    # Com blueGreen.enabled=true (default), rollout.yaml cria um recurso Rollout
+    # (argoproj.io/v1alpha1) no lugar do Deployment padrão (deployment.yaml só renderiza quando
+    # blueGreen está desligado, ver a condicional correspondente nesse arquivo). Antes desta
+    # correção, o HPA sempre apontava para "kind: Deployment", um recurso que não existe neste
+    # caso — o HPA ficava sem scale target válido e nunca escalava nada.
+    # Argo Rollouts documenta explicitamente que o HPA deve referenciar o próprio `Rollout`
+    # quando blue-green/canary está em uso.
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    {{- else }}
     apiVersion: apps/v1
     kind: Deployment
+    {{- end }}
     name: {{ include "prospector-atlas.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}

@@ -58,3 +58,16 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 3000
+---
+# Evita que um drain de nó (minikube com múltiplos nós, ou o mesmo padrão replicado num cluster
+# real) derrube as 2 réplicas de uma vez — mesmo item já corrigido no chart Helm
+# (charts/prospector-atlas/templates/pdb.yaml).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api-server

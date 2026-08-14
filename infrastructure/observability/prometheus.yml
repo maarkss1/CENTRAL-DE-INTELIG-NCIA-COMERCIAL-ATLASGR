@@ -1,6 +1,13 @@
 global:
   scrape_interval: 15s
 
+# Sem Alertmanager configurado neste repositório — os alertas ficam visíveis em Prometheus
+# (`/alerts`) e via datasource no Grafana, mas não notificam ninguém até um receptor ser
+# adicionado (decisão de operação, não coberta nesta rodada). Ver
+# infrastructure/observability/alert.rules.yml para o detalhamento por grupo.
+rule_files:
+  - alert.rules.yml
+
 scrape_configs:
   - job_name: central-comercial
     metrics_path: /metrics

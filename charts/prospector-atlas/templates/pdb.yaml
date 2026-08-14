@@ -1,0 +1,33 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+# Evita que um drain de nó/rolling upgrade voluntário do cluster derrube todas as réplicas do
+# app de uma vez — sem isto, `kubectl drain` (manutenção de nó, autoscaler do cluster
+# desligando nó ocioso) pode remover réplicas suficientes para zerar a capacidade de servir
+# tráfego, mesmo com o Deployment/Rollout saudável.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "prospector-atlas.fullname" . }}
+  labels:
+    {{- include "prospector-atlas.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+{{- end }}
+{{- if and .Values.podDisruptionBudget.enabled .Values.worker.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "prospector-atlas.fullname" . }}-worker
+  labels:
+    {{- include "prospector-atlas.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.workerMinAvailable }}
+  selector:
+    matchLabels:
+      {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+{{- end }}
