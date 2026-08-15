@@ -166,16 +166,68 @@ duas seções. Gate na branch `integracao/onda-7`: `tsc --noEmit` limpo, lint 0 
   "completed" por default.
 - Escreveu suítes que nunca existiam para os 3 webhooks de voz (`birthVoice.webhook.ts`,
   `threecx` webhook) — 23 e 8 casos respectivamente, fail-closed/assinatura/idempotência/tenant.
-- **Achado de infraestrutura de teste cross-agente**: `tests/helpers/integration-setup.ts` roda
-  `Organization.deleteMany()` sem `where` no `afterAll` de qualquer arquivo de integração de
-  qualquer agente — com os 7 agentes desta onda compartilhando o mesmo `prospectordb_test`, isso
-  apaga organizações de outros testes em execução concorrente quando o timing colide (explica a
-  "contenção" intermitente relatada por outros agentes desta onda). Handoff aberto para 00/08
-  (`12-para-00-test-db-contencao-cross-agente.md`) — não é bug de nenhum agente individual, é
-  fragilidade do harness de teste compartilhado. **Candidato a item da Onda 8** (agente 08 ou
-  correção direta pelo coordenador antes do PR final).
+- **Achado de infraestrutura, diagnóstico original corrigido pelo Coordenador no gate final (ver
+  Leva 6 abaixo)**: `tests/helpers/integration-setup.ts` roda `Organization.deleteMany()` sem
+  `where` no `afterAll`; a hipótese original de "contenção entre agentes rodando em paralelo" foi
+  descartada — reproduzido de forma determinística sem nenhuma concorrência. É um bug real de
+  `executeWithRls`/`src/lib/prisma.ts` (mesma classe de bug encontrada de forma independente pelos
+  Agentes 07 e 13). Ver "## Gate final" para os detalhes e prioridade elevada a crítico.
 - 5 handoffs abertos (07, 17, 06, 00, 01), nenhum bloqueador desta onda.
 
-### Pendente
+### Leva 6 — mergeada (2026-08-15)
 
-Agente 07 (IA/Automações) ainda em execução — último dos 7.
+Agente 07 (IA/Automações), último dos 7, concluiu com diff em escopo exclusivo. Merge sem
+conflito. Gate na branch `integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101 warnings
+(baseline), 1046/1046 testes unitários, build ok. Push: `00d37dda` (inclui a correção de
+diagnóstico abaixo).
+
+- **RAG-001, terceiro pipeline duplicado encontrado**: `src/lib/ai/vectorStore.ts` fazia SQL cru
+  direto em `DocumentChunk` (usado por `searchPlaybookTool`), devolvendo trechos sem citar fonte
+  nenhuma. Unificado para delegar a `searchService.hybridSearch` (mesmo motor semântico+palavra-
+  chave, RLS por tenant); toda resposta agora cita "Fonte: <documento>, trecho N".
+- Motor de automação: operador de condição numérico (`{gte}`/`lte`/`gt`/`lt`) e novo gatilho de
+  estagnação (`StagnationScannerService`, varredura diária reutilizando `Lead.lastInteraction` e o
+  mecanismo genérico de trava distribuída, extraído para `src/lib/queue/distributedLock.ts`).
+  Handoff aberto para 00: falta ligar `StagnationScannerService.start()` em `server.ts` (2 linhas,
+  fora do escopo do agente 07 nesta onda).
+- **QUEUE-002, bug real e sério corrigido**: `createLeadsWorker` processava o job `qualify-lead`
+  sem `requestContext.run({tenantId})`. Sob `FORCE ROW LEVEL SECURITY` em `Lead`, isso fazia
+  **toda qualificação de lead por IA em background falhar silenciosamente** (a rota já tinha
+  respondido 202 antes do worker rodar) — usuário nunca ficava sabendo. Corrigido: `organizationId`
+  agora viaja no job.
+- `deadLetter.ts` novo — toda fila (leads/search/enrichment/whatsapp/bitrixSync) registra falha
+  final esgotada no `AuditLog`, uniformemente.
+- **Achado independente da mesma classe de bug de plataforma** que 12 e 13 encontraram: escrita de
+  `Organization` seguida de leitura logo depois, dentro do mesmo teste de integração, falhando de
+  forma não-determinística. Removeu o teste afetado (preferiu não deixar algo flaky no
+  repositório) e abriu handoff detalhado para 01
+  (`07-para-01-flaky-org-creation-mid-integration-test.md`) — terceira ocorrência independente.
+- 2 handoffs abertos (00, 01).
+
+## Gate final — todos os 7 agentes mergeados (2026-08-15)
+
+`tsc --noEmit`: limpo. `lint`: 0 erros, 101 warnings (baseline, nenhum novo). `test:unit`:
+1046/1046. `build`: ok.
+
+`test:integration`: **71/73 passam**. As 2 falhas são em `tests/integration/threecx-persistence.test.ts`
+(Agente 12) — reproduzidas de forma **determinística**, sozinho, sem nenhum outro processo de
+teste rodando (`ps aux` confirmando ausência de outro `vitest`; `fileParallelism: false` +
+`singleThread: true` já serializam os arquivos entre si). Isso **contradiz** o diagnóstico
+original de "contenção entre agentes" do Agente 12 (handoff `12-para-00-test-db-contencao-cross-agente.md`,
+corrigido pelo Coordenador com a evidência de reprodução). O padrão bate exatamente com o que os
+Agentes 07 e 13 encontraram de forma independente: escrita e leitura em `requestContext.run()` de
+nível superior **separados** (não aninhados) perdem visibilidade entre si, num padrão consistente
+com o array-form `basePrisma.$transaction([setConfig, prismaPromise])` de `executeWithRls`
+(`src/lib/prisma.ts`).
+
+**Não é regressão da Onda 7** — `src/lib/prisma.ts` não foi tocado por nenhum dos 7 agentes desta
+onda. **Não bloqueia o merge/PR desta onda** — nenhuma entrega da onda depende de ler-o-que-
+escreveu entre `.run()`s separados (onde importava, os próprios agentes usaram um único `.run()`).
+Mas é um bug de plataforma real, determinístico, encontrado de forma independente por 3 agentes,
+com risco de correção em produção fora dos testes (qualquer worker/rota que abra dois contextos de
+tenant sequenciais). **Prioridade elevada a crítico** — recomendado como o primeiro item de uma
+próxima rodada dedicada a `src/lib/prisma.ts` (não uma correção apressada dentro desta onda, dado
+que é código de segurança/RLS crítico).
+
+`build:worker` / `test:e2e`: em andamento no momento deste registro — resultado a confirmar antes
+da abertura do PR.
