@@ -40,8 +40,15 @@ export function isExtractionEntity(value: unknown): value is BitrixExtractionEnt
     return typeof value === 'string' && (ALL_EXTRACTION_ENTITIES as readonly string[]).includes(value);
 }
 
-/** Campos fixos devolvidos por `user.get` — não há metadados dinâmicos como nos objetos CRM. */
+/**
+ * Campos fixos devolvidos por `user.get` — não há metadados dinâmicos como nos objetos CRM. Lista
+ * alinhada à ferramenta de referência (`public/tools/extrator-bitrix.html`,
+ * `CAMPOS_USUARIO_COMPLETO`), citada como material de referência funcional pelo prompt do 06A —
+ * mesmas seis entidades, mesmos métodos REST, mesmo campo de data por entidade e a mesma decisão
+ * de não filtrar Usuários por período, confirmados independentemente por este serviço.
+ */
 export const USER_ENTITY_FIXED_FIELDS: readonly string[] = [
-    'ID', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL', 'ACTIVE', 'WORK_POSITION',
-    'PERSONAL_MOBILE', 'PERSONAL_WWW', 'UF_DEPARTMENT', 'DATE_REGISTER', 'LAST_LOGIN',
+    'ID', 'XML_ID', 'ACTIVE', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL', 'LOGIN',
+    'WORK_POSITION', 'PERSONAL_PHONE', 'PERSONAL_MOBILE', 'PERSONAL_WWW', 'PERSONAL_BIRTHDAY',
+    'LAST_LOGIN', 'DATE_REGISTER', 'TIME_ZONE', 'UF_DEPARTMENT', 'IS_ONLINE',
 ];
