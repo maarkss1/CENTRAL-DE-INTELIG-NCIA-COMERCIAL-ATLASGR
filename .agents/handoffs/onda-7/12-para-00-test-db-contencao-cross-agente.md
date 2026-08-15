@@ -1,9 +1,11 @@
 - De: Agente 12 (Voz e Telefonia)
 - Para: Agente 00 (Coordenador) / Agente 08 (QA e Release)
 - Onda: 7
-- Status: aberto
-- Prioridade: alto (não bloqueia esta onda isoladamente, mas ameaça a confiabilidade do gate de
-  `test:integration` de QUALQUER agente que rode em paralelo com outro)
+- Status: aberto — diagnóstico original corrigido pelo Coordenador (ver "## Correção do
+  Coordenador" abaixo)
+- Prioridade: crítico (não é só contenção entre agentes — reproduzido de forma determinística em
+  processo único, sem nenhuma concorrência; risco real de correção de "ler o que acabou de
+  escrever" em produção, não só nos testes)
 
 ## Problema
 
@@ -79,3 +81,42 @@ isolado (ver `## Resolução` em
 `tests/integration/threecx-persistence.test.ts` no repositório porque ele é correto e vai passar de
 forma estável assim que rodar sem concorrência de banco — só registrei aqui o risco para quem for
 avaliar o gate agregado da onda.
+
+## Correção do Coordenador (2026-08-15, gate final da Onda 7)
+
+A previsão acima ("vai passar de forma estável assim que rodar sem concorrência de banco") **não
+se confirmou**. Depois que os 7 agentes desta onda terminaram e nenhum outro processo de teste
+estava rodando (`ps aux | grep vitest` vazio, `fileParallelism: false` + `singleThread: true` no
+`vitest.integration.config.ts` — os arquivos já rodam em série, nunca em paralelo entre si), rodei
+`test:integration` na branch de integração duas vezes seguidas, sozinho: **as mesmas 2 falhas em
+`threecx-persistence.test.ts` se repetiram de forma idêntica nas duas execuções** — não é
+intermitência de timing entre processos.
+
+Padrão observado, dentro do próprio arquivo:
+- Teste 1 (escreve com `asOrg(ORG_A, connect3CX)`, lê com `asOrg(ORG_A, get3CXConnectionsForOrg)`,
+  dois `requestContext.run()` de nível superior separados) → **passa**.
+- Teste 2 (escreve com `asOrg`, lê com `withRlsBypass` + `$queryRaw` direto) → **falha**: 0 linhas
+  encontradas para o `id` que acabou de ser criado.
+- Teste 4 (escreve com `asOrg(ORG_A, connect3CX)`, lê com `asOrg(ORG_A, prisma.threeCXConnection.findMany)`, dois `.run()` separados) → **falha**: a própria organização que escreveu não vê o
+  que acabou de criar.
+
+Isso bate exatamente com o padrão que o Agente 13 já tinha isolado e documentado em
+`13-para-01-anomalia-visibilidade-entre-requestcontext-run.md` (escrita e leitura em
+`requestContext.run()` de nível superior **separados**, não aninhados, perdem visibilidade entre
+si) — e com a suspeita do Agente 07 em
+`07-para-01-flaky-org-creation-mid-integration-test.md` sobre o `basePrisma.$transaction([...])`
+em array-form (`executeWithRls`, `src/lib/prisma.ts`). **Três agentes independentes da Onda 7
+encontraram a mesma classe de bug de plataforma por três caminhos diferentes.** Não é contenção de
+banco entre worktrees — é um problema real (ainda não investigado a fundo) na forma como
+`executeWithRls` isola escrita e leitura via `$transaction([setConfig, prismaPromise])` array-form
+quando cada operação vem de um `requestContext.run()` diferente.
+
+**Não é regressão da Onda 7**: `src/lib/prisma.ts` não foi tocado por nenhum dos 7 agentes desta
+onda (confirmado via `git diff --stat` contra a base da onda) — o bug já existia. Não bloqueei o
+merge/PR da Onda 7 por causa disso (nenhuma entrega desta onda depende de ler-o-que-acabou-de-
+escrever entre `.run()`s separados; onde isso importava, os próprios agentes contornaram usando um
+único `.run()`, como o teste 1 acima prova). Mas a prioridade sobe para crítico porque, ao
+contrário do que o diagnóstico original sugeria, isto não desaparece sozinho com menos concorrência
+— é determinístico e pode afetar qualquer código de produção que abra dois `requestContext.run()`
+sequenciais (ex.: um worker BullMQ que processa um job, fecha o contexto, e outra parte do sistema
+abre um contexto novo pouco depois para ler o resultado).
