@@ -26,10 +26,15 @@ async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 
 // *-chromium-win32.png (geradas localmente no Windows). Playwright inclui a plataforma no nome do
 // arquivo de baseline, então o CI (ubuntu-latest) sempre procura *-chromium-linux.png, que nunca
 // existiu — todo teste deste arquivo falha com "A snapshot doesn't exist", não porque a tela mudou.
-// Não é possível gerar as baselines Linux a partir deste ambiente (sem Docker/Postgres disponíveis
-// aqui para subir a stack completa) — para reativar: rodar
-// `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` em CI/Linux e commitar os
-// PNGs *-chromium-linux.png resultantes junto com os já existentes.
+// Gerar localmente (mesmo em Linux, com Docker/Postgres de pé) NÃO resolve: o build exato do
+// Chromium usado aqui (`chromium-1194`, provisionado no ambiente do agente) difere do que
+// `npx playwright install --with-deps chromium` instala no runner `ubuntu-latest` do CI
+// (`chromium_headless_shell-1228` na verificação de 2026-08-15) — anti-aliasing/rasterização de
+// fonte variam entre builds o suficiente para criar falso positivo/negativo de regressão visual.
+// Precisa ser gerado DENTRO do CI: rodar
+// `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` num job do `ci.yml` (ubuntu-latest,
+// o mesmo runner/imagem que roda o `test:e2e` normal) e commitar os PNGs *-chromium-linux.png
+// resultantes. Handoff aberto em .agents/handoffs/onda-6/14-para-08-baselines-visuais-linux.md.
 test.describe.skip('Regressão visual', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`Painel Central (dashboard) — ${theme}`, async ({ page }) => {
