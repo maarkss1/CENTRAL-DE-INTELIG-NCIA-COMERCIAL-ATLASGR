@@ -124,6 +124,58 @@ testes unitários, build ok. Push: `64e482f`.
   loga, não persiste — como `threecx/**` passou a ser do Agente 12 nesta onda, redirecionado via
   `06-para-12-3cx-webhook-persistencia.md`.
 
+### Leva 4 — mergeada (2026-08-15)
+
+Agente 13 (Enxame/Governança) concluiu com diff em escopo exclusivo. Conflito trivial em
+`src/config/env.ts` (mesma âncora que o Agente 06 usou) — resolvido mantendo os dois blocos, sem
+perda de conteúdo. Gate na branch `integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101
+warnings (baseline), 933/933 testes unitários, build ok. Push: `704dbda1`.
+
+- Traço ponta a ponta de missão real do enxame contra Postgres real (sem mock de Prisma) provando
+  o fluxo CRM→AgentMemory→AILog→AIPendingAction e a trava de idempotência.
+- Painel de SLO por agente (`getSwarmSloSnapshot`), nunca fabrica taxa sobre denominador zero.
+- Removeu `piiSanitizer.ts` (código morto, zero imports reais) e centralizou consentimento LGPD
+  externo em `guardrails.service.ts` (`hasPiiExternalConsent`/`assertPiiExternalConsent`), gated
+  por `AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS`, aplicado nos 3 pontos reais de saída de PII a
+  provedor de IA externo. Corrigiu bug real de bônus: `sdrNode` não checava `result.error`,
+  mascarando falha (inclusive da nova trava) como sucesso.
+- Provou por teste as 7 travas do modo `full` isoladamente e que o Closer nunca fecha negócio
+  sozinho (`update_lead_qualification` tem enum fechado sem `Negocios_Ganhos`/`Negocios_Perdidos`).
+- Classificou as 9 ferramentas do enxame por impacto — nenhuma é ação externa real; a única ação
+  externa (`sendEmail`) tem um único call site, sempre via `AIPendingAction`.
+- 3 handoffs abertos (07: rota HTTP do painel SLO; 01: consentimento granular por titular e uma
+  anomalia de plataforma achada em teste — escritas/leituras não aninhadas em `requestContext.run`
+  perdem visibilidade entre si).
+
+### Leva 5 — mergeada (2026-08-15)
+
+Agente 12 (Voz/Telefonia) concluiu com diff em escopo exclusivo. Conflito trivial de doc (ambos
+06 e 12 escreveram `## Resolução` no mesmo handoff de persistência 3CX) — resolvido mantendo as
+duas seções. Gate na branch `integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101 warnings
+(baseline), 995/995 testes unitários, build ok. Push: `42c85d70`.
+
+- Corrigiu bug real de contorno de trava: `runColdCallCampaign` nunca revalidava
+  `SDR_COLD_CALL_ENABLED`/`SDR_COLD_CALL_ORGANIZATIONS` na própria execução — um agendamento
+  BullMQ recorrente (persistido no Redis) continuava discando mesmo depois de revogar a
+  autorização em runtime. Corrigido: revalidação a cada execução + limpeza de agendamentos órfãos.
+- `CallSuppression` (opt-out de discagem) era respeitado em `callLead` mas não no Click-to-Call do
+  3CX (`make3CXCall`) — segundo caminho de discagem sem checagem alguma. Corrigido.
+- Bug real de honestidade de estado: todo resultado de ligação virava `Concluida`/
+  `voiceQualified:true` por omissão (inclusive detecção de secretária eletrônica tratada como
+  sucesso). Nova função pura `classifyCallOutcome` mapeia para 9 estados distintos, nunca
+  "completed" por default.
+- Escreveu suítes que nunca existiam para os 3 webhooks de voz (`birthVoice.webhook.ts`,
+  `threecx` webhook) — 23 e 8 casos respectivamente, fail-closed/assinatura/idempotência/tenant.
+- **Achado de infraestrutura de teste cross-agente**: `tests/helpers/integration-setup.ts` roda
+  `Organization.deleteMany()` sem `where` no `afterAll` de qualquer arquivo de integração de
+  qualquer agente — com os 7 agentes desta onda compartilhando o mesmo `prospectordb_test`, isso
+  apaga organizações de outros testes em execução concorrente quando o timing colide (explica a
+  "contenção" intermitente relatada por outros agentes desta onda). Handoff aberto para 00/08
+  (`12-para-00-test-db-contencao-cross-agente.md`) — não é bug de nenhum agente individual, é
+  fragilidade do harness de teste compartilhado. **Candidato a item da Onda 8** (agente 08 ou
+  correção direta pelo coordenador antes do PR final).
+- 5 handoffs abertos (07, 17, 06, 00, 01), nenhum bloqueador desta onda.
+
 ### Pendente
 
-Agentes 13 (Enxame/Governança), 07 (IA/Automações), 12 (Voz/Telefonia) ainda em execução.
+Agente 07 (IA/Automações) ainda em execução — último dos 7.
