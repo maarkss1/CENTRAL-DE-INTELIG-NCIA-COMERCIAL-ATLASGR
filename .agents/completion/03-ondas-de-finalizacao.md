@@ -109,27 +109,32 @@ histórico do que aconteceu em cada onda, não diretriz vigente.
 
 ## 3. As três ondas
 
-### Onda 6 — Verdade Executável (6 especialistas)
+### Onda 6 — Estabilidade e Runtime (4 especialistas)
 
-**Meta binária:** o gate de `AGENTS.md` roda inteiro, de verdade, contra Postgres e Redis reais, com
-migrations aplicadas — e o resultado é verde sem asterisco.
+**Atualização de 2026-08-15:** a meta original desta onda ("matar o ENV-001") **já foi cumprida**,
+fora do ciclo formal — `test:integration` 48/48, `test:unit` 706/706, `prisma migrate deploy` 46/46,
+E2E verde no CI. O handoff do RLS do `AILog` também foi fechado com execução real (5/5). Os prompts
+14 e 01A foram reescritos para refletir isso: a missão deles nesta onda é **confirmar/estabilizar**,
+não mais "diagnosticar e destravar". Isso libera o peso da onda — ela fica menor e mais rápida do
+que planejada originalmente.
+
+**Meta desta onda, revisada:** os itens que continuam genuinamente abertos fecham — segurança
+aplicada, runtime fora do processo HTTP — com o gate confirmado estável (não só verde uma vez) ao
+final.
 
 | Agente | Missão da onda | Propriedade exclusiva |
 |---|---|---|
-| **14** | Matar ENV-001: subir Postgres/Redis reais no harness, aplicar migrations, destravar `test:integration` e `test:e2e` | `tests/**`, `vitest.*.config.ts`, `playwright.config.ts`, `scripts/test/**` |
-| **01A** | RLS do `AILog` (`SET LOCAL` × pooling), retenção de `BitrixExtractionRun` | `prisma/schema.prisma`, `prisma/migrations/**` (slot do 01) |
+| **14** | Confirmar que o gate se reproduz no worktree; baselines visuais Linux; acompanhar o flake conhecido de `crm-kanban.spec.ts` no CI | `tests/**`, `vitest.*.config.ts`, `playwright.config.ts`, `scripts/test/**` |
+| **01A** | Confirmar RLS do `AILog` (2ª confirmação independente); varredura de SQL cru fora de contexto; schema de `BitrixExtractionRun` | `prisma/schema.prisma`, `prisma/migrations/**` (slot do 01) |
 | **15** | Rotação de segredos, `gitleaks`/`trivy`/`zap` no gate, `npm audit` moderate, decisão de `filter-repo` | `docs/security/**`, `scripts/security/**` (a criar) |
 | **16** | Separar workers e Baileys do processo HTTP (entrypoint próprio), graceful shutdown completo, estreitar `process-guards` | `src/lib/queue/**`, novo `worker.ts` |
-| **08** | Refletir tudo isso no CI e no deploy | `.github/workflows/**`, `Dockerfile`, `docker-compose.yml`, `render.yaml` |
-| **10** | Fechar `onda-4/10-para-01-metricas-http-otel.md`; SLO de infraestrutura | `k8s/**`, `argocd/**`, `charts/**`, `infrastructure/**` |
 
-**Gargalo previsível:** 14, 16 e 10 todos precisam encostar em CI/Docker/deploy, que é do 08.
-Mitigação: 08 entra na onda como **dono reativo** — trabalha por handoff dos outros três, não com
-missão independente. Isso é intencional, não acidente de escopo.
+**08 e 10 saem da onda formal** — não há mais trabalho independente de CI/deploy/infra amarrado a
+ENV-001. Ficam disponíveis por handoff se 15 ou 16 precisarem tocar `Dockerfile`/`render.yaml`/`k8s/**`,
+mas não ocupam slot.
 
-**Critério de aprovação:** nenhum gate pode ser reportado como "não aplicável por limitação de
-ambiente". Se ao fim da onda ainda for, a onda é `RELEASE BLOCKED` e ENV-001 vira bloqueador formal
-na lista de `AGENTS.md`.
+**Critério de aprovação:** o gate roda 2× seguidas sem depender dos 2 retries do Playwright para
+fechar verde. Item de segurança e runtime fecham; nenhuma regressão nos números de 2026-08-15.
 
 ---
 
