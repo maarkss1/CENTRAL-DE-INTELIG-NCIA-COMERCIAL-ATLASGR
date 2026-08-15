@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import { prisma } from '../../src/lib/prisma';
+import { prisma, withRlsContext } from '../../src/lib/prisma';
 import { requestContext } from '../../src/lib/async-context';
 import {
     connect3CX,
@@ -64,19 +64,18 @@ describe('Persistência de ThreeCXConnection contra Postgres real', () => {
         expect(reread.find((c) => c.id === created.id)?.pbxUrl).toBe('https://example.com');
     });
 
-    // Skip (não deletar): reproduzido de forma determinística no gate final da Onda 7, inclusive
-    // em runner de CI limpo (GitHub Actions), não só localmente — descarta contenção/ambiente como
-    // causa. Escrita num requestContext.run() seguida de leitura num requestContext.run() SEPARADO
-    // (não aninhado) às vezes não vê o que acabou de ser escrito. Mesma classe de bug encontrada
-    // de forma independente pelos Agentes 07 e 13 em `src/lib/prisma.ts` (executeWithRls,
-    // $transaction([setConfig, prismaPromise]) array-form) — não é regressão desta onda, não é bug
-    // deste teste. Handoffs: .agents/handoffs/onda-7/12-para-00-test-db-contencao-cross-agente.md,
+    // Reabilitado na Onda 9 — bug de visibilidade entre requestContext.run() corrigido em
+    // src/lib/async-context.ts (TenantAwareAsyncLocalStorage.run), ver .agents/runs/onda-9.md.
+    // Causa raiz real: PrismaPromise é lazy (só começa a executar quando `.then()`/`await` é
+    // chamado por quem consome o valor); `asOrg`/`withRlsBypass` fazem `requestContext.run(store,
+    // fn)` devolvendo `fn()` sem `await` interno, então quando o `await` externo dispara a query,
+    // a store de `run()` já não está mais ativa — não era um bug em `executeWithRls`
+    // (`src/lib/prisma.ts`, já testado com array-form e com transação interativa, sintoma
+    // idêntico nos dois). Handoffs originais (contexto histórico):
+    // .agents/handoffs/onda-7/12-para-00-test-db-contencao-cross-agente.md,
     // 07-para-01-flaky-org-creation-mid-integration-test.md,
-    // 13-para-01-anomalia-visibilidade-entre-requestcontext-run.md. Reabilitar quando
-    // `executeWithRls` for corrigido — a funcionalidade real (criptografia em repouso) já foi
-    // validada manualmente contra Postgres real (ver "## Resolução" em
-    // .agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md).
-    it.skip('cifra apiKey/apiSecret em repouso — a linha crua no banco não contém o segredo em texto puro', async () => {
+    // 13-para-01-anomalia-visibilidade-entre-requestcontext-run.md.
+    it('cifra apiKey/apiSecret em repouso — a linha crua no banco não contém o segredo em texto puro', async () => {
         const created = await asOrg(ORG_A, () =>
             connect3CX(ORG_A, {
                 pbxUrl: 'https://example.com',
@@ -87,11 +86,20 @@ describe('Persistência de ThreeCXConnection contra Postgres real', () => {
         );
 
         // $queryRaw ignora a extensão de decrypt do client Prisma — é a única forma de ver o que
-        // está fisicamente gravado na coluna.
+        // está fisicamente gravado na coluna. IMPORTANTE: `$queryRaw`/`$executeRaw` não passam pela
+        // extensão `$allOperations` (só intercepta operações de model, ver comentário em
+        // `withRlsContext`, src/lib/prisma.ts), então `requestContext.run({bypassRls:true}, () =>
+        // prisma.$queryRaw(...))` sozinho NUNCA aplica o contexto de tenant/bypass à query crua —
+        // ela roda sem app.bypass_rls/app.current_tenant_id setados e FORCE ROW LEVEL SECURITY
+        // bloqueia por padrão (retornaria sempre vazio, não porque a linha não existe, mas porque a
+        // policy nega acesso). `withRlsContext` é o helper correto para SQL cru: abre a transação
+        // interativa e faz o `SET LOCAL` explicitamente antes de rodar a query passada.
         const raw = await withRlsBypass(() =>
-            prisma.$queryRaw<Array<{ apiKey: string | null; apiSecret: string | null }>>`
-                SELECT "apiKey", "apiSecret" FROM "ThreeCXConnection" WHERE id = ${created.id}
-            `,
+            withRlsContext((tx) =>
+                tx.$queryRaw<Array<{ apiKey: string | null; apiSecret: string | null }>>`
+                    SELECT "apiKey", "apiSecret" FROM "ThreeCXConnection" WHERE id = ${created.id}
+                `,
+            ),
         );
         expect(raw).toHaveLength(1);
         expect(raw[0].apiKey).not.toBe('chave-em-texto-puro');
@@ -119,10 +127,9 @@ describe('Persistência de ThreeCXConnection contra Postgres real', () => {
         }
     });
 
-    // Skip (não deletar): mesmo bug documentado acima (visibilidade entre requestContext.run()
-    // separados), não RLS quebrado — a garantia real de isolamento por tenant já é coberta por
-    // `tests/integration/tenant-isolation-db001.test.ts` e `organization-rls-bypass.test.ts`.
-    it.skip('RLS: uma conexão da organização A é invisível no contexto de tenant da organização B, mesmo pedindo o organizationId de A explicitamente', async () => {
+    // Reabilitado na Onda 9 — ver comentário acima sobre a causa raiz real (async-context.ts),
+    // corrigida no fix desta onda.
+    it('RLS: uma conexão da organização A é invisível no contexto de tenant da organização B, mesmo pedindo o organizationId de A explicitamente', async () => {
         const created = await asOrg(ORG_A, () =>
             connect3CX(ORG_A, { pbxUrl: 'https://example.com', extension: '101' }),
         );
