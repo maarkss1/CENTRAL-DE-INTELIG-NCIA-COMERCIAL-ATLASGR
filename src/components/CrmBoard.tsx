@@ -17,6 +17,7 @@ import {
     DndContext,
     closestCenter,
     KeyboardSensor,
+    KeyboardCode,
     PointerSensor,
     useSensor,
     useSensors,
@@ -25,6 +26,11 @@ import {
     DragEndEvent,
     Announcements
 } from '@dnd-kit/core';
+
+// dnd-kit ativa drag por teclado em Space E Enter por padrão — mas KanbanCard também usa Enter pra
+// abrir o LeadDetailDrawer (mesma tecla, dois significados). Restringindo o sensor a Space, Enter
+// fica livre e sem ambiguidade pra "abrir detalhes"; Space vira exclusivamente "pegar/soltar o card".
+const KEYBOARD_DRAG_CODES = { start: [KeyboardCode.Space], cancel: [KeyboardCode.Esc], end: [KeyboardCode.Space] };
 
 const LEAD_COLUMNS: LeadStatus[] = [
     'Lead Recebido',
@@ -152,6 +158,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
         }),
         useSensor(KeyboardSensor, {
             coordinateGetter: columnKeyboardCoordinateGetter,
+            keyboardCodes: KEYBOARD_DRAG_CODES,
         })
     );
 

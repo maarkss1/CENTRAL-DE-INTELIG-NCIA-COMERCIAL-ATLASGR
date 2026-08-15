@@ -66,6 +66,26 @@ Build ✅._
 | 33 | Settings sem entrada p/ não-admins vs rota aberta — aberto a todos (conteúdo é só preferências pessoais) | 02 | `e99313b1` |
 | 34 | crm360 com backend completo e tela órfã — rota + menu ligados ("Cockpit CRM"); 2 de 4 quick-actions viraram cards informativos (sem UI de destino construída) | 02 | `3f6e336e` |
 
+### Gate E2E (Playwright) — investigado e corrigido após a integração
+
+Baseline pré-onda: 20/45 passando (44%) — 25 falhas, quase todas por `AUTH_RATE_LIMIT_MAX=20`
+(default de produção) esgotado por 23 specs sequenciais de `signUp()`; local nunca reproduzia o
+`AUTH_RATE_LIMIT_MAX=500` que só o CI define. Corrigido e investigado até a causa raiz de cada
+falha real restante:
+
+| Achado | Causa raiz | Correção | Commit |
+|---|---|---|---|
+| 23 specs falhando em `signUp()` | `.env.test.example` sem `AUTH_RATE_LIMIT_MAX` (herda 20/15min de prod) | Adicionado `AUTH_RATE_LIMIT_MAX=500`, igual ao CI | `489d6ab6` |
+| `crm-board.spec.ts` sempre falha | Harness temporário de pilotos de design, nunca autentica (`assume auth bypass` no comentário), confirmado substituído por `crm-kanban.spec.ts` | Removido (teste morto) | `489d6ab6` |
+| Botão X do drawer não encontrado | Ícone puro sem `aria-label` — sem nome acessível para leitor de tela | `aria-label="Fechar detalhes do lead"` | `489d6ab6` |
+| `aria-pressed` nunca aparecia no card | `useSortable().isDragging` nunca era exposto via ARIA | Adicionado `aria-pressed={isDragging}` | `489d6ab6` |
+| **Drag por teclado 100% inoperável** (3 specs) | **Bug real**: `onKeyDown` customizado do `KanbanCard` sobrescrevia por completo o `onKeyDown` de `{...listeners}` do dnd-kit (mesma prop, spread antes — última declaração vence). O `KeyboardSensor` nunca recebia o Espaço de pickup — nenhum atributo ARIA (mesmo corretos) ajudava, porque a ativação em si nunca disparava. Usuário de teclado/leitor de tela não conseguia mover nenhum card. | `CrmBoard.tsx`: `KeyboardSensor` restrito a Space (Enter livre p/ abrir drawer, sem colisão). `KanbanCard.tsx`: `onKeyDown` agora encaminha pro dnd-kit primeiro | `92aec6cd` |
+| Select "Estágio do lead" nunca encontrado | Rótulo real do componente é "Status do Funil" — teste nunca bateu com a UI real | Teste corrigido para o rótulo real | `92aec6cd` |
+| `color-contrast` intermitente em "Pipeline CRM" | Flake de timing: `transition-all` do botão da Sidebar capturado mid-transição pelo axe-core (sem relação com nenhuma mudança da Onda 1) | Confirmado flaky: 3/3 passou em repetição isolada — não é regressão, registrado como débito de teste (usar `waitForLoadState` de transição, não investigado a fundo) | — |
+
+**Resultado final: 42/43 passando (97,7%)** — o único "failed" restante em runs completos é o flake de
+color-contrast acima, não reprodutível isoladamente.
+
 ### Achado adicional durante a integração (fora do escopo original, corrigido direto em `main`)
 Regressão de segurança ativa encontrada em `main` (linha de trabalho paralela nunca recebeu a
 remediação P0 acima): tokens reais dos webhooks Bitrix24 (AtlasGR + TotalTrac) e telefone pessoal
