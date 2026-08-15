@@ -29,3 +29,20 @@ export const bitrixSyncFailuresTotal =
         help: 'Total de falhas de sincronização com o Bitrix24 (push ou pull), por organização (tenant) e tipo de entidade.',
         labelNames: ['tenant', 'entity'] as const,
     });
+
+/**
+ * Falhas do serviço real de Extrações Bitrix (`BitrixExtractionRun`, Onda 7) — separado de
+ * `bitrix_sync_failures_total` de propósito: uma extração é uma ação pontual pedida por um humano
+ * (não um ciclo recorrente automático), então misturar as duas séries tornaria
+ * `BitrixSyncFailuresHigh` menos acionável (alertaria também para "um usuário pediu uma extração
+ * com filtro que deu erro"). `entity`: a entidade que estava sendo processada quando a extração
+ * falhou (lead/deal/company/contact/activity/user), ou "run" quando a falha aconteceu fora do
+ * processamento de uma entidade específica (ex.: conexão inválida antes de começar).
+ */
+export const bitrixExtractionFailuresTotal =
+    (client.register.getSingleMetric('bitrix_extraction_failures_total') as client.Counter<'tenant' | 'entity'> | undefined) ??
+    new client.Counter({
+        name: 'bitrix_extraction_failures_total',
+        help: 'Total de falhas do serviço de Extrações Bitrix (BitrixExtractionRun), por organização (tenant) e entidade.',
+        labelNames: ['tenant', 'entity'] as const,
+    });

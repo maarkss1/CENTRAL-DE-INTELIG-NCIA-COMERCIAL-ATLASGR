@@ -134,6 +134,14 @@ const envSchema = z.object({
   // número — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
   BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
   BITRIX_EXTRACTION_PURGE_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // Onda 7, Agente 06: diretório onde os arquivos gerados pelo serviço real de extração
+  // (CSV/XLSX/JSON) ficam em disco, fora do controle de versão (ver .gitignore). Mesma limitação
+  // conhecida já documentada para a sessão do WhatsApp (Integrations.tsx): no plano free do Render
+  // (ver render.yaml) o disco não é persistente entre reinícios/hibernação — um arquivo gerado
+  // pode deixar de existir depois de um restart, mesmo com o histórico (BitrixExtractionRun)
+  // continuando íntegro no Postgres. O download trata isso como 410 (não como erro silencioso),
+  // nunca finge que o arquivo ainda existe.
+  BITRIX_EXTRACTION_STORAGE_DIR: z.string().default('./data/bitrix-extractions'),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.

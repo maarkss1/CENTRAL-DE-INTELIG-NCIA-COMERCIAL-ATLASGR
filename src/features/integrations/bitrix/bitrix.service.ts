@@ -40,3 +40,12 @@ export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, g
 export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';
 
 export { resolveOwnBitrixUserId, resolveAtlasUserNameByEmail } from './service/userMapping.js';
+
+// Serviço real de Extrações Bitrix (Onda 7, Agente 06/06A) — ver service/extraction.ts para o
+// racional de arquitetura (execução em segundo plano sem worker BullMQ dedicado nesta rodada).
+export type { CreateExtractionRunInput } from './service/extraction.js';
+export {
+    createExtractionRun, listExtractionRuns, getExtractionRun, cancelExtractionRun,
+    deleteExtractionRun, downloadExtractionFile, ALL_EXTRACTION_ENTITIES, EXTRACTION_PERIODS,
+} from './service/extraction.js';
+export type { ExtractionFileFormat } from './service/extractionFiles.js';
