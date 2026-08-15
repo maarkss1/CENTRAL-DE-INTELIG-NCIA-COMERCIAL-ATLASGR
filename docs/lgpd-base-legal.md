@@ -27,5 +27,7 @@ A plataforma provê suporte técnico automatizado para atendimento aos direitos 
 ## 3. Segurança e Governança
 
 - **Isolamento de Tenants (Multi-Tenancy)**: RLS (Row Level Security) via PostgreSQL + contextos isolados.
-- **Sanitização para LLMs**: Filtros de PII no módulo `src/lib/security/piiSanitizer.ts` para evitar vazamento de e-mails/telefones para provedores externos.
+- **Minimização para LLMs**: `src/features/intelligence/services/guardrails.service.ts` (`minimizePii`/`rehydratePii`) troca valores de PII conhecidos (ex.: nome do contato) por um token reversível antes de o texto sair para um provedor de IA externo, e restaura o valor real só na resposta final entregue ao usuário humano.
+  (`src/lib/security/piiSanitizer.ts` existiu em paralelo, nunca foi integrado a nenhum caminho real e foi removido na Onda 7 — ver decisão registrada no handoff/relatório do Agente 13.)
+- **Base legal / consentimento antes do envio a provedor externo**: `guardrails.service.ts` (`hasPiiExternalConsent`/`assertPiiExternalConsent`) é o ponto único que verifica, antes de qualquer chamada com dado de um titular real, se a organização está autorizada (`AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS`, fail-closed) — distinto da minimização acima: decide *se* o dado pode ser tratado por IA externa, não apenas *o quê* sai no texto.
 - **Trilha de Auditoria**: Registro de ações no modelo `AuditLog` com IP, usuário, ação e data/hora.
