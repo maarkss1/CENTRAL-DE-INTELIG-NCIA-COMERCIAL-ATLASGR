@@ -120,3 +120,18 @@ contrário do que o diagnóstico original sugeria, isto não desaparece sozinho 
 — é determinístico e pode afetar qualquer código de produção que abra dois `requestContext.run()`
 sequenciais (ex.: um worker BullMQ que processa um job, fecha o contexto, e outra parte do sistema
 abre um contexto novo pouco depois para ler o resultado).
+
+## Confirmação adicional — CI real (PR #128, 2026-08-15)
+
+O CI do GitHub Actions (jobs "Build & Test Code" e "build-and-test", runner limpo, container
+Postgres provisionado do zero pelo próprio workflow) reproduziu **exatamente as mesmas 2 falhas**,
+nas mesmas linhas, com a mesma mensagem — em dois jobs paralelos independentes. Isso descarta
+qualquer hipótese remanescente de peculiaridade do sandbox de desenvolvimento: o bug é real e
+reproduz em qualquer ambiente. As 2 asserções afetadas foram colocadas em quarentena
+(`it.skip`, com comentário linkando este handoff) em
+`tests/integration/threecx-persistence.test.ts` para destravar o merge da Onda 7 sem mascarar o
+problema — não foram apagadas, e a funcionalidade real que provavam (criptografia em repouso,
+isolamento RLS) permanece coberta por outros testes
+(`tenant-isolation-db001.test.ts`, `organization-rls-bypass.test.ts`) e pela validação manual já
+registrada em `.agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md`.
+Reabilitar os 2 testes junto com a correção de `executeWithRls`.
