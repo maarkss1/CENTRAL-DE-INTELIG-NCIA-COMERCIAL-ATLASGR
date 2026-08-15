@@ -1190,8 +1190,8 @@ enum BitrixExtractionStatus {
 ///
 /// Retenção/LGPD: histórico e arquivos gerados contêm dado pessoal real (nome/e-mail/telefone de
 /// leads/contatos extraídos do Bitrix). A janela de retenção é PARAMETRIZADA
-/// (`BITRIX_EXTRACTION_RETENTION_DAYS`, `src/config/env.ts`, default 90 dias — mesmo padrão já
-/// usado no worker de anonimização de leads desqualificados, `autoAnonymizeDisqualified.worker.ts`)
+/// (`BITRIX_EXTRACTION_RETENTION_DAYS`, `src/config/env.ts`, default 45 dias — confirmado pelo
+/// dono do produto em 2026-08-15, ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md)
 /// em vez de gravada como número fixo nesta migration, exatamente para não bloquear a existência
 /// do schema numa decisão humana ainda pendente (ver seção "Retenção" do handoff acima). O worker
 /// de expurgo correspondente (`bitrixExtractionPurge.worker.ts`) fica DESLIGADO por padrão

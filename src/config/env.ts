@@ -136,9 +136,9 @@ const envSchema = z.object({
   // (autoAnonymizeDisqualified.worker.ts, 90 dias hardcoded) — aqui o valor é configurável em vez
   // de fixo no código, e o worker de expurgo correspondente fica DESLIGADO por padrão (mesmo
   // padrão de dois-fatores do SDR/enxame acima: a flag sozinha não move nada sem esta variável, e
-  // o valor de dias sozinho não expurga nada sem a flag). Pendente de confirmação humana sobre o
-  // número — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
-  BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  // o valor de dias sozinho não expurga nada sem a flag). Confirmado pelo dono do produto em
+  // 2026-08-15: 45 dias — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
+  BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(45),
   BITRIX_EXTRACTION_PURGE_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   // Onda 7, Agente 06: diretório onde os arquivos gerados pelo serviço real de extração
   // (CSV/XLSX/JSON) ficam em disco, fora do controle de versão (ver .gitignore). Mesma limitação
