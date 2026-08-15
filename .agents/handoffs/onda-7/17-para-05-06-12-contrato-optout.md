@@ -101,3 +101,52 @@ mentira mais provável do seu domínio". Não é bloqueador para eu continuar im
 meu próprio escopo (a lógica de domínio não depende de vocês para existir e ser testada), mas é
 bloqueador para a Onda 7 ser aprovada como "opt-out unificado" de verdade, e deveria ser tratado
 como tal na integração final (`/AGENTS.md` → "Bloqueadores prioritários", item 13, LGPD).
+
+## Resolução (12)
+
+Parte do 12 feita, branch `agente/12-optout-voz` (a partir de `integracao/optout-unificado`,
+commit base `459de182`, que já tinha `OptOutRecord` + `PrismaOptOutRepository` aplicados por 00).
+
+- `src/features/integrations/birth-voice/callSuppression.service.ts`: `isSuppressed` agora
+  consulta as DUAS fontes antes de deixar discar — `CallSuppression` (histórica) e `OptOutRecord`
+  (via `isOptedOut(prismaOptOutRepository, ...)`, canal `'voice'`). Aceita um terceiro parâmetro
+  opcional `{ leadId, email }` para fortalecer o casamento entre canais (o telefone sozinho já
+  cobre a maioria dos casos, mas um opt-out registrado só por e-mail depende do `leadId` para ser
+  encontrado). `recordOptOut` continua gravando em `CallSuppression` (inalterado) e passou a
+  também gravar em `OptOutRecord` (`scope: 'voice'`, `originChannel: 'voice'`, melhor esforço —
+  uma falha na escrita unificada não derruba o bloqueio de voz, que já valeu via
+  `CallSuppression`).
+- `src/features/integrations/birth-voice/birthVoice.service.ts` (`callLead`) e
+  `src/features/integrations/threecx/threecx.service.ts` (`make3CXCall`, Click-to-Call) — os dois
+  pontos reais de discagem — passam a chamar `isSuppressed` com `leadId`/`email` do lead como
+  contexto.
+- `src/features/integrations/birth-voice/birthVoice.webhook.ts`: passa `evidence` (trecho real da
+  transcrição) separado do `reason` composto, para o registro unificado guardar a evidência crua.
+- **Decisão registrada** (passo 2 de 3 da proposta original, "Para o 12 especificamente"): mantive
+  as duas escritas (`CallSuppression` E `OptOutRecord`) — não migrei a leitura de voz para
+  depender só de `OptOutRecord`. Isso é o passo 3, que exige antes confirmar 100% de cobertura;
+  fora do escopo desta tarefa pontual.
+- Scope sempre `'voice'` nos bloqueios registrados a partir de voz (pedido feito durante a própria
+  ligação, ex. "não me ligue mais" — inequivocamente restrito ao canal, não `'global'`). Por
+  desenho, isso NÃO bloqueia e-mail/WhatsApp por si só (mesma regra documentada em
+  `src/features/cadence/domain/optOut.ts`) — o valor para 05/06 é o registro ficar visível/auditável
+  ao lado dos opt-outs deles, não um bloqueio automático de canal.
+- Testes: unitários atualizados/adicionados em
+  `src/features/integrations/birth-voice/__tests__/callSuppression.service.test.ts`,
+  `birthVoice.service.test.ts` e `src/features/integrations/threecx/__tests__/threecx.service.test.ts`
+  (mocks) + `tests/unit/features/integrations/threecx/threecx.service.test.ts` (assinatura de
+  `isSuppressed` mudou, teste ajustado). Integração nova contra Postgres real, sem mock, em
+  `tests/integration/voice-optout-cross-channel.test.ts`: E-mail→Voz e WhatsApp→Voz com
+  `scope: 'global'` bloqueando, `scope` restrito ao outro canal não bloqueando, e a convivência
+  `CallSuppression`+`OptOutRecord` provada ponta a ponta.
+- Gate: `tsc --noEmit`, `lint`, `test:unit` (1080 testes) e `build` verdes. `test:integration`
+  verde para todos os arquivos do meu domínio (`threecx-persistence`, `optout-record-persistence`,
+  `voice-optout-cross-channel`) rodados isolados; a suíte completa tem flakiness pré-existente por
+  contenção no Postgres de teste compartilhado entre agentes rodando em paralelo (confirmado: o
+  mesmo `rbac-e2e-commercial-intelligence.test.ts` falha isolado e passa contra o commit-base sem
+  minhas mudanças) — não é regressão introduzida por esta tarefa. `verify:integrations` roda mas
+  não cobre voz/3CX (só provedores externos tipo Google Places/Apollo/Bitrix); a única falha
+  (`googlePlaces`) é pré-existente e fora do meu domínio.
+
+Não marco `Status: resolvido` — isso é do Coordenador, depois de integrar minha parte com as de 05
+e 06.
