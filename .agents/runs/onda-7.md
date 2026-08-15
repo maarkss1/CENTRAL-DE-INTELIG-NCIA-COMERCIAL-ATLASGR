@@ -1,0 +1,64 @@
+# Onda 7 — Autonomia Comercial Real
+
+- Data: 2026-08-15
+- Branch de integração: `integracao/onda-7`, criada a partir de `main` (commit `a279fae`, já com a
+  Onda 6 e a remediação pós-Onda 6 integradas).
+- Executor: Agente 00 (Coordenador)
+- Autorização: usuário pediu explicitamente o início da Onda 7.
+
+## Contexto
+
+Meta da onda: o piloto automático 24/7 sustenta um ciclo comercial inteiro, não só o primeiro
+e-mail (ver `AUTONOMIA_COMERCIAL_24X7.md` → "Próximas integrações"). Trava de produto que não pode
+ser afrouxada: a transição para `Negócios Ganhos` continua exigindo evento verificável
+(aceite/assinatura/confirmação de CRM), nunca texto gerado por modelo.
+
+Handoffs abertos relevantes para agentes desta onda (nenhum bloqueador):
+- `onda-5/01-para-06-persistencia-3cx-implementada.md` → 06
+- `onda-6/01A-para-06-bitrix-extraction-run-schema.md` → 06/06A (retenção já confirmada em 90 dias)
+- `onda-6/16-para-06-plano-migracao-baileys.md` → 06 (plano de coordenação futura, não executar
+  ainda — sessões Baileys continuam no processo HTTP)
+- `onda-1/01-para-04-role-gates-crm.md` → 04
+
+## Matriz de propriedade (condição 2 da Regra de concorrência, `/AGENTS.md`)
+
+Publicada antes do primeiro agente ser disparado — 7 especialistas simultâneos.
+
+| Agente | Branch | Worktree | Propriedade exclusiva nesta onda |
+|---|---|---|---|
+| **13** | `agente/13-enxame-governanca` | `../wt-agente-13` | `src/features/intelligence/agents/**`; `src/features/intelligence/services/{guardrails,aiPendingAction,pending-actions,autonomyRoleRunner,swarmScheduler}.service.ts`; `src/features/intelligence/services/winLossAnalysis.worker.ts`; `src/features/intelligence/components/{SwarmDashboard,AIPendingActions}.tsx`; `src/lib/queue/swarmScheduler.worker.ts`; `src/lib/queue/agent.worker.ts`; `src/lib/security/piiSanitizer.ts` |
+| **07** | `agente/07-ia-automacoes` | `../wt-agente-07` | `src/features/intelligence/**` **exceto** o que pertence ao 13 acima; `src/features/knowledge/**`; `src/features/automations/**` **exceto** `coldCallCampaign.api.ts` (12); `src/features/roleplay/**`; `src/lib/ai/**`; `src/lib/queue/**` **exceto** `coldCall.worker.ts` (12), `swarmScheduler.worker.ts` e `agent.worker.ts` (13); `server/ai/**` |
+| **12** | `agente/12-voz-telefonia` | `../wt-agente-12` | `src/features/integrations/birth-voice/**`; `src/features/integrations/threecx/**`; `src/lib/queue/coldCall.worker.ts`; `src/features/automations/coldCallCampaign.api.ts`; `src/features/intelligence/services/voicebox.service.ts` |
+| **17** | `agente/17-cadencia-ciclo-receita` | `../wt-agente-17` | `src/features/cadence/**` (novo) |
+| **06** | `agente/06-integracoes-bitrix` | `../wt-agente-06` | `src/features/integrations/**` **exceto** `birth-voice/**` e `threecx/**` (12) |
+| **05** | `agente/05-prospeccao` | `../wt-agente-05` | `src/features/prospecting/**`, `src/lib/enrichment/**` |
+| **04** | `agente/04-crm-bi` | `../wt-agente-04` | `src/features/crm/**`, `src/features/companies/**`, `src/features/contacts/**`, `src/features/calendar/**`, `src/features/activities/**`, `src/features/analytics/**`, `src/features/reports/**` |
+
+**Confirmação de disjunção:** os 7 conjuntos de arquivos acima não se sobrepõem — a divisão dentro
+de `src/features/intelligence/**` (13 vs 07) e `src/lib/queue/**` (13/12/07) foi explicitada linha
+a linha para evitar exatamente o tipo de colisão que já ocorreu uma vez na história do projeto
+(Onda 5, `bitrixSync.worker.ts`, 06 × 07). Nenhum par depende de handoff `bloqueador` mútuo em
+aberto no momento do disparo.
+
+**Arquivos de dono único fora desta onda** (nenhum dos 7 tem permissão de editar — abrem handoff):
+- `server.ts`, `package.json`+lockfile, `prisma/schema.prisma`+migrations → aprovação do 00/01A
+- `.github/workflows/**`, `Dockerfile`, `docker-compose*.yml`, `render.yaml` → 08
+- `src/App.tsx`, navegação, Sidebar → 02
+- `k8s/**`, `argocd/**`, `charts/**`, `infrastructure/**` → 10
+
+## Plano de integração (gate por leva)
+
+7 agentes, sem dependência cruzada de arquivo — mas o Agente 17 depende de **acordo por escrito**
+com 02 (rota), 01 (schema), 05/06/12 (canais) e 13 (evento de fechamento) **antes** de codar, per o
+próprio prompt dele. Merge em levas de 2–3, gate completo a cada leva (não acumular os 7 para um
+gate só no fim).
+
+## Critério de aprovação
+
+Gate roda 2× seguidas sem depender de retry para fechar verde. Trava do Closer (`Negócios Ganhos`
+só por evento verificável) provada por teste, não assumida. Nenhuma regressão nos números herdados
+da Onda 6/remediação.
+
+## Status
+
+Disparando os 7 especialistas em paralelo, cada um em worktree isolado.
