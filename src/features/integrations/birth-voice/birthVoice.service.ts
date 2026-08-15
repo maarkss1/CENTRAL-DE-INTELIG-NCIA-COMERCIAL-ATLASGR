@@ -47,6 +47,7 @@ interface LeadContactish {
     name?: string | null;
     phone?: string | null;
     whatsapp?: string | null;
+    email?: string | null;
 }
 interface LeadCompanyish {
     tradeName?: string | null;
@@ -82,7 +83,17 @@ export async function callLead(organizationId: string, leadId: string, agentType
     // Checado aqui, e não só na tela, porque este é o último ponto por onde toda ligação passa:
     // rota manual, automação e (futuramente) o worker de prospecção fria. Um opt-out que só fosse
     // respeitado pela UI seria contornado pela primeira campanha automática.
-    if (await isSuppressed(organizationId, targetNumber)) {
+    //
+    // leadId/email do próprio lead entram como contexto para o opt-out unificado entre canais
+    // (`isSuppressed` também consulta `OptOutRecord`, não só `CallSuppression`) — sem isso, um
+    // opt-out registrado só por e-mail (05) ou WhatsApp (06), sem o mesmo telefone em comum, não
+    // seria encontrado aqui.
+    if (
+        await isSuppressed(organizationId, targetNumber, {
+            leadId: lead.id,
+            email: (lead.contact as LeadContactish | null)?.email ?? null,
+        })
+    ) {
         throw new SuppressedNumberError(
             'Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.',
         );
