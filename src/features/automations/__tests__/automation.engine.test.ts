@@ -66,3 +66,41 @@ describe('matchesConditions', () => {
         expect(matchesConditions([1, 2], data)).toBe(true);
     });
 });
+
+describe('matchesConditions — operador numérico (regras de estagnação)', () => {
+    it('gte: casa quando o valor real é maior ou igual ao limiar', () => {
+        expect(matchesConditions({ daysSinceLastInteraction: { gte: 3 } }, { daysSinceLastInteraction: 3 })).toBe(true);
+        expect(matchesConditions({ daysSinceLastInteraction: { gte: 3 } }, { daysSinceLastInteraction: 10 })).toBe(true);
+        expect(matchesConditions({ daysSinceLastInteraction: { gte: 3 } }, { daysSinceLastInteraction: 2 })).toBe(false);
+    });
+
+    it('lte/gt/lt também são suportados', () => {
+        expect(matchesConditions({ score: { lte: 50 } }, { score: 40 })).toBe(true);
+        expect(matchesConditions({ score: { lte: 50 } }, { score: 60 })).toBe(false);
+        expect(matchesConditions({ score: { gt: 50 } }, { score: 51 })).toBe(true);
+        expect(matchesConditions({ score: { gt: 50 } }, { score: 50 })).toBe(false);
+        expect(matchesConditions({ score: { lt: 50 } }, { score: 49 })).toBe(true);
+        expect(matchesConditions({ score: { lt: 50 } }, { score: 50 })).toBe(false);
+    });
+
+    it('não casa quando o campo derivado não está presente no evento — impede que um evento em tempo real dispare uma regra de estagnação por engano', () => {
+        // Uma transição real de status nunca preenche `daysSinceLastInteraction` — só o scanner
+        // periódico (stagnation-scanner.service.ts) preenche esse campo.
+        expect(matchesConditions({ daysSinceLastInteraction: { gte: 3 } }, { status: 'Proposta Enviada' })).toBe(false);
+    });
+
+    it('não casa quando o valor real não é numérico', () => {
+        expect(matchesConditions({ score: { gte: 3 } }, { score: 'muito' })).toBe(false);
+    });
+
+    it('combina operador numérico com igualdade simples no mesmo objeto de condições (AND)', () => {
+        const conditions = { status: 'Proposta Enviada', daysSinceLastInteraction: { gte: 3 } };
+        expect(matchesConditions(conditions, { status: 'Proposta Enviada', daysSinceLastInteraction: 5 })).toBe(true);
+        expect(matchesConditions(conditions, { status: 'Outra Etapa', daysSinceLastInteraction: 5 })).toBe(false);
+    });
+
+    it('um objeto com mais de uma chave, ou uma chave desconhecida, não é tratado como operador (permanece igualdade estrita e nunca casa)', () => {
+        expect(matchesConditions({ score: { gte: 1, lte: 2 } }, { score: 1 })).toBe(false);
+        expect(matchesConditions({ score: { unknown: 1 } }, { score: 1 })).toBe(false);
+    });
+});

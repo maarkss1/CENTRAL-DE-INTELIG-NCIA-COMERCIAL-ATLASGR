@@ -27,6 +27,17 @@ interface NotifyConfig {
     title?: string;
     body?: string;
     kind?: NotificationKind;
+    /**
+     * Canal do aviso. `in_app` (padrão, comportamento original) cria só a notificação interna do
+     * sino. `email` ENVIA de verdade um e-mail via SMTP (`sendEmail`) para `to`, além de continuar
+     * criando a notificação interna — ação de alto impacto (ação externa), mas pré-autorizada no
+     * momento em que um humano configurou a regra (mesmo raciocínio já aplicado à ação "Ligar via
+     * SDR de Voz": a automação é a confirmação humana, dada uma vez na criação da regra, não a cada
+     * disparo — diferente de uma ferramenta do Hub de IA decidindo agir sozinha em tempo real).
+     */
+    channel?: 'in_app' | 'email';
+    /** Obrigatório quando `channel === 'email'`. Suporta `{{campo}}` do evento via renderTemplate. */
+    to?: string;
 }
 
 interface CreateActivityConfig {
@@ -48,11 +59,39 @@ export function renderTemplate(template: string, data: Record<string, unknown>):
     }).replace(/\s{2,}/g, ' ').trim();
 }
 
+/** As quatro chaves de operador numérico aceitas num valor de condição (ver `isConditionOperator`). */
+const CONDITION_OPERATOR_KEYS = ['gte', 'lte', 'gt', 'lt'] as const;
+type ConditionOperatorKey = (typeof CONDITION_OPERATOR_KEYS)[number];
+type ConditionOperator = Record<ConditionOperatorKey, number>;
+
+/**
+ * Reconhece o formato `{ gte: 3 }` (e variantes `lte`/`gt`/`lt`) usado pelas regras de estagnação
+ * (ex.: "Negócio parado há X dias", "Proposta enviada sem resposta há X dias" — ver
+ * `stagnation-scanner.service.ts`). Nunca colide com uma condição de igualdade legada: o formulário
+ * de automações sempre grava valores de condição como string simples, então um objeto com
+ * exatamente uma das quatro chaves acima só pode ter vindo de uma regra de operador numérico.
+ */
+function isConditionOperator(value: unknown): value is ConditionOperator {
+    if (value == null || typeof value !== 'object' || Array.isArray(value)) return false;
+    const keys = Object.keys(value as Record<string, unknown>);
+    if (keys.length !== 1) return false;
+    const [key] = keys as [string];
+    if (!CONDITION_OPERATOR_KEYS.includes(key as ConditionOperatorKey)) return false;
+    return typeof (value as Record<string, unknown>)[key] === 'number';
+}
+
 /**
  * Decide se a regra se aplica ao evento.
  *
- * Condições são um objeto simples de igualdades (`{ "status": "Proposta" }`); todas precisam bater.
- * Comparação é feita como string para o JSON do banco não divergir de enums e números.
+ * Duas formas de condição, por chave:
+ * - igualdade simples (`{ "status": "Proposta Enviada" }`) — comparada como string, para o JSON do
+ *   banco não divergir de enums e números;
+ * - operador numérico (`{ "daysSinceLastInteraction": { "gte": 3 } }`) — usado pelas regras de
+ *   estagnação disparadas por varredura periódica, nunca por um evento em tempo real (que não
+ *   preenche esses campos derivados em `data`, então a condição falha naturalmente e a regra não
+ *   dispara duas vezes por engano).
+ *
+ * Todas as chaves da condição precisam bater (AND implícito).
  */
 export function matchesConditions(
     conditions: unknown,
@@ -67,6 +106,21 @@ export function matchesConditions(
 
     return entries.every(([key, expected]) => {
         if (expected == null || expected === '') return true;
+
+        if (isConditionOperator(expected)) {
+            const actual = data[key];
+            if (actual == null) return false;
+            const actualNum = typeof actual === 'number' ? actual : Number(actual);
+            if (Number.isNaN(actualNum)) return false;
+
+            const [operator] = Object.keys(expected) as [ConditionOperatorKey];
+            const threshold = expected[operator];
+            if (operator === 'gte') return actualNum >= threshold;
+            if (operator === 'lte') return actualNum <= threshold;
+            if (operator === 'gt') return actualNum > threshold;
+            return actualNum < threshold; // 'lt'
+        }
+
         const actual = data[key];
         return actual != null && String(actual) === String(expected);
     });
@@ -154,6 +208,7 @@ export class AutomationEngine {
                         entityId: event.entityId,
                         action,
                         actionConfig: automation.actionConfig,
+                        eventData: event.data,
                         status: 'success',
                         startedAt,
                         finishedAt: new Date(),
@@ -169,6 +224,7 @@ export class AutomationEngine {
                         entityId: event.entityId,
                         action,
                         actionConfig: automation.actionConfig,
+                        eventData: event.data,
                         status: 'failed',
                         startedAt,
                         finishedAt: new Date(),
@@ -210,15 +266,37 @@ export class AutomationEngine {
 
         if (automation.action === 'Notificar equipe') {
             const c = config as NotifyConfig;
+            const title = renderTemplate(c.title || automation.name, event.data);
+            const body = c.body ? renderTemplate(c.body, event.data) : null;
+
             await notificationService.create({
                 organizationId: event.organizationId,
-                title: renderTemplate(c.title || automation.name, event.data),
-                body: c.body ? renderTemplate(c.body, event.data) : null,
+                title,
+                body,
                 kind: c.kind ?? 'Info',
                 entity: event.entity,
                 entityId: event.entityId,
                 automationId: automation.id,
             });
+
+            if (c.channel === 'email') {
+                const to = c.to ? renderTemplate(c.to, event.data) : '';
+                if (!to) {
+                    throw new Error('A ação "Notificar equipe" com canal de e-mail precisa de um destinatário ("to").');
+                }
+                const { sendEmail, MailerNotConfiguredError } = await import('../../lib/email/mailer.js');
+                try {
+                    await sendEmail({ to, subject: title, text: body || title });
+                } catch (error) {
+                    // Sem SMTP configurado, a notificação interna já foi criada acima (o time não
+                    // fica sem aviso nenhum) — só o e-mail extra não sai. Propaga um erro claro para
+                    // o histórico da automação registrar a causa, em vez de fingir sucesso total.
+                    if (error instanceof MailerNotConfiguredError) {
+                        throw new Error('Canal de e-mail não configurado (SMTP_HOST ausente) — a notificação interna foi criada normalmente.');
+                    }
+                    throw error;
+                }
+            }
             return;
         }
 

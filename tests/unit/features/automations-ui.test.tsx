@@ -142,4 +142,55 @@ describe('Automações', () => {
         await user.selectOptions(screen.getByLabelText('Quando'), 'Lead criado');
         expect(screen.queryByLabelText(/Somente na etapa/)).toBeNull();
     });
+
+    it('cria uma regra de estagnação (dias parado) como operador numérico nas condições', async () => {
+        let createCalledWith: unknown;
+        server.use(
+            http.post(AUTOMATIONS_URL, async ({ request }) => {
+                createCalledWith = await request.json();
+                return HttpResponse.json({ success: true, data: regra });
+            }),
+        );
+        const user = userEvent.setup();
+        render(<Automations />);
+
+        await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
+        await user.type(screen.getByLabelText('Nome'), 'Proposta sem resposta');
+        await user.selectOptions(screen.getByLabelText(/Somente na etapa/), 'Proposta Enviada');
+        await user.type(screen.getByLabelText(/reavaliar todo dia/), '3');
+        await user.click(screen.getByRole('button', { name: 'Criar' }));
+
+        await waitFor(() => expect(createCalledWith).toBeTruthy());
+        const enviado = createCalledWith as { conditions: unknown };
+        expect(enviado.conditions).toEqual({
+            status: 'Proposta Enviada',
+            daysSinceLastInteraction: { gte: 3 },
+        });
+    });
+
+    it('canal de e-mail: exige destinatário antes de enviar, e manda channel/to no actionConfig', async () => {
+        let createCalledWith: unknown;
+        server.use(
+            http.post(AUTOMATIONS_URL, async ({ request }) => {
+                createCalledWith = await request.json();
+                return HttpResponse.json({ success: true, data: regra });
+            }),
+        );
+        const user = userEvent.setup();
+        render(<Automations />);
+
+        await user.click(await screen.findByRole('button', { name: /Criar a primeira/ }));
+        await user.type(screen.getByLabelText('Nome'), 'Avisar gestor por e-mail');
+        await user.click(screen.getByText(/Também enviar por e-mail/));
+        await user.click(screen.getByRole('button', { name: 'Criar' }));
+        expect(createCalledWith).toBeUndefined(); // bloqueado: sem destinatário ainda
+
+        await user.type(screen.getByLabelText('Enviar para (e-mail)'), 'gestor@atlasgr.com.br');
+        await user.click(screen.getByRole('button', { name: 'Criar' }));
+
+        await waitFor(() => expect(createCalledWith).toBeTruthy());
+        const enviado = createCalledWith as { actionConfig: { channel: string; to: string } };
+        expect(enviado.actionConfig.channel).toBe('email');
+        expect(enviado.actionConfig.to).toBe('gestor@atlasgr.com.br');
+    });
 });
