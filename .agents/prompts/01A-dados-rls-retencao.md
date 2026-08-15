@@ -9,6 +9,16 @@ exclusivo, e dois agentes editando schema em paralelo é a forma mais rápida de
 Seu foco não é ampliar o modelo de dados. É provar que a proteção de dados que este projeto **afirma
 ter** realmente funciona quando executada.
 
+**Atualização de 2026-08-15 — leia antes de tudo:** o item 1 abaixo (RLS do `AILog`) foi **fechado**
+nesta data, fora do ciclo formal de onda, com execução real (`5/5` em `ailog-rls.test.ts` isolado,
+`48/48` na suíte completa de integração contra Postgres real). O handoff
+`.agents/handoffs/onda-2/00-para-01-ailog-rls-violation.md` tem uma seção nova,
+"## Confirmação executada (2026-08-15) — fechado", com os comandos e resultados. **Não redescubra
+o diagnóstico** — ele já está registrado ali (bug no teste: `PrismaPromise` lazy fora do
+`AsyncLocalStorage`, não a policy de RLS). Sua missão nesta onda passa a ser confirmar que a
+correção se sustenta e avançar para o item 2 (varredura de SQL cru) e item 3 (retenção), que
+continuam abertos de verdade.
+
 ## Leia primeiro
 1. `/AGENTS.md` — "Tenancy AtlasGR / TotalTrac", "LGPD e dados pessoais", "Propriedade exclusiva de arquivos";
 2. `/prisma/AGENTS.md`;
@@ -36,22 +46,30 @@ handoff. `server.ts` exige aprovação do **00**.
 
 ## Missão da Onda 6
 
-### 1. RLS do `AILog` — causa raiz, não hipótese
-Dois dos cinco testes de `tests/integration/ailog-rls.test.ts` falham com
-`DriverAdapterError: new row violates row-level security policy for table "AILog"`.
+### 1. RLS do `AILog` — já fechado, sua tarefa é confirmar, não redescobrir
+Este item **estava** aberto (dois dos cinco testes de `tests/integration/ailog-rls.test.ts`
+falhavam com `DriverAdapterError: new row violates row-level security policy for table "AILog"`) e
+foi fechado em 2026-08-15 com causa raiz real: bug no **teste**, não na policy — `PrismaPromise` é
+lazy, e `requestContext.run(ctx, () => prisma.model.create(...))` sem `await` dentro do callback
+deixava a query executar depois que o `AsyncLocalStorage` já tinha restaurado o contexto externo.
+Corrigido via helpers `withTenant`/`withoutTenant` que fazem `await fn()` dentro do
+`requestContext.run`.
 
-O handoff registra uma hipótese **não confirmada**: vazamento de `SET` entre conexões pooled em vez
-de `SET LOCAL` escopado à transação. Trate como hipótese, não como diagnóstico. Investigue também:
-política `WITH CHECK` ausente ou divergente da política de `USING`; `organizationId` nulo no momento
-do insert; escrita fora de `withRlsContext`; e a diferença entre `SET` e `SET LOCAL` no adapter
-`@prisma/adapter-pg` com pool.
+Rode `tests/integration/ailog-rls.test.ts` isolado no seu worktree e confirme 5/5. Se bater, este
+item está encerrado — não reabra a investigação de `SET` vs `SET LOCAL` que o handoff chegou a
+levantar como hipótese; ela foi descartada pela causa raiz real. Se **não** bater (regressão desde
+2026-08-15), aí sim investigue como causa nova, com a saída do teste como ponto de partida, e trate
+como prioridade `bloqueador` — regressão num teste que já foi fechado com evidência é mais grave
+que um teste que nunca fechou.
 
-**Regra dura desta missão, e a razão de ela existir:** na Onda 4, este handoff foi marcado como
-resolvido apenas por leitura de código, sem executar o teste — e a falha reapareceu no gate da
+**Regra dura desta missão, e a razão de ela existir:** este mesmo handoff foi marcado como
+resolvido só por leitura de código **duas vezes** antes de fechar de verdade (Onda 4, e uma
+reabertura posterior) — e a falha reapareceu no gate da
 integração da Onda 5. Nenhuma conclusão sua vale sem a saída do teste executado, antes e depois.
 
-Critério verificável: 5/5 em `ailog-rls.test.ts`, e o handoff atualizado com uma seção
-`## Resolução` que cita a causa raiz real e o comando que a comprova.
+Critério verificável: 5/5 em `ailog-rls.test.ts`, reproduzido no seu worktree — o handoff já tem a
+seção `## Confirmação executada` com essa evidência; sua execução é a segunda confirmação
+independente, não a primeira.
 
 ### 2. Varredura de escrita fora de contexto RLS
 As Ondas 1 e 2 corrigiram três pontos de SQL cru fora de contexto (`vectorStore`, `whatsappMessage`,
@@ -89,7 +107,8 @@ Critério verificável: teste de integração que cria titular em duas organiza�
 comprova que a outra permanece intacta.
 
 ### 5. Migrations aplicáveis a partir do zero
-Com o harness do Agente 14 no ar, prove que as 47 migrations aplicam em sequência num banco vazio e
+Com o harness do Agente 14 no ar (confirmado estável em 2026-08-15, ver §1), prove que as migrations
+existentes na data da sua execução aplicam em sequência num banco vazio e
 que `prisma migrate diff` contra o schema não acusa deriva.
 
 ## Mentira mais provável do seu domínio
@@ -112,8 +131,7 @@ pode nascer sem herdar tenant, retenção e auditoria da origem.
 
 ## Testes
 Cobrir (via handoff ao 14 quando o arquivo de teste for novo):
-- insert, update e select em `AILog` sob RLS, com tenant correto e incorreto;
-- `SET LOCAL` escopado à transação sob pool, com duas conexões concorrentes;
+- reprodução de `ailog-rls.test.ts` 5/5 (confirmação, não teste novo);
 - cada ponto de SQL cru identificado na varredura;
 - exclusão de titular cross-tenant;
 - anonimização idempotente;
@@ -139,9 +157,10 @@ Se algum script não existir, siga `/AGENTS.md` → "Scripts ausentes".
 
 ## Entrega
 Forneça:
-- causa raiz do RLS do `AILog`, com saída do teste antes e depois;
+- confirmação (saída real) de que `ailog-rls.test.ts` reproduz 5/5 no seu worktree, ou o diagnóstico
+  de regressão se não reproduzir;
 - tabela completa da varredura de SQL cru;
 - schema de `BitrixExtractionRun` e a **pergunta explícita** sobre a janela de retenção;
 - prova executada de exclusão/anonimização de titular sem vazamento entre tenants;
-- resultado das migrations a partir do zero;
-- handoffs abertos e o `## Resolução` escrito no handoff do `AILog`.
+- resultado das migrations a partir do zero + `migrate diff` sem deriva;
+- handoffs abertos.

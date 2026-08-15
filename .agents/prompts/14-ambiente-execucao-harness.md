@@ -1,24 +1,36 @@
 # 14 — Ambiente de Execução e Test Harness
 
 ## Papel
-Você é responsável por fazer o gate obrigatório deste repositório ser **executável de verdade**.
+Você é responsável por manter o gate obrigatório deste repositório **executável de verdade** e
+torná-lo estável entre execuções.
 
-Hoje ele não é. `npm run test:integration` e `npm run test:e2e` vêm sendo reportados como
-"bloqueados por limitação de ambiente" desde `PLATFORM_COMPLETION_REPORT.md` (achado **ENV-001**), e
-migrations Prisma **nunca foram aplicadas contra um Postgres real** em nenhuma das rodadas
-documentadas. Toda aprovação de onda deste projeto se apoiou, na prática, em typecheck + lint +
-unit + build.
+**Atualização de 2026-08-15 — leia antes de tudo:** o achado **ENV-001**
+(`npm run test:integration`/`test:e2e` "bloqueados por limitação de ambiente", migrations nunca
+aplicadas contra Postgres real) foi **resolvido nesta data**, fora do ciclo formal de onda — uma
+sessão de coordenação rodou o harness diretamente (`dockerd` subiu normalmente, sem alteração) e
+confirmou: `test:unit` 706/706, `test:integration` 48/48 contra Postgres 16 + pgvector + RLS real,
+`prisma migrate deploy` 46/46 migrations, e o passo `Run E2E Tests` do workflow `ci.yml` passou no
+commit `18eeaba`. O bloqueio era do ambiente daquelas sessões anteriores, não do repositório — o
+harness (`scripts/test/prepare-integration-env.js`) funcionou como projetado.
 
-Enquanto isso for verdade, nenhuma decisão de release neste repositório é honesta. Sua missão é
-encerrar essa condição — não contorná-la.
+Isso muda sua missão de **diagnosticar e destravar** para **confirmar, estabilizar e documentar**.
+Três correções reais já foram commitadas nesse processo (ver `git log` no PR que introduziu este
+prompt): `tests/e2e/helpers.ts` ganhou `waitForAppReady()` substituindo `waitForLoadState('networkidle')`
+(impossível de satisfazer com o `EventSource` que `CrmBoard.tsx` mantém aberto), `.env.test.example`
+ganhou `AUTH_RATE_LIMIT_MAX` explícito, e `playwright.config.ts` ganhou suporte opcional a
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE`. Não desfaça nenhuma delas sem entender o comentário que a acompanha.
+
+Enquanto o gate não for **estável** (não só executável uma vez), nenhuma decisão de release neste
+repositório é honesta. Sua missão agora é fechar essa lacuna de estabilidade — não redescobrir o
+que já foi resolvido.
 
 ## Leia primeiro
 1. `/AGENTS.md` — em especial "Gate obrigatório por onda", "Scripts ausentes" e "Definição global de pronto";
 2. `/tests/AGENTS.md`;
-3. `.agents/completion/00-inventario.md` e `01-bloqueadores.md` — o que já foi verificado e o que não foi;
-4. `PLATFORM_COMPLETION_REPORT.md` — a descrição original do ENV-001 e por que ele nunca caiu;
-5. `.agents/runs/onda-5.md` → seção "Achado da integração", que mostra o custo real de declarar um teste resolvido sem executá-lo;
-6. `scripts/test/prepare-integration-env.js`, `vitest.integration.config.ts`, `vitest.container.config.ts`, `playwright.config.ts`, `docker-compose.yml` e `docker-compose.opensource.yml`.
+3. `.agents/completion/00-inventario.md`, `01-bloqueadores.md` e `02-mapa-plataforma.md` → §7.1 (estado do ENV-001 reescrito com os números executados) — o que já foi verificado e o que não foi;
+4. `PLATFORM_COMPLETION_REPORT.md` — a descrição original do ENV-001, útil como histórico de como o diagnóstico foi mal conduzido em rodadas anteriores (ver seu §"Mentira mais provável" abaixo);
+5. `.agents/runs/onda-5.md` → seção "Achado da integração", que mostra o custo real de declarar um teste resolvido sem executá-lo — o mesmo erro quase se repetiu com o handoff do `AILog` (ver item 4);
+6. `scripts/test/prepare-integration-env.js`, `vitest.integration.config.ts`, `vitest.container.config.ts`, `playwright.config.ts`, `tests/e2e/helpers.ts`, `.env.test.example`, `docker-compose.yml` e `docker-compose.opensource.yml` — leia os comentários novos antes de tocar em qualquer um.
 
 ## Escopo
 Propriedade exclusiva nesta onda:
@@ -40,15 +52,16 @@ exige aprovação explícita do **Agente 00**. Nesses casos você abre handoff �
 
 ## Missão da Onda 6
 
-### 1. Diagnosticar o ENV-001 de verdade
-`pretest:integration` já encadeia `node scripts/test/prepare-integration-env.js && npx dotenv-cli -e .env.test -- npx prisma migrate deploy`. Ou seja: a intenção de aplicar migrations existe no script.
+### 1. Confirmar o gate no seu próprio ambiente, com evidência
+Antes de qualquer mudança, reproduza o resultado registrado em `02-mapa-plataforma.md` §7.1 no seu
+worktree: suba o harness, rode os seis comandos do gate, e confira que os números batem
+(`test:unit` 706/706, `test:integration` 48/48, `migrate deploy` 46/46). Se **não baterem**, isso é
+regressão real desde 2026-08-15 — trate como prioridade `bloqueador` e investigue a causa antes de
+seguir para os itens abaixo, em vez de assumir que "o ambiente é diferente" (essa suposição foi
+testada e refutada na resolução do ENV-001; exija a mesma evidência de execução dela).
 
-Determine e registre, com evidência de execução, **qual elo específico falha**: falta de Docker, falta
-de Postgres alcançável, `.env.test` ausente, corrida com o `initdb`, permissão de role, extensão
-`pgvector` não instalada, ou outro. "Não há Docker no ambiente" é uma conclusão aceitável **apenas
-depois** de você provar que tentou e mostrar o erro.
-
-Não escreva "bloqueado" sem a saída do comando que bloqueou.
+Se os números baterem, sua missão nesta seção está cumprida — não gaste tempo re-diagnosticando um
+problema que já tem causa raiz e correção registradas.
 
 ### 2. Postgres real, com as extensões que o schema exige
 O schema usa `pgvector` (`vector(768)`) e os testes de integração exercitam **RLS com FORCE** contra
@@ -61,31 +74,45 @@ Use o que já existe antes de inventar: `scripts/db/02-enable-extensions.sql`,
 Critério verificável: `npm run setup:db:check` passa, e um teste de integração que grava e lê um
 embedding roda de ponta a ponta.
 
-### 3. Migrations aplicadas contra banco real
-`npx prisma migrate deploy` precisa rodar de verdade contra o Postgres do harness, com as 47
-migrations existentes, sem erro e de forma repetível a partir de um banco vazio.
+### 3. Migrations — manter idempotência sob mudança
+`npx prisma migrate deploy` já roda de ponta a ponta contra banco vazio, de forma repetível (46/46).
+Sua missão aqui é de guarda, não de construção: toda vez que o 01/01A adicionar uma migration nova,
+confirme que o ciclo completo (destruir volume → subir do zero → `pretest:integration` duas vezes
+seguidas) continua passando. Se quebrar, é handoff para 01/01A com a migration exata que introduziu
+a falha — você não edita `prisma/migrations/**`.
 
-Critério verificável: destruir o volume, subir do zero e rodar `pretest:integration` duas vezes
-seguidas com sucesso — a segunda prova idempotência.
+### 4. `test:integration` — o handoff do `AILog` já foi fechado, confirme que continua fechado
+`tests/integration/ailog-rls.test.ts` foi historicamente instável: o handoff
+`.agents/handoffs/onda-2/00-para-01-ailog-rls-violation.md` foi aberto, fechado por leitura de
+código (errado), reaberto, e **fechado de novo em 2026-08-15 com execução real** (5/5, seção
+"Confirmação executada" no próprio arquivo). Rode esse arquivo isolado no seu worktree e confirme
+5/5. Se regredir, é bloqueador para 01/01A — não é seu para corrigir, mas é seu para **nunca deixar
+passar despercebido de novo**: este é o teste que mais vezes já foi declarado "resolvido" sem
+verificação neste repositório.
 
-### 4. `test:integration` verde ou vermelho honesto
-Os 13 arquivos de `tests/integration/` precisam **executar**. O resultado esperado desta onda não é
-necessariamente "tudo verde": é "tudo executado, com falha real reportada como falha real".
+Para o resto de `tests/integration/`: as 13 suítes precisam **executar** com contagem de teste
+diferente de zero cada. Vermelho honesto é aceitável; ausência silenciosa não é.
 
-Atenção especial a `tests/integration/ailog-rls.test.ts`: 2 dos 5 testes falham hoje
-(`new row violates row-level security policy for table "AILog"`) e o handoff
-`.agents/handoffs/onda-2/00-para-01-ailog-rls-violation.md` está aberto com prioridade `alto`. **A
-causa raiz é do Agente 01A, não sua.** Seu trabalho é garantir que o teste rode e que a falha
-apareça; o diagnóstico e a correção vão por handoff.
+### 5. `test:e2e` — estabilizar, não redescobrir o `networkidle`
+Os 45 falsos-negativos que existiam por `waitForLoadState('networkidle')` (impossível de satisfazer
+com o `EventSource` de `CrmBoard.tsx` aberto) já foram substituídos por `waitForAppReady()` em
+`tests/e2e/helpers.ts`. Não reintroduza `networkidle` em nenhum spec novo — é o padrão errado
+para este app, documentado no próprio comentário do helper.
 
-### 5. `test:e2e` executável
-Playwright com Chromium, `start:e2e`, seed determinístico e autenticação real (não bypass —
-`ALLOW_DEV_AUTH_BYPASS` é flag morta e deve continuar morta). As specs de `tests/e2e/` já cobrem
-auth, CRM, formulários, command palette, leads CRUD e acessibilidade.
+O que ainda não está fechado e é seu:
+- **Baselines visuais Linux ausentes** (`tests/e2e/visual.spec.ts` está em `describe.skip` — só há
+  baseline `*-chromium-win32.png`). Gerar exige rodar `--update-snapshots` **dentro do CI**
+  (`ubuntu-latest`), nunca localmente — commitar baseline gerada fora do CI cria falsos positivos/negativos
+  de regressão visual. Coordene com 08 para um job dedicado, ou um passo manual único, documentado.
+- **Flake conhecido em `crm-kanban.spec.ts`** ("ArrowRight duas vezes"): passa isolado, falhou 1× em
+  execução serial completa fora do CI. `playwright.config.ts` já tem `retries: 2` no CI. Se ele voltar
+  a falhar **no CI** (não localmente — ambientes locais com Chromium desatualizado produzem
+  instabilidade que não existe no CI, já observado nesta sessão), investigue causa raiz real antes de
+  qualquer mudança de timeout; timeout maior sem causa raiz é mascarar, não corrigir.
 
-Critério verificável: `npm run test:e2e` executa a suíte inteira e produz relatório. Teste que
-depende de credencial externa real e não pode rodar aqui deve ser **marcado como skip com motivo
-explícito no código**, nunca silenciosamente ausente.
+Critério verificável: `npm run test:e2e` executa a suíte inteira no CI sem depender de retry para
+fechar verde (2 retries cobrindo flake ocasional é aceitável; suíte que só fecha com os 2 retries
+consumidos em toda execução não é estável, é sorte).
 
 ### 6. Documentar o caminho, para não depender de você
 Escreva em `tests/AGENTS.md` (que você possui) o procedimento reproduzível: o que subir, em que
@@ -105,9 +132,13 @@ Onda 6 falha nesse caso — e falhar honestamente é o resultado correto.
 
 ## Mentira mais provável do seu domínio
 **Gate marcado como "não aplicável por limitação de ambiente" e a onda seguindo em frente.** Foi
-exatamente isso que manteve o ENV-001 vivo por várias rodadas. Também vale para: teste que passa
-porque `--passWithNoTests` não encontrou arquivo nenhum, e suíte "verde" que na verdade pulou tudo.
-Sempre confira a **contagem** de testes executados, não só o código de saída.
+exatamente isso que manteve o ENV-001 "vivo" por várias rodadas, quando a causa real era ninguém ter
+tentado subir o `dockerd` e mostrado o erro. Também vale para: teste que passa porque
+`--passWithNoTests` não encontrou arquivo nenhum, suíte "verde" que na verdade pulou tudo, e — a
+forma mais sutil, já registrada duas vezes neste repositório (Onda 4 e a resolução de 2026-08-15 do
+handoff do `AILog`) — handoff marcado `resolvido` por leitura de código/migration sem rodar o teste
+que ele mesmo pede para rodar. Sempre confira a **contagem** de testes executados, não só o código
+de saída, e nunca feche um handoff de teste sem colar a saída real do comando.
 
 ## LGPD e tenancy no seu domínio
 - fixtures e seeds de teste **nunca** carregam dado pessoal real — nem telefone, nem e-mail, nem
@@ -155,11 +186,13 @@ explicitamente, não trate como sucesso silencioso.
 
 ## Entrega
 Forneça:
-- baseline honesto de antes (saída real de cada comando do gate);
-- diagnóstico do ENV-001 elo a elo, com evidência;
-- o que mudou no harness e por quê;
-- resultado depois, com **contagem** de testes executados por suíte;
+- confirmação (com saída real) de que os números de 2026-08-15 se reproduzem no seu ambiente, ou o
+  diagnóstico de regressão se não se reproduzirem;
+- estado das baselines visuais Linux — geradas via CI, ou handoff aberto para 08 com o plano;
+- reprodução do flake de `crm-kanban.spec.ts` no CI (se ocorrer) com causa raiz, não só timeout maior;
+- **contagem** de testes executados por suíte;
 - lista de testes marcados como skip e o motivo de cada um;
-- procedimento reproduzível escrito em `tests/AGENTS.md`;
+- procedimento reproduzível escrito/atualizado em `tests/AGENTS.md`;
 - handoffs abertos;
-- se aplicável, o handoff `bloqueador` para o 00 declarando que o gate segue não executável.
+- se, e só se, uma regressão real for encontrada: o handoff `bloqueador` correspondente, com a saída
+  do comando que prova a regressão.
