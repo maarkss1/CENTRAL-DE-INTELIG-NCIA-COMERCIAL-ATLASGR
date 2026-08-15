@@ -80,6 +80,9 @@ import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/f
 import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { lgpdRouter } from './src/features/lgpd/lgpd.routes.js';
+import { featureFlagsRouter } from './src/features/feature-flags/featureFlags.routes.js';
+import { featureFlagsService } from './src/features/feature-flags/featureFlags.service.js';
+import { bugReportRouter } from './src/features/bug-reports/bugReport.routes.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
@@ -233,6 +236,23 @@ async function startServer() {
     });
     app.use('/api/auth', authLimiter);
 
+    // Rate Limiting dedicado do módulo "Reportar Problema" — por organização (mesmo raciocínio
+    // do aiLimiter/SEC-008b), bem mais apertado que o apiLimiter genérico: ninguém legítimo
+    // reporta dezenas de bugs em 15 minutos, e cada relato grava uma linha JSONB no banco.
+    const bugReportLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: env.BUG_REPORT_RATE_LIMIT_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
+            sendCommand: sendRateLimitCommand,
+        }) : undefined,
+        message: { success: false, error: 'Muitos relatos de problema enviados. Tente novamente em 15 minutos.' }
+    });
+    app.use('/api/bug-reports', authenticateToken, bugReportLimiter);
+
     // Montado ANTES do express.json(): a autenticidade deste webhook é provada por uma assinatura
     // HMAC calculada sobre os bytes crus do corpo, que o parser global consumiria. Quem chama é o
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
@@ -369,6 +389,10 @@ async function startServer() {
     app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
     app.use('/api/knowledge', requireTenant, knowledgeRoutes);
     app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
+    app.use('/api/feature-flags', authenticateToken, requireTenant, featureFlagsRouter);
+    // authenticateToken + bugReportLimiter já rodaram pra esta rota (ver acima, junto aos demais
+    // rate limiters) — só falta requireTenant aqui, mesmo padrão de /api/intelligence.
+    app.use('/api/bug-reports', requireTenant, bugReportRouter);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
     
     app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
@@ -416,6 +440,18 @@ async function startServer() {
 
     // ── Bootstrapping DI & Services ───────────────────────────────────────
     setupDI();
+
+    // Sincroniza o catálogo de feature flags (FEATURE_FLAG_REGISTRY) com a tabela FeatureFlag —
+    // idempotente, roda a cada boot. Não bloqueia a subida do servidor por um erro aqui (ex.:
+    // banco temporariamente indisponível): loga e segue, mesmo raciocínio de outros jobs de
+    // agendamento abaixo (scheduleColdCallCampaigns/scheduleSwarmScheduler). `bypassRls: true` é
+    // necessário aqui: roda antes de qualquer request HTTP existir, sem tenant conhecido — ver
+    // FeatureFlag em BYPASS_RLS_ALLOWED_MODELS (src/lib/prisma.ts) para o porquê de ser seguro.
+    requestContext.run({ bypassRls: true }, () =>
+        featureFlagsService.syncRegistry().catch((err) =>
+            logger.error({ err }, 'Falha ao sincronizar catálogo de feature flags no boot')
+        )
+    );
 
     app.listen(PORT, '0.0.0.0', () => {
         logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);

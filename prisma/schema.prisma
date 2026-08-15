@@ -471,6 +471,8 @@ model Organization {
   crmCommercialDocuments    CrmCommercialDocument[]
   commercialGoals           CommercialGoal[]
   leadStageHistories        LeadStageHistory[]
+  featureFlagOverrides      OrganizationFeatureFlag[]
+  bugReports                BugReport[]
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
 }
@@ -1397,4 +1399,73 @@ model Prospect {
 
   @@index([organizationId])
   @@index([status])
+}
+
+// ─── Feature Flags (governança de 12 requisitos — item 7: Loja de Apps / Feature Flags) ────
+// Duas tabelas: FeatureFlag é o catálogo global (chave, descrição, valor default). Organization-
+// FeatureFlag é o override por tenant — só existe uma linha quando uma organização diverge do
+// default global. Resolução em featureFlags.service.ts: override da organização se existir,
+// senão o default global.
+//
+// Isto complementa, não substitui, o padrão ad-hoc já existente de flag via variável de ambiente
+// + allowlist de organizationId (ex.: SDR_COLD_CALL_ENABLED/SDR_COLD_CALL_ORGANIZATIONS,
+// SWARM_SCHEDULER_ENABLED/SWARM_SCHEDULER_ORGANIZATIONS em src/config/env.ts) — aquele padrão
+// continua servindo para flags que exigem redeploy; este sistema serve para flags que um ADMIN
+// precisa ligar/desligar em runtime, por organização, sem deploy nem alteração de código.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String
+  /// Valor aplicado a toda organização que não tem override próprio em OrganizationFeatureFlag.
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organizationOverrides OrganizationFeatureFlag[]
+}
+
+model OrganizationFeatureFlag {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  featureFlagId  String
+  featureFlag    FeatureFlag  @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+  enabled        Boolean
+  /// Id do usuário ADMIN que fez a última alteração — só informativo/auditoria leve, sem FK
+  /// (o usuário pode ser removido depois sem invalidar o histórico do flag).
+  updatedByUserId String?
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([organizationId, featureFlagId])
+  @@index([organizationId])
+}
+
+// ─── Bug Reports (governança de 12 requisitos — item 8: Módulo de Reportar Problemas) ──────
+// Criado pelo botão flutuante `BugReportButton` (src/components/ui/BugReportButton.tsx) via
+// POST /api/bug-reports. `context` guarda um snapshot técnico capturado automaticamente no
+// momento do report (URL, papel do usuário, marca ativa, user agent, viewport, e as últimas
+// entradas de log do clientLogger) — nunca texto livre do usuário além de title/description,
+// para reduzir o risco de PII/segredo acabar em campo de texto. Ver sanitização de `context`
+// em bugReport.service.ts antes de persistir.
+model BugReport {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Sem relação FK para User de propósito: o relato precisa sobreviver à remoção do usuário
+  /// (ex.: ex-funcionário) — mesmo raciocínio de `updatedByUserId` acima.
+  userId         String?
+  userEmail      String?
+  title          String
+  description    String       @db.Text
+  /// LOW | MEDIUM | HIGH | CRITICAL — mesmo padrão de string livre documentada usado em
+  /// Prospect.status/CommercialGoal etc. neste schema, em vez de enum Prisma.
+  severity       String       @default("MEDIUM")
+  /// OPEN | TRIAGED | RESOLVED
+  status         String       @default("OPEN")
+  context        Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
 }

@@ -6,13 +6,14 @@ import { IconSliders } from '../../../components/icons';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useBrand, BRAND_CONFIGS, type Brand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { FeatureFlagsPanel } from '../../feature-flags/components/FeatureFlagsPanel';
 
 const BRAND_OPTIONS: Brand[] = ['atlasgr', 'totaltrac'];
 
 export function Settings() {
     const { theme, toggleTheme } = useTheme();
     const { activeBrand, setActiveBrand } = useBrand();
-    const { currentUser } = useAuth();
+    const { currentUser, isAdmin } = useAuth();
 
     return (
         <div className="flex-1 overflow-y-auto bg-transparent p-8">
@@ -108,6 +109,8 @@ export function Settings() {
                         </dl>
                     </CardContent>
                 </Card>
+
+                {isAdmin && <FeatureFlagsPanel />}
             </div>
         </div>
     );

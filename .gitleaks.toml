@@ -1,0 +1,21 @@
+title = "gitleaks config — Prospector AtlasGR"
+
+# Mantém todas as regras padrão do gitleaks (mesmo comportamento de detecção que o repositório já
+# tinha antes deste arquivo existir, ver .github/workflows/ci.yml, job "secret-scan") e só
+# acrescenta um allowlist global bem específico — não substitui nem enfraquece nenhuma regra.
+[extend]
+useDefault = true
+
+# Falso-positivo conhecido: um JWT SINTÉTICO (payload {"sub":"1234567890"}, sem relação com
+# nenhuma conta/sessão real) usado como fixture em
+# tests/unit/features/bug-reports/bugReport.sanitize.test.ts, para testar a redação de JWT feita
+# por bugReport.sanitize.ts. O gitleaks escaneia o diff de CADA commit do histórico — um
+# `// gitleaks:allow` inline só suprime a partir do commit em que é adicionado, não retroage aos
+# commits anteriores que já introduziram o literal. Allowlist por regex é a forma correta de
+# resolver isso sem reescrever histórico: casa com o valor exato do fixture, então não amplia o
+# allowlist para nenhum segredo real que venha a aparecer no futuro.
+[allowlist]
+description = "Fixtures sintéticas de teste (não são segredos reais)"
+regexes = [
+  '''eyJhbGciOiJIUzI1NiJ9\.eyJzdWIiOiIxMjM0NTY3ODkwIn0\.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U''',
+]
