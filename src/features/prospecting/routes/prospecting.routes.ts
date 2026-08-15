@@ -139,12 +139,15 @@ import { sendColdEmail, ColdEmailCampaign } from '../services/cold-email.service
 // Envia um cold email (ex: template de prospecção) com rotulagem LGPD
 router.post('/cold-email', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const campaign = req.body as ColdEmailCampaign;
+        const { organizationId } = (req as AuthRequest).user;
+        // organizationId sempre vem do tenant autenticado, nunca do corpo da requisição — é o que
+        // permite checar opt-out por organização antes do envio (ver cold-email.service.ts).
+        const campaign = { ...(req.body as ColdEmailCampaign), organizationId };
         if (!campaign || !campaign.targetEmail) {
             res.status(400).json({ success: false, error: 'targetEmail é obrigatório' });
             return;
         }
-        
+
         const success = await sendColdEmail(campaign);
         if (success) {
             res.json({ success: true, message: 'Email sent' });
