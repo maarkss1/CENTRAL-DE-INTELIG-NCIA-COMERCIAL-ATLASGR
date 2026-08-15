@@ -5,6 +5,24 @@ import { Card } from '../../../components/ui/Card';
 import { Trophy, Play, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/**
+ * Decisão de produto (Onda 8, item "gamificação/XP" de `.agents/completion/01-bloqueadores.md`):
+ * este widget NÃO está montado em nenhuma tela do app hoje (nenhum import de `GameWidget`/
+ * `SpaceGame` fora deste próprio par de arquivos, em toda a árvore `src/`) — é código órfão,
+ * inalcançável pelo usuário. `score` é estado de sessão puro por decisão consciente (opção "a":
+ * decoração efêmera, sem promessa de persistência), não por omissão: não há texto de "recorde"/
+ * "seu progresso é salvo" em lugar nenhum daqui. Se este widget for conectado a uma rota no
+ * futuro, o mesmo princípio se aplica — nunca implicar que o placar sobrevive a um reload sem
+ * antes decidir/implementar persistência de verdade (schema é propriedade do Agente 01).
+ *
+ * O sistema de XP que o usuário realmente vê hoje ("Missões Diárias", ligado em
+ * `ProspectingHub.tsx`) mora em `src/components/ui/GamificationWidget.tsx` — fora da pasta
+ * `src/features/gamification/**`, portanto fora da propriedade exclusiva do Agente 02 nesta onda.
+ * A mesma decisão de produto (efêmero por design, sem promessa de persistência) se aplica a ele —
+ * ver handoff `.agents/handoffs/onda-8/02-para-00-decisao-gamificacao-xp.md` para o raciocínio
+ * completo, já que a edição daquele arquivo pertence ao Agente 03 nesta onda.
+ */
+
 const SALES_FACTS = [
     "E-mails curtos (50-125 palavras) têm 50% mais taxa de resposta.",
     "Follow-ups podem aumentar suas conversões em até 22%.",
