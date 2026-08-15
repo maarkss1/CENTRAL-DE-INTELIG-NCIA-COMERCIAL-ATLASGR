@@ -200,8 +200,8 @@ export function DiscoveryFilterPanel({
                             <p className="text-[10px] text-ink-2 mt-1">A Apollo não filtra por ano nativamente — buscamos mais candidatos e filtramos localmente por fundação real.</p>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Tecnologias Utilizadas</label>
-                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-surface-2 rounded-xl border border-line">
+                            <span id="tech-included-label" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Tecnologias Utilizadas</span>
+                            <div role="group" aria-labelledby="tech-included-label" className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-surface-2 rounded-xl border border-line">
                                 {TECNOLOGIA_OPTIONS.map((opt) => {
                                     const selected = (criteria.tecnologias || '').split(',').filter(Boolean).includes(opt.value);
                                     return (
@@ -223,8 +223,8 @@ export function DiscoveryFilterPanel({
                             <p className="text-[10px] text-ink-2 mt-1">Lista curada e validada contra a API — a Apollo só filtra por identificador interno, não por nome livre.</p>
                         </div>
                         <div>
-                            <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Excluir Tecnologias</label>
-                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-surface-2 rounded-xl border border-line">
+                            <span id="tech-excluded-label" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Excluir Tecnologias</span>
+                            <div role="group" aria-labelledby="tech-excluded-label" className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-surface-2 rounded-xl border border-line">
                                 {TECNOLOGIA_OPTIONS.map((opt) => {
                                     const selected = (criteria.tecnologiasExcluir || '').split(',').filter(Boolean).includes(opt.value);
                                     return (

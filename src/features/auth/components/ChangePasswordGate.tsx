@@ -71,8 +71,9 @@ export function ChangePasswordGate() {
                         )}
 
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Senha temporária (atual)</label>
+                            <label htmlFor="change-password-current" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Senha temporária (atual)</label>
                             <input
+                                id="change-password-current"
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -83,8 +84,9 @@ export function ChangePasswordGate() {
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Nova senha</label>
+                            <label htmlFor="change-password-new" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Nova senha</label>
                             <input
+                                id="change-password-new"
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
@@ -95,8 +97,9 @@ export function ChangePasswordGate() {
                         </div>
 
                         <div>
-                            <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Confirme a nova senha</label>
+                            <label htmlFor="change-password-confirm" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Confirme a nova senha</label>
                             <input
+                                id="change-password-confirm"
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}

@@ -363,8 +363,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {/* Seletor de Marca */}
                     <div>
-                      <label className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Empresa / Marca</label>
+                      <label htmlFor="chatbook-brand" className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Empresa / Marca</label>
                       <select
+                        id="chatbook-brand"
                         value={selectedBrand}
                         onChange={(e) => setSelectedBrand(e.target.value as 'atlasgr' | 'totaltrac')}
                         className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink font-bold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
@@ -376,8 +377,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
 
                     {/* Seletor de Segmento */}
                     <div>
-                      <label className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Segmento</label>
+                      <label htmlFor="chatbook-segment" className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Segmento</label>
                       <select
+                        id="chatbook-segment"
                         value={selectedSegment}
                         onChange={(e) => setSelectedSegment(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"
@@ -403,8 +405,9 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
 
                     {/* Seletor de Persona */}
                     <div>
-                      <label className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Persona Decisora</label>
+                      <label htmlFor="chatbook-persona" className="font-bold text-ink-2 block mb-1 text-[10px] uppercase">Persona Decisora</label>
                       <select
+                        id="chatbook-persona"
                         value={selectedPersona}
                         onChange={(e) => setSelectedPersona(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-xl bg-surface text-ink border border-line focus:outline-none focus:ring-1 focus:ring-brand"

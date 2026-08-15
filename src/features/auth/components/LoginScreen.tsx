@@ -192,8 +192,9 @@ export function LoginScreen() {
                   </p>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                    <label htmlFor="login-forgot-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
                     <input
+                      id="login-forgot-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -240,8 +241,9 @@ export function LoginScreen() {
 
                 {isSignUp && (
                   <div>
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
+                    <label htmlFor="login-name" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
                     <input
+                      id="login-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -253,8 +255,9 @@ export function LoginScreen() {
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                  <label htmlFor="login-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
                   <input
+                    id="login-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -266,7 +269,7 @@ export function LoginScreen() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5 ml-1 mr-1">
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha de Acesso</label>
+                    <label htmlFor="login-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha de Acesso</label>
                     {!isSignUp && (
                       <button
                         type="button"
@@ -281,6 +284,7 @@ export function LoginScreen() {
                     )}
                   </div>
                   <input
+                    id="login-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

@@ -470,44 +470,44 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                                 </span>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}><Tag className="w-3 h-3" /> Etapa</label>
-                                <select value={stageId} onChange={(e) => setStageId(e.target.value)} className={selectClass}>
+                                <label htmlFor="bitrix-filter-stage" className={filterLabelClass}><Tag className="w-3 h-3" /> Etapa</label>
+                                <select id="bitrix-filter-stage" value={stageId} onChange={(e) => setStageId(e.target.value)} className={selectClass}>
                                     <option value="">Todas as etapas</option>
                                     {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}>
+                                <label htmlFor="bitrix-filter-vendor" className={filterLabelClass}>
                                     {canPickAnyVendor ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} Vendedor
                                 </label>
                                 {canPickAnyVendor ? (
-                                    <select value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
+                                    <select id="bitrix-filter-vendor" value={assignedById} onChange={(e) => setAssignedById(e.target.value)} className={selectClass}>
                                         <option value="">Todos os vendedores</option>
                                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                                     </select>
                                 ) : (
-                                    <span className="flex items-center h-9 px-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm font-medium" title="Você só vê e importa o seu próprio dado do Bitrix24 (Trava de Isolamento por Vendedor).">
+                                    <span id="bitrix-filter-vendor" className="flex items-center h-9 px-3 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 text-sm font-medium" title="Você só vê e importa o seu próprio dado do Bitrix24 (Trava de Isolamento por Vendedor).">
                                         Exclusivo do Seu Usuário
                                     </span>
                                 )}
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}><CalendarDays className="w-3 h-3" /> Mês</label>
-                                <select value={month} onChange={(e) => setMonth(e.target.value)} className={`${selectClass} min-w-[7rem]`}>
+                                <label htmlFor="bitrix-filter-month" className={filterLabelClass}><CalendarDays className="w-3 h-3" /> Mês</label>
+                                <select id="bitrix-filter-month" value={month} onChange={(e) => setMonth(e.target.value)} className={`${selectClass} min-w-[7rem]`}>
                                     <option value="">Todos</option>
                                     {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                                <label className={filterLabelClass}>Ano</label>
-                                <select value={year} onChange={(e) => setYear(e.target.value)} className={`${selectClass} min-w-[5rem]`}>
+                                <label htmlFor="bitrix-filter-year" className={filterLabelClass}>Ano</label>
+                                <select id="bitrix-filter-year" value={year} onChange={(e) => setYear(e.target.value)} className={`${selectClass} min-w-[5rem]`}>
                                     <option value="">Todos</option>
                                     {Array.from({ length: 5 }, (_, i) => currentYear - i).map((y) => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1 ml-auto">
-                                <label className={filterLabelClass}><ArrowUpDown className="w-3 h-3" /> Ordenar Por</label>
-                                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as 'recent' | 'value' | 'name')} className={selectClass}>
+                                <label htmlFor="bitrix-filter-sort" className={filterLabelClass}><ArrowUpDown className="w-3 h-3" /> Ordenar Por</label>
+                                <select id="bitrix-filter-sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as 'recent' | 'value' | 'name')} className={selectClass}>
                                     <option value="recent">Mais Recentes</option>
                                     <option value="value">Maior Valor (R$)</option>
                                     <option value="name">Nome (A-Z)</option>
@@ -889,10 +889,10 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
+                                <span id="bulk-temperature-label" className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                                     Temperatura Inicial do Lead no AtlasGR
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
+                                </span>
+                                <div role="group" aria-labelledby="bulk-temperature-label" className="grid grid-cols-3 gap-2">
                                     {(['Frio', 'Morno', 'Quente'] as const).map((temp) => (
                                         <button
                                             key={temp}
@@ -917,6 +917,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                                         type="checkbox"
                                         checked={bulkTriggerVoice}
                                         onChange={(e) => setBulkTriggerVoice(e.target.checked)}
+                                        aria-label="Qualificar via Voz (Bland AI / Birthub Voices)"
                                         className="w-4 h-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500 cursor-pointer mt-0.5"
                                     />
                                     <div>

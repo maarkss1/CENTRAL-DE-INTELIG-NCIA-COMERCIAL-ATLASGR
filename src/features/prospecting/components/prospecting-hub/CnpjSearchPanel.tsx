@@ -27,8 +27,9 @@ export function CnpjSearchPanel({
                     <h2 className="font-black text-xl text-ink">🏛️ Busca Direta</h2>
                 </div>
                 <p className="text-xs text-ink-2 mb-4">Busque via CNPJ na Receita Federal ou crie uma empresa pelo Nome para prospecção.</p>
-                <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">CNPJ ou Nome da Empresa</label>
+                <label htmlFor="cnpj-search-input" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">CNPJ ou Nome da Empresa</label>
                 <input
+                    id="cnpj-search-input"
                     className="w-full p-3 bg-surface-2 rounded-[2rem] border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink mb-4"
                     value={cnpjInput}
                     placeholder="Ex: 19.131.243/0001-97 ou Nubank"

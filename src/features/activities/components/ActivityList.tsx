@@ -310,8 +310,9 @@ export function ActivityList() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Tipo de Atividade</label>
+                <label htmlFor="activity-type" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Tipo de Atividade</label>
                 <select
+                  id="activity-type"
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
                   className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3 text-xs font-semibold text-ink focus:ring-2 focus:ring-brand focus:outline-none"
@@ -322,8 +323,9 @@ export function ActivityList() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Data</label>
+                  <label htmlFor="activity-date" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Data</label>
                   <input
+                    id="activity-date"
                     type="date"
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -332,8 +334,9 @@ export function ActivityList() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Hora (opcional)</label>
+                  <label htmlFor="activity-time" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Hora (opcional)</label>
                   <input
+                    id="activity-time"
                     type="time"
                     value={form.time}
                     onChange={(e) => setForm({ ...form, time: e.target.value })}
@@ -343,8 +346,9 @@ export function ActivityList() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Responsável</label>
+                <label htmlFor="activity-owner" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Responsável</label>
                 <input
+                  id="activity-owner"
                   type="text"
                   value={form.owner}
                   onChange={(e) => setForm({ ...form, owner: e.target.value })}
@@ -355,8 +359,9 @@ export function ActivityList() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-black text-ink-2 uppercase mb-1">Observações</label>
+                <label htmlFor="activity-observations" className="block text-[11px] font-black text-ink-2 uppercase mb-1">Observações</label>
                 <textarea
+                  id="activity-observations"
                   value={form.observations}
                   onChange={(e) => setForm({ ...form, observations: e.target.value })}
                   placeholder="Detalhes da atividade..."
