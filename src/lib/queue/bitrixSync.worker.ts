@@ -4,6 +4,7 @@ import { logger } from '../logger.js';
 import { runBitrixSyncTick } from '../../features/integrations/bitrix/bitrix.service.js';
 import { bitrixSyncFailuresTotal } from '../../features/integrations/bitrix/service/metrics.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const BITRIX_SYNC_QUEUE_NAME = 'bitrix-sync';
 
@@ -34,6 +35,14 @@ export function createBitrixSyncWorker() {
         // específico. "unknown"/"tick" torna essa falha visível na mesma métrica em vez de só no
         // log, sem fingir que ela pertence a uma organização ou regra que nunca chegou a rodar.
         bitrixSyncFailuresTotal.inc({ tenant: 'unknown', entity: 'tick' });
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: BITRIX_SYNC_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(BITRIX_SYNC_QUEUE_NAME));

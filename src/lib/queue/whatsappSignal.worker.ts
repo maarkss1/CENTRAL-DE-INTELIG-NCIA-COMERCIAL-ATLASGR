@@ -3,6 +3,7 @@ import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { analyzeConversation } from '../../features/integrations/whatsapp/conversation-intelligence.service.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const WHATSAPP_SIGNAL_QUEUE_NAME = 'whatsapp-conversation-signal';
 
@@ -68,6 +69,16 @@ export function createWhatsAppSignalWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id, leadId: job?.data.leadId }, 'Falha ao analisar conversa de WhatsApp');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: WHATSAPP_SIGNAL_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            organizationId: job.data?.organizationId ?? null,
+            attemptsMade: job.attemptsMade,
+            error: err,
+            data: job.data,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(WHATSAPP_SIGNAL_QUEUE_NAME));
