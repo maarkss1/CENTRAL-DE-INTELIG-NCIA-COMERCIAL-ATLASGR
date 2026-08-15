@@ -209,7 +209,13 @@ export async function make3CXCall(
     // Click-to-Call do 3CX era um caminho que nunca checava isto: um pedido de opt-out registrado
     // pela ligação de IA não impedia um vendedor humano de disparar outra chamada pelo 3CX para o
     // mesmo número minutos depois.
-    if (await isSuppressed(organizationId, destinationNumber)) {
+    //
+    // `isSuppressed` também consulta o opt-out unificado entre canais (`OptOutRecord`) — leadId,
+    // quando informado pela rota, é o casamento mais forte para pegar um opt-out feito por e-mail
+    // (05) ou WhatsApp (06) do mesmo lead, mesmo que o número discado aqui não seja o mesmo em
+    // comum. Não busca o e-mail do lead à parte: o Click-to-Call é uma ação de latência sensível de
+    // um vendedor humano, e o casamento por leadId já cobre o caso central deste contrato.
+    if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null })) {
         throw new AppError('Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.', 409);
     }
 

@@ -204,7 +204,23 @@ describe('make3CXCall', () => {
             'lista interna de bloqueio',
         );
         expect(fetch).not.toHaveBeenCalled();
-        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888');
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: null });
+
+        vi.unstubAllGlobals();
+    });
+
+    // leadId, quando informado pela rota, entra como contexto para o opt-out unificado entre
+    // canais (ver `17-para-05-06-12-contrato-optout.md`) — sem isso, um opt-out feito por e-mail
+    // (05) ou WhatsApp (06) do mesmo lead não bloquearia o Click-to-Call do 3CX.
+    it('propaga o leadId, quando informado, como contexto do opt-out unificado', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        isSuppressedMock.mockResolvedValue(true);
+        vi.stubGlobal('fetch', vi.fn());
+
+        await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
+            'lista interna de bloqueio',
+        );
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: 'lead-1' });
 
         vi.unstubAllGlobals();
     });

@@ -1,6 +1,8 @@
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { toE164BR } from '../../../lib/phone.js';
+import { isOptedOut, recordOptOut as recordUnifiedOptOut } from '../../cadence/application/optOutService.js';
+import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 
 /**
  * Lista interna de bloqueio de discagem.
@@ -11,6 +13,18 @@ import { toE164BR } from '../../../lib/phone.js';
  *
  * Todo número entra e sai daqui normalizado em E.164, porque é o único jeito de o mesmo telefone
  * cadastrado como "(11) 99999-8888" e como "011999998888" cair no mesmo bloqueio.
+ *
+ * Desde a Onda 7 (`.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`), `CallSuppression`
+ * convive com o registro unificado de opt-out (`OptOutRecord`, agente 17), sem substituí-lo:
+ * - `isSuppressed` consulta as DUAS fontes antes de deixar discar — um opt-out feito por e-mail ou
+ *   WhatsApp (`scope: 'global'` ou `'voice'`) agora também bloqueia a ligação, o que antes era
+ *   impossível porque `CallSuppression` só conhecia a si mesma.
+ * - `recordOptOut` continua gravando em `CallSuppression` (fonte de verdade de voz, inalterada) e
+ *   também grava em `OptOutRecord` (`scope: 'voice'`, melhor esforço) para que WhatsApp/e-mail
+ *   enxerguem o bloqueio.
+ * Decisão registrada (proposta original do 17, "Para o 12 especificamente", passo 2 de 3): manter
+ * as duas escritas por enquanto. Migrar a leitura de voz para depender só de `OptOutRecord` é o
+ * passo 3, e exige antes confirmar 100% de cobertura — fora do escopo desta tarefa pontual.
  */
 
 export type SuppressionSource = 'call-opt-out' | 'manual' | 'import';
@@ -22,6 +36,8 @@ export interface RecordOptOutInput {
     source: SuppressionSource;
     reason?: string | null;
     leadId?: string | null;
+    /** Trecho real do pedido (transcrição/mensagem), quando disponível — nunca inferência, mesma disciplina do registro unificado. */
+    evidence?: string | null;
 }
 
 /**
@@ -33,16 +49,46 @@ export function normalizeSuppressionKey(phone: string | null | undefined): strin
     return toE164BR(phone);
 }
 
-/** Diz se este número está bloqueado para discagem nesta organização. */
-export async function isSuppressed(organizationId: string, phone: string | null | undefined): Promise<boolean> {
-    const phoneE164 = normalizeSuppressionKey(phone);
-    if (!phoneE164) return false;
+/**
+ * Contexto adicional para fortalecer o casamento do opt-out unificado entre canais. `leadId` é o
+ * casamento mais forte (ver `17-para-05-06-12-contrato-optout.md`) — sem ele, um opt-out registrado
+ * só por e-mail (sem o mesmo telefone em comum) não seria encontrado por aqui.
+ */
+export interface SuppressionCheckContext {
+    leadId?: string | null;
+    email?: string | null;
+}
 
-    const hit = await prisma.callSuppression.findUnique({
-        where: { organizationId_phoneE164: { organizationId, phoneE164 } },
-        select: { id: true },
-    });
-    return hit !== null;
+/**
+ * Diz se este número/lead está bloqueado para discagem nesta organização.
+ *
+ * Combina duas fontes (ver nota no topo do arquivo): `CallSuppression` (histórica, só voz) e
+ * `OptOutRecord` (unificada entre canais, `scope: 'global'` ou `'voice'`). Sem nenhum identificador
+ * (nem telefone normalizável, nem `leadId`/`email` no contexto) não há o que consultar em nenhuma
+ * das duas — devolve `false` sem bater no banco.
+ */
+export async function isSuppressed(
+    organizationId: string,
+    phone: string | null | undefined,
+    context: SuppressionCheckContext = {},
+): Promise<boolean> {
+    const phoneE164 = normalizeSuppressionKey(phone);
+    const leadId = context.leadId ?? null;
+    const email = context.email ?? null;
+
+    if (!phoneE164 && !leadId && !email) return false;
+
+    const [suppressionHit, optedOut] = await Promise.all([
+        phoneE164
+            ? prisma.callSuppression.findUnique({
+                  where: { organizationId_phoneE164: { organizationId, phoneE164 } },
+                  select: { id: true },
+              })
+            : Promise.resolve(null),
+        isOptedOut(prismaOptOutRepository, organizationId, { leadId, email, phoneE164 }, 'voice'),
+    ]);
+
+    return suppressionHit !== null || optedOut;
 }
 
 /**
@@ -76,6 +122,27 @@ export async function recordOptOut(input: RecordOptOutInput): Promise<boolean> {
             leadId: input.leadId ?? null,
         },
     });
+
+    // Grava também no registro unificado (`OptOutRecord`, `scope: 'voice'`) para que WhatsApp/e-mail
+    // (06/05) também enxerguem este bloqueio — ver `17-para-05-06-12-contrato-optout.md`. Melhor
+    // esforço de propósito: `CallSuppression` acima já é a fonte de verdade de voz e não pode deixar
+    // de valer porque a escrita unificada falhou (ex.: banco momentaneamente indisponível).
+    try {
+        await recordUnifiedOptOut(prismaOptOutRepository, {
+            organizationId: input.organizationId,
+            scope: 'voice',
+            subject: { leadId: input.leadId ?? null, phoneE164 },
+            originChannel: 'voice',
+            reason: input.reason ?? null,
+            evidence: input.evidence ?? null,
+            requestedBy: null,
+        });
+    } catch (error) {
+        logger.error(
+            { err: error, organizationId: input.organizationId },
+            'Falha ao gravar opt-out unificado (OptOutRecord) — a lista de bloqueio de voz (CallSuppression) já foi gravada e continua valendo.',
+        );
+    }
 
     logger.info(
         { organizationId: input.organizationId, leadId: input.leadId, source: input.source },

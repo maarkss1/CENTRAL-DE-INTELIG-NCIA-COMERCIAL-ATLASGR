@@ -39,10 +39,10 @@ const mockIsSuppressed = vi.mocked(isSuppressed);
 
 const ORG = 'org-1';
 
-function leadComTelefone(phone: string | null = '(11) 99999-8888') {
+function leadComTelefone(phone: string | null = '(11) 99999-8888', email: string | null = null) {
     return {
         id: 'lead-9',
-        contact: { name: 'Ana', phone, whatsapp: null },
+        contact: { name: 'Ana', phone, whatsapp: null, email },
         company: { tradeName: 'Transportes X', legalName: null, phones: [] },
     };
 }
@@ -62,8 +62,22 @@ describe('callLead', () => {
 
         await expect(callLead(ORG, 'lead-9')).resolves.toMatchObject({ callSid: 'CA1' });
 
-        expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888');
+        expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', { leadId: 'lead-9', email: null });
         expect(fetch).toHaveBeenCalledOnce();
+    });
+
+    // leadId/email do lead entram como contexto para o opt-out unificado entre canais (05/06) —
+    // ver `17-para-05-06-12-contrato-optout.md`. Sem isso, um opt-out registrado só por e-mail
+    // não teria como ser encontrado por `isSuppressed`.
+    it('passa leadId e e-mail do contato como contexto do opt-out unificado', async () => {
+        leadMock.findFirst.mockResolvedValue(leadComTelefone('(11) 99999-8888', 'ana@exemplo.com'));
+
+        await callLead(ORG, 'lead-9');
+
+        expect(mockIsSuppressed).toHaveBeenCalledWith(ORG, '+5511999998888', {
+            leadId: 'lead-9',
+            email: 'ana@exemplo.com',
+        });
     });
 
     it('recusa a ligação e não chama o Hub quando o número tem opt-out', async () => {

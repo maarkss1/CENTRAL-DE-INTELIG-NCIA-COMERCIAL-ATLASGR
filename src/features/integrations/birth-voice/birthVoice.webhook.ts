@@ -47,6 +47,9 @@ async function recordCallResult(organizationId: string, leadId: string, data: Ca
                     ? `Pedido na ligação (${detection.source}): "${detection.evidence}"`
                     : `Pedido na ligação (${detection.source}).`,
                 leadId,
+                // Trecho real da transcrição, separado do texto de `reason` — o registro unificado
+                // (`OptOutRecord`) distingue as duas coisas, ver `RecordOptOutInput.evidence`.
+                evidence: detection.evidence ?? null,
             });
         }
 
