@@ -36,17 +36,48 @@ const BOOTSTRAP_DB = 'prospectordb';
 const TEST_DB_NAME = 'prospectordb_test';
 const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
+const REQUIRED_CONTAINERS = ['atlas_postgres', 'atlas_redis', 'atlas_meilisearch'];
+
 if (!isCI) {
-  // Sobe só o que os testes precisam (postgres/redis/meilisearch) — o serviço litellm do mesmo
-  // compose não é dependência de teste. Um stub `{ status: 0 }` chegou a substituir este spawn e
-  // o script passou a EXIGIR os containers já de pé sem nunca subi-los, contradizendo o próprio
-  // comentário do topo ("local, continuamos subindo a stack normalmente").
-  const result = spawnSync('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'meilisearch'], {
-    stdio: 'inherit',
-  });
-  if (result.status !== 0) {
-    console.error('Falha ao subir docker-compose (postgres/redis/meilisearch). Veja a saída acima.');
-    process.exit(result.status || 1);
+  // `docker-compose.yml` fixa `container_name` (atlas_postgres/atlas_redis/atlas_meilisearch) —
+  // de propósito, para o app e os scripts de bootstrap sempre acharem o mesmo nome independente
+  // de onde rodam. Isso quebra quando múltiplos `git worktree` (ver "Regra de concorrência" em
+  // /AGENTS.md, até 8 agentes simultâneos) rodam `docker compose up` a partir de diretórios
+  // diferentes: cada worktree vira um projeto compose distinto (nome derivado do diretório), mas
+  // o `container_name` fixo é global ao daemon Docker — o segundo worktree a rodar `compose up`
+  // recebe "Conflict. The container name ... is already in use" e o pretest inteiro falha, mesmo
+  // com os três serviços já saudáveis e prontos para uso.
+  //
+  // Os containers são compartilhados de propósito entre worktrees (mesmo Postgres/Redis/Meili
+  // para todos os agentes da onda) — então, se os três já estão rodando (de qualquer projeto
+  // compose), reusar em vez de tentar recriar é o comportamento correto, não um workaround.
+  const running = spawnSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf-8' });
+  const runningNames = new Set((running.stdout || '').split('\n').map((s) => s.trim()).filter(Boolean));
+  const allRunning = REQUIRED_CONTAINERS.every((name) => runningNames.has(name));
+
+  if (allRunning) {
+    console.log(
+      `Containers ${REQUIRED_CONTAINERS.join(', ')} já em execução (compartilhados entre ` +
+      'worktrees) — pulando `docker compose up` para evitar conflito de container_name fixo.'
+    );
+  } else {
+    // Sobe só o que os testes precisam (postgres/redis/meilisearch) — o serviço litellm do mesmo
+    // compose não é dependência de teste. Um stub `{ status: 0 }` chegou a substituir este spawn e
+    // o script passou a EXIGIR os containers já de pé sem nunca subi-los, contradizendo o próprio
+    // comentário do topo ("local, continuamos subindo a stack normalmente").
+    const result = spawnSync('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'meilisearch'], {
+      stdio: 'inherit',
+    });
+    if (result.status !== 0) {
+      console.error(
+        'Falha ao subir docker-compose (postgres/redis/meilisearch). Se o erro for "container name ' +
+        'already in use", outro worktree já subiu esses containers sob um projeto compose diferente — ' +
+        'defina COMPOSE_PROJECT_NAME igual ao worktree que os criou primeiro, ou pare-os ' +
+        '(`docker stop atlas_postgres atlas_redis atlas_meilisearch`) antes de tentar de novo. Veja a ' +
+        'saída acima para o erro exato.'
+      );
+      process.exit(result.status || 1);
+    }
   }
 }
 

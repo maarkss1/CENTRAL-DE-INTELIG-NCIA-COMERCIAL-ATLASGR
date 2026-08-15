@@ -123,6 +123,17 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   /** Endereço "De" usado no envio — cai para SMTP_USER quando ausente. */
   SMTP_FROM: z.string().optional(),
+
+  // ── Retenção de histórico de extrações Bitrix (BitrixExtractionRun) ─────
+  // Onda 6, Agente 01A: o schema não precisa esperar a decisão humana de prazo pra existir, só o
+  // parâmetro. Mesmo padrão de janela já usado no worker de anonimização de leads desqualificados
+  // (autoAnonymizeDisqualified.worker.ts, 90 dias hardcoded) — aqui o valor é configurável em vez
+  // de fixo no código, e o worker de expurgo correspondente fica DESLIGADO por padrão (mesmo
+  // padrão de dois-fatores do SDR/enxame acima: a flag sozinha não move nada sem esta variável, e
+  // o valor de dias sozinho não expurga nada sem a flag). Pendente de confirmação humana sobre o
+  // número — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
+  BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  BITRIX_EXTRACTION_PURGE_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.

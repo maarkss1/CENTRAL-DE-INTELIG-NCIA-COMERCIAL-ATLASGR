@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signUp, uniqueTestEmail } from './helpers';
+import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Regressão visual das telas-chave, light e dark. Primeira execução (`npx playwright test
 // tests/e2e/visual.spec.ts --update-snapshots`) gera os PNGs de baseline em
@@ -26,16 +26,21 @@ async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 
 // *-chromium-win32.png (geradas localmente no Windows). Playwright inclui a plataforma no nome do
 // arquivo de baseline, então o CI (ubuntu-latest) sempre procura *-chromium-linux.png, que nunca
 // existiu — todo teste deste arquivo falha com "A snapshot doesn't exist", não porque a tela mudou.
-// Não é possível gerar as baselines Linux a partir deste ambiente (sem Docker/Postgres disponíveis
-// aqui para subir a stack completa) — para reativar: rodar
-// `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` em CI/Linux e commitar os
-// PNGs *-chromium-linux.png resultantes junto com os já existentes.
+// Gerar localmente (mesmo em Linux, com Docker/Postgres de pé) NÃO resolve: o build exato do
+// Chromium usado aqui (`chromium-1194`, provisionado no ambiente do agente) difere do que
+// `npx playwright install --with-deps chromium` instala no runner `ubuntu-latest` do CI
+// (`chromium_headless_shell-1228` na verificação de 2026-08-15) — anti-aliasing/rasterização de
+// fonte variam entre builds o suficiente para criar falso positivo/negativo de regressão visual.
+// Precisa ser gerado DENTRO do CI: rodar
+// `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` num job do `ci.yml` (ubuntu-latest,
+// o mesmo runner/imagem que roda o `test:e2e` normal) e commitar os PNGs *-chromium-linux.png
+// resultantes. Handoff aberto em .agents/handoffs/onda-6/14-para-08-baselines-visuais-linux.md.
 test.describe.skip('Regressão visual', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`Painel Central (dashboard) — ${theme}`, async ({ page }) => {
       await setTheme(page, theme);
       await signUp(page, { email: uniqueTestEmail(`visual-dash-${theme}`) });
-      await page.waitForLoadState('networkidle');
+      await waitForAppReady(page);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, DASHBOARD_SCREENSHOT_OPTIONS);
     });
 
@@ -43,7 +48,7 @@ test.describe.skip('Regressão visual', () => {
       await setTheme(page, theme);
       await signUp(page, { email: uniqueTestEmail(`visual-crm-${theme}`) });
       await page.getByRole('button', { name: 'Pipeline CRM' }).click();
-      await page.waitForLoadState('networkidle');
+      await waitForAppReady(page);
       await expect(page).toHaveScreenshot(`crm-board-${theme}.png`, SCREENSHOT_OPTIONS);
     });
   }
@@ -52,7 +57,7 @@ test.describe.skip('Regressão visual', () => {
     await setTheme(page, 'light');
     await signUp(page, { email: uniqueTestEmail('visual-contact-form') });
     await page.getByRole('button', { name: 'Decisores' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await page.getByRole('button', { name: /Novo Contato|Adicionar Primeiro Contato/ }).first().click();
     await expect(page.getByRole('heading', { name: 'Novo Contato', exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot('contact-form-light.png', { maxDiffPixels: 200 });

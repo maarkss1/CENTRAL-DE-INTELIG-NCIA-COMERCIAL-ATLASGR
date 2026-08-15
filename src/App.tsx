@@ -50,7 +50,11 @@ import { MarketIntelligence } from './pages/MarketIntelligence';
 
 function PageFallback() {
   return (
-    <div className="p-8 space-y-6 w-full max-w-7xl mx-auto animate-pulse">
+    // data-testid: sinal determinístico de "módulo lazy ainda carregando" para os testes E2E
+    // (tests/e2e/helpers.ts → waitForAppReady). Substitui waitForLoadState('networkidle'), que
+    // nunca podia funcionar aqui: CrmBoard.tsx mantém um EventSource (SSE) aberto em /app/crm, e
+    // uma conexão de longa duração impede a rede de ficar ociosa por definição.
+    <div data-testid="page-fallback" className="p-8 space-y-6 w-full max-w-7xl mx-auto animate-pulse">
       <div className="flex justify-between items-center">
         <Skeleton className="h-10 w-48 bg-white/10" />
         <Skeleton className="h-10 w-32 bg-white/10" />

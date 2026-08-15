@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signUp, uniqueTestEmail } from './helpers';
+import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Navegação principal (item TEST-002). A partir da migração pra rotas reais (src/App.tsx: <Route
 // path="/app/*"> com <Routes> aninhadas por módulo), cada item do menu lateral corresponde a uma
@@ -37,7 +37,7 @@ test.describe('Navegação principal', () => {
       await expect(page).toHaveURL(new RegExp(`/app/${route}$`));
       // Espera o skeleton de carregamento (lazy-loaded module) sumir antes de checar erros.
       await expect(page.getByRole('button', { name: tab })).toBeVisible();
-      await page.waitForLoadState('networkidle');
+      await waitForAppReady(page);
 
       expect(consoleErrors, `erros de console ao abrir "${tab}": ${consoleErrors.join('; ')}`).toEqual([]);
     });

@@ -1,7 +1,7 @@
 - De: Agente 00 (Coordenador)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 2
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -96,3 +96,27 @@ exatamente com o padrão de bug já suspeitado. A policy de RLS em si (migration
 pela reabertura anterior, que também foi apressada (dessa vez sem rodar contra Docker disponível).
 Recomendo ao dono humano rodar `npm run test:integration` uma vez com Docker de volta para
 confirmar 5/5 verdes antes de considerar isto definitivamente fechado.
+
+
+## Confirmação executada (2026-08-15) — fechado
+A verificação que a seção anterior pediu ao dono humano ("rodar `npm run test:integration` uma vez
+com Docker de volta para confirmar 5/5 verdes") foi executada:
+
+```
+$ npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts tests/integration/ailog-rls.test.ts
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+```
+
+E na suíte completa de integração, contra Postgres real com as 46 migrations aplicadas:
+
+```
+$ npm run test:integration
+ Test Files  13 passed (13)
+      Tests  48 passed (48)
+```
+
+O diagnóstico da seção "Resolução" estava correto: era bug do teste (`PrismaPromise` lazy fora do
+`AsyncLocalStorage`), não da policy de RLS. `Status` movido para `resolvido`. Este handoff foi
+aberto, fechado indevidamente, reaberto e agora fechado com execução real — o ciclo inteiro custou
+3 ondas porque, nas duas primeiras vezes, a conclusão veio de leitura de código em vez de execução.

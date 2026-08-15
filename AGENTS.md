@@ -26,9 +26,51 @@ Prompts: `.agents/prompts/`. Nenhum agente edita o próprio prompt ou o prompt d
 Os agentes 09, 10 e 11 foram adicionados depois da primeira instalação do pacote, ao identificar pastas reais do repositório (`android/`, `k8s/`+`argocd/`+`charts/`+`infrastructure/`, `identidade-visual/`+`documentacao-aplicacao/`) sem dono explícito. Ver `Onda 4` abaixo.
 
 ## Regra de concorrência
-O coordenador ocupa 1 slot. No máximo 3 especialistas podem executar simultaneamente, em qualquer onda.
 
-Nunca iniciar 4 especialistas ao mesmo tempo.
+O Coordenador ocupa 1 slot. Podem executar simultaneamente até **8 especialistas**.
+
+O limite anterior era de 3 simultâneos. Ele foi revisado porque o histórico executado deste
+repositório (`.agents/runs/onda-1.md` a `onda-5.md`) mostra que **nenhuma falha real de execução foi
+causada pela quantidade de agentes**:
+
+- o único conflito de merge de toda a história (`src/lib/queue/bitrixSync.worker.ts`, Onda 5) foi
+  **sobreposição de propriedade** entre 06 (sync Bitrix) e 07 (métricas de fila), não concorrência —
+  teria acontecido com 2 agentes;
+- o incidente mais caro (Onda 1, 16 commits cherry-picked um a um em vez de merge de branch) foi
+  corrida do Coordenador com outra sessão sobre um checkout compartilhado — falha de isolamento, não
+  de contagem;
+- a primeira tentativa da Onda 1 falhou nos 3 agentes por **limite de sessão da conta**, e não por
+  disputa entre eles.
+
+O que de fato escala mal não é o número de agentes trabalhando em paralelo: é o número de **merges
+acumulados sem gate**. Quando o gate da branch de integração fica vermelho, este arquivo exige
+isolar qual merge introduziu a falha e revertê-lo — e esse custo de bisect cresce mais que
+linearmente. Por isso o teto passa a ser aplicado ao ponto certo do processo.
+
+Rodar mais de 3 especialistas simultâneos exige **todas** as condições abaixo. Falhou uma, reduza N:
+
+1. **Isolamento.** Cada especialista em `git worktree` + branch própria (ver "Isolamento de execução"
+   abaixo). Compartilhar working tree continua proibido em qualquer N.
+2. **Propriedade disjunta, verificada antes de disparar.** O Coordenador cruza os arquivos sob
+   propriedade dos agentes ativos e publica a matriz de propriedade da onda em
+   `.agents/runs/onda-<n>.md` **antes** do primeiro agente começar. Sobreposição encontrada é
+   resolvida no papel — um dos agentes cede aquele arquivo e recebe o resultado por handoff. Não
+   descobrir a sobreposição no merge.
+3. **Gate por leva.** O Coordenador integra e roda o gate completo a cada **2–3 merges**, nunca
+   acumulando todos os merges da onda para um único gate no fim. Um gate verde em cada branch isolada
+   não prova ausência de conflito semântico entre elas — a Onda 5 provou isso na prática (falha de
+   RLS do `AILog` só apareceu no gate da integração).
+4. **Sem bloqueador mútuo.** Nenhum par de agentes ativos depende de um handoff `Prioridade:
+   bloqueador` em aberto direcionado ao outro.
+5. **Dono único para arquivo compartilhado.** `server.ts`, `package.json`/lockfile e
+   `prisma/schema.prisma` mantêm dono único por onda, conforme "Propriedade exclusiva de arquivos".
+   Quem precisar deles abre handoff — não edita.
+6. **Capacidade real da ferramenta.** Se o ambiente de execução não sustentar N worktrees
+   simultâneos, ou se a conta tiver limite de sessão/token que derrube agentes no meio da missão,
+   reduza N até caber. Agente derrubado no meio da missão custa mais que agente que esperou a vez.
+
+Ao subir de 3 para um número maior pela primeira vez num repositório ou ferramenta nova, prefira
+validar o salto com um passo de cada vez (3 → 4 → 6) em vez de ir direto ao teto.
 
 ### Onda 1 — Fundação
 Executar em paralelo:
@@ -54,7 +96,7 @@ Executar em paralelo, depois de `RELEASE APPROVED` na Onda 3 (ou antes, se o Coo
 2. Agente 10 — Infraestrutura, Observabilidade e SRE
 3. Agente 11 — Marca e Ativos Institucionais
 
-Escopo isolado entre si (pastas diferentes), mas ainda assim respeitando o limite de 3 especialistas simultâneos e o isolamento por worktree/branch (`agente/09-mobile`, `agente/10-infraestrutura-sre`, `agente/11-marca-institucional`, a partir de `integracao/onda-4`).
+Escopo isolado entre si (pastas diferentes), mas ainda assim respeitando a regra de concorrência acima e o isolamento por worktree/branch (`agente/09-mobile`, `agente/10-infraestrutura-sre`, `agente/11-marca-institucional`, a partir de `integracao/onda-4`).
 
 ## Isolamento de execução (git worktree)
 
@@ -75,9 +117,9 @@ Cada especialista:
 O Coordenador, ao final (ou durante) da onda:
 1. revisa o `git diff` de cada branch de especialista;
 2. confirma que nenhum arquivo fora do escopo/propriedade do especialista foi tocado;
-3. faz merge de cada branch aprovada em `integracao/onda-<n>`;
-4. roda o gate da onda **na branch de integração**, não apenas nas branches individuais — um gate verde em cada branch isolada não garante ausência de conflito semântico entre elas;
-5. se o gate da integração falhar após um merge específico, isola qual merge introduziu a falha, reverte esse merge e devolve ao agente dono com reprodução;
+3. faz merge de cada branch aprovada em `integracao/onda-<n>`, **em levas de 2–3 merges** (ver "Regra de concorrência" → condição 3), nunca acumulando a onda inteira para uma única integração;
+4. roda o gate da onda **na branch de integração** ao fim de cada leva, não apenas nas branches individuais — um gate verde em cada branch isolada não garante ausência de conflito semântico entre elas;
+5. se o gate da integração falhar após um merge específico, isola qual merge introduziu a falha, reverte esse merge e devolve ao agente dono com reprodução — é justamente para manter esse bisect barato que a leva é limitada a 2–3 merges;
 6. remove os worktrees temporários (`git worktree remove`) após a onda ser aprovada, preservando as branches até o merge final na branch principal do projeto.
 
 Se a ferramenta/ambiente de execução não suportar múltiplos worktrees simultâneos, os especialistas da onda devem rodar em série (um de cada vez, cada um fazendo commit e integrando antes do próximo começar) em vez de dividir um único working tree ao vivo. Concorrência sem isolamento nunca é aceitável.
