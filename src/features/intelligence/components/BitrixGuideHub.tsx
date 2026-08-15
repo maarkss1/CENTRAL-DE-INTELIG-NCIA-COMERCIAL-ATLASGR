@@ -1,7 +1,33 @@
 import { useState } from 'react';
-import { Layers, CheckCircle2, Clock } from 'lucide-react';
+import { Layers, CheckCircle2, Clock, Workflow, ShieldCheck, Table2 } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
+import { LEAD_STATUS } from '../../../lib/zod';
+import { BITRIX_FIELD_MAP } from '../../integrations/bitrix/bitrixFieldMap';
+import { STAGE_AGING_CRITICAL_DAYS } from '../../commercial-intelligence/application/pipelineEligibility';
+
+// Funil real usado pelo Kanban/CRM (mesma fonte de verdade de `src/lib/zod.ts` → `LEAD_STATUS`,
+// consumida hoje pelo Kanban do CRM e pelo Comercial Inteligente) — não uma lista redigida à
+// parte para esta tela. Divisão em "Funil Lead" x "Funil Negócio" segue o ponto de virada real do
+// produto: `funnel: 'Negocio'` começa em "Nova Oportunidade" (ver `Lead.funnel` em
+// `src/types/index.ts`).
+const LEAD_FUNNEL_STAGES = LEAD_STATUS.slice(0, 6);
+const DEAL_FUNNEL_STAGES = LEAD_STATUS.slice(6);
+
+const FIELD_TARGET_LABEL: Record<string, string> = {
+  lead: 'Lead (coluna)',
+  qualification: 'Qualificação (SDR)',
+  contact: 'Contato',
+};
+
+const FIELD_TYPE_LABEL: Record<string, string> = {
+  string: 'Texto',
+  enumeration: 'Lista (enum)',
+  double: 'Número',
+  date: 'Data',
+  boolean_sim_nao: 'Sim/Não',
+  url: 'Link',
+};
 
 export function BitrixGuideHub() {
   const { activeBrand } = useBrand();
@@ -96,6 +122,96 @@ export function BitrixGuideHub() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'pipeline' && (
+        <div className="space-y-5">
+          <div>
+            <h3 className="text-[11px] font-black text-ink-2 uppercase tracking-wide mb-2 flex items-center gap-2">
+              <Workflow className="w-3.5 h-3.5" /> Funil Lead (Qualificação)
+            </h3>
+            <ol className="flex flex-wrap gap-2">
+              {LEAD_FUNNEL_STAGES.map((stage, idx) => (
+                <li key={stage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 border border-line text-xs font-bold text-ink">
+                  <span className={`${accent.text} font-black`}>{idx + 1}.</span> {stage}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div>
+            <h3 className="text-[11px] font-black text-ink-2 uppercase tracking-wide mb-2 flex items-center gap-2">
+              <Workflow className="w-3.5 h-3.5" /> Funil Negócio (Fechamento)
+            </h3>
+            <ol className="flex flex-wrap gap-2">
+              {DEAL_FUNNEL_STAGES.map((stage, idx) => (
+                <li key={stage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 border border-line text-xs font-bold text-ink">
+                  <span className={`${accent.text} font-black`}>{idx + 1}.</span> {stage}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-surface-2 border border-line flex items-start gap-4">
+            <div className={`p-2.5 rounded-xl shrink-0 ${accent.bgSoft} ${accent.text} border ${accent.borderSoft}`}>
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-xs text-ink">Regra real de elegibilidade de pipeline (Comercial Inteligente)</h4>
+              <p className="text-xs text-ink-2 mt-1 font-medium leading-relaxed">
+                Um negócio só entra no forecast do Comercial Inteligente quando, no Bitrix24, ele tem:
+                negócio aberto (não ganho/perdido), valor preenchido (maior que zero), data prevista de
+                fechamento, responsável definido e próxima ação registrada — e quando o tempo na etapa
+                atual não ultrapassa o limite de aging crítico ({STAGE_AGING_CRITICAL_DAYS} dias).
+                Negócio fora desses critérios some do forecast até ser corrigido, mas continua visível
+                no funil normalmente.
+              </p>
+              <p className="text-[10px] text-ink-2 mt-2 font-medium opacity-80">
+                Hoje não existe SLA configurado por etapa individual (só este limite único de aging) —
+                se isso for necessário, é uma configuração de produto ainda pendente, não algo já em
+                vigor.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'field_mapping' && (
+        <div className="space-y-3">
+          <p className="text-xs text-ink-2 font-medium leading-relaxed">
+            Mapeamento real usado pela sincronização automática com o Bitrix24 (mesmos códigos
+            consumidos em produção pela importação/exportação de Leads e Negócios) — não é uma lista
+            ilustrativa.
+          </p>
+          <div className="overflow-x-auto rounded-2xl border border-line">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-surface-2 text-ink-2 text-left">
+                  <th scope="col" className="px-3 py-2 font-black">Campo</th>
+                  <th scope="col" className="px-3 py-2 font-black">Tipo</th>
+                  <th scope="col" className="px-3 py-2 font-black">Onde mora</th>
+                  <th scope="col" className="px-3 py-2 font-black">Código no Lead</th>
+                  <th scope="col" className="px-3 py-2 font-black">Código no Negócio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {BITRIX_FIELD_MAP.map((field) => (
+                  <tr key={field.label} className="border-t border-line">
+                    <td className="px-3 py-2 font-bold text-ink whitespace-nowrap">{field.label}</td>
+                    <td className="px-3 py-2 text-ink-2">{FIELD_TYPE_LABEL[field.type] ?? field.type}</td>
+                    <td className="px-3 py-2 text-ink-2 whitespace-nowrap">{FIELD_TARGET_LABEL[field.target.kind] ?? field.target.kind}</td>
+                    <td className="px-3 py-2 font-mono text-[10px] text-ink-2">{field.leadCode ?? '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[10px] text-ink-2">{field.dealCode ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-ink-2 font-medium opacity-80">
+            <Table2 className="w-3.5 h-3.5 shrink-0" />
+            <span>Se um campo custom for reconfigurado no admin do Bitrix24, este mapa precisa ser atualizado manualmente pela equipe de Integrações — os códigos não são descobertos automaticamente por nome.</span>
+          </div>
         </div>
       )}
 
