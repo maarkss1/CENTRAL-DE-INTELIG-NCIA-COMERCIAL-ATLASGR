@@ -61,4 +61,49 @@ da Onda 6/remediação.
 
 ## Status
 
-Disparando os 7 especialistas em paralelo, cada um em worktree isolado.
+Disparados os 7 especialistas em paralelo, cada um em worktree isolado.
+
+### Leva 1 — mergeada (2026-08-15)
+
+Agentes 05 (Prospecção) e 17 (Cadência) concluíram primeiro, com diff em escopo exclusivo
+(confirmado via `git diff --stat` contra a matriz acima). Merge sem conflito. Gate na branch
+`integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101 warnings (baseline), 822/822 testes
+unitários, build ok. Push: `8a8e7c9`.
+
+- Agente 05: TTL de cache em `enrichCompany`, dedupe de decisores por e-mail/telefone
+  normalizado, 2 handoffs (proveniência para 01, rotulagem confirmado/inferido para 02).
+- Agente 17: domínio `src/features/cadence/**` completo (opt-out unificado, máquina de estados
+  da cadência, reply tracking, agendamento com trava de confirmação verificável, proposta
+  versionada e fechamento determinístico), 94 testes próprios. 4 handoffs de contrato abertos
+  (01 schema, 02 rota, 05/06/12 opt-out, 13 evento de fechamento) — implementação real das
+  integrações depende desses handoffs serem aplicados pelos donos. **Pergunta pendente para o
+  usuário** (não bloqueia o schema, que é agnóstico de provedor): qual provedor de assinatura
+  eletrônica usar em `CrmDocumentSignatureRequest.provider` (Clicksign/DocuSign/Autentique etc.).
+
+### Leva 2 — mergeada (2026-08-15)
+
+Agente 04 (CRM/BI) concluiu com diff em escopo exclusivo. Merge sem conflito. Gate na branch
+`integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101 warnings (baseline), 846/846 testes
+unitários, build ok. Push: `f4e708d`.
+
+- Resolveu handoff `onda-1/01-para-04-role-gates-crm.md` (limiares de role confirmados corretos).
+- Corrigiu 2 bugs reais de BI: `AnalyticsUseCases.ts` (caminho realmente ligado via DI ao
+  `/api/analytics/dashboard`) hardcodava `tmqMetric`/`lostReasons`/`callHeatmap`/
+  `performanceReport` vazios — os widgets do dashboard ficavam sempre vazios independente dos
+  dados reais. Religou às queries reais do `PrismaAnalyticsRepository`. `callHeatmap` também
+  filtrava por `Activity.type === 'call'`, valor que não existe no enum Prisma (`Ligacao` é o
+  valor real) — heatmap sempre vazio mesmo com ligações reais registradas.
+  Removeu `tmqMetric` fabricado (`updatedAt - createdAt` não mede tempo de qualificação real).
+  Unificou definição de "pipeline aberto" entre dashboard e relatório PDF (`CLOSED_STATUSES`).
+  Removeu `comparative.service.ts` morto (zero chamadores, guarda de tenant citava role
+  inexistente).
+- Guard contra owner fictício (`src/features/activities/domain/ownerGuard.ts`) — rejeita
+  placeholders como "Enxame de IA Atlas" como responsável por atividade/tarefa.
+- 2 handoffs abertos: `04-para-06-owner-bitrix-nome-nao-id.md` (Bitrix guarda nome em vez de id
+  de owner, quebra `requireLeadOwnership`) e `04-para-07-owner-fabricado-follow-up-ia.md`
+  (`opsTools.ts` fabricava owner "Enxame de IA Atlas" em follow-up gerado por IA).
+
+### Pendente
+
+Agentes 13 (Enxame/Governança), 07 (IA/Automações), 12 (Voz/Telefonia), 06 (Integrações/Bitrix)
+ainda em execução.
