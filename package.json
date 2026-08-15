@@ -9,8 +9,11 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx watch server.ts",
+    "dev:worker": "tsx watch worker.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:worker": "esbuild worker.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/worker.cjs",
     "start": "node dist/server.cjs",
+    "start:worker": "node dist/worker.cjs",
     "start:e2e": "npx dotenv-cli -e .env.test -- tsx server.ts",
     "preview": "vite preview --port 4173",
     "docker:up": "docker-compose up -d",

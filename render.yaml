@@ -97,5 +97,59 @@ services:
       - key: STORAGE_SECRET_ACCESS_KEY
         sync: false
 
+  # Worker dedicado (worker.ts, Onda 6 Agente 16) — processa as filas BullMQ + o cron de
+  # cold-leads-scanner, sem Express/SPA/SSE. Preparação de config apenas (handoff
+  # .agents/handoffs/onda-6/16-para-08-deploy-worker-service.md): NÃO criar este serviço de
+  # verdade no Render nesta rodada — depende de (a) o usuário autorizar o gasto de um segundo
+  # serviço pago (worker services do Render não têm plano free) e (b) o handoff
+  # `16-para-00-remover-workers-de-server-ts.md` ser aplicado primeiro, senão rodar este serviço
+  # ao lado do `prospector-atlas` (web) com ENABLE_QUEUES=true nos dois DUPLICA o processamento de
+  # cada fila — os dois processos competiriam pelos mesmos jobs BullMQ.
+  - type: worker
+    name: prospector-atlas-worker
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build:worker
+    startCommand: npx prisma migrate deploy && npm run start:worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Mesmo banco do serviço web — ver docs/deploy/producao.md secao 1. Não crie uma segunda
+      # connection string separada; aponte para o mesmo Supabase.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Diferente do serviço web (que tem ENABLE_QUEUES=false por padrão hoje), o worker só existe
+      # para processar fila — sem Redis ativo ele sobe e fica "degraded" (ver /health/ready em
+      # worker.ts), então isso precisa ser true de verdade quando o serviço for ativado.
+      - key: ENABLE_QUEUES
+        value: "true"
+      - key: REDIS_URL
+        sync: false
+      - key: ENABLE_SEARCH
+        value: "false"
+      - key: SDR_COLD_CALL_ENABLED
+        value: "false"
+      - key: SDR_COLD_CALL_ORGANIZATIONS
+        sync: false
+      - key: SWARM_SCHEDULER_ENABLED
+        value: "false"
+      - key: SWARM_SCHEDULER_ORGANIZATIONS
+        sync: false
+      # Porta interna do health server minimalista de worker.ts (GET /health/live, /health/ready).
+      # Sem porta pública exigida pelo Render para `type: worker`, mas configure o probe de
+      # readiness do orquestrador (quando disponível) para bater aqui.
+      - key: WORKER_HEALTH_PORT
+        value: "3006"
+      # NOTA (documentado, não incluído automaticamente nesta rodada — ver handoff 16 para
+      # inventário completo): antes de ativar este serviço para processar filas de verdade, os
+      # jobs também dependem de credenciais de provedor específicas por fila — Bitrix
+      # (BITRIX24_WEBHOOK_URL), Birth Voices (BIRTH_VOICES_WEBHOOK_SECRET), Gemini/Groq
+      # (GEMINI_API_KEY/GROQ_API_KEY) para os agentes de IA, e as credenciais de storage
+      # (STORAGE_*) para o job de PDF semanal. Copie as mesmas do serviço web acima quando este
+      # worker for ativado — omitidas aqui de propósito porque as filas que as usam
+      # (SDR_COLD_CALL_ENABLED/SWARM_SCHEDULER_ENABLED) começam desligadas.
+
 # Sem bloco `databases:` de propósito — o Postgres é externo (Supabase), não provisionado pelo
 # Render. Ver docs/deploy/producao.md secao 1 para criar o projeto e obter as connection strings.
