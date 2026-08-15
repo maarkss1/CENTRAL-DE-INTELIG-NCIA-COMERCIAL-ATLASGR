@@ -1,7 +1,7 @@
 - De: Agente 16 (Runtime, Workers e Escala)
 - Para: Agente 00 (Coordenador)
 - Onda: 6
-- Status: aberto
+- Status: em-andamento
 - Prioridade: bloqueador (bloqueia só o corte final de duplicação de processamento — não bloqueia
   esta onda, ver "Contexto adicional")
 
@@ -177,3 +177,21 @@ feito. A duplicação de processamento só se materializa se alguém rodar `work
 com `ENABLE_QUEUES=true` ao mesmo tempo contra o mesmo Redis, o que **não é o estado atual de
 produção** (produção hoje só roda `server.ts`). O bloqueador é para o **corte final**, não para
 esta onda.
+
+## Decisão do Coordenador (2026-08-15)
+
+**Diff NÃO aplicado nesta onda.** Analisado linha a linha — tecnicamente correto (mantém as 3
+`Queue` que BullBoard/rotas de enfileiramento precisam, ajusta `shutdown()` coerentemente) — mas
+aplicá-lo isoladamente, sem `worker.ts` rodando como processo real em algum ambiente, para todo
+processamento de fila silenciosamente: enriquecimento de lead, sync Bitrix, discagem fria, enxame
+autônomo, follow-up, dedup, PDF semanal e o worker de anonimização LGPD (`autoAnonymizeDisqualified`)
+parariam sem erro visível. Exatamente a classe de falha silenciosa que `/AGENTS.md` proíbe.
+
+**Status alterado para `em-andamento`, dependente do handoff `16-para-08-deploy-worker-service.md`.**
+Este corte só é seguro depois que 08 configurar `worker.ts` como serviço real (Render worker service)
+e confirmar que ele está processando job de verdade. Até lá, `server.ts` continua sendo o único
+processo que roda em produção — comportamento atual preservado, sem regressão.
+
+Fica para a Onda 7 (ou uma leva dedicada), combinado com o deploy do 08: subir `worker.ts` real →
+confirmar processamento → só então aplicar este diff e derrubar os workers de `server.ts` no mesmo
+corte.
