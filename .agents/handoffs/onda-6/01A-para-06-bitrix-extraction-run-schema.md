@@ -107,3 +107,9 @@ cima dele. Ao implementar o serviço/worker de extração:
 compartilhado quanto num banco vazio criado do zero (47/47 migrations, incluindo esta), `prisma
 migrate diff` contra o schema final não mostra deriva causada por esta migration (drift pré-
 existente e não relacionado documentado separadamente no relatório da onda).
+
+## Confirmação humana (2026-08-15)
+Retenção confirmada em **90 dias** (`BITRIX_EXTRACTION_RETENTION_DAYS=90`, já é o default em
+`src/config/env.ts` — nenhuma mudança de código necessária). `BITRIX_EXTRACTION_PURGE_ENABLED`
+continua `false` por padrão: o worker de expurgo em si ainda não foi construído (fica para quando
+o módulo real de extração for implementado, item pendente do 06/06A, não deste handoff).
