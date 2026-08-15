@@ -27,6 +27,11 @@ dump.rdb
 # controle de versão (DEVOPS-008).
 whatsapp_auth/
 
+# Arquivos CSV/XLSX/JSON gerados pelo serviço real de Extrações Bitrix (BitrixExtractionRun) —
+# contêm dado pessoal real de leads/contatos, nunca devem ir para o controle de versão. Ver
+# BITRIX_EXTRACTION_STORAGE_DIR em src/config/env.ts.
+/data/bitrix-extractions/
+
 # Dumps de banco com dado pessoal real de prospecção — nunca devem ir para o controle de
 # versão (AGENTS.md → "Segurança e higiene", achado backups/prospector-*.dump).
 backups/*.dump

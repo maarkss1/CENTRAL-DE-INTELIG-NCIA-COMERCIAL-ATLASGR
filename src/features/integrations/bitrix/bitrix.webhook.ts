@@ -6,6 +6,7 @@ import { logger } from '../../../lib/logger.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { callBitrix } from './service/client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './service/customFields.js';
+import { bitrixSyncFailuresTotal } from './service/metrics.js';
 
 // ── Webhook de ENTRADA (Bitrix → Atlas, "исходящий вебхук" no admin do portal) ──────────────────
 //
@@ -104,6 +105,15 @@ async function processEvent(
             logger.info({ organizationId, connectionId, leadId: lead.id, bitrixRecordId, eventType }, '[bitrix] Lead atualizado via webhook de entrada');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
+            // Sinal agregado/acionável por alerta (bloqueador #11 de /AGENTS.md) — antes desta
+            // correção, uma falha do webhook de ENTRADA só existia em BitrixSyncLog (visível na
+            // tela de Integrações desta organização) e no log de aplicação, mas nunca somava na
+            // série Prometheus que a regra `BitrixSyncFailuresHigh` observa — diferente do
+            // push/pull automático (outboundSync.ts/syncRules.ts), que já incrementam esta
+            // métrica em toda falha. Um portal que passasse a mandar eventos de entrada
+            // quebrados repetidamente nunca disparava alerta, só ficava visível pra quem abrisse
+            // a tela manualmente.
+            bitrixSyncFailuresTotal.inc({ tenant: organizationId, entity: spec.entity });
             await logInbound({ organizationId, connectionId, entityType: spec.entity, leadId: lead.id, bitrixRecordId, status: 'failed', errorMessage });
             throw err;
         }

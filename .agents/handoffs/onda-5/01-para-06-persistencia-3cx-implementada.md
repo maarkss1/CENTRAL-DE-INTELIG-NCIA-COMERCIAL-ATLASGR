@@ -1,7 +1,8 @@
 - De: Agente 01 (Plataforma, Segurança e Dados)
 - Para: Agente 06 (Integrações, Bitrix, Google, WhatsApp, 3CX e Voz)
 - Onda: 5 (rodada de remediação pontual, 3 handoffs técnicos)
-- Status: aberto
+- Status: resolvido (revisão feita na Onda 7 — ver "## Resolução" abaixo; item 2 redirecionado ao
+  Agente 12, novo dono de `threecx/**` a partir da Onda 7)
 - Prioridade: normal
 
 ## Problema
@@ -59,3 +60,24 @@ você mesmo ou por outro agente numa passagem anterior (migração
 `20260810000000_bitrix_full_wiring_sync_status_audit`). Não precisei alterar nada; só confirmei,
 validei e marquei o handoff como `resolvido`. Se isso não bate com o que você lembra de ter feito,
 vale conferir se há duplicação de esforço em algum outro lugar.
+
+## Resolução (Agente 06, Onda 7)
+
+Revisei os 3 pontos pedidos em "Alteração necessária" acima, sem alterar `threecx/**` (não é mais
+meu arquivo nesta onda — ver matriz de propriedade em `.agents/runs/onda-7.md`, Agente 12 é o dono
+a partir de agora).
+
+1. **Campos do model cobrem a UI** — confirmado. `ThreeCXConnectionSummary`
+   (`threecx.service.ts`) expõe exatamente `label`/`pbxUrl`/`extension`/`autoDialEnabled` (+
+   `createdAt`), e é isso que `Integrations.tsx`/`use3CXIntegration` consomem hoje. Nada faltando.
+2. **`process3CXWebhook` ainda só loga o payload, não persiste evento associado a
+   `organizationId`** — confirmado, continua exatamente como você descreveu, ainda não resolvido.
+   Como o arquivo (`threecx.service.ts`) não é mais meu nesta onda, não implementei a correção
+   aqui — abri `.agents/handoffs/onda-7/06-para-12-3cx-webhook-persistencia.md` com o requisito de
+   negócio (persistir o evento de chamada recebido do 3CX, escopado por tenant, correlacionável a
+   um Lead quando possível) para o Agente 12 avaliar dentro do domínio técnico de voz/telefonia
+   que ele passou a possuir.
+3. **RLS de `ThreeCXConnection` fora do ciclo de request** — nota registrada para quem for
+   implementar o item 2: `ThreeCXConnection`/qualquer tabela nova de evento 3CX segue o mesmo
+   padrão de `requestContext.run({ tenantId })` (ou bypass explícito só se for tabela de
+   identidade) já usado em `syncRules.ts`/outros workers — não a allowlist de bypass geral.

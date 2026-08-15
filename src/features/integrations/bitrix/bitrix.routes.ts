@@ -23,7 +23,14 @@ import {
     getConnectionWebhookUrl,
     postCommentToBitrix,
     resolveOwnBitrixUserId,
+    createExtractionRun,
+    listExtractionRuns,
+    getExtractionRun,
+    cancelExtractionRun,
+    deleteExtractionRun,
+    downloadExtractionFile,
 } from './bitrix.service.js';
+import type { ExtractionFileFormat } from './service/extractionFiles.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 
@@ -408,6 +415,104 @@ router.delete('/sync-rules/:id', managementRoles, async (req: Request, res: Resp
         const { organizationId } = (req as AuthRequest).user;
         await deleteSyncRule(organizationId, req.params.id);
         res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ── Extrações (Onda 7, Agente 06/06A) ───────────────────────────────────────────────────────
+//
+// Restrito a ADMIN/GESTOR (diferente de importRoles): uma extração pode trazer TODO o dado
+// pessoal de leads/negócios/empresas/contatos de uma organização inteira de uma vez (não um
+// registro escolhido a dedo como a importação manual) — minimização de acesso por padrão da
+// seção LGPD de /AGENTS.md, não uma trava arbitrária.
+
+router.get('/extractions', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const take = req.query.take ? Number(req.query.take) : undefined;
+        const result = await listExtractionRuns(organizationId, take);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/extractions', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId, id: userId } = (req as AuthRequest).user;
+        const { connectionId, entities, fields, filters } = req.body as {
+            connectionId?: unknown; entities?: unknown; fields?: unknown; filters?: unknown;
+        };
+        if (typeof connectionId !== 'string' || !connectionId) {
+            res.status(400).json({ success: false, error: 'connectionId é obrigatório.' });
+            return;
+        }
+        if (!Array.isArray(entities) || entities.some((e) => typeof e !== 'string')) {
+            res.status(400).json({ success: false, error: 'entities deve ser uma lista de strings.' });
+            return;
+        }
+        if (!filters || typeof filters !== 'object' || typeof (filters as { period?: unknown }).period !== 'string') {
+            res.status(400).json({ success: false, error: 'filters.period é obrigatório.' });
+            return;
+        }
+        const result = await createExtractionRun(organizationId, userId, {
+            connectionId,
+            entities: entities as string[],
+            fields: (fields && typeof fields === 'object') ? (fields as Record<string, string[]>) : undefined,
+            filters: filters as { period: string; customFrom?: string; customTo?: string; categoryId?: string; stageId?: string; assignedById?: string; search?: string },
+        });
+        res.status(201).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.get('/extractions/:id', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await getExtractionRun(organizationId, req.params.id);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/extractions/:id/cancel', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        await cancelExtractionRun(organizationId, req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.delete('/extractions/:id', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        await deleteExtractionRun(organizationId, req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+const EXTRACTION_DOWNLOAD_FORMATS: readonly string[] = ['csv', 'xlsx', 'json'];
+
+router.get('/extractions/:id/download', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const format = String(req.query.format || '');
+        if (!EXTRACTION_DOWNLOAD_FORMATS.includes(format)) {
+            res.status(400).json({ success: false, error: 'format deve ser csv, xlsx ou json.' });
+            return;
+        }
+        const entity = req.query.entity ? String(req.query.entity) : undefined;
+        const { buffer, filename, contentType } = await downloadExtractionFile(organizationId, req.params.id, format as ExtractionFileFormat, entity);
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(buffer);
     } catch (error) {
         next(error);
     }
