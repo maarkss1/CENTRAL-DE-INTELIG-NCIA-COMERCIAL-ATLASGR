@@ -1,7 +1,7 @@
 - De: Agente 14 (Ambiente de Execução e Test Harness)
 - Para: Agente 08 (QA e Release)
 - Onda: 6
-- Status: aberto
+- Status: em-andamento (código pronto; depende de execução humana real no GitHub Actions)
 - Prioridade: normal
 
 ## Problema
@@ -46,3 +46,35 @@ Depois de commitados os PNGs `*-chromium-linux.png` e removido o `describe.skip`
 ## Contexto adicional
 Baseline Windows preservada (não removi `*-chromium-win32.png`) — sem instrução do usuário para
 descartar histórico de referência, e não custa nada mantê-la junto da baseline Linux nova.
+
+## Resolução (Agente 08, remediação pós-Onda 6)
+
+Implementado exatamente como pedido: `.github/workflows/ci.yml` ganhou `workflow_dispatch:` no
+`on:` e um novo job `visual-baselines` (`if: github.event_name == 'workflow_dispatch'`, não roda
+em push/PR), que:
+
+1. sobe a mesma stack de serviços do job `build-and-test` (postgres/redis — o job `build-and-test`
+   não sobe um container dedicado de Meilisearch apesar de `MEILI_HOST`/`MEILI_MASTER_KEY`
+   estarem no `env`, então o job novo espelha esse comportamento real em vez do que o handoff
+   descrevia; `visual.spec.ts` não depende de busca);
+2. remove o `describe.skip` só no checkout efêmero do job (`sed` num arquivo do runner, nunca
+   commitado) e roda `npm run test:e2e -- tests/e2e/visual.spec.ts --update-snapshots`;
+3. publica os PNGs `*-chromium-linux.png` resultantes como artifact (`visual-snapshots-linux`).
+
+**Não foi possível gerar os PNGs de verdade neste ambiente** — confirmando exatamente o
+diagnóstico deste handoff (Chromium local incompatível com o que o CI instala) — então
+`tests/e2e/visual.spec.ts` **continua em `describe.skip`** neste commit. Isso ainda depende de
+ação humana real:
+
+1. Abrir Actions → CI → "Run workflow" no GitHub (branch `agente/08-ci-deploy-audit` ou `main`
+   depois do merge) para disparar o `workflow_dispatch`.
+2. Baixar o artifact `visual-snapshots-linux` do job `visual-baselines`.
+3. Extrair os PNGs em `tests/e2e/visual.spec.ts-snapshots/` (mantendo as `*-chromium-win32.png`
+   já commitadas).
+4. Remover o `describe.skip` real de `tests/e2e/visual.spec.ts` (linha ~30) e commitar junto com
+   os PNGs novos.
+
+Depois desse passo manual, `npm run test:e2e` no job `build-and-test` volta a cobrir
+`visual.spec.ts` normalmente em todo push/PR — sem exigir mudança adicional no `ci.yml`.
+`docs/deploy/RELEASE_CHECKLIST.md` (novo, seção 3) documenta a verificação manual a fazer
+enquanto a baseline não existir.

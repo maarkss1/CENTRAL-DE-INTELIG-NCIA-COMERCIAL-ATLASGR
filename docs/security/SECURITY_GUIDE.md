@@ -46,16 +46,58 @@ documentados em `.agents/completion/01-bloqueadores.md`.
 
 ## `security:zap` / `security:trivy` — quando e como rodar
 
-Os dois scripts (`npm run security:zap`, `npm run security:trivy`) existem em `package.json` mas
-não fazem parte de nenhum gate automático (ver handoff
-`.agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md` para a proposta de integração ao CI/gate).
-Até que o Agente 08 decida onde encaixá-los, rode manualmente antes de um release:
+Decisão implementada pelo Agente 08 (Onda 6, remediação) a partir da proposta em
+`.agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md`:
 
-- **`npm run security:trivy`** — scan de filesystem/dependências, não precisa da aplicação
-  rodando. Precisa de rede irrestrita para baixar o banco de vulnerabilidades na primeira
-  execução (`mirror.gcr.io/aquasec/trivy-db`); ambientes com proxy TLS restritivo podem falhar
-  nesse download — não é falha do script.
-- **`npm run security:zap`** — scan dinâmico de API (`zap-api-scan.py` contra
-  `/api-docs/openapi.yaml`). Exige a aplicação já rodando em `http://localhost:3000` (ou o alvo
-  configurado) **antes** de rodar o comando — suba a stack (`docker compose up` ou `npm run dev`)
-  primeiro. Sem alvo vivo, o ZAP falha ao tentar buscar a spec OpenAPI.
+- **`npm run security:trivy`** (scan de filesystem/dependências, não precisa da aplicação
+  rodando) — agora roda **automaticamente toda semana** via
+  `.github/workflows/security-trivy.yml` (`workflow_dispatch` também disponível para rodar sob
+  demanda), num runner hospedado do GitHub Actions com rede irrestrita — o erro de TLS ao baixar
+  `mirror.gcr.io/aquasec/trivy-db` visto em ambientes de agente com proxy restritivo não se aplica
+  lá. **Não bloqueia PR** — é um job agendado independente de `ci.yml`, reporta no Job Summary da
+  execução. Rodar localmente continua funcionando do mesmo jeito para depuração pontual, mas
+  requer rede sem proxy TLS restritivo para o primeiro download do banco de vulnerabilidades.
+- **`npm run security:zap`** (scan dinâmico de API, exige a aplicação já no ar) — **não** entra em
+  CI automático (não existe alvo efêmero vivo em nenhum job de push/PR deste projeto) — continua
+  manual, mas agora como passo obrigatório do runbook de pré-release, rodado contra staging:
+  ver `docs/deploy/RELEASE_CHECKLIST.md` seção 2.
+
+## `npm audit` — vulnerabilidades `uuid <11.1.1` (Onda 6, Agente 08)
+
+Contexto completo em `.agents/handoffs/onda-6/15-para-00-npm-audit-dependencias.md` (Agente 15).
+Das 4 vulnerabilidades `moderate` (`GHSA-w5hq-g745-h8pq`, `uuid <11.1.1`), duas cadeias
+diferentes:
+
+- **`testcontainers` → `dockerode` → `uuid`** (dev-only, `test:containers`): **corrigido**.
+  `testcontainers` foi atualizado de `^11.14.0` para `^12.1.0` — `dockerode@5.0.1` (puxado pela
+  nova major) não depende mais de `uuid` (removido como dependência direta na própria lib). API
+  usada neste repositório (`GenericContainer`, `Wait.forLogMessage`, em
+  `tests/container/postgres.test.ts`) não mudou entre as majors — a única mudança de
+  comportamento real da v12 (estratégia de wait padrão passando a preferir Docker healthcheck) não
+  afeta este teste porque ele já configura `withWaitStrategy()` explicitamente. Requisito de Node
+  `>= 22.22` da v12 já é atendido (CI roda Node 22 atual; ambiente local verificado em `v22.22.2`).
+  `npx tsc --noEmit` limpo depois do upgrade.
+
+- **`exceljs` → `uuid`** (dependência de produção real — exportação de XLSX): **risco aceito, não
+  corrigido**. Investigado nesta rodada se existe versão mais recente do `exceljs` que não
+  dependa de `uuid <11.1.1` em vez de aplicar o downgrade sugerido por `npm audit fix --force`
+  (que instalaria `exceljs@3.4.0`, uma versão **anterior** à já usada aqui, `^3.10.0` — sinal
+  correto de que não é uma correção real). Verificado com `npm view exceljs@<versão>
+  dependencies.uuid` em todas as versões publicadas do `exceljs` até a mais recente disponível
+  (`4.4.0`, a última estável na 4.x): `3.10.0`–`4.1.0` dependem de `uuid@^7.0.3`, `4.2.0`–`4.4.0`
+  dependem de `uuid@^8.3.0` — **nenhuma versão publicada do `exceljs`, em nenhuma major, depende
+  de `uuid >=11.1.1`**. Não há correção real disponível via upgrade/downgrade de versão do
+  `exceljs` isoladamente.
+  - Risco mantido como classificado pelo Agente 15: a vulnerabilidade
+    (`GHSA-w5hq-g745-h8pq`, buffer bounds check ausente em `uuid.v3/v5/v6` quando um `buf` de
+    saída é fornecido pelo chamador) exige que o código chame `uuid.v3/v5/v6` passando esse
+    parâmetro `buf` — não é o padrão de uso do `exceljs` internamente, e o projeto não usa `uuid`
+    diretamente nos módulos de export XLSX (`scripts/setup-vector-db.ts`, export do CRM). Sem
+    vetor de exploração identificado neste código.
+  - Alternativa não aplicada nesta rodada: `npm overrides` forçando `uuid` para `>=11.1.1` só
+    dentro da árvore do `exceljs` (mesmo padrão já usado para `xcode` em `package.json`), sem
+    trocar a versão do `exceljs` em si. Ficou fora do escopo desta remediação pontual — reavaliar
+    em uma rodada dedicada a dependências, testando a geração de XLSX de ponta a ponta antes de
+    aplicar.
+  - Reavaliar quando o `exceljs` publicar uma versão que migre para `uuid >=11.1.1`, ou se o
+    vetor de exploração for reclassificado.
