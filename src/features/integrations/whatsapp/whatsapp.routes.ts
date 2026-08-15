@@ -94,7 +94,11 @@ router.post('/disconnect', managementRoles, async (req: Request, res: Response, 
     }
 });
 
-// Envia uma mensagem pela sessão do tenant autenticado
+// Envia uma mensagem pela sessão do tenant autenticado — mensagem manual digitada por um
+// vendedor/gestor no painel de conversa (WhatsAppChatPanel/WhatsAppWebPanel), não um disparo
+// automatizado. `skipOptOutCheck: true` de propósito: o contrato de opt-out unificado
+// (`.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`) cobre cadência/prospecção/
+// automação, não uma resposta humana dentro de uma conversa já em andamento.
 router.post('/send', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -104,7 +108,7 @@ router.post('/send', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: R
             return;
         }
 
-        await sendWhatsAppMessage(organizationId, number, text);
+        await sendWhatsAppMessage(organizationId, number, text, undefined, { skipOptOutCheck: true });
         res.json({ success: true, message: 'Mensagem enviada com sucesso.' });
     } catch (error) {
         next(error);

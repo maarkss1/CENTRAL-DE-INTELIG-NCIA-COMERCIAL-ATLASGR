@@ -101,3 +101,52 @@ mentira mais provável do seu domínio". Não é bloqueador para eu continuar im
 meu próprio escopo (a lógica de domínio não depende de vocês para existir e ser testada), mas é
 bloqueador para a Onda 7 ser aprovada como "opt-out unificado" de verdade, e deveria ser tratado
 como tal na integração final (`/AGENTS.md` → "Bloqueadores prioritários", item 13, LGPD).
+
+## Resolução (06 — WhatsApp)
+
+Feito. Status permanece `aberto` porque este handoff tem 3 destinatários (05, 06, 12) e só a fatia
+do 06 está confirmada abaixo — o Coordenador deve fechar para `resolvido` só depois que 05 e 12
+também confirmarem a deles.
+
+- `src/features/integrations/whatsapp/whatsapp.service.ts`: `sendWhatsAppMessage` agora chama
+  `isOptedOut` (canal `'whatsapp'`) antes de qualquer envio real, dentro do seu próprio
+  `requestContext.run({ tenantId: organizationId }, ...)` — não confia no contexto do chamador,
+  porque este ponto é invocado tanto de uma request HTTP autenticada quanto de
+  workers/webhooks (`crm/jobs/followUp.worker.ts`, `birth-voice/*.webhook.ts`) que podem não ter
+  tenant no `AsyncLocalStorage`. Bloqueado → lança `AppError` 409 (nunca reporta como enviado);
+  todo chamador automatizado já envolve a chamada em try/catch, então isto vira "não enviado", não
+  um crash. Assinatura ganhou um 5º parâmetro opcional (`SendWhatsAppMessageContext`:
+  `leadId`/`email`/`skipOptOutCheck`) — os 3 chamadores automatizados fora do meu escopo
+  (`prospecting/services/whatsapp.service.ts`, `crm/jobs/followUp.worker.ts`,
+  `birth-voice/*.webhook.ts`) continuam funcionando sem alteração: o default (sem 5º argumento) já
+  ativa o check, casando pelo menos por telefone (sempre disponível, é o próprio parâmetro de
+  envio).
+- `src/features/integrations/whatsapp/whatsapp.routes.ts`: `POST /send` (mensagem manual do
+  vendedor no painel) passa `{ skipOptOutCheck: true }` de propósito — não é disparo automatizado.
+- `src/features/integrations/whatsapp/whatsappMessage.service.ts`: quando um lead responde
+  "sair"/"parar"/"stop", além do flag legado `customFields.optOutWhatsApp` (mantido — outros
+  pontos do código dependem dele, fora do meu escopo mexer), agora também chama `recordOptOut`
+  (`scope: 'global'`, `originChannel: 'whatsapp'`, evidência = texto real da mensagem).
+- Trouxe para o meu worktree (merge/cherry-pick de commits já existentes do Coordenador/01A, não
+  autorados por mim): `OptOutRecord` (schema+migration+`PrismaOptOutRepository`, commits
+  `e55206bb`/`459de182`) e a correção crítica de RLS de perda de contexto de tenant em
+  `requestContext.run()` com `PrismaPromise` lazy (`914d68c9`, Onda 9) — sem ela, o check de
+  opt-out fora de uma request HTTP (workers/webhooks) podia perder o tenant e falhar aberto
+  (não bloquear quando deveria).
+- Testes: `tests/unit/features/integrations/whatsapp/whatsapp.service.test.ts` (mock de
+  `isOptedOut`) cobre bloqueio, consulta com leadId/email/telefone normalizado, e
+  `skipOptOutCheck`. `tests/integration/whatsapp-optout-gating.test.ts` (novo, Postgres real)
+  prova: opt-out `global`/`whatsapp` bloqueia; opt-out restrito a `voice` não bloqueia WhatsApp;
+  RLS isola por tenant; `skipOptOutCheck` ignora opt-out existente; `persistWhatsAppMessage`
+  registra `OptOutRecord` a partir de mensagem recebida e preserva o flag legado.
+- Validação: `tsc --noEmit` limpo, `lint` 0 erros, `test:unit` 143/143 arquivos (1075 testes),
+  `test:integration` 22/22 arquivos (102 testes, quando roda sem contenção do Postgres
+  compartilhado entre worktrees — ver caveat documentado em
+  `tests/integration/threecx-persistence.test.ts`), `build` ok. `verify:integrations` não tem
+  entrada específica de WhatsApp (script cobre só integrações com credencial externa
+  configurável); rodei mesmo assim, único item com falha (`googlePlaces`) é ambiente local sem
+  chave válida, não relacionado a esta mudança.
+- Branch: `agente/06-optout-whatsapp` (commit `82851961`), a partir de
+  `integracao/optout-unificado` (`459de182`) + cherry-pick de `914d68c9`. Não mesclei em
+  `main`/`integracao/optout-unificado` — aguardando o Coordenador revisar e integrar junto com as
+  fatias de 05 e 12.

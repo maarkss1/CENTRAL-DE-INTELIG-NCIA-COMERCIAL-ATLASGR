@@ -11,6 +11,9 @@ import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.se
 import { cacheConnection } from '../../../lib/queue/redis.js';
 import { withTimeout } from '../../../lib/http.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
+import { toE164BR } from '../../../lib/phone.js';
+import { isOptedOut } from '../../cadence/application/optOutService.js';
+import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 
 /** Mesmo teto usado em fetchLatestBaileysVersion — chamadas ao socket Baileys também podem
  * travar indefinidamente (mesma classe de bug já corrigida ali; ver comentário lá). */
@@ -230,9 +233,33 @@ export async function logoutWhatsApp(organizationId: string) {
 }
 
 /**
+ * Contexto opcional de opt-out de `sendWhatsAppMessage`. Todo disparo automatizado (cadência,
+ * prospecção fria, follow-up agendado, fallback de voz) deve deixar `skipOptOutCheck` de fora —
+ * o default é sempre checar. Só a mensagem manual digitada por um vendedor no painel de conversa
+ * (`whatsapp.routes.ts`, `POST /send`) passa `skipOptOutCheck: true`: não é o disparo automatizado
+ * que `.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md` cobre.
+ *
+ * `leadId`/`email` são opcionais porque nem todo chamador tem os dois carregados (ex.: o worker de
+ * follow-up só resolve o telefone) — quando ausentes, o casamento cai só no telefone de destino
+ * (`number`, sempre disponível: é o próprio parâmetro de envio), que já é suficiente para pegar um
+ * opt-out `global`/`whatsapp` registrado por qualquer canal para esse número.
+ */
+export interface SendWhatsAppMessageContext {
+    leadId?: string | null;
+    email?: string | null;
+    skipOptOutCheck?: boolean;
+}
+
+/**
  * Envia uma mensagem de texto simples (ou com botões iterativos formatados em texto) pela sessão de um tenant
  */
-export async function sendWhatsAppMessage(organizationId: string, number: string, text: string, buttons?: string[]) {
+export async function sendWhatsAppMessage(
+    organizationId: string,
+    number: string,
+    text: string,
+    buttons?: string[],
+    context?: SendWhatsAppMessageContext,
+) {
     const session = sessions.get(organizationId);
     if (!session?.sock || session.status !== 'connected') {
         // AppError (não Error genérico): sem isso, o errorHandler global substitui a mensagem por
@@ -241,6 +268,41 @@ export async function sendWhatsAppMessage(organizationId: string, number: string
         // qualquer outra falha.
         throw new AppError('WhatsApp não está conectado.', 409);
     }
+
+    if (!context?.skipOptOutCheck) {
+        // requestContext.run próprio (não confia no contexto do chamador): sendWhatsAppMessage é
+        // invocado tanto de dentro de uma requisição HTTP autenticada (que já tem tenant no
+        // AsyncLocalStorage) quanto de workers/webhooks (BullMQ, Birth Voices Hub) que podem não
+        // ter — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md e o bug de RLS da
+        // Onda 9 (src/lib/async-context.ts) sobre por que isto precisa ser explícito aqui, não
+        // assumido do chamador.
+        const blocked = await requestContext.run({ tenantId: organizationId }, () =>
+            isOptedOut(
+                prismaOptOutRepository,
+                organizationId,
+                {
+                    leadId: context?.leadId ?? null,
+                    email: context?.email ?? null,
+                    phoneE164: toE164BR(number),
+                },
+                'whatsapp',
+            ),
+        );
+        if (blocked) {
+            // Nunca reportar como enviado — mesma disciplina de honestidade já aplicada em
+            // cold-email.service.ts (commit 2e42a557) para o canal de e-mail. AppError (não um
+            // `return false` silencioso) para que todo chamador automatizado que já envolve esta
+            // chamada em try/catch (prospecting/services/whatsapp.service.ts,
+            // crm/jobs/followUp.worker.ts, birth-voice/*.webhook.ts) trate isto como "não enviado"
+            // e nunca atualize lastInteraction/sentCount como se tivesse enviado de verdade.
+            logger.info(
+                { organizationId, leadId: context?.leadId ?? null },
+                '[whatsapp] Envio bloqueado por opt-out do destinatário — mensagem NÃO enviada (skipped).',
+            );
+            throw new AppError('Destinatário optou por não receber mensagens (opt-out registrado).', 409);
+        }
+    }
+
     const sock = session.sock;
 
     // Formata o número (adiciona o @s.whatsapp.net e garante que só tenha números)
