@@ -35,7 +35,10 @@ beforeEach(() => {
     activity.count.mockResolvedValue(0);
     lead.count.mockResolvedValue(0);
     lead.findMany.mockResolvedValue([]);
-    lead.aggregate.mockResolvedValue({ _avg: { score: null } });
+    // Shape combinado: overview() agora dispara dois `lead.aggregate` diferentes em paralelo
+    // (averageOpenLeadScore usa `_avg`, sumOpenPipelineValue usa `_sum`) — o mock não distingue
+    // por argumento, então o valor default precisa satisfazer os dois formatos.
+    lead.aggregate.mockResolvedValue({ _avg: { score: null }, _sum: { amount: null } });
 });
 
 // TEST: closedAt (não updatedAt) precisa ser o campo usado para "fechado no mês" — updatedAt é

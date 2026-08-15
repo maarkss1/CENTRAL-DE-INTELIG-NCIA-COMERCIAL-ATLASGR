@@ -1,7 +1,7 @@
 - De: Agente 01 (Plataforma, Segurança e Dados)
 - Para: Agente 04 (CRM e BI)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -56,3 +56,48 @@ Ver relatório completo do Agente 01 na resposta ao usuário desta sessão (Onda
 completa dos 17 arquivos alterados nesta auditoria de autorização, incluindo os que pertencem ao
 Agente 06 e ao Agente 07 (handoffs separados: `01-para-06-role-gates-integracoes.md`,
 `01-para-07-role-gates-intelligence.md`).
+
+## Resolução
+
+Revisado na Onda 7, ao mexer de novo nos arquivos citados (mission: auditoria de forecast/BI, que
+passou por `lead.routes.ts`/`contact.routes.ts`/`company.routes.ts`/`activity.routes.ts` para
+confirmar posse/rastreabilidade de dado comercial). A nota informativa da Onda 1 já tinha sido
+revisada uma vez na Onda 5 (`.agents/runs/onda-5.md`: "deixado para quando o Agente 04 mexer
+nesses arquivos de novo") — chegou a vez agora.
+
+Conferi os limiares linha a linha nos quatro arquivos do meu escopo:
+- `lead.routes.ts`: `POST /`, `PUT /:id`, `POST /:id/enrich` → VENDEDOR+ (restrito ao próprio lead
+  via `requireLeadOwnership`, adicionado depois da Onda 1); `DELETE /:id`, `export/import
+  bulk/Bitrix` → GESTOR+.
+- `contact.routes.ts`, `company.routes.ts`: mesmo padrão (`POST`/`PUT`/`enrich` → VENDEDOR+;
+  `DELETE` → GESTOR+).
+- `activity.routes.ts`: `POST`/`PUT` → VENDEDOR+; `DELETE` → GESTOR+.
+
+Concordo com os limiares que o Agente 01 escolheu — fazem sentido para o meu domínio: um VENDEDOR
+cria/edita o que é dele, mas excluir (e as operações administrativas de bulk/LGPD-sensíveis como
+export/import CSV/Bitrix24) ficam com GESTOR/ADMIN. Nenhuma mudança de limiar foi necessária.
+
+`crm360.routes.ts` e `automations/routes/automation.routes.ts` (as duas ressalvas que o Agente 01
+levantou para eu revisar) não pertencem ao meu escopo nesta onda (`crm360` não está listado na
+matriz de propriedade da Onda 7; `automations` é do Agente 07) — não os toquei, e não é necessário:
+a pergunta original ("VENDEDOR devia poder criar as próprias automações?") é uma decisão de
+produto, não uma correção de bug, então cabe a quem é dono do arquivo decidir se muda.
+
+**Teste esperado do handoff original:** `rbac-e2e.test.ts` (TEST-006, `DELETE /api/leads/:id`) e
+`rbac-e2e-crm-operations.test.ts` (mover estágio, converter, reenriquecer, importar Bitrix) já
+cobriam lead ponta-a-ponta antes desta onda. `company`/`contact`/`activity` só tinham um teste
+unitário com role `ADMIN` fixo (sem caso de negação). Adicionei
+`tests/integration/rbac-e2e-crm-write-routes.test.ts` cobrindo, com sessão real (mesmo padrão de
+`signUpRealUser`/RLS real dos specs acima): `POST`/`DELETE` de company, contact e activity com
+VISUALIZADOR negado (403, sem escrever no banco), VENDEDOR liberado para escrita e barrado em
+DELETE, GESTOR liberado para DELETE, e 401 sem sessão.
+
+Durante essa revisão também encontrei e corrigi um bug real e não relacionado ao limiar de role em
+si: `requireLeadOwnership` (que restringe VENDEDOR a só editar o próprio lead) comparava
+`Lead.owner === user.id`, mas leads importados do Bitrix24 gravam `Lead.owner` como o NOME do
+responsável, não o id (`resolveAtlasUserNameByEmail`) — um VENDEDOR levava 403 tentando editar um
+lead legitimamente dele, só por ter vindo do Bitrix. Corrigido com um fallback defensivo no
+middleware; causa raiz documentada e endereçada ao Agente 06 em
+`.agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md`.
+
+Status: resolvido.
