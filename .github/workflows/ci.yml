@@ -5,6 +5,10 @@ on:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
+  # Só usado pelo job `visual-baselines` abaixo — disparo manual único para gerar as baselines
+  # *-chromium-linux.png. Não afeta push/pull_request (job tem `if: github.event_name ==
+  # 'workflow_dispatch'`, então em qualquer outro trigger ele simplesmente não roda).
+  workflow_dispatch:
 
 jobs:
   # Varredura de segredo versionado no diff do push/PR. Este repositório já teve credenciais reais
@@ -163,3 +167,126 @@ jobs:
         if: always()
       - name: Run Build
         run: npm run build
+
+  # Job manual, único — gera as baselines de regressão visual *-chromium-linux.png que faltam em
+  # tests/e2e/visual.spec.ts-snapshots/ (só existem as *-chromium-win32.png, geradas no Windows;
+  # Playwright inclui a plataforma no nome do arquivo, então o CI ubuntu-latest nunca as encontra).
+  # Handoff: .agents/handoffs/onda-6/14-para-08-baselines-visuais-linux.md.
+  #
+  # NÃO gera baseline em todo push/PR de propósito — só quando disparado manualmente via
+  # Actions → CI → "Run workflow". Depois de rodar:
+  #   1. baixe o artifact `visual-snapshots-linux` deste job;
+  #   2. extraia o conteúdo em tests/e2e/visual.spec.ts-snapshots/ (mantendo os PNGs
+  #      *-chromium-win32.png já commitados — não descarte a baseline Windows);
+  #   3. remova `.skip` de `test.describe.skip('Regressão visual', ...)` em
+  #      tests/e2e/visual.spec.ts (o comentário acima do describe explica o porquê do skip);
+  #   4. commite os PNGs novos junto com a remoção do skip — a partir daí o job `build-and-test`
+  #      acima volta a rodar `tests/e2e/visual.spec.ts` normalmente via `npm run test:e2e`.
+  visual-baselines:
+    name: "Gerar baselines visuais Linux (manual)"
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    # Mesma stack de serviços do job build-and-test acima (postgres/redis) — visual.spec.ts não
+    # depende de busca (Meilisearch), então não sobe um container dedicado, igual ao job normal de
+    # e2e (que também não sobe Meilisearch como service container, apesar de MEILI_HOST/
+    # MEILI_MASTER_KEY estarem no env — ver comentário do job build-and-test).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: prospector
+          POSTGRES_PASSWORD: prospector_test_pass
+          POSTGRES_DB: prospectordb_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      MEILI_HOST: http://localhost:7700
+      MEILI_MASTER_KEY: ci-test-meili-key
+      PORT: 3000
+      BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOW_DEV_AUTH_BYPASS: true
+      ALLOWED_ORIGINS: http://localhost:3000
+      AUTH_RATE_LIMIT_MAX: 500
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bootstrap papel NOSUPERUSER da aplicação
+        env:
+          PGPASSWORD: prospector_test_pass
+          APP_DB_PASSWORD: ci_app_test_pass
+        run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Criar .env.test para os testes E2E
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          PORT=$PORT
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+          AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          EOF
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # tests/e2e/visual.spec.ts está em describe.skip (baseline Linux nunca existiu — ver
+      # comentário no topo do arquivo). --update-snapshots ainda respeita .skip (um teste pulado
+      # não gera nem compara snapshot), então removemos o .skip só neste job, só neste checkout
+      # efêmero — o arquivo do repositório não é alterado (nenhum commit sai daqui).
+      - name: Remover describe.skip temporariamente (só para esta execução)
+        run: sed -i "s/test\.describe\.skip('Regressão visual'/test.describe('Regressão visual'/" tests/e2e/visual.spec.ts
+
+      - name: Gerar baselines *-chromium-linux.png
+        run: npm run test:e2e -- tests/e2e/visual.spec.ts --update-snapshots
+
+      - name: Upload baselines geradas
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-snapshots-linux
+          path: tests/e2e/visual.spec.ts-snapshots/*-chromium-linux.png
+          if-no-files-found: error
+
+      - name: Upload Playwright report (se falhar)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visual-baselines-playwright-report
+          path: playwright-report/
+        if: failure()

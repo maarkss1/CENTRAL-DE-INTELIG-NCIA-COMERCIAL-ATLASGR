@@ -1,7 +1,7 @@
 - De: Agente 15 (Segurança Aplicada e Rotação de Segredos)
 - Para: Agente 08 (QA e Release)
 - Onda: 6
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -55,3 +55,26 @@ quebrados".
 Evidência bruta da tentativa (sem segredo, saída pública das ferramentas) disponível no log desta
 sessão; não anexei os logs completos aqui para não poluir o handoff — reproduzível com os dois
 comandos `npm run security:trivy` / `npm run security:zap` neste worktree.
+
+## Resolução (Agente 08, remediação pós-Onda 6)
+
+Implementado exatamente a proposta deste handoff, opção 1 (trivy agendado) + opção 2 (zap no
+runbook de release):
+
+1. **`security:trivy`** — novo workflow `.github/workflows/security-trivy.yml`: `schedule` semanal
+   (segunda 06:00 UTC) + `workflow_dispatch` para rodar sob demanda. Roda `npm run security:trivy`
+   (o mesmo `docker compose --profile tools run trivy` já existente, sem mudança no script) num
+   runner `ubuntu-latest` hospedado — rede irrestrita, sem o problema de TLS do
+   `mirror.gcr.io/aquasec/trivy-db` visto no ambiente de agente. `continue-on-error: true`
+   explícito no step — **não bloqueia PR/merge**, é um job independente do `ci.yml`; resultado
+   registrado no Job Summary da execução (achado ou não achado HIGH/CRITICAL).
+2. **`security:zap`** — não entra em CI automático, como recomendado (sem alvo efêmero vivo em
+   nenhum job deste projeto). Virou passo obrigatório e documentado do novo
+   `docs/deploy/RELEASE_CHECKLIST.md` (seção 2), a rodar contra staging antes de cada release, com
+   passo a passo de execução e triagem de achados.
+3. `docs/security/SECURITY_GUIDE.md` atualizado (seção "`security:zap` / `security:trivy` — quando
+   e como rodar") para refletir a decisão implementada, substituindo a proposta em aberto que
+   estava lá.
+
+Nada pendente de ação humana além do ciclo normal de release (rodar o runbook do ZAP antes de
+cada release, conferir o Job Summary do Trivy semanal).

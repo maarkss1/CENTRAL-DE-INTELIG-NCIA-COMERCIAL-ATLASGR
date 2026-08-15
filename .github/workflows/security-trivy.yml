@@ -1,0 +1,55 @@
+name: Security - Trivy (agendado)
+
+# Job SEMANAL, não roda em push/pull_request — não bloqueia PR. Decisão registrada no handoff
+# .agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md: `security:trivy` (scan de
+# filesystem/dependências, `npm run security:trivy` → `docker compose --profile tools run trivy`)
+# só falhou localmente por causa do proxy TLS deste ambiente de agente
+# (`mirror.gcr.io/aquasec/trivy-db`, "certificate signed by unknown authority") — o runner
+# hospedado do GitHub Actions tem rede irrestrita e não tem esse problema. Baixar o banco de
+# vulnerabilidades do Trivy em todo PR seria caro (minutos + rede) sem ganho real — CVE novo não
+# aparece a cada commit, então uma vez por semana é suficiente para não deixar findings HIGH/
+# CRITICAL não descobertos por muito tempo.
+#
+# `security:zap` (scan dinâmico, precisa de app rodando) NÃO entra aqui de propósito — só faz
+# sentido contra um alvo vivo (staging real). Ver docs/deploy/RELEASE_CHECKLIST.md para o runbook
+# manual de pré-release.
+
+on:
+  schedule:
+    # Toda segunda-feira, 06:00 UTC (03:00 America/Sao_Paulo) — fora do horário comercial, não
+    # compete por runner com os jobs de push/PR do ci.yml.
+    - cron: '0 6 * * 1'
+  # Permite rodar sob demanda (Actions → "Security - Trivy (agendado)" → Run workflow) sem
+  # esperar a próxima segunda-feira — útil logo depois de adicionar uma dependência nova.
+  workflow_dispatch:
+
+jobs:
+  trivy-fs-scan:
+    name: "Trivy — scan de filesystem/dependências (HIGH/CRITICAL)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # `npm run security:trivy` é só `docker compose --profile tools run --rm trivy` (ver
+      # package.json) — não precisa de `npm ci`/node_modules, o comando é um wrapper fino sobre
+      # docker compose. O runner ubuntu-latest já vem com Docker e Docker Compose v2 instalados.
+      - name: Rodar Trivy (fs scan, HIGH/CRITICAL)
+        id: trivy
+        # NÃO bloqueia — reporta. Ver decisão no handoff citado acima: gate de PR normal já cobre
+        # `npm audit --audit-level=high` (ci.yml); este scan é mais amplo (imagem base, binários,
+        # não só o grafo do npm) e roda numa cadência própria, sem travar merge.
+        continue-on-error: true
+        run: npm run security:trivy
+
+      - name: Registrar resultado no Job Summary
+        if: always()
+        run: |
+          if [ "${{ steps.trivy.outcome }}" = "success" ]; then
+            echo "### Trivy — sem achados HIGH/CRITICAL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Trivy encontrou vulnerabilidade(s) HIGH/CRITICAL" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Ver o log do step \"Rodar Trivy\" acima para a lista completa. Este job não" >> "$GITHUB_STEP_SUMMARY"
+            echo "bloqueia PR/merge (é um scan agendado, reporta, não bloqueia) — triagem manual" >> "$GITHUB_STEP_SUMMARY"
+            echo "necessária: abrir handoff/issue se algum achado for novo e relevante." >> "$GITHUB_STEP_SUMMARY"
+          fi

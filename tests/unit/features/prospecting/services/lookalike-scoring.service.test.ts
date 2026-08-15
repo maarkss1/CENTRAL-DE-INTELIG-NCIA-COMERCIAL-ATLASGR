@@ -1,16 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+// updateCompanyProfileEmbedding/computeLookalikeScore rodam SQL cru (UPDATE/SELECT em "Company")
+// fora do que a extensão $allOperations de prisma.ts intercepta — por isso passam por
+// withRlsContext (ver src/lib/prisma.ts) em vez de prisma.$queryRaw/$executeRaw diretos. O mock
+// simula a transação: `fn` recebe um client (`tx`) com o próprio $queryRaw/$executeRaw mockados,
+// no mesmo padrão já usado em tests/unit/lib/ai/vectorStore.test.ts.
 const findFirst = vi.fn();
 const update = vi.fn().mockResolvedValue({});
-const queryRaw = vi.fn();
-const executeRaw = vi.fn().mockResolvedValue(1);
+const txQueryRaw = vi.fn();
+const txExecuteRaw = vi.fn().mockResolvedValue(1);
+const withRlsContextMock = vi.fn((fn: (tx: { $queryRaw: typeof txQueryRaw; $executeRaw: typeof txExecuteRaw }) => unknown) =>
+    fn({ $queryRaw: txQueryRaw, $executeRaw: txExecuteRaw }),
+);
 
 vi.mock('../../../../../src/lib/prisma.js', () => ({
     prisma: {
         company: { findFirst: (...args: unknown[]) => findFirst(...args), update: (...args: unknown[]) => update(...args) },
-        $queryRaw: (...args: unknown[]) => queryRaw(...args),
-        $executeRaw: (...args: unknown[]) => executeRaw(...args),
     },
+    withRlsContext: (fn: (tx: unknown) => unknown) => withRlsContextMock(fn as never),
 }));
 
 const generateEmbedding = vi.fn();
@@ -69,7 +76,8 @@ describe('updateCompanyProfileEmbedding', () => {
         const ok = await updateCompanyProfileEmbedding('company-1', 'org-1');
 
         expect(ok).toBe(true);
-        expect(executeRaw).toHaveBeenCalledTimes(1);
+        expect(withRlsContextMock).toHaveBeenCalledTimes(1);
+        expect(txExecuteRaw).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -84,7 +92,7 @@ describe('computeLookalikeScore', () => {
         findFirst.mockResolvedValueOnce({
             tradeName: 'Sem Perfil', segment: null, cnae: null, city: null, state: null, size: null, employeeCount: null, technologies: [], keywords: [],
         });
-        queryRaw.mockResolvedValueOnce([{ profileEmbedding: null }]);
+        txQueryRaw.mockResolvedValueOnce([{ profileEmbedding: null }]);
 
         const result = await computeLookalikeScore('company-1', 'org-1');
 
@@ -96,7 +104,7 @@ describe('computeLookalikeScore', () => {
             tradeName: 'Empresa X', segment: 'Cargas', cnae: null, city: null, state: null, size: null, employeeCount: null, technologies: [], keywords: [],
         });
         generateEmbedding.mockResolvedValueOnce([0.1, 0.2]);
-        queryRaw
+        txQueryRaw
             .mockResolvedValueOnce([{ profileEmbedding: '[0.1,0.2]' }]) // target fetch
             .mockResolvedValueOnce([ // only 2 matches, below MIN_REFERENCE_COMPANIES (3)
                 { id: 'c2', tradeName: 'Ganha 1', similarity: 0.9 },
@@ -114,7 +122,7 @@ describe('computeLookalikeScore', () => {
             tradeName: 'Empresa X', segment: 'Cargas', cnae: null, city: null, state: null, size: null, employeeCount: null, technologies: [], keywords: [],
         });
         generateEmbedding.mockResolvedValueOnce([0.1, 0.2]);
-        queryRaw
+        txQueryRaw
             .mockResolvedValueOnce([{ profileEmbedding: '[0.1,0.2]' }])
             .mockResolvedValueOnce([
                 { id: 'c2', tradeName: 'Ganha 1', similarity: 0.9 },
@@ -142,5 +150,26 @@ describe('computeLookalikeScore', () => {
         findFirst.mockRejectedValueOnce(new Error('db offline'));
 
         await expect(computeLookalikeScore('company-1', 'org-1')).resolves.toBeNull();
+    });
+
+    it('runs both the target-embedding lookup and the neighbor search inside withRlsContext (RLS regression guard)', async () => {
+        findFirst.mockResolvedValueOnce({
+            tradeName: 'Empresa X', segment: 'Cargas', cnae: null, city: null, state: null, size: null, employeeCount: null, technologies: [], keywords: [],
+        });
+        generateEmbedding.mockResolvedValueOnce([0.1, 0.2]);
+        txQueryRaw
+            .mockResolvedValueOnce([{ profileEmbedding: '[0.1,0.2]' }])
+            .mockResolvedValueOnce([
+                { id: 'c2', tradeName: 'Ganha 1', similarity: 0.9 },
+                { id: 'c3', tradeName: 'Ganha 2', similarity: 0.8 },
+                { id: 'c4', tradeName: 'Ganha 3', similarity: 0.7 },
+            ]);
+
+        await computeLookalikeScore('company-1', 'org-1');
+
+        // 1 chamada para o UPDATE do embedding (updateCompanyProfileEmbedding) + 2 chamadas para
+        // os SELECTs (target fetch + busca de vizinhos) = 3 no total, todas via withRlsContext.
+        expect(withRlsContextMock).toHaveBeenCalledTimes(3);
+        expect(txQueryRaw).toHaveBeenCalledTimes(2);
     });
 });

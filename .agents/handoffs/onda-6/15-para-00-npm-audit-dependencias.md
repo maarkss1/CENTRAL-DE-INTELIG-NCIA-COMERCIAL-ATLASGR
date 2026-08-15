@@ -1,7 +1,8 @@
 - De: Agente 15 (Segurança Aplicada e Rotação de Segredos)
 - Para: Agente 00 (Coordenador — aprovação de `package.json`/lockfile)
 - Onda: 6
-- Status: aberto
+- Status: resolvido (implementado pelo Agente 08, com aprovação pré-concedida do Coordenador para
+  esta rodada de remediação)
 - Prioridade: normal
 
 ## Problema
@@ -49,3 +50,30 @@ Depois de qualquer mudança: `npm audit --audit-level=moderate` deve retornar 0 
 Nenhuma das 4 é `high`/`critical` — não bloqueiam o gate `npm audit --audit-level=high` usado no
 próprio gate do Agente 15 (`.agents/prompts/15-seguranca-aplicada.md` → "Gate"). Registrando por
 completude/rastreabilidade, não como bloqueador de release.
+
+## Resolução (Agente 08, remediação pós-Onda 6)
+
+1. **`testcontainers`**: atualizado `^11.14.0` → `^12.1.0` (devDependency). Confirmado seguro:
+   `dockerode@5.0.1` (puxado pela v12) não depende mais de `uuid` — a vulnerabilidade some por
+   completo dessa cadeia, não só é mitigada. API usada em `tests/container/postgres.test.ts`
+   (`GenericContainer`, `Wait.forLogMessage`) não mudou; a única mudança de comportamento real da
+   v12 (default wait strategy passa a preferir Docker healthcheck) não afeta este teste porque ele
+   já fixa `withWaitStrategy()` explicitamente. Requisito de Node `>=22.22` da v12 já atendido
+   (ambiente local em `v22.22.2`; CI usa Node 22 atual). `npx tsc --noEmit` e `npm run test:unit`
+   (707 testes) limpos depois do upgrade.
+
+2. **`exceljs`**: investigado como pedido — **não existe** versão publicada do `exceljs` (checadas
+   todas de `3.10.0` a `4.4.0`, a mais recente estável) que dependa de `uuid >=11.1.1`; todas usam
+   `uuid@^7.0.3` ou `uuid@^8.3.0`. `npm audit fix --force` sugeria `exceljs@3.4.0`, que é anterior
+   à versão já usada (`^3.10.0`) — confirmado como downgrade, não correção, então **não
+   aplicado**. Risco documentado como aceito em `docs/security/SECURITY_GUIDE.md` (nova seção
+   "`npm audit` — vulnerabilidades `uuid <11.1.1`"), mantendo a classificação de exposição baixa
+   já feita por este handoff (vetor exige `uuid.v3/v5/v6` com `buf` controlado pelo chamador, que o
+   `exceljs` não usa internamente). A alternativa de `npm overrides` forçando `uuid` só dentro da
+   árvore do `exceljs` foi considerada mas não aplicada nesta rodada — fora do escopo explícito
+   desta remediação pontual; documentada no `SECURITY_GUIDE.md` como próximo passo possível numa
+   rodada dedicada a dependências.
+
+`npm audit --audit-level=moderate`: 4 → 2 vulnerabilidades (as 2 remanescentes são a cadeia
+`exceljs`/`uuid` documentada acima como risco aceito). Gate completo
+(`tsc --noEmit && lint && test:unit && build`) verde depois das duas mudanças.
