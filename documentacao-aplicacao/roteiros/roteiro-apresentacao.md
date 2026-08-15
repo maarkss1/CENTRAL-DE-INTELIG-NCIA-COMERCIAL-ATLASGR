@@ -1,5 +1,7 @@
 # Roteiro: Apresentação Completa da Plataforma
 
+> Vídeo correspondente: `documentacao-aplicacao/videos/apresentacao-completa.mp4`.
+
 ## Abertura
 “Esta apresentação demonstra os principais recursos disponíveis na plataforma, sua organização, seus módulos e os fluxos oferecidos aos usuários.”
 
