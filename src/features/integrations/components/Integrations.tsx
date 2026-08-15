@@ -4,6 +4,7 @@ import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { BitrixImportPanel } from './BitrixImportPanel';
 import { BitrixSyncRulesPanel } from './BitrixSyncRulesPanel';
+import { BitrixExtractionPanel } from './BitrixExtractionPanel';
 import { WhatsAppWebPanel } from '../whatsapp/components/WhatsAppWebPanel';
 import { useWhatsAppIntegration } from '../../../hooks/useWhatsAppIntegration';
 import { useGoogleIntegration } from '../../../hooks/useGoogleIntegration';
@@ -394,6 +395,7 @@ export function Integrations() {
                                     })()}
                                     <BitrixImportPanel connectionId={selectedBitrixConnectionId} />
                                     <BitrixSyncRulesPanel connectionId={selectedBitrixConnectionId} />
+                                    <BitrixExtractionPanel connectionId={selectedBitrixConnectionId} canManage={canManage} />
                                 </div>
                             )}
                         </div>
