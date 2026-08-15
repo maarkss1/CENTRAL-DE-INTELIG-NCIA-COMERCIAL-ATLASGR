@@ -31,7 +31,7 @@ export interface ColdCallRunResult {
     called: number;
     skipped: SkipTally;
     /** Preenchido quando a execução nem chegou a examinar leads. */
-    haltedBy?: 'outside-window' | 'not-configured';
+    haltedBy?: 'outside-window' | 'not-configured' | 'not-authorized';
 }
 
 export function callWindowFromEnv(): CallWindow {
@@ -115,6 +115,20 @@ export async function runColdCallCampaign(organizationId: string, now: Date = ne
     // O worker roda fora de uma requisição HTTP, então nada preencheria o tenant que a RLS exige
     // — inclusive para o registro do próprio resultado logo abaixo (persistRun).
     return requestContext.run({ tenantId: organizationId }, async () => {
+        // Revalidado NA EXECUÇÃO, não só no agendamento: `scheduleColdCallCampaigns` só cria o
+        // agendamento recorrente para organizações autorizadas no momento em que roda (normalmente
+        // só uma vez, na subida do processo) — mas o agendamento fica persistido no Redis do BullMQ
+        // e continua disparando a cada intervalo independente de qualquer mudança de env depois
+        // disso. Se um operador revogar `SDR_COLD_CALL_ORGANIZATIONS` (ou desligar
+        // `SDR_COLD_CALL_ENABLED`) sem reiniciar o processo — ou se `runColdCallCampaign` for
+        // chamado por qualquer outro caminho que não seja o scheduler —, esta é a última linha de
+        // defesa que impede a ligação de acontecer sem as duas travas. Nunca confiar apenas em quem
+        // chamou já ter filtrado.
+        const allowed = await enabledOrganizations();
+        if (!allowed.includes(organizationId)) {
+            return persistRun({ ...result, haltedBy: 'not-authorized' });
+        }
+
         if (!isWithinCallWindow(now, callWindowFromEnv())) {
             return persistRun({ ...result, haltedBy: 'outside-window' });
         }
