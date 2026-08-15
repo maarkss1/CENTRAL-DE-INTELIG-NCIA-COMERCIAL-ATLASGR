@@ -390,11 +390,6 @@ export class CommercialIntelligenceUseCases {
     }
 
     private countAdvancedTransitions(history: StageHistoryRow[], start: Date, end: Date): number {
-        const probabilityByStage = new Map<string, number>();
-        // Reconstituído a partir das próprias linhas de histórico (probability é gravada em
-        // LeadStageHistory no momento da transição — ver stageHistory.ts) via LeadStageHistoryFull,
-        // mas o tipo aqui é reduzido; a contagem de avanço usa apenas ordem cronológica por lead.
-        void probabilityByStage;
         const byLead = new Map<string, StageHistoryRow[]>();
         for (const row of history) {
             if (!byLead.has(row.leadId)) byLead.set(row.leadId, []);
@@ -412,9 +407,10 @@ export class CommercialIntelligenceUseCases {
 
     // ─── Fase 5 — Aging ──────────────────────────────────────────────────────
 
-    async aging(organizationId: string, now = new Date()): Promise<AgingReport> {
+    async aging(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<AgingReport> {
         const { scored, history } = await this.loadScoredDeals(organizationId, now);
-        const open = scored.filter((s) => isDealOpen(s.deal));
+        const inScope = this.applyScope(scored, filter);
+        const open = inScope.filter((s) => isDealOpen(s.deal));
 
         const bucketDefs: Array<{ label: string; min: number; max: number | null }> = [
             { label: '0–15 dias', min: 0, max: 15 },
@@ -560,7 +556,7 @@ export class CommercialIntelligenceUseCases {
         const [overview, creation, aging] = await Promise.all([
             this.executiveOverview(organizationId, filter, now),
             this.pipelineCreation(organizationId, filter, now),
-            this.aging(organizationId, now),
+            this.aging(organizationId, filter, now),
         ]);
 
         const alerts: ExecutiveAlert[] = [];
@@ -627,8 +623,9 @@ export class CommercialIntelligenceUseCases {
     // ─── Fase 7 — Qualidade do CRM ───────────────────────────────────────────
 
     async crmQuality(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<CrmQualityIndex> {
-        const deals = await this.repository.findDeals(organizationId);
-        const open = deals.filter((d) => isDealOpen(d));
+        const { scored } = await this.loadScoredDeals(organizationId, now);
+        const inScope = this.applyScope(scored, filter);
+        const open = inScope.filter((s) => isDealOpen(s.deal)).map((s) => s.deal);
 
         const fieldChecks: Array<{ field: string; label: string; test: (d: DealRow) => boolean }> = [
             { field: 'owner', label: 'Responsável', test: (d) => !!d.owner },

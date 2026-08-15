@@ -64,7 +64,7 @@ export class CommercialIntelligenceController {
     getAging = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId } = (req as AuthRequest).user;
-            const data = await this.useCases.aging(organizationId);
+            const data = await this.useCases.aging(organizationId, parseFilter(req));
             res.json({ success: true, data });
         } catch (error) {
             next(error);

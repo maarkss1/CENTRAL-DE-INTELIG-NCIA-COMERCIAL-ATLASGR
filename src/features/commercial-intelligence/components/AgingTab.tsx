@@ -20,12 +20,12 @@ export function AgingTab({ filter }: { filter: CommercialFilter }) {
         setLoading(true);
         setError(null);
         commercialIntelligenceApi
-            .aging()
+            .aging(filter)
             .then((result) => !cancelled && setData(result))
             .catch((err) => !cancelled && setError((err as Error).message))
             .finally(() => !cancelled && setLoading(false));
         return () => { cancelled = true; };
-    }, []);
+    }, [filter]);
 
     if (loading) return <Skeleton className="h-64 rounded-2xl" />;
     if (error) return <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;

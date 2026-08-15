@@ -214,11 +214,32 @@ describe('CommercialIntelligenceUseCases', () => {
         const old = deal({ id: 'velho', amount: 2000, createdAt: new Date('2026-04-01T00:00:00Z') }); // >90 dias
         const repo = new FakeRepository([fresh, old]);
         const useCases = new CommercialIntelligenceUseCases(repo);
-        const aging = await useCases.aging(ORG, NOW);
+        const aging = await useCases.aging(ORG, { month: PERIOD }, NOW);
         const bucket0to15 = aging.buckets.find((b) => b.label === '0–15 dias');
         const bucket90plus = aging.buckets.find((b) => b.label === '90+ dias');
         expect(bucket0to15?.count).toBe(1);
         expect(bucket90plus?.count).toBe(1);
+    });
+
+    it('Aging: respeita o filtro de owner (não mistura negócios de outro vendedor)', async () => {
+        const ana = deal({ id: 'ana-1', amount: 1000, owner: 'ana@atlasgr.com.br', createdAt: new Date('2026-04-01T00:00:00Z') }); // >90 dias
+        const bruno = deal({ id: 'bruno-1', amount: 2000, owner: 'bruno@atlasgr.com.br', createdAt: new Date('2026-04-01T00:00:00Z') }); // >90 dias
+        const repo = new FakeRepository([ana, bruno]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const aging = await useCases.aging(ORG, { month: PERIOD, owner: 'ana@atlasgr.com.br' }, NOW);
+        const bucket90plus = aging.buckets.find((b) => b.label === '90+ dias');
+        expect(bucket90plus?.count).toBe(1);
+        expect(bucket90plus?.amount).toBe(1000);
+    });
+
+    it('Qualidade do CRM: respeita o filtro de owner (não mistura negócios de outro vendedor)', async () => {
+        const ana = deal({ id: 'ana-1', amount: 1000, owner: 'ana@atlasgr.com.br' });
+        const bruno = deal({ id: 'bruno-1', amount: 2000, owner: 'bruno@atlasgr.com.br' });
+        const repo = new FakeRepository([ana, bruno]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const quality = await useCases.crmQuality(ORG, { month: PERIOD, owner: 'ana@atlasgr.com.br' }, NOW);
+        expect(quality.evaluatedCount).toBe(1);
+        expect(quality.bitrixSync.totalOpen).toBe(1);
     });
 
     it('Motivos de perda: classifica lossReason numa taxonomia fixa e preserva a observação original', async () => {

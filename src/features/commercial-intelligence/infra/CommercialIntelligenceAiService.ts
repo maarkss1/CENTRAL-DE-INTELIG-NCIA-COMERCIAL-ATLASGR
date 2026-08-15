@@ -69,7 +69,7 @@ export class CommercialIntelligenceAiService {
         const [overview, alerts, aging] = await Promise.all([
             this.useCases.executiveOverview(organizationId, filter),
             this.useCases.alerts(organizationId, filter),
-            this.useCases.aging(organizationId),
+            this.useCases.aging(organizationId, filter),
         ]);
 
         if (overview.isEmpty) {

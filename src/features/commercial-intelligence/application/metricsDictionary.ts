@@ -117,7 +117,7 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         source: 'Derivado',
         period: 'Mês corrente e janelas móveis de 30/60/90 dias',
         inclusionRules: 'A cobertura recomendada é derivada do Win Rate histórico real (1 / Win Rate) quando há amostra suficiente.',
-        exclusionRules: 'Sem meta cadastrada ou meta já batida, retorna "Não disponível"/0 restante (nunca divide por zero).',
+        exclusionRules: 'Sem meta cadastrada ou meta já batida, retorna "Não disponível"/0 restante (nunca divide por zero). Nas janelas móveis de 30/60/90 dias (coverage30/coverage60/coverage90), a meta proporcional da janela NUNCA é líquida de fechamentos futuros dentro dela (fechamentos futuros ainda não existem no momento da consulta) — só a janela do mês corrente desconta o que já fechou no próprio mês.',
     },
     {
         key: 'pipeline_criado',
