@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { signUp, uniqueTestEmail } from './helpers';
+import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Varredura automática de acessibilidade (axe-core) nas telas principais. Não bloqueia em toda e
 // qualquer violação — o app tem um backlog conhecido de achados `moderate`/`minor` (ver
@@ -34,14 +34,14 @@ test.describe('Acessibilidade automática (axe-core)', () => {
 
   test('Painel Central (dashboard) não tem violações críticas/sérias', async ({ page }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-dash') });
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
   });
 
   test('Pipeline CRM não tem violações críticas/sérias', async ({ page }, testInfo) => {
     await signUp(page, { email: uniqueTestEmail('a11y-crm') });
     await page.getByRole('button', { name: 'Pipeline CRM' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
   });
 
@@ -50,7 +50,7 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     // Deep-link direto (rota real desde a migração de tab-state pra react-router) — não depende do
     // item de menu, que só aparece pra usuários admin.
     await page.goto('/app/settings');
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
   });
 });

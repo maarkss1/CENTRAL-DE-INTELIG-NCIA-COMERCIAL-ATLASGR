@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { prisma } from '../../src/lib/prisma';
 import { requestContext } from '../../src/lib/async-context';
 
@@ -66,4 +66,24 @@ export async function setUserRole(email: string, role: 'ADMIN' | 'GESTOR' | 'VEN
   // de escopar a um callback, e por isso sobrevive até a query de fato disparar.
   requestContext.enterWith({ bypassRls: true });
   await prisma.user.update({ where: { email }, data: { role } });
+}
+
+/**
+ * Espera a tela do módulo lazy terminar de renderizar.
+ *
+ * Substitui `page.waitForLoadState('networkidle')`, que era usado em 11 pontos dos specs e não
+ * podia funcionar neste app: `src/components/CrmBoard.tsx` abre um `EventSource`
+ * (`/api/notifications/stream`) ao montar, e uma conexão SSE fica aberta de propósito enquanto a
+ * tela existir — a rede nunca fica ociosa em `/app/crm`, então `networkidle` só podia estourar o
+ * timeout. Nas demais telas ele até resolvia, mas tarde o bastante para consumir quase todo o
+ * orçamento de 45s do teste. A própria documentação do Playwright desaconselha `networkidle`
+ * justamente por isso.
+ *
+ * O sinal usado aqui é determinístico: o fallback de `<Suspense>` (`data-testid="page-fallback"`
+ * em `src/App.tsx`) some exatamente quando o chunk do módulo terminou de carregar e a tela real
+ * montou.
+ */
+export async function waitForAppReady(page: Page) {
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByTestId('page-fallback')).toHaveCount(0, { timeout: 30_000 });
 }

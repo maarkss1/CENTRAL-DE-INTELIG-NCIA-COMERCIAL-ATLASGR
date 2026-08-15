@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signUp, uniqueTestEmail } from './helpers';
+import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Regressão visual das telas-chave, light e dark. Primeira execução (`npx playwright test
 // tests/e2e/visual.spec.ts --update-snapshots`) gera os PNGs de baseline em
@@ -35,7 +35,7 @@ test.describe.skip('Regressão visual', () => {
     test(`Painel Central (dashboard) — ${theme}`, async ({ page }) => {
       await setTheme(page, theme);
       await signUp(page, { email: uniqueTestEmail(`visual-dash-${theme}`) });
-      await page.waitForLoadState('networkidle');
+      await waitForAppReady(page);
       await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, DASHBOARD_SCREENSHOT_OPTIONS);
     });
 
@@ -43,7 +43,7 @@ test.describe.skip('Regressão visual', () => {
       await setTheme(page, theme);
       await signUp(page, { email: uniqueTestEmail(`visual-crm-${theme}`) });
       await page.getByRole('button', { name: 'Pipeline CRM' }).click();
-      await page.waitForLoadState('networkidle');
+      await waitForAppReady(page);
       await expect(page).toHaveScreenshot(`crm-board-${theme}.png`, SCREENSHOT_OPTIONS);
     });
   }
@@ -52,7 +52,7 @@ test.describe.skip('Regressão visual', () => {
     await setTheme(page, 'light');
     await signUp(page, { email: uniqueTestEmail('visual-contact-form') });
     await page.getByRole('button', { name: 'Decisores' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await page.getByRole('button', { name: /Novo Contato|Adicionar Primeiro Contato/ }).first().click();
     await expect(page.getByRole('heading', { name: 'Novo Contato', exact: true })).toBeVisible();
     await expect(page).toHaveScreenshot('contact-form-light.png', { maxDiffPixels: 200 });

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { signUp, uniqueTestEmail } from './helpers';
+import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Cobre a migração de ContactForm/CompanyForm pra ui/Dialog (Tier 2 do DESIGN_QA_CENTRAL_ATLASGR.md
 // — "Fase G"). Pontos que a migração precisava preservar e que estes testes verificam de ponta a
@@ -10,7 +10,7 @@ test.describe('Formulários de Empresas e Contatos (migrados pra ui/Dialog)', ()
   test('cria uma empresa — UF em maiúsculas, submit funciona, toast de sucesso aparece', async ({ page }) => {
     await signUp(page, { email: uniqueTestEmail('company-form') });
     await page.getByRole('button', { name: 'Empresas' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
 
     await page.getByRole('button', { name: /Nova Empresa|Adicionar/ }).first().click();
     await expect(page.getByRole('heading', { name: 'Nova Empresa', exact: true })).toBeVisible();
@@ -31,7 +31,7 @@ test.describe('Formulários de Empresas e Contatos (migrados pra ui/Dialog)', ()
   test('valida campo obrigatório sem fechar o dialog', async ({ page }) => {
     await signUp(page, { email: uniqueTestEmail('company-form-validation') });
     await page.getByRole('button', { name: 'Empresas' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
 
     await page.getByRole('button', { name: /Nova Empresa|Adicionar/ }).first().click();
     await page.getByRole('button', { name: 'Criar Empresa' }).click();
@@ -46,7 +46,7 @@ test.describe('Formulários de Empresas e Contatos (migrados pra ui/Dialog)', ()
 
     // Contato exige uma empresa existente no <select> — cria uma primeiro.
     await page.getByRole('button', { name: 'Empresas' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await page.getByRole('button', { name: /Nova Empresa|Adicionar/ }).first().click();
     const companySuffix = Date.now();
     await page.getByLabel('Razão Social *').fill(`Empresa Para Contato ${companySuffix} LTDA`);
@@ -55,7 +55,7 @@ test.describe('Formulários de Empresas e Contatos (migrados pra ui/Dialog)', ()
     await expect(page.getByText('Empresa criada.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Decisores' }).click();
-    await page.waitForLoadState('networkidle');
+    await waitForAppReady(page);
     await page.getByRole('button', { name: /Novo Contato|Adicionar Primeiro Contato/ }).first().click();
     await expect(page.getByRole('heading', { name: 'Novo Contato', exact: true })).toBeVisible();
 

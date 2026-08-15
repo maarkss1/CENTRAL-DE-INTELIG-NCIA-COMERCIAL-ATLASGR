@@ -2,6 +2,14 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = process.env.PORT ?? '3000';
 
+// Ambientes que já vêm com um Chromium provisionado (sandbox de agente, imagem corporativa de CI)
+// costumam ter uma build diferente da que o @playwright/test instalado espera — o launch falha com
+// "Executable doesn't exist at .../chromium_headless_shell-<build>/...", mesmo havendo um Chromium
+// perfeitamente utilizável na máquina. Apontar o executável por env resolve isso sem tocar no
+// caminho padrão: quando a variável não está definida, o Playwright continua resolvendo o browser
+// sozinho, exatamente como o CI faz depois de `npx playwright install --with-deps chromium`.
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?.trim() || undefined;
+
 export default defineConfig({
   testDir: './tests/e2e',
   // Os specs de auth/leads criam usuários/organizações reais no banco de testes de integração —
@@ -18,7 +26,15 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`,
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(chromiumExecutablePath ? { launchOptions: { executablePath: chromiumExecutablePath } } : {}),
+      },
+    },
+  ],
   webServer: {
     // `npm run preview` (vite preview) servia só o SPA estático, sem `/api` — nenhum teste que
     // dependesse de login real podia funcionar. `start:e2e` sobe o servidor Express de verdade

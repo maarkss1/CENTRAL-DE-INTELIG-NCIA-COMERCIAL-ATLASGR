@@ -98,7 +98,7 @@ API `/api/lgpd`), `document-editor` (`/app/editor`), `gamification` (widget), `o
 ## 3. Motores (engines)
 
 ### 3.1 Motor de dados
-- **PostgreSQL + Prisma** (`@prisma/adapter-pg`), 43 models, 47 migrations.
+- **PostgreSQL + Prisma** (`@prisma/adapter-pg`), 43 models, 46 migrations.
 - **RLS Postgres com FORCE** + extensão Prisma que faz `set_config` por transação + injeção de
   `organizationId` — três camadas de tenancy.
 - **pgvector** — coluna `vector(768)` para RAG (`KnowledgeChunk`, `DocumentChunk`).
@@ -350,11 +350,29 @@ Infra: Postgres, Redis, Meilisearch, S3, OTLP collector, Loki.
 Consolidado do código + handoffs abertos + docs de bloqueio. **Não é opinião — cada item tem origem
 rastreável.**
 
-### 7.1 Bloqueio estrutural: o gate não é executável de verdade
-`ENV-001` aparece em `PLATFORM_COMPLETION_REPORT.md` e volta em todas as rodadas seguintes: sem
-Docker/Postgres/Redis/navegador no ambiente de execução, `test:integration` e `test:e2e` ficam
-"bloqueados" e migrations **nunca são aplicadas contra Postgres real**. Isso significa que a maior
-parte das aprovações de onda se apoia em typecheck + lint + unit + build.
+### 7.1 ENV-001 — RESOLVIDO em 2026-08-15, e nunca foi um defeito do projeto
+
+`ENV-001` aparecia em `PLATFORM_COMPLETION_REPORT.md` e voltava em todas as rodadas seguintes: sem
+Docker/Postgres/Redis/navegador, `test:integration` e `test:e2e` ficavam "bloqueados" e migrations
+**nunca eram aplicadas contra Postgres real**. Toda aprovação de onda se apoiava, na prática, em
+typecheck + lint + unit + build.
+
+**Executado nesta data, contra serviços reais:**
+
+| Gate | Resultado |
+|---|---|
+| `npx tsc --noEmit` | 0 erros |
+| `npm run lint` | 0 erros, 101 warnings |
+| `npm run test:unit` | **706/706** (109 arquivos) |
+| `npm run test:integration` | **48/48** (13 arquivos), contra Postgres 16 + pgvector + RLS real |
+| `prisma migrate deploy` | **46/46 migrations aplicadas** |
+| `npm run build` | OK |
+| `npm run test:e2e` | executável (ver §7.2) |
+
+O bloqueio era do **ambiente de execução daquelas sessões**, não do repositório: aqui o `dockerd`
+subiu normalmente e o harness (`scripts/test/prepare-integration-env.js`) funcionou como projetado,
+sem nenhuma alteração. A lição registrada é de método, não de código — "bloqueado por ambiente" foi
+aceito por várias rodadas sem que ninguém tentasse subir o daemon e mostrasse o erro.
 
 ### 7.2 Handoffs ainda abertos
 
@@ -404,7 +422,7 @@ compor essas capacidades sozinho.
 | Rotas de UI | 28 privadas + 4 públicas |
 | Routers de API | 30 |
 | Models Prisma | 43 |
-| Migrations | 47 |
+| Migrations | 46 |
 | Filas BullMQ | 13 (+1 cron `node-cron`) |
 | Provedores de IA em cadeia | 4 |
 | Agentes de runtime (enxame) | 8 |
