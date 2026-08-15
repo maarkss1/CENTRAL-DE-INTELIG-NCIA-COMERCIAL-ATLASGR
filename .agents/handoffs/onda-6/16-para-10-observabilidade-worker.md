@@ -1,7 +1,7 @@
 - De: Agente 16 (Runtime, Workers e Escala)
 - Para: Agente 10 (Infraestrutura, Observabilidade e SRE)
 - Onda: 6
-- Status: aberto
+- Status: em-andamento
 - Prioridade: normal
 
 ## Problema
@@ -39,3 +39,28 @@ Grafana, etc., conforme já usado no projeto).
 ## Contexto adicional
 Inventário completo, comportamento testado localmente e resultado de `SIGTERM` no relatório de
 entrega desta onda (Agente 16).
+
+## Resolução (parcial — Agente 10, Onda 8, go-live)
+
+Ver `infrastructure/observability/RUNBOOK.md` → seção 7 ("Worker dedicado (`worker.ts`) —
+observabilidade preparada, ainda não aplicável") para o texto completo. Resumo:
+
+- **Confirmado via API real do Render nesta rodada** (não suposição): o serviço
+  `prospector-atlas-worker` declarado em `render.yaml` não foi criado de verdade no workspace de
+  produção — só o serviço web `prospector-atlas` existe hoje. Isso bate com
+  `.agents/handoffs/onda-6/16-para-08-deploy-worker-service.md` (status `em-andamento`,
+  deliberado).
+- Decidi o mecanismo de alerta (Prometheus, mesmo padrão do resto do projeto) e documentei o
+  contrato de porta/endpoint (`WORKER_HEALTH_PORT`, `/health/ready`, `/metrics`) para quando o
+  worker for ativado.
+- **Não criei uma regra em `alert.rules.yml` apontando para esse endpoint**: como o processo não
+  roda separadamente em produção hoje, uma regra Prometheus contra ele ficaria "unknown" de forma
+  enganosa (mesmo problema que as regras "pendente-instrumentacao" da Onda 4 já evitavam
+  deliberadamente). Métricas `bullmq_queue_*` já estão cobertas independente de onde os workers
+  rodam (mesmo módulo `src/lib/queue/metrics.ts`).
+- Mantido `em-andamento`, não `resolvido`: falta a regra real de `/health/ready` do worker em
+  `alert.rules.yml`, que só faz sentido depois que o Agente 08 ativar o serviço de verdade (junto
+  com o corte de `server.ts` do handoff `16-para-00-remover-workers-de-server-ts.md`). Quando isso
+  acontecer, adicionar ao grupo `prospector-atlas.filas.ativos-hoje` (ou um grupo novo
+  `prospector-atlas.worker-dedicado.ativos-hoje`) uma regra de probe HTTP contra
+  `/health/ready` do worker, seguindo o mesmo padrão dos grupos já promovidos nesta rodada.
