@@ -1,5 +1,5 @@
 import { logger } from '../../../lib/logger';
-import { prisma } from '../../../lib/prisma.js';
+import { prisma, withRlsContext } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
 import { enrichCompany } from './enrichment.service';
@@ -256,6 +256,12 @@ function splitLocation(location?: string | null): { city?: string; state?: strin
  * Localiza uma empresa já cadastrada na organização que corresponda ao candidato
  * (mesmo CNPJ ou mesmo nome fantasia/razão social) — evita duplicar empresas ao
  * promover o mesmo candidato mais de uma vez.
+ *
+ * `$queryRaw` não passa pela extensão `$allOperations` de `src/lib/prisma.ts` (RLS/tenant
+ * scoping) — roda via `withRlsContext` (seta `app.current_tenant_id` na transação; sem isso a
+ * policy de RLS de "Company" com FORCE ROW LEVEL SECURITY devolve zero linhas sempre, mesmo com
+ * o WHERE certo) e mantém o filtro explícito de `organizationId` como defesa em profundidade,
+ * igual ao padrão já usado em `src/lib/ai/vectorStore.ts`.
  */
 async function findExistingCompany(input: PromoteInput) {
     try {
@@ -265,13 +271,21 @@ async function findExistingCompany(input: PromoteInput) {
             // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
             // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
             // memória, o que não escalaria com a base de clientes.
-            const [found] = await prisma.$queryRaw<{ id: string }[]>`
+            //
+            // '\\D' (barra dupla) de propósito: dentro de um template literal comum do JS, `\D`
+            // não é uma sequência de escape reconhecida, então o parser descarta a barra e o texto
+            // "cooked" enviado ao driver do Postgres vira só `D` — Prisma usa esse texto "cooked"
+            // (não `strings.raw`) para montar o SQL da query crua. Com barra simples, o
+            // regexp_replace comparava contra o caractere literal "D" (que um CNPJ nunca tem), e a
+            // busca por CNPJ nunca encontrava nada, mesmo já dentro do withRlsContext — confirmado
+            // empiricamente contra Postgres real (ver tests/integration/prospecting-rls.test.ts).
+            const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
                 SELECT id FROM "Company"
                 WHERE "organizationId" = ${input.organizationId}
                   AND cnpj IS NOT NULL
-                  AND regexp_replace(cnpj, '\D', '', 'g') = ${cnpj}
+                  AND regexp_replace(cnpj, '\\D', '', 'g') = ${cnpj}
                 LIMIT 1
-            `;
+            `);
             if (found) return prisma.company.findUnique({ where: { id: found.id } });
         }
         return await prisma.company.findFirst({

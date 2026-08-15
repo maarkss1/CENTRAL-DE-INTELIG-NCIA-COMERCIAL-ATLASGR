@@ -9,15 +9,24 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { queryRawMock } = vi.hoisted(() => ({ queryRawMock: vi.fn() }));
+// findExistingCompany roda SQL cru (regexp_replace de CNPJ) fora do que a extensão
+// $allOperations de prisma.ts intercepta — por isso passa por withRlsContext (ver
+// src/lib/prisma.ts) em vez de prisma.$queryRaw direto. O mock simula a transação: `fn` recebe
+// um client (`tx`) com o próprio $queryRaw mockado, no mesmo padrão já usado em
+// tests/unit/lib/ai/vectorStore.test.ts.
+const { queryRawMock, withRlsContextMock } = vi.hoisted(() => {
+    const queryRawMock = vi.fn();
+    const withRlsContextMock = vi.fn((fn: (tx: { $queryRaw: typeof queryRawMock }) => unknown) => fn({ $queryRaw: queryRawMock }));
+    return { queryRawMock, withRlsContextMock };
+});
 
 vi.mock('../../../../../src/lib/prisma.js', () => ({
     prisma: {
         company: { findFirst: vi.fn(), create: vi.fn(), findUnique: vi.fn() },
         contact: { create: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn() },
-        $queryRaw: queryRawMock,
     },
+    withRlsContext: (fn: (tx: unknown) => unknown) => withRlsContextMock(fn as never),
 }));
 
 vi.mock('../../../../../src/features/prospecting/services/enrichment.service', () => ({
@@ -160,6 +169,10 @@ describe('findExistingCompany (via promoteToCrm) — dedupe por nome e por CNPJ'
 
         await promoteToCrm({ ...baseInput, cnpj: '11.222.333/0001-81', organizationId: 'org-A' });
 
+        // A busca de dedupe roda dentro de withRlsContext (não em prisma.$queryRaw direto) — sem
+        // isso, a policy de RLS de "Company" (FORCE ROW LEVEL SECURITY) devolveria zero linhas
+        // sempre em produção, mesmo com o WHERE de organizationId correto.
+        expect(withRlsContextMock).toHaveBeenCalledTimes(1);
         expect(queryRawMock).toHaveBeenCalledTimes(1);
         const callArgs = queryRawMock.mock.calls[0];
         // O template tag `prisma.$queryRaw` recebe o array de strings + valores interpolados —
