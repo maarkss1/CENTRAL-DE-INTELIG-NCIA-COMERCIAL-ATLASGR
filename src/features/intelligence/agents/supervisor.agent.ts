@@ -294,6 +294,21 @@ Se a missão já foi suficientemente atendida pelos especialistas já acionados,
     };
 }
 
+// Monta o sessionId (chave de AgentMemory) de cada especialista do enxame incluindo o leadId
+// quando disponível, por dois motivos:
+// 1. Sem isso, duas missões diferentes cujo primeiro acionamento de um mesmo especialista caía no
+//    mesmo `state.step` (ex.: sempre 1 na primeira chamada) geravam o MESMO sessionId
+//    (`swarm-bdr-1`), e a segunda missão sobrescrevia (via updateMemory/findFirst+update) a
+//    AgentMemory da primeira — colisão entre leads sem relação alguma.
+// 2. `AgentMemory` (prisma/schema.prisma) ainda não tem coluna estruturada `leadId`/`contactId`,
+//    então `eraseDataSubject` (LGPD) não consegue localizar sessões de um titular. Embutir
+//    `lead_${leadId}` no sessionId dá uma correlação recuperável por string enquanto essa migração
+//    (proposta em .agents/handoffs/onda-6/01A-para-07-agentmemory-sem-vinculo-titular.md) não é
+//    aplicada pelo Agente 01A.
+function swarmSessionId(role: 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops', state: SwarmStateType): string {
+    return state.leadId ? `swarm-${role}-lead_${state.leadId}-${state.step}` : `swarm-${role}-${state.step}`;
+}
+
 // Adapters que executam os sub-agentes com a instrução lapidada pelo supervisor (não mais o texto cru do roteamento).
 async function sdrNode(state: SwarmStateType) {
     // SDRQualificationAgent.run() espera um ID real de Lead do CRM (usa a ferramenta get_lead_context,
@@ -310,7 +325,7 @@ async function sdrNode(state: SwarmStateType) {
     }
     try {
         const agent = new SDRQualificationAgent();
-        const result = await agent.run(state.leadId, `swarm-sdr-${state.step}`, state.instruction || undefined);
+        const result = await agent.run(state.leadId, swarmSessionId('sdr', state), state.instruction || undefined);
         const content = ('detailedLog' in result && result.detailedLog) ? result.detailedLog : 'Análise concluída sem detalhamento textual.';
         return {
             completed: ['sdr'] as SwarmAgentKey[],
@@ -332,7 +347,7 @@ async function bdrNode(state: SwarmStateType) {
     const instruction = state.instruction || state.mission;
     try {
         const agent = new BDRAgent();
-        const result = await agent.run(instruction, `swarm-bdr-${state.step}`);
+        const result = await agent.run(instruction, swarmSessionId('bdr', state));
         if (result.error) {
             throw new Error(result.error);
         }
@@ -357,7 +372,7 @@ async function closerNode(state: SwarmStateType) {
     const instruction = state.instruction || state.mission;
     try {
         const agent = new CloserAgent();
-        const result = await agent.run(instruction, `swarm-closer-${state.step}`);
+        const result = await agent.run(instruction, swarmSessionId('closer', state));
         if (result.error) {
             throw new Error(result.error);
         }
@@ -382,7 +397,7 @@ async function crmNode(state: SwarmStateType) {
     const instruction = state.instruction || state.mission;
     try {
         const agent = new CRMAgent();
-        const result = await agent.run(instruction, `swarm-crm-${state.step}`);
+        const result = await agent.run(instruction, swarmSessionId('crm', state));
         if (result.error) {
             throw new Error(result.error);
         }
@@ -407,7 +422,7 @@ async function opsNode(state: SwarmStateType) {
     const instruction = state.instruction || state.mission;
     try {
         const agent = new OpsAgent();
-        const result = await agent.run(instruction, `swarm-ops-${state.step}`, state.leadId || undefined);
+        const result = await agent.run(instruction, swarmSessionId('ops', state), state.leadId || undefined);
         if (result.error) {
             throw new Error(result.error);
         }
