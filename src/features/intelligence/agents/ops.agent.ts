@@ -10,6 +10,7 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
@@ -101,6 +102,20 @@ const app = workflow.compile({ checkpointer: memory });
 export class OpsAgent {
     async run(instruction: string, sessionId?: string, leadId?: string) {
         const sid = sessionId || `session-ops-${Date.now()}`;
+
+        // Só verifica base legal quando há um leadId real: é o caso em que get_lead_context pode
+        // trazer o Contact real do lead para dentro do loop de tool-calling com o provedor de IA
+        // externo. Sem leadId, a instrução é texto livre sem titular associado — ver
+        // guardrails.service.ts:assertPiiExternalConsent.
+        if (leadId) {
+            const organizationId = getTenantId();
+            try {
+                assertPiiExternalConsent(organizationId);
+            } catch (error) {
+                logger.warn({ err: error, leadId, organizationId }, 'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
+                return { success: false, error: (error as Error).message };
+            }
+        }
 
         const humanContent = leadId
             ? `Instrução: ${instruction}\n\nLead ID relacionado a esta missão (use-o com get_lead_context/create_follow_up_task/notify_team quando fizer sentido; não busque nem invente outro): ${leadId}`

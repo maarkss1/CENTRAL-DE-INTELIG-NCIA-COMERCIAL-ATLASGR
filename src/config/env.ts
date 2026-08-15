@@ -142,6 +142,16 @@ const envSchema = z.object({
   // continuando íntegro no Postgres. O download trata isso como 410 (não como erro silencioso),
   // nunca finge que o arquivo ainda existe.
   BITRIX_EXTRACTION_STORAGE_DIR: z.string().default('./data/bitrix-extractions'),
+
+  // ── Base legal LGPD para dado pessoal enviado a provedor de IA externo ──────
+  // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
+  // assertPiiExternalConsent), consumido pelos 3 caminhos reais do enxame que buscam dado pessoal
+  // de um titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
+  // de IA externo (Groq/OpenAI/Gemini/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId)
+  // e SDROutboundDraftAgent. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
+  // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
+  // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).
+  AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: z.string().optional(),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.

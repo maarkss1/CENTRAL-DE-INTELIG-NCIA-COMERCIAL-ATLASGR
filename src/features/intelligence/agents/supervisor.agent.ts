@@ -326,6 +326,13 @@ async function sdrNode(state: SwarmStateType) {
     try {
         const agent = new SDRQualificationAgent();
         const result = await agent.run(state.leadId, swarmSessionId('sdr', state), state.instruction || undefined);
+        // Sem isto, uma falha real (ex: trava de consentimento LGPD, erro do grafo) — que
+        // SDRQualificationAgent.run() já reporta como `{ success: false, error }` — caía no
+        // fallback de baixo e o enxame relatava "Análise concluída sem detalhamento textual." como
+        // se tivesse dado certo. mesmo padrão de checagem já usado em bdrNode/closerNode/crmNode/opsNode.
+        if (result.error) {
+            throw new Error(result.error);
+        }
         const content = ('detailedLog' in result && result.detailedLog) ? result.detailedLog : 'Análise concluída sem detalhamento textual.';
         return {
             completed: ['sdr'] as SwarmAgentKey[],

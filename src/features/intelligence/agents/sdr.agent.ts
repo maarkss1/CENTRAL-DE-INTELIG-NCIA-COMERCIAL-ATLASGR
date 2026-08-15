@@ -13,7 +13,7 @@ import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
-import { rehydratePii } from '../services/guardrails.service.js';
+import { rehydratePii, assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
 const tools = [
@@ -155,6 +155,17 @@ const app = workflow.compile({ checkpointer: memory });
 export class SDRQualificationAgent {
     async run(leadId: string, sessionId?: string, instruction?: string) {
         const sid = sessionId || `session-${leadId}-${Date.now()}`;
+
+        // Este agente busca o Contact real do lead via get_lead_context e o envia (minimizado, mas
+        // ainda pseudonimizado — reversível) a um provedor de IA externo. Ponto único de
+        // verificação de base legal, antes de qualquer chamada ao modelo — ver guardrails.service.ts.
+        const organizationId = getTenantId();
+        try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            logger.warn({ err: error, leadId, organizationId }, 'SDR Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
+            return { success: false, error: (error as Error).message };
+        }
 
         // instruction: nuance lapidada pelo Supervisor do enxame para esta rodada específica
         // (ex: "priorize checar situação cadastral") — antes desta correção era sempre descartada

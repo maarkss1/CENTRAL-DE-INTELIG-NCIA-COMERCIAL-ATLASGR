@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AgentService } from '../services/agent.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { vectorService } from '../services/vector.service.js';
-import { minimizePii, rehydratePii, type PiiToken } from '../services/guardrails.service.js';
+import { minimizePii, rehydratePii, hasPiiExternalConsent, type PiiToken } from '../services/guardrails.service.js';
 import { cleanAndParseJson } from '../../../lib/ai/gateway.js';
 import { executeAndRecord } from '../services/aiPendingAction.service.js';
 import { logger } from '../../../lib/logger.js';
@@ -62,6 +62,17 @@ Retorne SOMENTE JSON válido neste formato exato: {"subject":"assunto curto","bo
                 }
             }
             return { status: 'existing', actionId: existing.id };
+        }
+
+        // Ponto único de verificação de base legal: nenhum rascunho novo é gerado sem base legal
+        // registrada para esta organização, mesmo que o nome do contato seja minimizado (token
+        // reversível) antes de sair — ver guardrails.service.ts:hasPiiExternalConsent. Reaproveitar
+        // uma ação já existente (bloco acima) não passa por aqui: aquele rascunho já foi gerado
+        // antes, e o que resta ali é apenas o envio via SMTP, não um novo envio de PII a um provedor
+        // de IA.
+        if (!hasPiiExternalConsent(tenantId)) {
+            logger.warn({ leadId, tenantId }, 'SDR outbound bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
+            return { status: 'skipped', reason: 'Consentimento/base legal LGPD não registrado para esta organização enviar dado pessoal a provedor de IA externo.' };
         }
 
         const searchQuery = `Estratégia de prospecção e dores para segmento ${lead.company.segment || 'geral'}`;

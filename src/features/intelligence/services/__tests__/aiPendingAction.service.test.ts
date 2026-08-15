@@ -151,4 +151,18 @@ describe('executeAndRecord', () => {
             }),
         });
     });
+
+    it('trava 6 do modo full (SMTP configurado): sem SMTP, a ação NUNCA é marcada como executada — fica registrada para tratamento supervisionado', async () => {
+        sendEmailMock.mockRejectedValue(new FakeMailerNotConfiguredError('SMTP_HOST ausente'));
+
+        const result = await executeAndRecord(emailAction);
+
+        expect(result).toEqual({ sent: false, reason: 'not_configured' });
+        const [[callArgs]] = updateMock.update.mock.calls;
+        // `executed` nunca aparece como `true` neste payload — não fabricamos um envio que não
+        // aconteceu. A UI (AIPendingActions.tsx) usa isso para continuar oferecendo o fallback
+        // manual em vez de considerar a ação concluída.
+        expect(callArgs.data.executed).not.toBe(true);
+        expect(callArgs.data.attempts).toEqual({ increment: 1 });
+    });
 });
