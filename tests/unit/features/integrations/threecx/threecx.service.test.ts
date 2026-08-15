@@ -142,6 +142,8 @@ describe('make3CXCall — honestidade sobre chamada real (nunca finge sucesso)',
             /lista interna de bloqueio/,
         );
         expect(fetchMock).not.toHaveBeenCalled();
-        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321');
+        // Terceiro argumento: contexto do opt-out unificado entre canais (leadId, quando informado
+        // — aqui não foi) — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', { leadId: null });
     });
 });
