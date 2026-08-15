@@ -370,8 +370,12 @@ Processo já existente, não recriado:
    "Replay Attacks" do threat model — que descrevia um cache de nonce que nunca existiu neste
    código — corrigida para registrar isso como gap real e não mitigado, em vez de uma proteção
    fictícia.
-3. **Avaliação de Secrets Manager dedicado** (não implementado nesta mudança — decisão de
-   infraestrutura, não um bug de código):
+3. **Avaliação de Secrets Manager dedicado** — decisão tomada: **Infisical**, via sync nativo
+   Infisical → Render (sem mudança de código). Runbook completo de migração, incluindo a ordem
+   segura de troca de cada segredo e o cuidado especial com `BETTER_AUTH_SECRET`/
+   `CREDENTIALS_ENCRYPTION_KEY`, em `docs/security/SECRETS_MANAGER_MIGRATION.md`. A criação de
+   conta/projeto no Infisical e a importação dos segredos reais depende de acesso que só o time
+   do produto tem — não implementado nesta mudança, mas não é mais uma avaliação em aberto.
    - **Estado atual**: segredos vivem em env vars por provedor (Render, `sync: false`) + Zod
      fail-fast (`src/config/env.ts`) + criptografia de campo AES-256-GCM para credenciais de
      integração persistidas no banco (`src/lib/crypto/secretFields.ts`). Cobre rotação manual e
@@ -387,8 +391,8 @@ Processo já existente, não recriado:
      - *Doppler / Infisical* — SaaS gerenciado, menor custo operacional, integra com Render via
        env var sync ou CLI no build; mais próximo do modelo atual (env var), com rotação e
        auditoria de acesso como cima.
-   - **Recomendação**: se este gap virar prioridade, começar por Doppler/Infisical (menor custo
-     de adoção sobre a infra atual) em vez de Vault — reavaliar Vault só se a equipe já operar
-     Kubernetes/infra própria por outro motivo. Continua sendo um risco aceito e documentado, não
-     um bloqueador de produção: nenhum segredo real está commitado (gitleaks confirma isso a
-     cada PR) e a superfície de segredo real é pequena (poucas integrações por organização).
+   - **Decisão**: Infisical (menor custo de adoção sobre a infra atual do que Vault) — ver
+     runbook em `docs/security/SECRETS_MANAGER_MIGRATION.md`. Até a migração ser concluída,
+     continua sendo um risco aceito e documentado, não um bloqueador de produção: nenhum segredo
+     real está commitado (gitleaks confirma isso a cada PR) e a superfície de segredo real é
+     pequena (poucas integrações por organização).
