@@ -16,10 +16,39 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Assinatura de release lida só de variáveis de ambiente — nunca de arquivo commitado. Sem
+    // keystore/senha versionados neste repositório (AGENTS.md do Agente 09 e regra global de
+    // "Segurança e higiene"). Variáveis esperadas no ambiente de build de release (CI ou máquina
+    // local de quem assina, nunca no código):
+    //   ANDROID_KEYSTORE_PATH      caminho absoluto pro arquivo .jks/.keystore (fora do repo)
+    //   ANDROID_KEYSTORE_PASSWORD  senha do keystore
+    //   ANDROID_KEY_ALIAS          alias da chave dentro do keystore
+    //   ANDROID_KEY_PASSWORD       senha da chave (pode ser igual à do keystore, depende de como
+    //                              foi gerado)
+    // Sem ANDROID_KEYSTORE_PATH definida, buildTypes.release.signingConfig fica null — o build de
+    // release ainda compila (útil pra CI validar que o release não quebra), mas gera um artefato
+    // não assinado, nunca cai para um keystore de debug/placeholder. Handoff aberto pro Agente 08
+    // para popular esses 4 secrets no ambiente de CI que gerar o release assinado de verdade —
+    // `android-build.yml` hoje só roda `assembleDebug` (build de debug já é assinado
+    // automaticamente pelo AGP com o keystore de debug padrão, não precisa desse bloco).
+    def releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+
+    signingConfigs {
+        release {
+            if (releaseKeystorePath) {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig releaseKeystorePath ? signingConfigs.release : null
         }
     }
 }
