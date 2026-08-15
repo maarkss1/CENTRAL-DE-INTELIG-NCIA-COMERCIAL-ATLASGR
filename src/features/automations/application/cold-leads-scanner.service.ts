@@ -1,9 +1,8 @@
-import { randomUUID } from 'node:crypto';
 import cron from 'node-cron';
 import { prisma } from '../../../lib/prisma.js';
 import { VectorSearchService } from '../../intelligence/services/vector-search.service.js';
 import { enabledOrganizations } from '../../intelligence/services/swarmScheduler.service.js';
-import { cacheConnection, queuesEnabled } from '../../../lib/queue/redis.js';
+import { acquireDistributedLock } from '../../../lib/queue/distributedLock.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 
@@ -21,10 +20,11 @@ import { logger } from '../../../lib/logger.js';
  *    concorrência limitada.
  * 3. Execução duplicada: `node-cron` roda por processo — em qualquer deploy com mais de uma
  *    instância do servidor, cada instância dispararia a mesma varredura ao mesmo tempo,
- *    multiplicando o custo de IA sem nenhum ganho. Uma trava distribuída (Redis, mesma conexão
- *    fail-fast do circuit breaker do gateway) garante uma única execução por tick quando o Redis
- *    está disponível; sem Redis (`queuesEnabled=false`, ambiente local de instância única) roda
- *    direto, sem travar o boot.
+ *    multiplicando o custo de IA sem nenhum ganho. Uma trava distribuída (`acquireDistributedLock`,
+ *    ver `src/lib/queue/distributedLock.ts` — extraída daqui para ser reaproveitada por outras
+ *    varreduras periódicas, ex.: `stagnation-scanner.service.ts`) garante uma única execução por
+ *    tick quando o Redis está disponível; sem Redis (`queuesEnabled=false`, ambiente local de
+ *    instância única) roda direto, sem travar o boot.
  * 4. Observabilidade: nenhuma correlação entre o início e o fim de uma varredura. Cada execução
  *    agora tem um `runId` único nos logs, do início ao fim, com contagem de leads processados e
  *    falhas — o mais próximo de "status de execução" que dá para ter sem um novo modelo de
@@ -58,37 +58,13 @@ async function withConcurrency<T>(items: T[], limit: number, worker: (item: T) =
     return failures;
 }
 
-/** Tenta adquirir a trava distribuída. Retorna `true` se pode prosseguir (obteve a trava OU o
- *  Redis não está disponível neste ambiente — instância única assumida). */
-async function acquireLock(runId: string): Promise<boolean> {
-    if (!queuesEnabled) return true;
-    try {
-        const acquired = await cacheConnection.set(LOCK_KEY, runId, 'EX', LOCK_TTL_SECONDS, 'NX');
-        return acquired === 'OK';
-    } catch (err) {
-        logger.warn({ err, runId }, 'Cold leads scanner: Redis indisponível para a trava distribuída; seguindo sem travar.');
-        return true;
-    }
-}
-
-async function releaseLock(runId: string): Promise<void> {
-    if (!queuesEnabled) return;
-    try {
-        // Só libera se ainda for o dono (evita apagar a trava de uma execução mais nova depois de
-        // um timeout longo desta).
-        const current = await cacheConnection.get(LOCK_KEY);
-        if (current === runId) await cacheConnection.del(LOCK_KEY);
-    } catch (err) {
-        logger.warn({ err, runId }, 'Cold leads scanner: falha ao liberar a trava distribuída (expira sozinha pelo TTL).');
-    }
-}
-
 /** Uma execução da varredura. Exportado para permitir teste direto sem esperar o cron. */
 export async function runColdLeadsScan(): Promise<{ runId: string; organizations: number; scanned: number; failures: number }> {
-    const runId = randomUUID();
     const startedAt = Date.now();
+    const lock = await acquireDistributedLock(LOCK_KEY, LOCK_TTL_SECONDS);
+    const { runId } = lock;
 
-    if (!(await acquireLock(runId))) {
+    if (!lock.acquired) {
         logger.info({ runId }, 'Cold leads scan pulada: outra instância já está executando.');
         return { runId, organizations: 0, scanned: 0, failures: 0 };
     }
@@ -141,7 +117,7 @@ export async function runColdLeadsScan(): Promise<{ runId: string; organizations
         logger.error({ err: error, runId }, 'Cold leads scan falhou.');
         return { runId, organizations: organizationCount, scanned: totalScanned, failures: totalFailures + 1 };
     } finally {
-        await releaseLock(runId);
+        await lock.release();
     }
 }
 
