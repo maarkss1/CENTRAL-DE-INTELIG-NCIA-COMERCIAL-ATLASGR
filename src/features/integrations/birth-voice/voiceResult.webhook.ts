@@ -6,6 +6,7 @@ import { logger } from '../../../lib/logger.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
 import { sseService } from '../../notifications/sse.service.js';
+import { classifyCallOutcome, callResultedInConversation } from './birthVoice.helpers.js';
 
 /**
  * Webhook de resultado de ligação da Bland AI (rota legada /api/webhooks/voice-result).
@@ -41,6 +42,17 @@ interface VoiceResultPayload {
     request_data?: unknown;
     metadata?: unknown;
     variables?: unknown;
+    /**
+     * Campos que a Bland expõe em parte das suas versões de API mas que este payload ainda não lia
+     * — quando presentes, têm prioridade sobre a heurística de duração/texto abaixo (ver
+     * classifyCallOutcome). Todos opcionais de propósito: nenhum destes é garantido pela conta/
+     * versão da API em uso hoje, então a ausência deles não pode quebrar a classificação, só
+     * torná-la menos precisa (cai para a heurística).
+     */
+    status?: unknown;
+    disposition_tag?: unknown;
+    answered_by?: unknown;
+    completed?: unknown;
 }
 
 const COMPETITORS = ['totvs', 'sap', 'senior', 'omnilink', 'sascar', 'autotrac'];
@@ -99,6 +111,8 @@ async function handleVoiceResult(req: Request, res: Response): Promise<void> {
     const transcript = asString(payload.concatenated_transcript);
     const recordingUrl = asString(payload.recording_url);
     const callLength = typeof payload.call_length === 'number' ? payload.call_length : 0;
+    const providerStatus = asString(payload.status) ?? asString(payload.disposition_tag);
+    const answeredByMachine = payload.answered_by === 'machine' || payload.answered_by === 'voicemail';
 
     const { organizationId, leadId } = extractContext(payload);
     logger.info({ callId, organizationId, leadId }, 'Voice result recebido da Bland AI');
@@ -147,8 +161,21 @@ async function handleVoiceResult(req: Request, res: Response): Promise<void> {
                 : null;
             if (existing) return { leadFound: true as const, duplicate: true, leadId: lead.id };
 
+            // Estado honesto do resultado: um `call_length` positivo e um `summary` não significam,
+            // por si só, que o decisor atendeu — a Bland já entregou "conversas" de segundos que
+            // eram só a caixa postal. `voiceQualified`/o texto de follow-up dependem deste estado
+            // classificado, nunca de "a chamada teve algum tamanho de resposta" isoladamente.
+            const classifiedOutcome = classifyCallOutcome({
+                providerOutcome: providerStatus,
+                machineDetected: answeredByMachine,
+                durationSeconds: callLength * 60,
+                text: `${summary ?? ''} ${transcript ?? ''}`,
+            });
+            const hadConversation = callResultedInConversation(classifiedOutcome);
+
             const noteContent = `📞 **Resultado da Ligação de Voz (IA)**
 - **ID da Chamada**: ${callId}
+- **Estado**: ${classifiedOutcome}
 - **Duração**: ${Math.round(callLength * 60)}s
 - **Resumo Inteligente**: ${summary || 'Sem resumo disponível.'}
 - **Gravação em Áudio**: ${recordingUrl ? `[Ouvir Gravação](${recordingUrl})` : 'Sem gravação de áudio.'}
@@ -168,7 +195,7 @@ ${transcript || 'Nenhuma transcrição gravada.'}`;
             await prisma.timelineEvent.create({
                 data: {
                     type: 'activity',
-                    description: `SDR de voz concluiu chamada. Resumo: ${summary || 'Chamada finalizada'}.`,
+                    description: `SDR de voz ligou para o lead — estado: ${classifiedOutcome}. Resumo: ${summary || 'sem resumo'}.`,
                     leadId: lead.id,
                 },
             });
@@ -177,27 +204,32 @@ ${transcript || 'Nenhuma transcrição gravada.'}`;
             await prisma.lead.update({
                 where: { id: lead.id },
                 data: {
-                    customFields: { ...currentFields, voiceQualified: true },
+                    customFields: {
+                        ...currentFields,
+                        // Só marca qualificado quando houve conversa real — AMD, não-atendimento,
+                        // número inválido e falha nunca inflam esta métrica de conversão.
+                        voiceQualified: hadConversation,
+                        voiceCallOutcome: classifiedOutcome,
+                    },
                 },
             });
 
-            // Follow-up automático via WhatsApp — respeita opt-out e nunca derruba o webhook.
+            // Follow-up automático via WhatsApp — respeita opt-out e nunca derruba o webhook. A
+            // mensagem muda conforme o estado real (fallback "tentamos contato" para quem não
+            // conversou; agradecimento para quem conversou de verdade) — nunca dispara duas vezes
+            // por causa do guard de idempotência (`existing`) logo acima, então uma reentrega deste
+            // mesmo call_id não gera uma segunda mensagem.
             if (!currentFields.optOutWhatsApp && lead.contact) {
                 const contact = lead.contact as { whatsapp?: string | null; phone?: string | null };
                 const phone = contact.whatsapp || contact.phone;
                 if (phone) {
                     try {
-                        const summaryLower = (summary || '').toLowerCase();
-                        const isMissed = callLength < 0.2
-                            || summaryLower.includes('não atendeu')
-                            || summaryLower.includes('caixa postal');
-
                         await sendWhatsAppMessage(
                             organizationId,
                             phone,
-                            isMissed
-                                ? 'Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*'
-                                : 'Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*',
+                            hadConversation
+                                ? 'Olá! Obrigado por conversar com nossa equipe. Confirmamos o interesse e seguimos à disposição para os próximos passos.\n\n*Responda SAIR para não receber mais mensagens.*'
+                                : 'Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*',
                         );
                     } catch (err) {
                         logger.warn({ err, leadId: lead.id }, 'Falha ao disparar WhatsApp automático pós-ligação');
@@ -209,7 +241,9 @@ ${transcript || 'Nenhuma transcrição gravada.'}`;
             const transcriptLower = (transcript || '').toLowerCase();
             const mentionedCompetitors = COMPETITORS.filter((c) => transcriptLower.includes(c));
 
-            let sseMessage = `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`;
+            let sseMessage = hadConversation
+                ? `SDR concluiu chamada. Resumo: ${summary || 'Finalizada'}`
+                : `SDR tentou ligar, sem conversa (${classifiedOutcome}).`;
             if (mentionedCompetitors.length > 0) {
                 sseMessage = '[ALERTA] SDR concluiu chamada com citação de concorrente!';
                 await prisma.note.create({

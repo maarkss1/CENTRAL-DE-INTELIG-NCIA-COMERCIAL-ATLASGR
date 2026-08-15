@@ -192,4 +192,129 @@ describe('POST /api/webhooks/voice-result', () => {
         expect(res.status).toBe(500);
         expect(res.body.success).toBe(false);
     });
+
+    describe('estado honesto do resultado (nunca infla voiceQualified)', () => {
+        it('ligação não atendida (duração ínfima) NÃO marca voiceQualified, mesmo com resumo presente', async () => {
+            const res = await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload({ call_length: 0.05, summary: 'Ligação não atendeu' }));
+
+            expect(res.status).toBe(200);
+            expect(leadUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        customFields: expect.objectContaining({ voiceQualified: false, voiceCallOutcome: 'no-answer' }),
+                    }),
+                }),
+            );
+        });
+
+        it('caixa postal detectada no resumo NÃO marca voiceQualified', async () => {
+            const res = await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload({ call_length: 0.3, summary: 'Caiu na caixa postal, deixe seu recado' }));
+
+            expect(res.status).toBe(200);
+            expect(leadUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        customFields: expect.objectContaining({ voiceQualified: false, voiceCallOutcome: 'voicemail' }),
+                    }),
+                }),
+            );
+        });
+
+        it('conversa real (duração e resumo positivos) marca voiceQualified true', async () => {
+            const res = await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload());
+
+            expect(res.status).toBe(200);
+            expect(leadUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        customFields: expect.objectContaining({ voiceQualified: true, voiceCallOutcome: 'completed' }),
+                    }),
+                }),
+            );
+        });
+
+        it('sinal explícito de answered_by=machine tem prioridade sobre um resumo positivo', async () => {
+            const res = await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload({ call_length: 3, summary: 'Conversa interessante', answered_by: 'machine' }));
+
+            expect(res.status).toBe(200);
+            expect(leadUpdate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        customFields: expect.objectContaining({ voiceQualified: false, voiceCallOutcome: 'voicemail' }),
+                    }),
+                }),
+            );
+        });
+    });
+
+    describe('fallback WhatsApp — mensagem, opt-out e ausência de duplicidade', () => {
+        it('envia a mensagem de "não conseguimos falar" quando a ligação não foi atendida', async () => {
+            await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload({ call_length: 0.05, summary: 'não atendeu' }));
+
+            expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+                'org-1',
+                '+5511988776655',
+                expect.stringContaining('não conseguimos falar'),
+            );
+        });
+
+        it('envia a mensagem de agradecimento quando a ligação teve conversa real', async () => {
+            await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload());
+
+            expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+                'org-1',
+                '+5511988776655',
+                expect.stringContaining('Obrigado por conversar'),
+            );
+        });
+
+        it('respeita optOutWhatsApp — nunca dispara nenhuma das duas mensagens', async () => {
+            leadFindFirst.mockResolvedValue({
+                id: 'lead-1',
+                organizationId: 'org-1',
+                customFields: { optOutWhatsApp: true },
+                contact: { phone: '+5511988776655', whatsapp: null },
+            });
+
+            await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload());
+
+            expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+        });
+
+        // A reentrega do mesmo call_id (idempotência) não pode gerar uma segunda mensagem de
+        // WhatsApp — nem "tentamos contato" nem "obrigado por conversar" duas vezes para o mesmo
+        // lead a partir do mesmo evento de resultado.
+        it('não dispara o fallback de WhatsApp na reentrega do mesmo call_id', async () => {
+            noteFindFirst.mockResolvedValue({ id: 'nota-existente' });
+
+            const res = await request(buildApp())
+                .post('/api/webhooks/voice-result')
+                .set(VALID_HEADERS)
+                .send(blandPayload());
+
+            expect(res.body.duplicate).toBe(true);
+            expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+        });
+    });
 });

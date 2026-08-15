@@ -9,9 +9,12 @@ import {
     buildObservations,
     detectOptOut,
     pickCallablePhone,
+    classifyCallOutcome,
+    callResultedInConversation,
     type CallEndedData,
 } from './birthVoice.helpers.js';
 import { recordOptOut } from './callSuppression.service.js';
+import { sendWhatsAppMessage } from '../whatsapp/whatsapp.service.js';
 
 type RecordOutcome = 'recorded' | 'duplicate' | 'lead-not-found';
 
@@ -53,11 +56,23 @@ async function recordCallResult(organizationId: string, leadId: string, data: Ca
         });
         if (existing) return 'duplicate';
 
+        // Estado honesto do resultado — AMD/não-atendimento/número inválido/falha/timeout nunca
+        // colapsam em "Concluida". ActivityStatus (schema) só tem Pendente/Em_andamento/Concluida/
+        // Cancelada — sem um valor dedicado por estado, "Cancelada" é o único que não afirma
+        // falsamente que houve conversa; o estado granular de verdade vai no texto da observação
+        // (ver buildObservations) para quem olha a atividade conseguir distinguir os casos.
+        const outcome = classifyCallOutcome({
+            providerOutcome: data.outcome ?? data.status ?? null,
+            durationSeconds: typeof data.durationSeconds === 'number' ? data.durationSeconds : null,
+            text: (data.transcript ?? []).map((turn) => turn.content).join(' '),
+        });
+        const hadConversation = callResultedInConversation(outcome);
+
         await prisma.activity.create({
             data: {
                 leadId,
                 type: 'Ligacao' as never,
-                status: 'Concluida' as never,
+                status: (hadConversation ? 'Concluida' : 'Cancelada') as never,
                 owner: lead.owner || 'SDR IA',
                 date: new Date(),
                 observations: buildObservations(data),
@@ -76,6 +91,29 @@ async function recordCallResult(organizationId: string, leadId: string, data: Ca
         });
 
         await prisma.lead.update({ where: { id: leadId }, data: { lastInteraction: new Date() } });
+
+        // Fallback automático para WhatsApp quando a ligação não resultou em conversa real — mesma
+        // regra já aplicada no webhook legado da Bland (voiceResult.webhook.ts). Fica DEPOIS de toda
+        // gravação de atividade/timeline e ANTES de qualquer retorno cedo por duplicidade (o guard de
+        // `existing` acima já impede isto de rodar duas vezes na reentrega do mesmo call_id) —
+        // portanto não há corrida possível com este mesmo webhook: o fallback só é avaliado depois
+        // que o resultado real da ligação já é conhecido, nunca antes.
+        const contactForWhatsApp = lead.contact as { whatsapp?: string | null; phone?: string | null } | null;
+        const currentFields = (lead.customFields as Record<string, unknown>) || {};
+        if (!hadConversation && !detection.optOut && !currentFields.optOutWhatsApp && contactForWhatsApp) {
+            const whatsappNumber = contactForWhatsApp.whatsapp || contactForWhatsApp.phone;
+            if (whatsappNumber) {
+                try {
+                    await sendWhatsAppMessage(
+                        organizationId,
+                        whatsappNumber,
+                        'Olá! Tentamos contato agora pouco por telefone mas não conseguimos falar. Quando seria o melhor horário para conversarmos rapidamente?\n\n*Responda SAIR para não receber mais mensagens.*',
+                    );
+                } catch (err) {
+                    logger.warn({ err, leadId }, 'Falha ao disparar fallback de WhatsApp pós-ligação (Hub de voz)');
+                }
+            }
+        }
 
         return 'recorded';
     });
