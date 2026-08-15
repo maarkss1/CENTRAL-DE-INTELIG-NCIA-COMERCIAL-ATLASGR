@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- usesCleartextTraffic=true é temporário, só pra testar apontando pro IP
-         local (http). Remova (ou troque pra false) quando o server.url em
-         capacitor.config.ts virar uma URL https de produção. -->
+    <!-- usesCleartextTraffic NÃO é declarado aqui (default do Android = false) porque
+         capacitor.config.ts aponta pra um server.url https em produção (ver comentário lá) — não
+         há uso funcional de HTTP puro em build de release, então declarar a permissão aqui violaria
+         a regra de "só declarar o que é realmente usado" (AGENTS.md do Agente 09). O override para
+         permitir cleartext em teste local (LAN, CAPACITOR_SERVER_URL=http://...) fica isolado só em
+         build de debug — ver android/app/src/debug/AndroidManifest.xml. -->
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme">
 
         <activity
@@ -24,6 +26,36 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Deep link — esquema custom, funciona sem depender de verificação de domínio.
+                 Formato: atlasgr://<destino>, onde <destino> é um TabType válido do contrato de
+                 navegação do Agente 02 (src/lib/navigationBus.ts) ou vazio/"dashboard" pro início.
+                 Ex.: atlasgr://crm, atlasgr://prospect, atlasgr://intelligence. Resolvido
+                 nativamente em MainActivity.java (não duplica lógica de negócio: só traduz o
+                 destino pra uma URL do próprio server.url, que o React Router de src/App.tsx já
+                 sabe rotear). Destino desconhecido nunca carrega uma URL — mostra um diálogo nativo
+                 visível de erro (ver handleDeepLink em MainActivity.java). -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="atlasgr" />
+            </intent-filter>
+
+            <!-- Deep link — Android App Link (https) pro domínio de produção real, com
+                 autoVerify: exige publicar /.well-known/assetlinks.json nesse domínio (assinado com
+                 o SHA-256 do keystore de release) pra o Android confiar automaticamente sem mostrar
+                 o seletor de app — infraestrutura fora do escopo do Agente 09 (handoff aberto pra
+                 08/10). Até lá, este intent-filter ainda funciona como link comum (usuário escolhe
+                 "abrir com o app" na primeira vez), só não pula o seletor. Mantém o mesmo domínio
+                 fallback usado em capacitor.config.ts hoje — trocar junto quando o domínio final
+                 (app.atlasgr.com.br) entrar no ar. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="prospector-atlas.onrender.com" android:pathPrefix="/app" />
             </intent-filter>
 
         </activity>
