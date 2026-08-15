@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { minimizePii, rehydratePii, redactSensitiveData } from '../guardrails.service';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: undefined };
+vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
+
+const { minimizePii, rehydratePii, redactSensitiveData, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
 
 describe('minimizePii / rehydratePii', () => {
     it('substitui o valor de PII pelo token antes de sair para o provedor de IA', () => {
@@ -77,5 +81,49 @@ describe('redactSensitiveData (comportamento existente, não deve regredir)', ()
         const { text, redacted } = redactSensitiveData('CPF do titular: 123.456.789-00');
         expect(redacted).toBe(true);
         expect(text).toBe('CPF do titular: [CPF OCULTADO]');
+    });
+});
+
+describe('hasPiiExternalConsent / assertPiiExternalConsent (base legal LGPD antes de enviar PII a provedor externo)', () => {
+    afterEach(() => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = undefined;
+    });
+
+    it('fail-closed: nenhuma organização tem consentimento por padrão (variável não configurada)', () => {
+        expect(hasPiiExternalConsent('org-1')).toBe(false);
+    });
+
+    it('fail-closed: lista vazia não libera ninguém', () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = '';
+        expect(hasPiiExternalConsent('org-1')).toBe(false);
+    });
+
+    it('sem organizationId nunca tem consentimento, mesmo com "*"', () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = '*';
+        expect(hasPiiExternalConsent(null)).toBe(false);
+        expect(hasPiiExternalConsent(undefined)).toBe(false);
+    });
+
+    it('libera apenas as organizações explicitamente listadas', () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1, org-2 ,, org-3';
+        expect(hasPiiExternalConsent('org-1')).toBe(true);
+        expect(hasPiiExternalConsent('org-2')).toBe(true);
+        expect(hasPiiExternalConsent('org-4')).toBe(false);
+    });
+
+    it('"*" e "all" liberam qualquer organização', () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = '*';
+        expect(hasPiiExternalConsent('qualquer-org')).toBe(true);
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'all';
+        expect(hasPiiExternalConsent('outra-org')).toBe(true);
+    });
+
+    it('assertPiiExternalConsent lança PiiConsentRequiredError quando não há base legal', () => {
+        expect(() => assertPiiExternalConsent('org-sem-consentimento')).toThrow(PiiConsentRequiredError);
+    });
+
+    it('assertPiiExternalConsent não lança quando a organização está autorizada', () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
+        expect(() => assertPiiExternalConsent('org-1')).not.toThrow();
     });
 });
