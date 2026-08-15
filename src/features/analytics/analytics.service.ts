@@ -42,10 +42,11 @@ export interface OverviewMetrics {
     /** Média do score dos leads em aberto, ou null se nenhum lead tem score preenchido. */
     averageScore: number | null;
     /**
-     * Sempre null: não existe campo de valor monetário no modelo Lead. O frontend exibe "—" em vez
-     * de inventar um número. Quando a coluna existir, é aqui que ela entra.
+     * Soma de `Lead.amount` dos leads em aberto que têm valor preenchido, ou `null` quando nenhum
+     * tem. Mesma fórmula usada pela versão wired do dashboard (AnalyticsUseCases.overview) — ver
+     * comentário lá para o motivo de nunca fabricar 0 quando não há valor real preenchido.
      */
-    pipelineValue: null;
+    pipelineValue: number | null;
 }
 
 export interface DistributionSlice {
@@ -75,6 +76,13 @@ export interface AnalyticsDashboard {
     activitiesByType: DistributionSlice[];
     activitiesByStatus: DistributionSlice[];
     monthly: MonthlyPoint[];
+    /**
+     * "Tempo até qualificação". Sempre `null` — ver o mesmo campo em domain/Analytics.ts
+     * (AnalyticsDashboard) para a explicação completa: não existe timestamp real de quando um Lead
+     * entrou na etapa de qualificação, e `updatedAt` (usado por uma versão anterior deste método)
+     * não é um proxy válido porque sobe em qualquer escrita no registro, não só em mudança de
+     * etapa.
+     */
     tmqMetric: number | null;
     lostReasons: DistributionSlice[];
     callHeatmap: { dayOfWeek: number, hour: number, count: number }[];
@@ -146,6 +154,8 @@ export class AnalyticsService {
             lostThisMonth,
             wonEver,
             scoreAggregate,
+            pipelineAggregate,
+            pipelineCount,
         ] = await Promise.all([
             prisma.company.count({ where: scope }),
             prisma.contact.count({ where: scope }),
@@ -164,6 +174,13 @@ export class AnalyticsService {
                 where: { ...scope, status: { notIn: [WON, ...CLOSED_LOST_STATUSES] }, score: { not: null } },
                 _avg: { score: true },
             }),
+            prisma.lead.aggregate({
+                where: { ...scope, status: { notIn: [WON, ...CLOSED_LOST_STATUSES] }, amount: { not: null } },
+                _sum: { amount: true },
+            }),
+            prisma.lead.count({
+                where: { ...scope, status: { notIn: [WON, ...CLOSED_LOST_STATUSES] }, amount: { not: null } },
+            }),
         ]);
 
         return {
@@ -177,7 +194,8 @@ export class AnalyticsService {
             lostThisMonth,
             conversionRate: totalLeadsEver > 0 ? (wonEver / totalLeadsEver) * 100 : 0,
             averageScore: scoreAggregate._avg.score ?? null,
-            pipelineValue: null,
+            // count === 0: nenhum lead em aberto tem `amount` preenchido — "Não disponível", não 0.
+            pipelineValue: pipelineCount > 0 ? (pipelineAggregate._sum.amount ?? 0) : null,
         };
     }
 
@@ -382,8 +400,12 @@ export class AnalyticsService {
     }
 
     private async callHeatmap(organizationId: string, scope: any) {
+        // 'Ligacao' é o valor real do enum ActivityType (ver schema.prisma) — este método filtrava
+        // por `type: 'call'`, valor que não existe no enum, então a query sempre devolvia zero
+        // linhas silenciosamente (heatmap sempre vazio, indistinguível de "nenhuma ligação
+        // registrada" mesmo com ligações reais no banco). Corrigido para o valor real.
         const activities = await prisma.activity.findMany({
-            where: { ...scope, type: 'call' },
+            where: { ...scope, type: 'Ligacao' },
             select: { createdAt: true }
         });
         const heatmap = Array.from({ length: 7 }, () => Array(24).fill(0));
@@ -404,23 +426,19 @@ export class AnalyticsService {
         return result;
     }
 
-    private async tmqMetric(organizationId: string, scope: any): Promise<number | null> {
-        // TMQ: Time to Qualification
-        // Simulação otimizada: calculando a diferença entre createdAt e a data do estágio de qualificação.
-        const qualifiedLeads = await prisma.lead.findMany({
-            where: { ...scope, status: { notIn: ['Lead_Recebido', 'Cadencia_Iniciada'] } },
-            select: { createdAt: true, updatedAt: true },
-            take: 100 // Amostragem por performance
-        });
-
-        if (qualifiedLeads.length === 0) return null;
-        
-        let totalMs = 0;
-        qualifiedLeads.forEach(l => {
-            totalMs += (l.updatedAt.getTime() - l.createdAt.getTime());
-        });
-
-        return (totalMs / qualifiedLeads.length) / (1000 * 60 * 60 * 24); // Em dias
+    /**
+     * TMQ (Tempo até Qualificação): sempre `null` — ver o comentário completo em
+     * `AnalyticsDashboard['tmqMetric']` (domain/Analytics.ts). Este método calculava
+     * `updatedAt - createdAt` como proxy, mas `updatedAt` é `@updatedAt` e sobe em QUALQUER escrita
+     * no lead (sync do Bitrix, uma ligação de voz tocando só `lastInteraction`), não só quando o
+     * lead entra na etapa de qualificação — o número resultante não media "tempo até qualificar",
+     * media "há quanto tempo alguém mexeu nisso pela última vez". Sem uma coluna/tabela real com o
+     * timestamp de entrada na etapa (o funil Lead não tem o equivalente do
+     * `LeadStageHistory.enteredAt` que o funil Negócio tem), `null` é mais honesto que um número
+     * que parece preciso e não é (ver AGENTS.md > "Dados reais x demonstração").
+     */
+    private async tmqMetric(_organizationId: string, _scope: any): Promise<number | null> {
+        return null;
     }
 }
 

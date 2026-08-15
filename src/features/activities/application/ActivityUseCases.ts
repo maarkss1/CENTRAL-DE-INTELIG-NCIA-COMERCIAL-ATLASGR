@@ -1,6 +1,7 @@
 import { ActivityRepository, ActivityListFilters } from '../domain/Activity';
 import { z } from 'zod';
 import { activitySchema } from '../../../lib/zod';
+import { assertRealOwner } from '../domain/ownerGuard';
 
 export class ActivityUseCases {
     constructor(private activityRepository: ActivityRepository) {}
@@ -31,6 +32,7 @@ export class ActivityUseCases {
 
     async createActivity(organizationId: string, data: z.infer<typeof activitySchema>) {
         const validated = activitySchema.parse(data);
+        assertRealOwner(validated.owner);
         return this.activityRepository.createWithTimeline(
             organizationId,
             validated as Parameters<ActivityRepository['createWithTimeline']>[1]
@@ -38,6 +40,7 @@ export class ActivityUseCases {
     }
 
     async updateActivity(organizationId: string, id: string, data: Partial<z.infer<typeof activitySchema>>) {
+        if (data.owner) assertRealOwner(data.owner);
         return this.activityRepository.updateWithTimeline(
             organizationId,
             id,

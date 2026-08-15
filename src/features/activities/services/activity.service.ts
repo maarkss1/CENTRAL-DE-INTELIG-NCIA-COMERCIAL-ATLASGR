@@ -11,6 +11,7 @@ import {
     fromPrismaCompanyStatus,
 } from '../../../lib/enumMap';
 import { automationEngine } from '../../automations/automation.engine';
+import { assertRealOwner } from '../domain/ownerGuard';
 
 function serializeActivity<
     T extends {
@@ -109,6 +110,7 @@ export class ActivityService {
 
     async create(organizationId: string, data: z.infer<typeof activitySchema>) {
         const validated = activitySchema.parse(data);
+        assertRealOwner(validated.owner);
         const activity = await prisma.activity.create({
             data: {
                 ...validated,
@@ -131,6 +133,7 @@ export class ActivityService {
     async update(organizationId: string, id: string, data: Partial<z.infer<typeof activitySchema>>) {
         const currentActivity = await prisma.activity.findFirst({ where: { id, organizationId } });
         if (!currentActivity) throw new Error('Activity not found');
+        if (data.owner) assertRealOwner(data.owner);
 
         const updateData: Prisma.ActivityUpdateInput = { ...data } as Prisma.ActivityUpdateInput;
         if (data.date) updateData.date = new Date(data.date);

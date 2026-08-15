@@ -48,6 +48,52 @@ function toDistribution(
         .sort((a, b) => b.count - a.count);
 }
 
+/** Agrupa timestamps de ligação em (dia da semana, hora), omitindo células sem nenhuma ligação. */
+function buildCallHeatmap(callTimestamps: Date[]): { dayOfWeek: number; hour: number; count: number }[] {
+    const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+    for (const createdAt of callTimestamps) {
+        grid[createdAt.getDay()][createdAt.getHours()]++;
+    }
+
+    const result: { dayOfWeek: number; hour: number; count: number }[] = [];
+    for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+            if (grid[day][hour] > 0) result.push({ dayOfWeek: day, hour, count: grid[day][hour] });
+        }
+    }
+    return result;
+}
+
+/**
+ * `isAi` é uma heurística de exibição (não uma coluna real): tenta reconhecer donos automatizados
+ * pelo texto ("IA"/"SDR" no valor de `owner`) para trocar o ícone no relatório. `Lead.owner` guarda
+ * o `User.id` de quem capturou o lead na maioria dos casos (ver LeadUseCases.createLead) — um cuid
+ * nunca bate nesse teste de texto, então a heurística erra sempre para "não é IA" (falso negativo
+ * seguro) em vez de rotular uma pessoa real como IA por engano.
+ */
+function buildPerformanceReport(
+    assignedRows: GroupCount[],
+    qualifiedRows: GroupCount[],
+): AnalyticsDashboard['performanceReport'] {
+    const qualifiedByOwner = new Map<string, number>();
+    for (const row of qualifiedRows) qualifiedByOwner.set(row.value ?? '', row.count);
+
+    return assignedRows
+        .map((row) => {
+            const owner = row.value || '';
+            const assigned = row.count;
+            const qualified = qualifiedByOwner.get(owner) ?? 0;
+            return {
+                agent: owner || 'Sem Dono',
+                isAi: owner.includes('IA') || owner.includes('SDR'),
+                leadsAssigned: assigned,
+                leadsQualified: qualified,
+                conversionRate: assigned > 0 ? (qualified / assigned) * 100 : 0,
+            };
+        })
+        .sort((a, b) => b.leadsQualified - a.leadsQualified);
+}
+
 /**
  * Ao contrário de company/contact/lead/activity/note (entidades CRUD que estendem BaseUseCases),
  * Analytics é leitura agregada cross-model sem uma "entidade" própria — não estende BaseUseCases
@@ -76,6 +122,7 @@ export class AnalyticsUseCases {
             lostThisMonth,
             wonEver,
             averageScore,
+            pipeline,
         ] = await Promise.all([
             this.repository.countCompanies(organizationId),
             this.repository.countContacts(organizationId),
@@ -88,6 +135,7 @@ export class AnalyticsUseCases {
             this.repository.countLeadsByStatusSince(organizationId, LOST, monthStart),
             this.repository.countLeadsByStatus(organizationId, WON),
             this.repository.averageOpenLeadScore(organizationId),
+            this.repository.sumOpenPipelineValue(organizationId),
         ]);
 
         return {
@@ -101,7 +149,8 @@ export class AnalyticsUseCases {
             lostThisMonth,
             conversionRate: totalLeadsEver > 0 ? (wonEver / totalLeadsEver) * 100 : 0,
             averageScore,
-            pipelineValue: null,
+            // count === 0: nenhum lead em aberto tem `amount` preenchido — "Não disponível", não 0.
+            pipelineValue: pipeline.count > 0 ? pipeline.total : null,
         };
     }
 
@@ -173,8 +222,11 @@ export class AnalyticsUseCases {
             sourceRows,
             ownerRows,
             wonByOwnerRows,
+            qualifiedByOwnerRows,
             activityTypeRows,
             activityStatusRows,
+            lostReasonRows,
+            callTimestamps,
         ] = await Promise.all([
             this.overview(organizationId, now),
             this.funnel(organizationId),
@@ -183,8 +235,11 @@ export class AnalyticsUseCases {
             this.repository.groupLeadsBySource(organizationId),
             this.repository.groupLeadsByOwner(organizationId),
             this.repository.groupLeadsByOwner(organizationId, WON),
+            this.repository.groupQualifiedLeadsByOwner(organizationId),
             this.repository.groupActivitiesByType(organizationId),
             this.repository.groupActivitiesByStatus(organizationId),
+            this.repository.groupLostLeadsByReason(organizationId),
+            this.repository.findCallActivityTimestamps(organizationId),
         ]);
 
         const wonByOwner = new Map<string, number>();
@@ -220,10 +275,12 @@ export class AnalyticsUseCases {
             byOwner,
             activitiesByType: toDistribution(activityTypeRows, fromPrismaActivityType),
             activitiesByStatus: toDistribution(activityStatusRows, fromPrismaActivityStatus),
+            // Sem timestamp real de entrada na etapa de qualificação para o funil Lead — ver
+            // comentário completo no tipo `AnalyticsDashboard['tmqMetric']` (domain/Analytics.ts).
             tmqMetric: null,
-            lostReasons: [],
-            callHeatmap: [],
-            performanceReport: [],
+            lostReasons: toDistribution(lostReasonRows, (v) => v, 'Sem motivo registrado'),
+            callHeatmap: buildCallHeatmap(callTimestamps),
+            performanceReport: buildPerformanceReport(ownerRows, qualifiedByOwnerRows),
             isEmpty,
         };
     }

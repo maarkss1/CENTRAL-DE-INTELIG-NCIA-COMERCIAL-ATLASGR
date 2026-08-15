@@ -1,5 +1,6 @@
 import { prisma } from '../../../lib/prisma.js';
 import type { AnalyticsRepository, GroupCount, ClosedLead } from '../domain/Analytics';
+import { CLOSED_STATUSES } from '../domain/Analytics';
 
 export class PrismaAnalyticsRepository implements AnalyticsRepository {
     async countCompanies(organizationId: string): Promise<number> {
@@ -12,7 +13,7 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
 
     async countOpenLeads(organizationId: string): Promise<number> {
         return prisma.lead.count({
-            where: { organizationId, deletedAt: null, status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos'] } },
+            where: { organizationId, deletedAt: null, status: { notIn: CLOSED_STATUSES as unknown as never[] } },
         });
     }
 
@@ -52,12 +53,26 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
             where: {
                 organizationId,
                 deletedAt: null,
-                status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos'] },
+                status: { notIn: CLOSED_STATUSES as unknown as never[] },
                 score: { not: null },
             },
             _avg: { score: true },
         });
-        return result._avg.score ?? null;
+        return result._avg?.score ?? null;
+    }
+
+    async sumOpenPipelineValue(organizationId: string): Promise<{ total: number; count: number }> {
+        const where = {
+            organizationId,
+            deletedAt: null,
+            status: { notIn: CLOSED_STATUSES as unknown as never[] },
+            amount: { not: null },
+        } as const;
+        const [aggregate, count] = await Promise.all([
+            prisma.lead.aggregate({ where, _sum: { amount: true } }),
+            prisma.lead.count({ where }),
+        ]);
+        return { total: aggregate._sum?.amount ?? 0, count };
     }
 
     async groupLeadsByStatus(organizationId: string): Promise<GroupCount[]> {
@@ -129,5 +144,47 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
             _count: { _all: true },
         });
         return rows.map((row) => ({ value: row.status, count: row._count._all }));
+    }
+
+    // Mesmo recorte de "qualificado" da versão legada (analytics.service.ts): saiu das duas
+    // primeiras etapas do funil e não foi desqualificado. Não usa CLOSED_STATUSES porque um
+    // negócio GANHO/PERDIDO também passou por qualificação — só o desqualificado nunca qualificou.
+    async groupQualifiedLeadsByOwner(organizationId: string): Promise<GroupCount[]> {
+        const rows = await prisma.lead.groupBy({
+            by: ['owner'],
+            where: {
+                organizationId,
+                deletedAt: null,
+                status: { notIn: ['Lead_Recebido', 'Cadencia_Iniciada', 'Lead_Desqualificado'] as unknown as never[] },
+            },
+            _count: { _all: true },
+        });
+        return rows.map((row) => ({ value: row.owner, count: row._count._all }));
+    }
+
+    async groupLostLeadsByReason(organizationId: string): Promise<GroupCount[]> {
+        const rows = await prisma.lead.groupBy({
+            by: ['lossReason'],
+            where: {
+                organizationId,
+                deletedAt: null,
+                status: { in: ['Negocios_Perdidos', 'Lead_Desqualificado', 'Piloto_Atlas_Profile_Cancelado', 'Piloto_Logistico_Cancelado'] as unknown as never[] },
+            },
+            _count: { _all: true },
+        });
+        return rows.map((row) => ({ value: row.lossReason, count: row._count._all }));
+    }
+
+    // 'Ligacao' é o valor real do enum ActivityType no Prisma (ver schema.prisma) — a versão
+    // legada deste método (analytics.service.ts) filtrava por `type: 'call'`, um valor que não
+    // existe no enum, então a consulta lá sempre devolvia zero linhas silenciosamente (heatmap
+    // sempre vazio, indistinguível de "nenhuma ligação registrada" mesmo com ligações reais no
+    // banco). Corrigido aqui para o valor real.
+    async findCallActivityTimestamps(organizationId: string): Promise<Date[]> {
+        const rows = await prisma.activity.findMany({
+            where: { organizationId, deletedAt: null, type: 'Ligacao' },
+            select: { createdAt: true },
+        });
+        return rows.map((row) => row.createdAt);
     }
 }

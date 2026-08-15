@@ -11,11 +11,22 @@ export const FUNNEL_STAGES = [
 
 export const WON = 'Negocios_Ganhos';
 export const LOST = 'Negocios_Perdidos';
+const DESQUALIFICADO = 'Lead_Desqualificado';
+// Os dois estágios "...Cancelado" dos pilotos comerciais (funil Negócio) contam como fechamento
+// sem venda, assim como em crm360.service.ts (DEAL_STAGES, isLost:true) e em analytics.service.ts
+// (o serviço legado usado pelo relatório semanal em PDF). Sem isso, um lead desqualificado ou com
+// piloto cancelado contava como "pipeline ainda aberto" aqui mas não nos outros dois lugares —
+// dashboard, relatório em PDF e API divergindo silenciosamente na mesma métrica (ver mission do
+// Agente 04: "dicionário de métricas... para que dashboard, relatório exportado e API não
+// divirjam silenciosamente").
+export const CLOSED_LOST_STATUSES = [LOST, DESQUALIFICADO, 'Piloto_Atlas_Profile_Cancelado', 'Piloto_Logistico_Cancelado'] as const;
+/** Todo status que representa fechamento, ganho ou sem venda — usado para excluir do "pipeline aberto". */
+export const CLOSED_STATUSES = [WON, ...CLOSED_LOST_STATUSES] as const;
 
 export interface OverviewMetrics {
     totalCompanies: number;
     totalContacts: number;
-    /** Leads em aberto (fora de ganho/perdido). */
+    /** Leads em aberto (fora de `CLOSED_STATUSES`: ganho, perdido, desqualificado, piloto cancelado). */
     totalLeads: number;
     totalActivities: number;
     pendingActivities: number;
@@ -26,10 +37,12 @@ export interface OverviewMetrics {
     /** Média do score dos leads em aberto, ou null se nenhum lead tem score preenchido. */
     averageScore: number | null;
     /**
-     * Sempre null: não existe campo de valor monetário no modelo Lead. O frontend exibe "—" em vez
-     * de inventar um número. Quando a coluna existir, é aqui que ela entra.
+     * Soma de `Lead.amount` dos leads em aberto (fora de ganho/perdido/desqualificado/piloto
+     * cancelado) que têm valor preenchido. `null` quando nenhum lead em aberto tem `amount`
+     * preenchido — o frontend exibe "—" em vez de inventar um número (nunca fabrica 0 ou uma
+     * média para preencher a interface, ver AGENTS.md > "Dados reais x demonstração").
      */
-    pipelineValue: null;
+    pipelineValue: number | null;
 }
 
 export interface DistributionSlice {
@@ -59,6 +72,17 @@ export interface AnalyticsDashboard {
     activitiesByType: DistributionSlice[];
     activitiesByStatus: DistributionSlice[];
     monthly: MonthlyPoint[];
+    /**
+     * "Tempo até qualificação" (TMQ). Sempre `null`: o modelo `Lead` não tem um timestamp real de
+     * quando um registro entrou na etapa "Qualificacao_SDR" (isso só existe para o funil Negócio,
+     * via `LeadStageHistory.enteredAt` — ver AGENTS.md do módulo `commercial-intelligence`). Uma
+     * versão anterior deste campo usava `updatedAt - createdAt` como proxy, mas `updatedAt` sobe em
+     * QUALQUER escrita no lead (sync do Bitrix, uma ligação de voz tocando só `lastInteraction`),
+     * então o número resultante não media tempo até qualificação — media "há quanto tempo alguém
+     * mexeu nisso pela última vez", o que é outra coisa. Sem uma coluna/tabela real para essa
+     * transição no funil Lead, `null` (estado vazio explícito) é mais honesto que um número que
+     * parece preciso e não é. Ver AGENTS.md > "Dados reais x demonstração".
+     */
     tmqMetric: number | null;
     lostReasons: DistributionSlice[];
     callHeatmap: { dayOfWeek: number, hour: number, count: number }[];
@@ -94,7 +118,7 @@ export interface ClosedLead {
 export interface AnalyticsRepository {
     countCompanies(organizationId: string): Promise<number>;
     countContacts(organizationId: string): Promise<number>;
-    /** Leads em aberto (status fora de WON/LOST). */
+    /** Leads em aberto (status fora de `CLOSED_STATUSES`). */
     countOpenLeads(organizationId: string): Promise<number>;
     /** Todos os leads já criados, independente de status. */
     countAllLeads(organizationId: string): Promise<number>;
@@ -106,6 +130,12 @@ export interface AnalyticsRepository {
     countLeadsByStatus(organizationId: string, status: string): Promise<number>;
     /** Média do score dos leads em aberto com score preenchido. */
     averageOpenLeadScore(organizationId: string): Promise<number | null>;
+    /**
+     * Soma de `Lead.amount` dos leads em aberto que têm valor preenchido, e quantos leads em
+     * aberto entraram nessa soma. `count === 0` é o sinal para a camada de aplicação devolver
+     * `pipelineValue: null` em vez de fabricar 0 (nenhum dado real disponível ainda).
+     */
+    sumOpenPipelineValue(organizationId: string): Promise<{ total: number; count: number }>;
     groupLeadsByStatus(organizationId: string): Promise<GroupCount[]>;
     findLeadsCreatedSince(organizationId: string, since: Date): Promise<Array<{ createdAt: Date }>>;
     /** Leads com status WON ou LOST fechados desde `since` (usa `closedAt`, nunca `updatedAt`). */
@@ -114,6 +144,16 @@ export interface AnalyticsRepository {
     groupLeadsBySource(organizationId: string): Promise<GroupCount[]>;
     /** `status` opcional filtra o agrupamento (usado para "ganhos por responsável"). */
     groupLeadsByOwner(organizationId: string, status?: string): Promise<GroupCount[]>;
+    /**
+     * Leads agrupados por dono, restritos aos que já saíram das duas primeiras etapas do funil e
+     * não foram desqualificados — usado para "leads qualificados por responsável" no relatório de
+     * performance (mesmo recorte de status que a versão legada em `analytics.service.ts`).
+     */
+    groupQualifiedLeadsByOwner(organizationId: string): Promise<GroupCount[]>;
     groupActivitiesByType(organizationId: string): Promise<GroupCount[]>;
     groupActivitiesByStatus(organizationId: string): Promise<GroupCount[]>;
+    /** Motivo de perda dos leads fechados sem venda (`Lead.lossReason`, texto livre). */
+    groupLostLeadsByReason(organizationId: string): Promise<GroupCount[]>;
+    /** `createdAt` de toda atividade do tipo "Ligação" — usado para montar o heatmap de ligações. */
+    findCallActivityTimestamps(organizationId: string): Promise<Date[]>;
 }
