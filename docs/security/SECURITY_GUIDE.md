@@ -46,16 +46,18 @@ documentados em `.agents/completion/01-bloqueadores.md`.
 
 ## `security:zap` / `security:trivy` — quando e como rodar
 
-Os dois scripts (`npm run security:zap`, `npm run security:trivy`) existem em `package.json` mas
-não fazem parte de nenhum gate automático (ver handoff
-`.agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md` para a proposta de integração ao CI/gate).
-Até que o Agente 08 decida onde encaixá-los, rode manualmente antes de um release:
+Decisão implementada pelo Agente 08 (Onda 6, remediação) a partir da proposta em
+`.agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md`:
 
-- **`npm run security:trivy`** — scan de filesystem/dependências, não precisa da aplicação
-  rodando. Precisa de rede irrestrita para baixar o banco de vulnerabilidades na primeira
-  execução (`mirror.gcr.io/aquasec/trivy-db`); ambientes com proxy TLS restritivo podem falhar
-  nesse download — não é falha do script.
-- **`npm run security:zap`** — scan dinâmico de API (`zap-api-scan.py` contra
-  `/api-docs/openapi.yaml`). Exige a aplicação já rodando em `http://localhost:3000` (ou o alvo
-  configurado) **antes** de rodar o comando — suba a stack (`docker compose up` ou `npm run dev`)
-  primeiro. Sem alvo vivo, o ZAP falha ao tentar buscar a spec OpenAPI.
+- **`npm run security:trivy`** (scan de filesystem/dependências, não precisa da aplicação
+  rodando) — agora roda **automaticamente toda semana** via
+  `.github/workflows/security-trivy.yml` (`workflow_dispatch` também disponível para rodar sob
+  demanda), num runner hospedado do GitHub Actions com rede irrestrita — o erro de TLS ao baixar
+  `mirror.gcr.io/aquasec/trivy-db` visto em ambientes de agente com proxy restritivo não se aplica
+  lá. **Não bloqueia PR** — é um job agendado independente de `ci.yml`, reporta no Job Summary da
+  execução. Rodar localmente continua funcionando do mesmo jeito para depuração pontual, mas
+  requer rede sem proxy TLS restritivo para o primeiro download do banco de vulnerabilidades.
+- **`npm run security:zap`** (scan dinâmico de API, exige a aplicação já no ar) — **não** entra em
+  CI automático (não existe alvo efêmero vivo em nenhum job de push/PR deste projeto) — continua
+  manual, mas agora como passo obrigatório do runbook de pré-release, rodado contra staging:
+  ver `docs/deploy/RELEASE_CHECKLIST.md` seção 2.
