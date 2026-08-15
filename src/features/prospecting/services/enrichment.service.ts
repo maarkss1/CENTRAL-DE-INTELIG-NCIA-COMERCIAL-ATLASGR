@@ -24,6 +24,7 @@
 import { prisma } from '../../../lib/prisma.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import type { Prisma } from '@prisma/client';
+import { logger } from '../../../lib/logger.js';
 import { isValidCnpj, discoverCnpjByName } from './cnpj.util';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService';
 import { searchGooglePlace } from './places.service';
@@ -32,10 +33,11 @@ import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from './ap
 import { fromPrismaCompanyStatus } from '../../../lib/enumMap';
 import { searchCompanyNews, type NewsMention } from './news.service';
 import { checkEmailDeliverability } from './email-verification.service';
-import { computeLookalikeScore } from './lookalike-scoring.service';
+import { computeLookalikeScore, type LookalikeScoreResult, type LookalikeMatch } from './lookalike-scoring.service';
 import { fetchCnpjData } from './enrichment/cnpjLookup.js';
 import { guessDomainAndEmails, extractDomainFromWebsite, resolveEmailStatus, guessWhatsappFromPhone, type DomainGuess } from './enrichment/domainGuess.js';
 import { computeFitScore } from './enrichment/fitScore.js';
+import { filterNewContacts } from '../utils/contactDedupe.js';
 
 export { fetchCnpjData, fetchCepData, type CnpjLookupResult, type CepLookupResult } from './enrichment/cnpjLookup.js';
 export { guessDomainAndEmails, type DomainGuess } from './enrichment/domainGuess.js';
@@ -55,6 +57,42 @@ export interface EnrichCompanyOptions {
         phone: string | null;
         linkedinUrl: string | null;
     }>;
+    /**
+     * Ignora o cache de `isEnrichmentFresh` e força um novo enriquecimento completo mesmo que a
+     * empresa já tenha sido enriquecida recentemente — use quando o operador pede explicitamente
+     * um novo enriquecimento (ex: corrigiu o CNPJ manualmente, ou clicou num botão "Reenriquecer"
+     * dedicado). Sem este flag, chamadas repetidas a `enrichCompany` para a mesma empresa dentro do
+     * TTL não rechamam Apollo/Hunter/Google Places (ver `isEnrichmentFresh`).
+     */
+    force?: boolean;
+}
+
+/**
+ * TTL do cache de enriquecimento completo, em horas — configurável via
+ * `ENRICHMENT_CACHE_TTL_HOURS` (default 24h). Requisito da Onda 7 (LGPD/05: "não enriquece além
+ * do estritamente necessário para qualificação comercial"): antes deste guard, TODO chamador de
+ * `enrichCompany` — inclusive automáticos, como `promoteToCrm` reaproveitando uma Company já
+ * enriquecida para abrir um novo Lead — reexecutava o pipeline inteiro (CNPJ, Google Places,
+ * GDELT, Apollo Organization, Apollo People/Hunter) mesmo quando a empresa tinha sido enriquecida
+ * minutos antes, gastando crédito pago de provider sem necessidade real.
+ */
+function getEnrichmentCacheTtlMs(environment: NodeJS.ProcessEnv = process.env): number {
+    const hours = Number(environment.ENRICHMENT_CACHE_TTL_HOURS);
+    const safeHours = Number.isFinite(hours) && hours > 0 ? hours : 24;
+    return safeHours * 60 * 60 * 1000;
+}
+
+/**
+ * Decide se `company` ainda está "fresca" o bastante para pular um novo enriquecimento pago.
+ * Pura e testável: recebe `now`/`ttlMs` explicitamente em vez de ler `Date.now()`/env direto.
+ */
+export function isEnrichmentFresh(
+    company: { enrichmentStatus: string; enrichedAt: Date | null },
+    now: Date = new Date(),
+    ttlMs: number = getEnrichmentCacheTtlMs()
+): boolean {
+    if (company.enrichmentStatus !== 'Enriquecido' || !company.enrichedAt) return false;
+    return now.getTime() - company.enrichedAt.getTime() < ttlMs;
 }
 
 interface CompanyUpdateData {
@@ -104,6 +142,14 @@ export async function enrichCompany(organizationId: string, companyId: string, o
     const company = await prisma.company.findFirst({ where: { id: companyId, organizationId } });
     if (!company) throw new AppError('Company not found', 404);
 
+    if (!options.force && isEnrichmentFresh(company)) {
+        logger.info(
+            { companyId, enrichedAt: company.enrichedAt },
+            'enrichCompany: cache de enriquecimento ainda válido — pulando rechamada a Apollo/Hunter/Google Places/BrasilAPI (passe options.force para ignorar)'
+        );
+        return buildCachedEnrichmentResult(company, options);
+    }
+
     await prisma.company.update({ where: { id: companyId }, data: { enrichmentStatus: 'Enriquecendo' } });
 
     try {
@@ -112,6 +158,110 @@ export async function enrichCompany(organizationId: string, companyId: string, o
         await prisma.company.update({ where: { id: companyId }, data: { enrichmentStatus: 'Falhou' } }).catch(() => {});
         throw error;
     }
+}
+
+/**
+ * Resultado devolvido quando `isEnrichmentFresh` decide pular um novo enriquecimento pago —
+ * mesma forma de retorno de `runEnrichment` (os chamadores em prospecting.service.ts/
+ * LeadUseCases.ts/ContactUseCases.ts/CompanyUseCases.ts só leem `.company`/`.fit`), mas montado
+ * inteiramente a partir do que já está persistido, sem nenhuma chamada externa nova:
+ * - `fit` é recalculado por `computeFitScore` (determinístico, gratuito) a partir dos campos já
+ *   salvos na Company — exceto `cnaeDescription`, que não é persistido (só o código CNAE é) e só
+ *   fica disponível durante um lookup de CNPJ ao vivo; o bônus de aderência de CNAE ao ICP fica de
+ *   fora do fit recalculado a partir do cache, mesma limitação já documentada em `runEnrichment`.
+ * - `lookalike` reaproveita `lookalikeScore`/`lookalikeTopMatches` já gravados (não recalcula o
+ *   embedding pgvector — isso já não passava por nenhum provider pago, mas evita trabalho à toa).
+ * - `domainGuess`/`apolloContacts` não têm dado "fresco" pra oferecer sem uma nova chamada, então
+ *   voltam vazios/nulos em vez de inventados.
+ */
+function buildCachedEnrichmentResult(
+    company: NonNullable<Awaited<ReturnType<typeof prisma.company.findUnique>>>,
+    options: EnrichCompanyOptions
+) {
+    const fit = computeFitScore({
+        situacaoCadastral: company.situacaoCadastral,
+        capitalSocial: company.capitalSocial,
+        employeeCountEstimate: company.employeeCount,
+        segmentKeywords: options.segmentKeywords,
+        segment: company.segment,
+        city: company.city,
+        state: company.state,
+        fleetSizeHint: options.fleetSizeHint,
+        technologies: company.technologies,
+    });
+
+    const lookalike: LookalikeScoreResult | null = company.lookalikeScore != null
+        ? {
+            score: company.lookalikeScore,
+            matches: (company.lookalikeTopMatches as unknown as LookalikeMatch[] | null) || [],
+        }
+        : null;
+
+    return {
+        company: { ...company, status: fromPrismaCompanyStatus(company.status) },
+        fit,
+        lookalike,
+        domainGuess: null as DomainGuess | null,
+        apolloContacts: [] as Array<{ name: string; title: string | null; email: string | null; phone: string | null; linkedin_url: string | null }>,
+        cached: true as const,
+    };
+}
+
+interface DecisionMakerLike {
+    name: string;
+    title: string | null;
+    email: string | null;
+    phone: string | null;
+    linkedin_url: string | null;
+}
+
+/**
+ * Persiste os decisores encontrados (Apollo/Hunter/pré-buscados na Descoberta) como `Contact`,
+ * deduplicando por e-mail/telefone normalizado contra Contacts já existentes desta empresa —
+ * extraído das duas chamadas quase idênticas que existiam antes em `runEnrichment` (uma para
+ * `preFetchedDecisionMakers`, outra para o resultado ao vivo de `enrichOrganizationWithContacts`).
+ * Sem o dedupe, um reenriquecimento (ex: depois do TTL de `isEnrichmentFresh` expirar, ou com
+ * `options.force`) inseria o mesmo decisor de novo a cada execução — duplicata real de dado
+ * pessoal, não hipotética (ver AGENTS.md → LGPD: "05 garante... não enriquece além do
+ * estritamente necessário").
+ */
+async function saveDecisionMakersAsContacts(
+    companyId: string,
+    organizationId: string | null,
+    candidates: DecisionMakerLike[],
+    sourceLabel: 'Apollo' | 'Hunter'
+): Promise<void> {
+    const validCandidates = candidates.filter((c) => c.name && c.name !== 'Sem Nome');
+    if (validCandidates.length === 0) return;
+
+    const existingContacts = await prisma.contact.findMany({
+        where: { companyId },
+        select: { email: true, phone: true },
+    });
+    const newContacts = filterNewContacts(validCandidates, existingContacts);
+
+    const skippedCount = validCandidates.length - newContacts.length;
+    if (skippedCount > 0) {
+        logger.info(
+            { companyId, skippedCount, sourceLabel },
+            'saveDecisionMakersAsContacts: contato(s) já existente(s) ignorado(s) (dedupe por e-mail/telefone normalizado)'
+        );
+    }
+    if (newContacts.length === 0) return;
+
+    const contactsData = await Promise.all(newContacts.map(async (c) => ({
+        name: c.name,
+        role: c.title,
+        email: c.email,
+        phone: c.phone,
+        whatsapp: guessWhatsappFromPhone(c.phone),
+        linkedin: c.linkedin_url,
+        source: sourceLabel,
+        emailStatus: await resolveEmailStatus(c.email),
+        companyId,
+        organizationId,
+    })));
+    await prisma.contact.createMany({ data: contactsData });
 }
 
 async function runEnrichment(
@@ -325,22 +475,7 @@ async function runEnrichment(
             }
         });
 
-        const validContacts = apolloContacts.filter(c => c.name && c.name !== 'Sem Nome');
-        if (validContacts.length > 0) {
-            const contactsData = await Promise.all(validContacts.map(async (c) => ({
-                name: c.name,
-                role: c.title,
-                email: c.email,
-                phone: c.phone,
-                whatsapp: guessWhatsappFromPhone(c.phone),
-                linkedin: c.linkedin_url,
-                source: 'Apollo',
-                emailStatus: await resolveEmailStatus(c.email),
-                companyId,
-                organizationId: company.organizationId
-            })));
-            await prisma.contact.createMany({ data: contactsData });
-        }
+        await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, 'Apollo');
     } else if (domainGuess.verified && domainGuess.domain) {
         const apolloRes = await enrichOrganizationWithContacts(domainGuess.domain);
         if (apolloRes.contacts.length > 0) {
@@ -360,22 +495,7 @@ async function runEnrichment(
             });
 
             // Save contacts to CRM
-            const validContacts = apolloContacts.filter(c => c.name && c.name !== 'Sem Nome');
-            if (validContacts.length > 0) {
-                const contactsData = await Promise.all(validContacts.map(async (c) => ({
-                    name: c.name,
-                    role: c.title,
-                    email: c.email,
-                    phone: c.phone,
-                    whatsapp: guessWhatsappFromPhone(c.phone),
-                    linkedin: c.linkedin_url,
-                    source: contactsSource === 'hunter' ? 'Hunter' : 'Apollo',
-                    emailStatus: await resolveEmailStatus(c.email),
-                    companyId,
-                    organizationId: company.organizationId
-                })));
-                await prisma.contact.createMany({ data: contactsData });
-            }
+            await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, contactsSource === 'hunter' ? 'Hunter' : 'Apollo');
         }
     }
 
