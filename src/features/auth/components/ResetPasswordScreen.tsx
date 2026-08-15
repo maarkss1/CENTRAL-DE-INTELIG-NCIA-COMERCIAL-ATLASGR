@@ -125,8 +125,9 @@ export function ResetPasswordScreen() {
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Nova Senha</label>
+                <label htmlFor="reset-new-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Nova Senha</label>
                 <input
+                  id="reset-new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -139,8 +140,9 @@ export function ResetPasswordScreen() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Confirmar Nova Senha</label>
+                <label htmlFor="reset-confirm-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Confirmar Nova Senha</label>
                 <input
+                  id="reset-confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

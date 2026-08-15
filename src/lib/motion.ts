@@ -112,6 +112,10 @@ export function useMagnetic(strength = 0.35) {
   const y = useSpring(0, SPRING_SNAPPY);
 
   const onPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    // Bug real: reduceMotion era lido de useReducedMotion() mas nunca checado aqui (diferente de
+    // useTilt, que já fazia essa guarda) — o efeito magnético continuava puxando o elemento mesmo
+    // com prefers-reduced-motion ativo. Achado e corrigido na Onda 8 (débito de acessibilidade,
+    // Constituição §8/§10).
     if (reduceMotion || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     x.set((event.clientX - rect.left - rect.width / 2) * strength);
