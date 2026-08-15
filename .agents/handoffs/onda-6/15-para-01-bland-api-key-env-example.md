@@ -1,7 +1,7 @@
 - De: Agente 15 (Segurança Aplicada e Rotação de Segredos)
 - Para: Agente 01 (Plataforma, Segurança e Dados — dono de `.env.example`)
 - Onda: 6
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -30,3 +30,7 @@ valor real incluído.
 ## Contexto adicional
 Encontrado durante a auditoria de segurança da Onda 6, ao escrever o runbook de rotação da chave
 Bland AI. Não é bloqueador de release — é lacuna de documentação de contrato de ambiente.
+
+
+## Resolução (00, 2026-08-15)
+Adicionado `BLAND_API_KEY=` a `.env.example` com comentário curto, junto do bloco Birth Voices.
