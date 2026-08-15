@@ -22,9 +22,15 @@ vi.mock('../../../../lib/adapters/crm/Bitrix24Adapter.js', () => ({
     assertSafeWebhookUrl: assertSafeWebhookUrlMock,
 }));
 
+const isSuppressedMock = vi.fn().mockResolvedValue(false);
+vi.mock('@/features/integrations/birth-voice/callSuppression.service', () => ({
+    isSuppressed: (...args: unknown[]) => isSuppressedMock(...args),
+}));
+
 beforeEach(() => {
     vi.clearAllMocks();
     assertSafeWebhookUrlMock.mockResolvedValue(undefined);
+    isSuppressedMock.mockResolvedValue(false);
 });
 
 describe('get3CXConnectionsForOrg / save3CXConnectionForOrg / delete3CXConnectionForOrg', () => {
@@ -165,5 +171,79 @@ describe('connect3CX', () => {
         expect(result).not.toHaveProperty('apiSecret');
         expect(result.pbxUrl).toBe('https://pbx.example.com');
         expect(result.extension).toBe('101');
+    });
+});
+
+describe('make3CXCall', () => {
+    const conn = {
+        id: 'conn-1',
+        organizationId: 'org-a',
+        label: '3CX Ramal 101',
+        pbxUrl: 'https://pbx.example.com',
+        extension: '101',
+        apiKey: null,
+        apiSecret: null,
+        autoDialEnabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+
+    beforeEach(() => {
+        prismaMock.threeCXConnection.findMany.mockResolvedValue([conn]);
+        prismaMock.activity.create.mockResolvedValue({});
+    });
+
+    // "Um número suprimido nunca é discado, por nenhum caminho" — o Click-to-Call do 3CX é um
+    // segundo caminho de discagem além do SDR de voz (birth-voice), e precisa respeitar a mesma
+    // lista de bloqueio.
+    it('recusa a chamada e não bate na rede quando o número está na lista de bloqueio', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        isSuppressedMock.mockResolvedValue(true);
+        vi.stubGlobal('fetch', vi.fn());
+
+        await expect(make3CXCall('org-a', 'conn-1', '11999998888')).rejects.toThrow(
+            'lista interna de bloqueio',
+        );
+        expect(fetch).not.toHaveBeenCalled();
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888');
+
+        vi.unstubAllGlobals();
+    });
+
+    it('nunca afirma sucesso quando o PABX não responde OK — falha honesta', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502 }));
+
+        await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
+            'Não foi possível disparar a chamada',
+        );
+
+        // A atividade gravada no CRM reflete a falha real, nunca "chamada iniciada".
+        expect(prismaMock.activity.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    observations: expect.stringContaining('FALHOU'),
+                }),
+            }),
+        );
+
+        vi.unstubAllGlobals();
+    });
+
+    it('só afirma sucesso quando o PABX de fato responde OK', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+
+        const result = await make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1');
+
+        expect(result.success).toBe(true);
+        expect(prismaMock.activity.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    observations: expect.stringContaining('Chamada disparada via 3CX PABX'),
+                }),
+            }),
+        );
+
+        vi.unstubAllGlobals();
     });
 });

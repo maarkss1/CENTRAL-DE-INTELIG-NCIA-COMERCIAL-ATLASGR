@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { isSuppressed } from '../birth-voice/callSuppression.service.js';
 
 export interface ThreeCXConnectionInput {
     label?: string;
@@ -201,6 +202,15 @@ export async function make3CXCall(
     const cleanNumber = destinationNumber.replace(/\D/g, '');
     if (!cleanNumber || cleanNumber.length < 8) {
         throw new AppError('Número de destino inválido para chamada 3CX.', 400);
+    }
+
+    // Mesma lista interna de bloqueio usada pelo SDR de voz (birth-voice) — "um número suprimido
+    // nunca é discado, por nenhum caminho" vale para qualquer forma de ligar deste produto, e o
+    // Click-to-Call do 3CX era um caminho que nunca checava isto: um pedido de opt-out registrado
+    // pela ligação de IA não impedia um vendedor humano de disparar outra chamada pelo 3CX para o
+    // mesmo número minutos depois.
+    if (await isSuppressed(organizationId, destinationNumber)) {
+        throw new AppError('Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.', 409);
     }
 
     const callId = `3cx-call-${Date.now()}`;
