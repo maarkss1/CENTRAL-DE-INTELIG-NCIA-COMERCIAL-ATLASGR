@@ -327,6 +327,7 @@ model Lead {
   dealItems           CrmDealItem[]
   commercialDocuments CrmCommercialDocument[]
   stageHistory        LeadStageHistory[]
+  optOutRecords       OptOutRecord[]
   organizationId      String?
   organization        Organization?           @relation(fields: [organizationId], references: [id])
 
@@ -465,6 +466,7 @@ model Organization {
   bitrixSyncLogs            BitrixSyncLog[]
   bitrixExtractionRuns      BitrixExtractionRun[]
   threeCXConnections        ThreeCXConnection[]
+  optOutRecords             OptOutRecord[]
   crmPipelines              CrmPipeline[]
   crmProducts               CrmProduct[]
   crmDealItems              CrmDealItem[]
@@ -1283,6 +1285,51 @@ model ThreeCXConnection {
   updatedAt DateTime @updatedAt
 
   @@index([organizationId])
+}
+
+/// Registro unificado de opt-out multicanal (e-mail/WhatsApp/voz), proposto pelo Agente 17 em
+/// .agents/handoffs/onda-7/17-para-01-schema-cadencia-optout-proposta.md e aplicado aqui para
+/// destravar o handoff bloqueador .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md —
+/// antes deste modelo, CallSuppression (model abaixo) só protegia o canal de voz, e um lead que
+/// pedisse para não ser incomodado num canal continuava recebendo mensagem pelos outros dois.
+/// Casamento por leadId (mais forte) OU email OU phoneE164 — ver src/features/cadence/domain/optOut.ts
+/// e src/features/cadence/application/optOutService.ts (lógica de domínio já implementada/testada
+/// pelo 17, este model é só o adaptador de persistência que faltava).
+enum OptOutScope {
+  Email
+  WhatsApp
+  Voice
+  Global
+}
+
+model OptOutRecord {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  scope OptOutScope
+
+  /// Identificadores de correspondência: casa por QUALQUER um destes três que o canal disparador
+  /// já tiver carregado do Lead antes de tentar o envio — email/phoneE164 cobrem o opt-out
+  /// registrado antes de o lead existir localmente (ex.: webhook de descadastro chegando antes do
+  /// primeiro sync).
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  email      String?
+  phoneE164  String?
+
+  /// Canal por onde o pedido chegou — não é o escopo do bloqueio (ver `scope` acima).
+  originChannel String
+  reason        String?
+  /// Texto/trecho real da mensagem que motivou o opt-out — nunca inferência do modelo de IA.
+  evidence      String?
+  requestedBy   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, leadId])
+  @@index([organizationId, phoneE164])
+  @@index([organizationId, email])
 }
 
 /// Um registro por execução da campanha de prospecção fria (ver coldCall.service.ts). Sem isto a
