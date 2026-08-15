@@ -42,6 +42,13 @@ vi.mock('@/lib/adapters/crm/Bitrix24Adapter', () => ({
     assertSafeWebhookUrl: vi.fn().mockResolvedValue(undefined),
 }));
 
+const isSuppressedMock = vi.fn().mockResolvedValue(false);
+// "Um número suprimido nunca é discado, por nenhum caminho" (ver AGENTS.md) vale também para o
+// Click-to-Call do 3CX — mesma lista de bloqueio usada pelo SDR de voz (birth-voice).
+vi.mock('@/features/integrations/birth-voice/callSuppression.service', () => ({
+    isSuppressed: (...args: unknown[]) => isSuppressedMock(...args),
+}));
+
 import { connect3CX, make3CXCall } from '@/features/integrations/threecx/threecx.service';
 
 const ORG_ID = 'org-3cx-test';
@@ -55,6 +62,7 @@ beforeEach(() => {
     createActivityMock.mockResolvedValue({});
     threeCXStore = [];
     deleteManyThreeCXMock.mockResolvedValue({ count: 0 });
+    isSuppressedMock.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -119,5 +127,21 @@ describe('make3CXCall — honestidade sobre chamada real (nunca finge sucesso)',
 
         await expect(make3CXCall(ORG_ID, conn.id, '123')).rejects.toThrow(/inválido/);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // "Um número suprimido nunca é discado, por nenhum caminho" — antes desta auditoria o
+    // Click-to-Call do 3CX era exatamente esse caminho esquecido: um opt-out registrado pela
+    // ligação de IA (birth-voice) não impedia um vendedor humano de discar de novo pelo 3CX.
+    it('recusa a chamada e não bate na rede quando o número está na lista de bloqueio (opt-out)', async () => {
+        const conn = await seedConnection();
+        isSuppressedMock.mockResolvedValue(true);
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(make3CXCall(ORG_ID, conn.id, '11987654321')).rejects.toThrow(
+            /lista interna de bloqueio/,
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321');
     });
 });

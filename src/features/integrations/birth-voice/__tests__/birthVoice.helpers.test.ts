@@ -6,6 +6,8 @@ import {
     buildObservations,
     pickCallablePhone,
     detectOptOut,
+    classifyCallOutcome,
+    callResultedInConversation,
 } from '../birthVoice.helpers';
 
 const SECRET = 'segredo-compartilhado';
@@ -154,6 +156,61 @@ describe('detectOptOut', () => {
 
     it('não quebra quando a ligação não teve transcrição', () => {
         expect(detectOptOut({ outcome: 'Não atendida' }).optOut).toBe(false);
+    });
+});
+
+describe('classifyCallOutcome', () => {
+    it('mapeia o vocabulário conhecido do Hub em estados distintos', () => {
+        expect(classifyCallOutcome({ providerOutcome: 'Concluído' })).toBe('completed');
+        expect(classifyCallOutcome({ providerOutcome: 'Ocupado' })).toBe('busy');
+        expect(classifyCallOutcome({ providerOutcome: 'Não atendida' })).toBe('no-answer');
+        expect(classifyCallOutcome({ providerOutcome: 'Falha' })).toBe('failed');
+        expect(classifyCallOutcome({ providerOutcome: 'Cancelada' })).toBe('cancelled');
+    });
+
+    it('secretária eletrônica (AMD) explícita nunca vira completed, mesmo com outcome positivo', () => {
+        expect(classifyCallOutcome({ providerOutcome: 'Concluído', machineDetected: true })).toBe('voicemail');
+    });
+
+    it('secretária eletrônica inferida do texto tem prioridade sobre outcome positivo', () => {
+        expect(classifyCallOutcome({
+            providerOutcome: 'Concluído',
+            text: 'Você atingiu a caixa postal, deixe seu recado após o sinal.',
+        })).toBe('voicemail');
+    });
+
+    it('duração curta sem nenhum outcome nem texto negativo é tratada como não-atendida (nunca sucesso por omissão)', () => {
+        expect(classifyCallOutcome({ durationSeconds: 2 })).toBe('no-answer');
+    });
+
+    it('duração substancial sem nenhum sinal negativo é o melhor indício disponível de conversa real', () => {
+        expect(classifyCallOutcome({ durationSeconds: 120, text: 'Cliente interessado no produto.' })).toBe('completed');
+    });
+
+    it('sem outcome, sem texto e sem duração não inventa um estado — devolve unknown', () => {
+        expect(classifyCallOutcome({})).toBe('unknown');
+    });
+
+    it('texto de não-atendimento vence uma duração substancial', () => {
+        expect(classifyCallOutcome({ durationSeconds: 60, text: 'Ligamos mas não atendeu desta vez.' })).toBe('no-answer');
+    });
+
+    it('número inválido é distinguido de falha genérica', () => {
+        expect(classifyCallOutcome({ providerOutcome: 'número inválido' })).toBe('invalid-number');
+    });
+});
+
+describe('callResultedInConversation', () => {
+    it('só "completed" conta como conversa real', () => {
+        expect(callResultedInConversation('completed')).toBe(true);
+        expect(callResultedInConversation('voicemail')).toBe(false);
+        expect(callResultedInConversation('no-answer')).toBe(false);
+        expect(callResultedInConversation('busy')).toBe(false);
+        expect(callResultedInConversation('failed')).toBe(false);
+        expect(callResultedInConversation('cancelled')).toBe(false);
+        expect(callResultedInConversation('invalid-number')).toBe(false);
+        expect(callResultedInConversation('timeout')).toBe(false);
+        expect(callResultedInConversation('unknown')).toBe(false);
     });
 });
 

@@ -21,7 +21,7 @@ export interface ColdCallRun {
     skippedNoPhone: number;
     skippedSuppressed: number;
     skippedError: number;
-    haltedBy: 'outside-window' | 'not-configured' | null;
+    haltedBy: 'outside-window' | 'not-configured' | 'not-authorized' | null;
     runAt: string;
 }
 

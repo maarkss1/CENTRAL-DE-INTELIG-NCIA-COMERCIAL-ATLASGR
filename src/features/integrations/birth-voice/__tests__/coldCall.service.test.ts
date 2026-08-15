@@ -1,10 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const ORG = 'org-1';
+
+// `runColdCallCampaign` revalida as duas travas de habilitação a cada execução (ver comentário no
+// próprio arquivo) — sem isto, todo teste abaixo pararia em `not-authorized` antes de examinar
+// qualquer lead, já que o default real de SDR_COLD_CALL_ENABLED é `false`. Os testes específicos da
+// revalidação ficam no describe `runColdCallCampaign — revalidação das duas travas` mais abaixo,
+// que sobrescreve este mock por caso.
+vi.mock('../../../../config/env.js', () => ({
+    env: {
+        SDR_COLD_CALL_ENABLED: true,
+        SDR_COLD_CALL_ORGANIZATIONS: 'org-1',
+        SDR_CALL_WINDOW_START: 9,
+        SDR_CALL_WINDOW_END: 18,
+        SDR_CALL_TIMEZONE: 'America/Sao_Paulo',
+        SDR_MAX_ATTEMPTS_PER_LEAD: 3,
+        SDR_RETRY_COOLDOWN_HOURS: 48,
+        SDR_MAX_CALLS_PER_RUN: 10,
+    },
+}));
+
 vi.mock('../../../../lib/prisma.js', () => ({
     prisma: {
         lead: { findMany: vi.fn(), update: vi.fn() },
         activity: { groupBy: vi.fn() },
         coldCallRun: { create: vi.fn() },
+        organization: { findMany: vi.fn() },
     },
 }));
 
@@ -26,14 +47,13 @@ import {
     SuppressedNumberError,
     BirthVoiceNotConfiguredError,
 } from '../birthVoice.service.js';
-import { runColdCallCampaign } from '../coldCall.service.js';
+import { runColdCallCampaign, enabledOrganizations } from '../coldCall.service.js';
 
 const leadMock = prisma.lead as unknown as { findMany: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
 const activityMock = prisma.activity as unknown as { groupBy: ReturnType<typeof vi.fn> };
 const coldCallRunMock = prisma.coldCallRun as unknown as { create: ReturnType<typeof vi.fn> };
 const mockCallLead = vi.mocked(callLead);
 
-const ORG = 'org-1';
 // Segunda-feira, 09:00 em São Paulo — dentro da janela padrão.
 const DENTRO_DA_JANELA = new Date('2026-08-03T14:00:00Z');
 // Sábado, mesmo horário.
@@ -151,5 +171,113 @@ describe('runColdCallCampaign', () => {
 
         expect(result.called).toBe(10);
         expect(mockCallLead).toHaveBeenCalledTimes(10);
+    });
+});
+
+// As duas travas de habilitação são independentes e revalidadas A CADA EXECUÇÃO (não só no momento
+// em que o job foi agendado) — ver o comentário em runColdCallCampaign. Cada teste abaixo prova que
+// UMA trava sozinha, mesmo com a outra permissiva, ainda impede a ligação.
+describe('runColdCallCampaign — revalidação das duas travas de habilitação', () => {
+    it('não disca quando SDR_COLD_CALL_ENABLED é false, mesmo com a organização na lista', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = false;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+        leadMock.findMany.mockResolvedValue([lead('l1')]);
+
+        const result = await runColdCallCampaign(ORG, DENTRO_DA_JANELA);
+
+        expect(result.haltedBy).toBe('not-authorized');
+        expect(result.called).toBe(0);
+        expect(leadMock.findMany).not.toHaveBeenCalled();
+        expect(mockCallLead).not.toHaveBeenCalled();
+
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+    });
+
+    it('não disca quando a organização não está em SDR_COLD_CALL_ORGANIZATIONS, mesmo com o recurso ligado', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = 'org-outra';
+        leadMock.findMany.mockResolvedValue([lead('l1')]);
+
+        const result = await runColdCallCampaign(ORG, DENTRO_DA_JANELA);
+
+        expect(result.haltedBy).toBe('not-authorized');
+        expect(leadMock.findMany).not.toHaveBeenCalled();
+        expect(mockCallLead).not.toHaveBeenCalled();
+
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+    });
+
+    it('lista vazia em SDR_COLD_CALL_ORGANIZATIONS nunca autoriza por omissão (fail-closed)', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = '';
+
+        const result = await runColdCallCampaign(ORG, DENTRO_DA_JANELA);
+
+        expect(result.haltedBy).toBe('not-authorized');
+        expect(mockCallLead).not.toHaveBeenCalled();
+
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+    });
+
+    it('continua discando normalmente quando as duas travas liberam a organização', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+        leadMock.findMany.mockResolvedValue([lead('l1')]);
+
+        const result = await runColdCallCampaign(ORG, DENTRO_DA_JANELA);
+
+        expect(result.haltedBy).toBeUndefined();
+        expect(result.called).toBe(1);
+        expect(mockCallLead).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('enabledOrganizations', () => {
+    const organizationMock = prisma.organization as unknown as { findMany: ReturnType<typeof vi.fn> };
+
+    it('devolve lista vazia quando SDR_COLD_CALL_ENABLED é false, mesmo com organizações listadas', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = false;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = 'org-1,org-2';
+
+        await expect(enabledOrganizations()).resolves.toEqual([]);
+
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+    });
+
+    it('devolve lista vazia quando SDR_COLD_CALL_ORGANIZATIONS está vazia, mesmo com o recurso ligado', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = '';
+
+        await expect(enabledOrganizations()).resolves.toEqual([]);
+
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+    });
+
+    it('devolve a lista explícita quando as duas travas liberam', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = 'org-1, org-2 ';
+
+        await expect(enabledOrganizations()).resolves.toEqual(['org-1', 'org-2']);
+
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
+    });
+
+    it('"*" digitado explicitamente autoriza todas as organizações do banco', async () => {
+        const { env } = await import('../../../../config/env.js');
+        (env as unknown as { SDR_COLD_CALL_ENABLED: boolean }).SDR_COLD_CALL_ENABLED = true;
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = '*';
+        organizationMock.findMany.mockResolvedValue([{ id: 'org-1' }, { id: 'org-2' }, { id: 'org-3' }]);
+
+        await expect(enabledOrganizations()).resolves.toEqual(['org-1', 'org-2', 'org-3']);
+
+        (env as unknown as { SDR_COLD_CALL_ORGANIZATIONS: string }).SDR_COLD_CALL_ORGANIZATIONS = ORG;
     });
 });
