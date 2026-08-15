@@ -1,7 +1,9 @@
 - De: 17
 - Para: 01/01A
 - Onda: 7
-- Status: aberto
+- Status: aberto (schema ainda não aplicado — decisão de provedor de assinatura resolvida, ver
+  "## Decisão do usuário" abaixo; migration real continua pendente de quem for dono de
+  `prisma/schema.prisma` na próxima onda)
 - Prioridade: alto
 ## Problema
 As 5 entregas da Onda 7 do Agente 17 (opt-out unificado, cadência multicanal, reply tracking,
@@ -240,8 +242,11 @@ CREATE TABLE "CrmDocumentSignatureRequest" (
     "id" TEXT NOT NULL,
     "organizationId" TEXT NOT NULL,
     "documentId" TEXT NOT NULL,
-    -- Provedor fica livre (texto), não enum — decisão de negócio ainda pendente (ver relatório
-    -- final do Agente 17: pergunta explícita ao usuário sobre qual provedor).
+    -- Provedor fica livre (texto), não enum — decisão de negócio já tomada pelo usuário
+    -- (2026-08-15): Assinatura Eletrônica gov.br (https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica).
+    -- Continua TEXT (não enum) porque o schema foi desenhado agnóstico de provedor antes da
+    -- decisão — não custa nada manter assim, e evita uma migration de enum se o gov.br precisar
+    -- ser complementado por um provedor comercial no futuro (ex.: signatário sem conta gov.br).
     "provider" TEXT NOT NULL,
     "providerRequestId" TEXT,
     "status" "SignatureRequestStatus" NOT NULL DEFAULT 'Created',
@@ -295,3 +300,24 @@ implementada e testada com repositórios em memória (portas/interfaces), exatam
 adiantar trabalho real sem essas tabelas existirem ainda. Quando você aplicar este schema (ou uma
 versão ajustada dele), o próximo passo é eu escrever os adaptadores Prisma reais implementando as
 mesmas interfaces — sem tocar a lógica de domínio já testada.
+
+## Decisão do usuário (2026-08-15)
+
+Provedor de assinatura eletrônica para `CrmDocumentSignatureRequest.provider`: **Assinatura
+Eletrônica gov.br** — https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica.
+Não Clicksign/DocuSign/Autentique.
+
+Notas para quem for implementar o adaptador real (não pesquisado a fundo nesta sessão — validar
+antes de codar):
+- É o serviço oficial do governo federal brasileiro, integrado à conta gov.br do signatário
+  (autenticação prata/ouro dá validade jurídica equivalente à ICP-Brasil, MP 2.200-2/2001).
+  Diferença de UX real para o signatário final: ele precisa ter (ou criar) uma conta gov.br para
+  assinar — não é um link público como Clicksign/DocuSign, o que pode afetar taxa de conclusão em
+  leads que nunca usaram gov.br.
+- Sem custo por assinatura documentado publicamente até o momento desta decisão — mas confirmar
+  limites de uso/rate limit da API antes de assumir isso em produção.
+- A API pública é a do "Portal de Assinatura Eletrônica" (SERPRO/ITI) — confirmar endpoint exato,
+  fluxo OAuth de integração, ambiente de homologação/sandbox e formato de webhook de status antes
+  de implementar; nada disso foi verificado nesta sessão, só a escolha do provedor em si.
+- `provider` continua sendo persistido como `'govbr'` (texto livre, sem enum) — decisão de schema
+  já tomada acima, não muda com esta escolha de provedor.

@@ -76,9 +76,12 @@ unitários, build ok. Push: `8a8e7c9`.
   da cadência, reply tracking, agendamento com trava de confirmação verificável, proposta
   versionada e fechamento determinístico), 94 testes próprios. 4 handoffs de contrato abertos
   (01 schema, 02 rota, 05/06/12 opt-out, 13 evento de fechamento) — implementação real das
-  integrações depende desses handoffs serem aplicados pelos donos. **Pergunta pendente para o
-  usuário** (não bloqueia o schema, que é agnóstico de provedor): qual provedor de assinatura
-  eletrônica usar em `CrmDocumentSignatureRequest.provider` (Clicksign/DocuSign/Autentique etc.).
+  integrações depende desses handoffs serem aplicados pelos donos. **Decisão do usuário
+  (2026-08-15)**: provedor de assinatura eletrônica é gov.br (Assinatura Eletrônica gov.br,
+  https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica) — não
+  Clicksign/DocuSign/Autentique. Detalhes em `17-para-01-schema-cadencia-optout-proposta.md`,
+  seção "## Decisão do usuário". Continua pendente a implementação real do adaptador (fora do
+  escopo desta onda).
 
 ### Leva 2 — mergeada (2026-08-15)
 
