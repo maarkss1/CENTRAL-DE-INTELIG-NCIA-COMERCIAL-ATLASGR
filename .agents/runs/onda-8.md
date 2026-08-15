@@ -132,3 +132,24 @@ em `CrmOverview`) — nenhum foi tratado como "fora de escopo, não é meu probl
 **Ainda não mesclada em `main`** — aguardando revisão e aprovação explícita do usuário, com a
 mesma cautela das rodadas anteriores desta sessão (reconciliar com `origin/main` antes do push, dado
 que há sessão concorrente ativa no repositório).
+
+## Reconciliação com origin/main (PR #127) antes do merge final
+
+Usuário confirmou o merge. Antes de publicar, `origin/main`/`main` local já tinham avançado por PR
+#127 (mesclado por outra sessão nesse meio-tempo): Feature Flags (catálogo global + override por
+organização) e Módulo de Reportar Problemas, mais `docs/architecture/12-REQUISITOS-ARQUITETURA.md`.
+Mesclado em `integracao/onda-8-work` (worktree isolado de coordenação, sem tocar o diretório
+principal, que segue com sessão concorrente ativa) — sem conflito.
+
+Gate completo re-executado no estado totalmente reconciliado (Onda 8 + PR #127):
+
+| Check | Resultado |
+|---|---|
+| `npx tsc --noEmit` | limpo |
+| `npm run lint` | 0 erros, 73 warnings |
+| `npm run build` | ok |
+| `npm run test:unit` | 1072/1072 (143 arquivos) |
+| `npm run test:integration` | 89/89 (2 skipped) — inclui os 2 novos testes RBAC de feature flags/bug reports do PR #127 |
+
+Publicado via `git push origin integracao/onda-8-work:main` (sem checkout de `main` no diretório
+principal, para não perturbar a sessão concorrente ativa).
