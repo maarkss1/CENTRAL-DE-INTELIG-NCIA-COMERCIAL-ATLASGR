@@ -377,3 +377,169 @@ export async function runSwarmScheduler(organizationId: string, now: Date = new 
         return result;
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Painel de SLO por agente — AUTONOMIA_COMERCIAL_24X7.md pede, na seção final, um "painel de SLO
+// por agente: cobertura, conversão, custo, latência, erro e override humano". Nunca foi
+// implementado (ver .agents/completion/02-mapa-plataforma.md §7.5). Esta função é a fonte de
+// dados real — consumida pela aba "SLO" de SwarmDashboard.tsx via uma rota que o Agente 07 expõe
+// (ver handoff .agents/handoffs/onda-7/13-para-07-rota-slo-swarm.md), nunca por número inventado.
+//
+// Fontes e por que cada métrica vem de onde vem:
+//  - `AIPendingAction.agentRole` é o ÚNICO campo do schema que atribui uma decisão a um papel do
+//    enxame (SDR/BDR/CLOSER/CRM) — cobertura, conversão, override humano e taxa de erro vêm daqui,
+//    por papel, dentro da janela pedida.
+//  - `AILog` tem custo/tokens/latência reais, mas NÃO tem coluna que amarre um registro a um
+//    agentRole (só a `model` e a `organizationId`, opcional) — por isso custo e latência de
+//    geração aparecem agregados por ORGANIZAÇÃO, nunca fatiados por agente. Fatiar por agente
+//    exigiria uma migração de schema (fora do meu escopo: `prisma/schema.prisma` é do Agente 01) —
+//    documentado como lacuna explícita no snapshot, não estimado.
+//  - "OPS" não passa por `AIPendingAction` (`OpsAgent` executa `create_follow_up_task`/`notify_team`
+//    direto, sem ledger de aprovação) — aparece como estado vazio com o motivo, não como zero.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+export const SLO_SWARM_ROLES = ['SDR', 'BDR', 'CLOSER', 'CRM', 'OPS'] as const;
+export type SloSwarmRole = (typeof SLO_SWARM_ROLES)[number];
+
+/** Uma taxa (0–1) só existe quando há base para calculá-la — nunca 0% fabricado sobre 0/0. */
+export interface SloRate {
+    value: number | null;
+    numerator: number;
+    denominator: number;
+    /** Presente somente quando `value` é `null`: por que a base não sustenta este número ainda. */
+    emptyReason?: string;
+}
+
+export interface AgentSloMetrics {
+    role: SloSwarmRole;
+    /** Quantas decisões/recomendações este papel produziu na janela (sempre um número real, 0 incluso). */
+    coverage: number;
+    /** executed / total propostas — quanto da recomendação do agente virou ação de fato. */
+    conversion: SloRate;
+    /** discardedAt / (approved ou discardedAt) — quanto um humano rejeitou o que a IA recomendou. */
+    humanOverride: SloRate;
+    /** executionError / tentativas de execução — falha operacional, não "a IA errou a análise". */
+    errorRate: SloRate;
+    /** Latência OPERACIONAL média (proposta → execução), em ms — não é latência de geração do modelo. */
+    avgExecutionLatencyMs: number | null;
+    /** Motivo explícito quando a linha inteira não tem dado suficiente (ex.: OPS não usa o ledger). */
+    dataSourceNote?: string;
+}
+
+export interface SwarmCostSnapshot {
+    windowDays: number;
+    totalCostUsd: number;
+    totalTokens: number;
+    requestCount: number;
+    avgLatencyMs: number | null;
+    /** Sempre presente: custo/latência do AILog não são atribuíveis a um agente específico hoje. */
+    note: string;
+}
+
+export interface SwarmSloSnapshot {
+    organizationId: string;
+    windowDays: number;
+    generatedAt: string;
+    agents: AgentSloMetrics[];
+    cost: SwarmCostSnapshot;
+}
+
+function emptyRate(numerator: number, denominator: number, emptyReason: string): SloRate {
+    if (denominator === 0) return { value: null, numerator, denominator, emptyReason };
+    return { value: numerator / denominator, numerator, denominator };
+}
+
+const OPS_NO_LEDGER_NOTE = 'O Agente de Operações executa direto (tarefa/notificação), sem passar por AIPendingAction — sem base para cobertura/conversão/override/erro até que essas ações tenham um ledger próprio.';
+
+/**
+ * Snapshot de SLO por agente para uma organização, na janela solicitada (padrão 30 dias).
+ * Nunca fabrica número: toda métrica sem base suficiente vem como estado vazio explícito
+ * (`value: null` + `emptyReason`), nunca como 0% ou latência inventada.
+ */
+export async function getSwarmSloSnapshot(organizationId: string, windowDays = 30, now: Date = new Date()): Promise<SwarmSloSnapshot> {
+    const since = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000);
+
+    const [pendingActions, aiLogAggregate] = await Promise.all([
+        prisma.aIPendingAction.findMany({
+            where: { organizationId, createdAt: { gte: since } },
+            select: {
+                agentRole: true,
+                approved: true,
+                discardedAt: true,
+                executed: true,
+                executedAt: true,
+                executionError: true,
+                attempts: true,
+                createdAt: true,
+            },
+        }),
+        prisma.aILog.aggregate({
+            where: { organizationId, createdAt: { gte: since } },
+            _sum: { cost: true, tokens: true },
+            _avg: { latencyMs: true },
+            _count: { _all: true },
+        }),
+    ]);
+
+    const agents: AgentSloMetrics[] = SLO_SWARM_ROLES.map((role) => {
+        if (role === 'OPS') {
+            return {
+                role,
+                coverage: 0,
+                conversion: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
+                humanOverride: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
+                errorRate: emptyRate(0, 0, OPS_NO_LEDGER_NOTE),
+                avgExecutionLatencyMs: null,
+                dataSourceNote: OPS_NO_LEDGER_NOTE,
+            };
+        }
+
+        const rows = pendingActions.filter((row) => (row.agentRole ?? '').toUpperCase() === role);
+        const coverage = rows.length;
+
+        const executedRows = rows.filter((row) => row.executed);
+        const conversion = emptyRate(
+            executedRows.length,
+            coverage,
+            'Nenhuma recomendação registrada para este agente na janela selecionada.',
+        );
+
+        const reviewedRows = rows.filter((row) => row.approved || row.discardedAt);
+        const humanOverride = emptyRate(
+            rows.filter((row) => row.discardedAt).length,
+            reviewedRows.length,
+            'Nenhuma decisão deste agente foi aprovada ou descartada por um humano ainda nesta janela.',
+        );
+
+        const attemptedRows = rows.filter((row) => row.attempts > 0);
+        const errorRate = emptyRate(
+            attemptedRows.filter((row) => row.executionError).length,
+            attemptedRows.length,
+            'Nenhuma execução foi tentada para este agente ainda nesta janela.',
+        );
+
+        const executionLatencies = executedRows
+            .filter((row) => row.executedAt)
+            .map((row) => row.executedAt!.getTime() - row.createdAt.getTime());
+        const avgExecutionLatencyMs = executionLatencies.length > 0
+            ? executionLatencies.reduce((sum, ms) => sum + ms, 0) / executionLatencies.length
+            : null;
+
+        return { role, coverage, conversion, humanOverride, errorRate, avgExecutionLatencyMs };
+    });
+
+    return {
+        organizationId,
+        windowDays,
+        generatedAt: now.toISOString(),
+        agents,
+        cost: {
+            windowDays,
+            totalCostUsd: aiLogAggregate._sum.cost ?? 0,
+            totalTokens: aiLogAggregate._sum.tokens ?? 0,
+            requestCount: aiLogAggregate._count._all,
+            avgLatencyMs: aiLogAggregate._avg.latencyMs ?? null,
+            note: 'Custo/latência agregados da organização inteira (AILog não referencia qual agente originou cada chamada) — não fatiado por agente até que o schema seja estendido.',
+        },
+    };
+}

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Zap, ShieldAlert, Database, Wrench, Handshake, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { Bot, Zap, ShieldAlert, Database, Wrench, Handshake, Loader2, Send, Square, CheckCircle2, AlertTriangle, Sparkles, Gauge, RefreshCw } from 'lucide-react';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { SWARM_BRAND } from '../agents/swarm.constants';
 import { clientLogger } from '../../../lib/clientLogger';
+import { api } from '../../../lib/api';
 
 type SwarmAgent = 'supervisor' | 'sdr' | 'bdr' | 'closer' | 'crm' | 'ops';
 type SwarmEventType = 'routing' | 'agent_result' | 'agent_error' | 'final';
@@ -27,6 +28,68 @@ interface SwarmMessage {
     step: number;
 }
 
+// Espelha SwarmSloSnapshot/AgentSloMetrics/SloRate (swarmScheduler.service.ts) — o contrato exato
+// que GET /api/agent/swarm/slo devolve (ver handoff onda-7/13-para-07-rota-slo-swarm.md).
+interface SloRate {
+    value: number | null;
+    numerator: number;
+    denominator: number;
+    emptyReason?: string;
+}
+
+interface AgentSloMetrics {
+    role: 'SDR' | 'BDR' | 'CLOSER' | 'CRM' | 'OPS';
+    coverage: number;
+    conversion: SloRate;
+    humanOverride: SloRate;
+    errorRate: SloRate;
+    avgExecutionLatencyMs: number | null;
+    dataSourceNote?: string;
+}
+
+interface SwarmSloSnapshot {
+    organizationId: string;
+    windowDays: number;
+    generatedAt: string;
+    agents: AgentSloMetrics[];
+    cost: {
+        windowDays: number;
+        totalCostUsd: number;
+        totalTokens: number;
+        requestCount: number;
+        avgLatencyMs: number | null;
+        note: string;
+    };
+}
+
+const SLO_ROLE_LABEL: Record<AgentSloMetrics['role'], string> = {
+    SDR: 'SDR Autônomo',
+    BDR: 'BDR (Outbound)',
+    CLOSER: 'Closer Autônomo',
+    CRM: 'Gestor de CRM',
+    OPS: 'Agente de Operações',
+};
+
+const SLO_ROLE_COLOR: Record<AgentSloMetrics['role'], string> = {
+    SDR: '#00C2FF',
+    BDR: '#00FF9D',
+    CLOSER: '#FF5CA8',
+    CRM: '#B554FF',
+    OPS: '#FFB020',
+};
+
+function formatPercent(rate: SloRate): string {
+    if (rate.value === null) return '—';
+    return `${Math.round(rate.value * 100)}%`;
+}
+
+function formatMs(ms: number | null): string {
+    if (ms === null) return '—';
+    if (ms < 1_000) return `${Math.round(ms)} ms`;
+    if (ms < 60_000) return `${(ms / 1_000).toFixed(1)} s`;
+    return `${(ms / 60_000).toFixed(1)} min`;
+}
+
 const MISSION_SUGGESTIONS = [
     'Acabei de importar um lead da empresa "TransLogística Express" (frota de 50 caminhões, faturamento alto). Qualifique o risco, avalie o fit outbound e sugira a próxima ação.',
     'Analise os negócios em risco no funil desta semana e recomende os próximos passos para cada um.',
@@ -40,6 +103,7 @@ function createId() {
 
 export function SwarmDashboard() {
     const accent = useBrandAccent();
+    const [view, setView] = useState<'mission' | 'slo'>('mission');
     const [mission, setMission] = useState('');
     // Opcional: sem isto, o Agente SDR do enxame não tem como buscar o lead real no CRM e a
     // qualificação sempre falha (ver sdrNode em supervisor.agent.ts — IA-003).
@@ -51,8 +115,35 @@ export function SwarmDashboard() {
     const [startedAt, setStartedAt] = useState<number | null>(null);
     const [elapsedMs, setElapsedMs] = useState(0);
 
+    const [sloSnapshot, setSloSnapshot] = useState<SwarmSloSnapshot | null>(null);
+    const [sloLoading, setSloLoading] = useState(false);
+    const [sloError, setSloError] = useState<string | null>(null);
+
     const abortRef = useRef<AbortController | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
+
+    // A rota real (GET /api/agent/swarm/slo) é entregue pelo Agente 07 — ver
+    // .agents/handoffs/onda-7/13-para-07-rota-slo-swarm.md. Até ela existir, um 404 aparece como
+    // estado de "painel indisponível" explícito, nunca como número fabricado.
+    const fetchSlo = useCallback(async () => {
+        setSloLoading(true);
+        setSloError(null);
+        try {
+            const data = await api.get<SwarmSloSnapshot>('/api/agent/swarm/slo?days=30');
+            setSloSnapshot(data);
+        } catch (error) {
+            clientLogger.error({ err: error }, 'Falha ao buscar o painel de SLO do enxame');
+            setSloError('Painel de SLO ainda não disponível nesta instância (rota pendente ou base sem dados).');
+        } finally {
+            setSloLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (view === 'slo' && !sloSnapshot && !sloLoading) {
+            void fetchSlo();
+        }
+    }, [view, sloSnapshot, sloLoading, fetchSlo]);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -402,7 +493,35 @@ export function SwarmDashboard() {
                 </div>
             </div>
 
+            {/* Seletor de visão: missão ao vivo vs. SLO por agente */}
+            <div className="px-8 pt-4 border-b border-white/10 bg-white/[0.01] z-10 flex items-center gap-2">
+                <button
+                    onClick={() => setView('mission')}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-widest rounded-t-lg border-b-2 transition-colors ${view === 'mission' ? `${accent.text} border-current` : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+                >
+                    <Send size={12} /> Missão ao vivo
+                </button>
+                <button
+                    onClick={() => setView('slo')}
+                    className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold uppercase tracking-widest rounded-t-lg border-b-2 transition-colors ${view === 'slo' ? `${accent.text} border-current` : 'text-gray-500 border-transparent hover:text-gray-300'}`}
+                >
+                    <Gauge size={12} /> SLO por agente
+                </button>
+            </div>
+
+            {view === 'slo' && (
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar z-10">
+                    <SwarmSloPanel
+                        snapshot={sloSnapshot}
+                        loading={sloLoading}
+                        error={sloError}
+                        onRetry={fetchSlo}
+                    />
+                </div>
+            )}
+
             {/* Área de Mensagens (Chat) */}
+            {view === 'mission' && (
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar z-10">
                 {messages.length === 0 && !isExecuting && (
                     <div className="h-full flex flex-col items-center justify-center text-center opacity-90">
@@ -499,8 +618,10 @@ export function SwarmDashboard() {
                     })}
                 </AnimatePresence>
             </div>
+            )}
 
             {/* Input Footer */}
+            {view === 'mission' && (
             <div className="p-6 bg-black/80 border-t border-white/10 backdrop-blur-2xl relative z-50">
                 <div className="relative max-w-4xl mx-auto mb-3">
                     <input
@@ -552,6 +673,126 @@ export function SwarmDashboard() {
                         <>Pressione <kbd className="font-mono bg-white/10 px-1.5 py-0.5 rounded text-gray-300 mx-1 border border-white/10">Enter</kbd> para enviar a missão</>
                     )}
                 </p>
+            </div>
+            )}
+        </div>
+    );
+}
+
+interface SwarmSloPanelProps {
+    snapshot: SwarmSloSnapshot | null;
+    loading: boolean;
+    error: string | null;
+    onRetry: () => void;
+}
+
+/**
+ * Painel de SLO por agente (AUTONOMIA_COMERCIAL_24X7.md → "Próximas integrações"): cobertura,
+ * conversão, override humano e taxa de erro por papel do enxame, mais custo/latência agregados da
+ * organização. Densidade de tabela (não 3 cards decorativos iguais) porque a informação real tem 5
+ * linhas × várias métricas — a mesma razão que motivou a densidade das telas de CRM vizinhas deste
+ * módulo. Estado vazio explícito por célula: nenhum "0%" aparece sem um `emptyReason` por trás.
+ */
+function SwarmSloPanel({ snapshot, loading, error, onRetry }: SwarmSloPanelProps) {
+    const accent = useBrandAccent();
+
+    if (loading && !snapshot) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-center gap-3 text-gray-400">
+                <Loader2 size={28} className={`animate-spin ${accent.text}`} />
+                <p className="text-sm font-medium">Calculando SLO a partir de AIPendingAction e AILog reais...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-center gap-4 max-w-md mx-auto">
+                <AlertTriangle size={28} className="text-amber-400" />
+                <p className="text-sm text-gray-300 font-medium">{error}</p>
+                <button
+                    onClick={onRetry}
+                    className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-lg border border-white/15 text-gray-300 hover:bg-white/5 transition-colors"
+                >
+                    <RefreshCw size={12} /> Tentar novamente
+                </button>
+            </div>
+        );
+    }
+
+    if (!snapshot) return null;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                    <h3 className="text-white text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                        <Gauge size={16} className={accent.text} /> SLO por agente · últimos {snapshot.windowDays} dias
+                    </h3>
+                    <p className="text-gray-500 text-xs mt-1">Fonte: AIPendingAction (por papel) e AILog (agregado da organização) — nunca número fabricado.</p>
+                </div>
+                <button onClick={onRetry} className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+                    <RefreshCw size={11} /> Atualizar
+                </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="bg-white/[0.03] text-gray-400 text-[10px] uppercase tracking-widest">
+                            <th className="text-left font-bold px-4 py-3">Agente</th>
+                            <th className="text-right font-bold px-4 py-3">Cobertura</th>
+                            <th className="text-right font-bold px-4 py-3">Conversão</th>
+                            <th className="text-right font-bold px-4 py-3">Override humano</th>
+                            <th className="text-right font-bold px-4 py-3">Taxa de erro</th>
+                            <th className="text-right font-bold px-4 py-3">Latência operacional</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {snapshot.agents.map((agent) => (
+                            <tr key={agent.role} className="border-t border-white/5 hover:bg-white/[0.02] transition-colors" title={agent.dataSourceNote}>
+                                <td className="px-4 py-3">
+                                    <span className="font-bold text-white/90 flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: SLO_ROLE_COLOR[agent.role] }} />
+                                        {SLO_ROLE_LABEL[agent.role]}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 text-right text-white/80 font-mono">{agent.coverage}</td>
+                                <td className="px-4 py-3 text-right text-white/80 font-mono" title={agent.conversion.emptyReason}>{formatPercent(agent.conversion)}</td>
+                                <td className="px-4 py-3 text-right text-white/80 font-mono" title={agent.humanOverride.emptyReason}>{formatPercent(agent.humanOverride)}</td>
+                                <td className="px-4 py-3 text-right font-mono" title={agent.errorRate.emptyReason}>
+                                    <span className={agent.errorRate.value !== null && agent.errorRate.value > 0 ? 'text-danger' : 'text-white/80'}>
+                                        {formatPercent(agent.errorRate)}
+                                    </span>
+                                </td>
+                                <td className="px-4 py-3 text-right text-white/80 font-mono">{formatMs(agent.avgExecutionLatencyMs)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400 mb-3">Consumo de IA da organização (AILog, agregado — não fatiado por agente)</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <p className="text-white text-lg font-black font-mono">${snapshot.cost.totalCostUsd.toFixed(2)}</p>
+                        <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-0.5">Custo (USD)</p>
+                    </div>
+                    <div>
+                        <p className="text-white text-lg font-black font-mono">{snapshot.cost.totalTokens.toLocaleString('pt-BR')}</p>
+                        <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-0.5">Tokens</p>
+                    </div>
+                    <div>
+                        <p className="text-white text-lg font-black font-mono">{snapshot.cost.requestCount.toLocaleString('pt-BR')}</p>
+                        <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-0.5">Chamadas</p>
+                    </div>
+                    <div>
+                        <p className="text-white text-lg font-black font-mono">{formatMs(snapshot.cost.avgLatencyMs)}</p>
+                        <p className="text-gray-500 text-[10px] uppercase tracking-widest mt-0.5">Latência média</p>
+                    </div>
+                </div>
+                <p className="text-gray-600 text-[11px] mt-4 leading-relaxed">{snapshot.cost.note}</p>
             </div>
         </div>
     );
