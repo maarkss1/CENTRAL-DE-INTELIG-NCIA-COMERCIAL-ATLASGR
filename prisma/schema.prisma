@@ -463,6 +463,7 @@ model Organization {
   bitrixConnections         BitrixConnection[]
   bitrixSyncRules           BitrixSyncRule[]
   bitrixSyncLogs            BitrixSyncLog[]
+  bitrixExtractionRuns      BitrixExtractionRun[]
   threeCXConnections        ThreeCXConnection[]
   crmPipelines              CrmPipeline[]
   crmProducts               CrmProduct[]
@@ -1078,8 +1079,9 @@ model BitrixConnection {
   /// deixa a intenção explícita em vez de inferir do segredo existir ou não.
   inboundEventsEnabled Boolean @default(false)
 
-  syncRules BitrixSyncRule[]
-  syncLogs  BitrixSyncLog[]
+  syncRules      BitrixSyncRule[]
+  syncLogs       BitrixSyncLog[]
+  extractionRuns BitrixExtractionRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1165,6 +1167,82 @@ model BitrixSyncLog {
   @@index([organizationId, createdAt])
   @@index([leadId])
   @@index([connectionId, createdAt])
+}
+
+enum BitrixExtractionStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+/// Histórico de execuções do módulo "Extrações Bitrix" (06A) — uma linha por extração disparada
+/// (Negócios/Leads/Empresas/Contatos/Atividades/Usuários, com campos `UF_CRM_*` dinâmicos,
+/// filtros e exportação CSV/XLSX/JSON). Ver handoff preparatório
+/// `.agents/handoffs/onda-1/06-para-01-schema-extracoes-bitrix-historico.md` (schema sugerido
+/// pelo 06A) e `.agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md` (formato
+/// final coordenado nesta onda).
+///
+/// Retenção/LGPD: histórico e arquivos gerados contêm dado pessoal real (nome/e-mail/telefone de
+/// leads/contatos extraídos do Bitrix). A janela de retenção é PARAMETRIZADA
+/// (`BITRIX_EXTRACTION_RETENTION_DAYS`, `src/config/env.ts`, default 90 dias — mesmo padrão já
+/// usado no worker de anonimização de leads desqualificados, `autoAnonymizeDisqualified.worker.ts`)
+/// em vez de gravada como número fixo nesta migration, exatamente para não bloquear a existência
+/// do schema numa decisão humana ainda pendente (ver seção "Retenção" do handoff acima). O worker
+/// de expurgo correspondente (`bitrixExtractionPurge.worker.ts`) fica DESLIGADO por padrão
+/// (`BITRIX_EXTRACTION_PURGE_ENABLED=false`) até essa confirmação humana existir — ligar a flag
+/// sem o valor de dias revisado não deve apagar nada por omissão.
+model BitrixExtractionRun {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Qual portal Bitrix foi extraído — mesmo padrão de BitrixSyncRule/BitrixSyncLog. `SetNull` (não
+  /// `Cascade`): apagar a conexão não deve apagar o histórico/arquivos já gerados, só desvincular.
+  connectionId String?
+  connection   BitrixConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+
+  /// userId de quem disparou a extração (auditoria — "quem exportou este dado pessoal e quando").
+  requestedBy String?
+
+  /// Quais entidades foram pedidas: deal/lead/company/contact/activity/user (uma ou mais).
+  entities String[]
+  /// Campos selecionados por entidade, incluindo `UF_CRM_*` escolhidos dinamicamente no portal —
+  /// formato livre porque o conjunto de campos customizados varia por portal Bitrix.
+  fields Json
+  /// Período (custom/hoje/7 dias/mês/trimestre/semestre/tudo) + pipeline/etapa/responsável/status/
+  /// busca/campo de data usado como filtro desta extração.
+  filters Json
+
+  status BitrixExtractionStatus @default(queued)
+
+  /// Progresso por entidade: total estimado, processado, página/lote atual, erros parciais.
+  progress Json?
+  totalCount    Int  @default(0)
+  /// Contagem final por entidade (ex.: {"lead": 120, "deal": 45}).
+  countByEntity Json?
+
+  /// Sanitizado — nunca stack trace ou segredo (mesmo padrão de BitrixSyncRule.lastError).
+  errorMessage String? @db.Text
+  correlationId String?
+  attempts      Int     @default(0)
+
+  /// Metadados do(s) arquivo(s) exportado(s) (formato, path/URL de storage, tamanho, geradoEm) —
+  /// nunca o conteúdo do arquivo nesta linha. Excluir uma extração precisa remover o arquivo
+  /// associado no storage, não só esta linha (ver worker de expurgo).
+  files Json?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@index([connectionId])
+  @@index([status])
 }
 
 /// Conexão de PABX 3CX de uma organização (Click-to-Call / Call Control API) — antes deste modelo,
