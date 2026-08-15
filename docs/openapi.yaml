@@ -69,6 +69,10 @@ tags:
     description: Base de conhecimento (RAG) — ingestão e busca híbrida
   - name: Notifications
     description: Notificações in-app do usuário
+  - name: Feature Flags
+    description: Catálogo de feature flags e override por organização (ligar/desligar funcionalidade sem deploy)
+  - name: Bug Reports
+    description: Relatos de problema enviados pelo botão flutuante "Reportar problema"
   - name: Automations
     description: Regras de automação (gatilho → ação)
   - name: Usage
@@ -1485,6 +1489,169 @@ paths:
       responses:
         '204':
           description: Removida
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Feature Flags ─────────────────────────────
+  /feature-flags:
+    get:
+      tags: [Feature Flags]
+      summary: Lista os flags resolvidos (default global + override da própria organização já aplicado)
+      description: Qualquer papel autenticado pode ler.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, example: bug_report_module }
+                        description: { type: string }
+                        enabled: { type: boolean }
+                        isOverridden: { type: boolean }
+
+  /feature-flags/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Feature Flags]
+      summary: Liga/desliga o flag para a própria organização do ADMIN autenticado
+      description: Restrito a ADMIN. Nunca altera o default global do catálogo, só o override do tenant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feature Flags]
+      summary: Remove o override da organização, revertendo ao default global
+      description: Restrito a ADMIN.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Bug Reports ─────────────────────────────
+  /bug-reports:
+    post:
+      tags: [Bug Reports]
+      summary: Registra um relato de problema (botão flutuante "Reportar problema")
+      description: |
+        Qualquer papel autenticado pode reportar. Limitado por organização
+        (`BUG_REPORT_RATE_LIMIT_MAX`, default 10/15min). O campo `context` é
+        sanitizado no backend (redação de token/segredo, truncamento) antes de
+        persistir — ver `src/features/bug-reports/bugReport.sanitize.ts`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description]
+              properties:
+                title: { type: string, maxLength: 200 }
+                description: { type: string, maxLength: 5000 }
+                severity: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL], default: MEDIUM }
+                context:
+                  type: object
+                  description: Capturado automaticamente pelo frontend (URL, user agent, viewport, últimos logs)
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      status: { type: string, example: OPEN }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    get:
+      tags: [Bug Reports]
+      summary: Lista os relatos da própria organização
+      description: Restrito a ADMIN/GESTOR.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [OPEN, TRIAGED, RESOLVED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /bug-reports/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Bug Reports]
+      summary: Atualiza o status de triagem de um relato (OPEN → TRIAGED → RESOLVED)
+      description: Restrito a ADMIN/GESTOR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [OPEN, TRIAGED, RESOLVED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 

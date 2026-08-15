@@ -48,6 +48,12 @@ const envSchema = z.object({
   // do mesmo IP (ver server.ts authLimiter) — configurável para o ambiente de CI poder abrir a
   // cota sem enfraquecer o valor padrão de produção.
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  // Limite dedicado do módulo de "Reportar Problema" (POST /api/bug-reports), por organização —
+  // igual raciocínio do aiLimiter (SEC-008b): por tenant, não por IP, para um escritório inteiro
+  // atrás do mesmo NAT não esgotar a cota de spam-protection de outra organização. 10/15min é
+  // folgado para uso legítimo (ninguém reporta 10 bugs em 15 minutos) e apertado o bastante para
+  // conter um usuário mal-intencionado enchendo a tabela BugReport.
+  BUG_REPORT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   JSON_BODY_LIMIT: z.string().default('2mb'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),

@@ -5,6 +5,7 @@ import { AppTopbar } from './AppTopbar';
 import { TabType } from './tabMeta';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
+import { BugReportButton } from '../ui/BugReportButton';
 import { VoiceCommandWidget } from '../ui/VoiceCommandWidget';
 import { CommandPalette } from '../ui/CommandPalette';
 import { motion } from 'framer-motion';
@@ -82,6 +83,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             <Toaster />
             <VoiceCommandWidget />
             <AtlasChatbotTrigger />
+            <BugReportButton />
             <CommandPalette />
             </div>
             </div>

@@ -4,15 +4,26 @@
 This guide provides developers and operators with the security protocols used in the Prospector-Atlas platform.
 
 ## Authentication & Authorization
-- **JWT Tokens:** The application utilizes short-lived Access Tokens (15m) and long-lived Refresh Tokens (7d) stored in `HttpOnly` cookies.
-- **Roles:** Defined in `server/security/PermissionMatrix.ts`. Current roles include ADMINISTRADOR, GESTOR_COMERCIAL, CLOSER, SDR, VISUALIZADOR.
-- **Middleware:** Use `authenticateToken`, `requireTenant`, and `requireRole` on protected routes.
+- **Sessão (Better Auth):** autenticação por e-mail/senha e OAuth (Google/Microsoft) via
+  `better-auth` (`src/lib/auth.ts`). Sessão validada por cookie `HttpOnly`
+  (`better-auth.session_token`), não por par de Access/Refresh Token JWT — `authenticateToken`
+  (`src/shared/middlewares/authenticateToken.ts`) chama `auth.api.getSession()` a cada request.
+- **Roles:** fonte canônica única em `src/lib/auth/authorization.ts` — 4 papéis hierárquicos:
+  `ADMIN` (100) > `GESTOR` (75) > `VENDEDOR` (50) > `VISUALIZADOR` (10). Não existe mais
+  `server/security/PermissionMatrix.ts` nem os papéis `ADMINISTRADOR/GESTOR_COMERCIAL/CLOSER/SDR`
+  — esse era um segundo sistema de permissões (enum de 18 papéis) nunca ligado a nenhuma rota,
+  removido antes de virar débito real (ver comentário no topo de `authorization.ts`).
+- **Middleware:** `authenticateToken`, `requireTenant` (`src/shared/middlewares/authorization.ts`)
+  e `requireRole` (`src/shared/middlewares/requireRole.ts`) em toda rota protegida.
 
 ## Data Validation
-Always validate incoming request bodies using Zod schemas found in `server/security/validation.ts`.
+Valide todo corpo de requisição com schemas Zod, aplicados via `validateRequest`
+(`src/shared/middlewares/validateRequest.ts`) — os schemas em si ficam junto de cada feature
+(`src/features/*/`), não centralizados num único arquivo.
 
 ## Auditing
-Use the `AuditService.logEvent` function for critical state changes, data accesses, and authentication attempts.
+Use `AuditService.log` (`src/lib/audit/audit.service.ts`) para mudanças de estado críticas,
+acesso a dados e tentativas de autenticação.
 
 ## Superfície exposta — estado registrado (Onda 6, Agente 15)
 
