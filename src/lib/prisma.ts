@@ -80,7 +80,11 @@ const basePrisma = globalForPrisma.prisma || new PrismaClient({
 export const prisma = basePrisma.$extends({
   query: {
     $allModels: {
-      async $allOperations({ model, operation, args, query }) {
+      // `query` (a próxima operação na cadeia de extensão, ligada ao client base) não é mais usada
+      // diretamente — ver comentário grande dentro de `executeWithRls` abaixo sobre por que ela foi
+      // substituída por chamadas ao delegate do model/operation via o client (`tx` ou `basePrisma`)
+      // passado explicitamente para cada `executeWithRls`.
+      async $allOperations({ model, operation, args }) {
         const store = requestContext.getStore();
         const tenantId = store?.tenantId;
         const userId = store?.userId;
@@ -157,8 +161,33 @@ export const prisma = basePrisma.$extends({
           }
         }
 
-        const executeWithRls = async (prismaPromise: Prisma.PrismaPromise<unknown>) => {
-          if (!tenantId && !bypassRls) return await prismaPromise;
+        // IMPORTANTE (Onda 9, bug crítico de RLS — ver .agents/runs/onda-9.md): `executeWithRls`
+        // costumava combinar o `SET LOCAL` de tenant com a query real via `basePrisma.$transaction([
+        // setConfig, prismaPromise])` (array-form). Reproduzido de forma determinística contra
+        // Postgres real (não mock): o Client Engine em TypeScript do Prisma 7 (que substituiu o
+        // engine binário Rust) não garante, para esse array-form combinando uma `$executeRawUnsafe`
+        // crua com uma promise vinda da cadeia de extensão (`query(args)`), que a segunda operação
+        // realmente seja enviada ao Postgres dentro da MESMA transação — em alguns casos a operação
+        // simplesmente não chega a gerar o INSERT/UPDATE real (nenhum erro, a promise resolve com um
+        // objeto de resultado, mas a linha nunca existiu no banco), e em outros o `SET LOCAL` do
+        // tenant não fica visível para a query seguinte (RLS rejeita ou devolve vazio). Confirmado
+        // com `pg_backend_pid()`/log de SQL (`$on('query')`) que, fora dessa combinação específica,
+        // uma transação array-form comum (duas queries do MESMO client base) funciona normalmente —
+        // o problema é específico de misturar `$executeRawUnsafe` com uma promise que atravessa a
+        // cadeia de extensão do Prisma.
+        //
+        // Fix: usar uma transação interativa (`basePrisma.$transaction(async (tx) => {...})`) e
+        // executar o `SET LOCAL` e a operação real ambos via `tx` (o client vinculado à transação
+        // interativa), nunca via `basePrisma` direto — isso é o padrão já usado com sucesso em
+        // `withRlsContext` logo abaixo, e a documentação oficial do Prisma recomenda para RLS. Em
+        // vez de receber uma `PrismaPromise` já construída (que carrega sua própria ligação ao
+        // client base, não a `tx`), `executeWithRls` agora recebe uma função que constrói a operação
+        // a partir do client passado (`tx` normal, ou `basePrisma` no caminho sem contexto de
+        // tenant) — assim a MESMA referência de client roda o SET e a query.
+        const executeWithRls = async <T>(
+          build: (client: PrismaClient) => Prisma.PrismaPromise<T>,
+        ): Promise<T> => {
+          if (!tenantId && !bypassRls) return await build(basePrisma);
           // Sem try/catch de propósito: um `catch { return await prismaPromise }` aqui existia antes
           // e mascarava o erro real de qualquer falha (ex.: violação de unique constraint) reexecutando
           // a MESMA query fora da transação, sem nenhum app.current_tenant_id/bypass_rls setado —
@@ -166,15 +195,14 @@ export const prisma = basePrisma.$extends({
           // "new row violates row-level security policy", quando o problema real era outro, ver
           // TEST-002/e2e). Se a transação com contexto de tenant falha, o erro real deve subir —
           // nunca cair pra uma tentativa sem proteção de tenant/RLS.
-          const [, res] = await basePrisma.$transaction([
-            basePrisma.$executeRawUnsafe(
+          return basePrisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe(
               `SELECT set_config('app.bypass_rls', $1, TRUE), set_config('app.current_tenant_id', $2, TRUE);`,
               bypassRls ? 'on' : 'off',
               tenantId || ''
-            ),
-            prismaPromise
-          ]);
-          return res;
+            );
+            return build(tx as unknown as PrismaClient);
+          });
         };
 
         // --- 3. Audit Log - Capture Before State ---
@@ -182,8 +210,10 @@ export const prisma = basePrisma.$extends({
         if (isAuditable && (operation === 'update' || operation === 'delete')) {
            try {
               const a = args as Record<string, unknown>;
-              const modelDelegate = (basePrisma as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
-              beforeState = await executeWithRls((modelDelegate.findUnique as (args: unknown) => Prisma.PrismaPromise<unknown>)({ where: a.where })) as Record<string, unknown> | null;
+              beforeState = await executeWithRls((client) => {
+                const modelDelegate = (client as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+                return (modelDelegate.findUnique as (args: unknown) => Prisma.PrismaPromise<unknown>)({ where: a.where });
+              }) as Record<string, unknown> | null;
            } catch {
               // Ignore if we can't find it or where is complex
            }
@@ -192,33 +222,48 @@ export const prisma = basePrisma.$extends({
         // --- 4. Execute Query (Intercepting Delete) ---
         let result: Record<string, unknown> | null = null;
         let affectedIds: string[] = [];
-        const basePrismaRecord = basePrisma as unknown as Record<string, unknown>;
         const a = args as Record<string, unknown>;
 
         if (isAuditable && operation === 'delete') {
-            const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
-            result = await executeWithRls((modelDelegate.update as (args: unknown) => Prisma.PrismaPromise<unknown>)({
-                where: a.where,
-                data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
-            })) as Record<string, unknown>;
+            result = await executeWithRls((client) => {
+                const modelDelegate = (client as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+                return (modelDelegate.update as (args: unknown) => Prisma.PrismaPromise<unknown>)({
+                    where: a.where,
+                    data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
+                });
+            }) as Record<string, unknown>;
             if (result && result.id) {
                affectedIds.push(result.id as string);
             }
         } else if (isAuditable && operation === 'deleteMany') {
-            const modelDelegate = basePrismaRecord[model as string] as Record<string, unknown>;
             // Need to fetch IDs first to cascade
-            const recordsToSoftDelete = await executeWithRls((modelDelegate.findMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
-                where: a.where,
-                select: { id: true }
-            })) as Record<string, unknown>[];
+            const recordsToSoftDelete = await executeWithRls((client) => {
+                const modelDelegate = (client as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+                return (modelDelegate.findMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
+                    where: a.where,
+                    select: { id: true }
+                });
+            }) as Record<string, unknown>[];
             affectedIds = recordsToSoftDelete.map((r) => r.id as string);
 
-            result = await executeWithRls((modelDelegate.updateMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
-                where: a.where,
-                data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
-            })) as Record<string, unknown>;
+            result = await executeWithRls((client) => {
+                const modelDelegate = (client as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+                return (modelDelegate.updateMany as (args: unknown) => Prisma.PrismaPromise<unknown>)({
+                    where: a.where,
+                    data: { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Soft delete' }
+                });
+            }) as Record<string, unknown>;
         } else {
-            result = await executeWithRls(query(args)) as Record<string, unknown>;
+            // `query` é a operação original desta mesma extensão (ver `$allOperations` acima),
+            // vinculada ao client base — equivalente a `client[model][operation](args)` quando
+            // `client` é `basePrisma`, mas incapaz de rodar sobre `tx` (a transação interativa usada
+            // por `executeWithRls` acima). Chamar o delegate de `client` diretamente pelo nome do
+            // model/operation reproduz o mesmo efeito de `query(args)`, mas ligado ao client correto
+            // em cada chamada (garante mesma conexão/transação do SET LOCAL de tenant).
+            result = await executeWithRls((client) => {
+                const modelDelegate = (client as unknown as Record<string, unknown>)[model as string] as Record<string, unknown>;
+                return (modelDelegate[operation as string] as (args: unknown) => Prisma.PrismaPromise<unknown>)(args);
+            }) as Record<string, unknown>;
         }
 
         // --- Cascade Soft Deletes ---
@@ -226,21 +271,21 @@ export const prisma = basePrisma.$extends({
             const cascadeData = { deletedAt: new Date(), deletedBy: userId, deleteReason: 'Cascade Soft Delete' };
             
             if (model === 'Company') {
-                await executeWithRls(basePrisma.contact.updateMany({
+                await executeWithRls((client) => client.contact.updateMany({
                     where: { companyId: { in: affectedIds } },
                     data: cascadeData
                 }));
-                await executeWithRls(basePrisma.lead.updateMany({
+                await executeWithRls((client) => client.lead.updateMany({
                     where: { companyId: { in: affectedIds } },
                     data: cascadeData
                 }));
             } else if (model === 'Contact') {
-                await executeWithRls(basePrisma.lead.updateMany({
+                await executeWithRls((client) => client.lead.updateMany({
                     where: { contactId: { in: affectedIds } },
                     data: cascadeData
                 }));
             } else if (model === 'Lead') {
-                await executeWithRls(basePrisma.activity.updateMany({
+                await executeWithRls((client) => client.activity.updateMany({
                     where: { leadId: { in: affectedIds } },
                     data: cascadeData
                 }));
