@@ -17,6 +17,13 @@ export interface AutomationExecutionHistoryInput {
     finishedAt: Date;
     retryCount?: number;
     error?: unknown;
+    /**
+     * Snapshot sanitizado do `AutomationEvent.data` que disparou esta execução (status/owner/campos
+     * derivados como `daysSinceLastInteraction` para regras de estagnação — ver
+     * `stagnation-scanner.service.ts`). Sem isto não havia como auditar, depois do fato, COM QUE
+     * dado a regra decidiu disparar — só o resultado (sucesso/falha).
+     */
+    eventData?: unknown;
 }
 
 const SENSITIVE_KEY = /(authorization|api[-_]?key|token|secret|password|webhook|cookie)/i;
@@ -63,6 +70,7 @@ export const automationHistoryService = {
             entityId: input.entityId,
             action: input.action,
             actionConfigSnapshot: sanitizeValue(input.actionConfig),
+            eventData: input.eventData !== undefined ? sanitizeValue(input.eventData) : undefined,
             status: input.status,
             retryCount: input.retryCount ?? 0,
             error: sanitizeAutomationError(input.error),

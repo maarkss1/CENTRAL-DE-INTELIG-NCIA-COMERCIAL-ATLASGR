@@ -4,11 +4,22 @@ import { logger } from '../logger.js';
 import { enrichCompany } from '../../features/prospecting/services/enrichment.service.js';
 import { requestContext } from '../async-context.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const ENRICHMENT_QUEUE_NAME = 'enrichment-queue';
 
+/** QUEUE-001: `enrichCompany` busca/atualiza a empresa por id — reexecutar após uma falha
+ *  transitória (timeout de provedor externo) reaplica o mesmo enriquecimento, sem duplicar efeito. */
 export const enrichmentQueue = queuesEnabled
-    ? new Queue(ENRICHMENT_QUEUE_NAME, { connection })
+    ? new Queue(ENRICHMENT_QUEUE_NAME, {
+        connection,
+        defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 10_000 },
+            removeOnComplete: { age: 24 * 60 * 60 },
+            removeOnFail: { age: 7 * 24 * 60 * 60 },
+        },
+    })
     : null;
 registerQueueForMetrics(ENRICHMENT_QUEUE_NAME, enrichmentQueue);
 enrichmentQueue?.on('error', (err) => logger.warn({ message: err.message }, 'enrichmentQueue offline'));
@@ -44,6 +55,16 @@ export function createEnrichmentWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Enrichment worker job permanently failed');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: ENRICHMENT_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            organizationId: job.data?.organizationId ?? null,
+            attemptsMade: job.attemptsMade,
+            error: err,
+            data: job.data,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(ENRICHMENT_QUEUE_NAME));

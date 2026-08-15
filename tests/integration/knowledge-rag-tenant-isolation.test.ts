@@ -19,6 +19,7 @@ vi.mock('../../src/lib/ai/gateway', () => ({
 import { ingestionService } from '../../src/features/knowledge/ingestion.service';
 import { searchService } from '../../src/features/knowledge/search.service';
 import { VectorSearchService } from '../../src/features/intelligence/services/vector-search.service';
+import { vectorStore } from '../../src/lib/ai/vectorStore';
 
 const ORG_A = 'test-org-id'; // pré-seedado por tests/helpers/integration-setup.ts
 const ORG_B = 'test-org-id-rag-b';
@@ -81,5 +82,20 @@ describe('RAG (Base de Conhecimento): isolamento de tenant na busca híbrida', (
 
         expect(results.length).toBeGreaterThan(0);
         expect(results.every((hit) => (hit.metadata as { documentId?: string } | null)?.documentId === docAId)).toBe(true);
+    });
+
+    // RAG-001 (Onda 7): vectorStore.similaritySearch (playbookTool.ts, ferramenta search_playbook do
+    // enxame de IA) também delega ao mesmo pipeline real, com o mesmo isolamento de tenant — e agora
+    // devolve `documentTitle`, exigido para toda resposta de RAG citar a fonte real (nunca afirmar
+    // ter encontrado algo que não existe).
+    it('vectorStore.similaritySearch (playbook do enxame de IA) isola por tenant e cita a fonte real', async () => {
+        const results = await requestContext.run({ tenantId: ORG_A }, () =>
+            vectorStore.similaritySearch('estratégia confidencial de precificação logística pesada', 5));
+
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.every((hit) => hit.documentId === docAId)).toBe(true);
+        expect(results.some((hit) => hit.documentId === docBId)).toBe(false);
+        expect(results[0].documentTitle).toBe('Playbook exclusivo do tenant A');
+        expect(results[0].chunkIndex).toBeGreaterThanOrEqual(0);
     });
 });

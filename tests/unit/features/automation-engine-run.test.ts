@@ -17,6 +17,13 @@ vi.mock('@/lib/logger', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+const sendEmailMock = vi.fn();
+class MailerNotConfiguredErrorMock extends Error {}
+vi.mock('@/lib/email/mailer', () => ({
+    sendEmail: (...args: unknown[]) => sendEmailMock(...args),
+    MailerNotConfiguredError: MailerNotConfiguredErrorMock,
+}));
+
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { requestContext } from '@/lib/async-context';
@@ -56,6 +63,7 @@ beforeEach(() => {
     notificationMock.create.mockResolvedValue({ id: 'notif-1' });
     activityMock.create.mockResolvedValue({ id: 'act-1' });
     auditLogMock.create.mockResolvedValue({ id: 'audit-1' });
+    sendEmailMock.mockResolvedValue(undefined);
 });
 
 describe('AutomationEngine.handle — execução real', () => {
@@ -260,5 +268,75 @@ describe('AutomationEngine.handle — execução real', () => {
 
         // O serviço de notificação engole o erro e devolve null, então a regra conta como executada.
         await expect(automationEngine.handle(eventoLead)).resolves.toBe(1);
+    });
+
+    it('registra um snapshot sanitizado de event.data no histórico — auditável, base da idempotência do scanner de estagnação', async () => {
+        automationMock.findMany.mockResolvedValue([regra()]);
+        await automationEngine.handle({
+            ...eventoLead,
+            data: { ...eventoLead.data, daysSinceLastInteraction: 7, streakKey: '2026-08-01T00:00:00.000Z' },
+        });
+
+        const details = JSON.parse(auditLogMock.create.mock.calls[0][0].data.details);
+        expect(details.eventData).toEqual(expect.objectContaining({
+            status: 'Proposta',
+            daysSinceLastInteraction: 7,
+            streakKey: '2026-08-01T00:00:00.000Z',
+        }));
+    });
+
+    describe('"Notificar equipe" com canal de e-mail (novo, Onda 7)', () => {
+        it('canal padrão (ausente/in_app) não envia e-mail nenhum — só a notificação interna, comportamento original preservado', async () => {
+            automationMock.findMany.mockResolvedValue([regra({ actionConfig: { title: 'Aviso' } })]);
+            await automationEngine.handle(eventoLead);
+
+            expect(notificationMock.create).toHaveBeenCalledTimes(1);
+            expect(sendEmailMock).not.toHaveBeenCalled();
+        });
+
+        it('canal email: cria a notificação interna E envia o e-mail, com template renderizado', async () => {
+            automationMock.findMany.mockResolvedValue([
+                regra({ actionConfig: { title: 'Lead parado: {{status}}', body: 'Dono: {{owner}}', channel: 'email', to: 'gestor@atlasgr.com.br' } }),
+            ]);
+
+            const executadas = await automationEngine.handle(eventoLead);
+
+            expect(executadas).toBe(1);
+            expect(notificationMock.create).toHaveBeenCalledTimes(1);
+            expect(sendEmailMock).toHaveBeenCalledWith({
+                to: 'gestor@atlasgr.com.br',
+                subject: 'Lead parado: Proposta',
+                text: 'Dono: Marcelo',
+            });
+        });
+
+        it('canal email sem destinatário: falha com erro claro, sem tentar enviar', async () => {
+            automationMock.findMany.mockResolvedValue([
+                regra({ actionConfig: { title: 'Aviso', channel: 'email' } }),
+            ]);
+
+            const executadas = await automationEngine.handle(eventoLead);
+
+            expect(executadas).toBe(0);
+            expect(sendEmailMock).not.toHaveBeenCalled();
+            const details = JSON.parse(auditLogMock.create.mock.calls[0][0].data.details);
+            expect(details.status).toBe('failed');
+            expect(details.error).toContain('destinatário');
+        });
+
+        it('SMTP não configurado: notificação interna já criada continua de pé, e o histórico explica a causa sem fingir sucesso total', async () => {
+            automationMock.findMany.mockResolvedValue([
+                regra({ actionConfig: { title: 'Aviso', channel: 'email', to: 'gestor@atlasgr.com.br' } }),
+            ]);
+            sendEmailMock.mockRejectedValue(new MailerNotConfiguredErrorMock('SMTP_HOST ausente'));
+
+            const executadas = await automationEngine.handle(eventoLead);
+
+            expect(executadas).toBe(0);
+            expect(notificationMock.create).toHaveBeenCalledTimes(1); // já tinha acontecido antes da falha do e-mail
+            const details = JSON.parse(auditLogMock.create.mock.calls[0][0].data.details);
+            expect(details.status).toBe('failed');
+            expect(details.error).toContain('não configurado');
+        });
     });
 });

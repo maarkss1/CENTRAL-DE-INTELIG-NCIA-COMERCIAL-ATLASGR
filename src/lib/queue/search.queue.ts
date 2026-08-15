@@ -3,11 +3,27 @@ import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
 import { meili } from '../search/index.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const SEARCH_QUEUE_NAME = 'search-indexing';
 
+/**
+ * QUEUE-001: indexação no Meilisearch é idempotente por natureza (`addDocuments`/`updateDocuments`
+ * fazem upsert pelo id, `deleteDocuments` de um id já ausente é um no-op) — retry com backoff é
+ * seguro aqui sem risco de duplicar efeito, diferente de uma ação que dispara algo externo uma vez
+ * só. Sem isto, um blip do Meilisearch (reinício, timeout de rede) fazia um lead/empresa ficar
+ * permanentemente fora do índice de busca até a próxima escrita naquele registro.
+ */
 export const searchQueue = queuesEnabled
-    ? new Queue(SEARCH_QUEUE_NAME, { connection })
+    ? new Queue(SEARCH_QUEUE_NAME, {
+        connection,
+        defaultJobOptions: {
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 3_000 },
+            removeOnComplete: { age: 6 * 60 * 60 },
+            removeOnFail: { age: 7 * 24 * 60 * 60 },
+        },
+    })
     : null;
 registerQueueForMetrics(SEARCH_QUEUE_NAME, searchQueue);
 export const searchQueueEvents = queuesEnabled
@@ -57,6 +73,18 @@ export const createSearchWorker = () => {
     });
 
     worker.on('completed', () => recordQueueJobCompleted(SEARCH_QUEUE_NAME));
+
+    worker.on('failed', (job, err) => {
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: SEARCH_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+            data: job.data,
+        });
+    });
 
     return worker;
 };

@@ -1,24 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// vectorStore faz busca vetorial (embeddings do playbook RAG) via SQL cru na tabela
-// "DocumentChunk", que não passa pela extensão $allOperations de src/lib/prisma.ts (RLS/tenant
-// scoping) — por isso precisa de withRlsContext + filtro explícito de organizationId. Este teste
-// cobre a correção: sem withRlsContext, a policy de RLS (FORCE ROW LEVEL SECURITY) devolveria
-// zero linhas sempre em produção, ou vazaria entre tenants sob um papel de banco que ignora RLS.
+// RAG-001: vectorStore.similaritySearch delega para searchService.hybridSearch (o motor real da
+// Base de Conhecimento — semântico + palavra-chave, RLS por tenant, fusão RRF) em vez de rodar SQL
+// cru duplicado contra "DocumentChunk". Este teste cobre: (1) delegação correta com o
+// organizationId do tenant atual, (2) proveniência sempre presente (documentTitle/chunkIndex) em
+// cada resultado, (3) fail-safe sem tenant conhecido, (4) addDocumentChunk permanece desativado.
 
-const txQueryRaw = vi.fn();
-const txExecuteRaw = vi.fn();
-const withRlsContextMock = vi.fn((fn: (tx: { $queryRaw: typeof txQueryRaw; $executeRaw: typeof txExecuteRaw }) => unknown) =>
-    fn({ $queryRaw: txQueryRaw, $executeRaw: txExecuteRaw }),
-);
-
-vi.mock('../../../../src/lib/prisma.js', () => ({
-    withRlsContext: (fn: (tx: unknown) => unknown) => withRlsContextMock(fn as never),
-}));
-
-const generateEmbeddingMock = vi.fn();
-vi.mock('../../../../src/lib/ai/gateway.js', () => ({
-    generateEmbedding: (...args: unknown[]) => generateEmbeddingMock(...args),
+const hybridSearchMock = vi.fn();
+vi.mock('../../../../src/features/knowledge/search.service.js', () => ({
+    searchService: { hybridSearch: (...args: unknown[]) => hybridSearchMock(...args) },
 }));
 
 const getTenantIdMock = vi.fn();
@@ -36,10 +26,23 @@ const ORG = 'org-playbook-1';
 
 beforeEach(() => {
     vi.clearAllMocks();
-    generateEmbeddingMock.mockResolvedValue([0.1, 0.2, 0.3]);
     getTenantIdMock.mockReturnValue(ORG);
-    txQueryRaw.mockResolvedValue([{ id: 'chunk-1', content: 'trecho', documentId: 'doc-1', similarity: 0.9 }]);
-    txExecuteRaw.mockResolvedValue(undefined);
+    hybridSearchMock.mockResolvedValue({
+        query: 'como qualificar um lead frio?',
+        semanticAvailable: true,
+        hits: [
+            {
+                chunkId: 'chunk-1',
+                documentId: 'doc-1',
+                documentTitle: 'Playbook Comercial AtlasGR',
+                content: 'trecho',
+                chunkIndex: 2,
+                similarity: 0.9,
+                matchedBy: ['semantic'],
+                score: 0.5,
+            },
+        ],
+    });
 });
 
 afterEach(() => {
@@ -47,37 +50,48 @@ afterEach(() => {
 });
 
 describe('vectorStore.similaritySearch', () => {
-    it('roda a busca vetorial dentro de withRlsContext', async () => {
-        await vectorStore.similaritySearch('como qualificar um lead frio?');
+    it('delega para searchService.hybridSearch com o tenant atual', async () => {
+        await vectorStore.similaritySearch('como qualificar um lead frio?', 5);
 
-        expect(withRlsContextMock).toHaveBeenCalledTimes(1);
-        expect(txQueryRaw).toHaveBeenCalledTimes(1);
+        expect(hybridSearchMock).toHaveBeenCalledWith(ORG, 'como qualificar um lead frio?', 5);
     });
 
-    it('filtra explicitamente por organizationId (defesa em profundidade, além da RLS)', async () => {
-        await vectorStore.similaritySearch('ICP ideal');
+    it('devolve proveniência (documentTitle/chunkIndex) em cada resultado — nunca só o texto cru', async () => {
+        const results = await vectorStore.similaritySearch('ICP ideal');
 
-        const [strings, ...values] = txQueryRaw.mock.calls[0] as [TemplateStringsArray, ...unknown[]];
-        expect(strings.join('')).toContain('d."organizationId"');
-        expect(values).toContain(ORG);
+        expect(results).toEqual([
+            {
+                id: 'chunk-1',
+                content: 'trecho',
+                documentId: 'doc-1',
+                documentTitle: 'Playbook Comercial AtlasGR',
+                chunkIndex: 2,
+                similarity: 0.9,
+                matchedBy: ['semantic'],
+            },
+        ]);
     });
 
-    it('retorna vazio e não consulta o banco quando não há tenant no requestContext', async () => {
+    it('retorna vazio e não consulta o motor de busca quando não há tenant no requestContext', async () => {
         getTenantIdMock.mockReturnValue(undefined);
 
         const results = await vectorStore.similaritySearch('busca sem tenant');
 
         expect(results).toEqual([]);
-        expect(withRlsContextMock).not.toHaveBeenCalled();
-        expect(txQueryRaw).not.toHaveBeenCalled();
+        expect(hybridSearchMock).not.toHaveBeenCalled();
+    });
+
+    it('degrada para vazio (nunca lança) quando a busca híbrida falha', async () => {
+        hybridSearchMock.mockRejectedValue(new Error('banco fora do ar'));
+
+        const results = await vectorStore.similaritySearch('qualquer coisa');
+
+        expect(results).toEqual([]);
     });
 });
 
 describe('vectorStore.addDocumentChunk', () => {
-    it('roda o insert do chunk dentro de withRlsContext', async () => {
-        await vectorStore.addDocumentChunk('doc-1', 'conteúdo do trecho');
-
-        expect(withRlsContextMock).toHaveBeenCalledTimes(1);
-        expect(txExecuteRaw).toHaveBeenCalledTimes(1);
+    it('permanece desativado (RAG-001): sem pipeline paralelo de ingestão', async () => {
+        await expect(vectorStore.addDocumentChunk()).rejects.toThrow(/ingestionService\.ingestText/);
     });
 });

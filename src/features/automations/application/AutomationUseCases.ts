@@ -5,12 +5,25 @@ import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 export const AUTOMATION_TRIGGERS = ['Lead criado', 'Lead mudou de status', 'Atividade concluída'] as const;
 export const AUTOMATION_ACTIONS = ['Notificar equipe', 'Criar atividade', 'Ligar via SDR de Voz'] as const;
 
+/**
+ * Operador numérico de condição (ver `matchesConditions` em `automation.engine.ts`) — usado pelas
+ * regras de estagnação disparadas por `stagnation-scanner.service.ts` (ex.: "Negócio parado há X
+ * dias", "Proposta enviada sem resposta"). `.strict()` garante exatamente uma das quatro chaves,
+ * nunca um objeto arbitrário indo parar como condição.
+ */
+const conditionOperatorSchema = z.union([
+    z.object({ gte: z.number() }).strict(),
+    z.object({ lte: z.number() }).strict(),
+    z.object({ gt: z.number() }).strict(),
+    z.object({ lt: z.number() }).strict(),
+]);
+
 export const automationSchema = z.object({
     name: z.string().trim().min(1, 'Dê um nome à automação').max(120),
     enabled: z.boolean().optional(),
     trigger: z.enum(AUTOMATION_TRIGGERS),
-    /** Igualdades simples; `{}` ou ausente = sem filtro. */
-    conditions: z.record(z.string(), z.string()).nullable().optional(),
+    /** Igualdade simples (string) ou operador numérico (`{ gte: 3 }`); `{}` ou ausente = sem filtro. */
+    conditions: z.record(z.string(), z.union([z.string(), conditionOperatorSchema])).nullable().optional(),
     action: z.enum(AUTOMATION_ACTIONS),
     actionConfig: z.record(z.string(), z.unknown()).default({}),
 });

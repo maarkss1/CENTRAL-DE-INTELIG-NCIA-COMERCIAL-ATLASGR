@@ -7,7 +7,7 @@ import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { toast } from '../../../lib/toast';
 import {
     automationsApi, describeAutomation, TRIGGERS, ACTIONS, LEAD_STATUSES,
-    type Automation, type AutomationTrigger, type AutomationAction,
+    type Automation, type AutomationTrigger, type AutomationAction, type AutomationConditions,
 } from '../automations.api';
 import { ColdCallStatusCard } from './ColdCallStatusCard';
 
@@ -27,14 +27,19 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
     const [name, setName] = useState('');
     const [trigger, setTrigger] = useState<AutomationTrigger>('Lead mudou de status');
     const [statusCondition, setStatusCondition] = useState('');
+    // Gatilho de estagnação (Onda 7): reavaliado diariamente por stagnation-scanner.service.ts, não
+    // em tempo real — vazio = regra normal, só orientada a evento (ver automation.engine.ts).
+    const [stagnationDays, setStagnationDays] = useState('');
     const [action, setAction] = useState<AutomationAction>('Notificar equipe');
     const acoesDisponiveis = ACTIONS.filter((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[trigger]?.includes(a));
     const [title, setTitle] = useState('');
     const [body, setBody] = useState('');
+    const [emailChannel, setEmailChannel] = useState(false);
+    const [emailTo, setEmailTo] = useState('');
     const [dueInDays, setDueInDays] = useState('1');
     const [saving, setSaving] = useState(false);
 
-    // O filtro por etapa só faz sentido para o gatilho de mudança de status.
+    // O filtro por etapa e a regra de estagnação só fazem sentido para o gatilho de mudança de status.
     const permiteCondicaoStatus = trigger === 'Lead mudou de status';
 
     const submit = useCallback(async () => {
@@ -42,15 +47,33 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
             toast.error('Dê um nome à automação.');
             return;
         }
+        const stagnationThreshold = permiteCondicaoStatus && stagnationDays.trim() ? Number(stagnationDays) : null;
+        if (stagnationThreshold != null && (!Number.isFinite(stagnationThreshold) || stagnationThreshold <= 0)) {
+            toast.error('O número de dias parado precisa ser maior que zero.');
+            return;
+        }
+        if (emailChannel && !emailTo.trim()) {
+            toast.error('Informe o e-mail de destino para o canal de e-mail.');
+            return;
+        }
         setSaving(true);
         try {
+            const conditions: AutomationConditions = {};
+            if (permiteCondicaoStatus && statusCondition) conditions.status = statusCondition;
+            if (stagnationThreshold != null) conditions.daysSinceLastInteraction = { gte: stagnationThreshold };
+
             await automationsApi.create({
                 name: name.trim(),
                 trigger,
                 action,
-                conditions: permiteCondicaoStatus && statusCondition ? { status: statusCondition } : null,
+                conditions: Object.keys(conditions).length > 0 ? conditions : null,
                 actionConfig: action === 'Notificar equipe'
-                    ? { title: title.trim() || name.trim(), body: body.trim() || undefined, kind: 'Info' }
+                    ? {
+                        title: title.trim() || name.trim(),
+                        body: body.trim() || undefined,
+                        kind: 'Info',
+                        ...(emailChannel ? { channel: 'email', to: emailTo.trim() } : {}),
+                    }
                     // A ligação não tem parâmetro: o agente e o número saem da configuração do
                     // ambiente e do cadastro do lead, não da regra.
                     : action === 'Ligar via SDR de Voz'
@@ -64,7 +87,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
         } finally {
             setSaving(false);
         }
-    }, [name, trigger, action, statusCondition, title, body, dueInDays, permiteCondicaoStatus, onSaved]);
+    }, [name, trigger, action, statusCondition, stagnationDays, title, body, emailChannel, emailTo, dueInDays, permiteCondicaoStatus, onSaved]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
@@ -118,6 +141,25 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                         </div>
                     )}
 
+                    {permiteCondicaoStatus && (
+                        <div>
+                            <label className={labelClass} htmlFor="auto-estagnacao">
+                                Também reavaliar todo dia se ficar parado, sem interação, por (dias — opcional)
+                            </label>
+                            <input
+                                id="auto-estagnacao" type="number" min="1" value={stagnationDays}
+                                onChange={(e) => setStagnationDays(e.target.value)}
+                                placeholder="Ex: 3 — vira uma regra tipo &quot;Proposta enviada sem resposta&quot;"
+                                className={inputClass}
+                            />
+                            <p className="text-[11px] text-ink-2 mt-1">
+                                Sem preencher, a regra só dispara na transição de etapa (comportamento normal).
+                                Preenchendo, ela também é reavaliada uma vez por dia enquanto o lead permanecer
+                                parado — dispara uma única vez por período de estagnação, não todo dia.
+                            </p>
+                        </div>
+                    )}
+
                     <div>
                         <label className={labelClass} htmlFor="auto-acao">Então</label>
                         <select
@@ -146,6 +188,25 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                                     className={inputClass}
                                 />
                             </div>
+                            <label className="flex items-center gap-2 text-xs text-ink-2 select-none">
+                                <input
+                                    type="checkbox" checked={emailChannel}
+                                    onChange={(e) => setEmailChannel(e.target.checked)}
+                                    className="rounded border-line"
+                                />
+                                Também enviar por e-mail (além do sino de notificações)
+                            </label>
+                            {emailChannel && (
+                                <div>
+                                    <label className={labelClass} htmlFor="auto-email-to">Enviar para (e-mail)</label>
+                                    <input
+                                        id="auto-email-to" type="email" value={emailTo}
+                                        onChange={(e) => setEmailTo(e.target.value)}
+                                        placeholder="gestor@atlasgr.com.br"
+                                        className={inputClass}
+                                    />
+                                </div>
+                            )}
                         </>
                     ) : action === 'Ligar via SDR de Voz' ? (
                         <p className="text-xs text-ink-2 bg-surface-2 rounded-lg p-3">

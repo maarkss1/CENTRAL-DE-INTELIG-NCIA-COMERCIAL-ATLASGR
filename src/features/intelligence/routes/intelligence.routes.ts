@@ -95,8 +95,40 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
             return;
         }
 
-        // companyInfo é opcional — quando ausente, o worker busca os dados reais da empresa no CRM.
-        const job = leadsQueue ? await leadsQueue.add('qualify-lead', { leadId, companyInfo: companyInfo || '' }) : { id: 'no-queue' };
+        const organizationId = (req as AuthRequest).user.organizationId;
+
+        // QUEUE-002: organizationId agora viaja no job — sem ele o worker não tinha como escopar a
+        // query por tenant (ver createLeadsWorker em src/lib/queue/index.ts), e a atualização final
+        // do lead sempre falhava sob RLS. `jobId` determinístico (por tenant+lead) faz um clique
+        // duplo, ou um segundo pedido de qualificação antes do primeiro terminar, reaproveitar o job
+        // já em fila/execução em vez de gastar uma segunda chamada de IA e correr duas atualizações
+        // concorrentes do mesmo lead.
+        let job: { id?: string };
+        if (leadsQueue) {
+            const jobId = `qualify-lead:${organizationId}:${leadId}`;
+            const existing = await leadsQueue.getJob(jobId);
+            const existingState = existing ? await existing.getState() : null;
+
+            if (existingState && ['waiting', 'active', 'delayed'].includes(existingState)) {
+                // Já há uma qualificação em andamento para este lead — reaproveita em vez de
+                // duplicar a chamada de IA e correr duas atualizações concorrentes do mesmo lead.
+                job = existing!;
+            } else {
+                // Job anterior com este id já terminou (completed/failed) ou nunca existiu: remove
+                // antes de reusar o mesmo jobId — mesmo padrão de debounce-por-id já usado em
+                // whatsappSignal.worker.ts, para nunca colidir com um job terminal retido pelo TTL
+                // de `removeOnComplete`/`removeOnFail`.
+                if (existing) await existing.remove().catch(() => {});
+                job = await leadsQueue.add(
+                    'qualify-lead',
+                    // companyInfo é opcional — quando ausente, o worker busca os dados reais da empresa no CRM.
+                    { leadId, companyInfo: companyInfo || '', organizationId },
+                    { jobId },
+                );
+            }
+        } else {
+            job = { id: 'no-queue' };
+        }
 
         res.status(202).json({
             message: 'Lead qualification started in background',

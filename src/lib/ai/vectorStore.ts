@@ -1,62 +1,68 @@
-import { withRlsContext } from '../prisma.js';
-import { generateEmbedding } from './gateway.js';
-import { getTenantId } from '../async-context.js';
 import { logger } from '../logger.js';
+import { getTenantId } from '../async-context.js';
+import { searchService } from '../../features/knowledge/search.service.js';
 
 export interface SearchResult {
     id: string;
     content: string;
     documentId: string;
-    similarity: number;
+    /** Título do documento de origem — obrigatório para toda resposta de RAG citar a fonte real. */
+    documentTitle: string;
+    /** Posição do trecho dentro do documento (0-based) — permite citar "trecho N de <título>". */
+    chunkIndex: number;
+    /** `null` quando o trecho só bateu por palavra-chave (sem embedding ou match semântico). */
+    similarity: number | null;
+    /** De onde veio o resultado: só semântico, só palavra-chave, ou ambos. */
+    matchedBy: Array<'semantic' | 'keyword'>;
 }
 
 /**
- * RLS/tenant scoping desta busca (playbook RAG do enxame de IA, ver playbookTool.ts):
+ * RAG-001 (ver também vector.service.ts/vector-search.service.ts, mesmo bug): este módulo lia e
+ * escrevia direto em "DocumentChunk" via SQL cru, num pipeline paralelo ao motor real de busca da
+ * Base de Conhecimento (`src/features/knowledge/search.service.ts`). Dois problemas reais:
  *
- * `DocumentChunk` não tem coluna `organizationId` própria — o isolamento por tenant depende do
- * join com `Document` (dono do `organizationId`) e das policies de RLS em
- * `prisma/migrations/20260731170000_knowledge_base_tenant_scope/migration.sql`. Como
- * `$executeRaw`/`$queryRaw` não passam pela extensão `$allOperations` de `src/lib/prisma.ts`, as
- * duas funções abaixo rodam via `withRlsContext` (seta `app.current_tenant_id` na transação —
- * sem isso, a policy com FORCE ROW LEVEL SECURITY devolve silenciosamente zero linhas em toda
- * leitura, e bloqueia toda escrita) E também filtram `organizationId` explicitamente por um join
- * com `Document` no WHERE da busca — a mesma dupla camada usada em
- * `src/features/knowledge/search.service.ts` (semanticSearch/keywordSearch): a RLS cobre o caso
- * de um bug futuro no contexto de tenant, o WHERE explícito cobre o caso de a conexão rodar sob
- * um papel de banco que ignora RLS (ex.: superusuário/owner da tabela).
+ * 1. Pipeline duplicado: a mesma tabela, consultada por dois caminhos de código diferentes — exatamente
+ *    o que a missão de RAG da Onda 2 (e a reafirmação na Onda 7: "evitar múltiplos pipelines
+ *    conflitantes") proíbe. `addDocumentChunk` nunca teve nenhum chamador real no app inteiro (dead
+ *    code desde sempre), então nenhum documento era ingerido por este caminho — só a Base de
+ *    Conhecimento real (`ingestionService.ingestText`) grava chunks de verdade.
+ * 2. Sem proveniência: a busca original só devolvia `content`/`documentId` (um UUID cru, não citável
+ *    a um humano) e nenhum `documentTitle`. `search_playbook` (playbookTool.ts) apresentava cada
+ *    trecho como "Trecho N (Score: X%)" — sem nenhuma indicação de QUAL documento originou o trecho.
+ *    Isso viola a exigência de proveniência ponta a ponta da Onda 7: toda resposta baseada em RAG
+ *    precisa citar de onde veio (documento/chunk), nunca só apresentar o texto cru como se fosse
+ *    conhecimento do próprio modelo.
+ * 3. Só semântico, sem busca por palavra-chave: um termo exato (nome de produto, sigla) que o
+ *    embedding erra não tinha nenhum fallback, diferente do motor real (`hybridSearch`, RRF entre
+ *    semântico e full-text).
+ *
+ * `similaritySearch` agora delega para `searchService.hybridSearch` — o mesmo motor (semântico +
+ * palavra-chave, RLS por tenant, fusão RRF) que alimenta a Base de Conhecimento real — e devolve
+ * `documentTitle`/`chunkIndex`/`matchedBy` para que quem consome o resultado (playbookTool.ts) possa
+ * sempre citar a fonte real, nunca afirmar ter encontrado algo que não existe.
  */
-
 export const vectorStore = {
     /**
-     * Gera o embedding para um texto e salva um novo chunk no banco de dados.
-     *
-     * `documentId` precisa pertencer ao tenant do `requestContext` atual: a policy de RLS de
-     * `DocumentChunk` (FOR ALL, com WITH CHECK implícito igual ao USING) rejeita a inserção caso
-     * o `Document` referenciado seja de outra organização, então não há necessidade de repetir a
-     * checagem aqui — apenas de garantir que o contexto de tenant esteja de fato setado.
+     * @deprecated Sem chamador no código (RAG-001), assim como estava antes desta correção. Ingestão
+     * real é `ingestionService.ingestText` (`src/features/knowledge/ingestion.service.ts`), que grava
+     * em "Document"/"DocumentChunk" com RLS, chunking e citação de origem. Mantido só para não
+     * quebrar um import externo eventual — não usar.
      */
-    async addDocumentChunk(documentId: string, content: string): Promise<void> {
-        // Gera o vetor numérico (768 dimensões Gemini) a partir do texto
-        const vector = await generateEmbedding(content);
-
-        // Formata o vetor no padrão aceito pelo pgvector '[0.1, 0.2, ...]'
-        const vectorString = `[${vector.join(',')}]`;
-
-        // Inserção usando raw query por causa do tipo Unsupported("vector")
-        await withRlsContext((tx) => tx.$executeRaw`
-            INSERT INTO "DocumentChunk" (id, "documentId", content, vector)
-            VALUES (gen_random_uuid()::text, ${documentId}, ${content}, ${vectorString}::vector)
-        `);
+    async addDocumentChunk(): Promise<void> {
+        throw new Error(
+            'vectorStore.addDocumentChunk está desativado (RAG-001): use ingestionService.ingestText '
+            + '(src/features/knowledge/ingestion.service.ts) para indexar na Base de Conhecimento real.',
+        );
     },
 
     /**
-     * Realiza uma busca vetorial (Cosine Similarity) para achar os trechos mais relevantes do
-     * playbook, restrita à organização do `requestContext` atual (defesa em profundidade: filtro
-     * explícito de `organizationId` via join com `Document`, além da RLS).
+     * Busca híbrida (RAG-001) restrita ao tenant do `requestContext` atual — necessário porque as
+     * ferramentas de IA que chamam isto (`search_playbook`) rodam fora de uma rota HTTP direta, sem
+     * acesso a `req.user`.
      *
-     * Sem tenant conhecido no contexto (ex.: chamada fora de uma requisição autenticada ou de um
-     * job sem `requestContext.run`), retorna vazio em vez de arriscar rodar sem nenhum filtro de
-     * organização.
+     * Sem tenant conhecido no contexto (ex.: chamada fora de uma requisição autenticada ou de um job
+     * sem `requestContext.run`), retorna vazio em vez de arriscar rodar sem nenhum filtro de
+     * organização — nunca teria como citar uma fonte legítima de qualquer forma.
      */
     async similaritySearch(query: string, limit: number = 3): Promise<SearchResult[]> {
         const organizationId = getTenantId();
@@ -65,24 +71,20 @@ export const vectorStore = {
             return [];
         }
 
-        const vector = await generateEmbedding(query);
-        const vectorString = `[${vector.join(',')}]`;
-
-        // Operador <=> calcula o Cosine Distance no pgvector.
-        // A similaridade é (1 - distância).
-        const results = await withRlsContext((tx) => tx.$queryRaw<SearchResult[]>`
-            SELECT
-                c.id,
-                c.content,
-                c."documentId",
-                1 - (c.vector <=> ${vectorString}::vector) as similarity
-            FROM "DocumentChunk" c
-            JOIN "Document" d ON d.id = c."documentId"
-            WHERE d."organizationId" = ${organizationId}
-            ORDER BY c.vector <=> ${vectorString}::vector
-            LIMIT ${limit}
-        `);
-
-        return results;
-    }
+        try {
+            const response = await searchService.hybridSearch(organizationId, query, limit);
+            return response.hits.map((hit) => ({
+                id: hit.chunkId,
+                content: hit.content,
+                documentId: hit.documentId,
+                documentTitle: hit.documentTitle,
+                chunkIndex: hit.chunkIndex,
+                similarity: hit.similarity,
+                matchedBy: hit.matchedBy,
+            }));
+        } catch (error) {
+            logger.error({ err: error, query }, 'Falha na busca híbrida do playbook (vectorStore)');
+            return [];
+        }
+    },
 };
