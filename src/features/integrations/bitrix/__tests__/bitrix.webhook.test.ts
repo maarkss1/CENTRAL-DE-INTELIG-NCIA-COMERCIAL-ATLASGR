@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { bitrixSyncFailuresTotal } from '../service/metrics.js';
 
 vi.mock('@/lib/logger', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -51,6 +52,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     contextStore.length = 0;
     prismaMock.bitrixSyncLog.create.mockResolvedValue({});
+    bitrixSyncFailuresTotal.reset();
 });
 
 /**
@@ -155,5 +157,28 @@ describe('POST /webhook/:connectionId', () => {
         const methodsCalled = clientMock.callBitrix.mock.calls.map((c) => c[1]);
         expect(methodsCalled).not.toContain('crm.lead.add');
         expect(methodsCalled).not.toContain('crm.lead.update');
+    });
+
+    /**
+     * Onda 7 — item 1 da missão ("sincronizações Bitrix que não falham em silêncio"): antes desta
+     * correção, uma falha do webhook de ENTRADA só existia em BitrixSyncLog e no log de aplicação,
+     * nunca somava em `bitrix_sync_failures_total` — a série Prometheus que a regra de alerta
+     * `BitrixSyncFailuresHigh` observa. Diferente do push/pull automático (outboundSync.ts/
+     * syncRules.ts), que já incrementavam a métrica em toda falha desde antes desta onda.
+     */
+    it('incrementa bitrix_sync_failures_total quando o processamento do evento falha (achado da Onda 7)', async () => {
+        prismaMock.bitrixConnection.findUnique.mockResolvedValue(CONNECTION);
+        prismaMock.lead.findFirst.mockResolvedValue({ id: 'lead-local-1', organizationId: 'org-1', bitrixLeadId: '123', contactId: null, qualification: null });
+        clientMock.callBitrix.mockRejectedValue(new Error('Bitrix24 respondeu com erro de servidor (HTTP 502).'));
+
+        const app = await buildApp();
+        const res = await request(app)
+            .post('/webhook/conn-1')
+            .send('auth[application_token]=segredo-correto&event=ONCRMLEADUPDATE&data[FIELDS][ID]=123');
+
+        expect(res.status).toBe(500);
+        expect(prismaMock.bitrixSyncLog.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'failed', direction: 'inbound' }) }));
+        const metric = await bitrixSyncFailuresTotal.get();
+        expect(metric.values).toContainEqual(expect.objectContaining({ labels: { tenant: 'org-1', entity: 'lead' }, value: 1 }));
     });
 });
