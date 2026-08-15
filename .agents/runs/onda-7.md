@@ -103,7 +103,27 @@ unitários, build ok. Push: `f4e708d`.
   de owner, quebra `requireLeadOwnership`) e `04-para-07-owner-fabricado-follow-up-ia.md`
   (`opsTools.ts` fabricava owner "Enxame de IA Atlas" em follow-up gerado por IA).
 
+### Leva 3 — mergeada (2026-08-15)
+
+Agente 06 (Integrações/Bitrix) concluiu com diff em escopo exclusivo. Merge sem conflito. Gate na
+branch `integracao/onda-7`: `tsc --noEmit` limpo, lint 0 erros/101 warnings (baseline), 902/902
+testes unitários, build ok. Push: `64e482f`.
+
+- Corrigiu gap real de observabilidade: webhook de entrada Bitrix→Atlas registrava falha em
+  `BitrixSyncLog`/log de app mas nunca incrementava `bitrix_sync_failures_total` — a métrica que
+  a regra de alerta `BitrixSyncFailuresHigh` observa. Corrigido.
+- Serviço real de Extrações Bitrix completo (6 entidades, 7 presets de período, paginação com
+  retry/backoff, teto de 500 páginas, cancelamento cooperativo, export CSV/XLSX/JSON, isolamento
+  de tenant), rotas ADMIN/GESTOR, painel `BitrixExtractionPanel.tsx` na aba Bitrix24. "Analisar
+  com IA" documentado como pendência explícita (depende da infraestrutura do Agente 07, fora do
+  escopo do 06). Execução fire-and-forget no processo HTTP (mesmo padrão de `pushLeadToBitrix`),
+  não worker BullMQ novo — evita mexer em `worker.ts`/`server.ts`.
+- Resolveu handoff de levantamento de sessões Baileys (16→06) sem mover nada — documentou onde a
+  sessão vive hoje (`Map` module-level em `whatsapp.service.ts`, credenciais em disco local).
+- Revisou handoff 3CX (onda-5, 01→06): campos de model confirmados; `process3CXWebhook` ainda só
+  loga, não persiste — como `threecx/**` passou a ser do Agente 12 nesta onda, redirecionado via
+  `06-para-12-3cx-webhook-persistencia.md`.
+
 ### Pendente
 
-Agentes 13 (Enxame/Governança), 07 (IA/Automações), 12 (Voz/Telefonia), 06 (Integrações/Bitrix)
-ainda em execução.
+Agentes 13 (Enxame/Governança), 07 (IA/Automações), 12 (Voz/Telefonia) ainda em execução.
