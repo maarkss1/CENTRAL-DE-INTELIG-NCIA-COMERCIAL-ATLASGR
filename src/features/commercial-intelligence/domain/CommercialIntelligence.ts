@@ -96,6 +96,25 @@ export interface PipelineCreation {
     /** Pipeline necessário (meta futura / win rate esperado) e cobertura de criação — seção 15. */
     pipelineNeeded: number | null;
     creationCoverage: number | null;
+    /**
+     * Ritmo de criação de pipeline (seções 17-19 do Cockpit legado, `js/cockpit.js`
+     * `cockpitCalcularGeracaoPipeline`/`ehDiaUtilISO`, reimplementado em `application/businessDays.ts`).
+     * Dia útil = segunda a sexta (sem calendário de feriados configurado — mesma simplificação
+     * documentada na fonte). Dias úteis já decorridos no mês-calendário do período, contando hoje.
+     * Mês inteiramente futuro → 0. Mês inteiramente passado → igual a `businessDaysTotal`.
+     */
+    businessDaysElapsed: number;
+    /** Total de dias úteis do mês-calendário do período. */
+    businessDaysTotal: number;
+    /**
+     * Pipeline que já deveria ter sido criado até agora, proporcional aos dias úteis decorridos:
+     * `pipelineNeeded * (businessDaysElapsed / businessDaysTotal)`. `null` sem `pipelineNeeded`
+     * (nunca fabrica uma meta implícita quando a meta/win rate não permitem calcular
+     * `pipelineNeeded`).
+     */
+    expectedByNow: number | null;
+    /** Ritmo de criação, em %: `amount / expectedByNow * 100`. `null` sem `expectedByNow` (ou `expectedByNow` zero). */
+    pacePercent: number | null;
 }
 
 // ─── Eficiência (Fase 4) ─────────────────────────────────────────────────────
@@ -328,6 +347,46 @@ export interface DealDrillDownQuery {
     missingNextAction?: boolean;
     limit?: number;
     offset?: number;
+}
+
+// ─── Proteção de Receita M/M+1/M+2/M+3 ──────────────────────────────────────
+
+export type RevenueProtectionStatus = 'critical' | 'attention' | 'healthy' | 'unknown';
+
+/**
+ * Bloco "Proteção de Receita" do Cockpit legado (`js/cockpit.js`, `cockpitCalcularProtecao` +
+ * `cockpitStatusProtecao`), reimplementado aqui reaproveitando `coverageRecommended` (1 / Win
+ * Rate) já calculado por este módulo em vez do threshold fixo 2x/3x do legado — que a própria
+ * fonte documenta como "critério inicial, não validado com a diretoria". Ver
+ * `application/revenueProtection.ts` para a fórmula de `status` e a justificativa dos limiares.
+ */
+export interface RevenueProtectionSnapshot {
+    /** Mês-calendário ("YYYY-MM"). M é `filter.month`; M+1/M+2/M+3 são os 3 meses seguintes. */
+    period: PeriodMonth;
+    /** Rótulo curto: "M", "M+1", "M+2", "M+3". */
+    label: string;
+    goal: CommercialGoalDTO | null;
+    /** Meta do mês menos o já fechado (ganho) nele. Só M pode ter algo fechado — M+1..M+3 ainda não começaram. Nunca negativa; sem meta cadastrada, 0. */
+    remainingGoal: number;
+    /** Pipeline elegível (mesmos critérios de `pipelineEligibility.ts`) com `expectedCloseAt` dentro do mês-calendário. */
+    pipelineEligible: number;
+    /** Pipeline Elegível ÷ Meta restante do mês. `null` sem meta cadastrada ou meta restante zerada. */
+    coverage: number | null;
+    /** Mesmo `coverageRecommended` (1 / Win Rate) de `CoverageSnapshot` — não é um novo cálculo por mês. */
+    coverageRecommended: number | null;
+    status: RevenueProtectionStatus;
+}
+
+// ─── Exportações (HTML/CSV/JSON/Relatório Executivo) ────────────────────────
+
+export type ExportFormat = 'csv' | 'json' | 'html';
+
+/** Uma linha do export tabular (CSV/HTML) — um indicador por linha: bloco, indicador, valor, unidade. */
+export interface ExportKpiRow {
+    block: string;
+    indicator: string;
+    value: string;
+    unit: string;
 }
 
 // ─── Dicionário de métricas (seção 39) ──────────────────────────────────────

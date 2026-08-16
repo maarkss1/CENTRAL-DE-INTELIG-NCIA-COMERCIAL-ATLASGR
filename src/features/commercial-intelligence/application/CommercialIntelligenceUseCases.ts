@@ -22,10 +22,15 @@ import type {
     DealDrillDownRow,
     ForecastTier,
     GoalMetric,
+    ExportFormat,
+    RevenueProtectionSnapshot,
 } from '../domain/CommercialIntelligence';
 import { scoreOpportunity, type ForecastResult } from './forecastEngine';
 import { checkEligibility, isDealOpen, agingInStageDays, STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
 import { classifyLossReason } from './lossTaxonomy';
+import { countBusinessDays, countBusinessDaysElapsed } from './businessDays';
+import { buildRevenueProtectionSnapshot } from './revenueProtection';
+import { buildExecutiveExport, type ExecutiveExportPayload } from './executiveExport';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -280,7 +285,15 @@ export class CommercialIntelligenceUseCases {
         const pipelineNeeded = goal && winRate && winRate > 0 ? roundMoney(goal.amount / winRate) : null;
         const creationCoverage = pipelineNeeded && pipelineNeeded > 0 ? roundMoney(amount / pipelineNeeded) : null;
 
-        void now;
+        // Ritmo de criação (pace) — seções 17-19 do Cockpit legado (`cockpitCalcularGeracaoPipeline`
+        // em js/cockpit.js), reimplementado em `application/businessDays.ts`. Compara dias úteis já
+        // decorridos no mês-calendário do período vs. o total, e o que já foi criado vs. o que seria
+        // esperado proporcionalmente até agora.
+        const businessDaysTotal = countBusinessDays(start, end);
+        const businessDaysElapsed = countBusinessDaysElapsed(start, end, now);
+        const expectedByNow = pipelineNeeded != null && businessDaysTotal > 0 ? roundMoney(pipelineNeeded * (businessDaysElapsed / businessDaysTotal)) : null;
+        const pacePercent = expectedByNow != null && expectedByNow > 0 ? roundMoney((amount / expectedByNow) * 100) : null;
+
         void daysInMonth;
         return {
             period: filter.month,
@@ -291,6 +304,10 @@ export class CommercialIntelligenceUseCases {
             byOwner: groupBy((d) => d.owner),
             pipelineNeeded,
             creationCoverage,
+            businessDaysElapsed,
+            businessDaysTotal,
+            expectedByNow,
+            pacePercent,
         };
     }
 
@@ -752,5 +769,63 @@ export class CommercialIntelligenceUseCases {
             negativeFactors: found.forecast.negativeFactors,
             lastUpdatedAt: found.deal.updatedAt.toISOString(),
         };
+    }
+
+    // ─── Proteção de Receita M/M+1/M+2/M+3 ───────────────────────────────────
+
+    /**
+     * 4 meses-calendário (M = `filter.month`, M+1/M+2/M+3 os 3 seguintes). Para cada um: meta do
+     * mês (via `getGoal`), pipeline elegível daquele mês (mesmos critérios de
+     * `pipelineEligibility.ts`, aplicados ao `expectedCloseAt` dentro do mês), coverage e status
+     * (ver `application/revenueProtection.ts`). `coverageRecommended` (1 / Win Rate) é calculado
+     * uma única vez sobre o mês de referência do filtro — não é recalculado "por mês futuro" (não
+     * existe fechamento futuro para medir Win Rate).
+     */
+    async revenueProtection(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<RevenueProtectionSnapshot[]> {
+        const { scored } = await this.loadScoredDeals(organizationId, now);
+        const inScope = this.applyScope(scored, filter);
+        const open = inScope.filter((s) => isDealOpen(s.deal));
+        const eligible = open.filter((s) => checkEligibility(s.deal, now, s.daysInCurrentStage).eligible);
+
+        const { start: refStart, end: refEnd } = monthRange(filter.month);
+        const closedRef = inScope.filter((s) => (s.deal.stageIsWon || s.deal.stageIsLost) && s.deal.closedAt && s.deal.closedAt >= refStart && s.deal.closedAt < refEnd);
+        const wonRef = closedRef.filter((s) => s.deal.stageIsWon).length;
+        const lostRef = closedRef.filter((s) => s.deal.stageIsLost).length;
+        const winRate = wonRef + lostRef > 0 ? (wonRef / (wonRef + lostRef)) * 100 : null;
+        const coverageRecommended = winRate && winRate > 0 ? roundMoney(1 / (winRate / 100)) : null;
+
+        const [baseYear, baseMonthNum] = filter.month.split('-').map(Number);
+        const snapshots: RevenueProtectionSnapshot[] = [];
+        for (let i = 0; i < 4; i++) {
+            const targetDate = new Date(Date.UTC(baseYear, baseMonthNum - 1 + i, 1));
+            const period = `${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}`;
+            const { start, end } = monthRange(period);
+            const goal = await this.repository.getGoal(organizationId, period, 'NEW_MRR');
+            const closedInMonth = inScope.filter((s) => s.deal.stageIsWon && s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end);
+            const closedAmountInMonth = roundMoney(closedInMonth.reduce((sum, s) => sum + s.deal.amount, 0));
+            const pipelineEligibleInMonth = roundMoney(
+                eligible
+                    .filter((s) => s.deal.expectedCloseAt && s.deal.expectedCloseAt >= start && s.deal.expectedCloseAt < end)
+                    .reduce((sum, s) => sum + s.deal.amount, 0)
+            );
+            snapshots.push(buildRevenueProtectionSnapshot(period, i === 0 ? 'M' : `M+${i}`, goal, closedAmountInMonth, pipelineEligibleInMonth, coverageRecommended));
+        }
+        return snapshots;
+    }
+
+    // ─── Exportações (HTML/CSV/JSON/Relatório Executivo) ────────────────────
+
+    /**
+     * Reaproveita `executiveOverview`/`performance`/`pipelineCreation`/`alerts` (nenhum cálculo
+     * novo aqui) e delega a serialização para `application/executiveExport.ts`.
+     */
+    async executiveExport(organizationId: string, filter: CommercialIntelligenceFilter, format: ExportFormat, now = new Date()): Promise<ExecutiveExportPayload> {
+        const [overview, performance, creation, alertsList] = await Promise.all([
+            this.executiveOverview(organizationId, filter, now),
+            this.performance(organizationId, filter, now),
+            this.pipelineCreation(organizationId, filter, now),
+            this.alerts(organizationId, filter, now),
+        ]);
+        return buildExecutiveExport(format, overview, performance, creation, alertsList, now);
     }
 }

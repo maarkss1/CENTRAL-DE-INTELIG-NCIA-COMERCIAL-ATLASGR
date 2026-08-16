@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, AlertTriangle, Pencil, MonitorPlay } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Pencil, MonitorPlay, Download } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -9,10 +9,12 @@ import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import { AiExecutiveSummaryCard } from './AiExecutiveSummaryCard';
 import { GoalCountdownOverlay } from './GoalCountdownOverlay';
+import { RevenueProtectionCard } from './RevenueProtectionCard';
+import { toast } from '../../../lib/toast';
 import {
-    commercialIntelligenceApi, formatCurrency, formatPercent, formatMultiple,
+    commercialIntelligenceApi, downloadExecutiveExport, formatCurrency, formatPercent, formatMultiple,
     type CommercialFilter, type ExecutiveOverview, type ExecutiveAlert, type LeadingIndicatorsReport,
-    type PerformanceMetrics, type PipelineCreation
+    type PerformanceMetrics, type PipelineCreation, type RevenueProtectionSnapshot, type ExportFormat
 } from '../commercialIntelligence.api';
 
 interface ExecutiveOverviewTabProps {
@@ -25,32 +27,47 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
     const [indicators, setIndicators] = useState<LeadingIndicatorsReport | null>(null);
     const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
     const [creation, setCreation] = useState<PipelineCreation | null>(null);
+    const [revenueProtection, setRevenueProtection] = useState<RevenueProtectionSnapshot[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [goalDialogOpen, setGoalDialogOpen] = useState(false);
     const [drillDown, setDrillDown] = useState<DrillDownQuery | null>(null);
     const [showTvMode, setShowTvMode] = useState(false);
+    const [exporting, setExporting] = useState<ExportFormat | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const [overviewData, alertsData, indicatorsData, performanceData, creationData] = await Promise.all([
+            const [overviewData, alertsData, indicatorsData, performanceData, creationData, revenueProtectionData] = await Promise.all([
                 commercialIntelligenceApi.overview(filter),
                 commercialIntelligenceApi.alerts(filter),
                 commercialIntelligenceApi.leadingIndicators(),
                 commercialIntelligenceApi.performance(filter),
-                commercialIntelligenceApi.pipelineCreation(filter)
+                commercialIntelligenceApi.pipelineCreation(filter),
+                commercialIntelligenceApi.revenueProtection(filter)
             ]);
             setOverview(overviewData);
             setAlerts(alertsData);
             setIndicators(indicatorsData);
             setPerformance(performanceData);
             setCreation(creationData);
+            setRevenueProtection(revenueProtectionData);
         } catch (err) {
             setError((err as Error).message);
         } finally {
             setLoading(false);
+        }
+    }, [filter]);
+
+    const handleExport = useCallback(async (format: ExportFormat) => {
+        setExporting(format);
+        try {
+            await downloadExecutiveExport(filter, format);
+        } catch (err) {
+            toast.error((err as Error).message || 'Falha ao exportar o relatório executivo.');
+        } finally {
+            setExporting(null);
         }
     }, [filter]);
 
@@ -93,12 +110,28 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                     <h2 className="text-sm font-bold text-ink">Cockpit — {overview.period}</h2>
                     <p className="text-[11px] text-ink-2">Atualizado em {new Date(overview.dataAsOf).toLocaleString('pt-BR')}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => setShowTvMode(true)}>
                         <MonitorPlay className="w-3.5 h-3.5 mr-1.5 text-brand" /> Modo TV
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setGoalDialogOpen(true)}>
                         <Pencil className="w-3.5 h-3.5 mr-1.5" /> {overview.goal ? 'Editar meta' : 'Definir meta'}
+                    </Button>
+                    {/*
+                      Exportações (Relatório Executivo) — 3 botões simples em vez de um menu
+                      dropdown novo: não existe nenhum componente de menu/dropdown reutilizável
+                      neste design system ainda (ver `src/components/ui/`), e 3 botões seguem o
+                      mesmo padrão já usado nesta barra (Modo TV / Editar meta) sem introduzir um
+                      componente novo só para isso — decisão conservadora, documentada aqui.
+                    */}
+                    <Button variant="outline" size="sm" disabled={exporting === 'csv'} onClick={() => void handleExport('csv')}>
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> {exporting === 'csv' ? 'Exportando…' : 'CSV'}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={exporting === 'json'} onClick={() => void handleExport('json')}>
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> {exporting === 'json' ? 'Exportando…' : 'JSON'}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={exporting === 'html'} onClick={() => void handleExport('html')}>
+                        <Download className="w-3.5 h-3.5 mr-1.5" /> {exporting === 'html' ? 'Exportando…' : 'Relatório HTML'}
                     </Button>
                 </div>
             </div>
@@ -156,13 +189,20 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
 
             {(performance || creation) && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <KpiTile 
-                        label="Pipeline Criado" 
-                        value={creation ? formatCurrency(creation.amount, currency) : '-'} 
+                    <KpiTile
+                        label="Pipeline Criado"
+                        value={creation ? formatCurrency(creation.amount, currency) : '-'}
                         hint={creation ? `${creation.count} negócio(s)` : undefined}
                     />
-                    <KpiTile 
-                        label="Oportunidades Abertas" 
+                    <KpiTile
+                        label="Ritmo de Criação (pace)"
+                        value={creation?.pacePercent != null ? formatPercent(creation.pacePercent) : 'Não disponível'}
+                        tone={creation?.pacePercent != null ? (creation.pacePercent >= 100 ? 'good' : 'critical') : undefined}
+                        hint={creation && creation.businessDaysTotal > 0 ? `${creation.businessDaysElapsed}/${creation.businessDaysTotal} dias úteis do mês` : undefined}
+                        metricKey="ritmo_criacao_pipeline"
+                    />
+                    <KpiTile
+                        label="Oportunidades Abertas"
                         value={performance?.opportunities.open.toString() || '-'} 
                         hint={performance ? `${performance.opportunities.createdInPeriod} novas no mês` : undefined}
                     />
@@ -188,6 +228,8 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                     />
                 </div>
             )}
+
+            <RevenueProtectionCard snapshots={revenueProtection} currency={currency} />
 
             {indicators && (
                 <div>

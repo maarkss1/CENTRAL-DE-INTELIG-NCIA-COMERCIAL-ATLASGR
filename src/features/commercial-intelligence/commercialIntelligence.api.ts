@@ -60,7 +60,25 @@ export interface PipelineCreation {
     byOwner: PipelineCreationBreakdown[];
     pipelineNeeded: number | null;
     creationCoverage: number | null;
+    businessDaysElapsed: number;
+    businessDaysTotal: number;
+    expectedByNow: number | null;
+    pacePercent: number | null;
 }
+
+export type RevenueProtectionStatus = 'critical' | 'attention' | 'healthy' | 'unknown';
+export interface RevenueProtectionSnapshot {
+    period: string;
+    label: string;
+    goal: CommercialGoalDTO | null;
+    remainingGoal: number;
+    pipelineEligible: number;
+    coverage: number | null;
+    coverageRecommended: number | null;
+    status: RevenueProtectionStatus;
+}
+
+export type ExportFormat = 'csv' | 'json' | 'html';
 
 export interface FunnelStageConversion {
     stageId: string;
@@ -176,6 +194,7 @@ export const commercialIntelligenceApi = {
     deals: (filter: CommercialFilter, extra?: { tier?: ForecastTier; stageId?: string; agingCritical?: boolean; missingNextAction?: boolean; limit?: number; offset?: number }) =>
         api.get<DealDrillDownResult>(`${BASE}/deals?${qs(filter, extra)}`),
     metricsDictionary: () => api.get<MetricDefinition[]>(`${BASE}/metrics-dictionary`),
+    revenueProtection: (filter: CommercialFilter) => api.get<RevenueProtectionSnapshot[]>(`${BASE}/revenue-protection?${qs(filter)}`),
     getGoal: (month: string) => api.get<CommercialGoalDTO | null>(`${BASE}/goals?month=${month}`),
     setGoal: (period: string, amount: number, currency = 'BRL') => api.put<CommercialGoalDTO>(`${BASE}/goals`, { period, amount, currency }),
     // Ação de escrita no Bitrix24 — vive na rota do módulo de integração (não duplica a lógica de
@@ -187,6 +206,36 @@ export const commercialIntelligenceApi = {
     aiExecutiveSummary: (filter: CommercialFilter) => api.post<ExecutiveSummaryResult>(`${BASE}/ai/executive-summary`, filter),
     aiBitrixNote: (leadId: string) => api.post<BitrixNoteDraftResult>(`${BASE}/ai/bitrix-note`, { leadId }),
 };
+
+/**
+ * Exportação HTML/CSV/JSON do Relatório Executivo — a rota devolve o CONTEÚDO cru (não o envelope
+ * `{success,data}` que `apiFetch`/`api.get` espera), então não passa por `commercialIntelligenceApi`
+ * acima. Mesmo padrão já usado em `CrmBoard.tsx` (`handleExportCsv`, `/api/leads/export/csv`):
+ * `fetch` bruto + `Blob` + link `<a download>` temporário.
+ */
+export async function downloadExecutiveExport(filter: CommercialFilter, format: ExportFormat): Promise<void> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${BASE}/export?${qs(filter, { format })}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.message || 'Falha ao exportar o relatório executivo.');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = /filename="([^"]+)"/.exec(disposition);
+    const filename = match?.[1] || `comercial-inteligente-${filter.month}.${format}`;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
 
 export function formatCurrency(value: number | null | undefined, currency = 'BRL'): string {
     if (value == null) return 'Não disponível';
