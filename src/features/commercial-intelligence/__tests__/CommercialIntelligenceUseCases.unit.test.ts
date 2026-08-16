@@ -315,6 +315,100 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(pipelineCriado?.movingAverage4w).toBeCloseTo((pipelineCriado?.weeklySeries.reduce((s, v) => s + v, 0) ?? 0) / 4, 2);
     });
 
+    it('Pipeline Creation Pace: dias úteis decorridos/total do mês e ritmo (%) batem com o esperado proporcional', async () => {
+        // Agosto/2026 tem 21 dias úteis; até 2026-08-15 (sábado) já decorreram 10 (ver
+        // businessDays.unit.test.ts para a conta detalhada dia a dia).
+        const created = deal({ id: 'novo-1', amount: 50_000, createdAt: new Date('2026-08-03T00:00:00Z') });
+        const won = deal({ id: 'ganho-1', amount: 10_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-05T00:00:00Z') });
+        const lost = deal({ id: 'perdido-1', amount: 5_000, stageIsLost: true, pipelineStageId: 'stage-perdido', closedAt: new Date('2026-08-06T00:00:00Z'), lossReason: 'Preço' });
+        const repo = new FakeRepository([created, won, lost]);
+        await repo.upsertGoal(ORG, PERIOD, 'NEW_MRR', 300_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const result = await useCases.pipelineCreation(ORG, { month: PERIOD }, NOW);
+        expect(result.businessDaysTotal).toBe(21);
+        expect(result.businessDaysElapsed).toBe(10);
+        // winRate = 1/(1+1) = 50% -> pipelineNeeded = 300_000 / 0.5 = 600_000
+        expect(result.pipelineNeeded).toBe(600_000);
+        const expectedByNow = 600_000 * (10 / 21);
+        expect(result.expectedByNow).toBeCloseTo(Math.round((expectedByNow + Number.EPSILON) * 100) / 100, 2);
+        expect(result.pacePercent).toBeCloseTo((result.amount / (result.expectedByNow as number)) * 100, 1);
+    });
+
+    it('Pipeline Creation Pace: sem Pipeline Necessário calculável (sem meta), expectedByNow e pacePercent ficam "Não disponível" (null)', async () => {
+        const created = deal({ id: 'novo-1', amount: 50_000, createdAt: new Date('2026-08-03T00:00:00Z') });
+        const repo = new FakeRepository([created]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const result = await useCases.pipelineCreation(ORG, { month: PERIOD }, NOW);
+        expect(result.pipelineNeeded).toBeNull();
+        expect(result.expectedByNow).toBeNull();
+        expect(result.pacePercent).toBeNull();
+        // dias úteis continuam calculáveis independente da meta
+        expect(result.businessDaysTotal).toBe(21);
+        expect(result.businessDaysElapsed).toBe(10);
+    });
+
+    it('Proteção de Receita: monta 4 meses-calendário (M/M+1/M+2/M+3), cada um com a meta e o pipeline elegível do próprio mês', async () => {
+        const eligibleAug = deal({ id: 'elig-aug', amount: 40_000, expectedCloseAt: new Date('2026-08-20T00:00:00Z') });
+        const eligibleSep = deal({ id: 'elig-sep', amount: 60_000, expectedCloseAt: new Date('2026-09-15T00:00:00Z') });
+        const eligibleOct = deal({ id: 'elig-oct', amount: 20_000, expectedCloseAt: new Date('2026-10-10T00:00:00Z') });
+        // Sem negócio elegível em novembro (M+3) de propósito — cobertura daquele mês deve refletir pipeline 0.
+        const repo = new FakeRepository([eligibleAug, eligibleSep, eligibleOct]);
+        await repo.upsertGoal(ORG, '2026-08', 'NEW_MRR', 100_000, 'BRL', 'user-1');
+        await repo.upsertGoal(ORG, '2026-09', 'NEW_MRR', 80_000, 'BRL', 'user-1');
+        // 2026-10 e 2026-11 ficam sem meta cadastrada de propósito.
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const snapshots = await useCases.revenueProtection(ORG, { month: PERIOD }, NOW);
+        expect(snapshots.map((s) => s.period)).toEqual(['2026-08', '2026-09', '2026-10', '2026-11']);
+        expect(snapshots.map((s) => s.label)).toEqual(['M', 'M+1', 'M+2', 'M+3']);
+
+        const [m, m1, m2, m3] = snapshots;
+        expect(m.pipelineEligible).toBe(40_000);
+        expect(m.remainingGoal).toBe(100_000);
+        expect(m1.pipelineEligible).toBe(60_000);
+        expect(m1.remainingGoal).toBe(80_000);
+        expect(m2.pipelineEligible).toBe(20_000);
+        expect(m2.goal).toBeNull();
+        expect(m2.remainingGoal).toBe(0); // sem meta cadastrada
+        expect(m2.coverage).toBeNull(); // sem meta -> nunca divide por zero
+        expect(m3.pipelineEligible).toBe(0);
+        expect(m3.goal).toBeNull();
+    });
+
+    it('Proteção de Receita: negócio fechado (ganho) dentro do mês M desconta da meta restante daquele mês', async () => {
+        const wonInAugust = deal({ id: 'ganho-ago', amount: 30_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-05T00:00:00Z') });
+        const eligibleAug = deal({ id: 'elig-aug', amount: 40_000, expectedCloseAt: new Date('2026-08-20T00:00:00Z') });
+        const repo = new FakeRepository([wonInAugust, eligibleAug]);
+        await repo.upsertGoal(ORG, '2026-08', 'NEW_MRR', 100_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const [m] = await useCases.revenueProtection(ORG, { month: PERIOD }, NOW);
+        expect(m.remainingGoal).toBe(70_000); // 100_000 - 30_000 já fechado
+        expect(m.pipelineEligible).toBe(40_000);
+        expect(m.coverage).toBeCloseTo(40_000 / 70_000, 2); // arredondado em centésimo por `roundMoney`
+    });
+
+    it('Exportação: CSV/JSON/HTML reaproveitam os mesmos use cases (overview/performance/pipelineCreation/alerts), nenhum cálculo novo', async () => {
+        const won = deal({ id: 'ganho-1', amount: 80_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-05T00:00:00Z') });
+        const repo = new FakeRepository([won]);
+        await repo.upsertGoal(ORG, PERIOD, 'NEW_MRR', 300_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const csv = await useCases.executiveExport(ORG, { month: PERIOD }, 'csv', NOW);
+        expect(csv.mimeType).toContain('text/csv');
+        expect(csv.content.charCodeAt(0)).toBe(0xfeff);
+        expect(csv.content).toContain('80000'); // mesmo Fechado calculado por executiveOverview
+
+        const json = await useCases.executiveExport(ORG, { month: PERIOD }, 'json', NOW);
+        const parsed = JSON.parse(json.content) as { overview: { closedAmount: number } };
+        expect(parsed.overview.closedAmount).toBe(80_000);
+
+        const html = await useCases.executiveExport(ORG, { month: PERIOD }, 'html', NOW);
+        expect(html.content).toContain('<!doctype html>');
+        expect(html.content).toContain(PERIOD);
+    });
+
     it('Drill-down: bitrixLinked reflete se o negócio tem bitrixLeadId ou bitrixDealId', async () => {
         const linked = deal({ id: 'l-1', amount: 10_000, bitrixDealId: 'bx-deal-1' });
         const notLinked = deal({ id: 'nl-1', amount: 10_000 });
