@@ -443,3 +443,10 @@ de arquitetura/produto ou um projeto à parte:
    login/cadastro quando rodada em série numa janela curta (ver "Verificação da rodada completa"
    acima) — vale considerar um `AUTH_RATE_LIMIT_MAX` mais alto especificamente pro ambiente de teste
    (nunca em produção) se a suíte continuar crescendo.
+5. **As ~57 ocorrências `warn` de `react-hooks/set-state-in-effect` e `react-hooks/purity`**
+   (introduzidas pelo upgrade do `eslint-plugin-react-hooks` pra v7, que traz as regras do React
+   Compiler — ver `eslint.config.mjs`) — majoritariamente o padrão legítimo "buscar dado no mount"
+   (`useEffect(() => { fetchX(); }, [])`) espalhado pelo app inteiro. Migrar de verdade significa
+   avaliar caso a caso se cada efeito deveria virar um data-fetching hook próprio (React Query/SWR)
+   ou se o `setState` síncrono ali é inofensivo; não dá pra resolver com find-replace em lote, e
+   arriscaria regressão visual em telas que não dá pra validar uma a uma nesta rodada.
