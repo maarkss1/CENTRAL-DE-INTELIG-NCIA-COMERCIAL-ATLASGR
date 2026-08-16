@@ -36,7 +36,8 @@ router.post('/discover', async (req: Request, res: Response, next: NextFunction)
             res.status(400).json({ success: false, error: 'Critérios de busca inválidos' });
             return;
         }
-        const result = await discoverCandidates(criteria);
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await discoverCandidates(criteria, organizationId);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

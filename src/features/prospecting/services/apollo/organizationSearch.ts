@@ -28,11 +28,14 @@ const REGION_TO_APOLLO_LOCATIONS: Record<string, string[]> = {
 
 /**
  * Resolve a localização para o formato que a Apollo Organization Search realmente reconhece.
- * Cidade+Estado e Estado sozinho (ex: "Niterói, Rio de Janeiro" / "Rio de Janeiro") já são
- * geografias válidas por si só — só a região ampla do playbook precisa do mapa acima.
+ * O sufixo ", Brazil" é obrigatório em qualquer combinação — sem ele a Apollo não reconhece a
+ * geografia e ignora o filtro de localização silenciosamente (mesmo comportamento documentado
+ * acima para as regiões amplas do playbook), fazendo a busca cair de volta na relevância pura por
+ * keyword/indústria e devolver sempre as mesmas grandes empresas nacionais, independente da
+ * cidade/estado escolhidos — bug real observado em produção antes desta correção.
  */
 function resolveApolloLocations(criteria: ProspectCriteria): string[] {
-    if (criteria.cidade && criteria.estado) return [`${criteria.cidade}, ${criteria.estado}`];
+    if (criteria.cidade && criteria.estado) return [`${criteria.cidade}, ${criteria.estado}, Brazil`];
     if (criteria.estado) return [`${criteria.estado}, Brazil`];
     return REGION_TO_APOLLO_LOCATIONS[criteria.localizacao] || [criteria.localizacao];
 }
@@ -55,31 +58,6 @@ function mapSegmentToKeyword(segmento: string): string | null {
 }
 
 /**
- * A Atlas atende Transportadoras e Operadores Logísticos (3PL/4PL) como ICP primário — empresas
- * cuja atividade É o transporte/logística (ver "ICP, Segmentos, Personas" no Playbook Comercial
- * AtlasGR). A busca por palavra-chave da Apollo é ampla e retorna falsos positivos (ex: "Vale"
- * mineradora, "Localiza" locadora, empresas de TI) que só citam logística tangencialmente.
- * Este allowlist filtra pelo campo `industry` real da Apollo — só aplicado para Transportadora/3PL,
- * porque Embarcadores (empresas que CONTRATAM transporte) legitimamente vêm de qualquer indústria
- * (alimentício, industrial, químico etc.) e não devem ser filtrados por este critério.
- */
-const ICP_TRANSPORT_INDUSTRY_KEYWORDS = [
-    'logistics', 'trucking', 'transportation', 'railroad', 'warehousing',
-    'maritime', 'freight', 'supply chain', 'import', 'export', 'shipping', 'courier',
-];
-
-function isTransportOperatorSegment(segmento: string): boolean {
-    const s = segmento.toLowerCase();
-    return s.includes('transportadora') || s.includes('3pl') || s.includes('operador log');
-}
-
-function matchesIcpIndustry(industry: string | undefined): boolean {
-    if (!industry) return true; // Apollo nem sempre preenche `industry` — não descartamos por ausência de dado.
-    const i = industry.toLowerCase();
-    return ICP_TRANSPORT_INDUSTRY_KEYWORDS.some((k) => i.includes(k));
-}
-
-/**
  * Busca real de empresas via Apollo.io (Organization Search API).
  * Opcional: só executa se APOLLO_API_KEY estiver configurada no ambiente.
  * Suporta os filtros firmográficos que a Apollo de fato reconhece nesse endpoint — validados
@@ -95,7 +73,12 @@ function matchesIcpIndustry(industry: string | undefined): boolean {
  */
 export async function fetchApolloCandidates(
     criteria: ProspectCriteria,
-    count: number
+    count: number,
+    /** Nomes (lowercase) a excluir do resultado — empresas já cadastradas no CRM do tenant ou já
+     * escolhidas nesta mesma descoberta. Sem isso, buscas repetidas com os mesmos filtros amplos
+     * sempre resurfaceam as mesmas empresas (as de maior relevância/dado mais completo na Apollo),
+     * mesmo depois que o vendedor já as salvou como lead. */
+    excludeNames: Set<string> = new Set()
 ): Promise<{ candidates: ProspectCandidate[]; error?: string }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey) return { candidates: [] };
@@ -105,11 +88,10 @@ export async function fetchApolloCandidates(
         : [];
 
     const needsFoundedYearFilter = criteria.anoFundacaoMin != null || criteria.anoFundacaoMax != null;
-    const needsIcpIndustryFilter = isTransportOperatorSegment(criteria.segmento);
-    // Ano de fundação e o allowlist de indústria do ICP não são filtráveis pela API — pedimos mais
-    // candidatos do que o necessário para sobrar o suficiente depois do pós-filtro local.
+    // Ano de fundação e a exclusão de empresas já conhecidas não são filtráveis pela API — pedimos
+    // mais candidatos do que o necessário para sobrar o suficiente depois do pós-filtro local.
     const requestSize = Math.min(
-        needsFoundedYearFilter || needsIcpIndustryFilter ? Math.max(count * 4, 50) : count,
+        needsFoundedYearFilter || excludeNames.size > 0 ? Math.max(count * 4, 50) : count,
         100
     );
 
@@ -187,8 +169,8 @@ export async function fetchApolloCandidates(
                 return true;
             });
         }
-        if (needsIcpIndustryFilter) {
-            organizations = organizations.filter((org) => matchesIcpIndustry(org.industry));
+        if (excludeNames.size > 0) {
+            organizations = organizations.filter((org) => !excludeNames.has((org.name || '').trim().toLowerCase()));
         }
         organizations = organizations.slice(0, count);
 
@@ -210,9 +192,10 @@ export async function fetchApolloCandidates(
             website: org.primary_domain ? `https://${org.primary_domain}` : org.website_url || null,
         }));
 
-        // Busca decisores (LinkedIn, e-mail, telefone) já na descoberta para os primeiros
-        // MAX_DECISION_MAKER_LOOKUPS candidatos com domínio conhecido — o vendedor não precisa
-        // clicar em nada para ver os dados prontos na tela de resultados. Isso NUNCA deve derrubar
+        // Busca decisores (nome, cargo, e-mail, telefone, LinkedIn) já na descoberta para até
+        // MAX_DECISION_MAKER_LOOKUPS candidatos com domínio conhecido — cobre 100% de uma busca
+        // padrão (quantidade ≤ 20); o vendedor não precisa clicar em nada para ver os dados prontos
+        // na tela de resultados. Isso NUNCA deve derrubar
         // a busca principal: nem por erro (candidatos já vieram da Apollo com sucesso) nem por
         // demora (respeita um orçamento de tempo próprio, menor que o timeout do frontend).
         try {

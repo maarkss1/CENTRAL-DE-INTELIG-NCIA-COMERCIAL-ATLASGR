@@ -161,18 +161,40 @@ async function discoverViaNominatim(
 }
 
 /**
+ * Nomes (tradeName, lowercase) de todas as empresas já cadastradas no CRM deste tenant — usado
+ * para excluir da descoberta empresas que o vendedor já viu/salvou antes. Sem isso, uma busca
+ * repetida com os mesmos filtros amplos (ex: "Transportadora" + "São Paulo") sempre resurfaceava
+ * as mesmas ~10 empresas de maior relevância na Apollo, mesmo depois de já promovidas a lead —
+ * era a causa principal do motor de busca "sempre trazer os mesmos contatos".
+ */
+async function fetchKnownCompanyNames(organizationId: string): Promise<string[]> {
+    try {
+        const companies = await prisma.company.findMany({
+            where: { organizationId },
+            select: { tradeName: true },
+        });
+        return companies.map((c) => c.tradeName.trim().toLowerCase());
+    } catch (error) {
+        logger.error({ err: error }, 'Falha ao buscar empresas já cadastradas para excluir da descoberta');
+        return [];
+    }
+}
+
+/**
  * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim).
  * — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
  * enriquecimento real (Receita Federal + Google Places + Apollo People) antes de virar um Lead confiável.
+ * `organizationId`, quando informado, exclui do resultado empresas já cadastradas no CRM do tenant
+ * (ver `fetchKnownCompanyNames`) — opcional só para não quebrar chamadas de teste sem tenant.
  */
-export async function discoverCandidates(criteria: ProspectCriteria): Promise<DiscoverResult> {
+export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
     const total = Math.max(1, Math.min(100, criteria.quantidade || 10));
     const allCandidates: ProspectCandidate[] = [];
-    const seenNames = new Set<string>();
+    const seenNames = new Set<string>(organizationId ? await fetchKnownCompanyNames(organizationId) : []);
     const providerMode = getProspectingProviderMode();
 
     const apollo = providerMode === 'hybrid'
-        ? await fetchApolloCandidates(criteria, total)
+        ? await fetchApolloCandidates(criteria, total, seenNames)
         : { candidates: [], error: undefined };
     for (const candidate of apollo.candidates) {
         const key = candidate.tradeName.trim().toLowerCase();
