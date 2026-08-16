@@ -234,14 +234,14 @@
      4.5:1 de contraste (WCAG AA) — achado real do axe-core (tests/e2e/accessibility.spec.ts):
      branco sobre --brand puro dá só ~3.2:1 (AtlasGR) / ~3.9:1 (TotalTrac), abaixo do mínimo.
      color-mix com preto escala os 3 canais igualmente, então funciona pras duas marcas sem hardcodear cor. */
-  --color-brand-active: color-mix(in srgb, var(--brand) 75%, black);
+  --color-brand-active: color-mix(in srgb, var(--brand) 65%, black);
   /* Mesmo problema de --color-brand-active, mas pro extremo `to-brand-2` de gradientes
      `from-brand to-brand-2`/`via-brand-2` usados como fundo de botão/estado ativo com texto
      branco em cima (ex.: variante default de Button.tsx, dia selecionado de ClockCalendarWidget).
      --brand-2 sozinho (ex.: #FF6B10 na AtlasGR, #008FCE na TotalTrac) fica abaixo de 4.5:1 com
      texto branco — achado nesta rodada (Onda 8, débito de contraste da Constituição §10/DQA-19),
      não coberto pelo --color-brand-active original porque esse só escurece --brand. */
-  --color-brand-2-active: color-mix(in srgb, var(--brand-2) 75%, black);
+  --color-brand-2-active: color-mix(in srgb, var(--brand-2) 65%, black);
   --color-warn: var(--warn);
   --color-ok: var(--ok);
   --color-soft: var(--soft);

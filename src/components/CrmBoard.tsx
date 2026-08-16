@@ -310,7 +310,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                                 type="button"
                                 onClick={() => handleFunnelChange('Lead')}
                                 aria-pressed={funnel === 'Lead'}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Lead' ? 'bg-brand text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Lead' ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
                             >
                                 Leads
                             </button>
@@ -318,7 +318,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                                 type="button"
                                 onClick={() => handleFunnelChange('Negocio')}
                                 aria-pressed={funnel === 'Negocio'}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Negocio' ? 'bg-brand text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Negocio' ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
                             >
                                 Negócios
                             </button>
