@@ -130,6 +130,16 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         exclusionRules: '—',
     },
     {
+        key: 'ritmo_criacao_pipeline',
+        name: 'Ritmo de Criação de Pipeline (Pace)',
+        description: 'Compara o pipeline já criado no mês com o que seria esperado até hoje, proporcional aos dias úteis já decorridos.',
+        formula: 'Esperado até agora = Pipeline Necessário × (dias úteis decorridos / dias úteis totais do mês). Ritmo (%) = Pipeline Criado até agora / Esperado até agora × 100.',
+        source: 'Derivado de Pipeline Criado + Pipeline Necessário (application/businessDays.ts)',
+        period: 'Mensal (mês-calendário do filtro)',
+        inclusionRules: 'Dia útil = segunda a sexta, sem calendário de feriados configurado (mesma simplificação do Cockpit legado, js/cockpit.js). "Hoje" conta como decorrido.',
+        exclusionRules: 'Sem Pipeline Necessário calculável (sem meta ou sem Win Rate), o indicador retorna "Não disponível" — nunca assume um alvo implícito.',
+    },
+    {
         key: 'win_rate',
         name: 'Win Rate',
         description: 'Taxa de conversão entre negócios fechados.',
@@ -208,5 +218,15 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         period: 'Instantâneo',
         inclusionRules: 'Duplicidade suspeita: negócios abertos com a mesma empresa aparecendo mais de uma vez simultaneamente (heurística, não determinística de identidade).',
         exclusionRules: 'Sem negócios abertos, retorna "Não disponível".',
+    },
+    {
+        key: 'protecao_receita',
+        name: 'Proteção de Receita (M/M+1/M+2/M+3)',
+        description: 'Para o mês atual e os 3 seguintes: meta do mês, pipeline elegível esperado para fechar naquele mês, coverage e status de risco.',
+        formula: 'Coverage do mês = Pipeline Elegível (expectedCloseAt dentro do mês) / Meta restante do mês (meta − já fechado no mês). Status compara coverage com coverageRecommended (1 / Win Rate): <70% do recomendado = crítico, 70–100% = atenção, ≥100% = saudável.',
+        source: 'CommercialGoal + application/pipelineEligibility.ts + application/revenueProtection.ts',
+        period: 'Mês atual (M) e os 3 meses-calendário seguintes (M+1, M+2, M+3)',
+        inclusionRules: 'Os limiares de status (70%/100% do coverageRecommended) substituem o threshold fixo (2x/3x) do Cockpit legado — que a própria fonte documenta como não validado — por um número já calculado e usado no restante do módulo (Win Rate histórico real).',
+        exclusionRules: 'Mês sem meta cadastrada: coverage "Não disponível". Sem Win Rate calculável (sem fechamentos no mês de referência): status "Não disponível" (nunca crítico/saudável fabricado).',
     },
 ];
