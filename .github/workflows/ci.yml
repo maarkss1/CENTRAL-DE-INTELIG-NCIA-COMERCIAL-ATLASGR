@@ -32,6 +32,10 @@ jobs:
 
   build-and-test:
     runs-on: ubuntu-latest
+    # Fase Final 1 (Gate Único de Release): dependência explícita no próprio arquivo, não só
+    # "os dois jobs existem" — sem isso, secret-scan e build-and-test rodam em paralelo e um
+    # secret-scan que falha não impede build/test/publish de prosseguir. Ver .agents/runs/final-fase-1.md.
+    needs: secret-scan
 
     services:
       postgres:
@@ -102,9 +106,15 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      # Fase Final 1: gate real, não mais continue-on-error. Em 2026-08-16, `npm audit
+      # --audit-level=high` já retorna 0 high/critical (só 2 moderate, uuid via exceljs, fora do
+      # escopo de --audit-level=high) — o "known issue com better-auth" citado antes já foi
+      # resolvido em versão anterior e o continue-on-error ficou vestigial, mascarando um gate que
+      # já passava sozinho. Qualquer HIGH/CRITICAL futuro deve bloquear aqui; se for aceito
+      # temporariamente, documentar em docs/security/AUDIT_WAIVERS.md antes de reintroduzir
+      # continue-on-error — nunca silenciosamente.
       - name: Audit for vulnerabilities
         run: npm audit --audit-level=high
-        continue-on-error: true # Known issue with better-auth pending upstream resolution
 
       - name: Generate Prisma Client
         run: npx prisma generate
