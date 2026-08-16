@@ -507,13 +507,13 @@ export function Intelligence() {
 
                 {/* DIREITA: ÁREA DE OUTPUT / DISPLAY HOLOGRÁFICO */}
                 <div className="xl:col-span-7 flex flex-col" ref={resultRef}>
-                    <div className="bg-gray-900 rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-2xl relative ring-1 ring-white/10 sticky top-24">
+                    <div className="bg-surface rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-card relative border border-line sticky top-24">
                         {/* BACKGROUND GLOW */}
-                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand/20 rounded-full blur-[100px] pointer-events-none"></div>
-                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+                        <div className={`absolute -top-40 -right-40 w-96 h-96 ${accent.blobA} rounded-full blur-[100px] pointer-events-none opacity-30`}></div>
+                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none opacity-30"></div>
 
                         {/* Top Bar MacOS Style */}
-                        <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-black/20 backdrop-blur-md relative z-20">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-line bg-surface-2/60 backdrop-blur-md relative z-20">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
                                 <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
@@ -521,9 +521,9 @@ export function Intelligence() {
                             </div>
                             <div className="flex items-center gap-3">
                                 {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-brand animate-pulse">Sintetizando...</span>}
-                                <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10 flex items-center gap-2">
-                                    <Bot size={12} className="text-gray-400" />
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">{accent.brandName} Engine v2.0</span>
+                                <div className="px-3 py-1 bg-surface rounded-full border border-line flex items-center gap-2">
+                                    <Bot size={12} className="text-ink-2" />
+                                    <span className="text-[10px] font-bold tracking-widest text-ink uppercase">{accent.brandName} Engine v2.0</span>
                                 </div>
                             </div>
                         </div>
@@ -539,12 +539,12 @@ export function Intelligence() {
                                         className="relative"
                                     >
                                         <div className="absolute inset-0 bg-brand/20 blur-2xl rounded-full"></div>
-                                        <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-2xl">
-                                            <BrainCircuit size={40} className="text-gray-400" />
+                                        <div className="w-24 h-24 rounded-3xl bg-surface-2 border border-line flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-sm">
+                                            <BrainCircuit size={40} className="text-ink-2" />
                                         </div>
                                     </motion.div>
-                                    <h3 className="font-black text-3xl text-white mb-3 tracking-tight">Sistema em Standby</h3>
-                                    <p className="font-medium text-sm text-gray-400 max-w-sm leading-relaxed">
+                                    <h3 className="font-black text-3xl text-ink mb-3 tracking-tight">Sistema em Standby</h3>
+                                    <p className="font-medium text-sm text-ink-2 max-w-sm leading-relaxed">
                                         O motor neural está aguardando. Selecione uma ferramenta tática no painel à esquerda para iniciar a síntese.
                                     </p>
                                 </div>
@@ -560,16 +560,16 @@ export function Intelligence() {
                                         ></motion.div>
                                         <motion.div 
                                             animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                                            className="absolute inset-2 border-b-2 border-l-2 border-white/30 rounded-full"
+                                            className="absolute inset-2 border-b-2 border-l-2 border-line rounded-full"
                                         ></motion.div>
                                         <div className="absolute inset-4 bg-brand/10 rounded-full blur-md animate-pulse"></div>
                                         <Zap size={32} className="text-brand relative z-10 animate-pulse" />
                                     </div>
-                                    <h3 className="font-black text-2xl text-white mb-2 tracking-tight">Gerando Inteligência</h3>
+                                    <h3 className="font-black text-2xl text-ink mb-2 tracking-tight">Gerando Inteligência</h3>
                                     <p className="font-bold text-xs uppercase tracking-[0.2em] text-brand">Processando algoritmos cognitivos...</p>
                                     
                                     {/* Progress Bar Fake */}
-                                    <div className="w-48 h-1 bg-white/10 rounded-full mt-6 overflow-hidden">
+                                    <div className="w-48 h-1 bg-surface-2 rounded-full mt-6 overflow-hidden border border-line">
                                         <motion.div 
                                             initial={{ width: 0 }} 
                                             animate={{ width: "100%" }} 
@@ -591,16 +591,16 @@ export function Intelligence() {
                                             <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-1 flex items-center gap-1.5">
                                                 <CheckCircle2 size={12} /> Síntese Concluída
                                             </p>
-                                            <h3 className="text-xl font-bold text-white">
+                                            <h3 className="text-xl font-bold text-ink">
                                                 {activeTool === 'competitor_battlecard' && competitor ? `Battlecard: vs ${competitor}` : selectedLead ? `Output: ${selectedLead.company?.tradeName}` : 'Output Gerado'}
                                             </h3>
                                         </div>
                                         <button
                                             onClick={handleCopy}
-                                            className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all ${
+                                            className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all cursor-pointer ${
                                                 copied 
-                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                                                : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
+                                                ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                                                : 'bg-surface-2 text-ink hover:bg-surface border border-line'
                                             }`}
                                         >
                                             {copied ? <CheckCircle2 size={14}/> : <Copy size={14}/>}
@@ -608,7 +608,7 @@ export function Intelligence() {
                                         </button>
                                     </div>
                                     
-                                    <div className="flex-1 bg-black/40 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-white/10 shadow-inner overflow-y-auto relative scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                    <div className="flex-1 bg-surface-2/80 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-line shadow-inner overflow-y-auto relative scrollbar-thin">
                                         {/* Decoration Corners */}
                                         <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-brand/50 rounded-tl-lg"></div>
                                         <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-brand/50 rounded-tr-lg"></div>
@@ -619,7 +619,7 @@ export function Intelligence() {
                                             initial={{ opacity: 0 }} 
                                             animate={{ opacity: 1 }} 
                                             transition={{ delay: 0.2 }}
-                                            className="whitespace-pre-wrap font-mono text-[13px] md:text-sm text-gray-300 leading-relaxed"
+                                            className="whitespace-pre-wrap font-mono text-[13px] md:text-sm text-ink leading-relaxed"
                                         >
                                             {result}
                                         </motion.div>

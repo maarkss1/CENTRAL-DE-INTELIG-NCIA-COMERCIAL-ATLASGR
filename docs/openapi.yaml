@@ -103,6 +103,8 @@ tags:
     description: Conexão, sincronização e extração de dados com o Bitrix24 (CRM externo)
   - name: 3CX
     description: Integração com o PABX 3CX (discagem e eventos de chamada)
+  - name: Mesa de Tratamento
+    description: Fila de tratamento de leads do Bitrix24 com ranqueamento por prioridade e temperatura
   - name: Webhooks
     description: >-
       Endpoints de entrada de provedores externos, montados ANTES do `express.json()` global —
@@ -113,6 +115,24 @@ security:
   - sessionCookie: []
 
 paths:
+  # ───────────────────────────── Mesa de Tratamento ─────────────────────────────
+  /mesa-tratamento/queue:
+    get:
+      tags: [Mesa de Tratamento]
+      summary: Retorna a fila de leads atribuídos para tratamento com ranqueamento por prioridade
+      responses:
+        '200':
+          description: Fila de leads recuperada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
   # ───────────────────────────── Auth (better-auth) ─────────────────────────────
   /auth/sign-up/email:
     post:

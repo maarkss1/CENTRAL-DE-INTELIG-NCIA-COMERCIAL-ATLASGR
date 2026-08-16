@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
-import { discoverCandidates, promoteToCrm, discoverDecisionMakers } from '../services/prospecting.service.js';
+import { discoverCandidates, promoteToCrm, discoverDecisionMakers, rejectCandidate } from '../services/prospecting.service.js';
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
@@ -9,10 +10,44 @@ import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from 
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
 
 const icebreakerService = new IcebreakerService();
 
 const router = Router();
+
+/**
+ * Espelha `ProspectCriteria` (prospecting.service.ts) — sem isso, um filtro em formato errado
+ * (ex: `quantidade` como string, `estado` como array) falhava silenciosamente lá dentro: nada
+ * quebrava, mas o filtro em questão simplesmente não pegava, e o vendedor só via um resultado
+ * estranho sem entender por quê. Todo campo é livre-texto/número solto de propósito — a Apollo é
+ * quem de fato interpreta o valor; aqui só garantimos o tipo e um teto de tamanho.
+ */
+const discoverCriteriaSchema = z.object({
+    segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
+    localizacao: z.string().trim().max(200).default(''),
+    quantidade: z.number().int().min(1).max(500).default(10),
+    estado: z.string().trim().max(100).optional(),
+    cidade: z.string().trim().max(100).optional(),
+    porte: z.string().trim().max(50).optional(),
+    faturamentoMin: z.number().nonnegative().optional(),
+    faturamentoMax: z.number().nonnegative().optional(),
+    palavrasChave: z.string().trim().max(300).optional(),
+    nomeEmpresa: z.string().trim().max(200).optional(),
+    anoFundacaoMin: z.number().int().min(1800).max(2100).optional(),
+    anoFundacaoMax: z.number().int().min(1800).max(2100).optional(),
+    tecnologias: z.string().trim().max(500).optional(),
+    tecnologiasExcluir: z.string().trim().max(500).optional(),
+    localizacaoExcluir: z.string().trim().max(500).optional(),
+    apenasCapitalAberto: z.boolean().optional(),
+    pagina: z.number().int().min(1).max(20).optional(),
+});
+
+const rejectCandidateSchema = z.object({
+    tradeName: z.string().trim().min(1, 'tradeName é obrigatório').max(200),
+    website: z.string().trim().max(300).optional(),
+    reason: z.string().trim().max(300).optional(),
+});
 
 // Só em memória (nunca grava em disco) — a imagem só existe pelo tempo do OCR, não é um asset
 // que o app precisa reter depois de extrair o texto.
@@ -29,14 +64,11 @@ router.post('/apollo/reconnect', async (_req: Request, res: Response, next: Next
 });
 
 // Descoberta de candidatos via IA a partir de um ICP (Perfil de Cliente Ideal).
-router.post('/discover', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/discover', validateRequest(discoverCriteriaSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const criteria = req.body as import("../services/prospecting.service.js").ProspectCriteria;
-        if (!criteria || typeof criteria !== 'object') {
-            res.status(400).json({ success: false, error: 'Critérios de busca inválidos' });
-            return;
-        }
-        const result = await discoverCandidates(criteria);
+        const { organizationId } = (req as AuthRequest).user;
+        const result = await discoverCandidates(criteria, organizationId);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);
@@ -95,6 +127,18 @@ router.post('/promote', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req
         const { organizationId } = (req as AuthRequest).user;
         const result = await promoteToCrm({ ...req.body, organizationId });
         res.status(201).json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Marca um candidato da Descoberta como "Não é esse perfil" — passa a ser excluído de buscas
+// futuras deste tenant (ver `fetchKnownExclusions` em prospecting.service.ts).
+router.post('/reject', validateRequest(rejectCandidateSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        await rejectCandidate({ ...req.body, organizationId });
+        res.status(201).json({ success: true });
     } catch (error) {
         next(error);
     }

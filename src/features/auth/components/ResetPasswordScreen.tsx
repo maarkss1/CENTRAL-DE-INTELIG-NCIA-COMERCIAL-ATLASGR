@@ -52,15 +52,19 @@ export function ResetPasswordScreen() {
 
   return (
     <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
+      {/* Mesmo tratamento visual do LoginScreen (mesmo fluxo de auth) — metade laranja/metade azul
+          com tokens estáticos em vez do indigo-500 genérico anterior. Ver LoginScreen.tsx. */}
       <motion.div
-        animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand/15 rounded-full blur-[120px] pointer-events-none"
+        aria-hidden="true"
+        animate={{ scale: [1, 1.08, 1], rotate: [0, 90, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
+        className="absolute left-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-atlas-orange/12 blur-[130px] pointer-events-none"
       />
       <motion.div
-        animate={{ scale: [1, 1.2, 1], rotate: [0, -90, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-        className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"
+        aria-hidden="true"
+        animate={{ scale: [1, 1.1, 1], rotate: [0, -90, 0] }}
+        transition={{ duration: 27, repeat: Infinity, ease: 'linear' }}
+        className="absolute right-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-totaltrack-blue/12 blur-[130px] pointer-events-none"
       />
 
       <button

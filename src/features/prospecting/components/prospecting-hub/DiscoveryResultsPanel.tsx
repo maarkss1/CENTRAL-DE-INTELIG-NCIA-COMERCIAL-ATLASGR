@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Search, Loader2, AlertTriangle, Globe, CheckCircle2, Database, UserPlus } from 'lucide-react';
+import { Search, Loader2, AlertTriangle, Globe, CheckCircle2, Database, UserPlus, RefreshCw } from 'lucide-react';
 import type { ProspectCandidate } from '../../services/prospecting.service';
 import type { FitScoreResult } from '../../services/enrichment.service';
 import { CandidateCard } from './CandidateCard';
@@ -16,7 +16,7 @@ interface PromoteResult {
 export function DiscoveryResultsPanel({
     candidates, filteredCandidates, isSearching, loadingStepIdx, loadingSteps, resultFilter, setResultFilter,
     apolloError, isSavingBatch, onSaveAll, onExport, selectedCandidates, toggleSelectAll, toggleSelect,
-    onBulkSave, onBulkEnrich, promotingKey, promoted, onPromoteCandidate,
+    onBulkSave, onBulkEnrich, promotingKey, promoted, onPromoteCandidate, onDiscoverMore, rejectingKey, onRejectCandidate,
 }: {
     candidates: ProspectCandidate[];
     filteredCandidates: Array<{ c: ProspectCandidate; i: number }>;
@@ -37,6 +37,11 @@ export function DiscoveryResultsPanel({
     promotingKey: string | null;
     promoted: Record<string, PromoteResult>;
     onPromoteCandidate: (candidate: ProspectCandidate, idx: number) => void;
+    /** Busca a próxima página do ranking da Apollo e soma aos resultados já exibidos, em vez de
+     * repetir sempre o topo do ranking numa nova busca com os mesmos filtros. */
+    onDiscoverMore: () => void;
+    rejectingKey: string | null;
+    onRejectCandidate: (candidate: ProspectCandidate, idx: number) => void;
 }) {
     return (
         <div className="xl:col-span-8 flex flex-col h-full">
@@ -142,9 +147,20 @@ export function DiscoveryResultsPanel({
                                 promotedResult={promoted[`discovery-${i}`]}
                                 isSelected={selectedCandidates.has(i)}
                                 onToggleSelect={() => toggleSelect(i)}
+                                onReject={() => onRejectCandidate(c, i)}
+                                isRejecting={rejectingKey === `discovery-${i}`}
                             />
                         </motion.div>
                     ))}
+
+                    <button
+                        onClick={onDiscoverMore}
+                        disabled={isSearching}
+                        className="w-full py-3 rounded-xl border border-dashed border-line text-xs font-bold text-ink-2 hover:text-brand hover:border-brand/40 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isSearching ? <Loader2 className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                        Buscar mais resultados (próxima página)
+                    </button>
                 </motion.div>
             ) : (
                 <div className="flex-1 bg-surface rounded-2xl border border-dashed border-line flex flex-col items-center justify-center p-10 min-h-[400px]">

@@ -87,10 +87,10 @@ export function TopicTrainingAcademy() {
       {/* Loader visual durante geração (sem o jogo 3D) */}
       {isGenerating && (
          <div className="mt-8 animate-in fade-in duration-500 relative">
-            <div className="bg-black/80 backdrop-blur-md rounded-[3rem] p-16 flex flex-col items-center justify-center border border-white/10 shadow-inner">
-                <Loader2 className="w-10 h-10 text-indigo-400 animate-spin mb-4" />
-                <h3 className="text-white font-black text-xl tracking-tight">Processando dados com Inteligência Artificial...</h3>
-                <p className="text-gray-400 text-sm mt-2 font-medium">Isso pode levar alguns segundos dependendo da complexidade do tema.</p>
+            <div className="bg-surface-2/95 backdrop-blur-md rounded-[3rem] p-16 flex flex-col items-center justify-center border border-line shadow-card">
+                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+                <h3 className="text-ink font-black text-xl tracking-tight">Processando dados com Inteligência Artificial...</h3>
+                <p className="text-ink-2 text-sm mt-2 font-medium">Isso pode levar alguns segundos dependendo da complexidade do tema.</p>
             </div>
          </div>
       )}

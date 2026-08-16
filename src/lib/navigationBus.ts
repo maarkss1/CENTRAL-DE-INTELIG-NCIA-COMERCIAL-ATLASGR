@@ -30,5 +30,5 @@ const TAB_ROUTE_SET: Record<TabType, true> = {
     qualification_matrix: true, objections_matrix: true, topic_training: true, bitrix: true,
     reports: true, integrations: true, knowledge: true, analytics: true, winloss: true, calendar: true,
     notifications: true, automations: true, usage: true, editor: true, team: true, settings: true,
-    commercial_intelligence: true, crm360: true,
+    commercial_intelligence: true, crm360: true, propostas: true, 'mesa-tratamento': true,
 };

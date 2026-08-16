@@ -491,6 +491,7 @@ model Organization {
   crmCommercialDocumentVersions CrmCommercialDocumentVersion[]
   crmDocumentSignatureRequests  CrmDocumentSignatureRequest[]
   dealClosureEvents             DealClosureEvent[]
+  prospectRejections            ProspectRejection[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
 }
@@ -558,6 +559,24 @@ model LeadStageHistory {
   @@index([organizationId, leadId, enteredAt])
   @@index([organizationId, stageId])
   @@index([leadId, exitedAt])
+}
+
+// ProspectRejection — candidato de descoberta ("Motor de Busca Turbo") marcado como "Não é esse
+// perfil" pelo vendedor. Sem isso, um candidato descartado manualmente continuava reaparecendo em
+// buscas futuras com os mesmos filtros, porque a única exclusão conhecida era a de empresas já
+// promovidas a Company (ver `fetchKnownExclusions` em prospecting.service.ts) — um "não" explícito
+// nunca virava sinal nenhum pro motor de busca. Não referencia Company/Lead de propósito: o
+// candidato rejeitado nunca chegou a ser promovido, então não existe registro pra apontar.
+model ProspectRejection {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tradeName      String
+  website        String?
+  reason         String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
 }
 
 model CrmPipeline {

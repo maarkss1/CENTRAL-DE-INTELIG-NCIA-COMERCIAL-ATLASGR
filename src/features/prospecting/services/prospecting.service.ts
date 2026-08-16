@@ -10,6 +10,7 @@ import { searchNominatimCandidates } from './nominatim.service';
 import { toPrismaLeadStatus, fromPrismaLeadStatus, fromPrismaCompanyStatus } from '../../../lib/enumMap';
 import { getProspectingProviderMode } from '../../../config/prospecting-integrations.js';
 import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
+import { ExclusionSet } from '../utils/exclusionSet.js';
 
 export interface ProspectCriteria {
     segmento: string;
@@ -40,6 +41,9 @@ export interface ProspectCriteria {
     localizacaoExcluir?: string;
     /** Filtra só empresas de capital aberto (B3/bolsa). Opcional. */
     apenasCapitalAberto?: boolean;
+    /** Página do ranking da Apollo (1-based, padrão 1). Usada pelo botão "Buscar mais resultados"
+     * do frontend para trazer a próxima fatia do mesmo ranking em vez de repetir sempre o topo. */
+    pagina?: number;
 }
 
 export type { DecisionMakerCriteria };
@@ -111,13 +115,13 @@ function buildPlacesQuery(criteria: ProspectCriteria): string {
 async function discoverViaGooglePlaces(
     criteria: ProspectCriteria,
     count: number,
-    excludeNames: Set<string>
+    exclusions: ExclusionSet
 ): Promise<ProspectCandidate[]> {
     const query = buildPlacesQuery(criteria);
-    const places = await searchGooglePlacesCandidates(query, count + excludeNames.size);
+    const places = await searchGooglePlacesCandidates(query, count + exclusions.size);
 
     return places
-        .filter((p) => !excludeNames.has(p.tradeName.trim().toLowerCase()))
+        .filter((p) => !exclusions.has(p.tradeName, p.website))
         .slice(0, count)
         .map((p) => ({
             tradeName: p.tradeName,
@@ -139,13 +143,13 @@ async function discoverViaGooglePlaces(
 async function discoverViaNominatim(
     criteria: ProspectCriteria,
     count: number,
-    excludeNames: Set<string>
+    exclusions: ExclusionSet
 ): Promise<ProspectCandidate[]> {
     const query = buildPlacesQuery(criteria);
-    const places = await searchNominatimCandidates(query, count + excludeNames.size);
+    const places = await searchNominatimCandidates(query, count + exclusions.size);
 
     return places
-        .filter((p) => !excludeNames.has(p.tradeName.trim().toLowerCase()))
+        .filter((p) => !exclusions.has(p.tradeName, p.website))
         .slice(0, count)
         .map((p) => ({
             tradeName: p.tradeName,
@@ -161,46 +165,83 @@ async function discoverViaNominatim(
 }
 
 /**
+ * Empresas já cadastradas no CRM deste tenant + candidatos explicitamente rejeitados
+ * ("Não é esse perfil") — usado para excluir da descoberta empresas que o vendedor já viu/salvou
+ * ou já descartou antes. Sem isso, uma busca repetida com os mesmos filtros amplos (ex:
+ * "Transportadora" + "São Paulo") sempre resurfaceava as mesmas ~10 empresas de maior relevância
+ * na Apollo, mesmo depois de já promovidas a lead ou marcadas como fora do perfil — era a causa
+ * principal do motor de busca "sempre trazer os mesmos contatos".
+ */
+async function fetchKnownExclusions(organizationId: string): Promise<ExclusionSet> {
+    const exclusions = new ExclusionSet();
+    try {
+        const [companies, rejections] = await Promise.all([
+            prisma.company.findMany({ where: { organizationId }, select: { tradeName: true, website: true } }),
+            prisma.prospectRejection.findMany({ where: { organizationId }, select: { tradeName: true, website: true } }),
+        ]);
+        for (const c of companies) exclusions.add(c.tradeName, c.website);
+        for (const r of rejections) exclusions.add(r.tradeName, r.website);
+    } catch (error) {
+        logger.error({ err: error }, 'Falha ao buscar empresas já cadastradas/rejeitadas para excluir da descoberta');
+    }
+    return exclusions;
+}
+
+/**
  * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim).
  * — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
  * enriquecimento real (Receita Federal + Google Places + Apollo People) antes de virar um Lead confiável.
+ * `organizationId`, quando informado, exclui do resultado empresas já cadastradas no CRM do tenant
+ * ou já rejeitadas (ver `fetchKnownExclusions`) — opcional só para não quebrar chamadas de teste
+ * sem tenant. Quando `criteria.cidade` é informado, uma fatia da cota é sempre reservada pro
+ * Google Places (precisão geográfica real), em vez de só entrar como fallback se a Apollo não
+ * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
-export async function discoverCandidates(criteria: ProspectCriteria): Promise<DiscoverResult> {
+export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
     const total = Math.max(1, Math.min(100, criteria.quantidade || 10));
     const allCandidates: ProspectCandidate[] = [];
-    const seenNames = new Set<string>();
+    const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
     const providerMode = getProspectingProviderMode();
 
-    const apollo = providerMode === 'hybrid'
-        ? await fetchApolloCandidates(criteria, total)
-        : { candidates: [], error: undefined };
-    for (const candidate of apollo.candidates) {
-        const key = candidate.tradeName.trim().toLowerCase();
-        if (seenNames.has(key)) continue;
-        seenNames.add(key);
-        allCandidates.push(candidate);
-    }
-
-    const remaining = total - allCandidates.length;
-    if (providerMode === 'hybrid' && remaining > 0) {
-        const placesCandidates = await discoverViaGooglePlaces(criteria, remaining, seenNames);
-        for (const candidate of placesCandidates) {
-            const key = candidate.tradeName.trim().toLowerCase();
-            if (seenNames.has(key)) continue;
-            seenNames.add(key);
+    function absorb(found: ProspectCandidate[]) {
+        for (const candidate of found) {
+            if (exclusions.has(candidate.tradeName, candidate.website)) continue;
+            exclusions.add(candidate.tradeName, candidate.website);
             allCandidates.push(candidate);
         }
+    }
+
+    // Quando uma cidade específica é informada, reserva uma fatia da cota pro Google Places desde
+    // o início — a Apollo filtra localização por cidade de forma mais grosseira que o Google Places
+    // Text Search (que geocodifica de verdade), e a Apollo normalmente preenche a cota sozinha,
+    // então sem essa reserva a variedade geográfica real dependia de a Apollo falhar, o que quase
+    // nunca acontecia.
+    const placesReserve = providerMode === 'hybrid' && criteria.cidade
+        ? Math.min(total, Math.max(1, Math.round(total * 0.3)))
+        : 0;
+    const apolloTarget = total - placesReserve;
+
+    let apolloError: string | undefined;
+    if (providerMode === 'hybrid' && apolloTarget > 0) {
+        const apollo = await fetchApolloCandidates(criteria, apolloTarget, exclusions);
+        absorb(apollo.candidates);
+        apolloError = apollo.error;
+    }
+
+    if (placesReserve > 0) {
+        absorb(await discoverViaGooglePlaces(criteria, placesReserve, exclusions));
+    }
+
+    // Preenche o que faltou (Apollo desabilitada/insuficiente, ou reserva de Places não bastou)
+    // com mais Google Places e, por fim, Nominatim como último recurso sem chave paga.
+    const remaining = total - allCandidates.length;
+    if (providerMode === 'hybrid' && remaining > 0) {
+        absorb(await discoverViaGooglePlaces(criteria, remaining, exclusions));
     }
 
     const remainingAfterPlaces = total - allCandidates.length;
     if (remainingAfterPlaces > 0) {
-        const nominatimCandidates = await discoverViaNominatim(criteria, remainingAfterPlaces, seenNames);
-        for (const candidate of nominatimCandidates) {
-            const key = candidate.tradeName.trim().toLowerCase();
-            if (seenNames.has(key)) continue;
-            seenNames.add(key);
-            allCandidates.push(candidate);
-        }
+        absorb(await discoverViaNominatim(criteria, remainingAfterPlaces, exclusions));
     }
 
     return {
@@ -211,9 +252,32 @@ export async function discoverCandidates(criteria: ProspectCriteria): Promise<Di
                 uri: 'https://nominatim.openstreetmap.org/',
             },
         ],
-        apolloError: providerMode === 'hybrid' ? apollo.error : undefined,
+        apolloError: providerMode === 'hybrid' ? apolloError : undefined,
         providerMode,
     };
+}
+
+export interface RejectCandidateInput {
+    tradeName: string;
+    website?: string | null;
+    reason?: string | null;
+    organizationId: string;
+}
+
+/**
+ * Registra um candidato como "Não é esse perfil" — passa a ser excluído de futuras descobertas
+ * deste tenant (ver `fetchKnownExclusions`). Não referencia Company/Lead: o candidato rejeitado
+ * nunca chegou a ser promovido, então não existe registro nenhum pra apontar.
+ */
+export async function rejectCandidate(input: RejectCandidateInput) {
+    return prisma.prospectRejection.create({
+        data: {
+            organizationId: input.organizationId,
+            tradeName: input.tradeName,
+            website: input.website || null,
+            reason: input.reason || null,
+        },
+    });
 }
 
 /**

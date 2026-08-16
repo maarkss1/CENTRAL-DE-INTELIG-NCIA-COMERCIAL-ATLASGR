@@ -33,6 +33,7 @@ import { contactRoutes } from './src/features/contacts/routes/contact.routes.js'
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
+import { mesaTratamentoRoutes } from './src/features/mesa-tratamento/routes/mesaTratamento.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
@@ -376,6 +377,7 @@ async function startServer() {
     app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
     app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
+    app.use('/api/mesa-tratamento', authenticateToken, requireTenant, mesaTratamentoRoutes);
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
     // authenticateToken já rodou pra estas 3 (junto com o aiLimiter, ver SEC-008b acima) — só falta
     // requireTenant aqui, chamar de novo seria uma segunda consulta de sessão redundante.
