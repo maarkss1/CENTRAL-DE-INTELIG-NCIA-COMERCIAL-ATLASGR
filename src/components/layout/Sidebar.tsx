@@ -2,7 +2,7 @@
 import {
     Home, LayoutTemplate, Search, Users, Building2,
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
-    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart, Gauge
+    PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart, Gauge, FileSignature
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
@@ -45,6 +45,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { id: 'prospect' as TabType, label: 'Prospecção', icon: <Search size={20} /> },
         { id: 'crm' as TabType, label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
         { id: 'crm360' as TabType, label: 'Cockpit CRM', icon: <Gauge size={20} /> },
+        { id: 'propostas' as TabType, label: 'Propostas', icon: <FileSignature size={20} /> },
         { id: 'contacts' as TabType, label: 'Decisores', icon: <Users size={20} /> },
         { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
         { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
