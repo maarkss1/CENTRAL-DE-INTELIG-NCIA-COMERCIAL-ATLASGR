@@ -17,8 +17,15 @@
 
 **⚠️ AÇÃO EXTERNA OBRIGATÓRIA (fora do alcance do código):**
 1. **Rotacionar a chave Bland AI** (dispara ligações pagas) — estava versionada com remote no GitHub.
+   **Confirmado na Fase Final 0 (2026-08-16) que AINDA NÃO foi rotacionada** — bloqueador aberto,
+   runbook em `docs/security/runbooks/ROTATE_BLAND_AI_KEY.md`.
 2. **Rotacionar os 2 webhooks Bitrix24** (AtlasGR `/rest/450/…` e TotalTrac `/rest/2486/…`) — a URL é a credencial.
-3. **Dump `backups/prospector-*.dump` segue recuperável no HISTÓRICO git** (commits 2e30b2f, 543c5b0, 8b1bc38). Remoção definitiva exige `git filter-repo`/BFG — reescreve hashes, decisão humana (ver AGENTS.md → Segurança e higiene).
+   **Confirmado na Fase Final 0 (2026-08-16) que AINDA NÃO foram rotacionados** — bloqueador aberto,
+   runbook em `docs/security/runbooks/ROTATE_BITRIX24_WEBHOOKS.md`.
+3. **Dump `backups/prospector-*.dump` segue recuperável no HISTÓRICO git** (commit `2e30b2f`, adiciona o blob; removido do rastreamento — não do histórico — em `8b1bc38`). Remoção definitiva exige `git filter-repo`/BFG — reescreve hashes, decisão humana (ver AGENTS.md → Segurança e higiene). **Correção (Fase Final 0):** o hash `543c5b0`, citado aqui em revisões anteriores como um terceiro commit, foi reverificado e não existe neste repositório — era erro de transcrição, não um segundo dump; ver `docs/security/runbooks/DECIDE_GIT_HISTORY_REWRITE.md` para a reverificação completa.
+   **Decidido na Fase Final 0 (2026-08-16):** dono do repositório escolheu o Caminho A (manter
+   histórico, mitigar daqui pra frente) — sem force-push. Risco residual aceito e registrado, ver
+   runbook.
 
 ## P0 — Plataforma quebrada no main (remediados)
 

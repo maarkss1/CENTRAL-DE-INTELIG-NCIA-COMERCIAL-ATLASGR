@@ -1,7 +1,7 @@
 - De: 18
 - Para: 00
 - Onda: 8
-- Status: aberto
+- Status: resolvido (Fase Final 0, Agente 00)
 - Prioridade: alto
 
 ## Problema
@@ -68,3 +68,25 @@ OpenAPI, ver `.agents/handoffs/onda-8/18-para-08-ci-openapi-drift.md`).
 Tabela completa (60 handoffs, 55 conformes) disponível na auditoria que gerou este relatório —
 consultar histórico desta sessão do Agente 18 se precisar do detalhe completo linha a linha; aqui
 resumi só os 5 não conformes para manter o handoff acionável.
+
+## Resolução (Fase Final 0, Agente 00)
+Item mais importante do relatório — `onda-7/12-para-00-test-db-contencao-cross-agente.md` com
+`Prioridade: crítico` fora do vocabulário padrão (`bloqueador | alto | normal`) — confirmado
+**já resolvido de fato** na Onda 9 pelo Agente 01A (`TenantAwareAsyncLocalStorage`,
+`src/lib/async-context.ts`), com `Status: resolvido` registrado no próprio arquivo desde então.
+Não representava um bloqueador escondido no momento desta verificação; o valor não-padrão do campo
+é só um descuido de nomenclatura num handoff que já tinha saído do vocabulário formal antes mesmo
+deste relatório. Não reescrevo o campo `Prioridade` do handoff alheio (edição além de `Status` não é
+minha atribuição por `/AGENTS.md`), mas deixo registrado aqui, para qualquer varredura futura, que o
+valor `crítico` naquele arquivo equivale a `bloqueador` e não deve ser tratado como lacuna de
+processo.
+
+Os outros 4 handoffs fora do protocolo (`onda-1/02-para-06-contrato-navegacao-voz.md`,
+`onda-1/06-para-01-schema-extracoes-bitrix-historico.md`,
+`onda-6/01A-para-07-agentmemory-sem-vinculo-titular.md`,
+`onda-7/05-para-02-rotulagem-confirmado-inferido.md`) têm `Status`/`Prioridade` válidos e apenas
+usam cabeçalhos de seção alternativos — não escondem nenhum bloqueador de uma varredura automática
+por `Prioridade: bloqueador` e não impedem o fechamento de nenhuma fase. Não normalizo o corpo de
+handoff alheio fora do meu escopo de correção nesta fase (Segurança e Governança, não documentação
+de protocolo em si) — registrado como dívida de formato conhecida e de baixo risco, sem ação
+adicional necessária agora.

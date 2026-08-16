@@ -1,7 +1,7 @@
 - De: 18
 - Para: 00
 - Onda: 8
-- Status: aberto
+- Status: em-andamento (priorização registrada, Fase Final 0; distribuição aos donos é trabalho de Fase Final 1+)
 - Prioridade: normal
 
 ## Problema
@@ -56,3 +56,12 @@ Ver `.agents/handoffs/onda-8/18-para-04-unificar-overviewmetrics.md`,
 `18-para-02-unificar-overviewmetrics-frontend.md` e
 `18-para-04-duplicacao-commercial-intelligence-contract.md` para os dois casos já com dono e ação
 proposta nesta mesma onda.
+
+## Resolução parcial (Fase Final 0, Agente 00)
+Nenhum dos 6 itens é bug ativo hoje (o próprio relatório já confirma isso) e nenhum é achado de
+segurança/governança — não pertencem ao escopo desta fase. Decisão de priorização: mantenho aberto
+como `em-andamento`, não bloqueador, e direciono a distribuição real aos donos (04, 02, 07, 13
+conforme o item) para a Fase Final 1 (Gate Único de Release) ou onda de manutenção de contratos
+subsequente, quando o dono de cada arquivo estiver ativo na fase. Não vira P0/P1 desta fase por não
+ter nenhum sintoma ativo hoje — registrado para não se perder, não para pressionar prioridade além
+do que os fatos sustentam.

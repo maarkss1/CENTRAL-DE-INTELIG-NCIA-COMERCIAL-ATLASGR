@@ -3,12 +3,19 @@
 ## Estado atual, verificado nesta onda
 
 `backups/prospector-*.dump` **não está mais no working tree** (removido em commit anterior), mas
-segue **recuperável no histórico** do repositório, nos commits `2e30b2f`, `543c5b0` e `8b1bc38`
-(citados em `.agents/completion/01-bloqueadores.md` e `.agents/prompts/15-seguranca-aplicada.md`).
-Qualquer pessoa com acesso de leitura ao repositório (o remote é/foi público no GitHub) pode rodar
-`git show <commit>:backups/prospector-XXXX.dump` e recuperar o dump completo, com dado pessoal real
-de prospecção (nome, telefone, e-mail, empresa) — isso é PII sob a LGPD, não só higiene de
-repositório.
+segue **recuperável no histórico** do repositório. **Verificado de novo na Fase Final 0** (Agente 00,
+`git log --all --diff-filter=AMD -- '*.dump'` + `git rev-list --objects --all | grep '\.dump'`, contra
+o SHA `0d55a99` de `main`): existe exatamente **um** arquivo de dump em todo o histórico —
+`backups/prospector-20260806-152827.dump` (blob `fbe6d831…`) — adicionado no commit `2e30b2f`
+("Restrict seed to primary administrator") e removido do rastreamento (sem reescrever histórico) no
+commit `8b1bc38` ("fix(00): remediar bloqueador de dump versionado..."). **Correção de registro:** o
+terceiro hash citado em revisões anteriores deste runbook e em
+`.agents/completion/01-bloqueadores.md`/`.agents/prompts/15-seguranca-aplicada.md` — `543c5b0` — **não
+existe neste repositório** (`git cat-file -e 543c5b0` falha com "Not a valid object name"); é um erro
+de transcrição carregado de onda em onda sem reverificação, não um segundo dump real. Isso não muda a
+gravidade do achado (ainda é PII real, real e recuperável), só corrige a lista de commits que qualquer
+`git filter-repo`/BFG precisa mirar — dado pessoal real de prospecção (nome, telefone, e-mail, empresa)
+sob a LGPD, não só higiene de repositório.
 
 **Isso não é uma decisão que um agente de código pode tomar sozinho.** Reescrever histórico muda o
 hash de todo commit descendente dos afetados, o que quebra qualquer clone, fork, PR aberto ou
@@ -38,7 +45,8 @@ precisa de ação, hashes de commit permanecem estáveis, histórico de blame/lo
 ## Caminho B — `git filter-repo` (ou BFG Repo-Cleaner) para remover definitivamente
 
 **O que isso faz:** reescreve todo commit que toca `backups/*.dump`, removendo o arquivo do
-histórico inteiro — os commits `2e30b2f`, `543c5b0`, `8b1bc38` e todo commit descendente deles
+histórico inteiro — o commit `2e30b2f` (que introduz o blob), `8b1bc38` (que só o remove do
+rastreamento, mas cuja árvore de pais ainda referencia o blob) e todo commit descendente deles
 recebem **hashes novos**.
 
 **Custo/risco de escolher este caminho:**
@@ -102,6 +110,7 @@ scripts/security/scan-secrets.sh
 
 # Caminho B: confirma que os commits antigos não existem mais no repositório reescrito.
 git cat-file -e 2e30b2f 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
+git cat-file -e 8b1bc38 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
 ```
 
 ## Recomendação registrada, sem decidir por conta própria
@@ -111,3 +120,22 @@ integralmente a obrigação de minimização/exclusão da LGPD sobre esse dado e
 registra essa avaliação técnica, mas a decisão final — por envolver custo de coordenação
 organizacional e reescrita de histórico compartilhado — é do dono do repositório, não deste
 agente. Nenhuma ação do Caminho B foi executada nesta onda.
+
+## Decisão humana registrada (Fase Final 0, 2026-08-16)
+
+O dono do repositório escolheu explicitamente o **Caminho A** para esta fase (manter o histórico,
+mitigar daqui pra frente) — nenhuma reescrita de histórico/force-push foi autorizada. Verificação do
+Passo 0, feita pelo Agente 00 no mesmo estado (SHA `0d55a99`):
+
+```
+$ grep -n '^backups/' .gitignore
+36:# versão (AGENTS.md → "Segurança e higiene", achado backups/prospector-*.dump).
+37:backups/*.dump
+$ git ls-files | grep -E '\.dump$'
+(vazio — nenhum .dump rastreado no working tree atual)
+```
+
+Pré-requisito do Caminho A atendido: `backups/*.dump` está no `.gitignore` e nenhum novo dump está
+rastreado. A exposição histórica do único dump real (`2e30b2f`, ver seção acima) permanece um risco
+aceito e registrado, não resolvido — reabrir esta decisão exige nova autorização humana explícita
+para o Caminho B, não uma reinterpretação por qualquer agente.
