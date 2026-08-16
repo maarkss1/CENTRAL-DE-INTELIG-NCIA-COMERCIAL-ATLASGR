@@ -7,6 +7,7 @@ import { logger } from '../../../../lib/logger';
 import { APOLLO_SEARCH_URL, DECISION_MAKER_PREFETCH_BUDGET_MS } from './client.js';
 import type { ApolloSearchResponse } from './types.js';
 import { enrichCandidatesWithDecisionMakers } from './people.js';
+import { ExclusionSet } from '../../utils/exclusionSet.js';
 
 /**
  * As opções de "Região de Atuação (ampla)" do ICP (icp-options.ts) usam rótulos do playbook
@@ -58,6 +59,47 @@ function mapSegmentToKeyword(segmento: string): string | null {
 }
 
 /**
+ * A Atlas atende Transportadoras e Operadores Logísticos (3PL/4PL) como ICP primário — empresas
+ * cuja atividade É o transporte/logística (ver "ICP, Segmentos, Personas" no Playbook Comercial
+ * AtlasGR). A busca por palavra-chave da Apollo é ampla e pode incluir falsos positivos (ex: "Vale"
+ * mineradora, "Localiza" locadora, empresas de TI) que só citam logística tangencialmente.
+ * Usado só como sinal de ORDENAÇÃO (ver `rankByIcpAffinity`) — nunca para excluir um resultado. Uma
+ * versão anterior descartava direto qualquer organização cujo `industry` não batesse aqui, o que
+ * tornava a busca "fechada só pra logística" mesmo quando o segmento digitado era outra coisa
+ * (feedback real de usuário) — a Apollo é quem decide o que entra; isto só decide a ordem.
+ */
+const ICP_TRANSPORT_INDUSTRY_KEYWORDS = [
+    'logistics', 'trucking', 'transportation', 'railroad', 'warehousing',
+    'maritime', 'freight', 'supply chain', 'import', 'export', 'shipping', 'courier',
+];
+
+function isTransportOperatorSegment(segmento: string): boolean {
+    const s = segmento.toLowerCase();
+    return s.includes('transportadora') || s.includes('3pl') || s.includes('operador log');
+}
+
+/** true = industry bate com o ICP logístico; false = não bate; null = Apollo não informou industry (neutro). */
+function matchesIcpIndustry(industry: string | undefined): boolean | null {
+    if (!industry) return null;
+    const i = industry.toLowerCase();
+    return ICP_TRANSPORT_INDUSTRY_KEYWORDS.some((k) => i.includes(k));
+}
+
+/**
+ * Reordena (sem descartar nada) colocando primeiro as organizações cujo `industry` bate com o ICP
+ * logístico, depois as com industry desconhecida, e por último as que claramente não batem — usa
+ * um `sort` estável (garantido pelo spec do JS desde ES2019/V8), então dentro de cada grupo a
+ * ordem de relevância original da Apollo é preservada.
+ */
+function rankByIcpAffinity<T extends { industry?: string }>(organizations: T[]): T[] {
+    const rank = (org: T): number => {
+        const match = matchesIcpIndustry(org.industry);
+        return match === true ? 0 : match === null ? 1 : 2;
+    };
+    return [...organizations].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
  * Busca real de empresas via Apollo.io (Organization Search API).
  * Opcional: só executa se APOLLO_API_KEY estiver configurada no ambiente.
  * Suporta os filtros firmográficos que a Apollo de fato reconhece nesse endpoint — validados
@@ -74,11 +116,11 @@ function mapSegmentToKeyword(segmento: string): string | null {
 export async function fetchApolloCandidates(
     criteria: ProspectCriteria,
     count: number,
-    /** Nomes (lowercase) a excluir do resultado — empresas já cadastradas no CRM do tenant ou já
+    /** Empresas a excluir do resultado — já cadastradas no CRM do tenant, já rejeitadas, ou já
      * escolhidas nesta mesma descoberta. Sem isso, buscas repetidas com os mesmos filtros amplos
      * sempre resurfaceam as mesmas empresas (as de maior relevância/dado mais completo na Apollo),
      * mesmo depois que o vendedor já as salvou como lead. */
-    excludeNames: Set<string> = new Set()
+    exclusions: ExclusionSet = new ExclusionSet()
 ): Promise<{ candidates: ProspectCandidate[]; error?: string }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey) return { candidates: [] };
@@ -88,10 +130,12 @@ export async function fetchApolloCandidates(
         : [];
 
     const needsFoundedYearFilter = criteria.anoFundacaoMin != null || criteria.anoFundacaoMax != null;
+    const needsIcpAffinityRanking = isTransportOperatorSegment(criteria.segmento);
     // Ano de fundação e a exclusão de empresas já conhecidas não são filtráveis pela API — pedimos
-    // mais candidatos do que o necessário para sobrar o suficiente depois do pós-filtro local.
+    // mais candidatos do que o necessário para sobrar o suficiente depois do pós-filtro local. A
+    // afinidade ICP também pede um pool maior: sem isso não haveria o que reordenar antes de cortar.
     const requestSize = Math.min(
-        needsFoundedYearFilter || excludeNames.size > 0 ? Math.max(count * 4, 50) : count,
+        needsFoundedYearFilter || needsIcpAffinityRanking || exclusions.size > 0 ? Math.max(count * 4, 50) : count,
         100
     );
 
@@ -104,7 +148,10 @@ export async function fetchApolloCandidates(
     const body: Record<string, unknown> = {
         organization_locations: resolveApolloLocations(criteria),
         per_page: requestSize,
-        page: 1,
+        // Padrão 1 — o botão "Buscar mais resultados" do frontend incrementa isso pra trazer a
+        // próxima fatia do mesmo ranking em vez de repetir sempre o topo (que é o que a Apollo
+        // devolve por padrão a cada busca nova com os mesmos filtros).
+        page: criteria.pagina && criteria.pagina > 0 ? criteria.pagina : 1,
     };
 
     if (keywords.length > 0) {
@@ -169,8 +216,11 @@ export async function fetchApolloCandidates(
                 return true;
             });
         }
-        if (excludeNames.size > 0) {
-            organizations = organizations.filter((org) => !excludeNames.has((org.name || '').trim().toLowerCase()));
+        if (exclusions.size > 0) {
+            organizations = organizations.filter((org) => !exclusions.has(org.name || '', org.primary_domain || org.website_url));
+        }
+        if (needsIcpAffinityRanking) {
+            organizations = rankByIcpAffinity(organizations);
         }
         organizations = organizations.slice(0, count);
 
@@ -181,7 +231,9 @@ export async function fetchApolloCandidates(
             segment: org.industry || criteria.segmento,
             size: org.estimated_num_employees ? `~${org.estimated_num_employees} funcionários` : 'Não informado',
             location: [org.city, org.state].filter(Boolean).join(', ') || buildLocationLabel(criteria),
-            fitScoreEstimate: 70,
+            fitScoreEstimate: needsIcpAffinityRanking
+                ? (matchesIcpIndustry(org.industry) === true ? 82 : matchesIcpIndustry(org.industry) === false ? 55 : 70)
+                : 70,
             suggestedContact: null,
             rationale: `Encontrado via Apollo.io (busca real de firmographic data)${org.primary_domain ? ` — domínio: ${org.primary_domain}` : ''}`,
             linkedinUrl: org.linkedin_url || null,

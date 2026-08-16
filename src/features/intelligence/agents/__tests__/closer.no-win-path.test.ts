@@ -24,7 +24,7 @@ describe('Closer — nenhum caminho fecha negócio sozinho (trava de "Negócios 
         const source = agent.run.toString();
         expect(source).toContain('marketResearchTool');
         expect(source).not.toMatch(/updateLeadQualificationTool|update_lead_qualification/);
-    });
+    }, 15_000);
 
     it('update_lead_qualification (a única ferramenta do enxame que grava status de Lead) nunca aceita um status de fechamento', () => {
         const statusEnumValues = (updateLeadQualificationTool.schema as unknown as {

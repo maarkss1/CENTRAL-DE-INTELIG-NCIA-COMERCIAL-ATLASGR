@@ -193,6 +193,25 @@ export function ProspectingHub() {
     const [promotingKey, setPromotingKey] = useState<string | null>(null);
     const [promoted, setPromoted] = useState<Record<string, PromoteResult>>({});
 
+    // --- "Não é esse perfil": marca o candidato como rejeitado (exclui de buscas futuras) e some da lista ---
+    const [rejectingKey, setRejectingKey] = useState<string | null>(null);
+    const [rejectedKeys, setRejectedKeys] = useState<Set<string>>(new Set());
+    const rejectCandidate = async (candidate: ProspectCandidate, idx: number) => {
+        const key = `discovery-${idx}`;
+        setRejectingKey(key);
+        try {
+            await api.post('/api/prospecting/reject', {
+                tradeName: candidate.tradeName,
+                website: candidate.website,
+            });
+            setRejectedKeys((prev) => new Set(prev).add(key));
+        } catch (error) {
+            setDiscoverError(getErrorMessage(error, 'Falha ao descartar candidato'));
+        } finally {
+            setRejectingKey(null);
+        }
+    };
+
     // Batch save leads into list (autoEnrich: false for on-demand enrichment upon viewing)
     const saveAllCandidatesAsList = async () => {
         if (candidates.length === 0 || isSavingBatch) return;
@@ -230,6 +249,7 @@ export function ProspectingHub() {
     const [resultFilter, setResultFilter] = useState('');
     const filteredCandidates = candidates
         .map((c, i) => ({ c, i }))
+        .filter(({ i }) => !rejectedKeys.has(`discovery-${i}`))
         .filter(({ c }) => {
             const q = resultFilter.trim().toLowerCase();
             if (!q) return true;
@@ -303,11 +323,20 @@ export function ProspectingHub() {
         }
     };
 
-    const handleDiscover = async () => {
+    // Página atual do ranking da Apollo — "Buscar mais resultados" avança isso em vez de repetir o
+    // topo do ranking; uma busca nova (handleDiscover) sempre volta pra página 1.
+    const [discoveryPage, setDiscoveryPage] = useState(1);
+
+    const handleDiscover = async (opts?: { append?: boolean }) => {
+        const append = opts?.append ?? false;
+        const page = append ? discoveryPage + 1 : 1;
         setIsSearching(true);
         setDiscoverError(null);
         setApolloError(null);
-        setCandidates([]);
+        if (!append) {
+            setCandidates([]);
+            setRejectedKeys(new Set());
+        }
         setLoadingStepIdx(0);
         const interval = setInterval(() => {
             setLoadingStepIdx((prev) => Math.min(prev + 1, loadingSteps.length - 1));
@@ -317,8 +346,18 @@ export function ProspectingHub() {
             // decisores) + heurísticas de CNPJ — o timeout padrão de 15s (pensado pra CRUD simples)
             // matava a requisição no cliente antes do backend terminar, mesmo quando cada chamada
             // individual (inclusive o Apollo) respondia rápido isoladamente.
-            const result = await api.post<DiscoverResult>('/api/prospecting/discover', criteria, { timeoutMs: 45_000 });
-            setCandidates(result.candidates);
+            const result = await api.post<DiscoverResult>('/api/prospecting/discover', { ...criteria, pagina: page }, { timeoutMs: 45_000 });
+            if (append) {
+                // Defesa extra além da exclusão do backend: garante que a mesma empresa não apareça
+                // duas vezes na lista mesmo se a Apollo devolver alguma sobreposição entre páginas.
+                setCandidates((prev) => {
+                    const existing = new Set(prev.map((c) => c.tradeName.trim().toLowerCase()));
+                    return [...prev, ...result.candidates.filter((c) => !existing.has(c.tradeName.trim().toLowerCase()))];
+                });
+            } else {
+                setCandidates(result.candidates);
+            }
+            setDiscoveryPage(page);
             setApolloError(result.apolloError || null);
         } catch (error) {
             setDiscoverError(getErrorMessage(error, 'Falha ao buscar leads'));
@@ -471,6 +510,9 @@ export function ProspectingHub() {
                             promotingKey={promotingKey}
                             promoted={promoted}
                             onPromoteCandidate={promoteCandidate}
+                            onDiscoverMore={() => handleDiscover({ append: true })}
+                            rejectingKey={rejectingKey}
+                            onRejectCandidate={rejectCandidate}
                         />
                     </div>
                 )}

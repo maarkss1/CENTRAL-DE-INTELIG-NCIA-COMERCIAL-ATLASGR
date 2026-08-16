@@ -21,8 +21,10 @@ import { fadeInUp, staggerContainer, staggerItem, SPRING_SOFT } from '../../../l
 import { knowledgeApi, type KnowledgeDocumentSummary } from '../../knowledge/knowledge.api';
 
 import { SwarmDashboard } from './SwarmDashboard';
+import { AISuiteHub } from './AISuiteHub';
+import { Cpu } from 'lucide-react';
 
-export type IntelligenceTab = 'swarm' | 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
+export type IntelligenceTab = 'ai_suite' | 'swarm' | 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
 
 interface IntelligenceHubProps {
     initialTab?: IntelligenceTab;
@@ -31,7 +33,8 @@ interface IntelligenceHubProps {
 // O Hub de IA sempre abre na grade de ferramentas (nunca direto numa ferramenta padrão) — o
 // usuário escolhe qual IA quer usar a partir dos cards, depois volta pra grade pelo botão "Voltar".
 // `initialTab` continua existindo só para um eventual deep-link futuro; hoje nenhum chamador o passa.
-const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot; description: string }[] = [
+const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot | typeof Cpu; description: string }[] = [
+    { id: 'ai_suite', label: 'Suíte dos 20 Motores de IA', icon: Cpu, description: 'Console interativo para executar e orquestrar os 20 motores de IA (Ollama & Cloud) da plataforma.' },
     { id: 'swarm', label: 'Enxame Autônomo', icon: Bot, description: 'Dispara uma missão para o enxame de agentes de IA (SDR, closer, CRM) e acompanha em tempo real.' },
     { id: 'methodologies', label: 'Metodologias de Vendas', icon: GraduationCap, description: 'Gera scripts B2B com frameworks clássicos: SPIN, SNAP, AIDA, MEDDPICC e Challenger.' },
     { id: 'ai_config', label: 'Central de Motores de IA', icon: Settings, description: 'Escolhe o modelo de IA e a temperatura usados por cada ferramenta de conteúdo do sistema.' },
@@ -148,6 +151,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
             </button>
 
             <motion.div key={activeTab} initial="hidden" animate="show" variants={fadeInUp}>
+                {activeTab === 'ai_suite' && <AISuiteHub />}
                 {activeTab === 'swarm' && <SwarmDashboard />}
                 {activeTab === 'methodologies' && <SalesMethodologyStudio />}
                 {activeTab === 'ai_config' && <AIConfigCenter />}

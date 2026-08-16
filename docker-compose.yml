@@ -66,7 +66,26 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: atlas_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - atlas_ollamadata:/root/.ollama
+    restart: unless-stopped
+    # Descomente abaixo para habilitar GPU Nvidia na nuvem / host Linux:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
 volumes:
   atlas_pgdata:
   atlas_redisdata:
   atlas_meilidata:
+  atlas_ollamadata:
+
