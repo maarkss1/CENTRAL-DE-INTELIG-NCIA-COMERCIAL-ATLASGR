@@ -1,8 +1,19 @@
 - De: Agente 07 (IA, RAG, Filas e Automações)
 - Para: Agente 01 (Plataforma, Segurança e Dados) — dono de `src/lib/prisma.ts`/RLS/conexão Postgres
 - Onda: 7
-- Status: aberto
+- Status: resolvido (Onda 9, Agente 01A, commit `2616a4d1` — ver `.agents/runs/onda-9.md` e
+  `src/lib/async-context.ts::TenantAwareAsyncLocalStorage`)
 - Prioridade: alto (não bloqueia esta onda — descrito abaixo — mas limita a confiabilidade de testes de integração futuros em qualquer domínio)
+
+## Resolução (Onda 9, Agente 01A)
+
+A causa raiz não estava na conexão/pool com o Postgres nem na forma array de `$transaction` em
+`executeWithRls` (hipóteses levantadas abaixo — testadas e descartadas com execução real). É uma
+interação entre `AsyncLocalStorage.run()` e a natureza *lazy* de `PrismaPromise`: um callback que
+devolve a promise sem `await` interno perde a store correta antes da query executar de verdade.
+Corrigido de forma centralizada em `src/lib/async-context.ts`
+(`TenantAwareAsyncLocalStorage`), sem exigir mudança em nenhum call site individual. Detalhes
+completos em `.agents/runs/onda-9.md`.
 
 ## Problema
 

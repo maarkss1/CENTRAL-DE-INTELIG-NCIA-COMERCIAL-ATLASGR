@@ -1,8 +1,23 @@
 - De: Agente 13 (Enxame Autônomo e Governança de Agentes)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 7
-- Status: aberto
+- Status: resolvido (Onda 9, Agente 01A, commit `2616a4d1` — ver `.agents/runs/onda-9.md` e
+  `src/lib/async-context.ts::TenantAwareAsyncLocalStorage`)
 - Prioridade: normal
+
+## Resolução (Onda 9, Agente 01A)
+
+Causa raiz confirmada com execução real contra Postgres (não só leitura de código): **não** é a
+forma array de `$transaction` em `executeWithRls` (essa hipótese foi testada e descartada). É uma
+interação entre `AsyncLocalStorage.run(store, callback)` e o fato de `PrismaClient` devolver uma
+`PrismaPromise` *lazy* — quando `callback` só constrói e devolve a promise sem `await` interno
+(padrão usado por `asOrg`/`withRlsBypass` em todo o código), a store de `run()` já não está mais
+ativa no momento em que o `.then()` real dispara, então a query vê o contexto ambiente errado (ex.:
+sobrescrito por `enterWith` de um hook global). Corrigido de forma centralizada com
+`TenantAwareAsyncLocalStorage` (subclasse de `AsyncLocalStorage` que envolve qualquer retorno
+thenable do callback numa função `async` com `await` interno) em `src/lib/async-context.ts` — um
+único ponto de correção, sem precisar tocar nos vários call sites espalhados pelo código. Detalhes
+completos, incluindo a reprodução isolada sem Prisma, em `.agents/runs/onda-9.md`.
 
 ## Problema
 
