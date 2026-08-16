@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Info, CheckCircle2 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import type { ExecutiveAlert } from '../commercialIntelligence.api';
 
@@ -6,7 +6,10 @@ const SEVERITY_STYLE: Record<ExecutiveAlert['severity'], { icon: typeof AlertTri
     critical: { icon: AlertTriangle, className: 'text-[#d03b3b] bg-[#d03b3b]/10 border-[#d03b3b]/20' },
     warning: { icon: AlertCircle, className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
     info: { icon: Info, className: 'text-info bg-info/10 border-info/20' },
+    positive: { icon: CheckCircle2, className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
 };
+
+const SEVERITY_ORDER: Record<ExecutiveAlert['severity'], number> = { critical: 0, warning: 1, info: 2, positive: 3 };
 
 /** Alertas executivos (seção 26) — sempre derivados de métricas já calculadas, nunca um texto fixo. */
 export function AlertsPanel({ alerts, loading }: { alerts: ExecutiveAlert[]; loading: boolean }) {
@@ -20,10 +23,12 @@ export function AlertsPanel({ alerts, loading }: { alerts: ExecutiveAlert[]; loa
         );
     }
 
+    const sorted = [...alerts].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+
     return (
         <div className="space-y-2">
-            <h2 className="text-sm font-bold text-ink px-1">Riscos</h2>
-            {alerts.map((alert) => {
+            <h2 className="text-sm font-bold text-ink px-1">Alertas gerenciais</h2>
+            {sorted.map((alert) => {
                 const { icon: Icon, className } = SEVERITY_STYLE[alert.severity];
                 return (
                     <div key={alert.id} className={`rounded-xl border p-3 flex items-start gap-2.5 ${className}`}>

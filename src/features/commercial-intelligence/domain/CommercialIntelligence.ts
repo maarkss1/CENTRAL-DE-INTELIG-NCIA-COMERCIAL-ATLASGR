@@ -46,6 +46,60 @@ export interface CoverageSnapshot {
     remainingGoal: number;
 }
 
+export type CoverageProtectionStatus = 'saudavel' | 'atencao' | 'critico' | 'sem_dados';
+
+/**
+ * Uma linha da tabela "Proteção 90 dias" (seção 11 do prompt de produto) — mês atual + M+1 + M+2 +
+ * M+3, sempre em MESES DE CALENDÁRIO reais (distinto das janelas móveis de 30/60/90 dias corridos
+ * de `coverage30/60/90`, que continuam existindo separadamente).
+ */
+export interface CoverageProtectionEntry {
+    period: PeriodMonth;
+    /** Rótulo curto pt-BR, ex.: "AGO/2026". */
+    label: string;
+    /** `null` quando não há meta cadastrada para este mês futuro específico. */
+    goalAmount: number | null;
+    pipelineEligible: number;
+    /** Meta restante do mês (meta − já fechado, só se aplica ao mês corrente; meses futuros usam a meta cheia). Nunca negativa. */
+    remainingGoal: number | null;
+    coverage: number | null;
+    coverageRecommended: number | null;
+    /**
+     * `'sem_dados'` sem meta ou sem coverage calculável. Quando há Win Rate histórico, os limiares
+     * saudável/atenção/crítico derivam de `coverageRecommended` (1 / Win Rate). Sem Win Rate
+     * calculável ainda, cai no limiar-padrão documentado (3x saudável / 1,5x atenção) — política
+     * inicial, não medição — ver `CommercialIntelligenceUseCases.classifyCoverageProtection`.
+     */
+    status: CoverageProtectionStatus;
+}
+
+/** Comparação com o mês anterior (seção 7/23) — só populada quando o período anterior tem negócios fechados avaliáveis. */
+export interface PreviousPeriodComparison {
+    period: PeriodMonth;
+    closedAmount: number;
+    closedCount: number;
+    winRate: number | null;
+}
+
+export type ForecastConfidenceClassification = 'saudavel' | 'atencao' | 'critico';
+
+/**
+ * Forecast Confidence (seção 22) — NÃO é uma probabilidade inventada. Deriva de fatores
+ * mensuráveis (completude dos campos que o forecast engine usa como sinal, cobertura de histórico
+ * de etapa, tamanho da amostra de negócios abertos). Fórmula documentada em
+ * `application/dataReadiness.ts` e `metricsDictionary.ts`. `score: null` quando não há negócio
+ * aberto para avaliar — nunca um número fabricado.
+ */
+export interface ForecastConfidence {
+    score: number | null;
+    classification: ForecastConfidenceClassification | null;
+    sampleSize: number;
+    fieldCompletenessScore: number | null;
+    stageHistoryCoverage: number | null;
+    /** `true` quando o tamanho da amostra (negócios abertos) é pequeno o bastante para reduzir a confiança proporcionalmente (ver fórmula). */
+    sampleSizePenaltyApplied: boolean;
+}
+
 export interface ExecutiveOverview {
     period: PeriodMonth;
     goal: CommercialGoalDTO | null;
@@ -73,6 +127,11 @@ export interface ExecutiveOverview {
     coverage30: CoverageSnapshot;
     coverage60: CoverageSnapshot;
     coverage90: CoverageSnapshot;
+    /** "Proteção 90 dias" (seção 11) — sempre 4 entradas: mês do filtro, M+1, M+2, M+3, em meses de calendário. */
+    coverageProtection: CoverageProtectionEntry[];
+    /** `null` sem base histórica suficiente (mês anterior sem nenhum negócio avaliável). */
+    previousPeriod: PreviousPeriodComparison | null;
+    forecastConfidence: ForecastConfidence;
     /** `true` quando a organização não tem nenhum negócio no funil "Negócio" — a UI mostra o estado vazio em vez de zeros. */
     isEmpty: boolean;
     dataAsOf: string;
@@ -96,6 +155,16 @@ export interface PipelineCreation {
     /** Pipeline necessário (meta futura / win rate esperado) e cobertura de criação — seção 15. */
     pipelineNeeded: number | null;
     creationCoverage: number | null;
+    // ─── Pipeline Creation Pace (seção 21) ──────────────────────────────────
+    /** Dias úteis já decorridos no período até `now` (ou o total, se o período já terminou). */
+    elapsedBusinessDays: number;
+    totalBusinessDays: number;
+    /** Quanto de `pipelineNeeded` já deveria ter sido criado até hoje, proporcional a dias úteis. `null` sem `pipelineNeeded`. */
+    paceExpectedAmount: number | null;
+    /** `amount` / `paceExpectedAmount` × 100. `null` sem `paceExpectedAmount` calculável. */
+    pacePercent: number | null;
+    /** `paceExpectedAmount` − `amount`. Positivo = atrás do ritmo; negativo = à frente. `null` sem `paceExpectedAmount`. */
+    paceGapAmount: number | null;
 }
 
 // ─── Eficiência (Fase 4) ─────────────────────────────────────────────────────
@@ -131,11 +200,23 @@ export interface FunnelStageConversion {
     stageId: string;
     label: string;
     sortOrder: number;
+    /** Snapshot atual (quantos negócios estão nesta etapa ou além, agora mesmo). Preservado por compatibilidade — ver `historicalReachedCount` para a versão baseada em movimentação real (seção 12). */
     count: number;
     amount: number;
-    /** % em relação à etapa anterior do funil. `null` na primeira etapa. */
+    /** % em relação à etapa anterior do funil, baseado no SNAPSHOT atual. `null` na primeira etapa. */
     conversionFromPrevious: number | null;
     averageDaysInStage: number | null;
+    /**
+     * Quantos negócios (abertos, ganhos OU perdidos) REALMENTE chegaram a esta etapa ou além em
+     * algum momento, segundo `LeadStageHistory` — não o snapshot de onde estão agora (seção 12:
+     * "evitar inferir conversão apenas pelo snapshot atual do funil quando houver histórico
+     * disponível"). Um negócio perdido na etapa 1 conta para a etapa 0 mas não para a etapa 1+;
+     * um negócio ganho conta para todas as etapas que sua história registra ter passado.
+     */
+    historicalReachedCount: number;
+    historicalReachedAmount: number;
+    /** % em relação à etapa anterior, calculado sobre `historicalReachedCount`. `null` na primeira etapa. */
+    historicalConversionFromPrevious: number | null;
 }
 
 export interface PerformanceMetrics {
@@ -148,6 +229,13 @@ export interface PerformanceMetrics {
     averageTicket: AverageTicket;
     salesCycle: SalesCycleStats;
     funnel: FunnelStageConversion[];
+    /**
+     * Data do registro mais antigo de `LeadStageHistory` da organização, ou `null` se não há
+     * nenhum histórico ainda — quando `null`, `historicalReachedCount`/`historicalConversionFromPrevious`
+     * do funil são pouco confiáveis (poucos ou nenhum negócio tem movimentação registrada) e a UI
+     * deve avisar disso, mesmo natureza de `AgingReport.trackingSince`.
+     */
+    funnelHistoricalTrackingSince: string | null;
 }
 
 // ─── Aging (Fase 5) ──────────────────────────────────────────────────────────
@@ -214,7 +302,8 @@ export interface LeadingIndicatorsReport {
 
 // ─── Alertas executivos (Fase 6) ────────────────────────────────────────────
 
-export type AlertSeverity = 'critical' | 'warning' | 'info';
+/** `'positive'` (seção 19) é um alerta favorável derivado de métrica real (ex.: Forecast acima da meta) — nunca um texto de incentivo genérico. */
+export type AlertSeverity = 'critical' | 'warning' | 'info' | 'positive';
 
 export interface ExecutiveAlert {
     id: string;
@@ -276,9 +365,39 @@ export interface BitrixSyncHealth {
     linked: number;
     notLinked: number;
     failed: number;
-    /** `null` quando `totalOpen` é 0. */
+    /** `null` quando `totalOpen` é 0. Esta é a "cobertura da sincronização" da seção 28. */
     linkedRate: number | null;
     failures: BitrixSyncFailure[];
+    /** Checkpoint da última importação bem-sucedida (`BitrixConnection.lastImportedAt`, a mais recente entre as conexões da organização). `null` sem nenhuma importação registrada ainda. */
+    lastSyncAt: string | null;
+    /** Registros sincronizados (status 'success' em `BitrixSyncLog`) nos últimos 30 dias — janela fixa documentada, não o período do filtro (atividade de sincronização é operacional, não comercial). */
+    syncedCount30d: number;
+    /** Registros com falha (status 'failed' em `BitrixSyncLog`) nos últimos 30 dias. */
+    failedCount30d: number;
+}
+
+/** Campo da "Confiabilidade dos Dados" (seção 5) — mesma completude de `CrmQualityField`, mas com peso e classificação por impacto no Forecast. */
+export interface DataReadinessField {
+    field: string;
+    label: string;
+    filled: number;
+    total: number;
+    completeness: number | null;
+    weight: number;
+    forecastImpact: 'alto' | 'medio' | 'baixo';
+    classification: 'saudavel' | 'atencao' | 'critico' | null;
+}
+
+/**
+ * "Confiabilidade dos Dados" (seção 5) — score PONDERADO por impacto no forecast, distinto do
+ * `overallScore` simples de `CrmQualityIndex` (média não-ponderada de completude bruta). Fórmula
+ * documentada em `application/dataReadiness.ts` e `metricsDictionary.ts`.
+ */
+export interface DataReadinessScore {
+    /** Média ponderada de completude por campo, em %. `null` sem nenhum campo avaliável. */
+    overallScore: number | null;
+    classification: 'saudavel' | 'atencao' | 'critico' | null;
+    fields: DataReadinessField[];
 }
 
 export interface CrmQualityIndex {
@@ -286,6 +405,7 @@ export interface CrmQualityIndex {
     /** Média das completudes por campo, em %. `null` sem negócios abertos no funil. */
     overallScore: number | null;
     fields: CrmQualityField[];
+    dataReadiness: DataReadinessScore;
     suspectedDuplicateGroups: number;
     evaluatedCount: number;
     bitrixSync: BitrixSyncHealth;
@@ -328,6 +448,42 @@ export interface DealDrillDownQuery {
     missingNextAction?: boolean;
     limit?: number;
     offset?: number;
+}
+
+// ─── Opções de filtro reais (seção 18) ───────────────────────────────────────
+
+/**
+ * Valores REAIS já usados pelos negócios do funil "Negócio" da organização — alimenta os
+ * seletores de vendedor/produto/origem/ICP em vez de campos de texto livre. Nunca inclui um valor
+ * que não exista em pelo menos um negócio real.
+ */
+export interface FilterOptions {
+    owners: string[];
+    products: string[];
+    sources: string[];
+    icps: string[];
+}
+
+// ─── Tendências históricas (seção 23) ────────────────────────────────────────
+
+export interface HistoricalTrendPoint {
+    period: PeriodMonth;
+    label: string;
+    winRate: number | null;
+    salesCycleMeanDays: number | null;
+    averageTicketWon: number | null;
+    pipelineCreatedAmount: number | null;
+    /** Quantidade de negócios fechados no mês — usada para decidir se `winRate`/`salesCycleMeanDays` têm amostra suficiente para serem exibidos com confiança. */
+    closedSampleSize: number;
+}
+
+/**
+ * Últimos 6 meses (mês do filtro + 5 anteriores) de Win Rate, Sales Cycle, Ticket Médio (ganho) e
+ * Pipeline Criado — seção 23. Cada ponto é `null` nos campos sem amostra suficiente daquele mês,
+ * nunca um valor interpolado ou fabricado.
+ */
+export interface HistoricalTrendsReport {
+    points: HistoricalTrendPoint[];
 }
 
 // ─── Dicionário de métricas (seção 39) ──────────────────────────────────────
@@ -419,6 +575,10 @@ export interface CommercialIntelligenceRepository {
     countDuplicateCompanyGroupsAmongOpenDeals(organizationId: string): Promise<number>;
     /** `true` quando a organização tem ao menos uma conexão Bitrix24 ativa — usado por `bitrixSync` para distinguir "0 vinculado porque não tem Bitrix" de "0 vinculado apesar de ter Bitrix". */
     hasBitrixConnection(organizationId: string): Promise<boolean>;
+    /** Checkpoint de sincronização + contagem de sucesso/falha em `BitrixSyncLog` desde `since` — seção 28. */
+    getBitrixSyncActivity(organizationId: string, since: Date): Promise<{ lastSyncAt: Date | null; syncedCount: number; failedCount: number }>;
+    /** Valores reais distintos de vendedor/produto/origem/ICP entre os negócios do funil "Negócio" — seção 18. */
+    getFilterOptions(organizationId: string): Promise<FilterOptions>;
 
     getGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric): Promise<CommercialGoalDTO | null>;
     upsertGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO>;

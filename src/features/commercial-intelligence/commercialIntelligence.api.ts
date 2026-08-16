@@ -18,6 +18,37 @@ export interface CoverageSnapshot {
     remainingGoal: number;
 }
 
+export type CoverageProtectionStatus = 'saudavel' | 'atencao' | 'critico' | 'sem_dados';
+
+export interface CoverageProtectionEntry {
+    period: string;
+    label: string;
+    goalAmount: number | null;
+    pipelineEligible: number;
+    remainingGoal: number | null;
+    coverage: number | null;
+    coverageRecommended: number | null;
+    status: CoverageProtectionStatus;
+}
+
+export interface PreviousPeriodComparison {
+    period: string;
+    closedAmount: number;
+    closedCount: number;
+    winRate: number | null;
+}
+
+export type ForecastConfidenceClassification = 'saudavel' | 'atencao' | 'critico';
+
+export interface ForecastConfidence {
+    score: number | null;
+    classification: ForecastConfidenceClassification | null;
+    sampleSize: number;
+    fieldCompletenessScore: number | null;
+    stageHistoryCoverage: number | null;
+    sampleSizePenaltyApplied: boolean;
+}
+
 export interface ExecutiveOverview {
     period: string;
     goal: CommercialGoalDTO | null;
@@ -41,6 +72,9 @@ export interface ExecutiveOverview {
     coverage30: CoverageSnapshot;
     coverage60: CoverageSnapshot;
     coverage90: CoverageSnapshot;
+    coverageProtection: CoverageProtectionEntry[];
+    previousPeriod: PreviousPeriodComparison | null;
+    forecastConfidence: ForecastConfidence;
     isEmpty: boolean;
     dataAsOf: string;
 }
@@ -60,6 +94,11 @@ export interface PipelineCreation {
     byOwner: PipelineCreationBreakdown[];
     pipelineNeeded: number | null;
     creationCoverage: number | null;
+    elapsedBusinessDays: number;
+    totalBusinessDays: number;
+    paceExpectedAmount: number | null;
+    pacePercent: number | null;
+    paceGapAmount: number | null;
 }
 
 export interface FunnelStageConversion {
@@ -70,6 +109,9 @@ export interface FunnelStageConversion {
     amount: number;
     conversionFromPrevious: number | null;
     averageDaysInStage: number | null;
+    historicalReachedCount: number;
+    historicalReachedAmount: number;
+    historicalConversionFromPrevious: number | null;
 }
 
 export interface PerformanceMetrics {
@@ -84,6 +126,7 @@ export interface PerformanceMetrics {
     averageTicket: { created: number | null; open: number | null; won: number | null; lost: number | null };
     salesCycle: { meanDays: number | null; medianDays: number | null; sampleSize: number };
     funnel: FunnelStageConversion[];
+    funnelHistoricalTrackingSince: string | null;
 }
 
 export interface AgingBucket { label: string; minDays: number; maxDays: number | null; count: number; amount: number }
@@ -107,19 +150,29 @@ export interface LeadingIndicatorsReport {
     weekStart: string; weekEnd: string; indicators: LeadingIndicatorPoint[]; trackingSince: string | null;
 }
 
-export type AlertSeverity = 'critical' | 'warning' | 'info';
+export type AlertSeverity = 'critical' | 'warning' | 'info' | 'positive';
 export interface ExecutiveAlert { id: string; severity: AlertSeverity; title: string; description: string; metricValue: number | null }
 
 export interface CrmQualityField { field: string; label: string; filled: number; total: number; completeness: number | null }
+
+export interface DataReadinessField {
+    field: string; label: string; filled: number; total: number; completeness: number | null;
+    weight: number; forecastImpact: 'alto' | 'medio' | 'baixo'; classification: 'saudavel' | 'atencao' | 'critico' | null;
+}
+export interface DataReadinessScore {
+    overallScore: number | null; classification: 'saudavel' | 'atencao' | 'critico' | null; fields: DataReadinessField[];
+}
 
 export interface BitrixSyncFailure { leadId: string; title: string | null; companyName: string | null; error: string | null; lastAttemptAt: string | null }
 export interface BitrixSyncHealth {
     connected: boolean; totalOpen: number; linked: number; notLinked: number; failed: number;
     linkedRate: number | null; failures: BitrixSyncFailure[];
+    lastSyncAt: string | null; syncedCount30d: number; failedCount30d: number;
 }
 
 export interface CrmQualityIndex {
-    period: string; overallScore: number | null; fields: CrmQualityField[]; suspectedDuplicateGroups: number; evaluatedCount: number;
+    period: string; overallScore: number | null; fields: CrmQualityField[]; dataReadiness: DataReadinessScore;
+    suspectedDuplicateGroups: number; evaluatedCount: number;
     bitrixSync: BitrixSyncHealth;
 }
 
@@ -143,6 +196,14 @@ export interface CommercialFilter {
     source?: string;
     icp?: string;
 }
+
+export interface FilterOptions { owners: string[]; products: string[]; sources: string[]; icps: string[] }
+
+export interface HistoricalTrendPoint {
+    period: string; label: string; winRate: number | null; salesCycleMeanDays: number | null;
+    averageTicketWon: number | null; pipelineCreatedAmount: number | null; closedSampleSize: number;
+}
+export interface HistoricalTrendsReport { points: HistoricalTrendPoint[] }
 
 export interface ExecutiveSummaryResult { summary: string; generatedAt: string }
 export interface BitrixNoteDraftResult { draft: string }
@@ -176,6 +237,8 @@ export const commercialIntelligenceApi = {
     deals: (filter: CommercialFilter, extra?: { tier?: ForecastTier; stageId?: string; agingCritical?: boolean; missingNextAction?: boolean; limit?: number; offset?: number }) =>
         api.get<DealDrillDownResult>(`${BASE}/deals?${qs(filter, extra)}`),
     metricsDictionary: () => api.get<MetricDefinition[]>(`${BASE}/metrics-dictionary`),
+    filterOptions: () => api.get<FilterOptions>(`${BASE}/filter-options`),
+    trends: (filter: CommercialFilter) => api.get<HistoricalTrendsReport>(`${BASE}/trends?${qs(filter)}`),
     getGoal: (month: string) => api.get<CommercialGoalDTO | null>(`${BASE}/goals?month=${month}`),
     setGoal: (period: string, amount: number, currency = 'BRL') => api.put<CommercialGoalDTO>(`${BASE}/goals`, { period, amount, currency }),
     // Ação de escrita no Bitrix24 — vive na rota do módulo de integração (não duplica a lógica de

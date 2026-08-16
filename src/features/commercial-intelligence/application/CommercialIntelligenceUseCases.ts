@@ -3,6 +3,12 @@ import type {
     CommercialIntelligenceRepository,
     CommercialGoalDTO,
     CoverageSnapshot,
+    CoverageProtectionEntry,
+    CoverageProtectionStatus,
+    PreviousPeriodComparison,
+    ForecastConfidence,
+    DataReadinessScore,
+    DataReadinessField,
     DealRow,
     ExecutiveOverview,
     PipelineCreation,
@@ -22,10 +28,43 @@ import type {
     DealDrillDownRow,
     ForecastTier,
     GoalMetric,
+    FilterOptions,
+    HistoricalTrendsReport,
+    HistoricalTrendPoint,
 } from '../domain/CommercialIntelligence';
 import { scoreOpportunity, type ForecastResult } from './forecastEngine';
 import { checkEligibility, isDealOpen, agingInStageDays, STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
 import { classifyLossReason } from './lossTaxonomy';
+import { shiftMonth, monthLabelPt, countBusinessDays } from './executiveCalendar';
+import {
+    DATA_READINESS_OPEN_FIELD_WEIGHTS,
+    DATA_READINESS_LOSS_FIELD_WEIGHT,
+    FORECAST_CONFIDENCE_FIELDS,
+    DEAL_FIELD_TESTS,
+    weightedCompletenessScore,
+    classifyCompleteness,
+} from './dataReadiness';
+
+/**
+ * Limiares-padrão de "Proteção 90 dias" (seção 11) quando ainda não há Win Rate histórico
+ * calculável para derivar `coverageRecommended` (1 / Win Rate). Política inicial documentada —
+ * mesmo espírito de `STAGE_AGING_CRITICAL_DAYS` — não uma medição. Quando há Win Rate real, os
+ * limiares saudável/atenção usam `coverageRecommended` no lugar destes.
+ */
+export const COVERAGE_PROTECTION_FALLBACK_HEALTHY = 3;
+export const COVERAGE_PROTECTION_FALLBACK_WARNING = 1.5;
+
+export function classifyCoverageProtection(hasGoal: boolean, coverage: number | null, coverageRecommended: number | null): CoverageProtectionStatus {
+    if (!hasGoal || coverage == null) return 'sem_dados';
+    if (coverageRecommended != null && coverageRecommended > 0) {
+        if (coverage >= coverageRecommended) return 'saudavel';
+        if (coverage >= coverageRecommended * 0.6) return 'atencao';
+        return 'critico';
+    }
+    if (coverage >= COVERAGE_PROTECTION_FALLBACK_HEALTHY) return 'saudavel';
+    if (coverage >= COVERAGE_PROTECTION_FALLBACK_WARNING) return 'atencao';
+    return 'critico';
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -163,8 +202,9 @@ export class CommercialIntelligenceUseCases {
 
     async executiveOverview(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<ExecutiveOverview> {
         const { start, end, daysInMonth } = monthRange(filter.month);
-        const { scored } = await this.loadScoredDeals(organizationId, now);
+        const { scored, history } = await this.loadScoredDeals(organizationId, now);
         const inScope = this.applyScope(scored, filter);
+        const historyLeadIds = new Set(history.map((h) => h.leadId));
 
         const goal = await this.repository.getGoal(organizationId, filter.month, 'NEW_MRR');
 
@@ -217,6 +257,49 @@ export class CommercialIntelligenceUseCases {
         const coverage60 = coverageFor(60, eligibleInRange(now, in60), 0);
         const coverage90 = coverageFor(90, eligibleInRange(now, in90), 0);
 
+        // ─── Proteção 90 dias (seção 11): mês do filtro + M+1 + M+2 + M+3, em meses de calendário ──
+        const coverageProtection: CoverageProtectionEntry[] = [];
+        for (let i = 0; i <= 3; i++) {
+            const period = shiftMonth(filter.month, i);
+            const range = monthRange(period);
+            const periodGoal = i === 0 ? goal : await this.repository.getGoal(organizationId, period, 'NEW_MRR');
+            const pipelineEligibleInPeriod = eligibleInRange(range.start, range.end);
+            const closedInPeriod = i === 0 ? closedAmount : 0;
+            const remainingGoal = periodGoal ? Math.max(0, roundMoney(periodGoal.amount - closedInPeriod)) : null;
+            const coverage = remainingGoal != null && remainingGoal > 0 ? roundMoney(pipelineEligibleInPeriod / remainingGoal) : null;
+            const coverageRecommended = winRate && winRate > 0 ? roundMoney(1 / (winRate / 100)) : null;
+            // Meta já batida (remainingGoal === 0): melhor status possível, não "sem_dados" — a meta
+            // do mês foi coberta, mesmo que `coverage` fique null (nada mais precisa ser dividido).
+            const status: CoverageProtectionStatus = periodGoal && remainingGoal === 0
+                ? 'saudavel'
+                : classifyCoverageProtection(!!periodGoal, coverage, coverageRecommended);
+            coverageProtection.push({
+                period,
+                label: monthLabelPt(period),
+                goalAmount: periodGoal ? periodGoal.amount : null,
+                pipelineEligible: pipelineEligibleInPeriod,
+                remainingGoal,
+                coverage,
+                coverageRecommended,
+                status,
+            });
+        }
+
+        // ─── Comparação com o mês anterior (seção 7/23) ──────────────────────────────
+        const previousMonth = shiftMonth(filter.month, -1);
+        const previousRange = monthRange(previousMonth);
+        const closedPrev = inScope.filter((s) => (s.deal.stageIsWon || s.deal.stageIsLost) && s.deal.closedAt && s.deal.closedAt >= previousRange.start && s.deal.closedAt < previousRange.end);
+        const wonPrev = closedPrev.filter((s) => s.deal.stageIsWon);
+        const lostPrev = closedPrev.filter((s) => s.deal.stageIsLost);
+        const previousPeriod: PreviousPeriodComparison | null = closedPrev.length > 0 ? {
+            period: previousMonth,
+            closedAmount: roundMoney(wonPrev.reduce((sum, s) => sum + s.deal.amount, 0)),
+            closedCount: wonPrev.length,
+            winRate: wonPrev.length + lostPrev.length > 0 ? roundMoney((wonPrev.length / (wonPrev.length + lostPrev.length)) * 100) : null,
+        } : null;
+
+        const forecastConfidence = this.computeForecastConfidence(open, historyLeadIds);
+
         return {
             period: filter.month,
             goal,
@@ -240,8 +323,48 @@ export class CommercialIntelligenceUseCases {
             coverage30,
             coverage60,
             coverage90,
+            coverageProtection,
+            previousPeriod,
+            forecastConfidence,
             isEmpty: scored.length === 0,
             dataAsOf: now.toISOString(),
+        };
+    }
+
+    /**
+     * Forecast Confidence (seção 22) — combina completude dos campos que o `forecastEngine` usa
+     * como sinal (peso 70%) com cobertura de histórico de etapa (peso 30%), e aplica um redutor
+     * proporcional quando a amostra de negócios abertos é pequena (< 5) — forecast sobre poucos
+     * negócios é estruturalmente menos confiável, independente da completude dos campos. `null`
+     * sem nenhum negócio aberto para avaliar.
+     */
+    private computeForecastConfidence(open: ScoredDeal[], historyLeadIds: Set<string>): ForecastConfidence {
+        const sampleSize = open.length;
+        if (sampleSize === 0) {
+            return { score: null, classification: null, sampleSize: 0, fieldCompletenessScore: null, stageHistoryCoverage: null, sampleSizePenaltyApplied: false };
+        }
+
+        const fieldInputs = [...FORECAST_CONFIDENCE_FIELDS].map((field) => {
+            const test = DEAL_FIELD_TESTS[field];
+            const filled = open.filter((s) => test(s.deal)).length;
+            return { weight: 1, completeness: roundMoney((filled / sampleSize) * 100) };
+        });
+        const fieldCompletenessScore = weightedCompletenessScore(fieldInputs);
+        const withHistory = open.filter((s) => historyLeadIds.has(s.deal.id)).length;
+        const stageHistoryCoverage = roundMoney((withHistory / sampleSize) * 100);
+
+        const SAMPLE_SIZE_FLOOR = 5;
+        const sampleSizePenaltyApplied = sampleSize < SAMPLE_SIZE_FLOOR;
+        const combined = fieldCompletenessScore != null ? roundMoney(fieldCompletenessScore * 0.7 + stageHistoryCoverage * 0.3) : null;
+        const score = combined != null ? roundMoney(sampleSizePenaltyApplied ? combined * (sampleSize / SAMPLE_SIZE_FLOOR) : combined) : null;
+
+        return {
+            score,
+            classification: classifyCompleteness(score),
+            sampleSize,
+            fieldCompletenessScore,
+            stageHistoryCoverage,
+            sampleSizePenaltyApplied,
         };
     }
 
@@ -280,7 +403,17 @@ export class CommercialIntelligenceUseCases {
         const pipelineNeeded = goal && winRate && winRate > 0 ? roundMoney(goal.amount / winRate) : null;
         const creationCoverage = pipelineNeeded && pipelineNeeded > 0 ? roundMoney(amount / pipelineNeeded) : null;
 
-        void now;
+        // ─── Pipeline Creation Pace (seção 21): "criado até hoje" vs "deveria ter criado até hoje",
+        // proporcional a dias úteis decorridos no mês em vez de dias corridos. ─────────────────────
+        const totalBusinessDays = countBusinessDays(start, end);
+        const elapsedEnd = now < start ? start : now > end ? end : now;
+        const elapsedBusinessDays = now < start ? 0 : countBusinessDays(start, elapsedEnd);
+        const paceExpectedAmount = pipelineNeeded != null && totalBusinessDays > 0
+            ? roundMoney(pipelineNeeded * (elapsedBusinessDays / totalBusinessDays))
+            : null;
+        const pacePercent = paceExpectedAmount != null && paceExpectedAmount > 0 ? roundMoney((amount / paceExpectedAmount) * 100) : null;
+        const paceGapAmount = paceExpectedAmount != null ? roundMoney(paceExpectedAmount - amount) : null;
+
         void daysInMonth;
         return {
             period: filter.month,
@@ -291,6 +424,11 @@ export class CommercialIntelligenceUseCases {
             byOwner: groupBy((d) => d.owner),
             pipelineNeeded,
             creationCoverage,
+            elapsedBusinessDays,
+            totalBusinessDays,
+            paceExpectedAmount,
+            pacePercent,
+            paceGapAmount,
         };
     }
 
@@ -335,6 +473,8 @@ export class CommercialIntelligenceUseCases {
             countByStage.set(s.deal.pipelineStageId, entry);
         }
 
+        const historicalReach = this.computeHistoricalStageReach(inScope, history, openStages);
+
         const cumulative: FunnelStageConversion[] = openStages.map((stage, index) => {
             const downstream = openStages.slice(index).reduce(
                 (sum, s2) => {
@@ -343,6 +483,7 @@ export class CommercialIntelligenceUseCases {
                 },
                 { count: 0, amount: 0 }
             );
+            const reach = historicalReach.get(stage.id) ?? { count: 0, amount: 0 };
             return {
                 stageId: stage.id,
                 label: stage.name,
@@ -351,11 +492,21 @@ export class CommercialIntelligenceUseCases {
                 amount: roundMoney(downstream.amount + wonAmount),
                 conversionFromPrevious: null,
                 averageDaysInStage: durationStats.get(stage.id) != null ? roundMoney(durationStats.get(stage.id) as number) : null,
+                historicalReachedCount: reach.count,
+                historicalReachedAmount: reach.amount,
+                historicalConversionFromPrevious: null,
             };
         });
         for (let i = 1; i < cumulative.length; i++) {
             cumulative[i].conversionFromPrevious = cumulative[i - 1].count > 0 ? roundMoney((cumulative[i].count / cumulative[i - 1].count) * 100) : null;
+            cumulative[i].historicalConversionFromPrevious = cumulative[i - 1].historicalReachedCount > 0
+                ? roundMoney((cumulative[i].historicalReachedCount / cumulative[i - 1].historicalReachedCount) * 100)
+                : null;
         }
+
+        const funnelHistoricalTrackingSince = history.length > 0
+            ? history.reduce((min, h) => (h.enteredAt < min ? h.enteredAt : min), history[0].enteredAt).toISOString()
+            : null;
 
         return {
             period: filter.month,
@@ -386,7 +537,57 @@ export class CommercialIntelligenceUseCases {
                 sampleSize: cycleDays.length,
             },
             funnel: cumulative,
+            funnelHistoricalTrackingSince,
         };
+    }
+
+    /**
+     * Quantos negócios (abertos, ganhos OU perdidos, no escopo do filtro) REALMENTE chegaram a
+     * cada etapa ABERTA em algum momento — seção 12: não inferir conversão só pelo snapshot atual
+     * quando há histórico disponível.
+     *
+     * Só recebe as etapas ABERTAS (`openStages`, sem Ganho/Perdido) de propósito: a etapa terminal
+     * NUNCA entra no cálculo de "alcançou", nem via histórico nem via etapa atual — se entrasse,
+     * um negócio perdido logo na 1ª etapa pareceria ter "alcançado" todas as etapas intermediárias
+     * só porque a etapa "Perdido" tem `sortOrder` mais alto que elas (bug real testado em
+     * `__tests__/CommercialIntelligenceUseCases.unit.test.ts`). Um negócio GANHO só conta como
+     * tendo alcançado uma etapa aberta se o histórico tiver uma linha própria para aquela etapa
+     * aberta (o que acontece naturalmente se ele passou por ali antes de fechar). Para negócios
+     * ABERTOS, a etapa atual sempre conta como alcançada, mesmo sem linha de histórico (registro
+     * legado). Sem nenhuma linha de histórico para um negócio fechado, ele não é contado em
+     * nenhuma etapa — nunca um progresso fabricado a partir do status final.
+     */
+    private computeHistoricalStageReach(
+        inScope: ScoredDeal[],
+        history: StageHistoryRow[],
+        openStages: Array<{ id: string; sortOrder: number }>
+    ): Map<string, { count: number; amount: number }> {
+        const sortOrderByOpenStageId = new Map(openStages.map((s) => [s.id, s.sortOrder]));
+        const historyByLead = new Map<string, StageHistoryRow[]>();
+        for (const row of history) {
+            if (!historyByLead.has(row.leadId)) historyByLead.set(row.leadId, []);
+            historyByLead.get(row.leadId)!.push(row);
+        }
+
+        const reachedByDeal = inScope.map((s) => {
+            const reached = new Set<number>();
+            for (const row of historyByLead.get(s.deal.id) ?? []) {
+                const so = row.stageId ? sortOrderByOpenStageId.get(row.stageId) : undefined;
+                if (so != null) reached.add(so);
+            }
+            if (isDealOpen(s.deal) && s.deal.stageSortOrder != null) reached.add(s.deal.stageSortOrder);
+            return { deal: s.deal, reached };
+        });
+
+        const result = new Map<string, { count: number; amount: number }>();
+        for (const stage of openStages) {
+            const dealsThatReached = reachedByDeal.filter(({ reached }) => [...reached].some((so) => so >= stage.sortOrder));
+            result.set(stage.id, {
+                count: dealsThatReached.length,
+                amount: roundMoney(dealsThatReached.reduce((sum, r) => sum + r.deal.amount, 0)),
+            });
+        }
+        return result;
     }
 
     private countAdvancedTransitions(history: StageHistoryRow[], start: Date, end: Date): number {
@@ -621,14 +822,138 @@ export class CommercialIntelligenceUseCases {
             });
         }
 
+        // ─── Propostas sem interação (seção 19, atenção) ─────────────────────────────
+        // Não usa o nome literal de uma etapa (ex.: "Proposta Enviada") porque pipelines
+        // customizados não padronizam nomes — usa o tier do Forecast Ponderado Explicável (Commit/
+        // BestCase = oportunidade já avançada, com proposta em curso) combinado com o próprio sinal
+        // de "sem interação"/"interação vencida" que o forecastEngine já calcula por negócio.
+        const proposalsWithoutInteraction = openScope.filter(
+            (s) =>
+                isDealOpen(s.deal) &&
+                (s.forecast.tier === 'Commit' || s.forecast.tier === 'BestCase') &&
+                s.forecast.negativeFactors.some((f) => f.toLowerCase().includes('interação'))
+        );
+        if (proposalsWithoutInteraction.length > 0) {
+            alerts.push({
+                id: 'propostas-sem-interacao',
+                severity: 'warning',
+                title: 'Propostas sem interação recente',
+                description: `${proposalsWithoutInteraction.length} negócio(s) já avançado(s) (Commit/Best Case) estão sem interação recente registrada — risco de esfriar antes do fechamento.`,
+                metricValue: proposalsWithoutInteraction.length,
+            });
+        }
+
+        // ─── Confiabilidade do forecast (seção 19, crítico) ──────────────────────────
+        if (overview.forecastConfidence.classification === 'critico') {
+            alerts.push({
+                id: 'forecast-confidence-critica',
+                severity: 'critical',
+                title: 'Dados essenciais do forecast com baixa completude',
+                description: `Confiabilidade do forecast em ${overview.forecastConfidence.score ?? 0}% — campos-chave (valor, responsável, data prevista, próxima ação, interação) ou histórico de etapa estão incompletos na maior parte do pipeline aberto.`,
+                metricValue: overview.forecastConfidence.score,
+            });
+        }
+
+        // ─── Proteção 90 dias: M+1/M+2 abaixo do mínimo (seção 19, atenção) ──────────
+        const [, m1, m2] = overview.coverageProtection;
+        const criticalFutureMonths = [m1, m2].filter((m) => m.status === 'critico');
+        if (criticalFutureMonths.length > 0) {
+            alerts.push({
+                id: 'coverage-futuro-critico',
+                severity: 'warning',
+                title: 'Cobertura futura abaixo do mínimo',
+                description: `${criticalFutureMonths.map((m) => m.label).join(' e ')} está(ão) com Coverage crítico frente à meta cadastrada. Reforce a geração de pipeline elegível para esses meses antes que a janela feche.`,
+                metricValue: criticalFutureMonths[0].coverage,
+            });
+        }
+
+        // ─── Comparação com o mês anterior: Win Rate e Sales Cycle (seção 19) ────────
+        const currentPerformance = await this.performance(organizationId, filter, now);
+        const previousPerformance = overview.previousPeriod
+            ? await this.performance(organizationId, { ...filter, month: overview.previousPeriod.period }, now)
+            : null;
+
+        if (currentPerformance.winRate != null && previousPerformance?.winRate != null) {
+            const delta = roundMoney(currentPerformance.winRate - previousPerformance.winRate);
+            if (delta <= -5) {
+                alerts.push({
+                    id: 'queda-win-rate',
+                    severity: 'warning',
+                    title: 'Queda significativa de Win Rate',
+                    description: `Win Rate caiu de ${previousPerformance.winRate.toFixed(1)}% (${overview.previousPeriod?.period}) para ${currentPerformance.winRate.toFixed(1)}% neste mês.`,
+                    metricValue: delta,
+                });
+            } else if (delta >= 5) {
+                alerts.push({
+                    id: 'win-rate-em-alta',
+                    severity: 'positive',
+                    title: 'Win Rate acima do mês anterior',
+                    description: `Win Rate subiu de ${previousPerformance.winRate.toFixed(1)}% para ${currentPerformance.winRate.toFixed(1)}% em relação a ${overview.previousPeriod?.period}.`,
+                    metricValue: delta,
+                });
+            }
+        }
+
+        if (
+            currentPerformance.salesCycle.meanDays != null &&
+            previousPerformance?.salesCycle.meanDays != null &&
+            previousPerformance.salesCycle.sampleSize > 0 &&
+            currentPerformance.salesCycle.meanDays > previousPerformance.salesCycle.meanDays * 1.2
+        ) {
+            alerts.push({
+                id: 'sales-cycle-aumentando',
+                severity: 'warning',
+                title: 'Sales Cycle aumentando',
+                description: `Ciclo médio de venda subiu de ${Math.round(previousPerformance.salesCycle.meanDays)} para ${Math.round(currentPerformance.salesCycle.meanDays)} dias em relação ao mês anterior.`,
+                metricValue: currentPerformance.salesCycle.meanDays,
+            });
+        }
+
+        // ─── Alertas positivos (seção 19) ─────────────────────────────────────────────
+        if (overview.goal && overview.forecastAmount >= overview.goal.amount) {
+            alerts.push({
+                id: 'forecast-acima-meta',
+                severity: 'positive',
+                title: 'Forecast acima da meta',
+                description: `Forecast atual (${overview.forecastAmount.toLocaleString('pt-BR', { style: 'currency', currency: overview.goal.currency })}) já cobre a meta do mês.`,
+                metricValue: overview.forecastAmount,
+            });
+        }
+
+        const futureMonths = overview.coverageProtection.slice(1);
+        if (futureMonths.length > 0 && futureMonths.every((m) => m.status === 'saudavel')) {
+            alerts.push({
+                id: 'coverage-futuro-saudavel',
+                severity: 'positive',
+                title: 'Cobertura futura saudável',
+                description: 'M+1, M+2 e M+3 estão com Coverage saudável frente à meta cadastrada — pipeline elegível suficiente para sustentar os próximos 90 dias.',
+                metricValue: null,
+            });
+        }
+
+        if (creation.pacePercent != null && creation.pacePercent >= 100) {
+            alerts.push({
+                id: 'ritmo-criacao-acima',
+                severity: 'positive',
+                title: 'Pipeline Creation acima do ritmo necessário',
+                description: `Pipeline criado até agora está em ${creation.pacePercent.toFixed(0)}% do ritmo necessário para sustentar as metas futuras.`,
+                metricValue: creation.pacePercent,
+            });
+        }
+
         return alerts;
     }
 
     // ─── Fase 7 — Qualidade do CRM ───────────────────────────────────────────
 
     async crmQuality(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<CrmQualityIndex> {
-        const deals = await this.repository.findDeals(organizationId);
+        const [deals, history] = await Promise.all([
+            this.repository.findDeals(organizationId),
+            this.repository.findStageHistory(organizationId),
+        ]);
         const open = deals.filter((d) => isDealOpen(d));
+        const lost = deals.filter((d) => d.stageIsLost);
+        const historyLeadIds = new Set(history.map((h) => h.leadId));
 
         const fieldChecks: Array<{ field: string; label: string; test: (d: DealRow) => boolean }> = [
             { field: 'owner', label: 'Responsável', test: (d) => !!d.owner },
@@ -658,17 +983,52 @@ export class CommercialIntelligenceUseCases {
         const overallScore = withCompleteness.length > 0 ? roundMoney(withCompleteness.reduce((sum, f) => sum + (f.completeness as number), 0) / withCompleteness.length) : null;
 
         const suspectedDuplicateGroups = await this.repository.countDuplicateCompanyGroupsAmongOpenDeals(organizationId);
-        const bitrixSync = await this.bitrixSyncHealth(organizationId, open);
+        const bitrixSync = await this.bitrixSyncHealth(organizationId, open, now);
+        const dataReadiness = this.computeDataReadiness(open, lost, historyLeadIds);
 
-        void now;
         return {
             period: filter.month,
             overallScore,
             fields,
+            dataReadiness,
             suspectedDuplicateGroups,
             evaluatedCount: open.length,
             bitrixSync,
         };
+    }
+
+    /**
+     * "Confiabilidade dos Dados" (seção 5) — completude PONDERADA por impacto no forecast, com
+     * classificação saudável/atenção/crítico por campo (mesmos limiares 80/50 já usados na UI de
+     * Qualidade do CRM). "Motivo da perda" é avaliado sobre negócios perdidos (todo o histórico,
+     * não só o período do filtro — mesma natureza "instantânea" do restante desta função), os
+     * demais campos sobre negócios abertos. Pesos e fórmula documentados em
+     * `application/dataReadiness.ts`.
+     */
+    private computeDataReadiness(open: DealRow[], lost: DealRow[], historyLeadIds: Set<string>): DataReadinessScore {
+        const openFields: DataReadinessField[] = DATA_READINESS_OPEN_FIELD_WEIGHTS.map((w) => {
+            const test = w.field === 'stageHistory' ? (d: DealRow) => historyLeadIds.has(d.id) : DEAL_FIELD_TESTS[w.field];
+            const filled = open.filter(test).length;
+            const completeness = open.length > 0 ? roundMoney((filled / open.length) * 100) : null;
+            return { field: w.field, label: w.label, filled, total: open.length, completeness, weight: w.weight, forecastImpact: w.forecastImpact, classification: classifyCompleteness(completeness) };
+        });
+
+        const lossFilled = lost.filter(DEAL_FIELD_TESTS.lossReason).length;
+        const lossCompleteness = lost.length > 0 ? roundMoney((lossFilled / lost.length) * 100) : null;
+        const lossField: DataReadinessField = {
+            field: DATA_READINESS_LOSS_FIELD_WEIGHT.field,
+            label: DATA_READINESS_LOSS_FIELD_WEIGHT.label,
+            filled: lossFilled,
+            total: lost.length,
+            completeness: lossCompleteness,
+            weight: DATA_READINESS_LOSS_FIELD_WEIGHT.weight,
+            forecastImpact: DATA_READINESS_LOSS_FIELD_WEIGHT.forecastImpact,
+            classification: classifyCompleteness(lossCompleteness),
+        };
+
+        const allFields = [...openFields, lossField];
+        const overallScore = weightedCompletenessScore(allFields.map((f) => ({ weight: f.weight, completeness: f.completeness })));
+        return { overallScore, classification: classifyCompleteness(overallScore), fields: allFields };
     }
 
     /**
@@ -677,10 +1037,16 @@ export class CommercialIntelligenceUseCases {
      * marcada como `failed` em `Lead.bitrixSyncStatus`. Não faz nenhuma chamada de rede ao Bitrix
      * — lê só o que já foi gravado localmente pelo `outboundSync`/webhook de entrada.
      */
-    private async bitrixSyncHealth(organizationId: string, open: DealRow[]): Promise<BitrixSyncHealth> {
+    private async bitrixSyncHealth(organizationId: string, open: DealRow[], now: Date): Promise<BitrixSyncHealth> {
         const connected = await this.repository.hasBitrixConnection(organizationId);
         const linkedDeals = open.filter((d) => d.bitrixLeadId || d.bitrixDealId);
         const failedDeals = open.filter((d) => d.bitrixSyncStatus === 'failed');
+        // Janela fixa de 30 dias (seção 28) — atividade de sincronização é operacional, não segue
+        // o período do filtro comercial escolhido na tela.
+        const since = new Date(now.getTime() - 30 * DAY_MS);
+        const activity = connected
+            ? await this.repository.getBitrixSyncActivity(organizationId, since)
+            : { lastSyncAt: null, syncedCount: 0, failedCount: 0 };
 
         return {
             connected,
@@ -696,6 +1062,9 @@ export class CommercialIntelligenceUseCases {
                 error: d.bitrixSyncError,
                 lastAttemptAt: d.bitrixSyncedAt ? d.bitrixSyncedAt.toISOString() : null,
             })),
+            lastSyncAt: activity.lastSyncAt ? activity.lastSyncAt.toISOString() : null,
+            syncedCount30d: activity.syncedCount,
+            failedCount30d: activity.failedCount,
         };
     }
 
@@ -755,5 +1124,42 @@ export class CommercialIntelligenceUseCases {
             negativeFactors: found.forecast.negativeFactors,
             lastUpdatedAt: found.deal.updatedAt.toISOString(),
         };
+    }
+
+    // ─── Opções de filtro reais (seção 18) ───────────────────────────────────
+
+    async filterOptions(organizationId: string): Promise<FilterOptions> {
+        return this.repository.getFilterOptions(organizationId);
+    }
+
+    // ─── Tendências históricas — 6 meses (seção 23) ───────────────────────────
+
+    /**
+     * Mês do filtro + 5 meses anteriores, mais antigo → mais recente. Reaproveita `performance`/
+     * `pipelineCreation` (já testados) em vez de recalcular — o custo extra de repetir
+     * `loadScoredDeals` por mês é aceitável para um relatório executivo de baixo tráfego. Cada
+     * ponto retorna `null` nos campos sem amostra suficiente daquele mês (nunca interpolado).
+     */
+    async historicalTrends(organizationId: string, filter: CommercialIntelligenceFilter, now = new Date()): Promise<HistoricalTrendsReport> {
+        const months = Array.from({ length: 6 }, (_, i) => shiftMonth(filter.month, i - 5));
+        const points: HistoricalTrendPoint[] = await Promise.all(
+            months.map(async (period) => {
+                const monthFilter: CommercialIntelligenceFilter = { ...filter, month: period };
+                const [perf, creation] = await Promise.all([
+                    this.performance(organizationId, monthFilter, now),
+                    this.pipelineCreation(organizationId, monthFilter, now),
+                ]);
+                return {
+                    period,
+                    label: monthLabelPt(period),
+                    winRate: perf.winRate,
+                    salesCycleMeanDays: perf.salesCycle.meanDays,
+                    averageTicketWon: perf.averageTicket.won,
+                    pipelineCreatedAmount: creation.amount,
+                    closedSampleSize: perf.wonCount + perf.lostCount,
+                };
+            })
+        );
+        return { points };
     }
 }

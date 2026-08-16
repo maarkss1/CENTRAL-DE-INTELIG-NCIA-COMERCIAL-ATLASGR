@@ -45,6 +45,8 @@ router.get('/crm-quality', (req, res, next) => resolve().getCrmQuality(req, res,
 router.get('/deals', (req, res, next) => resolve().getDeals(req, res, next));
 router.get('/deals/:leadId/forecast', (req, res, next) => resolve().getForecastExplain(req, res, next));
 router.get('/metrics-dictionary', (req, res) => resolve().getMetricsDictionary(req, res));
+router.get('/filter-options', (req, res, next) => resolve().getFilterOptions(req, res, next));
+router.get('/trends', (req, res, next) => resolve().getHistoricalTrends(req, res, next));
 router.get('/goals', (req, res, next) => resolve().getGoal(req, res, next));
 // PUT (não POST) de propósito: idempotente por (organizationId, period, metric) — upsert, não
 // criação de um novo registro a cada chamada. Só ADMIN/GESTOR (mesmo requireRole do router

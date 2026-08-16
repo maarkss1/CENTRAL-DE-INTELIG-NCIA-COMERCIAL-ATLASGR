@@ -136,6 +136,44 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
         return count > 0;
     }
 
+    async getBitrixSyncActivity(organizationId: string, since: Date): Promise<{ lastSyncAt: Date | null; syncedCount: number; failedCount: number }> {
+        const [lastConnection, syncedCount, failedCount] = await Promise.all([
+            prisma.bitrixConnection.findFirst({
+                where: { organizationId, lastImportedAt: { not: null } },
+                orderBy: { lastImportedAt: 'desc' },
+                select: { lastImportedAt: true },
+            }),
+            prisma.bitrixSyncLog.count({ where: { organizationId, status: 'success', createdAt: { gte: since } } }),
+            prisma.bitrixSyncLog.count({ where: { organizationId, status: 'failed', createdAt: { gte: since } } }),
+        ]);
+        return { lastSyncAt: lastConnection?.lastImportedAt ?? null, syncedCount, failedCount };
+    }
+
+    async getFilterOptions(organizationId: string): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[] }> {
+        const [owners, sources, icps, dealItems] = await Promise.all([
+            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, owner: { not: null } }, distinct: ['owner'], select: { owner: true } }),
+            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, source: { not: null } }, distinct: ['source'], select: { source: true } }),
+            prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, pic: { not: null } }, distinct: ['pic'], select: { pic: true } }),
+            prisma.crmDealItem.findMany({
+                where: { organizationId, lead: { funnel: LeadFunnel.Negocio } },
+                select: { sku: true, product: { select: { sku: true } } },
+            }),
+        ]);
+
+        const products = new Set<string>();
+        for (const item of dealItems) {
+            const sku = item.sku || item.product?.sku;
+            if (sku) products.add(sku);
+        }
+
+        return {
+            owners: owners.map((l) => l.owner).filter((v): v is string => !!v).sort(),
+            sources: sources.map((l) => l.source).filter((v): v is string => !!v).sort(),
+            icps: icps.map((l) => l.pic).filter((v): v is string => !!v).sort(),
+            products: [...products].sort(),
+        };
+    }
+
     async getGoal(organizationId: string, period: string, metric: GoalMetric): Promise<CommercialGoalDTO | null> {
         const goal = await prisma.commercialGoal.findUnique({
             where: { organizationId_period_metric: { organizationId, period, metric } },

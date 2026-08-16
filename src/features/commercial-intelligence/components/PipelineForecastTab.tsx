@@ -5,7 +5,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { KpiTile } from './KpiTile';
 import {
-    commercialIntelligenceApi, formatCurrency, formatMultiple,
+    commercialIntelligenceApi, formatCurrency, formatMultiple, formatPercent,
     type CommercialFilter, type PipelineCreation,
 } from '../commercialIntelligence.api';
 
@@ -75,6 +75,26 @@ export function PipelineForecastTab({ filter }: { filter: CommercialFilter }) {
                     value={formatMultiple(data.creationCoverage)}
                     tone={data.creationCoverage != null ? (data.creationCoverage >= 1 ? 'good' : 'critical') : undefined}
                     hint="Pipeline criado / Pipeline necessário"
+                />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <KpiTile
+                    label="Ritmo de Criação"
+                    value={formatPercent(data.pacePercent)}
+                    tone={data.pacePercent != null ? (data.pacePercent >= 100 ? 'good' : 'critical') : undefined}
+                    hint="Criado até hoje / ritmo necessário até hoje"
+                    metricKey="pipeline_creation_pace"
+                />
+                <KpiTile
+                    label="Gap de Ritmo"
+                    value={data.paceGapAmount != null ? formatCurrency(data.paceGapAmount) : 'Não disponível'}
+                    tone={data.paceGapAmount != null ? (data.paceGapAmount <= 0 ? 'good' : 'critical') : undefined}
+                    hint={data.paceGapAmount != null && data.paceGapAmount < 0 ? 'À frente do ritmo' : 'Positivo = atrás do ritmo'}
+                />
+                <KpiTile
+                    label="Dias úteis decorridos"
+                    value={`${data.elapsedBusinessDays} / ${data.totalBusinessDays}`}
+                    hint="No mês selecionado"
                 />
             </div>
             <div className="grid md:grid-cols-2 gap-3">
