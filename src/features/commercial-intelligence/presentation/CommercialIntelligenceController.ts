@@ -7,12 +7,12 @@ import type { CommercialIntelligenceFilter, DealDrillDownQuery, ForecastTier } f
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-function parseMonth(raw: unknown): string {
+export function parseMonth(raw: unknown): string {
     if (typeof raw === 'string' && MONTH_RE.test(raw)) return raw;
     return currentPeriod();
 }
 
-function parseOwner(raw: unknown): string | undefined {
+export function parseOwner(raw: unknown): string | undefined {
     return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 }
 
