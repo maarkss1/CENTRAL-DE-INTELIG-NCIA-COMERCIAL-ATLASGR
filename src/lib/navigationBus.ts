@@ -25,7 +25,7 @@ function isKnownTab(tab: string): tab is TabType {
 }
 
 const TAB_ROUTE_SET: Record<TabType, true> = {
-    dashboard: true, companies: true, contacts: true, crm: true, activities: true, prospect: true,
+    dashboard: true, companies: true, contacts: true, crm: true, activities: true, cadence: true, prospect: true,
     intelligence: true, 'market-intelligence': true, chatbook: true, roleplay: true,
     qualification_matrix: true, objections_matrix: true, topic_training: true, bitrix: true,
     reports: true, integrations: true, knowledge: true, analytics: true, winloss: true, calendar: true,

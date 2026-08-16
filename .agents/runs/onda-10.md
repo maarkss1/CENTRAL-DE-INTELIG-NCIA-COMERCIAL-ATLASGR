@@ -89,8 +89,16 @@ validate`/`prisma generate` limpos, `lint` 0 erros (68 warnings, baseline), `tes
 arquivos (1124/1124 testes), `build` ok. `test:integration`/`test:e2e` não executáveis neste
 ambiente (sem Docker/Postgres) — delegados ao CI do PR.
 
-PR aberto como draft: #132.
+PR #132 mergeado em `main` (squash, commit `97aef70c`).
 
-Leva 2 (Agente 17 — adaptadores Prisma reais + `CadenceHub.tsx`; Agente 02 — rota `/app/cadence`)
-ainda não disparada — depende do schema da Leva 1 estar mergeado em `main` e do CI confirmar a
-migration real contra Postgres.
+**Leva 2 concluída** — Agente 17 (`PrismaCadenceRunRepository`, rotas `/api/cadence/*`,
+`CadenceHub.tsx`) e Agente 02 (rota `/app/cadence` + menu + contrato de navegação), sequenciais
+(02 dependia do componente do 17), mescladas sem conflito em `integracao/onda-10-leva2`. Gate:
+`tsc`/`prisma generate` limpos, `lint` 0 erros, `test:unit` 154/154 arquivos (1189/1189 testes),
+`build` ok. `test:integration`/`test:e2e` não executáveis neste ambiente — delegados ao CI.
+
+PR aberto como draft: #134.
+
+Reply-tracking, agendamento e proposta/assinatura/fechamento (entregas 3-5 do Agente 17) ficam para
+uma leva futura — sem API/adaptador ainda, `CadenceHub.tsx` mostra nota honesta em vez de dado
+fabricado.

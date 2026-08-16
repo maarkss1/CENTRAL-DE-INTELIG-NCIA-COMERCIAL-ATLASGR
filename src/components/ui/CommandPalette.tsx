@@ -26,7 +26,7 @@ function normalize(value: string): string {
 }
 
 const MODULE_ORDER: TabType[] = [
-    'dashboard', 'prospect', 'crm', 'companies', 'contacts', 'activities', 'calendar',
+    'dashboard', 'prospect', 'crm', 'companies', 'contacts', 'activities', 'cadence', 'calendar',
     'intelligence', 'chatbook', 'roleplay', 'qualification_matrix', 'objections_matrix',
     'topic_training', 'analytics', 'reports', 'notifications', 'automations', 'integrations',
     'bitrix', 'knowledge', 'editor', 'usage', 'team', 'settings',

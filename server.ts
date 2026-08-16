@@ -50,6 +50,7 @@ import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
+import { cadenceRoutes } from './src/features/cadence/cadence.routes.js';
 import { sseService } from './src/features/notifications/sse.service.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
@@ -409,6 +410,7 @@ async function startServer() {
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
     app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
+    app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
     // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa

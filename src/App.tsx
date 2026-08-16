@@ -24,6 +24,7 @@ const IntelligenceHub = lazy(() => import('./features/intelligence/components/In
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
+const CadenceHub = lazy(() => import('./features/cadence/components/CadenceHub').then(m => ({ default: m.CadenceHub })));
 const RoleplayHub = lazy(() => import('./features/roleplay/components/RoleplayHub').then(m => ({ default: m.RoleplayHub })));
 const QualificationMatrixPage = lazy(() => import('./features/playbook/components/QualificationMatrixPage').then(m => ({ default: m.QualificationMatrixPage })));
 const ObjectionsMatrixPage = lazy(() => import('./features/playbook/components/ObjectionsMatrixPage').then(m => ({ default: m.ObjectionsMatrixPage })));
@@ -97,6 +98,7 @@ function AppLayout() {
           <Route path="companies" element={<CompanyList />} />
           <Route path="contacts" element={<ContactList />} />
           <Route path="activities" element={<ActivityList />} />
+          <Route path="cadence" element={<CadenceHub />} />
           <Route path="chatbook" element={<ChatbookHub />} />
           <Route path="roleplay" element={<RoleplayHub />} />
           <Route path="qualification_matrix" element={<QualificationMatrixPage />} />

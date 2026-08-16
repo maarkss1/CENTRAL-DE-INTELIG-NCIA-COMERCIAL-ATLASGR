@@ -2,7 +2,7 @@ import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
     Layers, FileBarChart, Zap, MessageSquare, Globe, Bell,
     BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog, Settings as SettingsIcon,
-    LineChart, Gauge,
+    LineChart, Gauge, Repeat,
 } from 'lucide-react';
 
 /**
@@ -18,7 +18,7 @@ import {
  * componente órfão (`PromptStudio.tsx`) sem rota. Ver
  * `.agents/handoffs/onda-8/09-para-02-navigationbus-rotas-ausentes.md`.
  */
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'crm360' | 'activities' | 'prospect' | 'intelligence' | 'market-intelligence' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'crm360' | 'activities' | 'cadence' | 'prospect' | 'intelligence' | 'market-intelligence' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
@@ -30,6 +30,7 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     contacts: { label: 'Decisores', icon: Users },
     companies: { label: 'Empresas', icon: Building2 },
     activities: { label: 'Agenda', icon: Activity },
+    cadence: { label: 'Cadência', icon: Repeat },
     roleplay: { label: 'Roleplay', icon: PhoneCall },
     qualification_matrix: { label: 'Matriz de Qualificação', icon: Target },
     objections_matrix: { label: 'Matriz de Objeções', icon: Shield },

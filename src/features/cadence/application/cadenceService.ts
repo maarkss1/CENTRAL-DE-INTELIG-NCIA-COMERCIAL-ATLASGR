@@ -4,6 +4,7 @@ import {
     recordTouchAttempt,
     type CadenceDecision,
     type CadenceRunState,
+    type CadenceRunStatus,
     type CadenceSequenceDefinition,
     type CadenceTouch,
 } from '../domain/cadence.js';
@@ -17,9 +18,21 @@ import type { OptOutRepository, OptOutSubject } from '../domain/optOut.js';
  * real. Nenhuma escrita de "enviado" acontece sem confirmação do `CadenceDispatcher`.
  */
 
+export interface CadenceRunListFilter {
+    status?: CadenceRunStatus[];
+}
+
 export interface CadenceRunRepository {
     save(run: CadenceRunState): Promise<void>;
     findById(organizationId: string, id: string): Promise<CadenceRunState | null>;
+    /**
+     * Lista os runs de uma organização — adicionado na Onda 10 (Agente 17) para alimentar
+     * `CadenceHub.tsx`/`GET /api/cadence/runs`. `save`/`findById` sozinhos bastavam para o
+     * scheduler (que sempre sabe o `runId` de antemão), mas não para popular uma tela: o vendedor
+     * não chega com um id de run, chega olhando "quais cadências estão rodando/pausadas/paradas
+     * agora". Sem filtro de status devolve tudo (até o cap interno de cada adaptador).
+     */
+    listByOrganization(organizationId: string, filter?: CadenceRunListFilter): Promise<CadenceRunState[]>;
 }
 
 /** Implementado por cada canal — a ligação real com e-mail/WhatsApp/voz não é responsabilidade deste domínio. */
