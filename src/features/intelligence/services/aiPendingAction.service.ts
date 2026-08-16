@@ -9,7 +9,7 @@ import type { ActivityType } from '../../../lib/zod.js';
 export interface ExecutionResult {
     /** Mantido como `sent` por compatibilidade com a API/UI: true significa que a ação foi executada. */
     sent: boolean;
-    reason?: 'not_configured' | 'send_failed' | 'unsupported_action';
+    reason?: 'not_configured' | 'send_failed' | 'unsupported_action' | 'missing_owner';
 }
 
 interface SendEmailPayload {
@@ -70,12 +70,30 @@ export async function executeAction(action: ExecutableAction): Promise<Execution
             if (!action.organizationId || !payload.leadId || !payload.date) {
                 return { sent: false, reason: 'unsupported_action' };
             }
+
+            // Mesmo princípio do `create_follow_up_task` da ferramenta de IA (`opsTools.ts`): sem
+            // `owner` explícito no payload, o responsável real é o dono do próprio Lead — nunca um
+            // nome de IA fabricado. `activityService.create` já rejeitaria o placeholder via
+            // `assertRealOwner`, mas resolver aqui evita tratar "sem responsável" como falha
+            // genérica (`send_failed`) e dá um motivo específico e acionável.
+            let resolvedOwner = payload.owner?.trim();
+            if (!resolvedOwner) {
+                const lead = await prisma.lead.findFirst({
+                    where: { id: payload.leadId, organizationId: action.organizationId },
+                    select: { owner: true },
+                });
+                resolvedOwner = lead?.owner?.trim() || undefined;
+                if (!resolvedOwner) {
+                    return { sent: false, reason: 'missing_owner' };
+                }
+            }
+
             await activityService.create(action.organizationId, {
                 leadId: payload.leadId,
                 date: payload.date,
                 type: payload.type || 'Follow-up',
                 status: 'Pendente',
-                owner: payload.owner || 'Enxame de IA AtlasGR',
+                owner: resolvedOwner,
                 observations: payload.observations ?? null,
             });
             return { sent: true };
@@ -114,7 +132,9 @@ export async function executeAndRecord(action: ExecutableAction): Promise<Execut
                     ? 'Falha ao executar a ação autônoma.'
                     : result.reason === 'unsupported_action'
                         ? 'Tipo de ação ou payload ainda não suportado pelo executor.'
-                        : null,
+                        : result.reason === 'missing_owner'
+                            ? 'Lead sem responsável real definido no CRM — informe o responsável explicitamente para executar esta ação.'
+                            : null,
             },
     });
 

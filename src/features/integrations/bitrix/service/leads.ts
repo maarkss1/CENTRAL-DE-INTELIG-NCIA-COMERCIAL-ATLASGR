@@ -7,7 +7,7 @@ import { callBitrix, getStatusLabels, getConnectionWebhookUrl } from './client.j
 import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
 import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
 import { getBitrixUsers, type BitrixDealStage } from './deals.js';
-import { resolveAtlasUserNameByEmail } from './userMapping.js';
+import { resolveAtlasUserIdByEmail } from './userMapping.js';
 import { findOwnershipConflict, notifyOwnershipConflict } from './ownershipGuard.js';
 
 const LEAD_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.leadCode).filter((c): c is string => Boolean(c));
@@ -218,9 +218,11 @@ export async function importSelectedBitrixLeads(
         void _bitrixOrigemIgnorada;
 
         const assigneeEmail = raw.ASSIGNED_BY_ID ? bitrixUserEmailById.get(raw.ASSIGNED_BY_ID) ?? null : null;
-        const ownerName = await resolveAtlasUserNameByEmail(organizationId, assigneeEmail);
+        // Lead.owner grava User.id (não o nome) para casar com a convenção de leads criados no
+        // app — ver .agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md.
+        const ownerId = await resolveAtlasUserIdByEmail(organizationId, assigneeEmail);
 
-        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerName);
+        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerId);
         if (conflict) {
             skippedConflicts++;
             await notifyOwnershipConflict(organizationId, conflict, tradeName);
@@ -255,7 +257,7 @@ export async function importSelectedBitrixLeads(
                     companyId: company.id,
                     contactId: contact?.id,
                     organizationId,
-                    owner: ownerName,
+                    owner: ownerId,
                     bitrixLeadId: raw.ID,
                     bitrixStageLabel: (raw.STATUS_ID && labels.get(raw.STATUS_ID)) || raw.STATUS_ID || null,
                     qualification: Object.keys(qualification).length > 0 ? qualification : undefined,

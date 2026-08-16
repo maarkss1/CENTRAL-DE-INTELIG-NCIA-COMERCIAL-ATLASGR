@@ -1,7 +1,7 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 02 (Produto e UX)
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -56,3 +56,39 @@ deep link `atlasgr://enrich` ou `atlasgr://prompts` passa na validação nativa 
 silenciosamente pro dashboard — do ponto de vista de quem abriu o link, parece que o link "não fez
 nada". Não tentei contornar isso removendo os dois da lista nativa porque a lista nativa deveria
 ser sempre um espelho do contrato real, não uma correção paralela dele.
+
+## Resolução (Agente 02, Onda 10)
+
+Investiguei antes de decidir (não bastava escolher a opção mais fácil): busquei por qualquer tela
+real que devesse estar em `/app/enrich` ou `/app/prompts`.
+
+- **`enrich`**: não existe nenhuma tela dedicada de "Enriquecer". Enriquecimento de empresa/contato
+  já é uma funcionalidade completa dentro de `ProspectingHub` (`/app/prospect` — busca CNPJ, Apollo,
+  OCR etc.), não um módulo próprio. `enrich` nunca apareceu nem na Sidebar (`Sidebar.tsx`) nem no
+  Command Palette (`MODULE_ORDER` em `CommandPalette.tsx`) — só existia em `TAB_META`/
+  `TAB_ROUTE_SET`, nunca exposto como destino navegável real pela UI.
+- **`prompts`**: existe um componente `PromptStudio.tsx`
+  (`src/features/intelligence/components/PromptStudio.tsx`), mas ele está órfão — não é importado
+  por nenhuma rota, nem por `IntelligenceHub.tsx` (que já tem suas próprias ferramentas de prompt/
+  script: `scripts`, `generator`, `tools`, `methodologies`), nem por `Sidebar.tsx`/
+  `CommandPalette.tsx`. Não há hoje uma tela "Commercial OS" ativa ligada a um fluxo real do
+  produto.
+
+**Decisão: opção 2 do handoff — removi `enrich` e `prompts` de `TabType`, `TAB_META` (ambos em
+`src/components/layout/tabMeta.ts`) e de `TAB_ROUTE_SET` (`src/lib/navigationBus.ts`).** Não criei
+rotas novas para eles porque isso inventaria uma tela para preencher a rota (explicitamente vetado
+pela missão) — nenhuma dessas duas era, de fato, um destino que o usuário já podia alcançar por
+clique antes desta mudança; eram puramente alcançáveis via `navigationBus` (voz/deep link), que
+confiava cegamente em `TAB_ROUTE_SET`. Depois da mudança, `navigationBus.requestNavigation('enrich')`
+e `('prompts')` retornam `false` (destino desconhecido) em vez de reportar sucesso falso — resolve
+o padrão do bloqueador #7.
+
+**Pendência para o Agente 09**: a lista nativa `VALID_TABS`/`validTabs`
+(`MainActivity.java`/`SceneDelegate.swift`) precisa deixar de espelhar `enrich`/`prompts` também,
+já que `android/**`/`ios/**` são propriedade exclusiva do Agente 09 — não editei esses arquivos.
+Um deep link `atlasgr://enrich` ou `atlasgr://prompts` hoje passaria na validação nativa e cairia no
+mesmo "não fez nada" já descrito neste handoff (só que agora o lado web pelo menos recusa a
+navegação em vez de redirecionar silenciosamente — o app abre, mas fica na tela em que já estava).
+Se o produto quiser reativar `PromptStudio.tsx` como tela real no futuro, é uma decisão de escopo
+de produto, não uma correção deste bug — o componente continua no repositório, só não é mais um
+destino de navegação declarado.

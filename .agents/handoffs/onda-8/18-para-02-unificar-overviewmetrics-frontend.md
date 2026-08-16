@@ -1,7 +1,7 @@
 - De: 18
 - Para: 02
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -33,3 +33,20 @@ não muda, só a origem.
 Coordenar com o handoff par (`18-para-04-unificar-overviewmetrics.md`) antes de mesclar, já que
 `src/shared/contracts/analytics.contract.ts` é compartilhado entre os dois lados e alterações
 simultâneas nele exigem acordo entre 02/04/18 (ver `/AGENTS.md` sobre `src/shared/**`).
+
+## Resolução (Agente 02, Onda 10)
+
+Feito exatamente como pedido — `src/features/analytics/analytics.api.ts` agora importa
+`OverviewMetrics` de `../../shared/contracts/analytics.contract.js` em vez de redeclará-la. Não
+toquei na forma do contrato em `src/shared/contracts/analytics.contract.ts` (dono é o Agente 18/
+04 do lado backend, que faz a mesma unificação em paralelo no worktree dele — sem conflito real,
+os dois só importam o mesmo contrato).
+
+Mantive `export type { OverviewMetrics }` em `analytics.api.ts` para preservar compatibilidade de
+import para qualquer consumidor que já importasse o tipo a partir desse módulo (nenhum encontrado
+em `src/features/dashboard/**`/`LiveStatsWidget.tsx` na varredura feita, mas o re-export custa
+nada e evita quebra silenciosa caso exista um caminho de import que não apareceu na busca).
+
+Confirmado: `npx tsc --noEmit -p .` sem erros novos, campos idênticos entre a interface removida e
+`analytics.contract.ts` (mesma forma pública, incluindo os `null` de `averageScore`/
+`pipelineValue`).

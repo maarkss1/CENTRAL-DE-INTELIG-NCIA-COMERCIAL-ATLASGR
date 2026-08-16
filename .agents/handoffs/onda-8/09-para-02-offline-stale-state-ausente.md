@@ -1,7 +1,7 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 02 (Produto e UX)
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -62,3 +62,36 @@ Isso é um requisito explícito da missão do Agente 09 nesta onda (`.agents/pro
 seção "Offline e conectividade instável") que depende inteiramente de código fora do meu escopo de
 edição. Registrando como handoff em vez de implementar uma versão paralela só pro app empacotado,
 que violaria a regra de não duplicar lógica de negócio.
+
+## Resolução (Agente 02, Onda 10)
+
+Itens 1 e 2 (obrigatórios) implementados:
+
+1. **`src/hooks/useOnlineStatus.ts`** — hook baseado em `navigator.onLine` +
+   `window.addEventListener('online'/'offline', ...)`, sem dependência de plugin nativo (funciona
+   igual no browser e no WebView do Capacitor, como sugerido). Reconfere o estado real no mount
+   além de escutar os eventos, para cobrir o caso em que a conectividade já mudou entre a primeira
+   pintura e o efeito montar.
+2. **`src/components/layout/OfflineBanner.tsx`** — indicador visual persistente, montado em
+   `MainLayout.tsx` no mesmo nível de `VoiceCommandWidget`/`Toaster`/etc., com o texto "Sem conexão
+   — os dados exibidos podem estar desatualizados." Usa os tokens `--warn`/`--ink` de `globals.css`
+   (`bg-warn/15`, `border-warn/40`, `text-ink` — texto em `--ink` em vez de `--warn` para garantir
+   contraste AA, já que `--warn` é um amarelo claro). Fica em fluxo normal (não `position: fixed`)
+   no topo do layout, empurrando Sidebar/Topbar para baixo com uma transição de altura (Framer
+   Motion, respeitando `prefers-reduced-motion` via `MotionConfig reducedMotion="user"` já
+   configurado em `App.tsx`) em vez de sobrepor a busca/notificações do Topbar. `role="status"
+   aria-live="polite"` fica sempre montado (só o conteúdo interno entra/sai), para leitor de tela
+   anunciar tanto o aparecimento quanto o desaparecimento da mensagem.
+
+Item 3 (timestamp "atualizado há Xmin" nas telas agregadas de dashboard/analytics) **não foi
+implementado nesta rodada** — está fora do escopo explícito da minha missão da Onda 10 (que pedia
+só o hook + o indicador de conectividade) e teria efeito mais amplo (tocar `SinglePageDashboard`,
+`Analytics`, possivelmente `LiveStatsWidget`). Fica registrado aqui como melhoria pendente, não como
+bloqueador — o indicador de offline já cobre o requisito central ("nunca dado desatualizado
+apresentado como atual sem indicação"), e a distinção "sem conexão agora" vs. "dado desatualizado
+por outro motivo" pode ser tratada num handoff futuro se o produto priorizar.
+
+Teste manual: com `navigator.onLine` alternado via DevTools (Network → Offline) e evento `offline`
+disparado, o banner aparece; ao voltar (`online`), some. Cobertura automatizada ficou limitada ao
+que os gates disponíveis neste ambiente permitem — ver seção de validação na entrega da Onda 10
+(sem Docker/Postgres aqui, `test:e2e` não executado).

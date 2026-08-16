@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { AppTopbar } from './AppTopbar';
+import { OfflineBanner } from './OfflineBanner';
 import { TabType } from './tabMeta';
 import { Toaster } from '../ui/Toaster';
 import { AtlasChatbotTrigger } from '../ui/AtlasChatbotTrigger';
@@ -52,7 +53,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <div className={`absolute bottom-0 left-0 w-[420px] h-[420px] rounded-full blur-[110px] opacity-30 ${isAtlas ? 'bg-atlas-yellow/10' : 'bg-sky-300/10'}`} />
             </div>
 
-            <div className="relative z-10 flex h-full w-full">
+            <OfflineBanner />
+
+            <div className="relative z-10 flex flex-1 min-h-0 w-full">
                 {/* Removemos o Header global antigo, injetamos a Sidebar contínua */}
                 <Sidebar
                     activeTab={activeTab}

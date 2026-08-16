@@ -284,17 +284,17 @@ model Lead {
   // (não há outra chave natural: nome de empresa se repete, telefone pode faltar). Não é @unique
   // "hard" porque cada organização fala com o SEU PRÓPRIO portal Bitrix — múltiplos tenants nunca
   // colidem no mesmo ID na prática, mas travar isso com constraint global é desnecessário.
-  bitrixLeadId     String?
+  bitrixLeadId       String?
   // Mesma ideia de bitrixLeadId, mas para importação a partir do objeto Deal (Negócio) do Bitrix
   // — usado quando a organização importa pelo funil de vendas real (com pipeline/etapa), não pelo
   // objeto Lead cru. Campo separado porque IDs de Lead e Deal são namespaces distintos no Bitrix
   // (podem colidir numericamente sem ter nenhuma relação entre si).
-  bitrixDealId     String?
+  bitrixDealId       String?
   // Nome da etapa como está no Bitrix (ex: "Novo Lead (Distribuidoras)" para Lead, ou "Proposta
   // Enviada" para Deal) — preservado à parte do `status` mapeado pro enum interno, porque o
   // Bitrix tem estágios/categorias específicas do negócio do cliente que não têm equivalente 1:1
   // no nosso LeadStatus fixo.
-  bitrixStageLabel String?
+  bitrixStageLabel   String?
   // Data de assinatura do contrato — UF_CRM_1770928318695 no objeto Lead do Bitrix (achado em
   // public/tools/extrator-bitrix.html, fora do BITRIX_FIELD_MAP original). Não existe código
   // equivalente conhecido no objeto Deal.
@@ -319,17 +319,22 @@ model Lead {
   pipelineStageId String?
   pipelineStage   CrmPipelineStage? @relation(fields: [pipelineStageId], references: [id], onDelete: SetNull)
 
-  activities          Activity[]
-  timeline            TimelineEvent[]
-  internalNotes       Note[]
-  whatsAppMessages    WhatsAppMessage[]
-  conversationSignals ConversationSignal[]
-  dealItems           CrmDealItem[]
-  commercialDocuments CrmCommercialDocument[]
-  stageHistory        LeadStageHistory[]
-  optOutRecords       OptOutRecord[]
-  organizationId      String?
-  organization        Organization?           @relation(fields: [organizationId], references: [id])
+  activities            Activity[]
+  timeline              TimelineEvent[]
+  internalNotes         Note[]
+  whatsAppMessages      WhatsAppMessage[]
+  conversationSignals   ConversationSignal[]
+  dealItems             CrmDealItem[]
+  commercialDocuments   CrmCommercialDocument[]
+  stageHistory          LeadStageHistory[]
+  optOutRecords         OptOutRecord[]
+  // Onda 10 (Agente 01A) — ver proposta do Agente 17, itens 2/3/4/5.
+  cadenceRuns           CadenceRun[]
+  emailMessages         EmailMessage[]
+  cadenceCalendarEvents CadenceCalendarEvent[]
+  dealClosureEvents     DealClosureEvent[]
+  organizationId        String?
+  organization          Organization?           @relation(fields: [organizationId], references: [id])
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -337,12 +342,6 @@ model Lead {
   deletedBy    String?
   deleteReason String?
 
-  @@index([organizationId])
-  @@index([organizationId, status])
-  @@index([organizationId, funnel])
-  @@index([organizationId, pipelineId, pipelineStageId])
-  @@index([bitrixLeadId])
-  @@index([bitrixDealId])
   // Fecha a janela de corrida de duplicidade descrita no comentário de bitrixLeadId/bitrixDealId
   // acima: dois imports/exports concorrentes do MESMO registro Bitrix não conseguem mais criar
   // dois Leads locais (o segundo INSERT falha com violação de unique, tratada como "já
@@ -350,6 +349,12 @@ model Lead {
   // Postgres — leads sem vínculo Bitrix continuam livres para existir aos milhares sem restrição.
   @@unique([organizationId, bitrixLeadId])
   @@unique([organizationId, bitrixDealId])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, funnel])
+  @@index([organizationId, pipelineId, pipelineStageId])
+  @@index([bitrixLeadId])
+  @@index([bitrixDealId])
 }
 
 model Activity {
@@ -439,44 +444,55 @@ model User {
 }
 
 model Organization {
-  id                        String                     @id @default(cuid())
-  name                      String                     @unique
-  users                     User[]
-  companies                 Company[]
-  contacts                  Contact[]
-  leads                     Lead[]
-  prospects                 Prospect[]
-  activities                Activity[]
-  documents                 Document[]
-  notifications             Notification[]
-  automations               Automation[]
-  aiLogs                    AILog[]
-  reports                   Report[]
-  aiPendingActions          AIPendingAction[]
-  knowledgeChunks           KnowledgeChunk[]
-  prompts                   Prompt[]
-  agentMemories             AgentMemory[]
-  callSuppressions          CallSuppression[]
-  coldCallRuns              ColdCallRun[]
-  whatsAppMessages          WhatsAppMessage[]
-  conversationSignals       ConversationSignal[]
-  googleWorkspaceConnection GoogleWorkspaceConnection?
-  bitrixConnections         BitrixConnection[]
-  bitrixSyncRules           BitrixSyncRule[]
-  bitrixSyncLogs            BitrixSyncLog[]
-  bitrixExtractionRuns      BitrixExtractionRun[]
-  threeCXConnections        ThreeCXConnection[]
-  optOutRecords             OptOutRecord[]
-  crmPipelines              CrmPipeline[]
-  crmProducts               CrmProduct[]
-  crmDealItems              CrmDealItem[]
-  crmCommercialDocuments    CrmCommercialDocument[]
-  commercialGoals           CommercialGoal[]
-  leadStageHistories        LeadStageHistory[]
-  featureFlagOverrides      OrganizationFeatureFlag[]
-  bugReports                BugReport[]
-  createdAt                 DateTime                   @default(now())
-  updatedAt                 DateTime                   @updatedAt
+  id                            String                         @id @default(cuid())
+  name                          String                         @unique
+  users                         User[]
+  companies                     Company[]
+  contacts                      Contact[]
+  leads                         Lead[]
+  prospects                     Prospect[]
+  activities                    Activity[]
+  documents                     Document[]
+  notifications                 Notification[]
+  automations                   Automation[]
+  aiLogs                        AILog[]
+  reports                       Report[]
+  aiPendingActions              AIPendingAction[]
+  knowledgeChunks               KnowledgeChunk[]
+  prompts                       Prompt[]
+  agentMemories                 AgentMemory[]
+  callSuppressions              CallSuppression[]
+  coldCallRuns                  ColdCallRun[]
+  whatsAppMessages              WhatsAppMessage[]
+  conversationSignals           ConversationSignal[]
+  googleWorkspaceConnection     GoogleWorkspaceConnection?
+  bitrixConnections             BitrixConnection[]
+  bitrixSyncRules               BitrixSyncRule[]
+  bitrixSyncLogs                BitrixSyncLog[]
+  bitrixExtractionRuns          BitrixExtractionRun[]
+  threeCXConnections            ThreeCXConnection[]
+  optOutRecords                 OptOutRecord[]
+  crmPipelines                  CrmPipeline[]
+  crmProducts                   CrmProduct[]
+  crmDealItems                  CrmDealItem[]
+  crmCommercialDocuments        CrmCommercialDocument[]
+  commercialGoals               CommercialGoal[]
+  leadStageHistories            LeadStageHistory[]
+  featureFlagOverrides          OrganizationFeatureFlag[]
+  bugReports                    BugReport[]
+  // Onda 10 (Agente 01A) — schema de cadência/agendamento/proposta-assinatura proposto pelo
+  // Agente 17 em .agents/handoffs/onda-7/17-para-01-schema-cadencia-optout-proposta.md (itens 2-5;
+  // item 1, OptOutRecord acima, já estava em produção).
+  cadenceSequences              CadenceSequence[]
+  cadenceRuns                   CadenceRun[]
+  cadenceTouchAttempts          CadenceTouchAttempt[]
+  emailMessages                 EmailMessage[]
+  cadenceCalendarEvents         CadenceCalendarEvent[]
+  crmCommercialDocumentVersions CrmCommercialDocumentVersion[]
+  crmDocumentSignatureRequests  CrmDocumentSignatureRequest[]
+  dealClosureEvents             DealClosureEvent[]
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -504,15 +520,15 @@ model CommercialGoal {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   // Formato "YYYY-MM" — mesma granularidade mensal usada em toda a Meta New MRR do prompt de
   // produto (seção 7). Metas trimestrais/anuais são derivadas somando meses, não um registro à parte.
-  period    String
+  period         String
   // Hoje só "NEW_MRR" é usado pela UI, mas o campo já existe para não exigir outra migration
   // quando o módulo ganhar metas por métrica (ex.: pipeline criado) no futuro.
-  metric    String   @default("NEW_MRR")
-  amount    Float
-  currency  String   @default("BRL")
-  createdBy String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  metric         String       @default("NEW_MRR")
+  amount         Float
+  currency       String       @default("BRL")
+  createdBy      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, period, metric])
   @@index([organizationId, period])
@@ -527,17 +543,17 @@ model LeadStageHistory {
   // pipelineId/stageId ficam nullable e stageName é desnormalizado de propósito: uma etapa pode
   // ser reordenada/excluída depois, e o histórico não pode virar órfão nem mudar de sentido
   // retroativamente por causa disso — o nome no momento da transição é preservado como registrado.
-  pipelineId String?
-  stageId    String?
-  stageName  String
-  probability Int?
-  isWon      Boolean  @default(false)
-  isLost     Boolean  @default(false)
+  pipelineId     String?
+  stageId        String?
+  stageName      String
+  probability    Int?
+  isWon          Boolean      @default(false)
+  isLost         Boolean      @default(false)
   // Nula enquanto a oportunidade permanece nesta etapa; setada quando ela sai (para a próxima
   // etapa ou fechamento). A linha com exitedAt=null é sempre a etapa atual do lead.
-  enteredAt DateTime  @default(now())
-  exitedAt  DateTime?
-  createdAt DateTime  @default(now())
+  enteredAt      DateTime     @default(now())
+  exitedAt       DateTime?
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId, leadId, enteredAt])
   @@index([organizationId, stageId])
@@ -673,6 +689,12 @@ model CrmCommercialDocument {
   deletedAt      DateTime?
   deletedBy      String?
   deleteReason   String?
+
+  /// Entrega 5 do Agente 17 (proposta versionada + assinatura) — ver
+  /// `.agents/handoffs/onda-7/17-para-01-schema-cadencia-optout-proposta.md` e
+  /// `src/features/cadence/domain/proposal.ts`.
+  versions          CrmCommercialDocumentVersion[]
+  signatureRequests CrmDocumentSignatureRequest[]
 
   @@unique([organizationId, number])
   @@index([organizationId, type, status])
@@ -997,6 +1019,12 @@ model ConversationSignal {
   leadId String
   lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
+  /// Canal de onde a janela de mensagens veio — 'whatsapp' (default, comportamento histórico
+  /// antes desta coluna existir) ou 'email' (entrega 3 do Agente 17, reply tracking de e-mail —
+  /// ver `src/features/cadence/domain/replyTracking.ts`). Não é o `scope` de OptOutRecord: aqui é
+  /// só de onde o sinal foi lido, sempre um dos `CadenceChannel` reais.
+  channel String @default("whatsapp")
+
   /// Quantas mensagens da janela foram lidas nesta análise — só para auditoria, não é exibido como fato de negócio.
   messageCount Int
 
@@ -1076,7 +1104,7 @@ model BitrixConnection {
   /// antes de aceitar qualquer payload — sem isto, a rota seria um endpoint público aceitando
   /// qualquer POST. Cifrado em repouso do mesmo jeito que webhookUrl (ver ENCRYPTED_FIELDS em
   /// src/lib/prisma.ts).
-  webhookSecret String? @db.Text
+  webhookSecret        String? @db.Text
   /// Só processa eventos de entrada (ONCRMLEADUPDATE etc.) quando true — desligado por padrão:
   /// gerar o segredo não é o mesmo que já ter colado a URL no Bitrix, e aceitar eventos de um
   /// webhook de saída ainda não configurado lá não tem como acontecer de verdade, mas o flag
@@ -1128,7 +1156,7 @@ model BitrixSyncRule {
   /// Mensagem da última falha de execução (null se a última tentativa teve sucesso) — fecha a
   /// lacuna descrita no comentário de runBitrixSyncTick: antes disso o schema não tinha onde
   /// guardar POR QUE uma regra estava falhando, só QUANDO ela tentou pela última vez.
-  lastError String? @db.Text
+  lastError         String?   @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1150,18 +1178,18 @@ model BitrixSyncLog {
   connection     BitrixConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
 
   /// 'inbound' (Bitrix → Atlas: import manual, regra automática, webhook) ou 'outbound' (Atlas → Bitrix).
-  direction String
+  direction      String
   /// 'lead' ou 'deal' — qual objeto Bitrix esta operação tocou.
-  entityType String
+  entityType     String
   /// Lead local afetado, quando existe (pode ser null num evento de webhook para um Bitrix ID
   /// ainda não importado — a operação é só ignorada, mas fica registrada mesmo assim).
-  leadId String?
+  leadId         String?
   /// ID do registro no Bitrix (Lead ou Deal, conforme entityType).
   bitrixRecordId String?
 
   /// 'success' | 'failed' | 'skipped'
-  status       String
-  errorMessage String? @db.Text
+  status        String
+  errorMessage  String? @db.Text
   /// Mesmo correlationId usado nos logs estruturados (client.ts/outboundSync.ts) — permite achar
   /// a chamada HTTP exata que gerou esta linha nos logs da aplicação.
   correlationId String?
@@ -1214,21 +1242,21 @@ model BitrixExtractionRun {
   entities String[]
   /// Campos selecionados por entidade, incluindo `UF_CRM_*` escolhidos dinamicamente no portal —
   /// formato livre porque o conjunto de campos customizados varia por portal Bitrix.
-  fields Json
+  fields   Json
   /// Período (custom/hoje/7 dias/mês/trimestre/semestre/tudo) + pipeline/etapa/responsável/status/
   /// busca/campo de data usado como filtro desta extração.
-  filters Json
+  filters  Json
 
   status BitrixExtractionStatus @default(queued)
 
   /// Progresso por entidade: total estimado, processado, página/lote atual, erros parciais.
-  progress Json?
-  totalCount    Int  @default(0)
+  progress      Json?
+  totalCount    Int   @default(0)
   /// Contagem final por entidade (ex.: {"lead": 120, "deal": 45}).
   countByEntity Json?
 
   /// Sanitizado — nunca stack trace ou segredo (mesmo padrão de BitrixSyncRule.lastError).
-  errorMessage String? @db.Text
+  errorMessage  String? @db.Text
   correlationId String?
   attempts      Int     @default(0)
 
@@ -1313,10 +1341,10 @@ model OptOutRecord {
   /// já tiver carregado do Lead antes de tentar o envio — email/phoneE164 cobrem o opt-out
   /// registrado antes de o lead existir localmente (ex.: webhook de descadastro chegando antes do
   /// primeiro sync).
-  leadId String?
-  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  email      String?
-  phoneE164  String?
+  leadId    String?
+  lead      Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  email     String?
+  phoneE164 String?
 
   /// Canal por onde o pedido chegou — não é o escopo do bloqueio (ver `scope` acima).
   originChannel String
@@ -1472,12 +1500,12 @@ model FeatureFlag {
 }
 
 model OrganizationFeatureFlag {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  featureFlagId  String
-  featureFlag    FeatureFlag  @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
-  enabled        Boolean
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  featureFlagId   String
+  featureFlag     FeatureFlag  @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+  enabled         Boolean
   /// Id do usuário ADMIN que fez a última alteração — só informativo/auditoria leve, sem FK
   /// (o usuário pode ser removido depois sem invalidar o histórico do flag).
   updatedByUserId String?
@@ -1515,4 +1543,338 @@ model BugReport {
 
   @@index([organizationId, status])
   @@index([organizationId, createdAt])
+}
+
+// ─── Cadência multicanal, reply tracking, agendamento e proposta/assinatura/fechamento ──────
+// (Onda 10, Agente 01A) — itens 2-5 da proposta completa do Agente 17 em
+// `.agents/handoffs/onda-7/17-para-01-schema-cadencia-optout-proposta.md`. O item 1 daquele
+// handoff (`OptOutRecord`, enum `OptOutScope`) já estava em produção antes desta onda — ver acima.
+//
+// Toda a lógica de domínio (máquina de estados de cadência, matching de opt-out, guardas de
+// confirmação verificável, versionamento de proposta, guarda de fechamento determinístico) já
+// existe testada e pura em `src/features/cadence/domain/**`, com portas (`*Repository`/`*Port`)
+// implementadas hoje só em memória (`src/features/cadence/infra/InMemory*`). Os models abaixo são
+// a persistência real que faltava — os adaptadores Prisma (equivalente a
+// `PrismaOptOutRepository.ts`) ficam para quando o 17 retomar o trabalho, fora do escopo desta
+// onda (`prisma/schema.prisma` é propriedade exclusiva do 01/01A).
+//
+// Convenção de enum herdada de `OptOutScope`/`OptOutRecord` (já em produção): valores PascalCase
+// no Postgres, mapeados para os literais lowercase/kebab/snake do domínio TypeScript
+// (`CadenceChannel`, `CadenceRunStatus` etc. em `src/features/cadence/domain/*.ts`) por um
+// adaptador na camada de persistência — nunca propagados crus para o resto do código. Não é
+// enum-por-enum idêntico ao domínio de propósito (ver nota em cada enum abaixo).
+//
+// Todas as tabelas novas seguem o padrão já estabelecido (`id` cuid, `organizationId` com FK
+// `ON DELETE CASCADE` para `Organization`, RLS `tenant_isolation_policy` idêntica à de
+// `OptOutRecord`/`BitrixExtractionRun`). Duas correções em relação ao SQL literal do handoff do
+// 17 (registradas aqui porque o handoff é histórico e não deve ser reescrito, ver protocolo de
+// handoff em `/AGENTS.md`):
+// 1. `CadenceSequence`, `CadenceRun`, `CadenceTouchAttempt`, `EmailMessage`,
+//    `CadenceCalendarEvent`, `CrmCommercialDocumentVersion`, `CrmDocumentSignatureRequest` e
+//    `DealClosureEvent` ganharam a FK `organizationId → Organization` que o SQL do handoff listava
+//    a coluna mas não a constraint — a própria proposta do 17 promete esse padrão no parágrafo de
+//    abertura ("organizationId com FK ON DELETE CASCADE para Organization"), então tratado aqui
+//    como lacuna de transcrição, não como decisão de omitir.
+// 2. `CadenceRun_leadId_active_unique` (índice único parcial `WHERE status = 'Active'`, que
+//    impede duas cadências ativas simultâneas para o mesmo lead) não é representável na DSL do
+//    Prisma (sem suporte a índice parcial) — existe só na migration SQL manual, com um
+//    `@@index([leadId])` normal aqui no schema para a consulta comum. `prisma db pull`/`migrate
+//    diff` vai sempre reportar esse índice específico como fora do schema — conhecido e aceito,
+//    documentado de novo no comentário do model abaixo.
+
+enum CadenceChannel {
+  Email
+  WhatsApp
+  Voice
+}
+
+enum CadenceRunStatus {
+  Active
+  Paused
+  Stopped
+}
+
+enum CadenceStopReason {
+  OptOut
+  LeadReply
+  Completed
+  ManualStop
+}
+
+enum CadenceTouchResult {
+  Sent
+  Failed
+  Skipped
+}
+
+/// Definição reutilizável de uma sequência de toques multicanal (ex.: e-mail → WhatsApp → voz →
+/// e-mail) — ver `src/features/cadence/domain/cadence.ts` (`CadenceSequenceDefinition`).
+/// `touches` é a lista ordenada de passos, validada em runtime por `validateSequence` (sem lacunas
+/// nem repetição de `order`), não por constraint de banco.
+model CadenceSequence {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  /// [{ "order": 1, "channel": "Email", "delayHoursFromPrevious": 0, "templateRef": "...",
+  /// "maxAttempts": 1 }, ...] — ver `CadenceTouch` no domínio.
+  touches Json
+
+  active    Boolean   @default(true)
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  runs CadenceRun[]
+
+  @@index([organizationId, active])
+}
+
+/// Uma execução de `CadenceSequence` para um Lead específico — estado vivo da máquina de estados
+/// em `src/features/cadence/domain/cadence.ts` (`CadenceRunState`). `currentTouchOrder` é o
+/// próximo toque a tentar; a sequência terminou quando não existe mais `touch` com esse `order`.
+///
+/// `CadenceRun_leadId_active_unique` (índice único parcial `WHERE status = 'Active'`) garante em
+/// banco que um lead nunca tem duas cadências ativas concorrendo pelo mesmo canal — constraint só
+/// na migration SQL, não representável nesta DSL (ver nota no topo da seção). O
+/// `@@index([leadId])` abaixo é só para a consulta comum, não substitui a garantia de unicidade.
+model CadenceRun {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  sequenceId String
+  sequence   CadenceSequence @relation(fields: [sequenceId], references: [id], onDelete: Restrict)
+
+  status            CadenceRunStatus   @default(Active)
+  currentTouchOrder Int                @default(1)
+  stopReason        CadenceStopReason?
+
+  startedAt   DateTime  @default(now())
+  lastTouchAt DateTime?
+  pausedAt    DateTime?
+  stoppedAt   DateTime?
+  createdBy   String?
+  updatedAt   DateTime  @updatedAt
+
+  touchAttempts  CadenceTouchAttempt[]
+  calendarEvents CadenceCalendarEvent[]
+
+  @@index([organizationId, status])
+  @@index([leadId])
+}
+
+/// Uma tentativa real de disparo de um toque de cadência — nunca `Sent` sem confirmação real do
+/// provedor (mesma disciplina de honestidade de envio corrigida em `cold-email.service.ts`, commit
+/// `2e42a557`; ver `recordTouchAttempt` no domínio, que só marca `sent` quando o chamador
+/// confirma).
+model CadenceTouchAttempt {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  cadenceRunId String
+  cadenceRun   CadenceRun @relation(fields: [cadenceRunId], references: [id], onDelete: Cascade)
+
+  touchOrder        Int
+  channel           CadenceChannel
+  attemptedAt       DateTime           @default(now())
+  result            CadenceTouchResult
+  skipReason        String?
+  error             String?            @db.Text
+  providerMessageId String?
+
+  @@index([organizationId])
+  @@index([cadenceRunId])
+}
+
+/// Persistência de mensagens de e-mail (entrega 3 do Agente 17 — reply tracking) — simétrico a
+/// `WhatsAppMessage`, mas para o canal de e-mail. `providerMessageId` (header `Message-Id`) dá
+/// idempotência de reentrega; `inReplyTo` (header `In-Reply-To`) dá threading. Compartilhado com o
+/// Agente 05 (dono de e-mail/SMTP) — formato coordenado em
+/// `.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`; ver
+/// `src/features/cadence/domain/replyTracking.ts` para a lógica de detecção de resposta genuína
+/// (`isGenuineLeadReply`) que consome estas linhas.
+model EmailMessage {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// Header Message-Id — idempotência de reentrega (o mesmo webhook/IMAP pode reentregar).
+  providerMessageId String
+  /// Header In-Reply-To — threading.
+  inReplyTo         String?
+  direction         String // 'inbound' | 'outbound', mesmo padrão de WhatsAppMessage.direction
+  fromEmail         String
+  toEmail           String
+  subject           String?
+  body              String? @db.Text
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  receivedAt DateTime @default(now())
+
+  @@unique([organizationId, providerMessageId])
+  @@index([leadId])
+}
+
+/// As três únicas formas de confirmação de disponibilidade que o domínio aceita como verificáveis
+/// (`ConfirmationEvidenceType` em `src/features/cadence/domain/scheduling.ts`,
+/// `isVerifiableConfirmation`) — nunca inferência de um modelo de IA sobre o texto de uma
+/// mensagem.
+enum ConfirmationEvidenceType {
+  /// Lead respondeu confirmando explicitamente um horário específico já proposto.
+  LeadCalendarReply
+  /// Lead escolheu um horário num link de agendamento self-service (ex.: página de slots).
+  LeadSchedulingLinkClick
+  /// Vendedor confirmou manualmente após contato ao vivo — ainda exige `confirmationEvidenceRef`.
+  ManualVerified
+}
+
+/// Reunião comercial agendada a partir de uma confirmação verificável (entrega 4 do Agente 17) —
+/// ver `scheduleMeetingIfConfirmed`/`buildCalendarEventDraft` no domínio. A criação real do evento
+/// no Google Calendar é responsabilidade de `google.service.ts` (Agente 06); esta linha é o
+/// registro comercial do agendamento, com `googleEventId` preenchido depois que a chamada real ao
+/// Google confirma.
+model CadenceCalendarEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  cadenceRunId String?
+  cadenceRun   CadenceRun? @relation(fields: [cadenceRunId], references: [id], onDelete: SetNull)
+
+  /// Preenchido só depois que `CalendarSchedulerPort.createEvent` confirma a criação real no
+  /// Google Calendar — nulo enquanto o agendamento é só comercial/local.
+  googleEventId String?
+
+  confirmationEvidenceType ConfirmationEvidenceType
+  /// Id do registro real que prova a confirmação (id de mensagem, id de clique no link de
+  /// agendamento, id de nota do vendedor) — nunca um resumo gerado por IA.
+  confirmationEvidenceRef  String
+
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  ownerUserId    String?
+  /// 'scheduled' | 'cancelled' | 'completed'
+  status         String   @default("scheduled")
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([organizationId])
+}
+
+/// Fotografia imutável de `CrmCommercialDocument` em um instante (entrega 5, parte 1 — proposta
+/// versionada). O histórico nunca é mutado: cada revisão é um novo registro, nunca um
+/// `UPDATE` sobre uma versão existente — ver `draftNextProposalVersion`/`nextVersionNumber` em
+/// `src/features/cadence/domain/proposal.ts`, que garante o próximo número sempre maior que
+/// qualquer existente, mesmo se versões intermediárias forem removidas.
+model CrmCommercialDocumentVersion {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  documentId    String
+  document      CrmCommercialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber Int
+
+  /// Snapshot completo do documento neste ponto no tempo (title/lineItems/subtotal/discount/tax/
+  /// total/terms/notes) — ver `ProposalSnapshot` no domínio.
+  snapshot Json
+
+  changedBy    String?
+  changeReason String?
+  createdAt    DateTime @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([organizationId])
+}
+
+enum SignatureRequestStatus {
+  Created
+  Sent
+  Viewed
+  Signed
+  Declined
+  Expired
+  Cancelled
+}
+
+/// Solicitação de assinatura eletrônica de uma proposta/documento comercial (entrega 5, parte 2).
+/// `provider` é TEXT livre (não enum) — decisão de negócio já tomada em 2026-08-15 (ver "##
+/// Decisão do usuário" no handoff original): provedor real é a Assinatura Eletrônica gov.br
+/// (`'govbr'`), mas o schema fica agnóstico de propósito para não exigir migration de enum se um
+/// provedor comercial complementar (ex.: signatário sem conta gov.br) precisar entrar depois.
+model CrmDocumentSignatureRequest {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  documentId String
+  document   CrmCommercialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  /// Texto livre — valor real hoje é `'govbr'`. Ver comentário do model.
+  provider          String
+  providerRequestId String?
+  status            SignatureRequestStatus @default(Created)
+  signerEmail       String
+  signerName        String?
+  requestedBy       String?
+  requestedAt       DateTime               @default(now())
+  respondedAt       DateTime?
+  /// URL/id do certificado de assinatura devolvido pelo provedor.
+  evidenceRef       String?
+  rawWebhookPayload Json?
+
+  @@index([documentId])
+  @@index([organizationId])
+}
+
+enum DealClosureEventType {
+  SignatureCompleted
+  PaymentConfirmed
+  ManualCrmConfirmation
+}
+
+/// Ledger append-only do que moveu um Lead para "Negócios Ganhos" — fechamento determinístico
+/// (entrega 5, parte 2). Único caminho legítimo, por acordo com o Agente 13
+/// (`.agents/handoffs/onda-7/17-para-13-evento-fechamento.md`): substitui a proibição absoluta de
+/// `AUTONOMIA_COMERCIAL_24X7.md` ("a transição para Negócios Ganhos não deve ser decidida por
+/// texto gerado") por um evento de tipo fechado com evidência real, nunca criado a partir de
+/// texto/julgamento de um agente de IA — ver `isDeterministicCloseEvent`/`evaluateDealClosure` em
+/// `src/features/cadence/domain/dealClosure.ts`, que já rejeita `triggeredBy` que pareça vir de um
+/// agente (`ai:`/`agent:`/`swarm:`/`closer:`/`bot:`).
+model DealClosureEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  type DealClosureEventType
+
+  /// Id de outro registro real que prova o evento (CrmDocumentSignatureRequest, referência de
+  /// pagamento, ou Activity/Note de confirmação manual) — nunca um resumo/texto gerado.
+  evidenceRef    String
+  /// userId de quem confirmou manualmente, ou 'webhook:<provider>' quando automático — nunca um
+  /// agente de IA (ver checagem de `triggeredBy` no domínio).
+  triggeredBy    String
+  previousStatus String?
+  occurredAt     DateTime @default(now())
+
+  @@index([leadId])
+  @@index([organizationId])
 }

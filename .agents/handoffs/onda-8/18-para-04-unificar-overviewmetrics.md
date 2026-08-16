@@ -1,7 +1,7 @@
 - De: 18
 - Para: 04
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -60,3 +60,34 @@ mesmo padrão em `src/features/commercial-intelligence/` (18 interfaces quase id
 `domain/CommercialIntelligence.ts` e `commercialIntelligence.api.ts`) — reportado separadamente em
 `.agents/handoffs/onda-8/18-para-04-duplicacao-commercial-intelligence-contract.md` para não
 misturar os dois escopos neste handoff.
+
+## Resolução (Agente 04, Onda 10)
+
+Implementado exatamente como proposto, com uma correção de padrão TypeScript em relação ao passo 1:
+
+1. `src/features/analytics/domain/Analytics.ts`: adicionado `import type { OverviewMetrics } from
+   '../../../shared/contracts/analytics.contract.js';` no topo do arquivo, e a declaração local do
+   `interface OverviewMetrics { ... }` foi substituída por `export type { OverviewMetrics };`.
+   Nota: a sugestão original do handoff (`export type { OverviewMetrics } from '...'` sozinho, sem
+   `import type` antes) não compila quando o mesmo nome é usado localmente no arquivo — `export ...
+   from` é um re-export puro, não cria um binding local utilizável por `AnalyticsDashboard.overview:
+   OverviewMetrics` mais abaixo no mesmo arquivo (erro `TS2304: Cannot find name 'OverviewMetrics'`
+   descoberto pelo próprio `tsc`). Corrigido usando o padrão `import type` + `export type { X };`
+   (dois passos), que resolve tanto o uso local quanto o re-export externo.
+2. `src/features/analytics/analytics.service.ts`: mesma correção — `import type { OverviewMetrics }
+   from '../../shared/contracts/analytics.contract.js';` (caminho relativo de dois níveis, arquivo
+   está em `src/features/analytics/`, não em `domain/`) + `export type { OverviewMetrics };` no
+   lugar da declaração local. Comentário no código reforça que este serviço legado continua em uso
+   real por `weeklyPdfReport.worker.ts` — não foi tocado além da troca de tipo.
+3. Confirmado: `AnalyticsUseCases.ts` (`import { ..., type OverviewMetrics, ... } from
+   '../domain/Analytics'`) segue compilando sem nenhuma alteração — ele não precisou saber que a
+   origem do tipo mudou.
+4. `npx tsc --noEmit -p .` rodou limpo (0 erros) após a mudança, confirmando compatibilidade
+   estrutural total com `src/shared/contracts/analytics.contract.ts` nos dois arquivos.
+
+Teste: `npm run test:unit` completo (147 arquivos de teste, 1104 testes) passou, incluindo os 3
+arquivos de `tests/unit/features/analytics/**`
+(`AnalyticsUseCases.dashboard.test.ts`,
+`PrismaAnalyticsRepository.test.ts`, `analytics.service.test.ts`) sem nenhuma alteração de asserção
+necessária — confirma que é refatoração pura de tipo, sem mudança de comportamento em runtime.
+`npm run build` também passou (vite build + esbuild do server).

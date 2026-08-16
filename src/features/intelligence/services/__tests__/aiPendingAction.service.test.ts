@@ -13,8 +13,10 @@ vi.mock('@/lib/email/mailer', () => ({
     MailerNotConfiguredError: FakeMailerNotConfiguredError,
 }));
 
+const leadFindFirstMock = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
-    prisma: { aIPendingAction: { update: vi.fn() } },
+    prisma: { aIPendingAction: { update: vi.fn() }, lead: { findFirst: (...args: unknown[]) => leadFindFirstMock(...args) } },
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -37,6 +39,7 @@ const updateMock = prisma.aIPendingAction as unknown as { update: ReturnType<typ
 beforeEach(() => {
     vi.clearAllMocks();
     updateMock.update.mockResolvedValue({});
+    leadFindFirstMock.mockResolvedValue(null);
 });
 
 const emailAction = {
@@ -103,22 +106,59 @@ describe('executeAction', () => {
         }));
     });
 
-    it('cria follow-up interno com payload tipado', async () => {
+    it('cria follow-up interno com payload tipado, usando owner explícito quando informado', async () => {
         activityCreateMock.mockResolvedValue({ id: 'activity-1' });
 
         const result = await executeAction({
             id: 'act-5',
             action: 'create_follow_up',
             organizationId: 'org-1',
-            payload: { leadId: 'lead-1', date: '2026-08-10T13:00:00.000Z', observations: 'Retomar proposta.' },
+            payload: { leadId: 'lead-1', date: '2026-08-10T13:00:00.000Z', observations: 'Retomar proposta.', owner: 'Maria Souza' },
         });
 
         expect(result).toEqual({ sent: true });
+        expect(leadFindFirstMock).not.toHaveBeenCalled();
         expect(activityCreateMock).toHaveBeenCalledWith('org-1', expect.objectContaining({
             leadId: 'lead-1',
             type: 'Follow-up',
             status: 'Pendente',
+            owner: 'Maria Souza',
         }));
+    });
+
+    it('sem owner explícito, resolve o responsável real a partir do Lead.owner', async () => {
+        activityCreateMock.mockResolvedValue({ id: 'activity-1' });
+        leadFindFirstMock.mockResolvedValue({ owner: 'João Pereira' });
+
+        const result = await executeAction({
+            id: 'act-6',
+            action: 'create_follow_up',
+            organizationId: 'org-1',
+            payload: { leadId: 'lead-1', date: '2026-08-10T13:00:00.000Z' },
+        });
+
+        expect(result).toEqual({ sent: true });
+        expect(leadFindFirstMock).toHaveBeenCalledWith({
+            where: { id: 'lead-1', organizationId: 'org-1' },
+            select: { owner: true },
+        });
+        expect(activityCreateMock).toHaveBeenCalledWith('org-1', expect.objectContaining({
+            owner: 'João Pereira',
+        }));
+    });
+
+    it('sem owner explícito e sem Lead.owner, reporta missing_owner em vez de fabricar responsável', async () => {
+        leadFindFirstMock.mockResolvedValue({ owner: null });
+
+        const result = await executeAction({
+            id: 'act-7',
+            action: 'create_follow_up',
+            organizationId: 'org-1',
+            payload: { leadId: 'lead-1', date: '2026-08-10T13:00:00.000Z' },
+        });
+
+        expect(result).toEqual({ sent: false, reason: 'missing_owner' });
+        expect(activityCreateMock).not.toHaveBeenCalled();
     });
 });
 
@@ -164,5 +204,26 @@ describe('executeAndRecord', () => {
         // manual em vez de considerar a ação concluída.
         expect(callArgs.data.executed).not.toBe(true);
         expect(callArgs.data.attempts).toEqual({ increment: 1 });
+    });
+
+    it('registra motivo específico quando o follow-up não tem responsável real resolvível', async () => {
+        leadFindFirstMock.mockResolvedValue(null);
+
+        const result = await executeAndRecord({
+            id: 'act-8',
+            action: 'create_follow_up',
+            organizationId: 'org-1',
+            payload: { leadId: 'lead-1', date: '2026-08-10T13:00:00.000Z' },
+        });
+
+        expect(result).toEqual({ sent: false, reason: 'missing_owner' });
+        expect(activityCreateMock).not.toHaveBeenCalled();
+        expect(updateMock.update).toHaveBeenCalledWith({
+            where: { id: 'act-8' },
+            data: expect.objectContaining({
+                executionError: 'Lead sem responsável real definido no CRM — informe o responsável explicitamente para executar esta ação.',
+                attempts: { increment: 1 },
+            }),
+        });
     });
 });
