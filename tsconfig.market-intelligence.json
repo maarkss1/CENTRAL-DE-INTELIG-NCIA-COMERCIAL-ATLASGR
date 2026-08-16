@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/features/market-intelligence/**/*.ts",
+    "src/features/market-intelligence/**/*.tsx",
+    "src/pages/MarketIntelligence.tsx"
+  ],
+  "exclude": ["node_modules", "dist", "server", "tests"]
+}

@@ -1,0 +1,54 @@
+name: Market Intelligence - Quality Gate
+
+on:
+  push:
+    branches:
+      - feat/atlas-national-territory-intelligence
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-intelligence-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+      JWT_SECRET: market-intelligence-ci-placeholder-secret
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run Market Intelligence Python ETL fixtures
+        run: python3 -m unittest discover -s tests/python/market_intelligence -p 'test_*.py'
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck Market Intelligence
+        run: npx tsc -p tsconfig.market-intelligence.json --noEmit
+
+      - name: Run Market Intelligence unit tests
+        run: npx vitest run tests/unit/market-intelligence
+
+      - name: Build application
+        run: npm run build
+
+      - name: Repository-wide typecheck (debt visibility)
+        continue-on-error: true
+        run: npx tsc --noEmit
