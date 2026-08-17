@@ -6,7 +6,7 @@ import { notificationService, type NotificationKind } from '../notifications/not
 import { toPrismaAutomationTrigger, fromPrismaAutomationAction } from '../../lib/enumMap.js';
 import { automationHistoryService } from './automation-history.service.js';
 
-export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída';
+export type AutomationTrigger = 'Lead criado' | 'Lead mudou de status' | 'Atividade concluída' | 'Lead sem interação';
 export type AutomationActionType = 'Notificar equipe' | 'Criar atividade' | 'Ligar via SDR de Voz';
 
 /**
@@ -353,3 +353,4 @@ export class AutomationEngine {
 }
 
 export const automationEngine = new AutomationEngine();
+
