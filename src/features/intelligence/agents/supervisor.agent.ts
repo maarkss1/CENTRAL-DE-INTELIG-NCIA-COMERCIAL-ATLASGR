@@ -24,7 +24,7 @@ let cachedSupervisorLlm: any = null;
 function getSupervisorLlm() {
     if (cachedSupervisorLlm) return cachedSupervisorLlm;
 
-    cachedSupervisorLlm = buildModelWithFallback('llama-3.1-8b-instant');
+    cachedSupervisorLlm = buildModelWithFallback('openai/gpt-oss-20b');
     return cachedSupervisorLlm;
 }
 
@@ -234,7 +234,7 @@ Se a missão já foi suficientemente atendida pelos especialistas já acionados,
     try {
         // withStructuredOutput usa tool-calling nativo do provedor em vez de pedir JSON em texto
         // livre e extrair na mão — antes, uma resposta do modelo com qualquer chave extra ou texto
-        // fora do JSON (comum em modelos pequenos como o llama-3.1-8b-instant usado aqui) quebrava
+        // fora do JSON (comum em modelos pequenos como o gpt-oss-20b usado aqui) quebrava
         // o regex de extração e o roteamento sempre caía no fallback heurístico, mesmo quando o
         // modelo tinha decidido corretamente.
         const structuredModel = getSupervisorLlm()

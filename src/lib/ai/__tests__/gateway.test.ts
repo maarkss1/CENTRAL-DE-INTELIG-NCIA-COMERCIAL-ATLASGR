@@ -125,7 +125,7 @@ describe('AI gateway', () => {
         const [groqUrl, groqInit] = fetchMock.mock.calls[0] as [string, RequestInit];
         expect(groqUrl).toBe('https://api.groq.com/openai/v1/chat/completions');
         const groqBody = JSON.parse(String(groqInit.body));
-        expect(groqBody.model).toBe('llama-3.3-70b-versatile');
+        expect(groqBody.model).toBe('openai/gpt-oss-120b');
         expect(groqBody.messages[0]).toEqual({ role: 'system', content: 'Regra' });
         expect(groqBody).not.toHaveProperty('metadata');
         expect(groqBody).not.toHaveProperty('user');

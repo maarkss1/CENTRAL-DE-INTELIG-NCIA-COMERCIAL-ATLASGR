@@ -36,7 +36,7 @@ export abstract class BaseAgent {
     // Nome real do modelo Groq usado por runWithTools (namespace diferente de `modelName`, que é
     // o nome lógico resolvido pelo gateway.ts em `run()`) — runWithTools fala direto com
     // LangChain/Groq via bindTools, que o gateway não transporta.
-    protected toolsModelName: string = 'llama-3.1-8b-instant';
+    protected toolsModelName: string = 'openai/gpt-oss-20b';
 
     protected abstract buildSystemPrompt(learnedStyle: string | null): string;
     protected abstract buildHumanMessage(input: string): string;

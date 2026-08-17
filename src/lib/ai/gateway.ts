@@ -57,11 +57,11 @@ const MODEL_ALIASES: Record<string, string> = {
 };
 
 const GROQ_MODEL_ALIASES: Record<string, string> = {
-    'local-llama3': 'llama-3.3-70b-versatile',
-    'local-llama3-fast': 'llama-3.1-8b-instant',
-    'gpt-4o': 'llama-3.3-70b-versatile',
-    'gpt-4o-mini': 'llama-3.1-8b-instant',
-    'claude-sonnet': 'llama-3.3-70b-versatile',
+    'local-llama3': 'openai/gpt-oss-120b',
+    'local-llama3-fast': 'openai/gpt-oss-20b',
+    'gpt-4o': 'openai/gpt-oss-120b',
+    'gpt-4o-mini': 'openai/gpt-oss-20b',
+    'claude-sonnet': 'openai/gpt-oss-120b',
 };
 
 const DEFAULT_GATEWAY_TIMEOUT_MS = 30_000;
@@ -613,10 +613,10 @@ export function cleanAndParseJson<T>(content: string): T {
 
 // Preço aproximado por 1M de tokens (USD) — usado só para estimar custo no AILog, não é cobrança real.
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-    'llama-3.1-8b-instant': { input: 0.05, output: 0.08 },
-    'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
-    'local-llama3': { input: 0.59, output: 0.79 },
-    'local-llama3-fast': { input: 0.05, output: 0.08 },
+    'openai/gpt-oss-20b': { input: 0.075, output: 0.30 },
+    'openai/gpt-oss-120b': { input: 0.15, output: 0.60 },
+    'local-llama3': { input: 0.15, output: 0.60 },
+    'local-llama3-fast': { input: 0.075, output: 0.30 },
     'qwen-coder': { input: 0.20, output: 0.60 },
     'deepseek-coder': { input: 0.14, output: 0.28 },
 };

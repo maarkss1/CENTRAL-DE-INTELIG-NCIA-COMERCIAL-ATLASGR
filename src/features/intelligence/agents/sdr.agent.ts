@@ -37,7 +37,7 @@ let cachedModelWithTools: any = null;
 function getModelWithTools() {
     if (cachedModelWithTools) return cachedModelWithTools;
 
-    cachedModelWithTools = buildModelWithFallbackAndTools('llama-3.1-8b-instant', tools);
+    cachedModelWithTools = buildModelWithFallbackAndTools('openai/gpt-oss-20b', tools);
     return cachedModelWithTools;
 }
 
