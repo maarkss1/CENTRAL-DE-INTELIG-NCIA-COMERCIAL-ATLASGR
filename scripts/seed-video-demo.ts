@@ -7,42 +7,50 @@ const DEMO_EMAIL = 'video.demo@atlasgr-demo.local';
 const DEMO_PASSWORD = 'AtlasDemo2026!';
 
 async function main() {
-  const existingOrg = await prisma.organization.findFirst({ where: { name: ORG_NAME } });
-  if (existingOrg) {
-    console.log('Removendo dados de demonstração anteriores...');
-    await prisma.activity.deleteMany({ where: { organizationId: existingOrg.id } });
-    await prisma.lead.deleteMany({ where: { organizationId: existingOrg.id } });
-    await prisma.contact.deleteMany({ where: { organizationId: existingOrg.id } });
-    await prisma.company.deleteMany({ where: { organizationId: existingOrg.id } });
-    await prisma.session.deleteMany({ where: { user: { organizationId: existingOrg.id } } });
-    await prisma.account.deleteMany({ where: { user: { organizationId: existingOrg.id } } });
-    await prisma.user.deleteMany({ where: { organizationId: existingOrg.id } });
-    await prisma.organization.delete({ where: { id: existingOrg.id } });
-  }
+  // Este script roda fora de uma requisição HTTP, então não há contexto de tenant/RLS
+  // (`requestContext`/`withRlsContext` de src/lib/prisma.ts) já estabelecido. As policies de RLS
+  // do Postgres (`tenant_isolation_policy`) bloqueiam qualquer INSERT/SELECT sem
+  // `app.bypass_rls = 'on'` setado na sessão — por isso todo o seed roda numa única transação
+  // com esse GUC setado explicitamente, só para esta operação administrativa pontual.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SELECT set_config('app.bypass_rls', 'on', TRUE);`);
 
-  console.log('Criando organização de demonstração...');
-  const org = await prisma.organization.create({ data: { name: ORG_NAME } });
+    const existingOrg = await tx.organization.findFirst({ where: { name: ORG_NAME } });
+    if (existingOrg) {
+      console.log('Removendo dados de demonstração anteriores...');
+      await tx.activity.deleteMany({ where: { organizationId: existingOrg.id } });
+      await tx.lead.deleteMany({ where: { organizationId: existingOrg.id } });
+      await tx.contact.deleteMany({ where: { organizationId: existingOrg.id } });
+      await tx.company.deleteMany({ where: { organizationId: existingOrg.id } });
+      await tx.session.deleteMany({ where: { user: { organizationId: existingOrg.id } } });
+      await tx.account.deleteMany({ where: { user: { organizationId: existingOrg.id } } });
+      await tx.user.deleteMany({ where: { organizationId: existingOrg.id } });
+      await tx.organization.delete({ where: { id: existingOrg.id } });
+    }
 
-  const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
-  const user = await prisma.user.create({
-    data: {
-      name: 'Usuário Demonstração',
-      email: DEMO_EMAIL,
-      passwordHash: hashedPassword,
-      role: 'ADMIN',
-      organizationId: org.id,
-      emailVerified: true,
-    },
-  });
-  await prisma.account.create({
-    data: {
-      userId: user.id,
-      accountId: user.email,
-      providerId: 'credential',
-      password: hashedPassword,
-    },
-  });
-  console.log(`Login: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+    console.log('Criando organização de demonstração...');
+    const org = await tx.organization.create({ data: { name: ORG_NAME } });
+
+    const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 10);
+    const user = await tx.user.create({
+      data: {
+        name: 'Usuário Demonstração',
+        email: DEMO_EMAIL,
+        passwordHash: hashedPassword,
+        role: 'ADMIN',
+        organizationId: org.id,
+        emailVerified: true,
+      },
+    });
+    await tx.account.create({
+      data: {
+        userId: user.id,
+        accountId: user.email,
+        providerId: 'credential',
+        password: hashedPassword,
+      },
+    });
+    console.log(`Login: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
 
   const companySeeds = [
     { legalName: 'Rota Sul Transportes Ltda', tradeName: 'Rota Sul Transportes', segment: 'Transporte Rodoviário de Cargas', city: 'Curitiba', state: 'PR', employeeCount: 210 },
@@ -55,7 +63,7 @@ async function main() {
 
   const companies = [];
   for (const c of companySeeds) {
-    const company = await prisma.company.create({
+    const company = await tx.company.create({
       data: { ...c, status: 'Ativo', organizationId: org.id, owner: user.name },
     });
     companies.push(company);
@@ -65,7 +73,7 @@ async function main() {
   const contactRoles = ['Diretor de Operações', 'Gerente de Risco e Sinistros', 'Head de Logística', 'Coordenador de Frota'];
   const contacts = [];
   for (let i = 0; i < companies.length; i++) {
-    const contact = await prisma.contact.create({
+    const contact = await tx.contact.create({
       data: {
         name: `Contato Demonstração ${i + 1}`,
         role: contactRoles[i % contactRoles.length],
@@ -91,7 +99,7 @@ async function main() {
   const leads = [];
   for (let i = 0; i < companies.length; i++) {
     const stage = leadStages[i % leadStages.length];
-    const lead = await prisma.lead.create({
+    const lead = await tx.lead.create({
       data: {
         status: stage.status,
         funnel: 'Lead',
@@ -118,7 +126,7 @@ async function main() {
     { type: 'WhatsApp', time: '16:30', leadIdx: 5 },
   ];
   for (const a of activityPlan) {
-    await prisma.activity.create({
+    await tx.activity.create({
       data: {
         type: a.type,
         owner: user.name,
@@ -132,6 +140,7 @@ async function main() {
   }
   console.log(`${activityPlan.length} atividades de hoje criadas para a agenda.`);
   console.log('Seed de demonstração para vídeo concluído.');
+  }, { timeout: 30000 });
 }
 
 main()
