@@ -132,6 +132,16 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         exclusionRules: '—',
     },
     {
+        key: 'ritmo_criacao_pipeline',
+        name: 'Ritmo de Criação de Pipeline (Pace)',
+        description: 'Compara o pipeline já criado no mês com o que seria esperado até hoje, proporcional aos dias úteis já decorridos.',
+        formula: 'Esperado até agora = Pipeline Necessário × (dias úteis decorridos / dias úteis totais do mês). Ritmo (%) = Pipeline Criado até agora / Esperado até agora × 100.',
+        source: 'Derivado de Pipeline Criado + Pipeline Necessário (application/businessDays.ts)',
+        period: 'Mensal (mês-calendário do filtro)',
+        inclusionRules: 'Dia útil = segunda a sexta, sem calendário de feriados configurado (mesma simplificação do Cockpit legado, js/cockpit.js). "Hoje" conta como decorrido.',
+        exclusionRules: 'Sem Pipeline Necessário calculável (sem meta ou sem Win Rate), o indicador retorna "Não disponível" — nunca assume um alvo implícito.',
+    },
+    {
         key: 'win_rate',
         name: 'Win Rate',
         description: 'Taxa de conversão entre negócios fechados.',

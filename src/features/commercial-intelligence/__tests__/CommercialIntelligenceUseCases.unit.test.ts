@@ -325,6 +325,59 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(pipelineCriado?.movingAverage4w).toBeCloseTo((pipelineCriado?.weeklySeries.reduce((s, v) => s + v, 0) ?? 0) / 4, 2);
     });
 
+    it('Pipeline Creation Pace: dias úteis decorridos/total do mês e ritmo (%) batem com o esperado proporcional', async () => {
+        // Agosto/2026 tem 21 dias úteis; até 2026-08-15 (sábado) já decorreram 10 (ver
+        // businessDays.unit.test.ts para a conta detalhada dia a dia).
+        const created = deal({ id: 'novo-1', amount: 50_000, createdAt: new Date('2026-08-03T00:00:00Z') });
+        const won = deal({ id: 'ganho-1', amount: 10_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-05T00:00:00Z') });
+        const lost = deal({ id: 'perdido-1', amount: 5_000, stageIsLost: true, pipelineStageId: 'stage-perdido', closedAt: new Date('2026-08-06T00:00:00Z'), lossReason: 'Preço' });
+        const repo = new FakeRepository([created, won, lost]);
+        await repo.upsertGoal(ORG, PERIOD, 'NEW_MRR', 300_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const result = await useCases.pipelineCreation(ORG, { month: PERIOD }, NOW);
+        expect(result.totalBusinessDays).toBe(21);
+        expect(result.elapsedBusinessDays).toBe(10);
+        // winRate = 1/(1+1) = 50% -> pipelineNeeded = 300_000 / 0.5 = 600_000
+        expect(result.pipelineNeeded).toBe(600_000);
+        const paceExpectedAmount = 600_000 * (10 / 21);
+        expect(result.paceExpectedAmount).toBeCloseTo(Math.round((paceExpectedAmount + Number.EPSILON) * 100) / 100, 2);
+        expect(result.pacePercent).toBeCloseTo((result.amount / (result.paceExpectedAmount as number)) * 100, 1);
+    });
+
+    it('Pipeline Creation Pace: sem Pipeline Necessário calculável (sem meta), paceExpectedAmount e pacePercent ficam "Não disponível" (null)', async () => {
+        const created = deal({ id: 'novo-1', amount: 50_000, createdAt: new Date('2026-08-03T00:00:00Z') });
+        const repo = new FakeRepository([created]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const result = await useCases.pipelineCreation(ORG, { month: PERIOD }, NOW);
+        expect(result.pipelineNeeded).toBeNull();
+        expect(result.paceExpectedAmount).toBeNull();
+        expect(result.pacePercent).toBeNull();
+        // dias úteis continuam calculáveis independente da meta
+        expect(result.totalBusinessDays).toBe(21);
+        expect(result.elapsedBusinessDays).toBe(10);
+    });
+
+    it('Exportação: CSV/JSON/HTML reaproveitam os mesmos use cases (overview/performance/pipelineCreation/alerts), nenhum cálculo novo', async () => {
+        const won = deal({ id: 'ganho-1', amount: 80_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-05T00:00:00Z') });
+        const repo = new FakeRepository([won]);
+        await repo.upsertGoal(ORG, PERIOD, 'NEW_MRR', 300_000, 'BRL', 'user-1');
+        const useCases = new CommercialIntelligenceUseCases(repo);
+
+        const csv = await useCases.executiveExport(ORG, { month: PERIOD }, 'csv', NOW);
+        expect(csv.mimeType).toContain('text/csv');
+        expect(csv.content.charCodeAt(0)).toBe(0xfeff);
+        expect(csv.content).toContain('80000'); // mesmo Fechado calculado por executiveOverview
+
+        const json = await useCases.executiveExport(ORG, { month: PERIOD }, 'json', NOW);
+        const parsed = JSON.parse(json.content) as { overview: { closedAmount: number } };
+        expect(parsed.overview.closedAmount).toBe(80_000);
+
+        const html = await useCases.executiveExport(ORG, { month: PERIOD }, 'html', NOW);
+        expect(html.content).toContain('<!doctype html>');
+        expect(html.content).toContain(PERIOD);
+    });
+
     it('Drill-down: bitrixLinked reflete se o negócio tem bitrixLeadId ou bitrixDealId', async () => {
         const linked = deal({ id: 'l-1', amount: 10_000, bitrixDealId: 'bx-deal-1' });
         const notLinked = deal({ id: 'nl-1', amount: 10_000 });

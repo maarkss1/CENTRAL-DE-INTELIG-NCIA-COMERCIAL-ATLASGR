@@ -28,6 +28,7 @@ import type {
     DealDrillDownRow,
     ForecastTier,
     GoalMetric,
+    ExportFormat,
     FilterOptions,
     HistoricalTrendsReport,
     HistoricalTrendPoint,
@@ -35,6 +36,7 @@ import type {
 import { scoreOpportunity, type ForecastResult } from './forecastEngine';
 import { checkEligibility, isDealOpen, agingInStageDays, STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
 import { classifyLossReason } from './lossTaxonomy';
+import { buildExecutiveExport, type ExecutiveExportPayload } from './executiveExport';
 import { shiftMonth, monthLabelPt, countBusinessDays } from './executiveCalendar';
 import {
     DATA_READINESS_OPEN_FIELD_WEIGHTS,
@@ -1121,6 +1123,26 @@ export class CommercialIntelligenceUseCases {
             negativeFactors: found.forecast.negativeFactors,
             lastUpdatedAt: found.deal.updatedAt.toISOString(),
         };
+    }
+
+    // ─── Exportações (HTML/CSV/JSON/Relatório Executivo) ────────────────────
+    //
+    // "Proteção de Receita M/M+1/M+2/M+3" (revenueProtection()) foi avaliada nesta integração e
+    // descartada — já existe como ExecutiveOverview.coverageProtection ("Proteção 90 dias"), mesmo
+    // conceito. Decisão do dono do repositório: não duplicar com um segundo threshold de "atenção".
+
+    /**
+     * Reaproveita `executiveOverview`/`performance`/`pipelineCreation`/`alerts` (nenhum cálculo
+     * novo aqui) e delega a serialização para `application/executiveExport.ts`.
+     */
+    async executiveExport(organizationId: string, filter: CommercialIntelligenceFilter, format: ExportFormat, now = new Date()): Promise<ExecutiveExportPayload> {
+        const [overview, performance, creation, alertsList] = await Promise.all([
+            this.executiveOverview(organizationId, filter, now),
+            this.performance(organizationId, filter, now),
+            this.pipelineCreation(organizationId, filter, now),
+            this.alerts(organizationId, filter, now),
+        ]);
+        return buildExecutiveExport(format, overview, performance, creation, alertsList, now);
     }
 
     // ─── Opções de filtro reais (seção 18) ───────────────────────────────────

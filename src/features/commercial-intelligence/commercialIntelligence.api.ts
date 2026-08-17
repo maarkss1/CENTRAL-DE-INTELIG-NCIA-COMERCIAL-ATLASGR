@@ -101,6 +101,8 @@ export interface PipelineCreation {
     paceGapAmount: number | null;
 }
 
+export type ExportFormat = 'csv' | 'json' | 'html';
+
 export interface FunnelStageConversion {
     stageId: string;
     label: string;
@@ -250,6 +252,36 @@ export const commercialIntelligenceApi = {
     aiExecutiveSummary: (filter: CommercialFilter) => api.post<ExecutiveSummaryResult>(`${BASE}/ai/executive-summary`, filter),
     aiBitrixNote: (leadId: string) => api.post<BitrixNoteDraftResult>(`${BASE}/ai/bitrix-note`, { leadId }),
 };
+
+/**
+ * Exportação HTML/CSV/JSON do Relatório Executivo — a rota devolve o CONTEÚDO cru (não o envelope
+ * `{success,data}` que `apiFetch`/`api.get` espera), então não passa por `commercialIntelligenceApi`
+ * acima. Mesmo padrão já usado em `CrmBoard.tsx` (`handleExportCsv`, `/api/leads/export/csv`):
+ * `fetch` bruto + `Blob` + link `<a download>` temporário.
+ */
+export async function downloadExecutiveExport(filter: CommercialFilter, format: ExportFormat): Promise<void> {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${BASE}/export?${qs(filter, { format })}`, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.message || 'Falha ao exportar o relatório executivo.');
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = /filename="([^"]+)"/.exec(disposition);
+    const filename = match?.[1] || `comercial-inteligente-${filter.month}.${format}`;
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
 
 export function formatCurrency(value: number | null | undefined, currency = 'BRL'): string {
     if (value == null) return 'Não disponível';

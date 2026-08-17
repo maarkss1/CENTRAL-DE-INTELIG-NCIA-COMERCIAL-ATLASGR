@@ -45,6 +45,9 @@ router.get('/crm-quality', (req, res, next) => resolve().getCrmQuality(req, res,
 router.get('/deals', (req, res, next) => resolve().getDeals(req, res, next));
 router.get('/deals/:leadId/forecast', (req, res, next) => resolve().getForecastExplain(req, res, next));
 router.get('/metrics-dictionary', (req, res) => resolve().getMetricsDictionary(req, res));
+// Exportação HTML/CSV/JSON do Relatório Executivo — devolve conteúdo cru (não o envelope
+// {success,data} do resto do router), ver comentário em `CommercialIntelligenceController.getExport`.
+router.get('/export', (req, res, next) => resolve().getExport(req, res, next));
 router.get('/filter-options', (req, res, next) => resolve().getFilterOptions(req, res, next));
 router.get('/trends', (req, res, next) => resolve().getHistoricalTrends(req, res, next));
 router.get('/goals', (req, res, next) => resolve().getGoal(req, res, next));

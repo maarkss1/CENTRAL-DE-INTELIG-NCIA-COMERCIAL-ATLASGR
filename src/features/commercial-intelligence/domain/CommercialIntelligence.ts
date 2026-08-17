@@ -450,6 +450,24 @@ export interface DealDrillDownQuery {
     offset?: number;
 }
 
+// ─── Exportações (HTML/CSV/JSON/Relatório Executivo) ────────────────────────
+//
+// "Proteção de Receita M/M+1/M+2/M+3" foi avaliada nesta integração e descartada como tipo próprio
+// — já existe em `ExecutiveOverview.coverageProtection` (`CoverageProtectionEntry`, "Proteção 90
+// dias"), mesmo conceito (coverage por mês-calendário M..M+3 derivado de `coverageRecommended`).
+// Decisão do dono do repositório: manter só a versão já em produção, não duplicar com um segundo
+// threshold de "atenção" (a versão descartada usava 70% do recomendado; a mantida usa 60%).
+
+export type ExportFormat = 'csv' | 'json' | 'html';
+
+/** Uma linha do export tabular (CSV/HTML) — um indicador por linha: bloco, indicador, valor, unidade. */
+export interface ExportKpiRow {
+    block: string;
+    indicator: string;
+    value: string;
+    unit: string;
+}
+
 // ─── Opções de filtro reais (seção 18) ───────────────────────────────────────
 
 /**

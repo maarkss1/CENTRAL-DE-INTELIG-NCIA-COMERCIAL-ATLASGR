@@ -3,7 +3,7 @@ import { CommercialIntelligenceUseCases, currentPeriod } from '../application/Co
 import { METRICS_DICTIONARY } from '../application/metricsDictionary';
 import type { CommercialIntelligenceAiService } from '../infra/CommercialIntelligenceAiService';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken';
-import type { CommercialIntelligenceFilter, DealDrillDownQuery, ForecastTier } from '../domain/CommercialIntelligence';
+import type { CommercialIntelligenceFilter, DealDrillDownQuery, ForecastTier, ExportFormat } from '../domain/CommercialIntelligence';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -27,6 +27,7 @@ function parseFilter(req: Request): CommercialIntelligenceFilter {
 }
 
 const VALID_TIERS: ForecastTier[] = ['Commit', 'BestCase', 'Pipeline', 'Upside'];
+const VALID_EXPORT_FORMATS: ExportFormat[] = ['csv', 'json', 'html'];
 
 export class CommercialIntelligenceController {
     constructor(private useCases: CommercialIntelligenceUseCases, private aiService: CommercialIntelligenceAiService) {}
@@ -156,6 +157,27 @@ export class CommercialIntelligenceController {
             const { organizationId } = (req as AuthRequest).user;
             const data = await this.useCases.filterOptions(organizationId);
             res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    // Devolve o CONTEÚDO cru (csv/json/html), com Content-Type/Content-Disposition explícitos —
+    // não o envelope `{success,data}` do resto deste controller. Mesmo padrão já usado por
+    // `LeadController.exportCsv` (`/api/leads/export/csv`), consumido no front por um `fetch` bruto
+    // + `Blob`/`URL.createObjectURL` (ver `commercialIntelligenceApi.downloadExecutiveExport`),
+    // nunca pelo `apiFetch`/`api.get` que assume corpo JSON `{success,data}`.
+    getExport = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = (req as AuthRequest).user;
+            const formatRaw = typeof req.query.format === 'string' ? req.query.format : '';
+            const format: ExportFormat = VALID_EXPORT_FORMATS.includes(formatRaw as ExportFormat) ? (formatRaw as ExportFormat) : 'json';
+            const filter = parseFilter(req);
+            const { content, mimeType, fileExtension } = await this.useCases.executiveExport(organizationId, filter, format);
+            const filename = `comercial-inteligente_${filter.month}_${new Date().toISOString().slice(0, 10)}.${fileExtension}`;
+            res.setHeader('Content-Type', mimeType);
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.send(content);
         } catch (error) {
             next(error);
         }
