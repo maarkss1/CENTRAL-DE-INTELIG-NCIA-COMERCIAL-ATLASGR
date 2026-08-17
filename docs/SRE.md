@@ -39,9 +39,30 @@ No painel de observabilidade (Grafana), implemente as seguintes regras:
 
 ## 4. Backups e Disaster Recovery
 
-A plataforma conta com script formalizado (`scripts/backup.sh`) para o Data Tier primário.
+**Atualizado na Fase Final 3 (SRE, `.agents/runs/final-fase-3.md`)**: até 2026-08-17, esta seção
+descrevia uma meta aspiracional sem lastro real — o banco de produção (Supabase, plano `free` da
+organização) não tem backup gerenciado nem PITR, e nada no repositório rodava
+`scripts/backup.sh` (script local, pensado para o Postgres de desenvolvimento/CI) contra produção.
+Isso foi corrigido com um pipeline próprio, não com upgrade de plano (decisão do dono do
+repositório):
 
-- **Frequência**: O backup deve ser automatizado diariamente via crontab do SO ou via Kubernetes CronJob na camada da nuvem (não embarcado no Node.js).
-- **Armazenamento**: Snapshots devem ser criptografados e salvos em um Object Storage secundário e distante (ex: Amazon S3).
-- **RTO (Recovery Time Objective)**: < 4 Horas.
-- **RPO (Recovery Point Objective)**: < 24 Horas (No pior caso).
+- **Mecanismo**: `.github/workflows/backup-production.yml` — `pg_dump` diário (05:00 UTC) contra o
+  Postgres real, via papel dedicado `prospector_backup` (somente leitura, `BYPASSRLS` — necessário
+  para capturar todos os tenants, nunca usado pela aplicação), saída comprimida e criptografada
+  (GPG simétrico, AES256) antes de sair do runner do GitHub Actions, enviada para um bucket
+  Cloudflare R2 dedicado (fora do repositório, fora do Supabase — provedor diferente do banco,
+  reduz correlação de falha). Retenção de 30 dias, aplicada pelo próprio workflow.
+- **Estado desta entrega**: workflow e papel de banco prontos e testados na parte mecânica (ver
+  Fase Final 3 §2.2, ciclo backup→restore→validação de RLS executado em ambiente isolado). A
+  execução real contra produção depende de 3 secrets do GitHub ainda não configurados
+  (`R2_ACCOUNT_ID`/`R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`/`R2_BUCKET`, mais
+  `BACKUP_DATABASE_URL`/`BACKUP_ENCRYPTION_PASSPHRASE`) — sem eles o workflow falha ao rodar, não
+  falha silenciosamente. Ver instruções de ativação entregues ao dono do repositório na mesma
+  sessão desta atualização.
+- **RTO (Recovery Time Objective)**: mecanismo de restore comprovado (`scripts/restore.sh`) em
+  ambiente isolado, em segundos para um dataset pequeno — não validado em escala de produção
+  (volume real do banco não medido nesta rodada). Não declarar um RTO numérico para produção sem
+  essa medição.
+- **RPO (Recovery Point Objective)**: **< 24h assim que o pipeline acima estiver ativo** (backup
+  diário) — meta agora tem mecanismo real por trás, não é mais só uma frase sem lastro. Antes da
+  ativação, RPO efetivo é "sem limite conhecido" (nenhum backup existe).

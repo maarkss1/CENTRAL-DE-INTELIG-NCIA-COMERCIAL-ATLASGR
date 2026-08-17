@@ -1,9 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileSignature } from 'lucide-react';
 import { Skeleton } from '../components/ui/Skeleton';
 
+// Achado da Fase Final 4 (QA): o evento `load` do iframe só dispara depois que TODAS as
+// subresources dele terminam, inclusive a fonte externa (Google Fonts) carregada pelo HTML de
+// public/tools/propostas/index.html. Sob rede lenta/instável, isso pode levar bem mais que os
+// ~1-2s esperados — sem um teto, o usuário fica olhando o skeleton indefinidamente mesmo com o
+// formulário real já pronto por baixo (confirmado via leitura direta do DOM do iframe). Timeout
+// de segurança: nunca deixa o carregamento aparente durar mais que isto, mesmo que o `onLoad` do
+// navegador demore ou nunca dispare.
+const LOADING_FALLBACK_MS = 6_000;
+
 export function Propostas() {
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => setIsLoading(false), LOADING_FALLBACK_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   return (
     <div className="flex flex-col h-full bg-surface">

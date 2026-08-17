@@ -203,10 +203,23 @@ paths:
   /auth-extra/welcome-email:
     post:
       tags: [Auth]
-      summary: Envia o e-mail de boas-vindas após a troca de senha temporária obrigatória — best-effort, nunca bloqueia o acesso do usuário se o SMTP falhar
+      summary: Envia o e-mail de boas-vindas após troca de senha obrigatória
+      description: >-
+        Disparado pelo próprio usuário logo após trocar com sucesso a senha
+        temporária/padrão (não requer ADMIN). Best-effort de propósito: a troca de senha já
+        aconteceu e o acesso já está liberado quando isto roda, então uma falha de envio
+        (SMTP não configurado, provedor fora do ar) é só registrada em log — a resposta é
+        sempre `200 { success: true }`, nunca bloqueia ou reverte o acesso do usuário.
       responses:
         '200':
-          description: Solicitação processada (o envio em si é best-effort e não afeta o status de resposta)
+          description: Sempre retornado, independente de o e-mail ter sido enviado de fato
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
 
   # ───────────────────────────── Companies ─────────────────────────────
   /companies:

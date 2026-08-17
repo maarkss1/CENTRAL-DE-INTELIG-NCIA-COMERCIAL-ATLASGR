@@ -33,8 +33,15 @@ whatsapp_auth/
 /data/bitrix-extractions/
 
 # Dumps de banco com dado pessoal real de prospecção — nunca devem ir para o controle de
-# versão (AGENTS.md → "Segurança e higiene", achado backups/prospector-*.dump).
+# versão (AGENTS.md → "Segurança e higiene", achado backups/prospector-*.dump). Cobre qualquer
+# formato que pg_dump/pg_dumpall pode gerar (scripts/backup.sh produz .sql por padrão — achado da
+# Fase Final 3: só *.dump estava coberto, .sql do próprio script de backup deste repo não estava).
 backups/*.dump
+backups/*.sql
+backups/*.backup
+backups/*.tar
+backups/*.tar.gz
+backups/*.gz
 
 # Artefatos de vídeo/imagem gerados sob demanda por script na raiz do repo — a documentação
 # oficial vive em documentacao-aplicacao/ (versionada de propósito, não afetada por esta regra).
