@@ -12,11 +12,16 @@ import {
     Target,
 } from 'lucide-react';
 import {
-    calculateSellerEconomics,
     type MarketIntelligenceManifest,
-    type SellerAssumptions,
     type TerritoryRecord,
 } from '../domain/MarketIntelligence';
+import {
+    calculateAllSellerScenarios,
+    DEFAULT_RAMP,
+    type CommercialScenario,
+    type RevenueAssumptions,
+    type SellerCostAssumptions,
+} from '../domain/sellerEconomics';
 import { loadMarketIntelligenceSnapshot } from '../marketIntelligence.data';
 
 type TabId = 'board' | 'territories' | 'simulator' | 'data';
@@ -28,7 +33,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Target }> = [
     { id: 'data', label: 'Saúde dos Dados', icon: Database },
 ];
 
-const EMPTY_ASSUMPTIONS: SellerAssumptions = {
+const EMPTY_COSTS: SellerCostAssumptions = {
     salary: 0,
     payrollCharges: 0,
     benefits: 0,
@@ -36,15 +41,28 @@ const EMPTY_ASSUMPTIONS: SellerAssumptions = {
     fuel: 0,
     lodging: 0,
     tolls: 0,
-    commission: 0,
+    fixedCommission: 0,
     tools: 0,
     administration: 0,
+};
+
+const EMPTY_REVENUE: RevenueAssumptions = {
     averageMrrTicket: 0,
     grossMarginPct: 0,
     winRatePct: 0,
-    penetrationPct: 0,
+    meetingToQualifiedOpportunityPct: 0,
     monthlyChurnPct: 0,
     salesCycleDays: 0,
+    fullProductivityQualifiedOpportunitiesPerMonth: 0,
+    variableCommissionPctOfNewMrr: 0,
+    samAccounts: null,
+    penetrationPct: 0,
+};
+
+const SCENARIO_LABELS: Record<CommercialScenario, string> = {
+    CONSERVADOR: 'Conservador',
+    BASE: 'Base',
+    AGRESSIVO: 'Agressivo',
 };
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -145,46 +163,99 @@ function TerritoryView({ manifest, territories }: { manifest: MarketIntelligence
 }
 
 function SellerSimulator() {
-    const [assumptions, setAssumptions] = useState<SellerAssumptions>(EMPTY_ASSUMPTIONS);
-    const result = useMemo(() => calculateSellerEconomics(assumptions), [assumptions]);
-    const fields: Array<{ key: keyof SellerAssumptions; label: string; suffix?: string }> = [
+    const [costs, setCosts] = useState<SellerCostAssumptions>(EMPTY_COSTS);
+    const [revenue, setRevenue] = useState<RevenueAssumptions>(EMPTY_REVENUE);
+    const [scenario, setScenario] = useState<CommercialScenario>('BASE');
+
+    const scenarios = useMemo(
+        () => calculateAllSellerScenarios({ costs, revenue, ramp: DEFAULT_RAMP }),
+        [costs, revenue],
+    );
+    const result = scenarios.find((item) => item.scenario === scenario) ?? scenarios[1];
+
+    const costFields: Array<{ key: keyof SellerCostAssumptions; label: string }> = [
         { key: 'salary', label: 'Salário' }, { key: 'payrollCharges', label: 'Encargos' }, { key: 'benefits', label: 'Benefícios' },
         { key: 'vehicle', label: 'Veículo' }, { key: 'fuel', label: 'Combustível' }, { key: 'lodging', label: 'Hospedagem' },
-        { key: 'tolls', label: 'Pedágio' }, { key: 'commission', label: 'Comissão' }, { key: 'tools', label: 'Ferramentas' },
-        { key: 'administration', label: 'Custo administrativo' }, { key: 'averageMrrTicket', label: 'Ticket MRR médio' },
-        { key: 'grossMarginPct', label: 'Margem bruta', suffix: '%' }, { key: 'winRatePct', label: 'Win Rate', suffix: '%' },
-        { key: 'penetrationPct', label: 'Penetração esperada', suffix: '%' }, { key: 'monthlyChurnPct', label: 'Churn mensal', suffix: '%' },
+        { key: 'tolls', label: 'Pedágio' }, { key: 'fixedCommission', label: 'Comissão fixa' }, { key: 'tools', label: 'Ferramentas' },
+        { key: 'administration', label: 'Custo administrativo' },
+    ];
+    const revenueFields: Array<{ key: keyof Omit<RevenueAssumptions, 'samAccounts'>; label: string; suffix?: string }> = [
+        { key: 'averageMrrTicket', label: 'Ticket MRR médio' },
+        { key: 'grossMarginPct', label: 'Margem bruta', suffix: '%' },
+        { key: 'winRatePct', label: 'Win Rate', suffix: '%' },
+        { key: 'meetingToQualifiedOpportunityPct', label: 'Reunião → oportunidade qualificada', suffix: '%' },
+        { key: 'penetrationPct', label: 'Penetração esperada no SAM', suffix: '%' },
+        { key: 'monthlyChurnPct', label: 'Churn mensal', suffix: '%' },
         { key: 'salesCycleDays', label: 'Sales Cycle', suffix: 'dias' },
+        { key: 'fullProductivityQualifiedOpportunitiesPerMonth', label: 'Oportunidades qualificadas/mês (produtividade plena)' },
+        { key: 'variableCommissionPctOfNewMrr', label: 'Comissão variável sobre novo MRR', suffix: '%' },
     ];
 
-    const update = (key: keyof SellerAssumptions, value: string) => setAssumptions((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
+    const updateCost = (key: keyof SellerCostAssumptions, value: string) => setCosts((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
+    const updateRevenue = (key: keyof Omit<RevenueAssumptions, 'samAccounts'>, value: string) => setRevenue((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
+    const updateSam = (value: string) => setRevenue((current) => ({ ...current, samAccounts: value.trim() === '' ? null : Math.max(0, Number(value) || 0) }));
 
     return (
         <section className="grid gap-4 xl:grid-cols-[1.4fr_.8fr]">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-[#333333]">Unit economics do vendedor</h2></div><Calculator className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /></div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Os campos começam zerados deliberadamente. A plataforma não presume salário, ticket, margem ou win rate da Atlas.</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {fields.map((field) => (
-                        <label key={field.key} className="text-xs font-bold text-slate-600">
-                            {field.label}
+            <div className="space-y-4">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
+                    <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-[#333333]">Custos fixos do vendedor</h2></div><Calculator className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /></div>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">Os campos começam zerados deliberadamente. A plataforma não presume salário, ticket, margem ou win rate da Atlas.</p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {costFields.map((field) => (
+                            <label key={field.key} className="text-xs font-bold text-slate-600">
+                                {field.label}
+                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
+                                    <input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
+                    <h2 className="text-xl font-black text-[#333333]">Receita, funil e retenção</h2>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {revenueFields.map((field) => (
+                            <label key={field.key} className="text-xs font-bold text-slate-600">
+                                {field.label}
+                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
+                                    <input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
+                                    {field.suffix && <span className="ml-2 text-[10px] text-slate-400">{field.suffix}</span>}
+                                </div>
+                            </label>
+                        ))}
+                        <label className="text-xs font-bold text-slate-600">
+                            Contas potenciais na região (SAM)
                             <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
-                                <input aria-label={field.label} type="number" min="0" step="any" value={assumptions[field.key]} onChange={(event) => update(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
-                                {field.suffix && <span className="ml-2 text-[10px] text-slate-400">{field.suffix}</span>}
+                                <input aria-label="Contas potenciais na região (SAM)" type="number" min="0" step="any" placeholder="NÃO DISPONÍVEL" value={revenue.samAccounts ?? ''} onChange={(event) => updateSam(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none placeholder:text-slate-400" />
                             </div>
                         </label>
-                    ))}
+                    </div>
                 </div>
             </div>
-            <aside className="rounded-3xl bg-[#333333] p-6 text-white">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FFC500]">Resultado calculado</p>
-                <dl className="mt-5 space-y-4">
-                    <div><dt className="text-xs text-white/60">Custo total / mês</dt><dd className="mt-1 text-3xl font-black tracking-tight">{money.format(result.monthlyCost)}</dd></div>
-                    <div><dt className="text-xs text-white/60">Contribuição por contrato</dt><dd className="mt-1 text-xl font-black">{money.format(result.contributionPerContract)}</dd></div>
-                    <div><dt className="text-xs text-white/60">Contratos para break-even</dt><dd className="mt-1 text-xl font-black">{result.breakEvenContracts ?? 'NÃO CALCULÁVEL'}</dd></div>
-                    <div><dt className="text-xs text-white/60">MRR de break-even</dt><dd className="mt-1 text-xl font-black">{result.breakEvenMrr === null ? 'NÃO CALCULÁVEL' : money.format(result.breakEvenMrr)}</dd></div>
-                    <div><dt className="text-xs text-white/60">Oportunidades qualificadas necessárias</dt><dd className="mt-1 text-xl font-black">{result.requiredQualifiedOpportunities ?? 'NÃO CALCULÁVEL'}</dd></div>
-                </dl>
+            <aside className="space-y-4">
+                <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
+                    {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => (
+                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-[#FF5618] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                            {SCENARIO_LABELS[item]}
+                        </button>
+                    ))}
+                </div>
+                <div className="rounded-3xl bg-[#333333] p-6 text-white">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FFC500]">Resultado calculado · {SCENARIO_LABELS[result.scenario]}</p>
+                    <dl className="mt-5 space-y-4">
+                        <div><dt className="text-xs text-white/60">Custo fixo / mês</dt><dd className="mt-1 text-3xl font-black tracking-tight">{money.format(result.monthlyFixedCost)}</dd></div>
+                        <div><dt className="text-xs text-white/60">Contribuição por contrato</dt><dd className="mt-1 text-xl font-black">{result.contributionPerContract === null ? 'NÃO CALCULÁVEL' : money.format(result.contributionPerContract)}</dd></div>
+                        <div><dt className="text-xs text-white/60">Contratos para break-even</dt><dd className="mt-1 text-xl font-black">{result.breakEvenContracts ?? 'NÃO CALCULÁVEL'}</dd></div>
+                        <div><dt className="text-xs text-white/60">MRR de break-even</dt><dd className="mt-1 text-xl font-black">{result.breakEvenMrr === null ? 'NÃO CALCULÁVEL' : money.format(result.breakEvenMrr)}</dd></div>
+                        <div><dt className="text-xs text-white/60">Oportunidades qualificadas para break-even</dt><dd className="mt-1 text-xl font-black">{result.qualifiedOpportunitiesForBreakEven ?? 'NÃO CALCULÁVEL'}</dd></div>
+                        <div><dt className="text-xs text-white/60">Reuniões para break-even</dt><dd className="mt-1 text-xl font-black">{result.meetingsForBreakEven ?? 'NÃO CALCULÁVEL'}</dd></div>
+                        <div><dt className="text-xs text-white/60">Contratos máximos capturáveis (SAM × penetração)</dt><dd className="mt-1 text-xl font-black">{result.maximumCaptureContracts ?? 'NÃO DISPONÍVEL'}</dd></div>
+                        <div><dt className="text-xs text-white/60">Payback</dt><dd className="mt-1 text-xl font-black">{result.paybackMonth === null ? 'NÃO ATINGIDO EM 24 MESES' : `Mês ${result.paybackMonth}`}</dd></div>
+                        <div><dt className="text-xs text-white/60">ROI 12 / 24 meses</dt><dd className="mt-1 text-xl font-black">{result.roi12Pct === null ? 'NÃO CALCULÁVEL' : `${result.roi12Pct.toFixed(0)}%`} / {result.roi24Pct === null ? 'NÃO CALCULÁVEL' : `${result.roi24Pct.toFixed(0)}%`}</dd></div>
+                        <div><dt className="text-xs text-white/60">MRR ao final do mês 12 / 24</dt><dd className="mt-1 text-xl font-black">{money.format(result.endingMrr12)} / {money.format(result.endingMrr24)}</dd></div>
+                    </dl>
+                </div>
             </aside>
         </section>
     );

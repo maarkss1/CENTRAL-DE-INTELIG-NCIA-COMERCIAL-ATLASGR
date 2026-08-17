@@ -1,0 +1,146 @@
+name: Market Intelligence - CNPJ/ICP Snapshot
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/market-intelligence-cnpj.yml'
+      - 'public/tools/atlas-market-intelligence/etl_cnpj_atlas.py'
+      - 'public/tools/atlas-market-intelligence/icp_taxonomy.v1.json'
+  schedule:
+    # Dia 10 de cada mes, apos a Receita costumar publicar a competencia do mes anterior.
+    - cron: '30 6 10 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-intelligence-cnpj-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  aggregate-cnpj:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Show Python runtime
+        run: python3 --version
+
+      - name: Free disk space for national CNPJ dataset
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          df -h .
+
+      - name: Baixar e agregar base nacional de CNPJ (Receita Federal / ICP Atlas)
+        run: |
+          python3 public/tools/atlas-market-intelligence/etl_cnpj_atlas.py \
+            --workdir .cache/market-intelligence/cnpj \
+            --output public/tools/atlas-market-intelligence/data/icp_municipios.json \
+            --metadata public/tools/atlas-market-intelligence/data/icp_municipios.metadata.json
+
+      - name: Validate derived dataset and update manifest health
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('public/tools/atlas-market-intelligence/data')
+          data_path = root / 'icp_municipios.json'
+          meta_path = root / 'icp_municipios.metadata.json'
+          manifest_path = root / 'manifest.json'
+          rows = json.loads(data_path.read_text(encoding='utf-8'))
+          meta = json.loads(meta_path.read_text(encoding='utf-8'))
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          if not rows:
+              raise SystemExit('ICP/CNPJ derivado vazio')
+
+          seen = set()
+          for row in rows:
+              code = str(row.get('ibgeCode', ''))
+              if not code.isdigit() or len(code) != 7:
+                  raise SystemExit(f'codigo IBGE invalido: {code!r}')
+              if code in seen:
+                  raise SystemExit(f'duplicidade municipal: {code}')
+              seen.add(code)
+              if not isinstance(row.get('total'), int) or row['total'] < 0:
+                  raise SystemExit(f'total ICP invalido em {code}: {row.get("total")!r}')
+              if row['total'] != row.get('tierA', 0) + row.get('tierB', 0) + row.get('tierC', 0):
+                  raise SystemExit(f'soma de tiers inconsistente com total em {code}')
+              if row['total'] != row.get('headquarters', 0) + row.get('branches', 0):
+                  raise SystemExit(f'soma matriz/filial inconsistente com total em {code}')
+
+          stats = meta['stats']
+          aggregated = max(int(stats.get('candidate_rows_aggregated') or 0), 1)
+          unmatched = int(stats.get('unmatched_geography_rows') or 0)
+          unmatched_rate = unmatched / aggregated
+          status = 'ATUALIZADO' if unmatched_rate <= 0.01 else 'PARCIAL'
+          competence = meta.get('competence') or 'MANUAL_NAO_INFORMADA'
+
+          for dataset in manifest['datasets']:
+              if dataset['id'] == 'cnpj':
+                  dataset.update({
+                      'status': status,
+                      'competence': competence,
+                      'downloadedAt': meta.get('processedAt'),
+                      'sha256': meta.get('outputSha256'),
+                      'note': (
+                          f"Snapshot oficial {competence} processado em {len(rows)} municipios com estabelecimentos "
+                          f"ICP (tiers A/B/C); {unmatched} de {aggregated} registros candidatos sem match IBGE "
+                          f"({unmatched_rate:.4%}). Taxonomia {meta.get('taxonomyVersion')} "
+                          f"({meta.get('taxonomyStatus')}) ainda nao calibrada com ganhos/perdas Atlas. "
+                          'Base bruta permanece fora do bundle web.'
+                      ),
+                  })
+                  break
+
+          stale_blocker = 'Base CNPJ/ICP nacional atual ainda não foi processada para o snapshot municipal.'
+          manifest['decisionBlockers'] = [b for b in manifest.get('decisionBlockers', []) if b != stale_blocker]
+          manifest['generatedAt'] = meta.get('processedAt') or manifest['generatedAt']
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'municipalities': len(rows),
+              'candidate_rows_aggregated': aggregated,
+              'unmatched_rows': unmatched,
+              'unmatched_rate': unmatched_rate,
+              'health': status,
+              'competence': competence,
+              'candidate_establishments': stats.get('candidate_establishments'),
+              'candidate_companies': stats.get('candidate_companies'),
+          }, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Commit compact derived data only
+        run: |
+          git config user.name "atlas-market-data-bot"
+          git config user.email "130610135+MaarksN@users.noreply.github.com"
+          git add \
+            public/tools/atlas-market-intelligence/data/icp_municipios.json \
+            public/tools/atlas-market-intelligence/data/icp_municipios.metadata.json \
+            public/tools/atlas-market-intelligence/data/manifest.json
+          if git diff --cached --quiet; then
+            echo "No derived-data changes to commit."
+            exit 0
+          fi
+          git commit -m "data(cnpj): atualiza snapshot municipal ICP oficial"
+
+          for attempt in 1 2 3 4 5; do
+            echo "Publication attempt $attempt/5"
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
+              echo "Derived CNPJ/ICP snapshot published successfully."
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+
+          echo "::error::CNPJ/ICP snapshot validado, mas publicação falhou após 5 tentativas de reconciliação."
+          exit 1

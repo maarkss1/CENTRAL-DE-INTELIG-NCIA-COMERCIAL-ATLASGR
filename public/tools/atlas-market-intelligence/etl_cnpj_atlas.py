@@ -7,16 +7,20 @@ Usa SQLite temporario e publica somente agregados municipais por codigo IBGE.
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
+import gzip
 import hashlib
 import io
 import json
 import re
 import sqlite3
 import sys
+import time
 import unicodedata
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 import zipfile
 from collections import defaultdict
 from dataclasses import asdict, dataclass
@@ -24,10 +28,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-BASE_INDEX = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/"
+# A Receita Federal migrou o antigo indice HTML estatico (arquivos.receitafederal.gov.br/dados/...)
+# para um compartilhamento publico Nextcloud/SERPRO+. O host raiz redireciona (302) para
+# /index.php/s/<token>; o conteudo e navegavel via WebDAV em /public.php/webdav/ usando o token
+# do share como usuario HTTP Basic e senha vazia. Descobrimos o token dinamicamente em vez de
+# fixa-lo, pois o Nextcloud pode rotacionar o link de compartilhamento no futuro.
+BASE_HOST = "https://arquivos.receitafederal.gov.br"
+CNPJ_REMOTE_PATH = "Dados/Cadastros/CNPJ"
 IBGE_MUNICIPIOS = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
 USER_AGENT = "AtlasGR-MarketIntelligence/1.0 (+data engineering)"
 ACTIVE_SITUATION = "02"
+DAV_NS = {"d": "DAV:"}
 
 
 @dataclass(frozen=True)
@@ -41,17 +52,12 @@ class ArchiveMeta:
 def request_bytes(url: str, timeout: int = 180) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
     with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
-        return response.read()
-
-
-def request_text(url: str, timeout: int = 180) -> str:
-    payload = request_bytes(url, timeout)
-    for encoding in ("utf-8", "latin-1"):
-        try:
-            return payload.decode(encoding)
-        except UnicodeDecodeError:
-            pass
-    return payload.decode("latin-1", errors="replace")
+        payload = response.read()
+        # urllib nao descomprime automaticamente; alguns servidores (ex.: IBGE) gzipam a
+        # resposta mesmo sem Accept-Encoding explicito no pedido.
+        if response.headers.get("Content-Encoding", "").lower() == "gzip" or payload[:2] == b"\x1f\x8b":
+            payload = gzip.decompress(payload)
+        return payload
 
 
 def sha256_file(path: Path) -> str:
@@ -68,37 +74,88 @@ def norm(value: str | None) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^A-Za-z0-9]+", " ", text).upper()).strip()
 
 
-def discover_latest_competence() -> str:
-    html = request_text(BASE_INDEX)
-    found = sorted(set(re.findall(r"\b(20\d{2}-(?:0[1-9]|1[0-2]))/", html)))
+def discover_public_share_token() -> str:
+    request = urllib.request.Request(f"{BASE_HOST}/", headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+        final_url = response.geturl()
+    match = re.search(r"/index\.php/s/([A-Za-z0-9]+)", final_url)
+    if not match:
+        raise RuntimeError("Nao foi possivel descobrir o token de compartilhamento publico da Receita Federal (Nextcloud)")
+    return match.group(1)
+
+
+def basic_auth_header(token: str) -> str:
+    return "Basic " + base64.b64encode(f"{token}:".encode()).decode()
+
+
+def webdav_url(path: str) -> str:
+    return f"{BASE_HOST}/public.php/webdav/{path}"
+
+
+def propfind_children(url: str, token: str) -> list[tuple[str, bool]]:
+    request = urllib.request.Request(
+        url,
+        method="PROPFIND",
+        headers={"User-Agent": USER_AGENT, "Authorization": basic_auth_header(token), "Depth": "1"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
+        payload = response.read()
+    root = ET.fromstring(payload)
+    base_path = urllib.parse.unquote(urllib.parse.urlsplit(url).path).rstrip("/") + "/"
+    children: list[tuple[str, bool]] = []
+    for entry in root.findall("d:response", DAV_NS):
+        href = urllib.parse.unquote(entry.findtext("d:href", default="", namespaces=DAV_NS))
+        if href.rstrip("/") + "/" == base_path:
+            continue
+        is_collection = entry.find(".//d:resourcetype/d:collection", DAV_NS) is not None
+        name = href.rstrip("/").rsplit("/", 1)[-1]
+        children.append((name, is_collection))
+    return children
+
+
+def discover_latest_competence(token: str) -> str:
+    children = propfind_children(webdav_url(f"{CNPJ_REMOTE_PATH}/"), token)
+    found = sorted(name for name, is_dir in children if is_dir and re.fullmatch(r"20\d{2}-(?:0[1-9]|1[0-2])", name))
     if not found:
         raise RuntimeError("Nao foi possivel descobrir a competencia mais recente no indice oficial da Receita")
     return found[-1]
 
 
-def list_remote_archives(competence: str) -> list[tuple[str, str]]:
-    base = urllib.parse.urljoin(BASE_INDEX, f"{competence}/")
-    html = request_text(base)
-    names = sorted(set(re.findall(r'href=["\']([^"\']+\.zip)["\']', html, flags=re.I)))
+def list_remote_archives(token: str, competence: str) -> list[tuple[str, str]]:
+    folder = f"{CNPJ_REMOTE_PATH}/{competence}/"
+    children = propfind_children(webdav_url(folder), token)
+    names = sorted(name for name, is_dir in children if not is_dir and name.lower().endswith(".zip"))
     wanted = [n for n in names if re.match(r"(?:Empresas|Estabelecimentos)\d+\.zip$", n, re.I)]
     if "Municipios.zip" in names:
         wanted.append("Municipios.zip")
-    if "Cnaes.zip" in names:
-        wanted.append("Cnaes.zip")
     if not any(n.lower().startswith("empresas") for n in wanted) or not any(n.lower().startswith("estabelecimentos") for n in wanted) or "Municipios.zip" not in wanted:
         raise RuntimeError(f"Indice Receita incompleto para {competence}")
-    return [(name, urllib.parse.urljoin(base, name)) for name in wanted]
+    return [(name, webdav_url(f"{folder}{name}")) for name in wanted]
 
 
-def download_archive(name: str, url: str, target_dir: Path) -> ArchiveMeta:
+def download_archive(name: str, url: str, target_dir: Path, token: str, attempts: int = 4) -> ArchiveMeta:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / name
+    if target.exists() and target.stat().st_size >= 100 and not zipfile.is_zipfile(target):
+        target.unlink()
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        if target.exists() and target.stat().st_size >= 100:
+            break
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Authorization": basic_auth_header(token)})
+            with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as output:  # noqa: S310
+                while chunk := response.read(1024 * 1024):
+                    output.write(chunk)
+        except OSError as error:
+            last_error = error
+            target.unlink(missing_ok=True)
+            if attempt < attempts:
+                time.sleep(2**attempt)
     if not target.exists() or target.stat().st_size < 100:
-        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as output:  # noqa: S310
-            while chunk := response.read(1024 * 1024):
-                output.write(chunk)
+        raise RuntimeError(f"Falha ao baixar {name} apos {attempts} tentativas: {last_error}")
     if not zipfile.is_zipfile(target):
+        target.unlink(missing_ok=True)
         raise RuntimeError(f"ZIP invalido: {target}")
     return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
 
@@ -140,7 +197,7 @@ def load_ibge(cache: Path) -> dict[tuple[str, str], dict[str, Any]]:
         cache.write_bytes(request_bytes(IBGE_MUNICIPIOS))
     lookup: dict[tuple[str, str], dict[str, Any]] = {}
     for row in json.loads(cache.read_text(encoding="utf-8")):
-        uf = row.get("microrregiao", {}).get("mesorregiao", {}).get("UF", {})
+        uf = ((row.get("microrregiao") or {}).get("mesorregiao") or {}).get("UF") or {}
         if not uf:
             immediate = row.get("regiao-imediata") or {}
             uf = ((immediate.get("regiao-intermediaria") or {}).get("UF")) or {}
@@ -251,14 +308,15 @@ def main() -> int:
 
     started = datetime.now(timezone.utc)
     taxonomy = json.loads(args.taxonomy.read_text(encoding="utf-8"))
-    competence = args.competence or (None if args.no_download else discover_latest_competence())
+    token = None if args.no_download else discover_public_share_token()
+    competence = args.competence or (None if args.no_download else discover_latest_competence(token))
     source_dir = args.source_dir or (args.workdir / "raw" / (competence or "manual"))
     archive_meta: list[ArchiveMeta] = []
     if not args.no_download:
         if not competence:
             raise RuntimeError("Competencia CNPJ nao resolvida")
-        for name, url in list_remote_archives(competence):
-            archive_meta.append(download_archive(name, url, source_dir))
+        for name, url in list_remote_archives(token, competence):
+            archive_meta.append(download_archive(name, url, source_dir, token))
 
     establishments, companies, municipalities_zip = select_archives(source_dir)
     if not archive_meta:
@@ -281,6 +339,7 @@ def main() -> int:
         "competence": competence or "MANUAL_NAO_INFORMADA",
         "processedAt": finished.isoformat(),
         "durationSeconds": round((finished - started).total_seconds(), 3),
+        "sourcePortal": f"{BASE_HOST}/index.php/s/{token}" if token else "MANUAL_NAO_INFORMADA",
         "taxonomyVersion": taxonomy["version"],
         "taxonomyStatus": taxonomy.get("status"),
         "archives": [asdict(v) for v in archive_meta],

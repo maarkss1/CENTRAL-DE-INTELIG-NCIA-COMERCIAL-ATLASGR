@@ -3,7 +3,7 @@ name: Market Intelligence - RNTRC Snapshot
 on:
   push:
     branches:
-      - feat/atlas-national-territory-intelligence
+      - main
     paths:
       - '.github/workflows/market-intelligence-rntrc.yml'
       - 'public/tools/atlas-market-intelligence/etl_rntrc_atlas.py'
@@ -28,7 +28,7 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: feat/atlas-national-territory-intelligence
+          ref: main
           fetch-depth: 0
 
       - name: Show Python runtime
@@ -156,9 +156,9 @@ jobs:
 
           for attempt in 1 2 3 4 5; do
             echo "Publication attempt $attempt/5"
-            git fetch origin feat/atlas-national-territory-intelligence
-            git rebase origin/feat/atlas-national-territory-intelligence
-            if git push origin HEAD:feat/atlas-national-territory-intelligence; then
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main; then
               echo "Derived RNTRC snapshot published successfully."
               exit 0
             fi
