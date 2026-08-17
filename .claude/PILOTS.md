@@ -202,3 +202,169 @@ entrada nova.
   em `src/components/ui/` (ficou local à feature, mesma decisão que `Analytics.tsx` já tinha
   tomado). O aprendizado real desta rodada é de RBAC/dados (documentado acima e em
   `authorization.ts`), não de design engineering.
+
+### Adendo — Centro de Decisão (Previsor + Mentor + Analista)
+
+- **Objetivo**: pedido do usuário para tornar o cockpit "robusto e de nível profissional",
+  funcionando como previsor, mentor, analista e tomador de decisões em tempo real — sem violar a
+  regra central do módulo ("não fabricar KPI") nem transformar o Forecast determinístico em algo
+  que pareça ML/IA sem ser.
+- **Previsor sem modelo novo**: `application/predictiveForecast.ts` (`buildForecastRange`) não
+  introduz nenhum cálculo — os 3 cenários (Conservador/Provável/Otimista) são somas de campos que
+  `ExecutiveOverview` já expõe (Fechado/Commit/Best Case/Upside/Forecast). Espelhado (não
+  importado) no frontend por `commercialIntelligence.api.ts`, mesmo padrão já usado ali de nunca
+  cruzar a fronteira frontend/`application`. `computeTrendMomentum` classifica o Win Rate via
+  limiar documentado (±3pp), nunca infere de amostra insuficiente (`null` com <2 pontos).
+- **Mentor por IA com fallback determinístico obrigatório**: `generateMentorPlaybook` (novo em
+  `CommercialIntelligenceAiService.ts`) devolve JSON estruturado (`cleanAndParseJson`, mesmo
+  padrão de `ChurnPredictionService`), mas se a IA falhar ou o JSON não parsear, as recomendações
+  são derivadas deterministicamente de `alerts`/negócios em risco — o painel nunca fica vazio só
+  porque o modelo falhou, e a UI (`MentorPlaybookCard`) rotula explicitamente `source: 'ai' |
+  'fallback'`, nunca apresenta o fallback como se fosse gerado por IA.
+- **Centro de Decisão reaproveita, não duplica**: `dealsDrillDown` ganhou `sort: 'riskImpact'`
+  (valor × probabilidade de não fechar) e `ids` (filtro por IDs específicos) — nenhum endpoint
+  novo, nenhum cálculo novo, só uma ordenação/filtro alternativos do mesmo `forecastEngine` já
+  testado. `ids` foi adicionado porque sem ele o CTA "Ver negócio" do Centro de Decisão/Mentor
+  seria cosmético (abriria um filtro amplo que poderia nem incluir aquele negócio específico) —
+  ver `functional-completeness/SKILL.md` sobre não construir ação que não funciona de verdade.
+- **Bug real encontrado ao conectar o endpoint de IA, não por auditoria dedicada**:
+  `CommercialIntelligenceController.parseFilter` só lia `req.query`, mas os 2 endpoints POST de IA
+  já existentes (`ai/executive-summary`, `ai/bitrix-note`) enviam o filtro como corpo JSON — o mês/
+  vendedor/produto/origem/ICP selecionado na tela era silenciosamente ignorado, e o resumo
+  executivo sempre respondia pelo mês atual. Corrigido com fallback `query → body` (`pick()`),
+  testado em `controllerParsing.unit.test.ts`. Não fazia sentido replicar esse bug no endpoint novo
+  do Mentor, então a correção ficou dentro do escopo desta sessão.
+- **Hierarquia visual reordenada com justificativa explícita (seção 5 da constituição)**: a Faixa
+  de Previsão + Mentor Comercial + Centro de Decisão passaram a abrir a Visão Executiva, antes da
+  grade de KPIs — o resumo por IA e os alertas viviam no rodapé, depois de 12+ KPIs, invertendo a
+  ordem real de importância para quem abre a tela para decidir o que fazer agora (critério: fluxo —
+  a pergunta "o que eu faço hoje" é o motivo de a pessoa abrir esta tela, não uma consequência dela).
+  Nenhum KPI existente foi removido, só reposicionado.
+- **Atualização automática opcional, desligada por padrão**: polling de 3 minutos só quando a
+  pessoa liga o toggle explicitamente (regra de performance: nada roda em background sem pedido) —
+  sem WebSocket/infra nova.
+- **Validações executadas nesta sessão**: `npx tsc --noEmit` (0 erros em todo o módulo — 1 erro
+  encontrado depois, isolado, em `src/features/prospecting/` por edição concorrente de outra sessão
+  no mesmo diretório, não relacionado), `npm run lint` sobre o módulo (0 erros, 1 warning
+  pré-existente não relacionado em `GoalEditorDialog.tsx`), `npm run test:unit` completo (1257/1258
+  antes do fix abaixo — a única falha, `openapiRouteInventory.test.ts`, já existia antes de qualquer
+  mudança desta sessão, confirmado revertendo via `git stash`; 130/130 nos testes do módulo depois do
+  fix), `npm run build` (limpo).
+- **QA visual em navegador real — concluído, com um bug real encontrado e corrigido**: `npm run dev`
+  (`tsx watch server.ts`) via `preview_start({name:...})` travou de forma reproduzível em 4
+  tentativas (CPU do processo Node estático por 6+ minutos, sem log além do banner do npm — não é
+  "compilação lenta"), mas a MESMA invocação (`npx tsx watch server.ts`) rodada direto via shell
+  sempre bootou em <1s. A causa raiz não foi 100% isolada (não é o import graph nem `initTracing()`
+  nem `createViteServer()` — todos testados isoladamente e rápidos; suspeita não confirmada é algo
+  específico de como o wrapper de spawn do `preview_start` herda stdio/ambiente), mas o contorno
+  funcional é: subir o servidor manualmente (`npx tsx watch server.ts &` via shell) e apontar
+  `preview_start({url:...})` pra porta já viva, em vez de deixar a ferramenta spawnar o processo.
+  Achado colateral do processo de diagnóstico: havia um processo Node **de outro diretório inteiramente**
+  (`C:\CENTRAL COMERCIAL`, não este checkout) já escutando numa porta vizinha e servindo a mesma
+  tela — só percebido ao cruzar `CommandLine` do processo via `Get-CimInstance Win32_Process`; teria
+  produzido uma "verificação visual" com aparência de sucesso mas testando código desatualizado/errado.
+  Fica registrado como alerta: a porta responder não é prova de que é O código desta sessão — confirmar
+  o diretório do processo antes de confiar num preview já em execução.
+  Com o servidor real no ar e dados de teste semeados (`[QA] AtlasGR — ...`, via script `tsx`
+  temporário, removidos ao final — não promovidos a fixture oficial), a verificação real encontrou
+  **um bug de correção real** no `buildForecastRange`: o cenário Otimista (fechado + commit + best
+  case + upside) ficava **menor que o Provável** (forecast ponderado, que inclui uma fração de TODO
+  negócio aberto, inclusive tier "Pipeline" que o Otimista não somava) sempre que havia um negócio de
+  probabilidade média/baixa relevante no pipeline — R$590k esperado, R$410k mostrado. Corrigido
+  trocando a fórmula para Fechado + `pipelineTotal` (valor cheio de todo negócio aberto do funil,
+  não só os tiers "fechando"), que é matematicamente sempre ≥ Provável; testes atualizados com um
+  caso de regressão explícito (`toBeGreaterThanOrEqual`). Só foi encontrado por rodar a tela de
+  verdade com dados reais — nenhuma leitura de código pegou isso, e um piloto sem navegador de
+  verdade (Piloto 001) teria publicado esse bug. Depois do fix, verificados com sucesso: Mentor
+  Comercial gerou recomendações reais via LLM local (grounded nos números certos, `source: 'ai'`
+  confirmado, não fallback), Centro de Decisão ordenou corretamente por valor em risco, o CTA "Ver
+  negócio" abriu o drawer filtrado a exatamente 1 negócio (novo filtro `ids` funcionando
+  ponta-a-ponta), sem erros no console, estrutura semântica correta (`heading`/`list`/`listitem`/
+  botões com nome acessível via `read_page`), dark mode ativo e sem overflow horizontal em viewport
+  mobile (375px).
+- **Débito de acessibilidade encontrado E corrigido em todo o módulo (decisão explícita do
+  usuário)**: texto `text-[#d03b3b]` em `text-[11px]` (usado no "Por quê:" do
+  `DecisionCenterPanel.tsx`, mesmo padrão já usado em `DealDrillDownDrawer.tsx` e outros 12
+  arquivos do módulo) media 3.86:1 de contraste contra `bg-surface` no dark mode — abaixo do mínimo
+  AA (4.5:1 pra texto normal; 11px bold não qualifica como "texto grande"). Confirmado
+  matematicamente via `getComputedStyle` + fórmula de luminância relativa do WCAG no navegador
+  real, não estimado. Era débito PRÉ-EXISTENTE (mesma cor/tamanho já usados em
+  `DealDrillDownDrawer.tsx`), não introduzido por este piloto — replicado por seguir o padrão já
+  estabelecido no módulo (regra 7.6 da constituição). Apresentado ao usuário via `AskUserQuestion`
+  com 3 opções (só documentar / corrigir só nos componentes novos / corrigir em todo o módulo);
+  escolheu a terceira. Nenhuma cor única passa 4.5:1 nos dois temas ao mesmo tempo
+  (`#d03b3b`: claro 4.80 / escuro 3.86; `#ef4444`, já existente como `--color-danger` no bloco
+  `@theme`: escuro 4.93 / claro 3.76) — corrigido com um token novo reativo a tema (`--critical` em
+  `globals.css`, `:root` = `#d03b3b`, `.dark` = `#ef4444`, reaproveitando o valor já definido em vez
+  de inventar uma cor), e as 14 ocorrências de `[#d03b3b]` no módulo trocadas por `critical`
+  (`text-critical`/`bg-critical/NN`/`border-critical/NN`) via substituição mecânica — nenhuma outra
+  mudança de layout/comportamento. Validado no navegador real nos dois temas depois do fix: claro
+  4.80:1 (mantido), escuro 4.93:1 (era 3.86:1). `tsc`/lint/`vitest`(130/130)/`build` limpos depois
+  da mudança.
+- **Descoberta correlata, não corrigida (fora do escopo aprovado — reportar, não decidir sozinho)**:
+  medindo o débito acima, as cores verde (`#0ca30c`, "bom"/otimista) e amarelo-escuro (`#b8860b`,
+  "atenção") usadas no mesmo padrão em várias telas do módulo falham no **light mode** (3.35:1 e
+  3.25:1 respectivamente contra branco, abaixo de 4.5:1) embora passem no dark mode — o problema
+  espelhado do vermelho, não medido/aprovado nesta sessão porque só foi descoberto ao investigar a
+  correção do vermelho. Os tokens `--ok`/`--warn` já existentes em `globals.css` também têm o mesmo
+  problema (`--ok` #0F9D64: 3.48:1 no claro). Requer decisão e sessão própria — não corrigido aqui.
+
+## Pilot 004 — Ferramentas de Prospecção (Google Places / Apollo / Hunter / LinkedIn isolados)
+
+- **Objetivo**: dentro da Prospecção, dar ao vendedor uma ferramenta por API — abrir só o Google
+  Places, só a Apollo, só o Hunter, sem o encadeamento multi-provider que a aba "Radar Discovery"
+  já faz. Pedido do usuário mudou de escopo no meio da sessão: "LinkedIn" começou como um gerador
+  de link manual e virou busca real via Apollo (Organization/People Search) filtrada para só
+  mostrar entradas com `linkedinUrl` confirmado, com o gerador manual como fallback — não existe
+  API pública do LinkedIn pra isso, e scraping violaria os Termos de Uso do LinkedIn.
+- **Zero duplicação de lógica de provider**: as funções single-provider já existiam prontas
+  (`discoverViaGooglePlaces`, `fetchApolloCandidates`, `findPeopleViaDomainSearch`,
+  `findEmailViaHunter`) — só precisaram virar `export` (estavam privadas) e ganhar rotas dedicadas
+  em `prospecting-tools.routes.ts`. O padrão de grade de ferramentas foi 100% reaproveitado de
+  `IntelligenceHub.tsx` (`TOOL_TABS` + grid + botão Voltar), sem inventar um novo.
+- **`GET /prospecting/tools/status`**: novo endpoint, só booleano de "configurado" por provedor
+  (nunca a chave), no mesmo espírito de `checkApolloConnection`. Alimenta um badge "Não configurado"
+  na grade e um banner explicativo dentro da ferramenta — AGENTS.md da pasta exige "não ocultar
+  falha de provider".
+- **Schema Zod compartilhado extraído**: `discoverCriteriaSchema` (antes só em
+  `prospecting.routes.ts`) virou `schemas/discoverCriteria.schema.ts` — usado tanto por `/discover`
+  quanto pelas novas ferramentas `/tools/google-places` e `/tools/apollo`, evitando reimportar um
+  arquivo de rota de dentro de outro (acoplaria dois routers e puxaria a cadeia pesada de imports
+  de `prospecting.routes.ts` — multer, IcebreakerService — em qualquer teste que só precisasse do
+  schema).
+- **Gate de documentação viva pegou a mudança de verdade**: `tests/unit/shared/
+  openapiRouteInventory.test.ts` (Agente 18) falhou até `docs/openapi.yaml` ganhar as 5 rotas novas
+  — confirma que esse teste funciona como pretendido. `auth-extra` já estava undocumented antes
+  desta sessão (confirmado via `git stash`); não corrigido aqui (fora de escopo), reportado à parte.
+- **Bug real encontrado só ao testar com dados reais, não por leitura de código**: o Hunter.io
+  Domain Search devolveu 400 (`pagination_error` — "limited to 10 email addresses on your plan")
+  porque `HunterTool.tsx` pedia `limit: 20` fixo, acima do teto do plano gratuito já usado como
+  default (`limit = 10`) em `hunter.service.ts`. Corrigido removendo o override e deixando o default
+  do backend (já calibrado pro plano real) prevalecer.
+- **`preview_start({name: ...})` travou de novo, mesma causa não-100%-isolada do Pilot 003
+  (Adendo)**: 2 tentativas (incl. restart limpo), processo Node vivo mas sem nenhum log além do
+  banner do npm por 2+ minutos, porta nunca abre (confirmado via `Get-NetTCPConnection` e `curl`
+  direto, não só pelo status "running" da ferramenta). Mesmo contorno funcionou de novo: subir
+  `npx tsx watch server.ts` manualmente via Bash (`run_in_background`) com as env vars do
+  `launch.json` copiadas à mão, esperar a porta abrir por polling, e apontar
+  `preview_start({url:...})` pra ela. Confirma que o contorno do Pilot 003 é reproduzível, não um
+  acaso — vale como procedimento padrão sempre que `preview_start({name})` travar deste jeito
+  específico (processo vivo, zero log, porta nunca abre) neste ambiente.
+- **QA em navegador real, ponta a ponta, com dados reais**: as 3 integrações pagas estavam de fato
+  configuradas neste ambiente de dev (`PROSPECTING_PROVIDER_MODE=hybrid` com chaves reais) — os
+  quatro cards mostraram sem badge "não configurado", e cada ferramenta foi testada com busca real
+  + promoção real pro CRM (`POST /promote` → 201 Created em Google Places, Apollo, Hunter e no
+  gerador manual do LinkedIn), sem nenhum erro no console. Sessão de teste criada via o próprio
+  formulário de signup (mesmo caminho que `tests/e2e/helpers.ts::signUp` usa), não atalho de API.
+  Verificado também: dark mode ativo (cor de marca `#FF5618` legível sobre fundo escuro) — troca
+  para Total Trac não foi exercitada nesta rodada (a cor vem 100% de `useBrandAccent()`, já
+  validado em outras telas, nenhuma lógica de cor nova introduzida aqui).
+- **`computer` (click por coordenada) não disparou eventos de forma confiável nesta sessão** (pane
+  sem compositing — `screenshot` falhou o tempo todo com "Browser pane is not displayed") —
+  cliques reais precisaram de `button.click()` via `javascript_tool` como alternativa. Registrado
+  como nota de ambiente, não um bug do produto.
+- **Achado colateral fora de escopo, reportado via `spawn_task`, não corrigido aqui**: o botão da
+  aba OCR já existente usa `bg-info-base`, uma classe sem token correspondente em `globals.css`
+  (só `--color-info` existe) — provavelmente renderiza sem cor de fundo no estado ativo. Pré-
+  existente, não introduzido por este piloto; o botão novo "Ferramentas" usou `bg-info` (classe
+  real) para não repetir o mesmo problema.

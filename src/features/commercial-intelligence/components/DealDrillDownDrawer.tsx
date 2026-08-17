@@ -16,6 +16,8 @@ export interface DrillDownQuery {
     stageId?: string;
     agingCritical?: boolean;
     missingNextAction?: boolean;
+    /** Restringe a IDs específicos — usado pelo Centro de Decisão/Mentor para abrir exatamente o(s) negócio(s) referenciado(s), não um filtro amplo que poderia trazer outros negócios junto. */
+    ids?: string[];
 }
 
 interface DealDrillDownDrawerProps {
@@ -90,7 +92,7 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
         setLoading(true);
         setError(null);
         commercialIntelligenceApi
-            .deals(filter, { tier: query.tier, stageId: query.stageId, agingCritical: query.agingCritical, missingNextAction: query.missingNextAction, limit: 100 })
+            .deals(filter, { tier: query.tier, stageId: query.stageId, agingCritical: query.agingCritical, missingNextAction: query.missingNextAction, ids: query.ids?.join(','), limit: 100 })
             .then((result) => {
                 if (cancelled) return;
                 setRows(result.rows);
@@ -115,7 +117,7 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
                 </div>
             )}
             {!loading && error && (
-                <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6">
+                <div className="flex items-center gap-2 text-sm text-critical py-6">
                     <AlertTriangle className="w-4 h-4" /> {error}
                 </div>
             )}
@@ -148,7 +150,7 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
                             {row.riskFactors.length > 0 && (
                                 <div className="pt-1">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="text-[11px] text-[#d03b3b]">
+                                        <p className="text-[11px] text-critical">
                                             <span className="font-semibold">Fatores de risco:</span> {row.riskFactors.join(' · ')}
                                         </p>
                                         {row.bitrixLinked && composerFor !== row.id && (

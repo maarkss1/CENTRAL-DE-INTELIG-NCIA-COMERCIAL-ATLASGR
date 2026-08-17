@@ -28,7 +28,7 @@ export function AgingTab({ filter }: { filter: CommercialFilter }) {
     }, [filter]);
 
     if (loading) return <Skeleton className="h-64 rounded-2xl" />;
-    if (error) return <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
+    if (error) return <div className="flex items-center gap-2 text-sm text-critical py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
     if (!data) return null;
 
     const totalOpen = data.buckets.reduce((sum, b) => sum + b.count, 0);
@@ -46,7 +46,7 @@ export function AgingTab({ filter }: { filter: CommercialFilter }) {
                             <div className="w-24 shrink-0 text-xs font-semibold text-ink">{bucket.label}</div>
                             <div className="flex-1 h-6 rounded-md bg-surface-2 overflow-hidden">
                                 <div
-                                    className={`h-full rounded-md ${bucket.minDays >= 61 ? 'bg-[#d03b3b]/70' : 'bg-brand/70'}`}
+                                    className={`h-full rounded-md ${bucket.minDays >= 61 ? 'bg-critical/70' : 'bg-brand/70'}`}
                                     style={{ width: `${totalOpen > 0 ? Math.max(bucket.count > 0 ? 4 : 0, (bucket.count / totalOpen) * 100) : 0}%` }}
                                 />
                             </div>
@@ -86,7 +86,7 @@ export function AgingTab({ filter }: { filter: CommercialFilter }) {
                                         {stage.amountOverThreshold > 0 ? (
                                             <button
                                                 type="button"
-                                                className="text-[#d03b3b] font-semibold underline decoration-dotted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+                                                className="text-critical font-semibold underline decoration-dotted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
                                                 onClick={() => setDrillDown({ title: `Acima do aging crítico — ${stage.stageName}`, stageId: stage.stageId, agingCritical: true })}
                                             >
                                                 {formatCurrency(stage.amountOverThreshold)}

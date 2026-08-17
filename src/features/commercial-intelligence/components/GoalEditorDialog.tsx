@@ -77,7 +77,7 @@ export function GoalEditorDialog({ isOpen, onClose, period, currentGoal, onSaved
                 <p className="text-xs text-ink-2">
                     Meta mensal de nova receita recorrente para {period}. Só ADMIN/GESTOR pode alterar.
                 </p>
-                {error && <p className="text-xs text-[#d03b3b]" role="alert">{error}</p>}
+                {error && <p className="text-xs text-critical" role="alert">{error}</p>}
             </div>
         </Dialog>
     );

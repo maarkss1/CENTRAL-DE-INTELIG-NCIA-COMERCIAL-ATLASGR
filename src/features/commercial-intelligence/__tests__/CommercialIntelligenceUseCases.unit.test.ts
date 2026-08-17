@@ -281,6 +281,27 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(result.rows[0].tier).toBe('Commit');
     });
 
+    it('drill-down: sort riskImpact ordena por valor em risco (amount × probabilidade de não fechar), não por valor bruto', async () => {
+        // "seguro" tem valor bruto maior, mas alta probabilidade (baixo risco); "arriscado" tem
+        // valor menor, mas próxima ação vencida + sem interação + sem data prevista → probabilidade
+        // baixa e portanto MAIS valor em risco apesar do amount menor.
+        const seguro = deal({ id: 'seguro', amount: 200_000, stageProbability: 90, nextAction: new Date('2026-08-16T00:00:00Z'), lastInteraction: new Date('2026-08-14T00:00:00Z'), expectedCloseAt: new Date('2026-08-20T00:00:00Z') });
+        const arriscado = deal({ id: 'arriscado', amount: 50_000, stageProbability: 20, nextAction: null, lastInteraction: null, expectedCloseAt: null });
+        const repo = new FakeRepository([seguro, arriscado]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const result = await useCases.dealsDrillDown(ORG, { month: PERIOD, sort: 'riskImpact' }, NOW);
+        expect(result.rows.map((r) => r.id)).toEqual(['arriscado', 'seguro']);
+    });
+
+    it('drill-down: sem sort, a ordem não muda (comportamento padrão preservado)', async () => {
+        const a = deal({ id: 'a', amount: 10_000 });
+        const b = deal({ id: 'b', amount: 20_000 });
+        const repo = new FakeRepository([a, b]);
+        const useCases = new CommercialIntelligenceUseCases(repo);
+        const result = await useCases.dealsDrillDown(ORG, { month: PERIOD }, NOW);
+        expect(result.rows.map((r) => r.id)).toEqual(['a', 'b']);
+    });
+
     it('Qualidade do CRM: sem conexão Bitrix24, bitrixSync.connected é false mas os contadores continuam corretos', async () => {
         const notLinked = deal({ id: 'nl-1', amount: 1_000 });
         const linked = deal({ id: 'l-1', amount: 2_000, bitrixDealId: 'bx-deal-1', bitrixSyncStatus: 'synced' });

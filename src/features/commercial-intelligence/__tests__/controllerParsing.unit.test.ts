@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseMonth, parseOwner } from '../presentation/CommercialIntelligenceController';
+import type { Request } from 'express';
+import { parseMonth, parseOwner, parseFilter } from '../presentation/CommercialIntelligenceController';
 import { currentPeriod } from '../application/CommercialIntelligenceUseCases';
 
 describe('CommercialIntelligenceController — parsing de input de query string', () => {
@@ -38,6 +39,23 @@ describe('CommercialIntelligenceController — parsing de input de query string'
             expect(parseOwner('   ')).toBeUndefined();
             expect(parseOwner(undefined)).toBeUndefined();
             expect(parseOwner(['ana@atlasgr.com.br'])).toBeUndefined();
+        });
+    });
+
+    describe('parseFilter', () => {
+        it('lê o filtro de req.query em rotas GET', () => {
+            const req = { query: { month: '2026-07', owner: 'ana@atlasgr.com.br' }, body: undefined } as unknown as Request;
+            expect(parseFilter(req)).toEqual({ month: '2026-07', owner: 'ana@atlasgr.com.br', product: undefined, source: undefined, icp: undefined });
+        });
+
+        it('cai para req.body quando req.query está vazio — POSTs de IA mandam o filtro como JSON body, nunca como query string (bug real corrigido aqui: antes o mês/vendedor selecionado na tela era ignorado)', () => {
+            const req = { query: {}, body: { month: '2026-03', owner: 'bruno@atlasgr.com.br', product: 'Rastreamento' } } as unknown as Request;
+            expect(parseFilter(req)).toEqual({ month: '2026-03', owner: 'bruno@atlasgr.com.br', product: 'Rastreamento', source: undefined, icp: undefined });
+        });
+
+        it('prioriza req.query sobre req.body quando os dois existem', () => {
+            const req = { query: { month: '2026-07' }, body: { month: '2026-03' } } as unknown as Request;
+            expect(parseFilter(req).month).toBe('2026-07');
         });
     });
 });
