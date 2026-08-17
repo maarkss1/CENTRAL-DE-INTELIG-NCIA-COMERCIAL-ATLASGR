@@ -13,14 +13,30 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # DEVOPS-001 (resolvido na Fase Final 1, ver .agents/runs/final-fase-1.md): este é o workflow que
+  # decide o que vai pro GHCR/produção — antes rodava um subconjunto mais fraco de verificações que
+  # o ci.yml (sem secret scan, sem E2E, com continue-on-error no audit). Agora roda o mesmo gate
+  # completo, com dependência explícita (needs) dentro do próprio arquivo, porque GitHub Actions
+  # trata workflows de arquivos diferentes como pipelines independentes — ci.yml passar não impede
+  # este arquivo de publicar sozinho, então o gate tem que estar aqui dentro também, não só lá.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks (varredura de segredo versionado)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-and-test:
     name: Build & Test Code
     runs-on: ubuntu-latest
+    needs: secret-scan
 
-    # Mesmos service containers do ci.yml — sem eles não dá pra rodar test:integration aqui.
-    # DEVOPS-001: este job (não o ci.yml) é o gate real de quem decide publicar em produção;
-    # workflows do GitHub Actions são independentes entre si, então o ci.yml passar não impede
-    # este arquivo de publicar uma imagem com teste quebrado se este job não rodar os testes.
+    # Mesmos service containers do ci.yml — sem eles não dá pra rodar test:integration/E2E aqui.
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -56,6 +72,12 @@ jobs:
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: ci-test-meili-key
+      PORT: 3000
+      # Necessário para test:e2e (Fase Final 1) — mesmos valores de ci.yml, ver comentários lá.
+      BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOW_DEV_AUTH_BYPASS: true
+      ALLOWED_ORIGINS: http://localhost:3000
+      AUTH_RATE_LIMIT_MAX: 500
 
     steps:
       - name: Checkout code
@@ -79,9 +101,9 @@ jobs:
       - name: Prisma Generate
         run: npx prisma generate
 
+      # Fase Final 1: gate real, não mais continue-on-error — ver comentário equivalente em ci.yml.
       - name: Audit for vulnerabilities
         run: npm audit --audit-level=high
-        continue-on-error: true # Known issue with better-auth pending upstream resolution (ver ci.yml)
 
       - name: Run Lint
         run: npm run lint
@@ -100,18 +122,37 @@ jobs:
       # senha que "Bootstrap papel NOSUPERUSER da aplicação" configurou neste job
       # (ci_app_test_pass), e prospector_app fica com "password authentication failed" já na
       # primeira query de teste. Mesmo passo do ci.yml.
-      - name: Criar .env.test para os testes de integração
+      - name: Criar .env.test para os testes de integração e E2E
         run: |
           cat > .env.test <<EOF
           NODE_ENV=$NODE_ENV
+          PORT=$PORT
           DATABASE_URL=$DATABASE_URL
           REDIS_URL=$REDIS_URL
           MEILI_HOST=$MEILI_HOST
           MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+          AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
           EOF
 
       - name: Run Integration Tests
         run: npm run test:integration
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Fase Final 1: E2E agora faz parte do gate que decide o que vai pro GHCR — antes só rodava
+      # no ci.yml, que não bloqueia este workflow.
+      - name: Run E2E Tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: production-playwright-report
+          path: playwright-report/
+        if: failure()
 
       - name: Build project
         run: npm run build

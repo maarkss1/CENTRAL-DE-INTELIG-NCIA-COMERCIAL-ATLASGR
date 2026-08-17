@@ -6,6 +6,7 @@ import {
     fromPrismaActivityType,
     fromPrismaActivityStatus,
 } from '../../lib/enumMap.js';
+import type { OverviewMetrics } from '../../shared/contracts/analytics.contract.js';
 
 /** Ordem real do funil comercial — usada para o gráfico e para a conversão etapa a etapa. */
 export const FUNNEL_STAGES = [
@@ -28,26 +29,15 @@ const DESQUALIFICADO: PrismaLeadStatus = 'Lead_Desqualificado';
 const PILOT_CANCELLED_STATUSES: PrismaLeadStatus[] = ['Piloto_Atlas_Profile_Cancelado', 'Piloto_Logistico_Cancelado'];
 /** Todo status que representa fechamento sem venda (perdido/desqualificado/piloto cancelado). */
 const CLOSED_LOST_STATUSES: PrismaLeadStatus[] = [LOST, DESQUALIFICADO, ...PILOT_CANCELLED_STATUSES];
-export interface OverviewMetrics {
-    totalCompanies: number;
-    totalContacts: number;
-    /** Leads em aberto (fora de ganho/perdido). */
-    totalLeads: number;
-    totalActivities: number;
-    pendingActivities: number;
-    overdueActivities: number;
-    closedThisMonth: number;
-    lostThisMonth: number;
-    conversionRate: number;
-    /** Média do score dos leads em aberto, ou null se nenhum lead tem score preenchido. */
-    averageScore: number | null;
-    /**
-     * Soma de `Lead.amount` dos leads em aberto que têm valor preenchido, ou `null` quando nenhum
-     * tem. Mesma fórmula usada pela versão wired do dashboard (AnalyticsUseCases.overview) — ver
-     * comentário lá para o motivo de nunca fabricar 0 quando não há valor real preenchido.
-     */
-    pipelineValue: number | null;
-}
+
+// `OverviewMetrics` vem da fonte canônica compartilhada (Onda 10, Agente 04, resolvendo
+// `.agents/handoffs/onda-8/18-para-04-unificar-overviewmetrics.md`) — antes desta unificação, o
+// mesmo formato estava declarado de forma independente aqui e em `domain/Analytics.ts`, sem
+// nenhuma relação de import entre si, podendo divergir silenciosamente sem que o typecheck
+// acusasse. Não redeclare localmente: qualquer campo novo/alterado entra em
+// `src/shared/contracts/analytics.contract.ts`. (Este serviço legado continua em uso real por
+// `src/features/crm/jobs/weeklyPdfReport.worker.ts` — não é código morto.)
+export type { OverviewMetrics };
 
 export interface DistributionSlice {
     label: string;

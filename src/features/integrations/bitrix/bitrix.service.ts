@@ -39,7 +39,7 @@ export { listSyncRules, createSyncRule, setSyncRuleActive, deleteSyncRule, runBi
 export { resolveEnumMaps, buildOutboundCustomFields, applyInboundCustomFields, getEntityFields } from './service/customFields.js';
 export type { BitrixEntityKind, BitrixFieldOption } from './service/customFields.js';
 
-export { resolveOwnBitrixUserId, resolveAtlasUserNameByEmail } from './service/userMapping.js';
+export { resolveOwnBitrixUserId, resolveAtlasUserNameByEmail, resolveAtlasUserIdByEmail } from './service/userMapping.js';
 
 // Serviço real de Extrações Bitrix (Onda 7, Agente 06/06A) — ver service/extraction.ts para o
 // racional de arquitetura (execução em segundo plano sem worker BullMQ dedicado nesta rodada).

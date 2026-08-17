@@ -33,6 +33,7 @@ import { contactRoutes } from './src/features/contacts/routes/contact.routes.js'
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
+import { mesaTratamentoRoutes } from './src/features/mesa-tratamento/routes/mesaTratamento.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
@@ -50,6 +51,7 @@ import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
+import { cadenceRoutes } from './src/features/cadence/cadence.routes.js';
 import { sseService } from './src/features/notifications/sse.service.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
@@ -80,6 +82,9 @@ import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/f
 import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { lgpdRouter } from './src/features/lgpd/lgpd.routes.js';
+import { featureFlagsRouter } from './src/features/feature-flags/featureFlags.routes.js';
+import { featureFlagsService } from './src/features/feature-flags/featureFlags.service.js';
+import { bugReportRouter } from './src/features/bug-reports/bugReport.routes.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
 import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
@@ -233,6 +238,23 @@ async function startServer() {
     });
     app.use('/api/auth', authLimiter);
 
+    // Rate Limiting dedicado do módulo "Reportar Problema" — por organização (mesmo raciocínio
+    // do aiLimiter/SEC-008b), bem mais apertado que o apiLimiter genérico: ninguém legítimo
+    // reporta dezenas de bugs em 15 minutos, e cada relato grava uma linha JSONB no banco.
+    const bugReportLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: env.BUG_REPORT_RATE_LIMIT_MAX,
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator: (req) => (req as AuthRequest).user?.organizationId || ipKeyGenerator(req.ip || 'unknown'),
+        // Ver comentário do apiLimiter acima sobre o `&& queuesEnabled`.
+        store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
+            sendCommand: sendRateLimitCommand,
+        }) : undefined,
+        message: { success: false, error: 'Muitos relatos de problema enviados. Tente novamente em 15 minutos.' }
+    });
+    app.use('/api/bug-reports', authenticateToken, bugReportLimiter);
+
     // Montado ANTES do express.json(): a autenticidade deste webhook é provada por uma assinatura
     // HMAC calculada sobre os bytes crus do corpo, que o parser global consumiria. Quem chama é o
     // Birth Voices Hub, não um usuário logado, por isso não passa por authenticateToken.
@@ -355,6 +377,7 @@ async function startServer() {
     app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
     app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
+    app.use('/api/mesa-tratamento', authenticateToken, requireTenant, mesaTratamentoRoutes);
     app.use('/api/prospecting', authenticateToken, requireTenant, prospectingRoutes);
     // authenticateToken já rodou pra estas 3 (junto com o aiLimiter, ver SEC-008b acima) — só falta
     // requireTenant aqui, chamar de novo seria uma segunda consulta de sessão redundante.
@@ -369,6 +392,10 @@ async function startServer() {
     app.use('/api/commercial-intelligence', authenticateToken, requireTenant, requireRole([...COMMERCIAL_INTELLIGENCE_ROLES]), commercialIntelligenceRoutes);
     app.use('/api/knowledge', requireTenant, knowledgeRoutes);
     app.use('/api/lgpd', authenticateToken, requireTenant, lgpdRouter);
+    app.use('/api/feature-flags', authenticateToken, requireTenant, featureFlagsRouter);
+    // authenticateToken + bugReportLimiter já rodaram pra esta rota (ver acima, junto aos demais
+    // rate limiters) — só falta requireTenant aqui, mesmo padrão de /api/intelligence.
+    app.use('/api/bug-reports', requireTenant, bugReportRouter);
     app.use('/api/notifications', authenticateToken, requireTenant, notificationRoutes);
     
     app.get('/api/notifications/stream', authenticateToken, requireTenant, (req, res) => {
@@ -385,6 +412,7 @@ async function startServer() {
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
     app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
+    app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
     // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa
@@ -417,28 +445,43 @@ async function startServer() {
     // ── Bootstrapping DI & Services ───────────────────────────────────────
     setupDI();
 
+    // Sincroniza o catálogo de feature flags (FEATURE_FLAG_REGISTRY) com a tabela FeatureFlag —
+    // idempotente, roda a cada boot. Não bloqueia a subida do servidor por um erro aqui (ex.:
+    // banco temporariamente indisponível): loga e segue, mesmo raciocínio de outros jobs de
+    // agendamento abaixo (scheduleColdCallCampaigns/scheduleSwarmScheduler). `bypassRls: true` é
+    // necessário aqui: roda antes de qualquer request HTTP existir, sem tenant conhecido — ver
+    // FeatureFlag em BYPASS_RLS_ALLOWED_MODELS (src/lib/prisma.ts) para o porquê de ser seguro.
+    requestContext.run({ bypassRls: true }, () =>
+        featureFlagsService.syncRegistry().catch((err) =>
+            logger.error({ err }, 'Falha ao sincronizar catálogo de feature flags no boot')
+        )
+    );
+
     app.listen(PORT, '0.0.0.0', () => {
         logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
     });
 
-    // Gated por ENABLE_QUEUES: um BullMQ Worker (diferente de uma Queue) conecta no Redis
-    // avidamente ao ser criado — sem Redis disponível, isso derruba o processo com um
-    // AggregateError [ECONNREFUSED] não tratado em vez de degradar como o restante da app.
-    const leadsWorker = queuesEnabled ? createLeadsWorker() : null;
-    const agentWorker = queuesEnabled ? createAgentWorker() : null;
-    const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
-    const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
-    const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
-    const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
-    const execSummaryWorker = queuesEnabled ? createExecutiveSummaryWorker() : null;
-    const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
-    const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
-    const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
-    const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
+    // Gated por ENABLE_EMBEDDED_WORKERS: um BullMQ Worker (diferente de uma Queue) conecta no Redis
+    // avidamente ao ser criado — sem Redis disponível, isso derruba o processo.
+    // Agora isolado: apenas criados no server.ts se explícito. Senão, eles rodam no worker.ts.
+    const embeddedWorkersEnabled = queuesEnabled && env.ENABLE_EMBEDDED_WORKERS;
+
+    const leadsWorker = embeddedWorkersEnabled ? createLeadsWorker() : null;
+    const agentWorker = embeddedWorkersEnabled ? createAgentWorker() : null;
+    const enrichmentWorker = embeddedWorkersEnabled ? createEnrichmentWorker() : null;
+    const whatsappSignalWorker = embeddedWorkersEnabled ? createWhatsAppSignalWorker() : null;
+    const bitrixSyncWorker = embeddedWorkersEnabled ? createBitrixSyncWorker() : null;
+    const followUpWorker = embeddedWorkersEnabled ? createFollowUpWorker() : null;
+    const execSummaryWorker = embeddedWorkersEnabled ? createExecutiveSummaryWorker() : null;
+    const deduplicationWorker = embeddedWorkersEnabled ? createDeduplicationWorker() : null;
+    const winLossWorker = embeddedWorkersEnabled ? createWinLossAnalysisWorker() : null;
+    const pdfWorker = embeddedWorkersEnabled ? createWeeklyPdfReportWorker() : null;
+    const autoAnonymizeWorker = embeddedWorkersEnabled ? createAutoAnonymizeWorker() : null;
+
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
-    if (queuesEnabled) {
+    if (embeddedWorkersEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
         scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
         scheduleExecutiveSummaryJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de summary executivo'));
@@ -448,7 +491,7 @@ async function startServer() {
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
-    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
+    const searchWorker = embeddedWorkersEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (queuesEnabled && env.ENABLE_SEARCH) {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
@@ -461,7 +504,7 @@ async function startServer() {
     let swarmSchedulerWorker: ReturnType<typeof createSwarmSchedulerWorker> | null = null;
 
     enabledOrganizations().then((coldCallOrgs) => {
-        coldCallWorker = queuesEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        coldCallWorker = embeddedWorkersEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
         if (coldCallWorker) {
             scheduleColdCallCampaigns().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
@@ -470,7 +513,7 @@ async function startServer() {
     }).catch(() => null);
 
     swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
-        swarmSchedulerWorker = queuesEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        swarmSchedulerWorker = embeddedWorkersEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
         if (swarmSchedulerWorker) {
             scheduleSwarmScheduler().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar o enxame autônomo'),

@@ -1,5 +1,6 @@
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
+import { prisma } from '../../../lib/prisma.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { ACTIVITY_TYPE } from '../../../lib/zod.js';
 import { activityService } from '../../activities/services/activity.service.js';
@@ -22,16 +23,36 @@ export const createFollowUpTaskTool = tool(
         if (!organizationId) {
             return 'Erro: contexto de organização ausente — não é possível agendar a tarefa com segurança.';
         }
+
+        // Sem `owner` explícito, o responsável real é o vendedor já dono do Lead — a tarefa é
+        // sobre esse lead, então ele é o candidato natural, nunca um nome de IA fabricado (ver
+        // `.agents/handoffs/onda-7/04-para-07-owner-fabricado-follow-up-ia.md` e o guard
+        // `assertRealOwner` em `activity.service.ts`, que rejeita placeholders na origem).
+        let resolvedOwner = owner?.trim();
+        if (!resolvedOwner) {
+            const lead = await prisma.lead.findFirst({
+                where: { id: leadId, organizationId },
+                select: { owner: true },
+            });
+            if (!lead) {
+                return `Erro: Lead ${leadId} não encontrado no CRM — não é possível agendar a tarefa.`;
+            }
+            resolvedOwner = lead.owner?.trim() || undefined;
+            if (!resolvedOwner) {
+                return `Não foi possível agendar a tarefa: o lead ${leadId} ainda não tem um responsável definido no CRM, e nenhum responsável foi informado para a tarefa. Informe explicitamente quem deve executar este follow-up.`;
+            }
+        }
+
         try {
             const activity = await activityService.create(organizationId, {
                 leadId,
                 date,
                 type: type || 'Follow-up',
                 status: 'Pendente',
-                owner: owner || 'Enxame de IA Atlas',
+                owner: resolvedOwner,
                 observations: observations ?? null,
             });
-            return `Tarefa "${activity.type}" agendada com sucesso para o lead ${leadId} em ${activity.date.toISOString()}.`;
+            return `Tarefa "${activity.type}" agendada com sucesso para o lead ${leadId} em ${activity.date.toISOString()}, atribuída a ${resolvedOwner}.`;
         } catch (error) {
             return `Erro ao agendar tarefa: ${error instanceof Error ? error.message : String(error)}`;
         }

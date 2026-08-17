@@ -23,6 +23,17 @@ info:
     caso de sucesso, ou `{ "success": false, "error": "..." }` em caso de falha.
     Alguns endpoints legados de `/api/intelligence` fogem do padrão e devolvem
     `{ "result": ... }` diretamente — isso está anotado endpoint a endpoint.
+
+    **Fora do escopo deste documento (não são recursos REST descritos como `paths` abaixo, mas
+    existem em produção — ver `server.ts`)**:
+    - `GET /metrics` — métricas Prometheus (`prom-client`), texto plano, sem autenticação própria.
+      Só existe quando `EXPOSE_METRICS=true`.
+    - `GET /api-docs` — esta própria documentação (Swagger UI), servida a partir deste arquivo.
+      Montada fora de produção por padrão, ou em qualquer ambiente com `EXPOSE_API_DOCS=true`.
+    - `/admin/queues` — painel Bull Board de monitoramento de filas (HTML, não JSON). Exige sessão
+      válida **e** papel `ADMIN` (`authenticateToken, requireTenant, requireRole(['ADMIN'])`).
+      Expõe jobs de todas as organizações (as filas são globais, não por tenant) — risco residual
+      documentado em `docs/security/SECURITY_GUIDE.md`.
   contact:
     name: AtlasGR
     email: comercial@atlasgr.com.br
@@ -58,21 +69,70 @@ tags:
     description: Base de conhecimento (RAG) — ingestão e busca híbrida
   - name: Notifications
     description: Notificações in-app do usuário
+  - name: Feature Flags
+    description: Catálogo de feature flags e override por organização (ligar/desligar funcionalidade sem deploy)
+  - name: Bug Reports
+    description: Relatos de problema enviados pelo botão flutuante "Reportar problema"
   - name: Automations
     description: Regras de automação (gatilho → ação)
   - name: Usage
     description: Consumo de IA/billing por organização
+  - name: Cadence
+    description: >-
+      Opt-out unificado por canal e execuções de cadência multicanal (e-mail/WhatsApp/voz) —
+      leitura para `CadenceHub.tsx`, ver `src/features/cadence/AGENTS.md`
   - name: WhatsApp
     description: Integração WhatsApp (Baileys) por tenant
   - name: Google
     description: Integração Google (OAuth Calendar/Gmail)
   - name: Birth Voice
     description: SDR de voz (Birth Voices Hub) — discagem, campanha fria e lista de bloqueio
+  - name: CRM 360
+    description: Cockpit CRM — pipelines, quadro Kanban, itens de negócio, produtos e documentos
+  - name: Comercial Inteligente
+    description: >-
+      BI executivo (forecast, aging, perdas, qualidade de CRM, indicadores antecedentes) — módulo
+      restrito a ADMIN/GESTOR (`COMMERCIAL_INTELLIGENCE_ROLES`)
+  - name: LGPD
+    description: >-
+      Direitos do titular de dados pessoais (Lei 13.709/2018, Art. 18) — portabilidade e
+      eliminação/anonimização
+  - name: Equipe
+    description: Gestão de usuários da organização — restrito a ADMIN (exceto listagem de atribuíveis)
+  - name: Bitrix24
+    description: Conexão, sincronização e extração de dados com o Bitrix24 (CRM externo)
+  - name: 3CX
+    description: Integração com o PABX 3CX (discagem e eventos de chamada)
+  - name: Mesa de Tratamento
+    description: Fila de tratamento de leads do Bitrix24 com ranqueamento por prioridade e temperatura
+  - name: Webhooks
+    description: >-
+      Endpoints de entrada de provedores externos, montados ANTES do `express.json()` global —
+      corpo cru, autenticidade provada por HMAC ou segredo comparado em tempo constante, nunca por
+      sessão de usuário
 
 security:
   - sessionCookie: []
 
 paths:
+  # ───────────────────────────── Mesa de Tratamento ─────────────────────────────
+  /mesa-tratamento/queue:
+    get:
+      tags: [Mesa de Tratamento]
+      summary: Retorna a fila de leads atribuídos para tratamento com ranqueamento por prioridade
+      responses:
+        '200':
+          description: Fila de leads recuperada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
   # ───────────────────────────── Auth (better-auth) ─────────────────────────────
   /auth/sign-up/email:
     post:
@@ -359,7 +419,9 @@ paths:
   /leads/export/csv:
     get:
       tags: [Leads]
-      summary: Exporta os leads do tenant em CSV
+      summary: >-
+        Exporta os leads do tenant em CSV, incluindo dados pessoais dos contatos vinculados
+        (somente ADMIN/GESTOR — exportação bulk de dado pessoal, minimização de acesso por LGPD)
       responses:
         '200':
           description: Arquivo CSV
@@ -368,11 +430,13 @@ paths:
               schema:
                 type: string
                 format: binary
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /leads/export/bitrix24:
     post:
       tags: [Leads]
-      summary: Exporta leads selecionados para o Bitrix24
+      summary: Exporta leads selecionados para o Bitrix24 (somente ADMIN/GESTOR)
       requestBody:
         content:
           application/json:
@@ -385,6 +449,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /leads/{id}:
     parameters:
@@ -889,7 +955,9 @@ paths:
                 $ref: '#/components/schemas/DataEnvelope'
     put:
       tags: [Intelligence]
-      summary: Salva a configuração de provider/modelo/temperatura por ferramenta de IA
+      summary: >-
+        Salva a configuração de provider/modelo/temperatura por ferramenta de IA (somente ADMIN —
+        mais restrito que o padrão ADMIN/GESTOR usado no resto da API)
       requestBody:
         required: true
         content:
@@ -917,6 +985,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /intelligence/report:
     post:
@@ -1155,7 +1225,7 @@ paths:
                 $ref: '#/components/schemas/DataEnvelope'
     post:
       tags: [Prompts]
-      summary: Cria um novo prompt override
+      summary: Cria um novo prompt override (somente ADMIN/GESTOR)
       requestBody:
         required: true
         content:
@@ -1174,13 +1244,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /prompts/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
     put:
       tags: [Prompts]
-      summary: Atualiza as variáveis de um prompt existente do tenant
+      summary: Atualiza as variáveis de um prompt existente do tenant (somente ADMIN/GESTOR)
       requestBody:
         required: true
         content:
@@ -1197,6 +1269,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1300,10 +1374,14 @@ paths:
           $ref: '#/components/responses/NotFound'
     delete:
       tags: [Knowledge]
-      summary: Remove um documento
+      summary: >-
+        Remove um documento (somente ADMIN/GESTOR — mais restrito que os demais endpoints deste
+        router, que aceitam também VENDEDOR)
       responses:
         '204':
           description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1438,6 +1516,169 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ───────────────────────────── Feature Flags ─────────────────────────────
+  /feature-flags:
+    get:
+      tags: [Feature Flags]
+      summary: Lista os flags resolvidos (default global + override da própria organização já aplicado)
+      description: Qualquer papel autenticado pode ler.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, example: bug_report_module }
+                        description: { type: string }
+                        enabled: { type: boolean }
+                        isOverridden: { type: boolean }
+
+  /feature-flags/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Feature Flags]
+      summary: Liga/desliga o flag para a própria organização do ADMIN autenticado
+      description: Restrito a ADMIN. Nunca altera o default global do catálogo, só o override do tenant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Feature Flags]
+      summary: Remove o override da organização, revertendo ao default global
+      description: Restrito a ADMIN.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ───────────────────────────── Bug Reports ─────────────────────────────
+  /bug-reports:
+    post:
+      tags: [Bug Reports]
+      summary: Registra um relato de problema (botão flutuante "Reportar problema")
+      description: |
+        Qualquer papel autenticado pode reportar. Limitado por organização
+        (`BUG_REPORT_RATE_LIMIT_MAX`, default 10/15min). O campo `context` é
+        sanitizado no backend (redação de token/segredo, truncamento) antes de
+        persistir — ver `src/features/bug-reports/bugReport.sanitize.ts`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, description]
+              properties:
+                title: { type: string, maxLength: 200 }
+                description: { type: string, maxLength: 5000 }
+                severity: { type: string, enum: [LOW, MEDIUM, HIGH, CRITICAL], default: MEDIUM }
+                context:
+                  type: object
+                  description: Capturado automaticamente pelo frontend (URL, user agent, viewport, últimos logs)
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      status: { type: string, example: OPEN }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    get:
+      tags: [Bug Reports]
+      summary: Lista os relatos da própria organização
+      description: Restrito a ADMIN/GESTOR.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [OPEN, TRIAGED, RESOLVED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /bug-reports/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    patch:
+      tags: [Bug Reports]
+      summary: Atualiza o status de triagem de um relato (OPEN → TRIAGED → RESOLVED)
+      description: Restrito a ADMIN/GESTOR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [OPEN, TRIAGED, RESOLVED] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ───────────────────────────── Automations ─────────────────────────────
   /automations/options:
     get:
@@ -1525,6 +1766,36 @@ paths:
         - name: days
           in: query
           schema: { type: integer, minimum: 7, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  # ───────────────────────────── Cadence ─────────────────────────────
+  /cadence/opt-outs:
+    get:
+      tags: [Cadence]
+      summary: Lista os registros de opt-out (por canal ou global) da organização autenticada
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /cadence/runs:
+    get:
+      tags: [Cadence]
+      summary: Lista as execuções de cadência (ativas/pausadas/encerradas) da organização autenticada
+      parameters:
+        - name: status
+          in: query
+          description: 'Filtro opcional por status, separado por vírgula (ex.: Active,Paused)'
+          schema: { type: string }
       responses:
         '200':
           description: OK
@@ -1638,21 +1909,20 @@ paths:
   /google/callback:
     get:
       tags: [Google]
-      summary: Processa o callback OAuth do Google
+      summary: >-
+        Processa o callback OAuth do Google. Observação de contrato (corrigida em 2026-08-15,
+        Onda 8): este endpoint NUNCA devolve JSON — sempre um redirect 302 para o frontend
+        (`/app?google=connected` em sucesso, `/app?google=error&message=...` em falha).
       parameters:
         - name: code
           in: query
           required: true
           schema: { type: string }
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DataEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '302':
+          description: >-
+            Redireciona para `/app?google=connected` (sucesso) ou `/app?google=error&message=...`
+            (falha) — nunca um corpo JSON, mesmo em erro.
 
   /google/status:
     get:
@@ -1738,6 +2008,1028 @@ paths:
                   success: { type: boolean }
         '422':
           description: Telefone fora de um formato brasileiro discável
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # Endpoints adicionados em 2026-08-15 (Onda 8, Agente 18) para fechar a deriva medida
+  # entre este documento e as rotas reais (`server.ts` + routers). Ver tabela de deriva
+  # no relatório da Onda 8 — 6 routers de negócio inteiros e ~13 endpoints avulsos
+  # existiam em código sem nenhuma documentação aqui.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  # ───────────────────────────── CRM 360 (Cockpit CRM) ─────────────────────────────
+  /crm/overview:
+    get:
+      tags: [CRM 360]
+      summary: Resumo do cockpit CRM (contadores por etapa, valor em pipeline)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+
+  /crm/pipelines:
+    get:
+      tags: [CRM 360]
+      summary: Lista os pipelines/etapas configurados do funil de negócio
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+
+  /crm/board:
+    get:
+      tags: [CRM 360]
+      summary: Leads agrupados por etapa, para o quadro Kanban do cockpit
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+
+  /crm/records/{id}/stage:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [CRM 360]
+      summary: Move um registro (lead/negócio) para outra etapa do funil (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Formato de `moveCrmRecordSchema` (crm360.schema.ts)
+      responses:
+        '200':
+          description: Movido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/leads/{id}/convert:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [CRM 360]
+      summary: Converte um lead qualificado em negócio/oportunidade (ADMIN/GESTOR/VENDEDOR)
+      responses:
+        '200':
+          description: Convertido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/products:
+    get:
+      tags: [CRM 360]
+      summary: Lista os produtos/serviços cadastrados para composição de negócio
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    post:
+      tags: [CRM 360]
+      summary: Cria um produto/serviço (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Formato de `crmProductSchema` (crm360.schema.ts)
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/deals/{leadId}/items:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [CRM 360]
+      summary: Lista os itens (produtos/serviços) compostos num negócio
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    post:
+      tags: [CRM 360]
+      summary: Adiciona um item ao negócio (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Formato de `crmDealItemSchema` (crm360.schema.ts)
+      responses:
+        '201':
+          description: Adicionado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/deals/{leadId}/items/{id}:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [CRM 360]
+      summary: Remove um item do negócio (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/documents:
+    get:
+      tags: [CRM 360]
+      summary: Lista os documentos (propostas, contratos) vinculados a negócios
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    post:
+      tags: [CRM 360]
+      summary: Cria um documento vinculado a um negócio (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Formato de `crmDocumentSchema` (crm360.schema.ts)
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/documents/{id}/status:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [CRM 360]
+      summary: Atualiza o status de um documento (ex. enviado/assinado) — ADMIN/GESTOR/VENDEDOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ─────────────────────── Comercial Inteligente (BI executivo) ───────────────────────
+  # Router inteiro restrito a ADMIN/GESTOR (COMMERCIAL_INTELLIGENCE_ROLES), reforçado tanto no
+  # mount de server.ts quanto dentro do próprio router (defesa em profundidade).
+  /commercial-intelligence/overview:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Visão executiva geral (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/pipeline-creation:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Criação de pipeline no período (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/performance:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Métricas de performance comparativa (funil, ticket médio, ciclo de venda) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/aging:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Relatório de aging (tempo parado por etapa) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/losses:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Análise de perdas por motivo (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/leading-indicators:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Indicadores antecedentes (leading indicators) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/alerts:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Alertas executivos ativos (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/crm-quality:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Índice de qualidade de dados do CRM (campos obrigatórios ausentes, falhas de sync) — somente ADMIN/GESTOR
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/deals:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Lista de negócios para drill-down executivo (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/deals/{leadId}/forecast:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Comercial Inteligente]
+      summary: Explicação do forecast de um negócio específico (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/metrics-dictionary:
+    get:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Dicionário de métricas (definição de cada indicador exibido) — para que dashboard,
+        relatório exportado e API não divirjam silenciosamente. Somente ADMIN/GESTOR.
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/goals:
+    get:
+      tags: [Comercial Inteligente]
+      summary: Metas comerciais do período (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [Comercial Inteligente]
+      summary: Define/atualiza a meta comercial do período (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/ai/executive-summary:
+    post:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Gera um resumo executivo via IA a partir das métricas já calculadas (somente ADMIN/GESTOR;
+        limitador de taxa dedicado por organização, mesmo desenho do `aiLimiter` de `server.ts`)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /commercial-intelligence/ai/bitrix-note:
+    post:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Gera uma nota via IA para publicar no Bitrix a partir de um negócio (somente ADMIN/GESTOR;
+        mesmo limitador de IA dedicado do endpoint acima)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  # ───────────────────────────── LGPD (direitos do titular) ─────────────────────────────
+  /lgpd/titular/{contactId}/export:
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [LGPD]
+      summary: >-
+        Portabilidade de dados do titular (LGPD Art. 18 V) — exporta todos os dados pessoais
+        vinculados ao contato. Base legal: exercício de direito do titular.
+      responses:
+        '200':
+          description: Dados do titular (formato definido em `lgpdService.exportContactData`)
+          content:
+            application/json:
+              schema: { type: object }
+
+  /lgpd/titular/{contactId}:
+    parameters:
+      - name: contactId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [LGPD]
+      summary: >-
+        Eliminação/anonimização do titular (LGPD Art. 18 VI) — irreversível. Somente ADMIN/GESTOR.
+        Base legal: exercício de direito do titular. `organizationId` vem exclusivamente da sessão
+        autenticada, nunca de header do cliente (mitiga anonimização cross-tenant).
+      responses:
+        '200':
+          description: Titular anonimizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  result: { type: object }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ───────────────────────────── Equipe ─────────────────────────────
+  /team/assignable:
+    get:
+      tags: [Equipe]
+      summary: >-
+        Nome/id dos membros da organização, para reatribuir lead/atividade — qualquer usuário
+        autenticado (não exige ADMIN; sem e-mail nem papel no retorno, por design)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      owners: { type: array, items: { type: object } }
+
+  /team:
+    get:
+      tags: [Equipe]
+      summary: Lista os membros da organização com papel e e-mail (somente ADMIN)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Equipe]
+      summary: Cria um novo usuário na organização com senha temporária (somente ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, role]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                role: { type: string }
+      responses:
+        '201':
+          description: >-
+            Criado. A senha temporária só existe nesta resposta — nunca é persistida em texto
+            puro nem devolvida de novo depois.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      member: { type: object }
+                      tempPassword: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /team/{id}/reset-password:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Equipe]
+      summary: Reseta a senha de um membro da equipe (somente ADMIN)
+      responses:
+        '200':
+          description: >-
+            Nova senha temporária (mesma regra de não persistência/reexibição do POST /team acima)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      member: { type: object }
+                      tempPassword: { type: string }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /team/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Equipe]
+      summary: Remove um membro da equipe (somente ADMIN)
+      responses:
+        '200':
+          description: Removido
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ───────────────────────────── Bitrix24 ─────────────────────────────
+  /bitrix/connections:
+    get:
+      tags: [Bitrix24]
+      summary: Lista as conexões Bitrix24 configuradas para o tenant
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/connect:
+    post:
+      tags: [Bitrix24]
+      summary: Cria uma nova conexão com o Bitrix24 (webhook de saída) — somente ADMIN/GESTOR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/connections/{connectionId}/test:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Bitrix24]
+      summary: Testa a conexão Bitrix24 (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/disconnect/{connectionId}:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Bitrix24]
+      summary: Desconecta e remove a conexão Bitrix24 (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: Desconectada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/connections/{connectionId}/webhook-secret:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Bitrix24]
+      summary: Regenera o segredo do webhook de entrada da conexão (somente ADMIN/GESTOR) — a URL é a credencial
+      responses:
+        '200': { description: Regenerado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/connections/{connectionId}/inbound-events:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Bitrix24]
+      summary: Habilita/desabilita quais eventos de entrada esta conexão aceita (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Atualizado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/leads:
+    get:
+      tags: [Bitrix24]
+      summary: Lista leads do Bitrix24 disponíveis para importação
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/leads/import:
+    post:
+      tags: [Bitrix24]
+      summary: Importa leads selecionados do Bitrix24 para o CRM (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Importados, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/deals:
+    get:
+      tags: [Bitrix24]
+      summary: Lista negócios/deals do Bitrix24 disponíveis para importação
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/deals/import:
+    post:
+      tags: [Bitrix24]
+      summary: Importa negócios selecionados do Bitrix24 (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Importados, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/deal-pipelines:
+    get:
+      tags: [Bitrix24]
+      summary: Pipelines de negócio configurados no Bitrix24
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/deal-stages:
+    get:
+      tags: [Bitrix24]
+      summary: Etapas de negócio configuradas no Bitrix24
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/lead-statuses:
+    get:
+      tags: [Bitrix24]
+      summary: Status de lead configurados no Bitrix24
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/users:
+    get:
+      tags: [Bitrix24]
+      summary: Usuários do Bitrix24, para mapeamento de responsável
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/fields:
+    get:
+      tags: [Bitrix24]
+      summary: Campos customizados disponíveis na entidade do Bitrix24
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /bitrix/leads/{leadId}/comment:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Bitrix24]
+      summary: Publica um comentário no lead correspondente no Bitrix24 (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Publicado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/sync-rules:
+    get:
+      tags: [Bitrix24]
+      summary: Lista as regras de sincronização automática configuradas
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+    post:
+      tags: [Bitrix24]
+      summary: >-
+        Cria uma regra de sincronização (ADMIN/GESTOR/VENDEDOR pode criar a PRÓPRIA regra — o
+        responsável é travado no próprio usuário para não-gestores)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/sync-rules/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Bitrix24]
+      summary: Ativa/desativa ou atualiza uma regra de sincronização (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Bitrix24]
+      summary: Remove uma regra de sincronização (somente ADMIN/GESTOR)
+      responses:
+        '204': { description: Removida }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/extractions:
+    get:
+      tags: [Bitrix24]
+      summary: >-
+        Lista as extrações históricas do Bitrix24 (somente ADMIN/GESTOR — uma extração pode trazer
+        todo o dado histórico da conta)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Bitrix24]
+      summary: Inicia uma nova extração histórica do Bitrix24 (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '202': { description: Extração iniciada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/extractions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Bitrix24]
+      summary: Status/detalhe de uma extração (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    delete:
+      tags: [Bitrix24]
+      summary: Remove o registro de uma extração (somente ADMIN/GESTOR)
+      responses:
+        '204': { description: Removida }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/extractions/{id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Bitrix24]
+      summary: Cancela uma extração em andamento (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: Cancelada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/extractions/{id}/download:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Bitrix24]
+      summary: Baixa o arquivo de uma extração concluída (somente ADMIN/GESTOR)
+      responses:
+        '200':
+          description: Arquivo da extração
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ───────────────────────────── 3CX ─────────────────────────────
+  /integrations/3cx/connections:
+    get:
+      tags: [3CX]
+      summary: Lista as conexões 3CX configuradas para o tenant
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+  /integrations/3cx/connect:
+    post:
+      tags: [3CX]
+      summary: Cria uma nova conexão com o PABX 3CX (somente ADMIN/GESTOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201': { description: Criada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /integrations/3cx/connections/{connectionId}/test:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [3CX]
+      summary: Testa a conexão 3CX (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /integrations/3cx/disconnect/{connectionId}:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [3CX]
+      summary: Desconecta a conexão 3CX (somente ADMIN/GESTOR)
+      responses:
+        '200': { description: Desconectada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /integrations/3cx/call:
+    post:
+      tags: [3CX]
+      summary: Dispara uma ligação via 3CX (ADMIN/GESTOR/VENDEDOR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Ligação iniciada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ───────────────────────────── Webhooks (corpo cru) ─────────────────────────────
+  # Montados em server.ts ANTES do express.json() global — corpo não é JSON parseado pelo
+  # middleware padrão, e a autenticidade não vem de sessão de usuário. Ver env vars citadas em
+  # cada um (fail-closed: sem o segredo configurado, o endpoint rejeita toda requisição).
+  /integrations/birth-voice:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de resultado de chamada do Birth Voices Hub. Corpo cru (`express.raw`), assinatura
+        HMAC no header `x-birthvoices-signature` sobre os bytes crus, segredo
+        `BIRTH_VOICES_WEBHOOK_SECRET`. Mesmo prefixo de path que `/integrations/birth-voice/*`
+        (endpoints autenticados da tag Birth Voice) — este router é montado ANTES e só intercepta
+        o path exato do webhook, os demais sub-paths caem no router autenticado.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Processado
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: BIRTH_VOICES_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /integrations/3cx/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de evento de chamada do PABX 3CX (Call Flow). Corpo cru (`express.raw`),
+        assinatura HMAC no header `x-3cx-signature`, segredo `THREECX_WEBHOOK_SECRET`.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Processado
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: THREECX_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /webhooks/voice-result:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de resultado de ligação de voz (Bland AI). JSON parseado com parser próprio (não
+        depende do `express.json()` global, montado antes dele), segredo comparado em tempo
+        constante no header `x-atlasgr-webhook-secret` vs `ATLASGR_WEBHOOK_SECRET`, idempotente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Processado
+        '401':
+          description: Segredo inválido
+        '503':
+          description: ATLASGR_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /integrations/bitrix:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de entrada do Bitrix24 ("исходящий вебхук") — leads/eventos criados no Bitrix
+        chegam aqui. Corpo form-encoded (`express.urlencoded`, não JSON — é como o Bitrix24 envia
+        webhooks de saída). Autenticidade por segredo por conexão (`auth.application_token`)
+        comparado em tempo constante, identificado por `:connectionId` na URL real (ex.
+        `/api/integrations/bitrix/:connectionId`) — a URL completa, incluindo o id da conexão, é a
+        credencial.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Processado
+        '401':
+          description: Segredo da conexão inválido ou conexão não encontrada
+
+  # ─────────────── Endpoints avulsos ausentes em routers já documentados ───────────────
+  /leads/import/bitrix24:
+    get:
+      tags: [Leads]
+      summary: Lista leads do Bitrix24 candidatos à importação direta (view a partir do módulo de Leads)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /leads/enrich-batch:
+    post:
+      tags: [Leads]
+      summary: Reenriquece um lote de leads de uma vez
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadIds]
+              properties:
+                leadIds: { type: array, items: { type: string } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /prospecting/ocr:
+    post:
+      tags: [Prospecting]
+      summary: Extrai texto/dados de um documento via OCR (Tesseract) para apoiar a descoberta de candidatos
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, description: 'Upload de imagem/PDF — ver ocr.service.ts' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /prospecting/cold-email:
+    post:
+      tags: [Prospecting]
+      summary: Gera/envia um e-mail frio para um candidato prospectado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /intelligence/agents/sdr/status/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Intelligence]
+      summary: Status de uma execução em background do agente SDR de qualificação
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /intelligence/report/latest:
+    get:
+      tags: [Intelligence]
+      summary: Último relatório executivo gerado via IA para o tenant
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /intelligence/win-loss-analysis:
+    post:
+      tags: [Intelligence]
+      summary: Dispara a análise de ganho/perda via IA sob demanda
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '202': { description: Análise enfileirada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /notifications/stream:
+    get:
+      tags: [Notifications]
+      summary: >-
+        Stream Server-Sent Events de notificações em tempo real do usuário autenticado. Endpoint
+        inline (não um router dedicado) — não segue o envelope `{success,data}` padrão, é um
+        stream contínuo `text/event-stream`.
+      responses:
+        '200':
+          description: Stream de eventos SSE, uma conexão por sessão de usuário
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /automations/stagnation-scan:
+    post:
+      tags: [Automations]
+      summary: >-
+        Dispara manualmente a varredura de leads estagnados/frios (mesma lógica do cron diário) —
+        somente ADMIN, varredura cross-tenant administrativa
+      responses:
+        '202': { description: Varredura iniciada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /whatsapp/conversations:
+    get:
+      tags: [WhatsApp]
+      summary: Lista as conversas de WhatsApp do tenant com sinais de intenção detectados
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /whatsapp/signals:
+    get:
+      tags: [WhatsApp]
+      summary: Sinais de conversa detectados (conversation intelligence) para o tenant
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+
+  /google/disconnect:
+    post:
+      tags: [Google]
+      summary: Desconecta a integração Google (revoga tokens armazenados) do tenant
+      responses:
+        '200':
+          description: Desconectado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+
+  /google/calendar/upcoming:
+    get:
+      tags: [Google]
+      summary: Próximos eventos do Google Calendar conectado
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
 
 components:
   securitySchemes:

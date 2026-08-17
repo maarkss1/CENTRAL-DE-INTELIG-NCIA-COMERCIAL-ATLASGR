@@ -1,3 +1,5 @@
+import type { OverviewMetrics } from '../../../shared/contracts/analytics.contract.js';
+
 /** Ordem real do funil comercial — usada para o gráfico e para a conversão etapa a etapa. */
 export const FUNNEL_STAGES = [
     'Lead_Recebido',
@@ -23,27 +25,13 @@ export const CLOSED_LOST_STATUSES = [LOST, DESQUALIFICADO, 'Piloto_Atlas_Profile
 /** Todo status que representa fechamento, ganho ou sem venda — usado para excluir do "pipeline aberto". */
 export const CLOSED_STATUSES = [WON, ...CLOSED_LOST_STATUSES] as const;
 
-export interface OverviewMetrics {
-    totalCompanies: number;
-    totalContacts: number;
-    /** Leads em aberto (fora de `CLOSED_STATUSES`: ganho, perdido, desqualificado, piloto cancelado). */
-    totalLeads: number;
-    totalActivities: number;
-    pendingActivities: number;
-    overdueActivities: number;
-    closedThisMonth: number;
-    lostThisMonth: number;
-    conversionRate: number;
-    /** Média do score dos leads em aberto, ou null se nenhum lead tem score preenchido. */
-    averageScore: number | null;
-    /**
-     * Soma de `Lead.amount` dos leads em aberto (fora de ganho/perdido/desqualificado/piloto
-     * cancelado) que têm valor preenchido. `null` quando nenhum lead em aberto tem `amount`
-     * preenchido — o frontend exibe "—" em vez de inventar um número (nunca fabrica 0 ou uma
-     * média para preencher a interface, ver AGENTS.md > "Dados reais x demonstração").
-     */
-    pipelineValue: number | null;
-}
+// `OverviewMetrics` vem da fonte canônica compartilhada (Onda 10, Agente 04, resolvendo
+// `.agents/handoffs/onda-8/18-para-04-unificar-overviewmetrics.md`) — antes desta unificação, o
+// mesmo formato estava declarado de forma independente aqui e em `analytics.service.ts`, sem
+// nenhuma relação de import entre si, podendo divergir silenciosamente sem que o typecheck
+// acusasse. Não redeclare localmente: qualquer campo novo/alterado entra em
+// `src/shared/contracts/analytics.contract.ts`.
+export type { OverviewMetrics };
 
 export interface DistributionSlice {
     label: string;

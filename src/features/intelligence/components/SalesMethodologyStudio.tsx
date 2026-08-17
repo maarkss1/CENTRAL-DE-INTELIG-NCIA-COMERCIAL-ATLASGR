@@ -205,6 +205,61 @@ export function SalesMethodologyStudio() {
             </span>
           </div>
 
+          {/* Quick Presets */}
+          <div className="flex flex-wrap gap-1.5 pb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'Diretor de Logística & Head de GR',
+                  companySegment: 'Transporte Rodoviário de Cargas / Operadores Logísticos',
+                  icpSize: 'Enterprise (+500 colaboradores)',
+                  techStack: 'TMS proprietário, rastreadores híbridos e ERP SAP/Totvs',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Falta de tratativa operacional com SLA em desvios de rota e ocorrências críticas',
+                  mainBenefit: 'Redução de sinistros e automação do compliance com seguradoras em tempo real',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              🚛 GR & Logística
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'Gerente de SSMA & Frotas',
+                  companySegment: 'Embarcadores Químicos e Distribuição Pesada',
+                  icpSize: 'Mid-Market (50 a 500 colaboradores)',
+                  techStack: 'Telemetria CAN e câmeras analógicas',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Risco de acidentes por fadiga/distração do condutor e passivos trabalhistas',
+                  mainBenefit: 'Videotelemetria com IA preventiva e redução de custo de sinistros/combustível',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              🛡️ SSMA & Frotas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'CFO / VP de Operações',
+                  companySegment: 'Grandes Redes de Varejo & E-commerce',
+                  icpSize: 'Enterprise (+500 colaboradores)',
+                  techStack: 'WMS, TMS e torres de monitoramento manuais',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Custo oculto de ociosidade, tempo de parada não justificado e falta de ROI claro',
+                  mainBenefit: 'Visibilidade unificada de custo por quilômetro e mitigação proativa de perdas',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              📈 C-Level & ROI
+            </button>
+          </div>
+
           <div className="space-y-3.5 text-xs">
             <div>
               <label htmlFor="sales-target-persona" className="font-bold text-ink-2 block mb-1">Cargo da Persona Target (Decisor C-Level/VP)</label>
@@ -334,17 +389,17 @@ export function SalesMethodologyStudio() {
               className="space-y-6"
             >
               {/* Card de Meta & ICP Score */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 border border-indigo-500/30 flex items-center justify-between text-xs">
+              <div className="p-4 rounded-2xl bg-surface-2 border border-line flex items-center justify-between text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-500 flex items-center justify-center font-bold">
                     <Award className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-white">Roteiro Otimizado para {result.meta.persona}</h4>
-                    <p className="text-[11px] text-gray-400">Porte ICP: {result.meta.icpSize}</p>
+                    <h4 className="font-bold text-ink">Roteiro Otimizado para {result.meta.persona}</h4>
+                    <p className="text-[11px] text-ink-2">Porte ICP: {result.meta.icpSize}</p>
                   </div>
                 </div>
-                <span className="max-w-sm px-3 py-1 rounded-xl bg-amber-500/10 text-amber-200 font-semibold border border-amber-500/30 text-right">
+                <span className="max-w-sm px-3 py-1 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-200 font-semibold border border-amber-500/30 text-right">
                   Validar: {result.meta.fitAssessment}
                 </span>
               </div>
@@ -352,10 +407,10 @@ export function SalesMethodologyStudio() {
               {/* SPIN Selling Display */}
               {result.type === 'spin' && (
                 <div className="space-y-4">
-                  <SpinBlock title="S — Situation (Perguntas de Contexto)" items={result.situation} onCopy={(txt) => handleCopy(txt, 's')} copied={copiedKey === 's'} color="border-blue-500/30 bg-blue-950/20" icon={<HelpCircle className="w-4 h-4 text-blue-400" />} />
-                  <SpinBlock title="P — Problem (Perguntas de Dor & Gargalo)" items={result.problem} onCopy={(txt) => handleCopy(txt, 'p')} copied={copiedKey === 'p'} color="border-amber-500/30 bg-amber-950/20" icon={<ShieldAlert className="w-4 h-4 text-amber-400" />} />
-                  <SpinBlock title="I — Implication (Perguntas de Custo Financeiro)" items={result.implication} onCopy={(txt) => handleCopy(txt, 'i')} copied={copiedKey === 'i'} color="border-red-500/30 bg-red-950/20" icon={<Flame className="w-4 h-4 text-red-400" />} />
-                  <SpinBlock title="N — Need-Payoff (Perguntas de Valor & ROI)" items={result.needPayoff} onCopy={(txt) => handleCopy(txt, 'n')} copied={copiedKey === 'n'} color="border-green-500/30 bg-green-950/20" icon={<Sparkles className="w-4 h-4 text-green-400" />} />
+                  <SpinBlock title="S — Situation (Perguntas de Contexto)" items={result.situation} onCopy={(txt) => handleCopy(txt, 's')} copied={copiedKey === 's'} color="border-blue-500/30 bg-blue-500/5 dark:bg-blue-950/20" icon={<HelpCircle className="w-4 h-4 text-blue-500" />} />
+                  <SpinBlock title="P — Problem (Perguntas de Dor & Gargalo)" items={result.problem} onCopy={(txt) => handleCopy(txt, 'p')} copied={copiedKey === 'p'} color="border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20" icon={<ShieldAlert className="w-4 h-4 text-amber-500" />} />
+                  <SpinBlock title="I — Implication (Perguntas de Custo Financeiro)" items={result.implication} onCopy={(txt) => handleCopy(txt, 'i')} copied={copiedKey === 'i'} color="border-red-500/30 bg-red-500/5 dark:bg-red-950/20" icon={<Flame className="w-4 h-4 text-red-500" />} />
+                  <SpinBlock title="N — Need-Payoff (Perguntas de Valor & ROI)" items={result.needPayoff} onCopy={(txt) => handleCopy(txt, 'n')} copied={copiedKey === 'n'} color="border-green-500/30 bg-green-500/5 dark:bg-green-950/20" icon={<Sparkles className="w-4 h-4 text-green-500" />} />
                 </div>
               )}
 
@@ -384,20 +439,20 @@ export function SalesMethodologyStudio() {
 
                   <div className="space-y-4 text-xs">
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-indigo-500/30">
-                      <span className="font-extrabold text-indigo-400 uppercase tracking-wider block mb-1">A — Attention (Hook C-Level)</span>
+                      <span className="font-extrabold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block mb-1">A — Attention (Hook C-Level)</span>
                       <p className="font-bold text-ink mb-1">{result.attention.hook}</p>
                       <p className="text-ink-2">{result.attention.opening}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-blue-500/30">
-                      <span className="font-extrabold text-blue-400 uppercase tracking-wider block mb-1">I — Interest (Problema & Stack Technographics)</span>
+                      <span className="font-extrabold text-blue-500 dark:text-blue-400 uppercase tracking-wider block mb-1">I — Interest (Problema & Stack Technographics)</span>
                       <p className="text-ink-2 leading-relaxed">{result.interest.body}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-amber-500/30">
-                      <span className="font-extrabold text-amber-400 uppercase tracking-wider block mb-1">D — Desire (Diferencial & ROI Prometido)</span>
+                      <span className="font-extrabold text-amber-500 dark:text-amber-400 uppercase tracking-wider block mb-1">D — Desire (Diferencial & ROI Prometido)</span>
                       <p className="text-ink-2 leading-relaxed">{result.desire.proof}</p>
                     </div>
                     <div className="p-3.5 rounded-2xl bg-surface-2 border border-green-500/30">
-                      <span className="font-extrabold text-green-400 uppercase tracking-wider block mb-1">A — Action (Chamada com Baixa Fricção)</span>
+                      <span className="font-extrabold text-green-500 dark:text-green-400 uppercase tracking-wider block mb-1">A — Action (Chamada com Baixa Fricção)</span>
                       <p className="text-ink font-bold">{result.action.cta}</p>
                     </div>
                   </div>
@@ -409,7 +464,7 @@ export function SalesMethodologyStudio() {
                 <div className="glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-indigo-400" /> Qualificação Enterprise MEDDPICC
+                      <FileText className="w-5 h-5 text-indigo-500" /> Qualificação Enterprise MEDDPICC
                     </h3>
                     <Button variant="outline" size="sm" onClick={() => handleCopy(JSON.stringify(result, null, 2), 'medd_all')} className="text-xs">
                       {copiedKey === 'medd_all' ? <Check className="w-3.5 h-3.5 text-green-400 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
@@ -418,14 +473,14 @@ export function SalesMethodologyStudio() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <MeddCard letter="M" title="Metrics (Métricas)" content={result.metrics} color="text-blue-400 border-blue-500/30" />
-                    <MeddCard letter="E" title="Economic Buyer (Comprador Econômico)" content={result.economicBuyer} color="text-purple-400 border-purple-500/30" />
-                    <MeddCard letter="D" title="Decision Criteria (Critérios)" content={result.decisionCriteria} color="text-indigo-400 border-indigo-500/30" />
-                    <MeddCard letter="D" title="Decision Process (Processo)" content={result.decisionProcess} color="text-teal-400 border-teal-500/30" />
-                    <MeddCard letter="P" title="Paper Process (Fluxo Jurídico)" content={result.paperProcess} color="text-amber-400 border-amber-500/30" />
-                    <MeddCard letter="I" title="Identified Pain (Dor Mapeada)" content={result.identifiedPain} color="text-red-400 border-red-500/30" />
-                    <MeddCard letter="C" title="Champion (Sponsor Interno)" content={result.champion} color="text-emerald-400 border-emerald-500/30" />
-                    <MeddCard letter="C" title="Competitors (Status Quo)" content={result.competitors} color="text-pink-400 border-pink-500/30" />
+                    <MeddCard letter="M" title="Metrics (Métricas)" content={result.metrics} color="text-blue-500 border-blue-500/30" />
+                    <MeddCard letter="E" title="Economic Buyer (Comprador Econômico)" content={result.economicBuyer} color="text-purple-500 border-purple-500/30" />
+                    <MeddCard letter="D" title="Decision Criteria (Critérios)" content={result.decisionCriteria} color="text-indigo-500 border-indigo-500/30" />
+                    <MeddCard letter="D" title="Decision Process (Processo)" content={result.decisionProcess} color="text-teal-500 border-teal-500/30" />
+                    <MeddCard letter="P" title="Paper Process (Fluxo Jurídico)" content={result.paperProcess} color="text-amber-500 border-amber-500/30" />
+                    <MeddCard letter="I" title="Identified Pain (Dor Mapeada)" content={result.identifiedPain} color="text-red-500 border-red-500/30" />
+                    <MeddCard letter="C" title="Champion (Sponsor Interno)" content={result.champion} color="text-emerald-500 border-emerald-500/30" />
+                    <MeddCard letter="C" title="Competitors (Status Quo)" content={result.competitors} color="text-pink-500 border-pink-500/30" />
                   </div>
                 </div>
               )}
@@ -435,24 +490,24 @@ export function SalesMethodologyStudio() {
                 <div className="glass-panel p-6 rounded-3xl border border-line bg-surface space-y-4">
                   <div className="flex items-center justify-between pb-3 border-b border-line">
                     <h3 className="font-bold text-ink text-base flex items-center gap-2">
-                      <Compass className="w-5 h-5 text-amber-400" /> Estratégia Challenger Sale (Teach, Tailor, Take Control)
+                      <Compass className="w-5 h-5 text-amber-500" /> Estratégia Challenger Sale (Teach, Tailor, Take Control)
                     </h3>
                   </div>
 
                   <div className="space-y-4 text-xs">
-                    <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-1">
-                      <h4 className="font-bold text-amber-400 text-sm">{result.teach.title}</h4>
-                      <p className="text-gray-200 leading-relaxed font-medium">{result.teach.script}</p>
+                    <div className="p-4 rounded-2xl bg-amber-500/5 dark:bg-amber-950/30 border border-amber-500/30 space-y-1">
+                      <h4 className="font-bold text-amber-600 dark:text-amber-400 text-sm">{result.teach.title}</h4>
+                      <p className="text-ink leading-relaxed font-medium">{result.teach.script}</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-1">
-                      <h4 className="font-bold text-indigo-400 text-sm">{result.tailor.title}</h4>
-                      <p className="text-gray-200 leading-relaxed font-medium">{result.tailor.script}</p>
+                    <div className="p-4 rounded-2xl bg-indigo-500/5 dark:bg-indigo-950/30 border border-indigo-500/30 space-y-1">
+                      <h4 className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">{result.tailor.title}</h4>
+                      <p className="text-ink leading-relaxed font-medium">{result.tailor.script}</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-1">
-                      <h4 className="font-bold text-emerald-400 text-sm">{result.takeControl.title}</h4>
-                      <p className="text-gray-200 leading-relaxed font-medium">{result.takeControl.script}</p>
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 dark:bg-emerald-950/30 border border-emerald-500/30 space-y-1">
+                      <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{result.takeControl.title}</h4>
+                      <p className="text-ink leading-relaxed font-medium">{result.takeControl.script}</p>
                     </div>
                   </div>
                 </div>
@@ -484,17 +539,17 @@ function SpinBlock({ title, items, onCopy, copied, color, icon }: { title: strin
   return (
     <div className={`p-5 rounded-2xl border ${color} space-y-3`}>
       <div className="flex items-center justify-between">
-        <h4 className="font-bold text-white text-sm flex items-center gap-2">
+        <h4 className="font-bold text-ink text-sm flex items-center gap-2">
           {icon} {title}
         </h4>
-        <button onClick={() => onCopy(fullText)} className="text-xs text-gray-400 hover:text-white flex items-center gap-1 cursor-pointer">
-          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+        <button onClick={() => onCopy(fullText)} className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 cursor-pointer">
+          {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? 'Copiado' : 'Copiar Bloco'}
         </button>
       </div>
-      <ul className="space-y-2 text-xs text-gray-300">
+      <ul className="space-y-2 text-xs text-ink">
         {items.map((item, i) => (
-          <li key={i} className="flex items-start gap-2 bg-slate-900/50 p-2.5 rounded-xl border border-white/5">
+          <li key={i} className="flex items-start gap-2 bg-surface p-2.5 rounded-xl border border-line shadow-sm">
             <span className="font-bold text-brand">{i + 1}.</span>
             <span className="leading-relaxed">{item}</span>
           </li>

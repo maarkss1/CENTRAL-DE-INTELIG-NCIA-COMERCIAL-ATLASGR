@@ -8,6 +8,17 @@ import { clientLogger } from '../../../lib/clientLogger';
 import type { CrmOverviewData } from '../crm360.types';
 
 interface CrmOverviewProps {
+    /**
+     * `tab` vira `/app/${tab}` em `App.tsx` (`handleCrmOverviewNavigate`) — precisa ser um path
+     * real de `src/App.tsx`/um `TabType` de `tabMeta.ts`, nunca um id inventado só para esta tela.
+     * Onda 8: os 4 botões deste componente chamavam `onNavigate('foco')`/`onNavigate('negocios')`,
+     * ids que nunca existiram em nenhuma rota nem em `TabType` — o catch-all de `App.tsx`
+     * (`<Route path="*" element={<Navigate to="/app" replace />} />`) redirecionava silenciosamente
+     * de volta ao dashboard, sem erro visível (botão "funcionava" mas levava a lugar nenhum).
+     * Corrigido para `'activities'` (Agenda/Foco — mesma tela que já lista as atividades vencidas
+     * usadas em `data.focusActivities`) e `'crm?funnel=Negocio'` (Pipeline de Negócios — mesmo
+     * `CrmBoard` já usado no menu principal, no funil correto via query param).
+     */
     onNavigate: (tab: string) => void;
 }
 
@@ -113,7 +124,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                         <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-500">Radar de IA · próxima melhor ação</p>
                         <p className="mt-1 text-sm leading-relaxed text-ink">{insight}</p>
                     </div>
-                    <button onClick={() => onNavigate('foco')} className="hidden items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-violet-500 hover:bg-violet-500/10 sm:flex">Abrir foco <ArrowRight className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => onNavigate('activities')} className="hidden items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-violet-500 hover:bg-violet-500/10 sm:flex">Abrir foco <ArrowRight className="h-3.5 w-3.5" /></button>
                 </div>
             </section>
 
@@ -142,7 +153,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                 <section className="rounded-2xl border border-line bg-surface p-4">
                     <div className="mb-3 flex items-center justify-between">
                         <div><h3 className="font-black text-ink">Foco agora</h3><p className="text-xs text-ink-2">Próximas atividades por vencimento</p></div>
-                        <button onClick={() => onNavigate('foco')} className="text-xs font-bold text-brand">Ver tudo</button>
+                        <button onClick={() => onNavigate('activities')} className="text-xs font-bold text-brand">Ver tudo</button>
                     </div>
                     <div className="divide-y divide-line">
                         {data.focusActivities.slice(0, 6).map((activity) => {
@@ -166,7 +177,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
             <section className="rounded-2xl border border-line bg-surface p-4">
                 <div className="mb-3 flex items-center justify-between">
                     <div><h3 className="font-black text-ink">Negócios recentes</h3><p className="text-xs text-ink-2">Últimas contas movimentadas</p></div>
-                    <button onClick={() => onNavigate('negocios')} className="text-xs font-bold text-brand">Abrir pipeline</button>
+                    <button onClick={() => onNavigate('crm?funnel=Negocio')} className="text-xs font-bold text-brand">Abrir pipeline</button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     {data.recentDeals.map((deal) => (
@@ -194,7 +205,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                 <div className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80" aria-label="Documentos comerciais — tela dedicada ainda não disponível">
                     <span><strong className="block text-ink">Documentos comerciais</strong><small className="text-ink-2">{data.kpis.pendingDocuments} em aberto · tela dedicada em breve</small></span><FileClock className="h-5 w-5 text-ink-2" />
                 </div>
-                <button onClick={() => onNavigate('foco')} className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"><span><strong className="block text-ink">Agenda inteligente</strong><small className="text-ink-2">{data.kpis.todayActivities} compromissos hoje</small></span><CalendarClock className="h-5 w-5 text-brand" /></button>
+                <button onClick={() => onNavigate('activities')} className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4 text-left hover:border-brand/40"><span><strong className="block text-ink">Agenda inteligente</strong><small className="text-ink-2">{data.kpis.todayActivities} compromissos hoje</small></span><CalendarClock className="h-5 w-5 text-brand" /></button>
                 <div className="flex items-center justify-between rounded-2xl border border-line border-dashed bg-surface p-4 text-left opacity-80" aria-label="Saúde do CRM — configuração de pipelines ainda não disponível">
                     <span><strong className="block text-ink">Saúde do CRM</strong><small className="text-ink-2">Pipelines e etapas · tela dedicada em breve</small></span><Gauge className="h-5 w-5 text-ink-2" />
                 </div>

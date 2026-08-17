@@ -21,9 +21,16 @@ export function resolveOwnBitrixUserId(bitrixUsers: BitrixUserOption[], userEmai
 
 /**
  * Devolve o nome (User.name) do usuário Atlas desta organização cujo e-mail bate com o
- * `bitrixEmail` informado — usado para preencher `Lead.owner` no import a partir de quem está
- * marcado como responsável (ASSIGNED_BY_ID) no Bitrix. `null` quando não há usuário Atlas com esse
- * e-mail (o negócio ainda é importado, só fica sem responsável — nunca fabrica um nome).
+ * `bitrixEmail` informado. `null` quando não há usuário Atlas com esse e-mail (nunca fabrica um
+ * nome).
+ *
+ * NÃO use esta função para preencher `Lead.owner` — use `resolveAtlasUserIdByEmail` abaixo.
+ * `Lead.owner` precisa sempre gravar `User.id`, a mesma convenção usada por leads criados dentro
+ * do app (`LeadUseCases.createLead`, `assignment.service.ts`); gravar o nome aqui é o que quebrava
+ * `requireLeadOwnership` (RBAC) e duplicava vendedores no ranking de BI por owner — ver
+ * `.agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md`. Esta função continua existindo
+ * porque é reexportada como parte da API pública deste módulo (`bitrix.service.ts`) e pode ter
+ * consumidores futuros que precisem do nome para exibição — não porque ainda alimenta `Lead.owner`.
  */
 export async function resolveAtlasUserNameByEmail(organizationId: string, bitrixEmail: string | null): Promise<string | null> {
     if (!bitrixEmail) return null;
@@ -32,4 +39,20 @@ export async function resolveAtlasUserNameByEmail(organizationId: string, bitrix
         select: { name: true },
     });
     return user?.name ?? null;
+}
+
+/**
+ * Devolve o `User.id` do usuário Atlas desta organização cujo e-mail bate com o `bitrixEmail`
+ * informado — use esta função (não `resolveAtlasUserNameByEmail`) para preencher `Lead.owner` no
+ * import a partir de quem está marcado como responsável (ASSIGNED_BY_ID) no Bitrix, para manter a
+ * mesma convenção usada por leads criados dentro do app. `null` quando não há usuário Atlas com
+ * esse e-mail (o registro ainda é importado, só fica sem responsável — nunca fabrica um vínculo).
+ */
+export async function resolveAtlasUserIdByEmail(organizationId: string, bitrixEmail: string | null): Promise<string | null> {
+    if (!bitrixEmail) return null;
+    const user = await prisma.user.findFirst({
+        where: { organizationId, email: { equals: bitrixEmail, mode: 'insensitive' } },
+        select: { id: true },
+    });
+    return user?.id ?? null;
 }

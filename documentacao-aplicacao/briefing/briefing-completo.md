@@ -64,6 +64,8 @@ A aplicação oferece uma navegação extremamente rápida, de fácil aprendizad
 ## 12. Arquivos produzidos
 - `/briefing/` (briefing-completo.md, resumo-executivo.md, atualizacoes-futuras.md, roadmap.md)
 - `/imagens/` (Categorias 01 a 06 com imagens da plataforma)
-- `/videos/` (apresentacao-completa.mp4, demonstracao-dos-fluxos.mp4)
+- `/videos/` (apresentacao-completa.mp4 — único vídeo gravado hoje; `roteiro-apresentacao.md` e
+  `roteiro-demonstracao.md` referenciam este mesmo material bruto até que uma gravação dedicada ao
+  roteiro de demonstração de fluxos exista — ver nota nos próprios roteiros)
 - `/roteiros/` (roteiro-apresentacao.md, roteiro-demonstracao.md)
 - `/inventario/` (inventario-de-telas.csv, mapa-de-navegacao.md)

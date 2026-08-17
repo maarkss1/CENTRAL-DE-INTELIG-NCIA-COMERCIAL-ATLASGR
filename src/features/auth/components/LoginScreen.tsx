@@ -94,16 +94,22 @@ export function LoginScreen() {
 
   return (
     <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
-      {/* Elementos Ambientais Gradient Glow */}
+      {/* Duas marcas convivem nesta tela (toggle + ambas as logos) antes de o login confirmar qual
+          é a real — mesma justificativa da WelcomeScreen (Piloto 001, CLAUDE.md §7.7): metade
+          laranja (AtlasGR) / metade azul (Total Trac) com peso visual igual, tokens estáticos em
+          vez de --brand reativo. Substitui o indigo-500 genérico anterior (violava a regra #3 —
+          gradiente azul/roxo de "IA genérica" — apesar de já estar no código antes desta mudança). */}
       <motion.div
-        animate={{ scale: [1, 1.1, 1], rotate: [0, 90, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-brand/15 rounded-full blur-[120px] pointer-events-none"
+        aria-hidden="true"
+        animate={{ scale: [1, 1.08, 1], rotate: [0, 90, 0] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
+        className="absolute left-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-atlas-orange/12 blur-[130px] pointer-events-none"
       />
       <motion.div
-        animate={{ scale: [1, 1.2, 1], rotate: [0, -90, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-        className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"
+        aria-hidden="true"
+        animate={{ scale: [1, 1.1, 1], rotate: [0, -90, 0] }}
+        transition={{ duration: 27, repeat: Infinity, ease: 'linear' }}
+        className="absolute right-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-totaltrack-blue/12 blur-[130px] pointer-events-none"
       />
 
       <button
@@ -192,8 +198,9 @@ export function LoginScreen() {
                   </p>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                    <label htmlFor="login-forgot-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
                     <input
+                      id="login-forgot-email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -240,8 +247,9 @@ export function LoginScreen() {
 
                 {isSignUp && (
                   <div>
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
+                    <label htmlFor="login-name" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">Seu Nome Completo</label>
                     <input
+                      id="login-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -253,8 +261,9 @@ export function LoginScreen() {
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                  <label htmlFor="login-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
                   <input
+                    id="login-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -266,7 +275,7 @@ export function LoginScreen() {
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5 ml-1 mr-1">
-                    <label className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha de Acesso</label>
+                    <label htmlFor="login-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha de Acesso</label>
                     {!isSignUp && (
                       <button
                         type="button"
@@ -281,6 +290,7 @@ export function LoginScreen() {
                     )}
                   </div>
                   <input
+                    id="login-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

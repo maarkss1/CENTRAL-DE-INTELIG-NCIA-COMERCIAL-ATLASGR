@@ -21,8 +21,10 @@ import { fadeInUp, staggerContainer, staggerItem, SPRING_SOFT } from '../../../l
 import { knowledgeApi, type KnowledgeDocumentSummary } from '../../knowledge/knowledge.api';
 
 import { SwarmDashboard } from './SwarmDashboard';
+import { AISuiteHub } from './AISuiteHub';
+import { Cpu } from 'lucide-react';
 
-export type IntelligenceTab = 'swarm' | 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
+export type IntelligenceTab = 'ai_suite' | 'swarm' | 'methodologies' | 'ai_config' | 'superagent' | 'scripts' | 'automations' | 'actions' | 'generator' | 'tools' | 'rag';
 
 interface IntelligenceHubProps {
     initialTab?: IntelligenceTab;
@@ -31,7 +33,8 @@ interface IntelligenceHubProps {
 // O Hub de IA sempre abre na grade de ferramentas (nunca direto numa ferramenta padrão) — o
 // usuário escolhe qual IA quer usar a partir dos cards, depois volta pra grade pelo botão "Voltar".
 // `initialTab` continua existindo só para um eventual deep-link futuro; hoje nenhum chamador o passa.
-const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot; description: string }[] = [
+const TOOL_TABS: { id: IntelligenceTab; label: string; icon: typeof Bot | typeof Cpu; description: string }[] = [
+    { id: 'ai_suite', label: 'Suíte dos 20 Motores de IA', icon: Cpu, description: 'Console interativo para executar e orquestrar os 20 motores de IA (Ollama & Cloud) da plataforma.' },
     { id: 'swarm', label: 'Enxame Autônomo', icon: Bot, description: 'Dispara uma missão para o enxame de agentes de IA (SDR, closer, CRM) e acompanha em tempo real.' },
     { id: 'methodologies', label: 'Metodologias de Vendas', icon: GraduationCap, description: 'Gera scripts B2B com frameworks clássicos: SPIN, SNAP, AIDA, MEDDPICC e Challenger.' },
     { id: 'ai_config', label: 'Central de Motores de IA', icon: Settings, description: 'Escolhe o modelo de IA e a temperatura usados por cada ferramenta de conteúdo do sistema.' },
@@ -87,9 +90,26 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
     if (activeTab === null) {
         return (
             <div className="flex-1 overflow-y-auto bg-transparent p-6 md:p-8 space-y-6">
-                <header>
-                    <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hub de IA</h1>
-                    <p className="text-sm text-ink-2 mt-1">Escolha a ferramenta de IA que você quer usar.</p>
+                <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-line/60">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hub de IA</h1>
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+                                20 Motores Ativos
+                            </span>
+                        </div>
+                        <p className="text-sm text-ink-2">Orquestrador unificado de agentes autônomos, metodologias B2B e motores cognitivos sincronizados.</p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-surface-2/80 backdrop-blur px-3.5 py-2 rounded-2xl border border-line text-xs text-ink-2 shadow-sm shrink-0">
+                        <div className="flex items-center gap-1.5 font-medium text-ink">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Sincronia Global
+                        </div>
+                        <div className="h-3.5 w-px bg-line"></div>
+                        <span className="hidden sm:inline">Groq + RAG + Multi-Search</span>
+                        <div className="h-3.5 w-px bg-line hidden sm:block"></div>
+                        <span className="text-brand font-medium">RLS Ativo</span>
+                    </div>
                 </header>
 
                 <motion.nav
@@ -148,6 +168,7 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
             </button>
 
             <motion.div key={activeTab} initial="hidden" animate="show" variants={fadeInUp}>
+                {activeTab === 'ai_suite' && <AISuiteHub />}
                 {activeTab === 'swarm' && <SwarmDashboard />}
                 {activeTab === 'methodologies' && <SalesMethodologyStudio />}
                 {activeTab === 'ai_config' && <AIConfigCenter />}

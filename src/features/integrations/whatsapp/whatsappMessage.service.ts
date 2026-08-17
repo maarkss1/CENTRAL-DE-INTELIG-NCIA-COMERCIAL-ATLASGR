@@ -3,6 +3,8 @@ import { prisma, withRlsContext } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { scheduleConversationAnalysis } from '../../../lib/queue/whatsappSignal.worker.js';
+import { recordOptOut } from '../../cadence/application/optOutService.js';
+import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 
 /** Grupos (`@g.us`) e o próprio status (`status@broadcast`) não correspondem a um contato do CRM. */
 function isIndividualChat(remoteJid: string | null | undefined): boolean {
@@ -38,8 +40,11 @@ async function findContactByPhone(organizationId: string, phoneE164: string) {
     const significant = digits.slice(-9);
     if (significant.length < 8) return null;
 
-    const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
-        SELECT id FROM "Contact"
+    // `email` incluído aqui (além de `id`) para o registro de opt-out unificado abaixo poder casar
+    // por e-mail também — ver contrato em .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md
+    // ("passem email e phoneE164 sempre que o canal já os tiver carregados").
+    const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string; email: string | null }[]>`
+        SELECT id, email FROM "Contact"
         WHERE "organizationId" = ${organizationId}
           AND (
             regexp_replace(COALESCE(phone, ''), '\D', '', 'g') LIKE ${'%' + significant}
@@ -109,6 +114,12 @@ export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput)
         const textLower = (input.body || '').trim().toLowerCase();
         if (['sair', 'parar', 'stop'].includes(textLower)) {
             const currentFields = (lead.customFields as Record<string, unknown>) || {};
+            // Mantém o flag legado (`customFields.optOutWhatsApp`) — outros pontos do código já
+            // dependem dele (crm/jobs/followUp.worker.ts, birth-voice/*.webhook.ts) e não são
+            // escopo desta mudança. `recordOptOut` é ADICIONAL, não substituto: registra no
+            // registro unificado (`OptOutRecord`) para que este pedido também bloqueie e-mail/voz
+            // do mesmo lead, não só WhatsApp — ver contrato em
+            // .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
             await prisma.lead.update({
                 where: { id: lead.id },
                 data: {
@@ -116,6 +127,22 @@ export async function persistWhatsAppMessage(input: PersistWhatsAppMessageInput)
                 }
             });
             logger.info({ leadId: lead.id }, 'Lead solicitou opt-out do WhatsApp');
+
+            // scope 'global': "sair"/"parar"/"stop" são pedidos genéricos de parar contato, não uma
+            // restrição explícita a um canal ("não me liga mais, pode mandar e-mail") — mesma regra
+            // de interpretação do contrato de opt-out unificado.
+            await recordOptOut(prismaOptOutRepository, {
+                organizationId: input.organizationId,
+                scope: 'global',
+                subject: { leadId: lead.id, email: contact?.email ?? null, phoneE164 },
+                originChannel: 'whatsapp',
+                reason: 'Lead pediu para parar de receber mensagens via WhatsApp',
+                evidence: input.body,
+            }).catch((error) => {
+                // O flag legado já foi salvo acima — a falha aqui não pode apagar essa evidência,
+                // mas precisa ficar visível (não é um catch silencioso).
+                logger.error({ err: error, leadId: lead.id }, 'Falha ao registrar opt-out unificado a partir do WhatsApp.');
+            });
         }
 
         await prisma.timelineEvent.create({

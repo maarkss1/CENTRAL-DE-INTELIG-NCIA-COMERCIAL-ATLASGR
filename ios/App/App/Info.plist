@@ -22,6 +22,26 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Deep link — esquema custom "atlasgr://<destino>", resolvido em SceneDelegate.swift.
+	     Espelha o intent-filter android:scheme="atlasgr" de
+	     android/app/src/main/AndroidManifest.xml — mesmo esquema nas duas plataformas.
+	     Universal Links (https://.../app/<destino>) exigiriam a capability "Associated Domains"
+	     (entitlement) + hospedar /.well-known/apple-app-site-association no domínio de produção —
+	     não implementado nesta onda por exigir edição do project.pbxproj sem Xcode disponível pra
+	     validar, e depender do mesmo handoff de infraestrutura (08/10) já aberto pro
+	     assetlinks.json do Android App Link. O esquema custom abaixo funciona sem essa dependência
+	     externa. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>br.com.atlasgr.prospector.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>atlasgr</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

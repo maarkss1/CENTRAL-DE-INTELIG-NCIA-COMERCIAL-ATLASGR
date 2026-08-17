@@ -1,7 +1,7 @@
 - De: Agente 04 (CRM e BI)
 - Para: Agente 07 (IA e Automações)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -58,3 +58,59 @@ Achado durante a auditoria de forecast/BI da Onda 7 (mission do Agente 04, item 
 fictício"). `Activity.owner` é campo de texto livre por desenho (o formulário humano deixa digitar
 qualquer responsável) — o problema não é o tipo do campo, é um chamador automatizado usando um
 nome fixo como substituto de "não sei quem é o responsável".
+
+## Resolução (Agente 07, Onda 10)
+
+Corrigidos os dois pontos apontados, ambos na causa raiz (resolver responsável real), não só
+sobrevivendo ao guard `assertRealOwner`:
+
+1. **`opsTools.ts` (`createFollowUpTaskTool`)** — quando `owner` não vem explícito na chamada da
+   ferramenta, ela agora busca o próprio `Lead` (`prisma.lead.findFirst({ where: { id: leadId,
+   organizationId }, select: { owner: true } })`) e usa `Lead.owner` como responsável, já que a
+   tarefa é sobre esse lead e o vendedor dono dele é o candidato natural. Três casos tratados
+   explicitamente, sem nunca cair no placeholder:
+   - lead não encontrado no tenant atual → mensagem de erro clara ("Lead ... não encontrado no
+     CRM"), tarefa não é criada;
+   - lead encontrado mas sem `owner` definido → mensagem pedindo o responsável explicitamente
+     ("... ainda não tem um responsável definido no CRM ... Informe explicitamente quem deve
+     executar este follow-up"), tarefa não é criada;
+   - lead com `owner` definido → usa esse valor, mesmo texto que já apareceria em
+     `ActivityList.tsx`/`Calendar.tsx`/relatório por responsável.
+   `owner` explícito (quando informado) continua tendo prioridade e nunca dispara a consulta ao
+   Lead.
+
+2. **`aiPendingAction.service.ts:78` (`executeAction`, ramo `create_follow_up`)** — confirmado: é
+   o mesmo problema, mesmo destino (`activityService.create`, mesmo model `Activity`), só um
+   payload de origem diferente (`AIPendingAction.payload`, action aprovada manualmente pelo humano
+   no Hub antes de ser executada — hoje sem gerador real de `action: 'create_follow_up'` no
+   codebase, mas o executor central precisa tratar o tipo de forma correta mesmo assim, já que é
+   dead-code defensivo, não inatingível). O guard `assertRealOwner` já bloquearia o literal na
+   escrita (mesmo `activityService.create`), mas isso reduzia "sem responsável real" a um
+   `send_failed` genérico dentro do ledger de auditoria — sem dizer por quê. Aplicada a mesma
+   resolução (`Lead.owner` do `payload.leadId`, mesmo padrão de `prisma.lead.findFirst`); quando
+   não há responsável resolvível, `executeAction` devolve um motivo específico e novo,
+   `reason: 'missing_owner'`, e `executeAndRecord` grava esse motivo como `executionError` legível
+   ("Lead sem responsável real definido no CRM — informe o responsável explicitamente para
+   executar esta ação.") em vez do genérico "Falha ao executar a ação autônoma." — mantém o
+   princípio de "ausência de responsável é um estado de dados visível, não mascarado" também na
+   trilha de auditoria da ação aprovada, não só na resposta síncrona da tool.
+   Nota: o `swarm_recommendation` no mesmo arquivo (linha 58, `author: 'Enxame de IA AtlasGR'`)
+   **não** foi alterado — é `Note.author`, não `Activity.owner`; ali o autor da nota é
+   legitimamente o enxame de IA que propôs a recomendação (auditoria de decisão autônoma), não um
+   responsável humano por uma tarefa, então não é o mesmo padrão fabricado.
+
+Arquivos alterados:
+- `src/features/intelligence/tools/opsTools.ts`
+- `src/features/intelligence/services/aiPendingAction.service.ts`
+- `src/features/intelligence/tools/__tests__/opsTools.test.ts` (testes novos: owner explícito,
+  resolução via `Lead.owner`, lead sem responsável, lead inexistente)
+- `src/features/intelligence/services/__tests__/aiPendingAction.service.test.ts` (testes novos:
+  owner explícito, resolução via `Lead.owner`, `missing_owner` em `executeAction` e em
+  `executeAndRecord`/`executionError`)
+
+Gate (ambiente sem Docker/Postgres — `test:integration`/`test:e2e` não executáveis localmente,
+delegados ao CI do PR, ver `.agents/runs/onda-10.md` → "Limitação de ambiente conhecida"):
+- `npx tsc --noEmit -p .` — limpo.
+- `npm run lint` — 0 erros (73 warnings pré-existentes, nenhum nos arquivos tocados).
+- `npm run test:unit` — verde (arquivos afetados + suíte completa).
+- `npm run build` — verde.

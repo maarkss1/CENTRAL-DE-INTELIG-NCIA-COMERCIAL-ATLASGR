@@ -12,6 +12,7 @@ const prismaMock = {
     company: { create: vi.fn() },
     contact: { create: vi.fn() },
     bitrixConnection: { findFirst: vi.fn() },
+    user: { findFirst: vi.fn() },
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
 
@@ -125,5 +126,71 @@ describe('importSelectedBitrixLeads — corrida de importação concorrente (P2-
 
         const { importSelectedBitrixLeads } = await import('../leads.js');
         await expect(importSelectedBitrixLeads('org-1', 'conn-1', ['42'])).rejects.toThrow('Falha de conexão com o banco');
+    });
+});
+
+/**
+ * Cobre a correção de .agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md:
+ * Lead.owner precisa gravar o User.id do responsável (casado por e-mail via ASSIGNED_BY_ID),
+ * nunca o User.name — o nome quebrava requireLeadOwnership (RBAC) e duplicava vendedores no
+ * ranking de BI por owner.
+ */
+describe('importSelectedBitrixLeads — owner grava User.id, não User.name (Onda 10)', () => {
+    it('resolve ASSIGNED_BY_ID -> e-mail do usuário Bitrix -> User.id do Atlas e grava esse id em Lead.owner', async () => {
+        prismaMock.lead.findFirst.mockResolvedValue(null); // não existe ainda / sem conflito de posse (sem phone/email)
+        prismaMock.user.findFirst.mockResolvedValue({ id: 'user-cuid-ana' }); // resolveAtlasUserIdByEmail
+        prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
+        prismaMock.lead.create.mockResolvedValue({ id: 'lead-1' });
+
+        clientMock.callBitrix.mockImplementation(async (_url: string, method: string) => {
+            if (method === 'user.get') {
+                return { result: [{ ID: '7', NAME: 'Ana', LAST_NAME: 'Souza', EMAIL: 'ana@atlasgr.com.br' }] };
+            }
+            if (method === 'crm.lead.get') {
+                return { result: { ID: '42', TITLE: 'Lead Ana', ASSIGNED_BY_ID: '7' } };
+            }
+            throw new Error(`método Bitrix inesperado neste teste: ${method}`);
+        });
+
+        const { importSelectedBitrixLeads } = await import('../leads.js');
+        const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['42']);
+
+        expect(result).toEqual({ imported: 1, skipped: 0, skippedConflicts: 0, skippedNotOwned: 0 });
+        expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { organizationId: 'org-1', email: { equals: 'ana@atlasgr.com.br', mode: 'insensitive' } } }),
+        );
+        expect(prismaMock.lead.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ owner: 'user-cuid-ana' }),
+            }),
+        );
+        // Nunca o nome — essa era exatamente a convenção quebrada que este teste protege contra regressão.
+        const createdData = prismaMock.lead.create.mock.calls[0][0].data;
+        expect(createdData.owner).not.toBe('Ana Souza');
+    });
+
+    it('sem correspondência de e-mail no Atlas, importa o lead sem responsável (owner null) — nunca fabrica um vínculo', async () => {
+        prismaMock.lead.findFirst.mockResolvedValue(null);
+        prismaMock.user.findFirst.mockResolvedValue(null); // nenhum usuário Atlas com esse e-mail
+        prismaMock.company.create.mockResolvedValue({ id: 'company-1' });
+        prismaMock.lead.create.mockResolvedValue({ id: 'lead-2' });
+
+        clientMock.callBitrix.mockImplementation(async (_url: string, method: string) => {
+            if (method === 'user.get') {
+                return { result: [{ ID: '8', NAME: 'Carla', EMAIL: 'carla@bitrix-externo.com' }] };
+            }
+            if (method === 'crm.lead.get') {
+                return { result: { ID: '43', TITLE: 'Lead Carla', ASSIGNED_BY_ID: '8' } };
+            }
+            throw new Error(`método Bitrix inesperado neste teste: ${method}`);
+        });
+
+        const { importSelectedBitrixLeads } = await import('../leads.js');
+        const result = await importSelectedBitrixLeads('org-1', 'conn-1', ['43']);
+
+        expect(result.imported).toBe(1);
+        expect(prismaMock.lead.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ owner: null }) }),
+        );
     });
 });

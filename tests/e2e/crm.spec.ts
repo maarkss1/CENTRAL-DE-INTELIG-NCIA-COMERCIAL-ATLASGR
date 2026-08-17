@@ -33,10 +33,14 @@ test.describe('Navegação principal', () => {
       });
       page.on('pageerror', (err) => consoleErrors.push(err.message));
 
-      await page.getByRole('button', { name: tab }).click();
+      // exact: true é necessário para "Agenda": sem isso, o seletor por substring também bate no
+      // botão "Ver agenda completa" do Dashboard (SinglePageDashboard.tsx) — que, por causa da
+      // transição de página (Framer Motion), pode continuar montado por um instante durante a
+      // navegação, causando strict mode violation intermitente.
+      await page.getByRole('button', { name: tab, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/app/${route}$`));
       // Espera o skeleton de carregamento (lazy-loaded module) sumir antes de checar erros.
-      await expect(page.getByRole('button', { name: tab })).toBeVisible();
+      await expect(page.getByRole('button', { name: tab, exact: true })).toBeVisible();
       await waitForAppReady(page);
 
       expect(consoleErrors, `erros de console ao abrir "${tab}": ${consoleErrors.join('; ')}`).toEqual([]);

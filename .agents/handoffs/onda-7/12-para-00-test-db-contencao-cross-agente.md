@@ -1,8 +1,9 @@
 - De: Agente 12 (Voz e Telefonia)
 - Para: Agente 00 (Coordenador) / Agente 08 (QA e Release)
 - Onda: 7
-- Status: aberto — diagnóstico original corrigido pelo Coordenador (ver "## Correção do
-  Coordenador" abaixo)
+- Status: resolvido (Onda 9, Agente 01A, commit `2616a4d1` — ver `.agents/runs/onda-9.md` e
+  `src/lib/async-context.ts::TenantAwareAsyncLocalStorage`); diagnóstico original corrigido pelo
+  Coordenador antes disso (ver "## Correção do Coordenador" abaixo)
 - Prioridade: crítico (não é só contenção entre agentes — reproduzido de forma determinística em
   processo único, sem nenhuma concorrência; risco real de correção de "ler o que acabou de
   escrever" em produção, não só nos testes)
@@ -135,3 +136,16 @@ isolamento RLS) permanece coberta por outros testes
 (`tenant-isolation-db001.test.ts`, `organization-rls-bypass.test.ts`) e pela validação manual já
 registrada em `.agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md`.
 Reabilitar os 2 testes junto com a correção de `executeWithRls`.
+
+## Resolução (Onda 9, Agente 01A)
+
+Causa raiz real **não** era a forma array de `executeWithRls` (a suspeita levantada acima e nos
+handoffs 07/13) — essa hipótese foi testada isoladamente contra Postgres real, migrando
+`executeWithRls` para transação interativa, e o sintoma persistiu idêntico. A causa raiz verdadeira
+é uma interação entre `AsyncLocalStorage.run()` e a natureza *lazy* de `PrismaPromise`: um callback
+de `run()` que devolve a promise sem `await` interno (o padrão usado por `asOrg`/`withRlsBypass` em
+todo o código) perde a store correta antes da query executar de fato. Corrigida de forma
+centralizada em `src/lib/async-context.ts` (`TenantAwareAsyncLocalStorage`), verificada com 5
+execuções consecutivas do arquivo isolado e 3 execuções consecutivas da suíte de integração
+completa, todas limpas. Os 2 testes quarentenados foram reabilitados. Detalhes completos em
+`.agents/runs/onda-9.md`.

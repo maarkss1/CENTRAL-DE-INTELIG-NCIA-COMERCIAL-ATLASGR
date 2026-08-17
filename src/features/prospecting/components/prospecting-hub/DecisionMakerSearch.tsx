@@ -331,8 +331,8 @@ export function DecisionMakerSearch({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Níveis de Senioridade</label>
-                    <div className="flex flex-wrap gap-2">
+                    <span id="criteria-seniority-label" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Níveis de Senioridade</span>
+                    <div role="group" aria-labelledby="criteria-seniority-label" className="flex flex-wrap gap-2">
                         {SENIORITY_OPTIONS.map(opt => (
                             <button
                                 type="button"
@@ -346,8 +346,8 @@ export function DecisionMakerSearch({
                     </div>
                 </div>
                 <div>
-                    <label className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Departamentos</label>
-                    <div className="flex flex-wrap gap-2">
+                    <span id="criteria-department-label" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Departamentos</span>
+                    <div role="group" aria-labelledby="criteria-department-label" className="flex flex-wrap gap-2">
                         {DEPARTMENT_OPTIONS.map(opt => (
                             <button
                                 type="button"

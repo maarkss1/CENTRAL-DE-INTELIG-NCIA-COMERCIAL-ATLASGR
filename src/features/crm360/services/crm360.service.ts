@@ -141,6 +141,21 @@ export const crm360Service = {
         const endToday = new Date(startToday);
         endToday.setDate(endToday.getDate() + 1);
 
+        // Extraída para uma variável antes do array do `$transaction`: quando o `groupBy` era
+        // passado inline como um dos ~11 elementos do array, a inferência de tipo genérico do
+        // Prisma Client perdia o literal de `by`/`_count`/`_sum` (colapsava para o tipo genérico de
+        // argumento de seleção em vez do tipo de retorno da agregação) — daí o `as any` original
+        // nas linhas 200-201 antigas. Chamado isoladamente aqui, o Prisma infere o tipo de retorno
+        // corretamente (`{ funnel, status, _count: { _all: number }, _sum: { amount: number | null } }`),
+        // e esse tipo já resolvido é preservado quando a promise entra no array do `$transaction`.
+        const stageCountsQuery = prisma.lead.groupBy({
+            where: { organizationId },
+            by: ['funnel', 'status'],
+            _count: { _all: true },
+            _sum: { amount: true },
+            orderBy: { funnel: 'asc' },
+        });
+
         const [
             leads, openDeals, wonDeals, lostDeals, pipelineValue, overdueActivities,
             todayActivities, pendingDocuments, focusActivities, recentDeals, stageCounts,
@@ -168,7 +183,7 @@ export const crm360Service = {
                 take: 8,
                 include: { company: true, contact: true, pipelineStage: true },
             }),
-            prisma.lead.groupBy({ where: { organizationId }, by: ['funnel', 'status'], _count: { _all: true }, _sum: { amount: true }, orderBy: { funnel: 'asc' } }),
+            stageCountsQuery,
         ]);
 
         const totalPipeline = pipelineValue.reduce((sum, deal) => sum + (deal.amount ?? 0), 0);
@@ -197,8 +212,8 @@ export const crm360Service = {
             stageCounts: stageCounts.map((row) => ({
                 funnel: row.funnel,
                 status: fromPrismaLeadStatus(row.status),
-                count: (row._count as any)._all ?? 0,
-                amount: (row._sum as any).amount ?? 0,
+                count: row._count._all,
+                amount: row._sum.amount ?? 0,
             })),
         };
     },
@@ -336,7 +351,7 @@ export const crm360Service = {
                 expectedCloseAt: input.expectedCloseAt ? new Date(input.expectedCloseAt) : null,
                 pipelineId,
                 pipelineStageId: stage.id,
-                customFields: input.customFields as any,
+                customFields: input.customFields as Prisma.InputJsonValue,
                 organizationId,
                 timeline: { create: { type: 'creation', description: `Negócio criado em ${pipeline.name} › ${stage.name}` } },
             },
@@ -401,7 +416,7 @@ export const crm360Service = {
                 ...input,
                 type: CrmProductType[input.type],
                 currency: input.currency.toUpperCase(),
-                customFields: input.customFields as any,
+                customFields: input.customFields as Prisma.InputJsonValue,
                 organizationId,
             },
         });
@@ -422,13 +437,14 @@ export const crm360Service = {
         stockQuantity: number | null;
         customFields: Record<string, unknown> | null;
     }>) {
+        const { customFields, type, currency, ...rest } = input;
         return prisma.crmProduct.update({
             where: { id, organizationId },
             data: {
-                ...input,
-                ...(input.type ? { type: CrmProductType[input.type] } : {}),
-                ...(input.currency ? { currency: input.currency.toUpperCase() } : {}),
-                ...(input.customFields !== undefined ? { customFields: input.customFields as any } : {}),
+                ...rest,
+                ...(type ? { type: CrmProductType[type] } : {}),
+                ...(currency ? { currency: currency.toUpperCase() } : {}),
+                ...(customFields !== undefined ? { customFields: customFields as Prisma.InputJsonValue } : {}),
             },
         });
     },

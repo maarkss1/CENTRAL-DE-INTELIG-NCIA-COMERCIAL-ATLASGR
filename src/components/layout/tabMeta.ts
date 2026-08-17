@@ -1,12 +1,24 @@
 import {
     Home, Search, LayoutTemplate, Users, Building2, Activity, BookOpen,
-    Layers, FileBarChart, Zap, Sparkles, MessageSquare, Wand2, Globe, Bell,
+    Layers, FileBarChart, Zap, MessageSquare, Globe, Bell,
     BarChart3, CalendarDays, Cpu, Wallet, FileText, Database, PhoneCall, Target, Shield, UserCog, Settings as SettingsIcon,
-    LineChart, Gauge,
+    LineChart, Gauge, Repeat, FileSignature, Headset,
 } from 'lucide-react';
 
-/** Identificador de cada módulo navegável — fonte única usada pela Sidebar, Topbar e Command Palette. */
-export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'crm360' | 'activities' | 'prospect' | 'enrich' | 'intelligence' | 'market-intelligence' | 'prompts' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
+/**
+ * Identificador de cada módulo navegável — fonte única usada pela Sidebar, Topbar e Command
+ * Palette.
+ *
+ * Nota: `enrich` e `prompts` existiram aqui até a Onda 10 sem nenhuma `<Route>` correspondente em
+ * `App.tsx`, nem entrada na Sidebar (`Sidebar.tsx`) nem no Command Palette (`MODULE_ORDER` em
+ * `CommandPalette.tsx`) — eram destinos "fantasma", alcançáveis só via `navigationBus` (comando de
+ * voz/deep link), que caíam silenciosamente no catch-all `/app`. Removidos por não corresponderem
+ * a nenhuma tela real hoje: enriquecimento de empresa já vive dentro de `prospect`
+ * (`ProspectingHub`), e não há uma tela "Commercial OS"/Prompt Studio real e navegável — só um
+ * componente órfão (`PromptStudio.tsx`) sem rota. Ver
+ * `.agents/handoffs/onda-8/09-para-02-navigationbus-rotas-ausentes.md`.
+ */
+export type TabType = 'dashboard' | 'companies' | 'contacts' | 'crm' | 'crm360' | 'mesa-tratamento' | 'activities' | 'cadence' | 'prospect' | 'intelligence' | 'market-intelligence' | 'propostas' | 'chatbook' | 'roleplay' | 'qualification_matrix' | 'objections_matrix' | 'topic_training' | 'bitrix' | 'reports' | 'integrations' | 'knowledge' | 'analytics' | 'winloss' | 'calendar' | 'notifications' | 'automations' | 'usage' | 'editor' | 'team' | 'settings' | 'commercial_intelligence';
 
 /** Metadados (rótulo + ícone) de cada módulo navegável — fonte única usada pelo topbar e pelo Command Palette. */
 export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
@@ -15,9 +27,12 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     prospect: { label: 'Prospecção', icon: Search },
     crm: { label: 'Pipeline CRM', icon: LayoutTemplate },
     crm360: { label: 'Cockpit CRM', icon: Gauge },
+    'mesa-tratamento': { label: 'Mesa de Tratamento', icon: Headset },
+    propostas: { label: 'Propostas', icon: FileSignature },
     contacts: { label: 'Decisores', icon: Users },
     companies: { label: 'Empresas', icon: Building2 },
     activities: { label: 'Agenda', icon: Activity },
+    cadence: { label: 'Cadência', icon: Repeat },
     roleplay: { label: 'Roleplay', icon: PhoneCall },
     qualification_matrix: { label: 'Matriz de Qualificação', icon: Target },
     objections_matrix: { label: 'Matriz de Objeções', icon: Shield },
@@ -26,9 +41,7 @@ export const TAB_META: Record<TabType, { label: string; icon: typeof Home }> = {
     topic_training: { label: 'Academy', icon: BookOpen },
     bitrix: { label: 'Guia Bitrix24', icon: Layers },
     reports: { label: 'Relatórios IA', icon: FileBarChart },
-    enrich: { label: 'Enriquecer', icon: Sparkles },
     chatbook: { label: 'Chatbook', icon: MessageSquare },
-    prompts: { label: 'Commercial OS', icon: Wand2 },
     integrations: { label: 'Integrações', icon: Globe },
     knowledge: { label: 'Base de Conhecimento', icon: Database },
     analytics: { label: 'Analytics', icon: BarChart3 },

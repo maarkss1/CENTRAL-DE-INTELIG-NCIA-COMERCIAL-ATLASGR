@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
     TrendingUp, Building2, Users, MapPin, Calendar, DollarSign, Wrench, Mail,
-    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck,
+    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck, ThumbsDown,
 } from 'lucide-react';
 import type { FitScoreResult } from '../../services/enrichment.service';
 import type { ProspectCandidate } from '../../services/prospecting.service';
@@ -32,10 +32,13 @@ function formatUsd(value: number): string {
 }
 
 export function CandidateCard({
-    candidate, onPromote, isPromoting, promoted, promotedResult, isSelected, onToggleSelect
+    candidate, onPromote, isPromoting, promoted, promotedResult, isSelected, onToggleSelect, onReject, isRejecting
 }: {
     isSelected?: boolean; onToggleSelect?: () => void;
     candidate: ProspectCandidate; onPromote: () => void; isPromoting: boolean; promoted: boolean; promotedResult?: PromoteResult;
+    /** Marca o candidato como "Não é esse perfil" — passa a ser excluído de buscas futuras deste tenant. */
+    onReject?: () => void;
+    isRejecting?: boolean;
 }) {
     const finalScore = promotedResult?.fit?.score ?? candidate.fitScoreEstimate;
     const isEstimate = !promotedResult?.fit;
@@ -245,9 +248,20 @@ export function CandidateCard({
                     <span className="flex items-center gap-2 text-green-700 font-bold text-sm shrink-0"><CheckCircle2 size={16} /> ✅ No CRM</span>
                 ) : (
                     <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+                        {onReject && (
+                            <button
+                                onClick={onReject}
+                                disabled={isPromoting || isRejecting}
+                                title="Descarta este candidato e o exclui de buscas futuras"
+                                className="bg-surface-2 border border-line text-ink-2 px-4 py-2.5 rounded-xl font-bold text-xs hover:border-danger/50 hover:text-danger transition-all flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
+                            >
+                                {isRejecting ? <Loader2 className="animate-spin" size={15} /> : <ThumbsDown size={15} />}
+                                {isRejecting ? 'Descartando...' : 'Não é esse perfil'}
+                            </button>
+                        )}
                         <button
                             onClick={onPromote}
-                            disabled={isPromoting}
+                            disabled={isPromoting || isRejecting}
                             className="bg-brand text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
                         >
                             {isPromoting ? <Loader2 className="animate-spin" size={15} /> : <ShieldCheck size={15} />}

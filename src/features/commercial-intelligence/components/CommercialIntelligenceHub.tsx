@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { LineChart } from 'lucide-react';
-import { currentMonth, type CommercialFilter } from '../commercialIntelligence.api';
+import { commercialIntelligenceApi, currentMonth, type CommercialFilter, type FilterOptions } from '../commercialIntelligence.api';
 import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
 import { PipelineForecastTab } from './PipelineForecastTab';
 import { PerformanceTab } from './PerformanceTab';
@@ -36,8 +36,38 @@ type TabId = (typeof TABS)[number]['id'];
  * Filtros (mês + responsável) refletidos na URL via `useSearchParams` (seção 28 do prompt de
  * produto) — link compartilhável mantém o mesmo recorte.
  */
+/**
+ * Seletor de filtro carregado com valores reais (seção 18) — sempre inclui a opção atualmente
+ * selecionada mesmo que `options` ainda não tenha carregado ou não a contenha mais (evita perder
+ * silenciosamente o recorte de um link compartilhado enquanto a lista de opções está carregando).
+ */
+function FilterSelect({ id, label, value, options, allLabel, onChange }: { id: string; label: string; value: string; options: string[]; allLabel: string; onChange: (next: string) => void }) {
+    const withCurrent = value && !options.includes(value) ? [value, ...options] : options;
+    return (
+        <>
+            <label className="sr-only" htmlFor={id}>{label}</label>
+            <select
+                id={id}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-36 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+                <option value="">{allLabel}</option>
+                {withCurrent.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+        </>
+    );
+}
+
 export function CommercialIntelligenceHub() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>({ owners: [], products: [], sources: [], icps: [] });
+
+    useEffect(() => {
+        let cancelled = false;
+        commercialIntelligenceApi.filterOptions().then((data) => !cancelled && setFilterOptions(data)).catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
 
     const tab = (searchParams.get('tab') as TabId) || 'overview';
     const month = searchParams.get('month') || currentMonth();
@@ -103,42 +133,10 @@ export function CommercialIntelligenceHub() {
                         onChange={(e) => setMonth(e.target.value || currentMonth())}
                         className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
-                    <label className="sr-only" htmlFor="ci-owner">Responsável</label>
-                    <input
-                        id="ci-owner"
-                        type="text"
-                        value={owner}
-                        onChange={(e) => setOwner(e.target.value)}
-                        placeholder="Vendedor"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    />
-                    <label className="sr-only" htmlFor="ci-product">Produto</label>
-                    <input
-                        id="ci-product"
-                        type="text"
-                        value={product}
-                        onChange={(e) => setFilter('product', e.target.value)}
-                        placeholder="Produto"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    />
-                    <label className="sr-only" htmlFor="ci-source">Origem</label>
-                    <input
-                        id="ci-source"
-                        type="text"
-                        value={source}
-                        onChange={(e) => setFilter('source', e.target.value)}
-                        placeholder="Origem"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    />
-                    <label className="sr-only" htmlFor="ci-icp">ICP</label>
-                    <input
-                        id="ci-icp"
-                        type="text"
-                        value={icp}
-                        onChange={(e) => setFilter('icp', e.target.value)}
-                        placeholder="ICP/Segmento"
-                        className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink w-32 transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    />
+                    <FilterSelect id="ci-owner" label="Responsável" value={owner} options={filterOptions.owners} allLabel="Todos os vendedores" onChange={setOwner} />
+                    <FilterSelect id="ci-product" label="Produto" value={product} options={filterOptions.products} allLabel="Todos os produtos" onChange={(v) => setFilter('product', v)} />
+                    <FilterSelect id="ci-source" label="Origem" value={source} options={filterOptions.sources} allLabel="Todas as origens" onChange={(v) => setFilter('source', v)} />
+                    <FilterSelect id="ci-icp" label="ICP/Segmento" value={icp} options={filterOptions.icps} allLabel="Todos os segmentos" onChange={(v) => setFilter('icp', v)} />
                 </div>
             </header>
 

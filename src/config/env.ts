@@ -48,10 +48,18 @@ const envSchema = z.object({
   // do mesmo IP (ver server.ts authLimiter) — configurável para o ambiente de CI poder abrir a
   // cota sem enfraquecer o valor padrão de produção.
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  // Limite dedicado do módulo de "Reportar Problema" (POST /api/bug-reports), por organização —
+  // igual raciocínio do aiLimiter (SEC-008b): por tenant, não por IP, para um escritório inteiro
+  // atrás do mesmo NAT não esgotar a cota de spam-protection de outra organização. 10/15min é
+  // folgado para uso legítimo (ninguém reporta 10 bugs em 15 minutos) e apertado o bastante para
+  // conter um usuário mal-intencionado enchendo a tabela BugReport.
+  BUG_REPORT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   JSON_BODY_LIMIT: z.string().default('2mb'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ENABLE_QUEUES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ENABLE_EMBEDDED_WORKERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
@@ -130,9 +138,9 @@ const envSchema = z.object({
   // (autoAnonymizeDisqualified.worker.ts, 90 dias hardcoded) — aqui o valor é configurável em vez
   // de fixo no código, e o worker de expurgo correspondente fica DESLIGADO por padrão (mesmo
   // padrão de dois-fatores do SDR/enxame acima: a flag sozinha não move nada sem esta variável, e
-  // o valor de dias sozinho não expurga nada sem a flag). Pendente de confirmação humana sobre o
-  // número — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
-  BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+  // o valor de dias sozinho não expurga nada sem a flag). Confirmado pelo dono do produto em
+  // 2026-08-15: 45 dias — ver .agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md.
+  BITRIX_EXTRACTION_RETENTION_DAYS: z.coerce.number().int().positive().default(45),
   BITRIX_EXTRACTION_PURGE_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   // Onda 7, Agente 06: diretório onde os arquivos gerados pelo serviço real de extração
   // (CSV/XLSX/JSON) ficam em disco, fora do controle de versão (ver .gitignore). Mesma limitação

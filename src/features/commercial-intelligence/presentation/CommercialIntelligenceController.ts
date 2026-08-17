@@ -152,10 +152,10 @@ export class CommercialIntelligenceController {
         res.json({ success: true, data: METRICS_DICTIONARY });
     };
 
-    getRevenueProtection = async (req: Request, res: Response, next: NextFunction) => {
+    getFilterOptions = async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { organizationId } = (req as AuthRequest).user;
-            const data = await this.useCases.revenueProtection(organizationId, parseFilter(req));
+            const data = await this.useCases.filterOptions(organizationId);
             res.json({ success: true, data });
         } catch (error) {
             next(error);
@@ -178,6 +178,16 @@ export class CommercialIntelligenceController {
             res.setHeader('Content-Type', mimeType);
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
             res.send(content);
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getHistoricalTrends = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = (req as AuthRequest).user;
+            const data = await this.useCases.historicalTrends(organizationId, parseFilter(req));
+            res.json({ success: true, data });
         } catch (error) {
             next(error);
         }

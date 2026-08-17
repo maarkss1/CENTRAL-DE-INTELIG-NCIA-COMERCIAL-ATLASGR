@@ -62,6 +62,7 @@ export function Intelligence() {
     const [tone, setTone] = useState('Consultivo');
     const [objective, setObjective] = useState('Descoberta');
     const [personaFallback, setPersonaFallback] = useState('Dono / CEO');
+    const [customRefineText, setCustomRefineText] = useState('');
 
     // UI States for custom dropdowns
     const [activeDropdown, setActiveDropdown] = useState<'tone' | 'objective' | 'persona' | null>(null);
@@ -110,7 +111,7 @@ export function Intelligence() {
         );
     });
 
-    const handleGenerate = async (tool: ToolType, competitorOverride?: string) => {
+    const handleGenerate = async (tool: ToolType, competitorOverride?: string, refinementInstruction?: string) => {
         if (tool === 'competitor_battlecard' && !competitorOverride) {
             setCompetitorPickerOpen(true);
             setActiveTool(tool);
@@ -119,7 +120,7 @@ export function Intelligence() {
 
         setActiveTool(tool);
         setIsGenerating(true);
-        setResult(null);
+        if (!refinementInstruction) setResult(null);
         setCopied(false);
         setCompetitorPickerOpen(false);
 
@@ -132,6 +133,7 @@ export function Intelligence() {
                 objective,
                 personaFallback: !selectedLead ? personaFallback : undefined,
                 brandId: activeBrand,
+                refinementInstruction,
             }, { timeoutMs: 90_000 });
             setResult(response.result);
         } catch (error) {
@@ -142,12 +144,26 @@ export function Intelligence() {
         }
     };
 
-    const handleCopy = () => {
-        if (result) {
-            navigator.clipboard.writeText(result);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+    const handleRefine = (instruction: string) => {
+        if (!activeTool) return;
+        handleGenerate(activeTool, competitor, instruction);
+    };
+
+    const handleCopy = (format: 'plain' | 'md' | 'json' = 'plain') => {
+        if (!result) return;
+        let contentToCopy = result;
+        if (format === 'json') {
+            contentToCopy = JSON.stringify({
+                tool: activeTool,
+                brand: activeBrand,
+                lead: selectedLead ? { id: selectedLead.id, company: selectedLead.company?.tradeName, contact: selectedLead.contact?.name } : null,
+                content: result,
+                generatedAt: new Date().toISOString(),
+            }, null, 2);
         }
+        navigator.clipboard.writeText(contentToCopy);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
     const containerVariants: Variants = {
@@ -507,13 +523,13 @@ export function Intelligence() {
 
                 {/* DIREITA: ÁREA DE OUTPUT / DISPLAY HOLOGRÁFICO */}
                 <div className="xl:col-span-7 flex flex-col" ref={resultRef}>
-                    <div className="bg-gray-900 rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-2xl relative ring-1 ring-white/10 sticky top-24">
+                    <div className="bg-surface rounded-[32px] h-full min-h-[700px] flex flex-col overflow-hidden shadow-card relative border border-line sticky top-24">
                         {/* BACKGROUND GLOW */}
-                        <div className="absolute -top-40 -right-40 w-96 h-96 bg-brand/20 rounded-full blur-[100px] pointer-events-none"></div>
-                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+                        <div className={`absolute -top-40 -right-40 w-96 h-96 ${accent.blobA} rounded-full blur-[100px] pointer-events-none opacity-30`}></div>
+                        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none opacity-30"></div>
 
                         {/* Top Bar MacOS Style */}
-                        <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-black/20 backdrop-blur-md relative z-20">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-line bg-surface-2/60 backdrop-blur-md relative z-20">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
                                 <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
@@ -521,9 +537,9 @@ export function Intelligence() {
                             </div>
                             <div className="flex items-center gap-3">
                                 {isGenerating && <span className="text-[9px] font-bold uppercase tracking-widest text-brand animate-pulse">Sintetizando...</span>}
-                                <div className="px-3 py-1 bg-white/5 rounded-full border border-white/10 flex items-center gap-2">
-                                    <Bot size={12} className="text-gray-400" />
-                                    <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">{accent.brandName} Engine v2.0</span>
+                                <div className="px-3 py-1 bg-surface rounded-full border border-line flex items-center gap-2">
+                                    <Bot size={12} className="text-ink-2" />
+                                    <span className="text-[10px] font-bold tracking-widest text-ink uppercase">{accent.brandName} Engine v2.0</span>
                                 </div>
                             </div>
                         </div>
@@ -539,12 +555,12 @@ export function Intelligence() {
                                         className="relative"
                                     >
                                         <div className="absolute inset-0 bg-brand/20 blur-2xl rounded-full"></div>
-                                        <div className="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-2xl">
-                                            <BrainCircuit size={40} className="text-gray-400" />
+                                        <div className="w-24 h-24 rounded-3xl bg-surface-2 border border-line flex items-center justify-center mb-6 relative z-10 backdrop-blur-sm shadow-sm">
+                                            <BrainCircuit size={40} className="text-ink-2" />
                                         </div>
                                     </motion.div>
-                                    <h3 className="font-black text-3xl text-white mb-3 tracking-tight">Sistema em Standby</h3>
-                                    <p className="font-medium text-sm text-gray-400 max-w-sm leading-relaxed">
+                                    <h3 className="font-black text-3xl text-ink mb-3 tracking-tight">Sistema em Standby</h3>
+                                    <p className="font-medium text-sm text-ink-2 max-w-sm leading-relaxed">
                                         O motor neural está aguardando. Selecione uma ferramenta tática no painel à esquerda para iniciar a síntese.
                                     </p>
                                 </div>
@@ -560,16 +576,16 @@ export function Intelligence() {
                                         ></motion.div>
                                         <motion.div 
                                             animate={{ rotate: -360 }} transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                                            className="absolute inset-2 border-b-2 border-l-2 border-white/30 rounded-full"
+                                            className="absolute inset-2 border-b-2 border-l-2 border-line rounded-full"
                                         ></motion.div>
                                         <div className="absolute inset-4 bg-brand/10 rounded-full blur-md animate-pulse"></div>
                                         <Zap size={32} className="text-brand relative z-10 animate-pulse" />
                                     </div>
-                                    <h3 className="font-black text-2xl text-white mb-2 tracking-tight">Gerando Inteligência</h3>
+                                    <h3 className="font-black text-2xl text-ink mb-2 tracking-tight">Gerando Inteligência</h3>
                                     <p className="font-bold text-xs uppercase tracking-[0.2em] text-brand">Processando algoritmos cognitivos...</p>
                                     
                                     {/* Progress Bar Fake */}
-                                    <div className="w-48 h-1 bg-white/10 rounded-full mt-6 overflow-hidden">
+                                    <div className="w-48 h-1 bg-surface-2 rounded-full mt-6 overflow-hidden border border-line">
                                         <motion.div 
                                             initial={{ width: 0 }} 
                                             animate={{ width: "100%" }} 
@@ -584,31 +600,49 @@ export function Intelligence() {
                                 <motion.div 
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex-1 flex flex-col h-full"
+                                    className="flex-1 flex flex-col h-full space-y-4"
                                 >
-                                    <div className="flex justify-between items-end mb-6">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 pb-2 border-b border-line">
                                         <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-brand mb-1 flex items-center gap-1.5">
-                                                <CheckCircle2 size={12} /> Síntese Concluída
-                                            </p>
-                                            <h3 className="text-xl font-bold text-white">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-brand flex items-center gap-1.5 bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20">
+                                                    <CheckCircle2 size={11} /> Síntese Concluída
+                                                </span>
+                                                <span className="text-[10px] font-medium text-ink-2 bg-surface-2 px-2 py-0.5 rounded-full border border-line">
+                                                    ⚡ Motor: Groq Llama 3.3 Turbo
+                                                </span>
+                                                <span className="text-[10px] font-medium text-ink-2 bg-surface-2 px-2 py-0.5 rounded-full border border-line hidden md:inline">
+                                                    🔒 RLS Multi-Tenant Ativo
+                                                </span>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-ink">
                                                 {activeTool === 'competitor_battlecard' && competitor ? `Battlecard: vs ${competitor}` : selectedLead ? `Output: ${selectedLead.company?.tradeName}` : 'Output Gerado'}
                                             </h3>
                                         </div>
-                                        <button
-                                            onClick={handleCopy}
-                                            className={`flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl transition-all ${
-                                                copied 
-                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                                                : 'bg-white/10 text-white hover:bg-white/20 border border-white/5'
-                                            }`}
-                                        >
-                                            {copied ? <CheckCircle2 size={14}/> : <Copy size={14}/>}
-                                            {copied ? 'COPIADO!' : 'COPIAR'}
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleCopy('plain')}
+                                                title="Copiar texto puro"
+                                                className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer ${
+                                                    copied 
+                                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                                                    : 'bg-surface-2 text-ink hover:bg-surface border border-line'
+                                                }`}
+                                            >
+                                                {copied ? <CheckCircle2 size={14}/> : <Copy size={14}/>}
+                                                {copied ? 'COPIADO!' : 'COPIAR'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleCopy('json')}
+                                                title="Copiar estrutura JSON completa"
+                                                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-2 rounded-xl bg-surface-2 text-ink-2 hover:text-ink hover:bg-surface border border-line transition-all cursor-pointer"
+                                            >
+                                                JSON
+                                            </button>
+                                        </div>
                                     </div>
                                     
-                                    <div className="flex-1 bg-black/40 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-white/10 shadow-inner overflow-y-auto relative scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                    <div className="flex-1 bg-surface-2/80 backdrop-blur-xl p-6 md:p-8 rounded-2xl border border-line shadow-inner overflow-y-auto relative scrollbar-thin max-h-[420px]">
                                         {/* Decoration Corners */}
                                         <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-brand/50 rounded-tl-lg"></div>
                                         <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-brand/50 rounded-tr-lg"></div>
@@ -619,10 +653,84 @@ export function Intelligence() {
                                             initial={{ opacity: 0 }} 
                                             animate={{ opacity: 1 }} 
                                             transition={{ delay: 0.2 }}
-                                            className="whitespace-pre-wrap font-mono text-[13px] md:text-sm text-gray-300 leading-relaxed"
+                                            className="whitespace-pre-wrap font-mono text-[13px] md:text-sm text-ink leading-relaxed"
                                         >
                                             {result}
                                         </motion.div>
+                                    </div>
+
+                                    {/* Refinement Intelligence Bar */}
+                                    <div className="bg-surface-2/60 p-3 rounded-2xl border border-line space-y-2.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-bold text-ink-2 uppercase tracking-wider flex items-center gap-1.5">
+                                                <Sparkles size={12} className="text-brand" /> Refinamento Instantâneo com IA
+                                            </span>
+                                            <span className="text-[10px] text-ink-2">Clique para ajustar o tom ou insira um comando</span>
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRefine('Encurte para no máximo 3 frases curtas e diretas, ideais para envio rápido no WhatsApp.')}
+                                                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-surface text-ink hover:border-brand/40 border border-line transition-colors cursor-pointer"
+                                            >
+                                                ⚡ WhatsApp (3 linhas)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRefine('Adote o tom Challenger Sale: desafie o status quo operacional de forma executiva e educada.')}
+                                                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-surface text-ink hover:border-brand/40 border border-line transition-colors cursor-pointer"
+                                            >
+                                                🥊 Challenger Sale
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRefine('Ancore fortemente no impacto financeiro, custo da inação e métricas de ROI para a diretoria.')}
+                                                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-surface text-ink hover:border-brand/40 border border-line transition-colors cursor-pointer"
+                                            >
+                                                📈 Foco em ROI
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRefine('Adapte a linguagem para um C-Level (CEO/CFO/VP): direto ao ponto, estratégico e sem termos técnicos triviais.')}
+                                                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-surface text-ink hover:border-brand/40 border border-line transition-colors cursor-pointer"
+                                            >
+                                                👔 Nível C-Level
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRefine('Adicione uma pergunta estratégica de quebra preventiva da principal objeção de concorrência/processo.')}
+                                                className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-surface text-ink hover:border-brand/40 border border-line transition-colors cursor-pointer"
+                                            >
+                                                🛡️ Quebra de Objeção
+                                            </button>
+                                        </div>
+
+                                        <form 
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                if (customRefineText.trim()) {
+                                                    handleRefine(customRefineText.trim());
+                                                    setCustomRefineText('');
+                                                }
+                                            }}
+                                            className="flex gap-2 pt-1"
+                                        >
+                                            <input 
+                                                type="text"
+                                                value={customRefineText}
+                                                onChange={(e) => setCustomRefineText(e.target.value)}
+                                                placeholder="Instrução livre (ex: 'mencione que atendemos embarcadores químicos' ou 'adicione 2 opções de horário')..."
+                                                className="flex-1 bg-surface text-xs text-ink placeholder:text-ink-2/60 px-3 py-1.5 rounded-xl border border-line focus:outline-none focus:border-brand"
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={!customRefineText.trim()}
+                                                className="text-xs font-bold px-3 py-1.5 bg-brand text-white rounded-xl disabled:opacity-40 transition-opacity cursor-pointer flex items-center gap-1"
+                                            >
+                                                <Zap size={12} /> Refinar
+                                            </button>
+                                        </form>
                                     </div>
                                 </motion.div>
                             )}

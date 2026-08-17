@@ -66,10 +66,11 @@ export class CommercialIntelligenceAiService {
      * sem passo manual extra.
      */
     async generateExecutiveSummary(organizationId: string, filter: CommercialIntelligenceFilter): Promise<ExecutiveSummaryResult> {
-        const [overview, alerts, aging] = await Promise.all([
+        const [overview, alerts, aging, creation] = await Promise.all([
             this.useCases.executiveOverview(organizationId, filter),
             this.useCases.alerts(organizationId, filter),
             this.useCases.aging(organizationId, filter),
+            this.useCases.pipelineCreation(organizationId, filter),
         ]);
 
         if (overview.isEmpty) {
@@ -88,6 +89,12 @@ export class CommercialIntelligenceAiService {
             `- Gap do forecast para a meta: ${overview.gapForecast != null ? money(overview.gapForecast, currency) : 'não disponível'}`,
             `- Pipeline total aberto: ${money(overview.pipelineTotal, currency)} (${overview.pipelineTotalCount} negócio(s))`,
             `- Coverage do mês: ${overview.coverageMonth.coverage != null ? `${overview.coverageMonth.coverage.toFixed(1)}x` : 'não disponível'}${overview.coverageMonth.coverageRecommended != null ? ` (recomendado: ${overview.coverageMonth.coverageRecommended.toFixed(1)}x)` : ''}`,
+            `- Proteção 90 dias (M+1/M+2/M+3): ${overview.coverageProtection.slice(1).map((e) => `${e.label} ${e.coverage != null ? `${e.coverage.toFixed(1)}x` : 'sem dados'} (${e.status})`).join(', ')}`,
+            `- Forecast Confidence: ${overview.forecastConfidence.score != null ? `${overview.forecastConfidence.score}% (${overview.forecastConfidence.classification})` : 'não disponível (sem negócio aberto para avaliar)'}`,
+            `- Pipeline Creation Pace: ${creation.pacePercent != null ? `${creation.pacePercent.toFixed(0)}% do ritmo necessário` : 'não disponível'}`,
+            overview.previousPeriod
+                ? `- Mês anterior (${overview.previousPeriod.period}): fechado ${money(overview.previousPeriod.closedAmount, currency)}, Win Rate ${overview.previousPeriod.winRate != null ? `${overview.previousPeriod.winRate.toFixed(1)}%` : 'não disponível'}`
+                : '- Mês anterior: sem base histórica suficiente para comparação',
             `- Valor estagnado acima do aging crítico (${aging.criticalThresholdDays} dias na etapa): ${money(stagnantAmount, currency)}`,
             alerts.length > 0
                 ? `- Alertas ativos (${alerts.length}): ${alerts.map((a) => `[${a.severity}] ${a.title} — ${a.description}`).join(' | ')}`

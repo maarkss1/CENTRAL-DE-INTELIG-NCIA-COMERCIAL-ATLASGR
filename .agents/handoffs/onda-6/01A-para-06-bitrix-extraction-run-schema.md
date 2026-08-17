@@ -109,7 +109,11 @@ migrate diff` contra o schema final não mostra deriva causada por esta migratio
 existente e não relacionado documentado separadamente no relatório da onda).
 
 ## Confirmação humana (2026-08-15)
-Retenção confirmada em **90 dias** (`BITRIX_EXTRACTION_RETENTION_DAYS=90`, já é o default em
-`src/config/env.ts` — nenhuma mudança de código necessária). `BITRIX_EXTRACTION_PURGE_ENABLED`
-continua `false` por padrão: o worker de expurgo em si ainda não foi construído (fica para quando
-o módulo real de extração for implementado, item pendente do 06/06A, não deste handoff).
+Retenção confirmada em **45 dias** (`BITRIX_EXTRACTION_RETENTION_DAYS=45`, ajustado do palpite
+inicial de 90 dias). `BITRIX_EXTRACTION_PURGE_ENABLED` continua `false` por padrão: o worker de
+expurgo em si ainda não foi construído (fica para quando o módulo real de extração for
+implementado, item pendente do 06/06A, não deste handoff).
+
+Nota: uma confirmação anterior registrada neste mesmo arquivo (também datada de 2026-08-15, outra
+sessão de coordenação ativa no repositório no mesmo dia) tinha fixado 90 dias. Esta é a decisão
+final, confirmada diretamente pelo dono do produto.

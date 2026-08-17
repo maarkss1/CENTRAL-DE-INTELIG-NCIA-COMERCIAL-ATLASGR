@@ -1,331 +1,300 @@
 #!/usr/bin/env python3
-"""
-Atlas GR Market Intelligence - ETL CNPJ / ICP municipal
+"""Pipeline nacional CNPJ -> ICP Atlas GR.
 
-Objetivo
---------
-Ler os Dados Abertos do CNPJ da Receita Federal já extraídos em disco e gerar
-um arquivo municipal compacto que pode ser importado pelo site Atlas Market
-Intelligence.
-
-Uso básico
-----------
-python etl_cnpj_atlas.py --input "D:/CNPJ-RECEITA" --output atlas_icp_municipios.csv
-
-A pasta de entrada pode conter os arquivos extraídos dos ZIPs Empresas,
-Estabelecimentos e Municipios. O script reconhece os nomes oficiais que
-contêm EMPRECSV, ESTABELE e MUNICCSV, além de nomes simplificados.
-
-Importante
-----------
-Este é um motor ICP v0.1. Os pesos devem ser calibrados posteriormente com a
-base de clientes, ganhos/perdas e ticket da Atlas GR. O resultado mede
-DENSIDADE DE ICP, não White Space e não substitui o score final de território.
+Processa ZIPs oficiais da Receita sem expor a base bruta ao frontend.
+Usa SQLite temporario e publica somente agregados municipais por codigo IBGE.
 """
 from __future__ import annotations
 
 import argparse
 import csv
-import os
+import hashlib
+import io
+import json
+import re
 import sqlite3
 import sys
-import time
+import unicodedata
+import urllib.parse
+import urllib.request
+import zipfile
+from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Any, Iterator
 
-# CNAE Atlas ICP v0.1 -------------------------------------------------------
-# Os códigos são comparados sem pontuação (7 dígitos de subclasse).
-DIRECT_CODES = {
-    "4930201": ("transportadoras", 4.0),
-    "4930202": ("transportadoras", 5.0),
-    "4930203": ("transportadoras", 5.0),
-    "4930204": ("transportadoras", 2.5),
-    "5250803": ("operadores_logisticos", 5.0),
-    "5250804": ("operadores_logisticos", 5.0),
-    "5250805": ("operadores_logisticos", 4.5),
-    "5211701": ("armazenagem", 4.0),
-    "5211799": ("armazenagem", 4.0),
-    "5212500": ("armazenagem", 3.5),
-    "4791701": ("varejo_ecommerce", 2.0),
-}
-
-# Divisões CNAE com alta probabilidade de embarque rodoviário recorrente.
-INDUSTRIAL_DIVISIONS = {
-    "10", "11", "12", "16", "17", "19", "20", "21", "22", "23",
-    "24", "25", "26", "27", "28", "29", "30", "31", "32"
-}
-AGRO_MINING_DIVISIONS = {"01", "02", "03", "05", "06", "07", "08", "09"}
-WHOLESALE_DIVISION = "46"
-
-PORTE_FACTOR = {
-    "00": 0.60,  # não informado
-    "01": 0.45,  # microempresa
-    "03": 0.80,  # empresa de pequeno porte
-    "05": 1.40,  # demais
-}
-
-SEGMENT_COLUMNS = [
-    "transportadoras",
-    "operadores_logisticos",
-    "armazenagem",
-    "embarcadores_industriais",
-    "atacadistas_distribuidores",
-    "agro_mineracao",
-    "varejo_ecommerce",
-]
+BASE_INDEX = "https://arquivos.receitafederal.gov.br/dados/cnpj/dados_abertos_cnpj/"
+IBGE_MUNICIPIOS = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
+USER_AGENT = "AtlasGR-MarketIntelligence/1.0 (+data engineering)"
+ACTIVE_SITUATION = "02"
 
 
-def clean_code(value: str) -> str:
-    return "".join(ch for ch in (value or "") if ch.isdigit())
+@dataclass(frozen=True)
+class ArchiveMeta:
+    name: str
+    url: str
+    size: int
+    sha256: str
 
 
-def classify_cnae(cnae: str):
-    code = clean_code(cnae)
-    if not code:
-        return None
-    if code in DIRECT_CODES:
-        return DIRECT_CODES[code]
-    div = code[:2]
-    if div in INDUSTRIAL_DIVISIONS:
-        return ("embarcadores_industriais", 3.0)
-    if div == WHOLESALE_DIVISION:
-        return ("atacadistas_distribuidores", 2.5)
-    if div in AGRO_MINING_DIVISIONS:
-        return ("agro_mineracao", 2.4)
-    return None
+def request_bytes(url: str, timeout: int = 180) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        return response.read()
 
 
-def discover_files(root: Path):
-    files = [p for p in root.rglob("*") if p.is_file()]
-    empresas, estabelecimentos, municipios = [], [], []
-    for p in files:
-        n = p.name.upper()
-        if "EMPRECSV" in n or n.startswith("EMPRESAS") or n == "EMPRESAS.CSV":
-            empresas.append(p)
-        elif "ESTABELE" in n or n.startswith("ESTABELECIMENTOS") or n == "ESTABELECIMENTOS.CSV":
-            estabelecimentos.append(p)
-        elif "MUNICCSV" in n or n.startswith("MUNICIPIOS") or n == "MUNICIPIOS.CSV":
-            municipios.append(p)
-    return sorted(empresas), sorted(estabelecimentos), sorted(municipios)
+def request_text(url: str, timeout: int = 180) -> str:
+    payload = request_bytes(url, timeout)
+    for encoding in ("utf-8", "latin-1"):
+        try:
+            return payload.decode(encoding)
+        except UnicodeDecodeError:
+            pass
+    return payload.decode("latin-1", errors="replace")
 
 
-def rows(path: Path) -> Iterator[list[str]]:
-    # Arquivos da Receita são tipicamente Latin-1/Windows-1252 e ; separados.
-    with path.open("r", encoding="latin-1", errors="replace", newline="") as f:
-        reader = csv.reader(f, delimiter=";", quotechar='"')
-        for row in reader:
-            if row:
-                yield row
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
-def batched(it: Iterable, size=50000):
-    batch = []
-    for item in it:
-        batch.append(item)
-        if len(batch) >= size:
-            yield batch
-            batch = []
-    if batch:
-        yield batch
+def norm(value: str | None) -> str:
+    text = unicodedata.normalize("NFKD", value or "")
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", re.sub(r"[^A-Za-z0-9]+", " ", text).upper()).strip()
 
 
-def init_db(db: sqlite3.Connection):
+def discover_latest_competence() -> str:
+    html = request_text(BASE_INDEX)
+    found = sorted(set(re.findall(r"\b(20\d{2}-(?:0[1-9]|1[0-2]))/", html)))
+    if not found:
+        raise RuntimeError("Nao foi possivel descobrir a competencia mais recente no indice oficial da Receita")
+    return found[-1]
+
+
+def list_remote_archives(competence: str) -> list[tuple[str, str]]:
+    base = urllib.parse.urljoin(BASE_INDEX, f"{competence}/")
+    html = request_text(base)
+    names = sorted(set(re.findall(r'href=["\']([^"\']+\.zip)["\']', html, flags=re.I)))
+    wanted = [n for n in names if re.match(r"(?:Empresas|Estabelecimentos)\d+\.zip$", n, re.I)]
+    if "Municipios.zip" in names:
+        wanted.append("Municipios.zip")
+    if "Cnaes.zip" in names:
+        wanted.append("Cnaes.zip")
+    if not any(n.lower().startswith("empresas") for n in wanted) or not any(n.lower().startswith("estabelecimentos") for n in wanted) or "Municipios.zip" not in wanted:
+        raise RuntimeError(f"Indice Receita incompleto para {competence}")
+    return [(name, urllib.parse.urljoin(base, name)) for name in wanted]
+
+
+def download_archive(name: str, url: str, target_dir: Path) -> ArchiveMeta:
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / name
+    if not target.exists() or target.stat().st_size < 100:
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as output:  # noqa: S310
+            while chunk := response.read(1024 * 1024):
+                output.write(chunk)
+    if not zipfile.is_zipfile(target):
+        raise RuntimeError(f"ZIP invalido: {target}")
+    return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
+
+
+def zip_rows(path: Path) -> Iterator[list[str]]:
+    with zipfile.ZipFile(path) as archive:
+        members = [m for m in archive.infolist() if not m.is_dir()]
+        if not members:
+            return
+        member = max(members, key=lambda item: item.file_size)
+        with archive.open(member) as raw:
+            yield from csv.reader(io.TextIOWrapper(raw, encoding="latin-1", errors="replace", newline=""), delimiter=";", quotechar='"')
+
+
+def normalize_cnae(value: str) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+def tier_for_cnaes(primary: str, secondary: str, taxonomy: dict[str, Any]) -> tuple[str | None, str | None]:
+    codes = [normalize_cnae(primary)] + [normalize_cnae(v) for v in re.split(r"[,;\s]+", secondary or "") if v.strip()]
+    for tier in taxonomy.get("precedence", ["A", "B", "C"]):
+        prefixes = [str(v) for v in taxonomy["tiers"].get(tier, {}).get("cnaePrefixes", [])]
+        for code in filter(None, codes):
+            if any(code.startswith(prefix) for prefix in prefixes):
+                return tier, code
+    return None, None
+
+
+def load_receita_municipalities(path: Path) -> dict[str, str]:
+    result = {row[0].strip(): row[1].strip() for row in zip_rows(path) if len(row) >= 2}
+    if not result:
+        raise RuntimeError("Municipios.zip vazio")
+    return result
+
+
+def load_ibge(cache: Path) -> dict[tuple[str, str], dict[str, Any]]:
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    if not cache.exists():
+        cache.write_bytes(request_bytes(IBGE_MUNICIPIOS))
+    lookup: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in json.loads(cache.read_text(encoding="utf-8")):
+        uf = row.get("microrregiao", {}).get("mesorregiao", {}).get("UF", {})
+        if not uf:
+            immediate = row.get("regiao-imediata") or {}
+            uf = ((immediate.get("regiao-intermediaria") or {}).get("UF")) or {}
+        sigla, name = str(uf.get("sigla") or "").upper(), str(row.get("nome") or "")
+        if sigla and name:
+            lookup[(sigla, norm(name))] = {"ibgeCode": str(row["id"]), "name": name, "uf": sigla, "region": (uf.get("regiao") or {}).get("nome")}
+    return lookup
+
+
+def open_db(path: Path) -> sqlite3.Connection:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
     db.executescript("""
-    PRAGMA journal_mode=WAL;
-    PRAGMA synchronous=NORMAL;
-    PRAGMA temp_store=MEMORY;
-    CREATE TABLE IF NOT EXISTS empresas (
-        cnpj_base TEXT PRIMARY KEY,
-        porte TEXT,
-        capital REAL
-    ) WITHOUT ROWID;
-    CREATE TABLE IF NOT EXISTS municipios (
-        codigo TEXT PRIMARY KEY,
-        nome TEXT
-    ) WITHOUT ROWID;
-    CREATE TABLE IF NOT EXISTS candidatos (
-        cnpj_base TEXT NOT NULL,
-        municipio_codigo TEXT NOT NULL,
-        uf TEXT NOT NULL,
-        cnae TEXT NOT NULL,
-        matriz_filial TEXT,
-        segmento TEXT NOT NULL,
-        peso_base REAL NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_cand_mun ON candidatos(municipio_codigo, uf);
-    CREATE INDEX IF NOT EXISTS idx_cand_base ON candidatos(cnpj_base);
+      DROP TABLE IF EXISTS candidate_establishment;
+      DROP TABLE IF EXISTS company_info;
+      CREATE TABLE candidate_establishment (
+        cnpj_basic TEXT NOT NULL, cnpj_full TEXT PRIMARY KEY, matrix_branch TEXT,
+        uf TEXT NOT NULL, receita_municipality_code TEXT NOT NULL, primary_cnae TEXT,
+        matched_cnae TEXT, tier TEXT NOT NULL
+      );
+      CREATE INDEX idx_candidate_basic ON candidate_establishment(cnpj_basic);
+      CREATE TABLE company_info (
+        cnpj_basic TEXT PRIMARY KEY, capital_social TEXT, company_size TEXT
+      );
     """)
+    return db
 
 
-def load_municipios(db: sqlite3.Connection, paths: list[Path]):
-    if not paths:
-        raise SystemExit("Arquivo Municipios não encontrado. Extraia Municipios.zip na pasta de entrada.")
-    total = 0
-    for path in paths:
-        vals = []
-        for r in rows(path):
-            if len(r) >= 2:
-                vals.append((clean_code(r[0]), r[1].strip()))
-        db.executemany("INSERT OR REPLACE INTO municipios(codigo,nome) VALUES (?,?)", vals)
-        total += len(vals)
-    db.commit()
-    print(f"Municípios carregados: {total:,}".replace(",", "."))
+def process_establishments(db: sqlite3.Connection, archives: list[Path], taxonomy: dict[str, Any]) -> dict[str, int]:
+    stats = defaultdict(int)
+    sql = "INSERT OR REPLACE INTO candidate_establishment VALUES (?,?,?,?,?,?,?,?)"
+    batch: list[tuple[str, ...]] = []
+    for archive in archives:
+        for row in zip_rows(archive):
+            stats["establishment_rows"] += 1
+            if len(row) < 22 or row[5].strip() != ACTIVE_SITUATION:
+                continue
+            stats["active_establishments"] += 1
+            tier, match = tier_for_cnaes(row[11], row[12], taxonomy)
+            if not tier:
+                continue
+            basic, order, dv = row[0].strip(), row[1].strip(), row[2].strip()
+            batch.append((basic, f"{basic}{order}{dv}", row[3].strip(), row[19].strip().upper(), row[20].strip(), normalize_cnae(row[11]), match or "", tier))
+            stats[f"tier_{tier}"] += 1
+            if len(batch) >= 5000:
+                db.executemany(sql, batch); db.commit(); batch.clear()
+    if batch:
+        db.executemany(sql, batch); db.commit()
+    stats["candidate_establishments"] = db.execute("SELECT COUNT(*) FROM candidate_establishment").fetchone()[0]
+    stats["candidate_companies"] = db.execute("SELECT COUNT(DISTINCT cnpj_basic) FROM candidate_establishment").fetchone()[0]
+    return dict(stats)
 
 
-def load_empresas(db: sqlite3.Connection, paths: list[Path]):
-    if not paths:
-        print("AVISO: arquivos Empresas não encontrados; porte será tratado como não informado.")
-        return
-    total = 0
-    t0 = time.time()
-    sql = "INSERT OR REPLACE INTO empresas(cnpj_base,porte,capital) VALUES (?,?,?)"
-    for path in paths:
-        print(f"Empresas: {path.name}")
-        def gen():
-            nonlocal total
-            for r in rows(path):
-                # Layout oficial Empresas: base, razão social, natureza, qualif resp, capital, porte, ente
-                if len(r) < 6:
-                    continue
-                base = clean_code(r[0])[:8]
-                if not base:
-                    continue
-                porte = clean_code(r[5])[:2] or "00"
-                try:
-                    capital = float((r[4] or "0").replace(",", "."))
-                except ValueError:
-                    capital = 0.0
-                total += 1
-                yield (base, porte, capital)
-        for batch in batched(gen()):
-            db.executemany(sql, batch)
-            db.commit()
-        print(f"  acumulado: {total:,} empresas | {time.time()-t0:.0f}s".replace(",", "."))
+def process_companies(db: sqlite3.Connection, archives: list[Path]) -> dict[str, int]:
+    candidate_basics = {row[0] for row in db.execute("SELECT DISTINCT cnpj_basic FROM candidate_establishment")}
+    stats = defaultdict(int)
+    batch: list[tuple[str, str, str]] = []
+    for archive in archives:
+        for row in zip_rows(archive):
+            stats["company_rows"] += 1
+            if len(row) < 6 or row[0].strip() not in candidate_basics:
+                continue
+            batch.append((row[0].strip(), row[4].strip(), row[5].strip()))
+            if len(batch) >= 5000:
+                db.executemany("INSERT OR REPLACE INTO company_info VALUES (?,?,?)", batch); db.commit(); batch.clear()
+    if batch:
+        db.executemany("INSERT OR REPLACE INTO company_info VALUES (?,?,?)", batch); db.commit()
+    stats["matched_company_info"] = db.execute("SELECT COUNT(*) FROM company_info").fetchone()[0]
+    return dict(stats)
 
 
-def load_estabelecimentos(db: sqlite3.Connection, paths: list[Path]):
-    if not paths:
-        raise SystemExit("Arquivos Estabelecimentos não encontrados. Extraia Estabelecimentos*.zip na pasta de entrada.")
-    total = active = matched = 0
-    t0 = time.time()
-    sql = "INSERT INTO candidatos(cnpj_base,municipio_codigo,uf,cnae,matriz_filial,segmento,peso_base) VALUES (?,?,?,?,?,?,?)"
-    for path in paths:
-        print(f"Estabelecimentos: {path.name}")
-        def gen():
-            nonlocal total, active, matched
-            for r in rows(path):
-                total += 1
-                # Layout oficial Estabelecimentos:
-                # 0 base,1 ordem,2 dv,3 matriz/filial,4 fantasia,5 situação,6 data sit,7 motivo,
-                # 8 cidade exterior,9 país,10 abertura,11 cnae principal,...,19 CEP,20 UF,21 município...
-                if len(r) < 21:
-                    continue
-                situation = clean_code(r[5])[:2]
-                if situation != "02":  # ativa
-                    continue
-                active += 1
-                cnae = clean_code(r[11])
-                classified = classify_cnae(cnae)
-                if not classified:
-                    continue
-                segment, weight = classified
-                uf = (r[19] or "").strip().upper()
-                mun = clean_code(r[20])
-                base = clean_code(r[0])[:8]
-                if not uf or not mun or not base:
-                    continue
-                matched += 1
-                yield (base, mun, uf, cnae, (r[3] or "").strip(), segment, weight)
-        for batch in batched(gen()):
-            db.executemany(sql, batch)
-            db.commit()
-        print((f"  lidos {total:,} | ativos {active:,} | ICP {matched:,} | {time.time()-t0:.0f}s").replace(",", "."))
+def aggregate(db: sqlite3.Connection, receita_municipalities: dict[str, str], ibge: dict[tuple[str, str], dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    aggregates: dict[str, dict[str, Any]] = {}
+    unmatched = 0
+    processed = 0
+    for matrix_branch, uf, receita_code, tier, size in db.execute("SELECT e.matrix_branch,e.uf,e.receita_municipality_code,e.tier,c.company_size FROM candidate_establishment e LEFT JOIN company_info c ON c.cnpj_basic=e.cnpj_basic"):
+        processed += 1
+        geo = ibge.get((str(uf).upper(), norm(receita_municipalities.get(str(receita_code), ""))))
+        if not geo:
+            unmatched += 1; continue
+        code = geo["ibgeCode"]
+        item = aggregates.setdefault(code, {"ibgeCode": code, "name": geo["name"], "uf": geo["uf"], "region": geo["region"], "total": 0, "tierA": 0, "tierB": 0, "tierC": 0, "headquarters": 0, "branches": 0, "size": {"micro": 0, "small": 0, "other": 0, "unknown": 0}})
+        item["total"] += 1; item[f"tier{tier}"] += 1
+        item["headquarters" if str(matrix_branch) == "1" else "branches"] += 1
+        item["size"][{"01": "micro", "03": "small", "05": "other"}.get(str(size or "").zfill(2), "unknown")] += 1
+    return sorted(aggregates.values(), key=lambda x: (x["uf"], x["name"])), {"candidate_rows_aggregated": processed, "municipalities_with_icp": len(aggregates), "unmatched_geography_rows": unmatched}
 
 
-def export_aggregate(db: sqlite3.Connection, output: Path):
-    print("Agregando por município...")
-    query = """
-    WITH enriched AS (
-      SELECT
-        c.municipio_codigo,
-        c.uf,
-        c.segmento,
-        c.peso_base,
-        COALESCE(e.porte,'00') AS porte,
-        COALESCE(e.capital,0) AS capital,
-        c.matriz_filial
-      FROM candidatos c
-      LEFT JOIN empresas e ON e.cnpj_base = c.cnpj_base
-    )
-    SELECT
-      m.nome AS municipio,
-      e.uf,
-      COUNT(*) AS icp_total,
-      SUM(CASE WHEN e.segmento IN ('transportadoras','operadores_logisticos') THEN 1 ELSE 0 END) AS tier_a,
-      SUM(CASE WHEN e.segmento IN ('armazenagem','embarcadores_industriais') THEN 1 ELSE 0 END) AS tier_b,
-      SUM(CASE WHEN e.segmento IN ('atacadistas_distribuidores','agro_mineracao','varejo_ecommerce') THEN 1 ELSE 0 END) AS tier_c,
-      ROUND(SUM(e.peso_base * CASE e.porte WHEN '01' THEN 0.45 WHEN '03' THEN 0.80 WHEN '05' THEN 1.40 ELSE 0.60 END),2) AS score_ponderado,
-      SUM(CASE WHEN e.segmento='transportadoras' THEN 1 ELSE 0 END) AS transportadoras,
-      SUM(CASE WHEN e.segmento='operadores_logisticos' THEN 1 ELSE 0 END) AS operadores_logisticos,
-      SUM(CASE WHEN e.segmento='armazenagem' THEN 1 ELSE 0 END) AS armazenagem,
-      SUM(CASE WHEN e.segmento='embarcadores_industriais' THEN 1 ELSE 0 END) AS embarcadores_industriais,
-      SUM(CASE WHEN e.segmento='atacadistas_distribuidores' THEN 1 ELSE 0 END) AS atacadistas_distribuidores,
-      SUM(CASE WHEN e.segmento='agro_mineracao' THEN 1 ELSE 0 END) AS agro_mineracao,
-      SUM(CASE WHEN e.segmento='varejo_ecommerce' THEN 1 ELSE 0 END) AS varejo_ecommerce,
-      SUM(CASE WHEN e.porte='01' THEN 1 ELSE 0 END) AS micro,
-      SUM(CASE WHEN e.porte='03' THEN 1 ELSE 0 END) AS pequeno_porte,
-      SUM(CASE WHEN e.porte='05' THEN 1 ELSE 0 END) AS demais_portes,
-      ROUND(SUM(e.capital),2) AS capital_social_soma
-    FROM enriched e
-    LEFT JOIN municipios m ON m.codigo=e.municipio_codigo
-    GROUP BY e.municipio_codigo,e.uf
-    ORDER BY score_ponderado DESC, icp_total DESC
-    """
-    cur = db.execute(query)
-    headers = [d[0] for d in cur.description]
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        w.writerow(headers)
-        n = 0
-        while True:
-            rows_ = cur.fetchmany(10000)
-            if not rows_:
-                break
-            w.writerows(rows_)
-            n += len(rows_)
-    print(f"Arquivo gerado: {output} | {n:,} municípios".replace(",", "."))
+def select_archives(source_dir: Path) -> tuple[list[Path], list[Path], Path]:
+    establishments, companies, municipalities = sorted(source_dir.glob("Estabelecimentos*.zip")), sorted(source_dir.glob("Empresas*.zip")), source_dir / "Municipios.zip"
+    if not establishments or not companies or not municipalities.exists():
+        raise RuntimeError(f"Arquivos CNPJ incompletos em {source_dir}")
+    return establishments, companies, municipalities
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Agrega os Dados Abertos do CNPJ em ICP municipal Atlas GR.")
-    ap.add_argument("--input", required=True, type=Path, help="Pasta com os arquivos extraídos da Receita Federal")
-    ap.add_argument("--output", default=Path("atlas_icp_municipios.csv"), type=Path)
-    ap.add_argument("--db", default=None, type=Path, help="SQLite temporário/persistente (padrão: ao lado do output)")
-    ap.add_argument("--reset", action="store_true", help="Apaga o banco intermediário e reprocessa tudo")
-    args = ap.parse_args()
-    root = args.input
-    if not root.exists():
-        raise SystemExit(f"Pasta não existe: {root}")
-    db_path = args.db or args.output.with_suffix(".sqlite")
-    if args.reset and db_path.exists():
-        db_path.unlink()
-    empresas, estabs, municipios = discover_files(root)
-    print(f"Arquivos encontrados: Empresas={len(empresas)} Estabelecimentos={len(estabs)} Municipios={len(municipios)}")
-    db = sqlite3.connect(db_path)
-    init_db(db)
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--workdir", type=Path, default=Path(".cache/market-intelligence/cnpj"))
+    parser.add_argument("--source-dir", type=Path)
+    parser.add_argument("--competence")
+    parser.add_argument("--no-download", action="store_true")
+    parser.add_argument("--taxonomy", type=Path, default=Path(__file__).with_name("icp_taxonomy.v1.json"))
+    parser.add_argument("--output", type=Path, default=Path("public/tools/atlas-market-intelligence/data/icp_municipios.json"))
+    parser.add_argument("--metadata", type=Path)
+    args = parser.parse_args()
+
+    started = datetime.now(timezone.utc)
+    taxonomy = json.loads(args.taxonomy.read_text(encoding="utf-8"))
+    competence = args.competence or (None if args.no_download else discover_latest_competence())
+    source_dir = args.source_dir or (args.workdir / "raw" / (competence or "manual"))
+    archive_meta: list[ArchiveMeta] = []
+    if not args.no_download:
+        if not competence:
+            raise RuntimeError("Competencia CNPJ nao resolvida")
+        for name, url in list_remote_archives(competence):
+            archive_meta.append(download_archive(name, url, source_dir))
+
+    establishments, companies, municipalities_zip = select_archives(source_dir)
+    if not archive_meta:
+        archive_meta = [ArchiveMeta(p.name, p.resolve().as_uri(), p.stat().st_size, sha256_file(p)) for p in establishments + companies + [municipalities_zip]]
+
+    db = open_db(args.workdir / "work" / "atlas_cnpj_icp.sqlite")
     try:
-        # Permite retomar execução sem duplicar carga pesada.
-        if db.execute("SELECT COUNT(*) FROM municipios").fetchone()[0] == 0:
-            load_municipios(db, municipios)
-        if db.execute("SELECT COUNT(*) FROM empresas").fetchone()[0] == 0:
-            load_empresas(db, empresas)
-        if db.execute("SELECT COUNT(*) FROM candidatos").fetchone()[0] == 0:
-            load_estabelecimentos(db, estabs)
-        export_aggregate(db, args.output)
+        est_stats = process_establishments(db, establishments, taxonomy)
+        company_stats = process_companies(db, companies)
+        output, geo_stats = aggregate(db, load_receita_municipalities(municipalities_zip), load_ibge(args.workdir / "raw" / "ibge" / "municipios.json"))
     finally:
         db.close()
-    print("Concluído. Importe o CSV gerado na camada ICP/CNPJ do Atlas Market Intelligence.")
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(output, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    metadata_path = args.metadata or args.output.with_suffix(".metadata.json")
+    finished = datetime.now(timezone.utc)
+    metadata = {
+        "dataset": "Receita Federal - Dados Abertos CNPJ / ICP Atlas",
+        "competence": competence or "MANUAL_NAO_INFORMADA",
+        "processedAt": finished.isoformat(),
+        "durationSeconds": round((finished - started).total_seconds(), 3),
+        "taxonomyVersion": taxonomy["version"],
+        "taxonomyStatus": taxonomy.get("status"),
+        "archives": [asdict(v) for v in archive_meta],
+        "outputSha256": sha256_file(args.output),
+        "stats": {**est_stats, **company_stats, **geo_stats},
+        "transformations": ["situacao ativa 02", "CNAE principal+secundarios", "precedencia A>B>C", "porte e matriz/filial preservados", "join municipal por codigo IBGE", "agregacao municipal compacta"],
+        "limitations": ["taxonomia v1 nao calibrada com ganhos/perdas Atlas", "porte nao promove tier sozinho", "capital social nao vira score", "frota/MDF-e/risco nao sao inferidos do CNPJ"]
+    }
+    metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(metadata, ensure_ascii=False, indent=2))
+    if geo_stats["unmatched_geography_rows"]:
+        print(f"AVISO: {geo_stats['unmatched_geography_rows']} estabelecimentos ICP sem match IBGE", file=sys.stderr)
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -24,6 +24,7 @@ const IntelligenceHub = lazy(() => import('./features/intelligence/components/In
 const CompanyList = lazy(() => import('./features/companies/components/CompanyList').then(m => ({ default: m.CompanyList })));
 const ContactList = lazy(() => import('./features/contacts/components/ContactList').then(m => ({ default: m.ContactList })));
 const ActivityList = lazy(() => import('./features/activities/components/ActivityList').then(m => ({ default: m.ActivityList })));
+const CadenceHub = lazy(() => import('./features/cadence/components/CadenceHub').then(m => ({ default: m.CadenceHub })));
 const RoleplayHub = lazy(() => import('./features/roleplay/components/RoleplayHub').then(m => ({ default: m.RoleplayHub })));
 const QualificationMatrixPage = lazy(() => import('./features/playbook/components/QualificationMatrixPage').then(m => ({ default: m.QualificationMatrixPage })));
 const ObjectionsMatrixPage = lazy(() => import('./features/playbook/components/ObjectionsMatrixPage').then(m => ({ default: m.ObjectionsMatrixPage })));
@@ -37,6 +38,7 @@ const Analytics = lazy(() => import('./features/analytics/components/Analytics')
 const WinLossAnalysis = lazy(() => import('./features/analytics/components/WinLossAnalysis').then(m => ({ default: m.WinLossAnalysis })));
 const CommercialIntelligenceHub = lazy(() => import('./features/commercial-intelligence/components/CommercialIntelligenceHub').then(m => ({ default: m.CommercialIntelligenceHub })));
 const Calendar = lazy(() => import('./features/calendar/components/Calendar').then(m => ({ default: m.Calendar })));
+const MesaTratamento = lazy(() => import('./features/mesa-tratamento/components/MesaTratamento').then(m => ({ default: m.MesaTratamento })));
 const Notifications = lazy(() => import('./features/notifications/components/Notifications').then(m => ({ default: m.Notifications })));
 const Automations = lazy(() => import('./features/automations/components/Automations').then(m => ({ default: m.Automations })));
 const Usage = lazy(() => import('./features/billing/components/Billing').then(m => ({ default: m.Billing })));
@@ -47,6 +49,7 @@ const OnboardingTour = lazy(() => import('./features/onboarding/components/Onboa
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
 import { MarketIntelligence } from './pages/MarketIntelligence';
+import { Propostas } from './pages/Propostas';
 
 function PageFallback() {
   return (
@@ -93,10 +96,12 @@ function AppLayout() {
           <Route path="prospect" element={<ProspectingHub />} />
           <Route path="crm" element={<CrmBoard />} />
           <Route path="crm360" element={<CrmOverview onNavigate={handleCrmOverviewNavigate} />} />
+          <Route path="mesa-tratamento" element={<MesaTratamento />} />
           <Route path="intelligence" element={<IntelligenceHub />} />
           <Route path="companies" element={<CompanyList />} />
           <Route path="contacts" element={<ContactList />} />
           <Route path="activities" element={<ActivityList />} />
+          <Route path="cadence" element={<CadenceHub />} />
           <Route path="chatbook" element={<ChatbookHub />} />
           <Route path="roleplay" element={<RoleplayHub />} />
           <Route path="qualification_matrix" element={<QualificationMatrixPage />} />
@@ -109,6 +114,7 @@ function AppLayout() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="winloss" element={<WinLossAnalysis />} />
           <Route path="market-intelligence" element={<MarketIntelligence />} />
+          <Route path="propostas" element={<Propostas />} />
           {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
               direto por URL (não só o item de menu); a autorização real (que nunca confia no
               frontend) está em requireRole no backend — ver commercialIntelligence.routes.ts. */}

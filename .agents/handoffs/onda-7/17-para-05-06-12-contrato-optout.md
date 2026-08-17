@@ -1,7 +1,7 @@
 - De: 17
 - Para: 05, 06, 12
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: bloqueador
 ## Problema
 Hoje `CallSuppression` só protege o canal de voz (12). E-mail (05) e WhatsApp (06) não consultam
@@ -101,3 +101,138 @@ mentira mais provável do seu domínio". Não é bloqueador para eu continuar im
 meu próprio escopo (a lógica de domínio não depende de vocês para existir e ser testada), mas é
 bloqueador para a Onda 7 ser aprovada como "opt-out unificado" de verdade, e deveria ser tratado
 como tal na integração final (`/AGENTS.md` → "Bloqueadores prioritários", item 13, LGPD).
+
+## Resolução (05 — E-mail)
+
+`src/features/prospecting/services/cold-email.service.ts`: `ColdEmailCampaign` ganhou
+`organizationId` (obrigatório), `leadId` e `contactPhone` (opcionais). `sendColdEmail` chama
+`isOptedOut(prismaOptOutRepository, organizationId, { leadId, email: targetEmail, phoneE164:
+toE164BR(contactPhone) }, 'email')` antes de qualquer envio real — bloqueio nunca é reportado como
+enviado (mesma disciplina do commit `2e42a557`). `prospecting.routes.ts`: a rota `POST /cold-email`
+passa a injetar `organizationId` a partir da sessão autenticada, nunca do corpo da requisição.
+
+Não existe hoje nenhum fluxo real de descadastro/opt-out iniciado pelo lead dentro de
+`src/features/prospecting/**` — não foi criado um, conforme instrução; só a checagem antes do
+envio foi implementada.
+
+Testes: `tests/unit/features/prospecting/cold-email.service.test.ts` (bloqueio, chamada correta a
+`isOptedOut`, organizationId obrigatório) + `tests/integration/cold-email-optout.test.ts` (Postgres
+real, sem mock de `isOptedOut`/`recordOptOut`): `scope: 'email'`/`'global'` bloqueiam; opt-out
+registrado por `phoneE164` (voz) bloqueia e-mail do mesmo lead; `scope: 'voice'`/`'whatsapp'` não
+bloqueia e-mail; sem opt-out envia normalmente.
+
+Validação: `tsc --noEmit` limpo, `lint` 0 erros, `test:unit` 143/143 arquivos (1075 testes),
+`test:integration` 22/22 arquivos (97 passed, 2 skipped), `build` ok.
+
+Branch: `agente/05-optout-cold-email` (commit `ec8d175e`), a partir de `integracao/optout-unificado`
+(`459de182`).
+
+## Resolução (06 — WhatsApp)
+
+Feito. Status permanece `aberto` porque este handoff tem 3 destinatários (05, 06, 12) e só a fatia
+do 06 está confirmada abaixo — o Coordenador deve fechar para `resolvido` só depois que 05 e 12
+também confirmarem a deles.
+
+- `src/features/integrations/whatsapp/whatsapp.service.ts`: `sendWhatsAppMessage` agora chama
+  `isOptedOut` (canal `'whatsapp'`) antes de qualquer envio real, dentro do seu próprio
+  `requestContext.run({ tenantId: organizationId }, ...)` — não confia no contexto do chamador,
+  porque este ponto é invocado tanto de uma request HTTP autenticada quanto de
+  workers/webhooks (`crm/jobs/followUp.worker.ts`, `birth-voice/*.webhook.ts`) que podem não ter
+  tenant no `AsyncLocalStorage`. Bloqueado → lança `AppError` 409 (nunca reporta como enviado);
+  todo chamador automatizado já envolve a chamada em try/catch, então isto vira "não enviado", não
+  um crash. Assinatura ganhou um 5º parâmetro opcional (`SendWhatsAppMessageContext`:
+  `leadId`/`email`/`skipOptOutCheck`) — os 3 chamadores automatizados fora do meu escopo
+  (`prospecting/services/whatsapp.service.ts`, `crm/jobs/followUp.worker.ts`,
+  `birth-voice/*.webhook.ts`) continuam funcionando sem alteração: o default (sem 5º argumento) já
+  ativa o check, casando pelo menos por telefone (sempre disponível, é o próprio parâmetro de
+  envio).
+- `src/features/integrations/whatsapp/whatsapp.routes.ts`: `POST /send` (mensagem manual do
+  vendedor no painel) passa `{ skipOptOutCheck: true }` de propósito — não é disparo automatizado.
+- `src/features/integrations/whatsapp/whatsappMessage.service.ts`: quando um lead responde
+  "sair"/"parar"/"stop", além do flag legado `customFields.optOutWhatsApp` (mantido — outros
+  pontos do código dependem dele, fora do meu escopo mexer), agora também chama `recordOptOut`
+  (`scope: 'global'`, `originChannel: 'whatsapp'`, evidência = texto real da mensagem).
+- Trouxe para o meu worktree (merge/cherry-pick de commits já existentes do Coordenador/01A, não
+  autorados por mim): `OptOutRecord` (schema+migration+`PrismaOptOutRepository`, commits
+  `e55206bb`/`459de182`) e a correção crítica de RLS de perda de contexto de tenant em
+  `requestContext.run()` com `PrismaPromise` lazy (`914d68c9`, Onda 9) — sem ela, o check de
+  opt-out fora de uma request HTTP (workers/webhooks) podia perder o tenant e falhar aberto
+  (não bloquear quando deveria).
+- Testes: `tests/unit/features/integrations/whatsapp/whatsapp.service.test.ts` (mock de
+  `isOptedOut`) cobre bloqueio, consulta com leadId/email/telefone normalizado, e
+  `skipOptOutCheck`. `tests/integration/whatsapp-optout-gating.test.ts` (novo, Postgres real)
+  prova: opt-out `global`/`whatsapp` bloqueia; opt-out restrito a `voice` não bloqueia WhatsApp;
+  RLS isola por tenant; `skipOptOutCheck` ignora opt-out existente; `persistWhatsAppMessage`
+  registra `OptOutRecord` a partir de mensagem recebida e preserva o flag legado.
+- Validação: `tsc --noEmit` limpo, `lint` 0 erros, `test:unit` 143/143 arquivos (1075 testes),
+  `test:integration` 22/22 arquivos (102 testes, quando roda sem contenção do Postgres
+  compartilhado entre worktrees — ver caveat documentado em
+  `tests/integration/threecx-persistence.test.ts`), `build` ok. `verify:integrations` não tem
+  entrada específica de WhatsApp (script cobre só integrações com credencial externa
+  configurável); rodei mesmo assim, único item com falha (`googlePlaces`) é ambiente local sem
+  chave válida, não relacionado a esta mudança.
+- Branch: `agente/06-optout-whatsapp` (commit `82851961`), a partir de
+  `integracao/optout-unificado` (`459de182`) + cherry-pick de `914d68c9`. Não mesclei em
+  `main`/`integracao/optout-unificado` — aguardando o Coordenador revisar e integrar junto com as
+  fatias de 05 e 12.
+
+## Resolução (12)
+
+Parte do 12 feita, branch `agente/12-optout-voz` (a partir de `integracao/optout-unificado`,
+commit base `459de182`, que já tinha `OptOutRecord` + `PrismaOptOutRepository` aplicados por 00).
+
+- `src/features/integrations/birth-voice/callSuppression.service.ts`: `isSuppressed` agora
+  consulta as DUAS fontes antes de deixar discar — `CallSuppression` (histórica) e `OptOutRecord`
+  (via `isOptedOut(prismaOptOutRepository, ...)`, canal `'voice'`). Aceita um terceiro parâmetro
+  opcional `{ leadId, email }` para fortalecer o casamento entre canais (o telefone sozinho já
+  cobre a maioria dos casos, mas um opt-out registrado só por e-mail depende do `leadId` para ser
+  encontrado). `recordOptOut` continua gravando em `CallSuppression` (inalterado) e passou a
+  também gravar em `OptOutRecord` (`scope: 'voice'`, `originChannel: 'voice'`, melhor esforço —
+  uma falha na escrita unificada não derruba o bloqueio de voz, que já valeu via
+  `CallSuppression`).
+- `src/features/integrations/birth-voice/birthVoice.service.ts` (`callLead`) e
+  `src/features/integrations/threecx/threecx.service.ts` (`make3CXCall`, Click-to-Call) — os dois
+  pontos reais de discagem — passam a chamar `isSuppressed` com `leadId`/`email` do lead como
+  contexto.
+- `src/features/integrations/birth-voice/birthVoice.webhook.ts`: passa `evidence` (trecho real da
+  transcrição) separado do `reason` composto, para o registro unificado guardar a evidência crua.
+- **Decisão registrada** (passo 2 de 3 da proposta original, "Para o 12 especificamente"): mantive
+  as duas escritas (`CallSuppression` E `OptOutRecord`) — não migrei a leitura de voz para
+  depender só de `OptOutRecord`. Isso é o passo 3, que exige antes confirmar 100% de cobertura;
+  fora do escopo desta tarefa pontual.
+- Scope sempre `'voice'` nos bloqueios registrados a partir de voz (pedido feito durante a própria
+  ligação, ex. "não me ligue mais" — inequivocamente restrito ao canal, não `'global'`). Por
+  desenho, isso NÃO bloqueia e-mail/WhatsApp por si só (mesma regra documentada em
+  `src/features/cadence/domain/optOut.ts`) — o valor para 05/06 é o registro ficar visível/auditável
+  ao lado dos opt-outs deles, não um bloqueio automático de canal.
+- Testes: unitários atualizados/adicionados em
+  `src/features/integrations/birth-voice/__tests__/callSuppression.service.test.ts`,
+  `birthVoice.service.test.ts` e `src/features/integrations/threecx/__tests__/threecx.service.test.ts`
+  (mocks) + `tests/unit/features/integrations/threecx/threecx.service.test.ts` (assinatura de
+  `isSuppressed` mudou, teste ajustado). Integração nova contra Postgres real, sem mock, em
+  `tests/integration/voice-optout-cross-channel.test.ts`: E-mail→Voz e WhatsApp→Voz com
+  `scope: 'global'` bloqueando, `scope` restrito ao outro canal não bloqueando, e a convivência
+  `CallSuppression`+`OptOutRecord` provada ponta a ponta.
+- Gate: `tsc --noEmit`, `lint`, `test:unit` (1080 testes) e `build` verdes. `test:integration`
+  verde para todos os arquivos do meu domínio (`threecx-persistence`, `optout-record-persistence`,
+  `voice-optout-cross-channel`) rodados isolados; a suíte completa tem flakiness pré-existente por
+  contenção no Postgres de teste compartilhado entre agentes rodando em paralelo (confirmado: o
+  mesmo `rbac-e2e-commercial-intelligence.test.ts` falha isolado e passa contra o commit-base sem
+  minhas mudanças) — não é regressão introduzida por esta tarefa. `verify:integrations` roda mas
+  não cobre voz/3CX (só provedores externos tipo Google Places/Apollo/Bitrix); a única falha
+  (`googlePlaces`) é pré-existente e fora do meu domínio.
+
+Não marco `Status: resolvido` — isso é do Coordenador, depois de integrar minha parte com as de 05
+e 06.
+
+## Resolução (Coordenador)
+
+As 3 fatias (05/06/12) integradas em `integracao/optout-unificado` sem conflito de código (só o
+próprio corpo deste handoff, resolvido preservando as 3 seções acima). Fechando `Status: resolvido`
+— opt-out registrado em qualquer um dos 3 canais agora bloqueia disparo automatizado nos outros,
+validado com testes de integração reais cross-channel por 05 e 12 (não apenas unitários/mockados).
+
+Débito consciente, não bloqueador: `CallSuppression` continua escrito em paralelo a `OptOutRecord`
+(decisão do 12, passo 3 da proposta original adiado); envio manual de WhatsApp pelo vendedor
+(`skipOptOutCheck`) não passa pela checagem, por desenho (não é o disparo automatizado que este
+contrato cobre).

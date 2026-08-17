@@ -1,4 +1,10 @@
 import { api } from '../../lib/api';
+// Fonte única do contrato de OverviewMetrics — ver .agents/handoffs/onda-8/
+// 18-para-02-unificar-overviewmetrics-frontend.md. A interface local que existia aqui foi
+// removida em favor deste import; a forma pública do tipo não mudou.
+import type { OverviewMetrics } from '../../shared/contracts/analytics.contract.js';
+
+export type { OverviewMetrics };
 
 export interface DistributionSlice {
     label: string;
@@ -14,20 +20,6 @@ export interface MonthlyPoint {
     created: number;
     won: number;
     lost: number;
-}
-
-export interface OverviewMetrics {
-    totalCompanies: number;
-    totalContacts: number;
-    totalLeads: number;
-    totalActivities: number;
-    pendingActivities: number;
-    overdueActivities: number;
-    closedThisMonth: number;
-    lostThisMonth: number;
-    conversionRate: number;
-    averageScore: number | null;
-    pipelineValue: number | null;
 }
 
 export interface AnalyticsDashboard {

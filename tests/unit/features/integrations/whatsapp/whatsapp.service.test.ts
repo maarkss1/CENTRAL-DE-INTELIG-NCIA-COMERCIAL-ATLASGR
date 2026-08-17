@@ -31,6 +31,20 @@ vi.mock('../../../../../src/features/integrations/whatsapp/whatsappMessage.servi
     persistWhatsAppMessage: vi.fn().mockResolvedValue(undefined),
 }));
 
+// isOptedOut é a checagem de opt-out unificado (ver
+// .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md) chamada por sendWhatsAppMessage
+// antes de qualquer envio automatizado. Mockado aqui porque este é um teste unitário puro (sem
+// Postgres real) — a prova contra banco real está em
+// tests/integration/whatsapp-optout-gating.test.ts. Default `false` (não bloqueado) para não
+// quebrar os testes de envio já existentes abaixo, que não são sobre opt-out.
+const isOptedOutMock = vi.fn().mockResolvedValue(false);
+vi.mock('../../../../../src/features/cadence/application/optOutService.js', () => ({
+    isOptedOut: (...args: unknown[]) => isOptedOutMock(...args),
+}));
+vi.mock('../../../../../src/features/cadence/infra/PrismaOptOutRepository.js', () => ({
+    prismaOptOutRepository: {},
+}));
+
 vi.mock('fs', () => ({
     default: {
         existsSync: vi.fn(() => true),
@@ -62,6 +76,11 @@ const mockSocket = {
 vi.mock('@whiskeysockets/baileys', () => ({
     default: vi.fn(() => mockSocket),
     useMultiFileAuthState: vi.fn(async () => ({ state: {}, saveCreds: vi.fn() })),
+    initAuthCreds: vi.fn(() => ({})),
+    BufferJSON: {
+        replacer: (k: unknown, v: unknown) => v,
+        reviver: (k: unknown, v: unknown) => v,
+    },
     fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1015901307], isLatest: true }),
     DisconnectReason: { loggedOut: 401 },
     Browsers: { macOS: () => ['Atlas', 'Desktop', '1.0'] },
@@ -73,6 +92,7 @@ const { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } =
 
 afterEach(() => {
     vi.clearAllMocks();
+    isOptedOutMock.mockResolvedValue(false);
     redisStore.clear();
     socketHandlers.clear();
 });
@@ -172,5 +192,51 @@ describe('WhatsApp service — sessão por tenant', () => {
         await expect(sendWhatsAppMessage(orgId, '11000000000', 'oi')).rejects.toThrow(
             'O número fornecido não está registrado no WhatsApp.',
         );
+    });
+});
+
+describe('WhatsApp service — bloqueio por opt-out (contrato onda-7)', () => {
+    it('bloqueia o disparo automatizado quando isOptedOut devolve true, sem chamar sock.sendMessage', async () => {
+        const orgId = 'org-optout-bloqueado';
+        await initWhatsApp(orgId);
+        (await socketHandlers.get('connection.update')!)({ connection: 'open' });
+        isOptedOutMock.mockResolvedValueOnce(true);
+
+        await expect(sendWhatsAppMessage(orgId, '11999998888', 'Follow-up automático')).rejects.toThrow(
+            /opt-out/i,
+        );
+        expect(mockSocket.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('consulta isOptedOut com leadId/email do contexto e o telefone de destino normalizado, no canal whatsapp', async () => {
+        const orgId = 'org-optout-consulta';
+        await initWhatsApp(orgId);
+        (await socketHandlers.get('connection.update')!)({ connection: 'open' });
+
+        await sendWhatsAppMessage(orgId, '(11) 99999-9999', 'Oi', undefined, {
+            leadId: 'lead-123',
+            email: 'lead@example.com',
+        });
+
+        expect(isOptedOutMock).toHaveBeenCalledWith(
+            {},
+            orgId,
+            { leadId: 'lead-123', email: 'lead@example.com', phoneE164: '+5511999999999' },
+            'whatsapp',
+        );
+    });
+
+    it('skipOptOutCheck (mensagem manual do painel) nunca chama isOptedOut e envia normalmente', async () => {
+        const orgId = 'org-optout-manual';
+        await initWhatsApp(orgId);
+        (await socketHandlers.get('connection.update')!)({ connection: 'open' });
+
+        const result = await sendWhatsAppMessage(orgId, '11999999999', 'Resposta do vendedor', undefined, {
+            skipOptOutCheck: true,
+        });
+
+        expect(result).toBe(true);
+        expect(isOptedOutMock).not.toHaveBeenCalled();
+        expect(mockSocket.sendMessage).toHaveBeenCalled();
     });
 });

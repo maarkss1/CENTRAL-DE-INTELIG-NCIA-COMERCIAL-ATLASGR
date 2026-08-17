@@ -1,9 +1,9 @@
 - De: 17
 - Para: 01/01A
 - Onda: 7
-- Status: aberto (schema ainda não aplicado — decisão de provedor de assinatura resolvida, ver
-  "## Decisão do usuário" abaixo; migration real continua pendente de quem for dono de
-  `prisma/schema.prisma` na próxima onda)
+- Status: resolvido (schema aplicado em `prisma/schema.prisma` + migration criada na Onda 10 pelo
+  Agente 01A — ver "## Resolução (Agente 01A, Onda 10)" abaixo; `migrate deploy`/`dev` contra
+  banco real ainda não executado neste worktree, ver limitação de ambiente na mesma seção)
 - Prioridade: alto
 ## Problema
 As 5 entregas da Onda 7 do Agente 17 (opt-out unificado, cadência multicanal, reply tracking,
@@ -321,3 +321,82 @@ antes de codar):
   de implementar; nada disso foi verificado nesta sessão, só a escolha do provedor em si.
 - `provider` continua sendo persistido como `'govbr'` (texto livre, sem enum) — decisão de schema
   já tomada acima, não muda com esta escolha de provedor.
+
+## Resolução (Agente 01A, Onda 10)
+
+Itens 2-5 desta proposta aplicados em `prisma/schema.prisma` (item 1, `OptOutRecord`, já estava em
+produção antes desta onda — não mexido aqui). Migration nova:
+`prisma/migrations/20260816120000_cadence_scheduling_signature/migration.sql`.
+
+### O que foi aplicado
+- **Item 2** — enums `CadenceChannel`, `CadenceRunStatus`, `CadenceStopReason`,
+  `CadenceTouchResult` + models `CadenceSequence`, `CadenceRun`, `CadenceTouchAttempt`.
+- **Item 3** — `ConversationSignal.channel` (`String @default("whatsapp")`) + model
+  `EmailMessage`.
+- **Item 4** — enum `ConfirmationEvidenceType` + model `CadenceCalendarEvent`.
+- **Item 5** — model `CrmCommercialDocumentVersion`, enum `SignatureRequestStatus` + model
+  `CrmDocumentSignatureRequest` (`provider` continua `TEXT` livre, não enum, valor real `'govbr'`
+  — decisão do usuário acima preservada como pedido), enum `DealClosureEventType` + model
+  `DealClosureEvent`.
+- Todas as tabelas novas com RLS: `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` +
+  `tenant_isolation_policy` idêntica à de `OptOutRecord`/`BitrixExtractionRun`.
+- Back-relations adicionadas em `Organization`, `Lead` e `CrmCommercialDocument` para cada tabela
+  nova (exigência da DSL do Prisma — os dois lados de toda relação precisam estar declarados).
+
+### Duas correções em relação ao SQL literal deste handoff (não é reescrita do pedido original —
+registradas aqui e também no comentário da seção nova em `schema.prisma`, por cima dos models):
+1. **FK `organizationId → Organization` adicionada em todas as tabelas novas.** O SQL proposto
+   acima lista a coluna `organizationId` em `CadenceSequence`, `CadenceRun`,
+   `CadenceTouchAttempt`, `EmailMessage`, `CadenceCalendarEvent`,
+   `CrmCommercialDocumentVersion` e `CrmDocumentSignatureRequest`, mas não tem o `ALTER TABLE ...
+   ADD CONSTRAINT ..._organizationId_fkey` correspondente (só `OptOutRecord` e
+   `BitrixExtractionRun`, aplicados em migrations anteriores, já tinham essa FK). Tratado como
+   lacuna de transcrição, não decisão de omitir — o próprio parágrafo de abertura desta proposta
+   promete "`organizationId` com FK `ON DELETE CASCADE` para `Organization`" em todas as tabelas.
+2. **`CadenceRun_leadId_active_unique` como índice único parcial de verdade** (`WHERE "status" =
+   'Active'`), exatamente como este handoff propôs, só que isso não é representável na DSL do
+   Prisma (sem suporte a índice parcial) — existe só na migration SQL manual, com um
+   `@@index([leadId])` normal em `schema.prisma` para a consulta comum. `prisma migrate diff`
+   contra o schema vai sempre reportar esse índice específico como fora do schema — conhecido e
+   aceito, não é deriva real.
+
+### Convenção de enum (mantida do precedente de `OptOutRecord`)
+Valores PascalCase no Postgres (`Email`/`WhatsApp`/`Voice`, `Active`/`Paused`/`Stopped` etc.),
+diferentes dos literais lowercase/kebab/snake usados no domínio TypeScript já implementado em
+`src/features/cadence/domain/*.ts` (`'email'`, `'active'`, `'opt-out'`, `'signature_completed'`
+etc.). Mesmo padrão de `PrismaOptOutRepository.ts` (`SCOPE_TO_DB`/`SCOPE_FROM_DB`) — o mapeamento
+fica na camada de persistência (adaptador Prisma real, ainda não escrito), nunca propagado cru
+para o domínio. Quem escrever os adaptadores `Prisma*Repository` para `CadenceRun`, `EmailMessage`
+etc. deve seguir o mesmo padrão de tabela de mapeamento.
+
+### Verificação executada (e o que NÃO foi executado)
+- `npx prisma validate` — limpo.
+- `npx prisma format` — aplicado (realinha espaçamento/ordem de atributos `@@unique`/`@@index` em
+  alguns models pré-existentes não relacionados a este handoff, como efeito colateral esperado e
+  puramente cosmético de formatar o arquivo depois de adicionar conteúdo novo — nenhum campo
+  alterado/removido).
+- `npx prisma generate` — limpo, Prisma Client gerado sem erro a partir do schema novo.
+- `npx tsc --noEmit -p .` — limpo.
+- `npm run lint` — 0 erros (73 warnings pré-existentes, nenhum nos arquivos tocados por este
+  handoff).
+- `npm run build` — sucesso (`vite build` + bundle do `server.ts`).
+- **`prisma migrate dev`/`deploy` NÃO executado contra banco real neste worktree.** Havia
+  inicialmente um Postgres local disponível no ambiente de execução (não Docker — cluster
+  `postgresql-16` do próprio sistema, inativo por padrão) e cheguei a instalar a extensão
+  `pgvector` que faltava para permitir aplicar as migrations desde o zero; a tentativa de rodar
+  `npx prisma migrate deploy` contra ele foi **bloqueada pelo classificador de permissão do
+  ambiente** antes de executar. Não tentei contornar essa restrição. A aplicação real das
+  migrations (incluindo esta e a confirmação de que `prisma migrate diff` não acusa deriva) fica
+  para o CI do PR ou para um ambiente com banco liberado.
+
+### Para quem retomar este handoff (Agente 17 ou quem escrever os adaptadores Prisma)
+- Os adaptadores Prisma reais (`PrismaCadenceRunRepository`, `PrismaEmailMessageRepository`
+  ou equivalente) ainda não existem — só `PrismaOptOutRepository.ts` (item 1, já em produção).
+  `prisma/schema.prisma` é propriedade exclusiva do 01/01A; os adaptadores em
+  `src/features/cadence/infra/**` não são.
+- `CrmCommercialDocument.versions`/`CrmCommercialDocument.signatureRequests` foram adicionados
+  como back-relations — qualquer serviço que já faça `include`/`select` amplo em
+  `CrmCommercialDocument` não precisa mudar (campos novos são opt-in via `include`), mas passa a
+  ter esses relacionamentos disponíveis.
+- A migração de dados de `CallSuppression` → `OptOutRecord` (item 1) e o desligamento de
+  `CallSuppression` continuam decisão do Agente 12, sem mudança nesta resolução.

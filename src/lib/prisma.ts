@@ -106,7 +106,17 @@ export const prisma = basePrisma.$extends({
         // query (findUnique por id); toda leitura/escrita seguinte roda dentro de
         // requestContext.run({ tenantId: connection.organizationId }) com RLS normal, igual ao
         // padrão já usado pelo lookup de Organization em runBitrixSyncTick (syncRules.ts).
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection'];
+        // FeatureFlag entrou nesta allowlist por um motivo diferente das tabelas de identidade
+        // acima: não tem organizationId (catálogo global, ver prisma/schema.prisma), e é
+        // sincronizada em server.ts no BOOT do processo (featureFlagsService.syncRegistry()),
+        // antes de qualquer request HTTP existir — logo sem tenantId nem sessão possíveis. A
+        // policy de RLS da tabela (app_context_policy, ver migration
+        // 20260815030000_feature_flags_and_bug_reports) exige app.bypass_rls='on' nesse caso
+        // porque `INSERT ... ON CONFLICT DO UPDATE` (o que Prisma `upsert` gera) precisa da
+        // visibilidade da cláusula USING para checar conflito, mesmo indo pelo ramo de INSERT.
+        // Sem este bypass, o catálogo de flags nunca seria semeado em produção. Zero risco de
+        // vazamento cross-tenant: a tabela não tem nenhuma linha "de uma organização" para vazar.
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

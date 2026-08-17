@@ -43,4 +43,17 @@ describe('navigationBus — contrato de navegação (destination id canônico + 
         expect(navigated).toBe(false);
         expect(calls).toEqual([]);
     });
+
+    // Regressão — ver .agents/handoffs/onda-8/09-para-02-navigationbus-rotas-ausentes.md: 'enrich'
+    // e 'prompts' existiam em TAB_ROUTE_SET sem nenhuma <Route> real correspondente em App.tsx (nem
+    // entrada na Sidebar/Command Palette). Removidos na Onda 10 — o comando de voz/deep link agora
+    // recusa esses dois destinos em vez de reportar sucesso e cair silenciosamente no catch-all.
+    it('retorna false para "enrich" e "prompts" — removidos por não terem rota real (Onda 10)', () => {
+        let called = false;
+        navigationBus.registerNavigator(() => { called = true; });
+
+        expect(navigationBus.requestNavigation('enrich')).toBe(false);
+        expect(navigationBus.requestNavigation('prompts')).toBe(false);
+        expect(called).toBe(false);
+    });
 });

@@ -21,6 +21,18 @@ vi.mock('../../../../src/lib/logger', () => ({
     logger: { info: (...a: unknown[]) => loggerInfo(...a), warn: (...a: unknown[]) => loggerWarn(...a), error: (...a: unknown[]) => loggerError(...a) },
 }));
 
+// Isolamento de unidade: a checagem real de opt-out (contra Postgres via `PrismaOptOutRepository`)
+// é coberta em `tests/integration/cold-email-optout.test.ts`, chamando `isOptedOut` de verdade.
+// Aqui só verificamos que `cold-email.service.ts` CHAMA `isOptedOut` com o sujeito correto e
+// respeita o resultado — sem depender de banco.
+const isOptedOutMock = vi.fn();
+vi.mock('../../../../src/features/cadence/application/optOutService.js', () => ({
+    isOptedOut: (...args: unknown[]) => isOptedOutMock(...args),
+}));
+vi.mock('../../../../src/features/cadence/infra/PrismaOptOutRepository.js', () => ({
+    prismaOptOutRepository: {},
+}));
+
 const { sendColdEmail } = await import('../../../../src/features/prospecting/services/cold-email.service');
 
 const validCampaign = {
@@ -31,10 +43,12 @@ const validCampaign = {
     status: 'draft' as const,
     legalBasis: 'legitimate_interest' as const,
     dataSource: 'apollo',
+    organizationId: 'org-1',
 };
 
 beforeEach(() => {
     vi.clearAllMocks();
+    isOptedOutMock.mockResolvedValue(false);
 });
 
 describe('Cold Email Service', () => {
@@ -97,5 +111,41 @@ describe('Cold Email Service', () => {
 
         expect(serialized).not.toContain(validCampaign.targetEmail);
         expect(serialized).toContain('empresa-cliente.com.br');
+    });
+
+    it('falha se organizationId não vier no campaign, sem tentar enviar (não dá pra checar opt-out sem tenant)', async () => {
+        const { organizationId, ...withoutOrg } = validCampaign;
+        const result = await sendColdEmail(withoutOrg as any);
+
+        expect(result).toBe(false);
+        expect(sendEmailMock).not.toHaveBeenCalled();
+    });
+
+    it('consulta isOptedOut com organizationId, email e leadId/phoneE164 do campaign antes de enviar', async () => {
+        sendEmailMock.mockResolvedValue(undefined);
+
+        await sendColdEmail({
+            ...validCampaign,
+            leadId: 'lead-42',
+            contactPhone: '(11) 98888-7777',
+        });
+
+        expect(isOptedOutMock).toHaveBeenCalledWith(
+            expect.anything(),
+            validCampaign.organizationId,
+            { leadId: 'lead-42', email: validCampaign.targetEmail, phoneE164: '+5511988887777' },
+            'email',
+        );
+    });
+
+    it('opt-out bloqueia o envio: retorna false, nunca chama o transporte SMTP, nunca registra como enviado', async () => {
+        isOptedOutMock.mockResolvedValue(true);
+
+        const result = await sendColdEmail(validCampaign);
+
+        expect(result).toBe(false);
+        expect(sendEmailMock).not.toHaveBeenCalled();
+        const allLogCalls = [...loggerInfo.mock.calls, ...loggerWarn.mock.calls, ...loggerError.mock.calls];
+        expect(JSON.stringify(allLogCalls)).toContain('opt-out');
     });
 });

@@ -9,12 +9,20 @@ model_list:
   # abaixo não usam essa chave, e não devem fingir que usam.
   - model_name: local-llama3
     litellm_params:
-      model: ollama/llama3
-      api_base: "http://host.docker.internal:11434"
+      model: ollama/llama3.1:8b
+      api_base: "http://ollama:11434"
   - model_name: local-llama3-fast
     litellm_params:
-      model: ollama/llama3
-      api_base: "http://host.docker.internal:11434"
+      model: ollama/llama3.1:8b
+      api_base: "http://ollama:11434"
+  - model_name: deepseek-r1
+    litellm_params:
+      model: ollama/deepseek-r1:8b
+      api_base: "http://ollama:11434"
+  - model_name: qwen-coder
+    litellm_params:
+      model: ollama/qwen2.5:7b
+      api_base: "http://ollama:11434"
   - model_name: gpt-4o
     litellm_params:
       model: openai/gpt-4o
@@ -23,15 +31,11 @@ model_list:
       model: anthropic/claude-sonnet-4-5-20250929
   - model_name: ollama-llama3
     litellm_params:
-      model: ollama/llama3
-      api_base: "http://host.docker.internal:11434"
+      model: ollama/llama3.1:8b
+      api_base: "http://ollama:11434"
   - model_name: openrouter-mixtral
     litellm_params:
       model: openrouter/mistralai/mixtral-8x7b-instruct
-  - model_name: qwen-coder
-    litellm_params:
-      model: openrouter/qwen/qwen-2.5-coder-32b-instruct
-      api_key: "os.environ/OPENROUTER_API_KEY"
   - model_name: deepseek-coder
     litellm_params:
       model: openrouter/deepseek/deepseek-coder

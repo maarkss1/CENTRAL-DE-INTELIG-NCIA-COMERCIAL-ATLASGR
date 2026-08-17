@@ -46,7 +46,7 @@ export function ClockCalendarWidget() {
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-line mb-4">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand to-brand-2 flex items-center justify-center text-white shadow-card">
+        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand-active to-brand-2-active flex items-center justify-center text-white shadow-card">
           <Clock className="w-5 h-5 animate-pulse" />
         </div>
         <p className="text-xs text-ink-2 capitalize font-semibold">{dayName}, {fullDate}</p>
@@ -93,7 +93,7 @@ export function ClockCalendarWidget() {
                 aria-pressed={isSelected}
                 className={`py-2 rounded-xl transition-all relative flex flex-col items-center justify-center cursor-pointer ${
                   isToday
-                    ? 'bg-gradient-to-br from-brand to-brand-2 text-white font-black shadow-lg'
+                    ? 'bg-gradient-to-br from-brand-active to-brand-2-active text-white font-black shadow-lg'
                     : isSelected
                     ? 'bg-surface border-2 border-brand/40 text-ink font-bold'
                     : 'bg-surface-2 hover:bg-line text-ink-2'

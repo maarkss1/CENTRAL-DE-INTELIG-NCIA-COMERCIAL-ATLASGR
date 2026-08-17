@@ -1,5 +1,17 @@
 # Roteiro: Demonstração dos Fluxos
 
+> **Status da gravação:** ainda não existe uma gravação dedicada a este roteiro passo a passo
+> (login → dashboard → cadastros → uso de IA). Até que ela seja produzida, este roteiro compartilha
+> o mesmo material bruto do roteiro institucional —
+> `documentacao-aplicacao/videos/apresentacao-completa.mp4` — que cobre a plataforma em visão geral,
+> não o passo a passo descrito abaixo. Não tratar esse vídeo como se fosse uma gravação específica
+> deste fluxo.
+>
+> Contexto: os arquivos `apresentacao-completa.mp4` e `demonstracao-dos-fluxos.mp4` existiam como
+> cópias byte-a-byte idênticas (mesmo MD5) desde a Onda 4 — ver
+> `.agents/handoffs/onda-4/11-para-00-videos-institucionais-duplicados.md`. A cópia duplicada foi
+> removida na Onda 8 para não sugerir a existência de dois vídeos diferentes onde só um existe.
+
 ## 1. Login e Acesso
 - A tela inicial exibe opções de autenticação via provedor (Google) e credenciais corporativas.
 - Uma vez autenticado, o usuário é direcionado ao Painel Central (Dashboard).

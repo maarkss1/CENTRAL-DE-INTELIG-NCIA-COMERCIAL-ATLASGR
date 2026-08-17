@@ -126,7 +126,7 @@ export function AIPendingActions() {
     if (actions.length === 0) {
         return (
             <div className="bg-surface rounded-lg shadow-sm border border-line p-8 text-center flex flex-col items-center">
-                <div className="bg-blue-50 p-4 rounded-full mb-4">
+                <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-full mb-4">
                     <Bot className="w-8 h-8 text-blue-500" />
                 </div>
                 <h3 className="text-lg font-medium text-ink mb-1">Nenhuma ação pendente</h3>
@@ -140,12 +140,12 @@ export function AIPendingActions() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h2 className="text-xl font-bold text-ink flex items-center">
-                        <Bot className="mr-2 w-6 h-6 text-indigo-600" />
+                        <Bot className="mr-2 w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                         Central de decisões autônomas
                     </h2>
                     <p className="text-sm text-ink-2 mt-1">Cada ação mostra origem, risco, confiança e evidência antes da execução.</p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full px-3 py-1.5">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-900/40 rounded-full px-3 py-1.5">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     {actions.length} decisão{actions.length === 1 ? '' : 'ões'} aguardando revisão
                 </span>
@@ -158,12 +158,12 @@ export function AIPendingActions() {
                     const busy = processingId === action.id;
                     return (
                         <article key={action.id} className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden hover:shadow-md transition-shadow">
-                            <header className="bg-indigo-50 border-b border-indigo-100 px-4 py-3 flex items-center justify-between gap-3">
-                                <div className="flex items-center text-indigo-800 font-medium text-sm min-w-0">
+                            <header className="bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/40 px-4 py-3 flex items-center justify-between gap-3">
+                                <div className="flex items-center text-indigo-800 dark:text-indigo-300 font-medium text-sm min-w-0">
                                     {presentation.icon}
                                     <span className="truncate">{presentation.title}</span>
                                 </div>
-                                <span className={`text-[11px] px-2 py-1 rounded-full font-semibold whitespace-nowrap ${action.riskLevel === 'high' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-800'}`}>
+                                <span className={`text-[11px] px-2 py-1 rounded-full font-semibold whitespace-nowrap ${action.riskLevel === 'high' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300'}`}>
                                     {riskLabel(action.riskLevel)}
                                 </span>
                             </header>
@@ -213,7 +213,7 @@ export function AIPendingActions() {
                                 <button
                                     onClick={() => void handleApprove(action)}
                                     disabled={busy}
-                                    className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white py-2 rounded-lg text-sm font-medium transition-colors"
+                                    className="flex-1 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
                                     title={presentation.approveTitle}
                                 >
                                     <Check className="w-4 h-4 mr-1.5" />
@@ -222,7 +222,7 @@ export function AIPendingActions() {
                                 <button
                                     onClick={() => void handleDiscard(action.id)}
                                     disabled={busy}
-                                    className="flex items-center justify-center bg-surface hover:bg-red-50 disabled:opacity-60 text-red-600 border border-line py-2 px-3 rounded-lg text-sm transition-colors"
+                                    className="flex items-center justify-center bg-surface hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 text-red-600 dark:text-red-400 border border-line py-2 px-3 rounded-lg text-sm transition-colors cursor-pointer"
                                     title="Descartar mantendo o registro de auditoria"
                                 >
                                     <X className="w-4 h-4" />

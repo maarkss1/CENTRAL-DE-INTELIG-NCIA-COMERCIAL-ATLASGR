@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const prismaMock = {
     lead: { findFirst: vi.fn() },
+    user: { findFirst: vi.fn() },
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
 
@@ -57,7 +58,8 @@ describe('findOwnershipConflict', () => {
 });
 
 describe('notifyOwnershipConflict', () => {
-    it('cria uma notificação Alerta apontando o negócio existente e o dono atual', async () => {
+    it('cria uma notificação Alerta apontando o negócio existente e o dono atual (owner legado = nome, sem User.id correspondente)', async () => {
+        prismaMock.user.findFirst.mockResolvedValue(null);
         const { notifyOwnershipConflict } = await import('../ownershipGuard.js');
         await notifyOwnershipConflict('org-1', { existingLeadId: 'lead-1', existingOwner: 'Bruno', existingTitle: 'Negócio Y' }, 'Negócio Novo');
 
@@ -69,6 +71,19 @@ describe('notifyOwnershipConflict', () => {
                 entityId: 'lead-1',
                 body: expect.stringContaining('Bruno'),
             }),
+        );
+    });
+
+    it('resolve owner por User.id (convenção pós-correção) para um nome legível na notificação, em vez de vazar o cuid cru', async () => {
+        prismaMock.user.findFirst.mockResolvedValue({ name: 'Bruno Lima' });
+        const { notifyOwnershipConflict } = await import('../ownershipGuard.js');
+        await notifyOwnershipConflict('org-1', { existingLeadId: 'lead-1', existingOwner: 'cuid-user-bruno', existingTitle: 'Negócio Y' }, 'Negócio Novo');
+
+        expect(prismaMock.user.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { id: 'cuid-user-bruno', organizationId: 'org-1' } }),
+        );
+        expect(notificationServiceMock.create).toHaveBeenCalledWith(
+            expect.objectContaining({ body: expect.stringContaining('Bruno Lima') }),
         );
     });
 });

@@ -292,6 +292,50 @@ if __name__ == "__main__":
                     </p>
                 </div>
 
+                {/* Quick Presets */}
+                <div className="relative z-10 max-w-5xl mx-auto mb-6 flex flex-wrap items-center justify-center gap-2">
+                    <span className="text-[11px] font-bold text-ink-2 uppercase tracking-wider mr-1">Workflows Prontos:</span>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTriggerApp('webhook');
+                            setActionApp('bitrix24');
+                            setTool('n8n');
+                            setAiLayer('enrichment');
+                            setAutomationGoal('Captura de formulário web, enriquecimento automático de CNPJ e criação de negócio no Bitrix24.');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+                    >
+                        🚀 Webhook ➔ Bitrix24 + IA
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTriggerApp('whatsapp');
+                            setActionApp('calendar');
+                            setTool('n8n');
+                            setAiLayer('intent_classifier');
+                            setAutomationGoal('Lead responde no WhatsApp com interesse; IA classifica intenção e agenda reunião no Google Calendar.');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+                    >
+                        📱 WhatsApp ➔ Calendar
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setTriggerApp('crm_status');
+                            setActionApp('email');
+                            setTool('python');
+                            setAiLayer('sentiment');
+                            setAutomationGoal('Monitoramento de leads estagnados no CRM; disparo de e-mail de reativação ultra-personalizado.');
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+                    >
+                        🔄 CRM ➔ Reativação E-mail
+                    </button>
+                </div>
+
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
                     
                     {/* App Origem */}
@@ -300,8 +344,9 @@ if __name__ == "__main__":
                             <Link size={14} /> App de Origem (Gatilho / Trigger)
                         </p>
                         <button
+                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'trigger' ? null : 'trigger')}
-                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
                         >
                             <span className="truncate">{selectedTriggerObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -312,15 +357,16 @@ if __name__ == "__main__":
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {TRIGGERS.map(t => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={t.id} onClick={() => { setTriggerApp(t.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
+                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none text-left"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-ink">
+                                            <div className="flex justify-between items-center font-bold text-ink w-full">
                                                 {t.title} {triggerApp === t.id && <Check size={16} className={accent.text} />}
                                             </div>
                                             <span className="text-xs text-ink-2">{t.desc}</span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -333,8 +379,9 @@ if __name__ == "__main__":
                             <GitCommit size={14} /> App de Destino (Ação / Action)
                         </p>
                         <button
+                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'action' ? null : 'action')}
-                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
                         >
                             <span className="truncate">{selectedActionObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -345,15 +392,16 @@ if __name__ == "__main__":
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {ACTIONS.map(a => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={a.id} onClick={() => { setActionApp(a.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
+                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none text-left"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-ink">
+                                            <div className="flex justify-between items-center font-bold text-ink w-full">
                                                 {a.title} {actionApp === a.id && <Check size={16} className={accent.text} />}
                                             </div>
                                             <span className="text-xs text-ink-2">{a.desc}</span>
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -366,8 +414,9 @@ if __name__ == "__main__":
                             <Layers size={14} /> Ferramenta de Orquestração
                         </p>
                         <button
+                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'tool' ? null : 'tool')}
-                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-yellow-400/50 transition-colors cursor-pointer"
                         >
                             <span className="truncate">{selectedToolObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -378,12 +427,13 @@ if __name__ == "__main__":
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {TOOLS.map(t => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={t.id} onClick={() => { setTool(t.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-yellow-900/30 hover:text-white cursor-pointer flex justify-between items-center text-left"
                                         >
                                             {t.title} {tool === t.id && <Check size={16} className="text-yellow-400" />}
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}
@@ -396,8 +446,9 @@ if __name__ == "__main__":
                             <Bot size={14} /> Camada de Inteligência IA
                         </p>
                         <button
+                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'ai' ? null : 'ai')}
-                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors"
+                            className="w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left hover:border-rose-400/50 transition-colors cursor-pointer"
                         >
                             <span className="truncate">{selectedAiObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -408,12 +459,13 @@ if __name__ == "__main__":
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {AI_LAYERS.map(a => (
-                                        <div
+                                        <button
+                                            type="button"
                                             key={a.id} onClick={() => { setAiLayer(a.id); setActiveDropdown(null); }}
-                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center"
+                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-rose-900/30 hover:text-white cursor-pointer flex justify-between items-center text-left"
                                         >
                                             {a.title} {aiLayer === a.id && <Check size={16} className="text-rose-400" />}
-                                        </div>
+                                        </button>
                                     ))}
                                 </motion.div>
                             )}

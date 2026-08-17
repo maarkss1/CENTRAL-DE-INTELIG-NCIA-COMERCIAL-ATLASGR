@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, AlertTriangle, Pencil, MonitorPlay, Download } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { KpiTile } from './KpiTile';
@@ -9,13 +10,60 @@ import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import { AiExecutiveSummaryCard } from './AiExecutiveSummaryCard';
 import { GoalCountdownOverlay } from './GoalCountdownOverlay';
-import { RevenueProtectionCard } from './RevenueProtectionCard';
 import { toast } from '../../../lib/toast';
 import {
     commercialIntelligenceApi, downloadExecutiveExport, formatCurrency, formatPercent, formatMultiple,
     type CommercialFilter, type ExecutiveOverview, type ExecutiveAlert, type LeadingIndicatorsReport,
-    type PerformanceMetrics, type PipelineCreation, type RevenueProtectionSnapshot, type ExportFormat
+    type PerformanceMetrics, type PipelineCreation, type CoverageProtectionStatus, type ExportFormat
 } from '../commercialIntelligence.api';
+
+const PROTECTION_STATUS_STYLE: Record<CoverageProtectionStatus, { label: string; className: string }> = {
+    saudavel: { label: 'Saudável', className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
+    atencao: { label: 'Atenção', className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
+    critico: { label: 'Crítico', className: 'text-[#d03b3b] bg-[#d03b3b]/10 border-[#d03b3b]/20' },
+    sem_dados: { label: 'Sem dados', className: 'text-ink-2 bg-surface-2 border-line' },
+};
+
+/** "Proteção 90 dias" (seção 11) — mês do filtro + M+1 + M+2 + M+3, sempre em meses de calendário. */
+function CoverageProtectionTable({ entries }: { entries: ExecutiveOverview['coverageProtection'] }) {
+    return (
+        <Card padding="sm">
+            <h3 className="text-sm font-bold text-ink mb-1">Proteção 90 dias</h3>
+            <p className="text-[11px] text-ink-2 mb-3">Pipeline elegível por mês de calendário frente à meta daquele mês — não confundir com Pipeline Total.</p>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[560px]">
+                    <thead>
+                        <tr className="text-ink-2 border-b border-line">
+                            <th className="text-left font-semibold py-1.5">Período</th>
+                            <th className="text-right font-semibold py-1.5">Meta</th>
+                            <th className="text-right font-semibold py-1.5">Pipeline Elegível</th>
+                            <th className="text-right font-semibold py-1.5">Gap</th>
+                            <th className="text-right font-semibold py-1.5">Coverage</th>
+                            <th className="text-right font-semibold py-1.5">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody className="[font-variant-numeric:tabular-nums]">
+                        {entries.map((entry) => {
+                            const style = PROTECTION_STATUS_STYLE[entry.status];
+                            return (
+                                <tr key={entry.period} className="border-b border-line last:border-0">
+                                    <td className="py-1.5 font-bold text-ink">{entry.label}</td>
+                                    <td className="py-1.5 text-right text-ink-2">{entry.goalAmount != null ? formatCurrency(entry.goalAmount) : 'Não cadastrada'}</td>
+                                    <td className="py-1.5 text-right text-ink-2">{formatCurrency(entry.pipelineEligible)}</td>
+                                    <td className="py-1.5 text-right text-ink-2">{entry.remainingGoal != null ? formatCurrency(entry.remainingGoal) : 'Não disponível'}</td>
+                                    <td className="py-1.5 text-right text-ink font-semibold">{formatMultiple(entry.coverage)}</td>
+                                    <td className="py-1.5 text-right">
+                                        <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${style.className}`}>{style.label}</span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </Card>
+    );
+}
 
 interface ExecutiveOverviewTabProps {
     filter: CommercialFilter;
@@ -27,7 +75,6 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
     const [indicators, setIndicators] = useState<LeadingIndicatorsReport | null>(null);
     const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
     const [creation, setCreation] = useState<PipelineCreation | null>(null);
-    const [revenueProtection, setRevenueProtection] = useState<RevenueProtectionSnapshot[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [goalDialogOpen, setGoalDialogOpen] = useState(false);
@@ -39,20 +86,18 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
         setLoading(true);
         setError(null);
         try {
-            const [overviewData, alertsData, indicatorsData, performanceData, creationData, revenueProtectionData] = await Promise.all([
+            const [overviewData, alertsData, indicatorsData, performanceData, creationData] = await Promise.all([
                 commercialIntelligenceApi.overview(filter),
                 commercialIntelligenceApi.alerts(filter),
                 commercialIntelligenceApi.leadingIndicators(),
                 commercialIntelligenceApi.performance(filter),
                 commercialIntelligenceApi.pipelineCreation(filter),
-                commercialIntelligenceApi.revenueProtection(filter)
             ]);
             setOverview(overviewData);
             setAlerts(alertsData);
             setIndicators(indicatorsData);
             setPerformance(performanceData);
             setCreation(creationData);
-            setRevenueProtection(revenueProtectionData);
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -138,7 +183,13 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <KpiTile label="Meta New MRR" value={overview.goal ? formatCurrency(overview.goal.amount, currency) : 'Não cadastrada'} metricKey="meta_new_mrr" />
-                <KpiTile label="Fechado" value={formatCurrency(overview.closedAmount, currency)} hint={`${overview.closedCount} negócio(s)`} tone="good" metricKey="fechado" />
+                <KpiTile
+                    label="Fechado"
+                    value={formatCurrency(overview.closedAmount, currency)}
+                    hint={`${overview.closedCount} negócio(s)${overview.previousPeriod ? ` · mês anterior: ${formatCurrency(overview.previousPeriod.closedAmount, currency)}` : ''}`}
+                    tone="good"
+                    metricKey="fechado"
+                />
                 <KpiTile label="% da Meta" value={formatPercent(overview.pctOfGoal)} tone={overview.pctOfGoal != null && overview.pctOfGoal >= 100 ? 'good' : undefined} metricKey="pct_meta" />
                 <KpiTile
                     label="Commit"
@@ -185,7 +236,16 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                 />
                 <KpiTile label="Coverage do mês" value={formatMultiple(overview.coverageMonth.coverage)} hint={overview.coverageMonth.coverageRecommended != null ? `Recomendado: ${formatMultiple(overview.coverageMonth.coverageRecommended)}` : undefined} metricKey="coverage" />
                 <KpiTile label="Coverage 90 dias" value={formatMultiple(overview.coverage90.coverage)} hint={overview.coverage90.coverageRecommended != null ? `Recomendado: ${formatMultiple(overview.coverage90.coverageRecommended)}` : undefined} metricKey="coverage" />
+                <KpiTile
+                    label="Forecast Confidence"
+                    value={formatPercent(overview.forecastConfidence.score)}
+                    tone={overview.forecastConfidence.classification === 'saudavel' ? 'good' : overview.forecastConfidence.classification === 'critico' ? 'critical' : undefined}
+                    hint={overview.forecastConfidence.sampleSizePenaltyApplied ? `Amostra pequena (${overview.forecastConfidence.sampleSize} negócio(s)) reduz a confiança` : `Amostra: ${overview.forecastConfidence.sampleSize} negócio(s) aberto(s)`}
+                    metricKey="forecast_confidence"
+                />
             </div>
+
+            <CoverageProtectionTable entries={overview.coverageProtection} />
 
             {(performance || creation) && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -198,8 +258,8 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                         label="Ritmo de Criação (pace)"
                         value={creation?.pacePercent != null ? formatPercent(creation.pacePercent) : 'Não disponível'}
                         tone={creation?.pacePercent != null ? (creation.pacePercent >= 100 ? 'good' : 'critical') : undefined}
-                        hint={creation && creation.businessDaysTotal > 0 ? `${creation.businessDaysElapsed}/${creation.businessDaysTotal} dias úteis do mês` : undefined}
-                        metricKey="ritmo_criacao_pipeline"
+                        hint={creation && creation.totalBusinessDays > 0 ? `${creation.elapsedBusinessDays}/${creation.totalBusinessDays} dias úteis do mês` : undefined}
+                        metricKey="pipeline_creation_pace"
                     />
                     <KpiTile
                         label="Oportunidades Abertas"
@@ -228,8 +288,6 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                     />
                 </div>
             )}
-
-            <RevenueProtectionCard snapshots={revenueProtection} currency={currency} />
 
             {indicators && (
                 <div>

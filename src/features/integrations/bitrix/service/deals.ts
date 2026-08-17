@@ -6,7 +6,7 @@ import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
 import { resolveEnumMaps, applyInboundCustomFields } from './customFields.js';
 import { BITRIX_FIELD_MAP } from '../bitrixFieldMap.js';
-import { resolveAtlasUserNameByEmail } from './userMapping.js';
+import { resolveAtlasUserIdByEmail } from './userMapping.js';
 import { findOwnershipConflict, notifyOwnershipConflict } from './ownershipGuard.js';
 
 const DEAL_UF_CRM_CODES = BITRIX_FIELD_MAP.map((m) => m.dealCode).filter((c): c is string => Boolean(c));
@@ -309,9 +309,11 @@ export async function importSelectedBitrixDeals(
         void _bitrixOrigemIgnorada;
 
         const assigneeEmail = deal.ASSIGNED_BY_ID ? bitrixUserEmailById.get(deal.ASSIGNED_BY_ID) ?? null : null;
-        const ownerName = await resolveAtlasUserNameByEmail(organizationId, assigneeEmail);
+        // Lead.owner grava User.id (não o nome) para casar com a convenção de leads criados no
+        // app — ver .agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md.
+        const ownerId = await resolveAtlasUserIdByEmail(organizationId, assigneeEmail);
 
-        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerName);
+        const conflict = await findOwnershipConflict(organizationId, { phone, email }, ownerId);
         if (conflict) {
             skippedConflicts++;
             await notifyOwnershipConflict(organizationId, conflict, tradeName);
@@ -346,7 +348,7 @@ export async function importSelectedBitrixDeals(
                     companyId: company.id,
                     contactId: contact?.id,
                     organizationId,
-                    owner: ownerName,
+                    owner: ownerId,
                     bitrixDealId: deal.ID,
                     bitrixStageLabel: stageLabel,
                     qualification: Object.keys(qualification).length > 0 ? qualification : undefined,

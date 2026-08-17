@@ -39,8 +39,11 @@ import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { studioGenerationSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { aiSuiteRouter } from './ai-suite.routes.js';
 
 const router = Router();
+
+router.use('/suite', aiSuiteRouter);
 
 router.post('/studio', validateRequest(studioGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -60,11 +63,12 @@ const contentGenerationSchema = z.object({
     objective: z.string().trim().max(100).optional(),
     personaFallback: z.string().trim().max(200).optional(),
     brandId: z.enum(['atlasgr', 'totaltrac']).default('atlasgr'),
+    refinementInstruction: z.string().trim().max(500).optional(),
 });
 
 router.post('/', validateRequest(contentGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { tool, leadId, competitor, tone, objective, personaFallback, brandId } = req.body as z.infer<typeof contentGenerationSchema>;
+        const { tool, leadId, competitor, tone, objective, personaFallback, brandId, refinementInstruction } = req.body as z.infer<typeof contentGenerationSchema>;
         const authRequest = req as AuthRequest;
         const result = await aiService.generateContent(tool, leadId, {
             competitor,
@@ -73,6 +77,7 @@ router.post('/', validateRequest(contentGenerationSchema), async (req: Request, 
             personaFallback,
             brandId,
             organizationId: authRequest.user.organizationId,
+            refinementInstruction,
         });
         res.json({ success: true, data: { result }, result });
     } catch (error: unknown) {

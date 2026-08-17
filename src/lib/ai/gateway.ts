@@ -492,13 +492,12 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                 }
             }
 
-            // Último recurso, não primeira tentativa: nesta máquina o LITELLM_URL resolve pro Ollama
-            // local, que processa 1 requisição por vez — só vale a pena pagar esse gargalo depois de
-            // Groq/OpenAI/Gemini já terem falhado, nunca antes.
+            // Provedor Local/Self-hosted (Ollama direto ou LiteLLM na nuvem/VPS)
             let litellmError: unknown;
-            if (!response && process.env.LITELLM_URL) {
-                const baseUrl = normalizeApiBaseUrl(process.env.LITELLM_URL);
-                const litellmKey = process.env.LITELLM_KEY || 'sk-litellm';
+            const localAiUrl = process.env.OLLAMA_BASE_URL || process.env.LITELLM_URL;
+            if (!response && localAiUrl) {
+                const baseUrl = normalizeApiBaseUrl(localAiUrl);
+                const litellmKey = process.env.LITELLM_KEY || process.env.OLLAMA_API_KEY || 'ollama';
                 try {
                     response = await callProvider('litellm', () => requestChatCompletion(
                         `${baseUrl}/v1/chat/completions`,
@@ -533,7 +532,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                     process.env.GROQ_API_KEY && 'Groq',
                     process.env.OPENAI_API_KEY && 'OpenAI',
                     geminiApiKey && 'Gemini',
-                    process.env.LITELLM_URL && 'LiteLLM',
+                    localAiUrl && 'Ollama/LiteLLM',
                 ].filter(Boolean).join(', ');
 
                 throw new Error(

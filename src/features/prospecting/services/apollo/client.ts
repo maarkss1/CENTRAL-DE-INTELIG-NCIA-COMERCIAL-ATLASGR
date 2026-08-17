@@ -8,14 +8,20 @@ export const APOLLO_PEOPLE_MATCH_URL = 'https://api.apollo.io/api/v1/people/matc
 // Endpoint oficial de health-check da Apollo: valida a API key sem consumir créditos do plano.
 export const APOLLO_AUTH_HEALTH_URL = 'https://api.apollo.io/v1/auth/health';
 
-// limitamos aos N primeiros candidatos de cada busca para não estourar cota das APIs.
-export const MAX_DECISION_MAKER_LOOKUPS = 3;
+// Teto de segurança para a busca automática de decisores por descoberta — sem isso, uma
+// `quantidade` grande (até 100) dispararia até 100 lookups concorrentes de Apollo People
+// Search/Hunter, estourando cota e latência. Até este teto, TODOS os candidatos com domínio
+// conhecido recebem decisor pré-buscado (nome, cargo, e-mail, telefone, LinkedIn) — antes disso o
+// limite fixo em 3 deixava a maioria dos candidatos de qualquer busca sem esses dados por padrão.
+export const MAX_DECISION_MAKER_LOOKUPS = 20;
 
 // O frontend aborta a chamada de /discover em VITE_API_TIMEOUT_MS (padrão 15s — ver src/lib/api.ts).
 // A busca automática de decisores roda em paralelo com esse orçamento: se não terminar a tempo,
 // devolvemos os candidatos sem decisores (que continuam disponíveis via "Buscar Decisores") em vez
-// de travar a resposta inteira até o timeout de 15s da própria Apollo/Hunter por domínio.
-export const DECISION_MAKER_PREFETCH_BUDGET_MS = 8_000;
+// de travar a resposta inteira até o timeout de 15s da própria Apollo/Hunter por domínio. Os
+// lookups rodam em paralelo (Promise.all), então o tempo total é dominado pelo mais lento entre
+// eles, não pela soma — por isso o teto acima em vez do orçamento de tempo é o que limita o custo.
+export const DECISION_MAKER_PREFETCH_BUDGET_MS = 10_000;
 
 /**
  * Chaves de plano que a Apollo devolve quando a API key não tem escopo para um endpoint

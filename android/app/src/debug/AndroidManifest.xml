@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Override de manifest só para o build de debug (Gradle faz merge automático deste arquivo com
+    app/src/main/AndroidManifest.xml quando a variante é "debug" — assembleDebug/installDebug).
+
+    usesCleartextTraffic=true é necessário aqui porque, durante desenvolvimento, é comum apontar
+    CAPACITOR_SERVER_URL (capacitor.config.ts) para um backend local em HTTP puro na mesma rede
+    Wi-Fi/LAN (ex.: http://192.168.x.x:3005) — sem isso, o WebView bloqueia toda requisição de
+    rede no build de debug. O build de release (main/AndroidManifest.xml) não declara essa
+    permissão porque em produção server.url é sempre https (ver capacitor.config.ts) — declarar
+    cleartext lá seria uma permissão sem uso funcional correspondente, o que a governança deste
+    agente (AGENTS.md do Agente 09) proíbe.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- app/src/main/AndroidManifest.xml não declara usesCleartextTraffic (default do Android é
+         false), então o merge do Gradle só precisa adicionar o atributo aqui — sem conflito, sem
+         precisar de tools:replace. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>

@@ -134,3 +134,10 @@ export async function analyzeConversation(leadId: string, organizationId: string
         });
     }
 }
+
+export class ConversationIntelligenceService {
+    async analyze(leadId: string, organizationId: string): Promise<void> {
+        return analyzeConversation(leadId, organizationId);
+    }
+}
+

@@ -32,9 +32,6 @@ export function OcrCapturePanel() {
         setCameraActive(false);
     };
 
-    // Garante que a câmera do usuário nunca fica ligada em segundo plano se ele trocar de tela
-    // sem clicar em "Fechar câmera" — vazamento de permissão de câmera é um problema sério, não
-    // só de performance.
     useEffect(() => () => stopCamera(), []);
 
     const startCamera = async () => {
@@ -46,7 +43,6 @@ export function OcrCapturePanel() {
             });
             streamRef.current = stream;
             setCameraActive(true);
-            // O elemento <video> só existe depois do próximo render (cameraActive vira true agora).
             requestAnimationFrame(() => {
                 if (videoRef.current) videoRef.current.srcObject = stream;
             });
