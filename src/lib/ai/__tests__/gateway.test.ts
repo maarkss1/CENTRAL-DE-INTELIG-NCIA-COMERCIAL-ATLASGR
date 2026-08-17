@@ -75,7 +75,7 @@ describe('AI gateway', () => {
 
     it('envia mensagens estruturadas ao LiteLLM e normaliza a resposta', async () => {
         const fetchMock = vi.fn().mockResolvedValue(jsonResponse({
-            model: 'llama-3.1-8b-instant',
+            model: 'llama3-8b-8192',
             choices: [{ message: { content: '  resposta útil  ' } }],
             usage: { total_tokens: 12, prompt_tokens: 7, completion_tokens: 5 },
         }));
@@ -125,7 +125,7 @@ describe('AI gateway', () => {
         const [groqUrl, groqInit] = fetchMock.mock.calls[0] as [string, RequestInit];
         expect(groqUrl).toBe('https://api.groq.com/openai/v1/chat/completions');
         const groqBody = JSON.parse(String(groqInit.body));
-        expect(groqBody.model).toBe('llama-3.3-70b-versatile');
+        expect(groqBody.model).toBe('llama3-70b-8192');
         expect(groqBody.messages[0]).toEqual({ role: 'system', content: 'Regra' });
         expect(groqBody).not.toHaveProperty('metadata');
         expect(groqBody).not.toHaveProperty('user');

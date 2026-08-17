@@ -6,7 +6,7 @@ import { useBrand } from '../../../contexts/BrandContext';
 import { api } from '../../../lib/api';
 
 const PROVIDERS = [
-    { id: 'groq', name: 'Groq Cloud (Llama Fast)', models: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] },
+    { id: 'groq', name: 'Groq Cloud (Llama Fast)', models: ['llama3-70b-8192', 'llama3-8b-8192'] },
     { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'o1-preview', 'gpt-4-turbo'] },
     { id: 'anthropic', name: 'Anthropic', models: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-haiku'] },
     { id: 'google', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-2.0-flash-exp'] },

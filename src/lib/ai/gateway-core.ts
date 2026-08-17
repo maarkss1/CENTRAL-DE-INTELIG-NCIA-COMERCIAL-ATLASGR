@@ -56,11 +56,11 @@ const MODEL_ALIASES: Record<string, string> = {
 };
 
 const GROQ_MODEL_ALIASES: Record<string, string> = {
-    'local-llama3': 'llama-3.3-70b-versatile',
-    'local-llama3-fast': 'llama-3.1-8b-instant',
-    'gpt-4o': 'llama-3.3-70b-versatile',
-    'gpt-4o-mini': 'llama-3.1-8b-instant',
-    'claude-sonnet': 'llama-3.3-70b-versatile',
+    'local-llama3': 'llama3-70b-8192',
+    'local-llama3-fast': 'llama3-8b-8192',
+    'gpt-4o': 'llama3-70b-8192',
+    'gpt-4o-mini': 'llama3-8b-8192',
+    'claude-sonnet': 'llama3-70b-8192',
 };
 
 const DEFAULT_GATEWAY_TIMEOUT_MS = 30_000;
@@ -599,8 +599,8 @@ export function cleanAndParseJson<T>(content: string): T {
 
 // Preço aproximado por 1M de tokens (USD) — usado só para estimar custo no AILog, não é cobrança real.
 const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-    'llama-3.1-8b-instant': { input: 0.05, output: 0.08 },
-    'llama-3.3-70b-versatile': { input: 0.59, output: 0.79 },
+    'llama3-8b-8192': { input: 0.05, output: 0.08 },
+    'llama3-70b-8192': { input: 0.59, output: 0.79 },
     'local-llama3': { input: 0.59, output: 0.79 },
     'local-llama3-fast': { input: 0.05, output: 0.08 },
     'qwen-coder': { input: 0.20, output: 0.60 },
