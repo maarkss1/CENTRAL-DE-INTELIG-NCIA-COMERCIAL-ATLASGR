@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Landmark, Sparkles, Camera } from 'lucide-react';
+import { Database, Landmark, Sparkles, Camera, Wrench } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
@@ -12,10 +12,11 @@ import { CnpjSearchPanel } from './prospecting-hub/CnpjSearchPanel';
 import { DiscoveryFilterPanel } from './prospecting-hub/DiscoveryFilterPanel';
 import { DiscoveryResultsPanel } from './prospecting-hub/DiscoveryResultsPanel';
 import { OcrCapturePanel } from './prospecting-hub/OcrCapturePanel';
+import { ProspectingToolsHub } from './prospecting-hub/ProspectingToolsHub';
 
 export { DecisionMakerSearch } from './prospecting-hub/DecisionMakerSearch';
 
-type HubTab = 'cnpj' | 'discovery' | 'ocr';
+type HubTab = 'cnpj' | 'discovery' | 'ocr' | 'tools';
 
 const ufMap: Record<string, string> = {
     'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA', 'Ceará': 'CE', 'Distrito Federal': 'DF',
@@ -460,6 +461,12 @@ export function ProspectingHub() {
                     >
                         <Camera size={18} /> Cadastrar por Foto (OCR)
                     </button>
+                    <button
+                        onClick={() => setTab('tools')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'tools' ? 'bg-info text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                    >
+                        <Wrench size={18} /> Ferramentas
+                    </button>
                 </div>
 
                 {tab === 'cnpj' && (
@@ -518,6 +525,8 @@ export function ProspectingHub() {
                 )}
 
                 {tab === 'ocr' && <OcrCapturePanel />}
+
+                {tab === 'tools' && <ProspectingToolsHub />}
             </div>
         </div>
     );

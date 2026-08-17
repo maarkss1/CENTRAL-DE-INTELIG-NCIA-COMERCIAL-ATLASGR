@@ -8,6 +8,7 @@ import { fetchCnpjData } from '../services/enrichment.service.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
 import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from '../services/ocr.service.js';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
+import { discoverCriteriaSchema } from '../schemas/discoverCriteria.schema.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
@@ -15,33 +16,6 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 const icebreakerService = new IcebreakerService();
 
 const router = Router();
-
-/**
- * Espelha `ProspectCriteria` (prospecting.service.ts) — sem isso, um filtro em formato errado
- * (ex: `quantidade` como string, `estado` como array) falhava silenciosamente lá dentro: nada
- * quebrava, mas o filtro em questão simplesmente não pegava, e o vendedor só via um resultado
- * estranho sem entender por quê. Todo campo é livre-texto/número solto de propósito — a Apollo é
- * quem de fato interpreta o valor; aqui só garantimos o tipo e um teto de tamanho.
- */
-const discoverCriteriaSchema = z.object({
-    segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
-    localizacao: z.string().trim().max(200).default(''),
-    quantidade: z.number().int().min(1).max(500).default(10),
-    estado: z.string().trim().max(100).optional(),
-    cidade: z.string().trim().max(100).optional(),
-    porte: z.string().trim().max(50).optional(),
-    faturamentoMin: z.number().nonnegative().optional(),
-    faturamentoMax: z.number().nonnegative().optional(),
-    palavrasChave: z.string().trim().max(300).optional(),
-    nomeEmpresa: z.string().trim().max(200).optional(),
-    anoFundacaoMin: z.number().int().min(1800).max(2100).optional(),
-    anoFundacaoMax: z.number().int().min(1800).max(2100).optional(),
-    tecnologias: z.string().trim().max(500).optional(),
-    tecnologiasExcluir: z.string().trim().max(500).optional(),
-    localizacaoExcluir: z.string().trim().max(500).optional(),
-    apenasCapitalAberto: z.boolean().optional(),
-    pagina: z.number().int().min(1).max(20).optional(),
-});
 
 const rejectCandidateSchema = z.object({
     tradeName: z.string().trim().min(1, 'tradeName é obrigatório').max(200),

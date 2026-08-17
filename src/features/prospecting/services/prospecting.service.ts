@@ -111,8 +111,13 @@ function buildPlacesQuery(criteria: ProspectCriteria): string {
         .join(' ');
 }
 
-/** Descoberta via Google Places (New) Text Search — empresas reais, sem IA generativa envolvida. */
-async function discoverViaGooglePlaces(
+/**
+ * Descoberta via Google Places (New) Text Search — empresas reais, sem IA generativa envolvida.
+ * Exportada (além de usada pelo orquestrador `discoverCandidates`) porque é a base da ferramenta
+ * standalone "Google Places" (`prospecting-tools.routes.ts`) — já é 100% single-provider, não
+ * precisa de nenhuma outra função pra "isolar" a fonte.
+ */
+export async function discoverViaGooglePlaces(
     criteria: ProspectCriteria,
     count: number,
     exclusions: ExclusionSet
@@ -172,7 +177,7 @@ async function discoverViaNominatim(
  * na Apollo, mesmo depois de já promovidas a lead ou marcadas como fora do perfil — era a causa
  * principal do motor de busca "sempre trazer os mesmos contatos".
  */
-async function fetchKnownExclusions(organizationId: string): Promise<ExclusionSet> {
+export async function fetchKnownExclusions(organizationId: string): Promise<ExclusionSet> {
     const exclusions = new ExclusionSet();
     try {
         const [companies, rejections] = await Promise.all([

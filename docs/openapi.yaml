@@ -779,6 +779,108 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /prospecting/tools/status:
+    get:
+      tags: [Prospecting]
+      summary: Status de configuração das ferramentas standalone de prospecção (Google Places, Apollo, Hunter) — só booleano, nunca a chave
+      responses:
+        '200':
+          description: Status de configuração por provedor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /prospecting/tools/google-places:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — descoberta de empresas só via Google Places (New) Text Search, sem Apollo/OpenStreetMap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Mesmo formato de /prospecting/discover (ProspectCriteria)
+      responses:
+        '200':
+          description: Candidatos encontrados via Google Places
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/apollo:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — descoberta de empresas só via Apollo Organization Search, sem Google Places/OpenStreetMap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Mesmo formato de /prospecting/discover (ProspectCriteria)
+      responses:
+        '200':
+          description: Candidatos encontrados via Apollo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/hunter:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — descoberta de pessoas só via Hunter.io Domain Search, sem Apollo People Search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain: { type: string }
+                limit: { type: integer }
+      responses:
+        '200':
+          description: Contatos encontrados via Hunter.io
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /prospecting/tools/hunter/verify-email:
+    post:
+      tags: [Prospecting]
+      summary: Ferramenta standalone — verifica/encontra o e-mail de UMA pessoa já identificada, via Hunter.io Email Finder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, fullName]
+              properties:
+                domain: { type: string }
+                fullName: { type: string }
+      responses:
+        '200':
+          description: E-mail encontrado (ou null)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   # ───────────────────────────── Intelligence ─────────────────────────────
   /intelligence/studio:
     post:
