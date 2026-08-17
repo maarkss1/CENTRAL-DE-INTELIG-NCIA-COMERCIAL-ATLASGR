@@ -429,7 +429,7 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
             let providerUsed = '';
 
             // Groq primeiro (rápido, sem o gargalo de concorrência do modelo local). LiteLLM entra
-            // só como reserva mais abaixo, depois de Groq/OpenAI/Gemini — tentar o LiteLLM (que
+            // só como reserva mais abaixo, depois de Groq/OpenAI — tentar o LiteLLM (que
             // nesta máquina resolve pro Ollama local, capaz de processar só 1 requisição por vez)
             // antes do Groq reintroduziria exatamente a lentidão que motivou tirá-lo da rota
             // principal do enxame de agentes.
@@ -472,26 +472,6 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                 }
             }
 
-            let geminiError: unknown;
-            const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-            if (!response && geminiApiKey) {
-                try {
-                    response = await callProvider('gemini', () => requestChatCompletion(
-                        'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-                        geminiApiKey,
-                        'gemini-1.5-flash',
-                        requestMessages,
-                        temperature,
-                        agentContext,
-                        fallbackTimeoutMs,
-                        false,
-                    ));
-                    providerUsed = 'gemini';
-                } catch (error) {
-                    geminiError = error;
-                }
-            }
-
             // Provedor Local/Self-hosted (Ollama direto ou LiteLLM na nuvem/VPS)
             let litellmError: unknown;
             const localAiUrl = process.env.OLLAMA_BASE_URL || process.env.LITELLM_URL;
@@ -525,20 +505,16 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
                 const openaiMessage = sanitizeProviderMessage(
                     openaiError instanceof Error ? openaiError.message : openaiError,
                 );
-                const geminiMessage = sanitizeProviderMessage(
-                    geminiError instanceof Error ? geminiError.message : geminiError,
-                );
                 const configured = [
                     process.env.GROQ_API_KEY && 'Groq',
                     process.env.OPENAI_API_KEY && 'OpenAI',
-                    geminiApiKey && 'Gemini',
                     localAiUrl && 'Ollama/LiteLLM',
                 ].filter(Boolean).join(', ');
 
                 throw new Error(
                     configured
-                        ? `Os motores de IA estão indisponíveis (${configured}). Groq: ${groqMessage}. OpenAI: ${openaiMessage}. Gemini: ${geminiMessage}. LiteLLM: ${litellmMessage}`
-                        : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com), OPENAI_API_KEY ou GEMINI_API_KEY no .env.',
+                        ? `Os motores de IA estão indisponíveis (${configured}). Groq: ${groqMessage}. OpenAI: ${openaiMessage}. LiteLLM: ${litellmMessage}`
+                        : 'Nenhum motor de IA configurado. Defina GROQ_API_KEY (gratuito, console.groq.com) ou OPENAI_API_KEY no .env.',
                 );
             }
 
@@ -641,8 +617,8 @@ export const generateEmbedding = async (
         return embedLocal(text, kind);
     }
 
-    // Usamos a API do Gemini via fetch. O URL litellm suporta `/v1/embeddings` se configurado,
-    // Mas para simplificar vamos direto no provider se o LITELLM_URL não for um proxy de embedding
+    // EMBEDDINGS_PROVIDER=gateway é o caminho legado via proxy LiteLLM (pré-modelo local). O
+    // modelo servido pelo proxy é definido em litellm-config.yaml, fora deste código.
     const LITELLM_URL = normalizeApiBaseUrl(process.env.LITELLM_URL || 'http://localhost:4000');
     const LITELLM_KEY = process.env.LITELLM_KEY || 'sk-litellm';
     const normalizedText = text.trim();
@@ -651,11 +627,7 @@ export const generateEmbedding = async (
         throw new Error(`O texto do embedding excede ${MAX_EMBEDDING_INPUT_CHARS} caracteres.`);
     }
 
-    // Retry + circuit breaker, como no chat. Se o LiteLLM estiver fora, caímos direto no Google
-    // (ver `embedFallbackDireto`): em desenvolvimento é comum o proxy não estar de pé, e sem esse
-    // caminho a Base de Conhecimento inteira fica sem busca semântica por causa de um proxy.
-    try {
-        return await callProvider('embedding', async () => {
+    return callProvider('embedding', async () => {
         const response = await fetch(`${LITELLM_URL}/v1/embeddings`, {
             method: 'POST',
             headers: {
@@ -663,7 +635,7 @@ export const generateEmbedding = async (
                 'Authorization': `Bearer ${LITELLM_KEY}`
             },
             body: JSON.stringify({
-                model: 'gemini/text-embedding-004',
+                model: process.env.LITELLM_EMBEDDING_MODEL || 'text-embedding-3-small',
                 input: normalizedText
             }),
             signal: AbortSignal.timeout(readBoundedInteger(
@@ -684,36 +656,8 @@ export const generateEmbedding = async (
             throw new Error('O provedor retornou um embedding inválido.');
         }
         return embedding as number[];
-        });
-    } catch (erroProxy) {
-        const direto = await embedFallbackDireto(normalizedText);
-        if (direto) return direto;
-        throw erroProxy;
-    }
+    });
 };
-
-/**
- * Caminho alternativo de embeddings: chama a API do Google diretamente, sem passar pelo LiteLLM.
- *
- * Existe porque o proxy é a única rota configurada e, sem ele de pé, todo o RAG para. Devolve
- * `null` (em vez de lançar) quando não há chave ou a chamada falha, para o chamador poder relançar
- * o erro original do proxy — que é o mais informativo sobre a causa raiz.
- */
-async function embedFallbackDireto(texto: string): Promise<number[] | null> {
-    if (!process.env.GEMINI_API_KEY) return null;
-    try {
-        const { generateEmbedding: embedDireto } = await import('./embeddings.js');
-        const vetor = await embedDireto(texto);
-        if (Array.isArray(vetor) && vetor.length > 0 && vetor.every(Number.isFinite)) {
-            logger.warn('LiteLLM indisponível para embeddings; usando a API do Google diretamente.');
-            return vetor;
-        }
-        return null;
-    } catch (err) {
-        logger.error({ err }, 'Fallback direto de embeddings também falhou');
-        return null;
-    }
-}
 export interface AiUsageLogInput {
     model: string;
     usage: AiTokenUsage;

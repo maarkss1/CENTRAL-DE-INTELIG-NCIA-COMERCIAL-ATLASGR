@@ -11,14 +11,6 @@ function buildCandidates(modelName: string): ChatOpenAI[] {
             configuration: { baseURL: 'https://api.groq.com/openai/v1' }
         }),
         new ChatOpenAI({
-            modelName: 'gemini-1.5-flash',
-            temperature: 0,
-            apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || 'missing-key',
-            maxRetries: 3,
-            timeout: 30_000,
-            configuration: { baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/' }
-        }),
-        new ChatOpenAI({
             modelName: 'gpt-4o-mini',
             temperature: 0,
             apiKey: process.env.OPENAI_API_KEY || 'missing-key',
@@ -29,10 +21,10 @@ function buildCandidates(modelName: string): ChatOpenAI[] {
 }
 
 /**
- * Monta o modelo primário (Groq) com fallback em cascata para Gemini e OpenAI, pulando qualquer
- * provedor sem API key configurada. Quando `tools` é informado, cada candidato (primário e
- * fallbacks) recebe bindTools antes do fallback ser montado — sem isso, um fallback assumindo o
- * lugar do primário no meio de uma execução perderia acesso às ferramentas do agente.
+ * Monta o modelo primário (Groq) com fallback para OpenAI, pulando qualquer provedor sem API key
+ * configurada. Quando `tools` é informado, cada candidato (primário e fallbacks) recebe bindTools
+ * antes do fallback ser montado — sem isso, um fallback assumindo o lugar do primário no meio de
+ * uma execução perderia acesso às ferramentas do agente.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildModelWithFallback(modelName: string, tools?: any[]) {

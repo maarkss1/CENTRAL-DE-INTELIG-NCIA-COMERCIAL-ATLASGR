@@ -4,9 +4,8 @@ model_list:
   # contra o Ollama local (sem chave, sem custo, roda na própria máquina via host.docker.internal)
   # — nomes antigos "gemini-pro"/"gemini-flash" foram removidos por serem enganosos: davam a
   # entender que chamavam o Gemini real do Google, quando sempre rodaram contra Ollama por padrão
-  # (ver IA-001). Se `GEMINI_API_KEY` estiver configurada, o app tem um caminho separado que fala
-  # direto com a API do Google (ver embedFallbackDireto em src/lib/ai/gateway.ts) — mas os aliases
-  # abaixo não usam essa chave, e não devem fingir que usam.
+  # (ver IA-001). O provedor Gemini foi removido do app (Groq é o motor de IA principal); os
+  # aliases abaixo nunca dependeram dele.
   - model_name: local-llama3
     litellm_params:
       model: ollama/llama3.1:8b

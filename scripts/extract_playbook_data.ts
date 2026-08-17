@@ -2,7 +2,6 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import mammoth from 'mammoth';
-import { GoogleGenAI } from '@google/genai';
 
 const DIR_PATH = 'C:/Users/Mah/Downloads/drive-download-20260728T153430Z-1-001';
 const OUT_FILE = path.join(process.cwd(), 'scripts', 'extracted_playbook.json');
@@ -24,8 +23,9 @@ async function main() {
     const allObjections: string[] = [];
     const allQualifications: string[] = [];
     
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) throw new Error('GROQ_API_KEY não configurada.');
+
     for (let i = 0; i < targetFiles.length; i++) {
         const { file, fullPath } = targetFiles[i];
         console.log(`[${i+1}/${targetFiles.length}] Reading ${file}...`);
@@ -51,14 +51,23 @@ Responda ESTRITAMENTE em formato JSON válido, sem markdown. O formato DEVE ser 
 Transcrição:
 ${text}`;
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-                config: { temperature: 0.2 }
+            const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${groqApiKey}`,
+                },
+                body: JSON.stringify({
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.2,
+                }),
             });
-            
+            if (!response.ok) throw new Error(`Groq HTTP ${response.status}`);
+            const data = await response.json();
+
             try {
-                let cleanedContent = response.text || '';
+                let cleanedContent = data.choices?.[0]?.message?.content || '';
                 cleanedContent = cleanedContent.replace(/```json/g, '').replace(/```/g, '').trim();
                 const parsed = JSON.parse(cleanedContent);
                 

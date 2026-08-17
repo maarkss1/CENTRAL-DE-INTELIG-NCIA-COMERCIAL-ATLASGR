@@ -6,7 +6,7 @@ import { afterEach, beforeAll, afterAll, describe, expect, it, vi } from 'vitest
  * item 5): semeia um Lead real no Postgres de teste, roda o scheduler de verdade
  * (`runSwarmScheduler`) e confere o que fica persistido em AgentMemory, AILog e AIPendingAction —
  * sem nenhum mock de Prisma. A única fronteira controlada é o modelo de linguagem em si (não há
- * credencial de provedor externo — Groq/OpenAI/Gemini — disponível neste ambiente de execução):
+ * credencial de provedor externo — Groq/OpenAI — disponível neste ambiente de execução):
  * `getAiModel` é substituído por um "modelo" determinístico que devolve uma resposta fixa, mas
  * `logAiUsage` (grava AILog de verdade) e todo o resto do pipeline (roteamento, persistência,
  * guardrails, ledger de decisão) rodam com o código real, contra o Postgres real.
@@ -33,7 +33,7 @@ const STUBBED_RECOMMENDATION =
     'Diagnóstico: follow-up vencido há 3 dias, decisor ainda não confirmou o piloto. ' +
     'Ação recomendada: ligar hoje e reforçar o caso de ROI antes que o lead esfrie.';
 
-// Única fronteira controlada desta reprodução: sem GROQ_API_KEY/OPENAI_API_KEY/GEMINI_API_KEY
+// Única fronteira controlada desta reprodução: sem GROQ_API_KEY/OPENAI_API_KEY
 // neste ambiente, uma chamada real ao provedor sempre falharia por credencial, não por
 // comportamento do sistema — o que este teste prova é o pipeline (roteamento → execução →
 // persistência), não a qualidade de uma geração de texto real.

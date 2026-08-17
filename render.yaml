@@ -65,11 +65,6 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      # Sem esta variável no Render, o gateway de IA (src/lib/ai/gateway.ts) nunca chega a tentar
-      # o Gemini: ele só entra como fallback depois de Groq/OpenAI, e sem a chave o fallback é
-      # pulado silenciosamente (mesmo comportamento em src/lib/ai/embeddings.ts).
-      - key: GEMINI_API_KEY
-        sync: false
       - key: BITRIX24_WEBHOOK_URL
         sync: false
       - key: BIRTH_VOICES_WEBHOOK_SECRET
@@ -145,8 +140,8 @@ services:
       # NOTA (documentado, não incluído automaticamente nesta rodada — ver handoff 16 para
       # inventário completo): antes de ativar este serviço para processar filas de verdade, os
       # jobs também dependem de credenciais de provedor específicas por fila — Bitrix
-      # (BITRIX24_WEBHOOK_URL), Birth Voices (BIRTH_VOICES_WEBHOOK_SECRET), Gemini/Groq
-      # (GEMINI_API_KEY/GROQ_API_KEY) para os agentes de IA, e as credenciais de storage
+      # (BITRIX24_WEBHOOK_URL), Birth Voices (BIRTH_VOICES_WEBHOOK_SECRET), Groq
+      # (GROQ_API_KEY) para os agentes de IA, e as credenciais de storage
       # (STORAGE_*) para o job de PDF semanal. Copie as mesmas do serviço web acima quando este
       # worker for ativado — omitidas aqui de propósito porque as filas que as usam
       # (SDR_COLD_CALL_ENABLED/SWARM_SCHEDULER_ENABLED) começam desligadas.

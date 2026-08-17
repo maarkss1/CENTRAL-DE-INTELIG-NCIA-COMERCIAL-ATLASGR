@@ -106,7 +106,7 @@ export const getLeadContextTool = tool(
             context += `\nContato: ${p.name} (${p.role || 'Cargo desconhecido'})\n`;
         }
 
-        // SEC-013b: este texto vira uma ToolMessage devolvida ao LLM externo (Groq/OpenAI/Gemini)
+        // SEC-013b: este texto vira uma ToolMessage devolvida ao LLM externo (Groq/OpenAI)
         // dentro do loop de tool-calling do agente — sem isto, o nome real do contato ia direto pro
         // provedor. Diferente de ai.service.ts/sdr-agent.ts (chamada única, resposta reidratada no
         // fim), aqui o texto reentra num agente multi-turn: reidratar de volta exigiria rastrear o

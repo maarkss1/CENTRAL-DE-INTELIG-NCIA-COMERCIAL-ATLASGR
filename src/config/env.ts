@@ -58,10 +58,15 @@ const envSchema = z.object({
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ENABLE_QUEUES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // Gated por ENABLE_EMBEDDED_WORKERS: um BullMQ Worker (diferente de uma Queue) conecta no Redis
+  // avidamente ao ser criado — sem Redis disponível, isso derruba o processo. Default false:
+  // workers embutidos em server.ts só sobem se explicitamente habilitados; o entrypoint dedicado
+  // worker.ts é o caminho padrão de processamento (ver Fase Final 2, .agents/runs/final-fase-2.md).
+  ENABLE_EMBEDDED_WORKERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  ENABLE_EMBEDDED_WORKERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
   // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
@@ -154,7 +159,7 @@ const envSchema = z.object({
   // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
   // assertPiiExternalConsent), consumido pelos 3 caminhos reais do enxame que buscam dado pessoal
   // de um titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
-  // de IA externo (Groq/OpenAI/Gemini/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId)
+  // de IA externo (Groq/OpenAI/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId)
   // e SDROutboundDraftAgent. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
   // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
   // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).

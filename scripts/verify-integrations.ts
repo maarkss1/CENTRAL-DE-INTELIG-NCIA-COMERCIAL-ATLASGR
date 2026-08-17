@@ -118,19 +118,6 @@ async function verifyGroq(): Promise<CheckResult> {
     }
 }
 
-async function verifyGemini(): Promise<CheckResult> {
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
-    if (!apiKey) return SKIPPED('GEMINI_API_KEY ausente (caminho legado de embeddings)');
-    try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
-        );
-        return { ok: response.ok, detail: response.ok ? 'chave válida' : `HTTP ${response.status}` };
-    } catch (error) {
-        return { ok: false, detail: error instanceof Error ? error.message : 'falha de rede' };
-    }
-}
-
 async function verifyLiteLLM(): Promise<CheckResult> {
     const baseUrl = process.env.LITELLM_URL?.trim();
     if (!baseUrl) return SKIPPED('LITELLM_URL ausente — gateway principal de IA não configurado');
@@ -164,7 +151,6 @@ const results = {
     brasilApiCnpj: await verifyBrasilApi(),
     bitrix24: await verifyBitrix(),
     groq: await verifyGroq(),
-    gemini: await verifyGemini(),
     litellm: await verifyLiteLLM(),
     langfuse: await verifyLangfuse(),
 };

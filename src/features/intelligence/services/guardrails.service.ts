@@ -21,7 +21,7 @@ export interface PiiToken {
 }
 
 /**
- * Substitui, no texto que sairá para um provedor de IA externo (Groq/OpenAI/Gemini),
+ * Substitui, no texto que sairá para um provedor de IA externo (Groq/OpenAI),
  * valores de PII conhecidos (hoje: nome do contato) por um token estável. Diferente de
  * `redactSensitiveData`, isso não descarta o dado — ele é devolvido para reidratação,
  * porque ferramentas como rascunho de e-mail/WhatsApp legitimamente precisam do nome
@@ -80,7 +80,7 @@ export class PiiConsentRequiredError extends Error {
 /**
  * Ponto único de verificação da base legal antes de qualquer dado pessoal de um titular real
  * (nome, e-mail, telefone do Contact) ser processado por um provedor de IA externo
- * (Groq/OpenAI/Gemini/LiteLLM) — ver `AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS` em src/config/env.ts.
+ * (Groq/OpenAI/LiteLLM) — ver `AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS` em src/config/env.ts.
  *
  * Deliberadamente diferente de `minimizePii`: minimizar troca o valor real por um token ANTES de
  * ele sair, mas o token continua sendo dado pseudonimizado do MESMO titular (reversível via
