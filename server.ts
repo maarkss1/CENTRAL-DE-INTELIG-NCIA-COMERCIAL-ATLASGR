@@ -14,7 +14,7 @@ import cors from 'cors';
 import compression from 'compression';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
-import { rateLimiterConnection, queuesEnabled } from './src/lib/queue/redis.js';
+import { rateLimiterConnection, queuesEnabled, connection, cacheConnection } from './src/lib/queue/redis.js';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { toNodeHandler } from 'better-auth/node';
@@ -86,7 +86,8 @@ import { featureFlagsRouter } from './src/features/feature-flags/featureFlags.ro
 import { featureFlagsService } from './src/features/feature-flags/featureFlags.service.js';
 import { bugReportRouter } from './src/features/bug-reports/bugReport.routes.js';
 import { threecxRoutes, threecxWebhookRouter } from './src/features/integrations/threecx/threecx.routes.js';
-import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
+import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
+import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
 import swaggerUi from 'swagger-ui-express';
 import { parse as parseYaml } from 'yaml';
 import { readFileSync } from 'fs';
@@ -457,7 +458,7 @@ async function startServer() {
         )
     );
 
-    app.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
     });
 
@@ -477,6 +478,8 @@ async function startServer() {
     const winLossWorker = embeddedWorkersEnabled ? createWinLossAnalysisWorker() : null;
     const pdfWorker = embeddedWorkersEnabled ? createWeeklyPdfReportWorker() : null;
     const autoAnonymizeWorker = embeddedWorkersEnabled ? createAutoAnonymizeWorker() : null;
+    const coldLeadsScannerWorker = embeddedWorkersEnabled ? createColdLeadsScannerWorker() : null;
+    const stagnationScannerWorker = embeddedWorkersEnabled ? createStagnationScannerWorker() : null;
 
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
@@ -489,6 +492,8 @@ async function startServer() {
         scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
         scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
+        scheduleColdLeadsScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do cold leads scanner'));
+        scheduleStagnationScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do stagnation scanner'));
     }
 
     const searchWorker = embeddedWorkersEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -521,11 +526,23 @@ async function startServer() {
         }
     }).catch(() => null);
 
-    ColdLeadsScannerService.start();
+
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
         logger.info(`${signal} received: closing gracefully`);
+        
+        await new Promise<void>((resolve) => {
+            server.close((err) => {
+                if (err) {
+                    logger.error({ err }, 'Erro ao fechar o servidor HTTP');
+                } else {
+                    logger.info('Servidor HTTP fechado com sucesso');
+                }
+                resolve();
+            });
+        });
+
         await leadsWorker?.close();
         await agentWorker?.close();
         await searchWorker?.close();
@@ -540,8 +557,18 @@ async function startServer() {
         await autoAnonymizeWorker?.close();
         await coldCallWorker?.close();
         await swarmSchedulerWorker?.close();
+        await coldLeadsScannerWorker?.close();
+        await stagnationScannerWorker?.close();
+        
         await shutdownLangfuse();
         await prisma.$disconnect();
+
+        await Promise.allSettled([
+            connection.quit().catch(() => connection.disconnect()),
+            rateLimiterConnection.quit().catch(() => rateLimiterConnection.disconnect()),
+            cacheConnection.quit().catch(() => cacheConnection.disconnect()),
+        ]);
+        
         process.exit(0);
     };
 

@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+
 import { prisma } from '../../../lib/prisma.js';
 import { VectorSearchService } from '../../intelligence/services/vector-search.service.js';
 import { enabledOrganizations } from '../../intelligence/services/swarmScheduler.service.js';
@@ -121,11 +121,41 @@ export async function runColdLeadsScan(): Promise<{ runId: string; organizations
     }
 }
 
-export class ColdLeadsScannerService {
-    static start(): void {
-        cron.schedule('0 2 * * *', () => {
-            void runColdLeadsScan();
-        });
-        logger.info('ColdLeadsScannerService scheduled.');
-    }
+import { Worker, Queue } from 'bullmq';
+import { connection } from '../../../lib/queue/redis.js';
+
+export const COLD_LEADS_SCANNER_QUEUE_NAME = 'cold-leads-scanner-queue';
+
+export function createColdLeadsScannerWorker() {
+    const worker = new Worker(COLD_LEADS_SCANNER_QUEUE_NAME, async (job) => {
+        logger.info('Iniciando job de cold-leads-scanner');
+        await runColdLeadsScan();
+    }, {
+        connection: connection as any,
+        concurrency: 1
+    });
+
+    worker.on('failed', (job, err) => {
+        logger.error({ err, jobId: job?.id }, 'ColdLeadsScanner worker job falhou');
+    });
+
+    worker.on('error', (err) => {
+        logger.warn({ err }, 'ColdLeadsScanner worker error suppressed (Redis offline)');
+    });
+
+    return worker;
+}
+
+export async function scheduleColdLeadsScannerJob() {
+    const queue = new Queue(COLD_LEADS_SCANNER_QUEUE_NAME, {
+        connection: connection as any
+    });
+    
+    // Roda todo dia as 02:00
+    await queue.upsertJobScheduler('daily-cold-leads-scan', { pattern: '0 2 * * *' }, {
+        name: 'daily-cold-leads-scan',
+        data: {},
+    });
+    
+    logger.info('ColdLeadsScanner job scheduled (cron: 0 2 * * *)');
 }

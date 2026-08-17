@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+
 import { prisma } from '../../../lib/prisma.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { acquireDistributedLock } from '../../../lib/queue/distributedLock.js';
@@ -216,14 +216,41 @@ export async function runStagnationScan(): Promise<StagnationScanResult> {
     }
 }
 
-export class StagnationScannerService {
-    static start(): void {
-        // 03:17 (não 02:00, o horário do cold-leads-scanner) para não competir pela mesma janela de
-        // carga do banco/Redis todo dia às 2h em cima da hora — nenhum motivo funcional para o
-        // minuto exato, só evita as duas varreduras baterem no mesmo segundo.
-        cron.schedule('17 3 * * *', () => {
-            void runStagnationScan();
-        });
-        logger.info('StagnationScannerService scheduled.');
-    }
+import { Worker, Queue } from 'bullmq';
+import { connection } from '../../../lib/queue/redis.js';
+
+export const STAGNATION_SCANNER_QUEUE_NAME = 'stagnation-scanner-queue';
+
+export function createStagnationScannerWorker() {
+    const worker = new Worker(STAGNATION_SCANNER_QUEUE_NAME, async (job) => {
+        logger.info('Iniciando job de stagnation-scanner');
+        await runStagnationScan();
+    }, {
+        connection: connection as any,
+        concurrency: 1
+    });
+
+    worker.on('failed', (job, err) => {
+        logger.error({ err, jobId: job?.id }, 'StagnationScanner worker job falhou');
+    });
+
+    worker.on('error', (err) => {
+        logger.warn({ err }, 'StagnationScanner worker error suppressed (Redis offline)');
+    });
+
+    return worker;
+}
+
+export async function scheduleStagnationScannerJob() {
+    const queue = new Queue(STAGNATION_SCANNER_QUEUE_NAME, {
+        connection: connection as any
+    });
+    
+    // Roda todo dia as 03:17
+    await queue.upsertJobScheduler('daily-stagnation-scan', { pattern: '17 3 * * *' }, {
+        name: 'daily-stagnation-scan',
+        data: {},
+    });
+    
+    logger.info('StagnationScanner job scheduled (cron: 17 3 * * *)');
 }

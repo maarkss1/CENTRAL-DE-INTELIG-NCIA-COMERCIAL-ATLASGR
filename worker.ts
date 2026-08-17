@@ -33,8 +33,8 @@ import { createDeduplicationWorker, scheduleDeduplicationJob } from './src/featu
 import { createWinLossAnalysisWorker, scheduleWinLossAnalysisJob } from './src/features/intelligence/services/winLossAnalysis.worker.js';
 import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/features/crm/jobs/weeklyPdfReport.worker.js';
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
-import { ColdLeadsScannerService } from './src/features/automations/application/cold-leads-scanner.service.js';
-
+import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
+import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
 /**
  * worker.ts — entrypoint dedicado para processamento assíncrono (Onda 6, Agente 16).
  *
@@ -85,7 +85,8 @@ async function startWorkerProcess() {
     const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
     const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
     const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
-
+    const coldLeadsScannerWorker = queuesEnabled ? createColdLeadsScannerWorker() : null;
+    const stagnationScannerWorker = queuesEnabled ? createStagnationScannerWorker() : null;
     if (queuesEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
         scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
@@ -94,6 +95,8 @@ async function startWorkerProcess() {
         scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
         scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
+        scheduleColdLeadsScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do cold leads scanner'));
+        scheduleStagnationScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do stagnation scanner'));
     }
 
     const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -140,12 +143,7 @@ async function startWorkerProcess() {
             logger.error({ err }, 'Falha ao inicializar o worker do enxame autônomo (swarm-scheduler) — fila fica sem processamento até o próximo restart.');
         });
 
-    // cold-leads-scanner: cron próprio (não BullMQ), já com trava distribuída via Redis
-    // (`cold-leads-scanner:lock`, SETNX+TTL) implementada em
-    // src/features/automations/application/cold-leads-scanner.service.ts — dono: Agente 07.
-    // Confirmado nesta onda que dois processos worker rodando o cron simultaneamente executam a
-    // varredura uma única vez (ver relatório da onda).
-    ColdLeadsScannerService.start();
+
 
     await Promise.all([coldCallInit, swarmInit]);
 
@@ -164,6 +162,8 @@ async function startWorkerProcess() {
         { name: 'auto-anonymize-disqualified-queue', worker: autoAnonymizeWorker },
         { name: 'sdr-cold-call', worker: coldCallWorker },
         { name: 'swarm-scheduler', worker: swarmSchedulerWorker },
+        { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
+        { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
     ];
 
     const activeCount = registeredWorkers.filter((w) => w.worker !== null).length;
