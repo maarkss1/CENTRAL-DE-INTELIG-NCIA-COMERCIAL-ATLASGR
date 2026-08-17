@@ -200,6 +200,14 @@ paths:
         '200':
           description: Sessão encerrada
 
+  /auth-extra/welcome-email:
+    post:
+      tags: [Auth]
+      summary: Envia o e-mail de boas-vindas após a troca de senha temporária obrigatória — best-effort, nunca bloqueia o acesso do usuário se o SMTP falhar
+      responses:
+        '200':
+          description: Solicitação processada (o envio em si é best-effort e não afeta o status de resposta)
+
   # ───────────────────────────── Companies ─────────────────────────────
   /companies:
     get:
