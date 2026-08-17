@@ -431,7 +431,7 @@ export function ProspectingHub() {
     };
 
     return (
-        <div className="flex-1 overflow-y-auto bg-transparent p-6 sm:p-8 font-sans">
+        <div className="flex-1 overflow-y-auto bg-bg p-6 sm:p-8 font-sans">
             <div className="max-w-7xl mx-auto space-y-8">
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-4 space-y-4">
                     <h1 className="text-4xl font-black tracking-tight text-ink">
@@ -441,22 +441,22 @@ export function ProspectingHub() {
                     <GamificationWidget />
                 </motion.div>
 
-                <div className="flex gap-3 bg-surface backdrop-blur-xl p-2 rounded-2xl border border-line shadow-sm w-fit relative z-10">
+                <div className="flex gap-3 bg-surface/75 backdrop-blur-xl p-2 rounded-2xl border border-line shadow-card w-fit relative z-10">
                     <button
                         onClick={() => setTab('cnpj')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-gradient-to-br from-atlas-dark to-black text-white shadow-lg shadow-black/10 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-ink text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
                     >
                         <Landmark size={18} /> Busca Direta (CNPJ/Nome)
                     </button>
                     <button
                         onClick={() => setTab('discovery')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-gradient-to-br from-brand to-[#ff6b3d] text-white shadow-lg shadow-brand/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-brand-active text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
                     >
                         <Database size={18} /> Radar Discovery (Fontes abertas)
                     </button>
                     <button
                         onClick={() => setTab('ocr')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'ocr' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/20 scale-100' : 'text-ink-2 hover:bg-surface-2 hover:shadow-sm scale-95 hover:scale-100'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'ocr' ? 'bg-info-base text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
                     >
                         <Camera size={18} /> Cadastrar por Foto (OCR)
                     </button>

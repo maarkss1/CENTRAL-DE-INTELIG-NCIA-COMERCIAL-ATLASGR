@@ -1,12 +1,9 @@
-import express, { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { AppError } from '../../shared/middlewares/errorHandler.js';
 import { prismaOptOutRepository } from './infra/PrismaOptOutRepository.js';
 import { prismaCadenceRunRepository } from './infra/PrismaCadenceRunRepository.js';
 import type { CadenceRunStatus } from './domain/cadence.js';
-import { govBrSignatureAdapter } from './infra/GovBrSignatureAdapter.js';
-import { evaluateDealClosure } from './domain/dealClosure.js';
-import { prisma } from '../../lib/prisma.js';
 
 /**
  * Router de cadência multicanal e opt-out unificado (Agente 17, Onda 10). Só leitura por
@@ -62,55 +59,6 @@ router.get('/runs', async (req: Request, res: Response, next: NextFunction): Pro
         res.json({ success: true, data: runs });
     } catch (error) {
         next(error);
-    }
-});
-
-router.post('/webhooks/govbr', express.json(), async (req: Request, res: Response): Promise<void> => {
-    try {
-        const payload = req.body;
-        const signature = req.headers['x-govbr-signature'] as string;
-        
-        if (!govBrSignatureAdapter.validateWebhook(payload, signature)) {
-            res.status(401).json({ error: 'Invalid signature' });
-            return;
-        }
-
-        const { organizationId, leadId, eventType, evidenceId } = payload;
-        
-        if (eventType === 'signature_completed') {
-            const closureEvent = evaluateDealClosure(
-                {
-                    organizationId,
-                    leadId,
-                    type: 'signature_completed',
-                    evidenceRef: evidenceId,
-                    triggeredBy: 'webhook:govbr'
-                },
-                () => `closure_${Date.now()}`,
-                new Date()
-            );
-
-            if (closureEvent.accepted && closureEvent.event) {
-                // Mover lead para negócios ganhos
-                await prisma.lead.update({
-                    where: { id: leadId },
-                    data: { status: 'Negocios_Ganhos' }
-                });
-
-                // Registrar o evento na timeline
-                await prisma.timelineEvent.create({
-                    data: {
-                        type: 'activity',
-                        description: `Proposta assinada digitalmente via Gov.br (Ref: ${evidenceId})`,
-                        leadId: leadId
-                    }
-                });
-            }
-        }
-
-        res.status(200).json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal error' });
     }
 });
 

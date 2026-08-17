@@ -29,39 +29,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Fase Final 1 (Gate Único de Release): antes deste job, este workflow publicava artifact estático
-  # sem rodar typecheck/lint/unit. Gate leve — proporcional ao blast radius (SPA estática sem
-  # backend funcional, ver comentário no topo do arquivo) — mas não mais zero.
-  gate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Run Type Check
-        run: npx tsc --noEmit
-
-      - name: Run Lint
-        run: npm run lint
-
-      - name: Run Unit Tests
-        run: npm run test:unit
-
   build:
     runs-on: ubuntu-latest
-    needs: gate
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

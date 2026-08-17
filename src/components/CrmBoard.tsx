@@ -288,7 +288,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     return (
         <div className={`flex-1 flex flex-col bg-bg text-ink animate-in fade-in duration-500 overflow-hidden ${embedded ? 'min-h-[680px] h-full' : 'h-full'}`}>
             {/* Header com estilo moderno */}
-            <div className="p-6 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between bg-bg/90 backdrop-blur-xl shrink-0 gap-4">
+            <div className="p-6 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between bg-surface/75 backdrop-blur-xl shrink-0 gap-4">
                 <div>
                     <h2 className="font-extrabold text-2xl text-ink tracking-tight flex items-center gap-2">
                         🎯 {funnel === 'Lead' ? 'Leads e pré-vendas' : 'Negócios e fechamento'}
@@ -305,12 +305,12 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                         padrão já validado em AA (5.28:1 AtlasGR / 11.26:1 Total Trac) usado no
                         toggle de PIC em LeadDetailDrawer.tsx. */}
                     {!funnelProp && (
-                        <div className="inline-flex items-center gap-1 p-1 mt-3 bg-surface-2 rounded-xl border border-line" role="group" aria-label="Funil do pipeline">
+                        <div className="inline-flex items-center gap-1 p-1 mt-3 bg-surface-2 rounded-lg border border-line" role="group" aria-label="Funil do pipeline">
                             <button
                                 type="button"
                                 onClick={() => handleFunnelChange('Lead')}
                                 aria-pressed={funnel === 'Lead'}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${funnel === 'Lead' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'}`}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Lead' ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
                             >
                                 Leads
                             </button>
@@ -318,7 +318,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                                 type="button"
                                 onClick={() => handleFunnelChange('Negocio')}
                                 aria-pressed={funnel === 'Negocio'}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${funnel === 'Negocio' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'}`}
+                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${funnel === 'Negocio' ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface hover:text-ink'}`}
                             >
                                 Negócios
                             </button>
@@ -384,7 +384,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                 suspeito por padrão, mas essa é a correção recomendada pelas ARIA Authoring Practices
                 pra containers de scroll não-interativos — daí o disable pontual logo abaixo. */}
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-surface-2/50" tabIndex={0} aria-label="Colunas do pipeline — role o conteúdo horizontalmente">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-bg" tabIndex={0} aria-label="Colunas do pipeline — role o conteúdo horizontalmente">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">

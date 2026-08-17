@@ -117,14 +117,14 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                 <KpiCard label="Atividades críticas" value={String(data.kpis.overdueActivities)} detail={`${data.kpis.todayActivities} para hoje`} icon={CalendarClock} intent={data.kpis.overdueActivities > 0 ? 'warning' : 'success'} />
             </section>
 
-            <section className="rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-500/10 via-blue-500/5 to-transparent p-4">
+            <section className="rounded-2xl border border-info-base/20 bg-gradient-to-r from-info-base/10 via-brand/5 to-transparent p-4">
                 <div className="flex items-start gap-3">
-                    <span className="rounded-xl bg-violet-500 p-2 text-white"><Bot className="h-5 w-5" /></span>
+                    <span className="rounded-xl bg-info-base p-2 text-white"><Bot className="h-5 w-5" /></span>
                     <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black uppercase tracking-[0.14em] text-violet-500">Radar de IA · próxima melhor ação</p>
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-info-base">Radar de IA · próxima melhor ação</p>
                         <p className="mt-1 text-sm leading-relaxed text-ink">{insight}</p>
                     </div>
-                    <button onClick={() => onNavigate('activities')} className="hidden items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-violet-500 hover:bg-violet-500/10 sm:flex">Abrir foco <ArrowRight className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => onNavigate('activities')} className="hidden items-center gap-1 rounded-lg px-3 py-2 text-xs font-bold text-info-base hover:bg-info-base/10 sm:flex">Abrir foco <ArrowRight className="h-3.5 w-3.5" /></button>
                 </div>
             </section>
 
