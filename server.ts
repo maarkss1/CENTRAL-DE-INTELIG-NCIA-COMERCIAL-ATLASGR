@@ -321,10 +321,13 @@ async function startServer() {
     const handleReadiness = async (_req: any, res: any) => {
         try {
             await prisma.$queryRaw`SELECT 1`;
+            if (queuesEnabled) {
+                await connection.ping();
+            }
             res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
         } catch (error) {
             logger.error({ err: error }, 'Readiness probe failed');
-            res.status(503).json({ status: 'error', message: 'Database unavailable' });
+            res.status(503).json({ status: 'error', message: 'Database or Redis unavailable' });
         }
     };
 
