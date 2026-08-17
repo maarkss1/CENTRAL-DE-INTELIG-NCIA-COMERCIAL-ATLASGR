@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>AtlasGR — Relatórios Comerciais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 800 174.78" xmlns="http://www.w3.org/2000/svg" fill="#FF5618"><path d="M403.66,171.69l-10-28.49h-57l-9.78,28.49H294.09L350.17,21.5h29.14L437.2,171.69ZM365,61.19l-18.66,53.73H383.9Z"/>
+        <path d="M494.61,145.14h13.58v26.55H487q-18.16,0-28.69-10.53t-10.53-28.89v-47h-21.4V78.88L472.8,32.47h4.35V61.31h31v24H477.65v43q0,8.08,4.39,12.47t12.57,4.39"/>
+        <rect x="529.49" y="21.5" width="29.84" height="150.2"/>
+        <path d="M670.83,61.12h22.36V171.49H669.73l-2.59-9.88q-15.07,13.17-35.73,13.17a58.64,58.64,0,0,1-29.64-7.58,54.09,54.09,0,0,1-20.76-21,60.29,60.29,0,0,1-7.48-29.89A59.58,59.58,0,0,1,581,86.61a53.89,53.89,0,0,1,20.76-20.85,58.92,58.92,0,0,1,29.64-7.54q21.06,0,36.23,13.47ZM612.3,137.91q8.54,8.63,21.51,8.63t21.5-8.58q8.54-8.58,8.54-21.66t-8.54-21.65q-8.52-8.58-21.5-8.59T612.3,94.7q-8.53,8.63-8.53,21.6t8.53,21.61"/>
+        <path d="M753.69,174.78q-20.75,0-33.48-10.82t-12.82-28.6h29q.11,7.09,5.14,10.88T754.89,150A20.3,20.3,0,0,0,766,147.14a9.17,9.17,0,0,0,4.54-8.18,7.43,7.43,0,0,0-1.55-4.69,11.43,11.43,0,0,0-4.84-3.35,43.86,43.86,0,0,0-6.48-2.09q-3.2-.75-8.39-1.65-4.68-.8-7.88-1.45t-7.73-1.94a44.3,44.3,0,0,1-7.64-2.85,43.08,43.08,0,0,1-6.54-4.14,23,23,0,0,1-5.49-5.74,29.62,29.62,0,0,1-3.39-7.63,34.21,34.21,0,0,1-1.35-9.88,31.18,31.18,0,0,1,12.28-25.5q12.27-9.82,32.13-9.83t32,10.13q12.07,10.13,12.17,26.7H769.56q-.09-6.49-4.44-9.78T752.9,82q-6.9,0-10.83,2.9a9.07,9.07,0,0,0-3.94,7.68,7.92,7.92,0,0,0,.64,3.25,5.9,5.9,0,0,0,2.3,2.49q1.65,1,3.09,1.8a22.06,22.06,0,0,0,4.39,1.49c2,.5,3.56.87,4.79,1.1l5.64,1q16.07,2.89,23.16,6,17.86,8,17.86,27.94,0,16.86-12.67,27t-33.64,10.12"/>
+        <polygon points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56"/>
+        <polygon points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94"/></svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Central de Inteligência Comercial · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">AtlasGR · Bitrix24 · v10.0 · Comercial &amp; Receita</div>
+      <h1>📈 Relatórios Comerciais.</h1>
+      <p>Forecast semanal pronto direto nesta página. Os demais relatórios do grupo Comercial &amp; Receita (mensal, pipeline &amp; coverage, conversão, aging, performance, ganhos/perdas, origens, produtos, clientes) abrem no motor de extração completo.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="connection-pill" id="statusConexaoTopo"><span class="connection-dot"></span><span id="statusConexaoTexto">Conexão não testada</span></span>
+      <button type="button" class="hero-btn" onclick="testarConexaoBitrix()">Testar conexão</button>
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="index.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <section class="workspace-intro" id="inicio">
+    <div class="workspace-title">
+      <div><h2>Relatórios do grupo Comercial &amp; Receita</h2><p>Clique em qualquer card. O Forecast semanal roda direto nesta página; os demais levam para a Extração &amp; Diagnóstico já configurados.</p></div>
+    </div>
+    <div id="atalhosRelatoriosGrupoForecast"></div>
+  </section>
+
+  <div class="card" id="conexao">
+    <h2>🔑 Conexão com o Bitrix</h2>
+    <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
+    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <div class="row" style="margin-top:9px;align-items:center;">
+      <div class="webhook-actions">
+        <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+        <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
+        <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Esquecer webhook</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não salvo</span></span>
+      </div>
+    </div>
+    <p class="rodape-nota">O webhook nunca vem embutido neste HTML e só fica salvo neste navegador se você clicar em "Salvar webhook" (ofuscado, não é criptografia real). Detalhes completos do risco em <a href="extracao.html#conexao">Extração &amp; Diagnóstico</a>.</p>
+  </div>
+
+  <!-- Piezas do motor genérico necessárias para o Forecast semanal funcionar nesta
+       página (extrair() lê #entidade/#relatorio; aoTrocarEntidade/aoTrocarRelatorio
+       tocam estes elementos). Ficam ocultas porque, no grupo Comercial, só o
+       Forecast semanal roda diretamente aqui — os outros relatórios do grupo usam
+       o motor genérico completo em extracao.html. -->
+  <div class="card oculto" id="configuracao" aria-hidden="true">
+    <div class="row">
+      <div>
+        <label for="entidade">Tipo de dado</label>
+        <select id="entidade" onchange="aoTrocarEntidade(true)"></select>
+      </div>
+      <div>
+        <label for="relatorio">Relatórios</label>
+        <select id="relatorio" onchange="aoTrocarRelatorio()">
+          <option value="">Nenhum — extração manual de dados</option>
+        </select>
+      </div>
+      <div id="bloco-categoria" class="oculto">
+        <label for="categoria">Categoria (pipeline)</label>
+        <select id="categoria" onchange="aoTrocarCategoria()"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div id="bloco-estagio" class="oculto">
+        <label for="estagio">Estágio / Status</label>
+        <select id="estagio"></select>
+      </div>
+      <div id="bloco-vendedor" class="oculto">
+        <label for="vendedor">Vendedor / Responsável</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="vendedor" style="flex:1;"><option value="">Todos os vendedores</option></select>
+          <button type="button" class="secundario" id="btnCarregarVendedores" onclick="carregarVendedores()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+      <div id="bloco-origem" class="oculto">
+        <label for="origem">Origem (canal de entrada)</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="origem" style="flex:1;"><option value="">Todas as origens</option></select>
+          <button type="button" class="secundario" id="btnCarregarOrigens" onclick="carregarOrigens()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+    </div>
+    <div id="bloco-campo-personalizado" class="row oculto">
+      <div>
+        <label for="campoPersonalizadoCodigo">Filtrar por campo personalizado (ex: segmento) — código</label>
+        <input type="text" id="campoPersonalizadoCodigo" placeholder="UF_CRM_1234567890">
+      </div>
+      <div>
+        <label for="campoPersonalizadoValor">Valor exato a filtrar</label>
+        <input type="text" id="campoPersonalizadoValor" placeholder="Ex: Transportadora">
+      </div>
+    </div>
+    <div class="selection-summary-card" id="resumoSelecaoPrincipal">
+      <div class="selection-icon">◎</div><div><strong id="resumoSelecaoTitulo">Extração manual</strong><span id="resumoSelecaoDetalhe">Escolha um tipo de dado ou um relatório.</span></div>
+    </div>
+    <div id="nota-tudo" class="aviso oculto"></div>
+    <div id="nota-jornada" class="aviso oculto"></div>
+    <div id="nota-diario-sdr" class="aviso oculto"></div>
+    <div id="nota-analise-sdr" class="aviso oculto"></div>
+    <div id="nota-relatorio-catalogo" class="aviso oculto">
+      <strong id="relatorioCatalogoTitulo">Relatório</strong>
+      <div id="relatorioCatalogoDescricao"></div>
+      <div id="configRelatorioCatalogo">
+        <div id="configMetaComercial"><input type="number" id="metaRelatorioComercial" min="0" step="0.01"></div>
+        <div id="configSlaAging"><input type="number" id="slaAgingRelatorio" min="1" step="1" value="30"></div>
+        <div id="configSlaPrimeiroContato"><input type="number" id="slaPrimeiroContatoHoras" min="1" step="1" value="4"></div>
+        <div id="configDiasEstagnacaoSDR"><input type="number" id="diasEstagnacaoSDR" min="1" step="1" value="15"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card oculto" id="card-campos" aria-hidden="true">
+    <div id="campos-lista" class="campos-grid"></div>
+    <input type="text" id="filtroCampos" oninput="aplicarFiltroCampos()">
+    <input type="text" id="camposExtra">
+    <span class="field-counter" id="camposSelecionadosContagem"></span>
+    <p class="rodape-nota" id="notaCamposCarregados"></p>
+  </div>
+  <div class="oculto" style="display:none" id="linha-campo-data" aria-hidden="true"><select id="campoData"></select></div>
+
+  <div class="card" id="nota-forecast-wrap">
+    <h2>🔮 Forecast semanal • Comercial</h2>
+    <div id="nota-forecast" class="aviso oculto" style="margin-top:0;">
+      <strong>Forecast semanal • Comercial.</strong> Identifica o pipeline Comercial dinamicamente, usa a semana
+      selecionada em "De/Até" (abaixo), separa <strong>Fechado, Commit, Best Case e Pipeline</strong>, mostra
+      previsão ponderada por vendedor e sinaliza oportunidades <strong>sem CLOSEDATE</strong> ou vencidas.
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="metaForecastSemanal" style="margin-top:0;">Meta semanal opcional (R$)</label>
+          <input type="number" id="metaForecastSemanal" min="0" step="0.01" placeholder="Ex: 250000">
+        </div>
+        <div>
+          <label for="metaForecastMensal" style="margin-top:0;">Meta mensal (R$)</label>
+          <input type="number" id="metaForecastMensal" min="0" step="0.01" placeholder="Preenchida automaticamente pelo mês do período">
+        </div>
+        <div>
+          <label for="palavraFunilForecast" style="margin-top:0;">Nome do pipeline para Forecast</label>
+          <input type="text" id="palavraFunilForecast" value="Comercial" placeholder="Comercial">
+        </div>
+      </div>
+      <p class="rodape-nota" style="margin-bottom:0;">A meta mensal é preenchida automaticamente pelo mês selecionado em "Até". Se a meta semanal ficar em branco, é calculada dividindo a meta mensal pelo número de semanas do mês.</p>
+    </div>
+  </div>
+
+  <div class="card" id="bloco-periodo">
+    <h2>Período</h2>
+    <div class="row">
+      <div>
+        <label for="periodoPreset">Intervalo rápido</label>
+        <select id="periodoPreset" onchange="aoTrocarPresetPeriodo()">
+          <option value="personalizado">Personalizado (uso as datas abaixo)</option>
+          <option value="todas">Todas as datas (sem filtro de período)</option>
+          <option value="diario">Diário (hoje)</option>
+          <option value="semana_atual">Semana atual (segunda a domingo)</option>
+          <option value="semanal">Semanal (últimos 7 dias)</option>
+          <option value="mensal">Mensal (mês atual)</option>
+          <option value="trimestral">Trimestral (trimestre atual)</option>
+          <option value="semestral">Semestral (semestre atual)</option>
+        </select>
+      </div>
+      <div>
+        <label for="mesEspecifico">Ou escolha um mês específico</label>
+        <input type="month" id="mesEspecifico" onchange="aoEscolherMesEspecifico()">
+      </div>
+      <div>
+        <label for="diaEspecifico">Ou um dia específico</label>
+        <input type="date" id="diaEspecifico" onchange="aoEscolherDiaEspecifico()">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="dataInicio">De</label>
+        <input type="date" id="dataInicio" onchange="voltarParaPersonalizado()">
+      </div>
+      <div>
+        <label for="dataFim">Até</label>
+        <input type="date" id="dataFim" onchange="voltarParaPersonalizado()">
+      </div>
+    </div>
+    <p class="rodape-nota">Datas em fuso -03:00 (São Paulo). O Forecast semanal já vem pré-configurado para a semana atual ao abrir esta página.</p>
+  </div>
+
+  <div class="card run-zone" id="execucao">
+    <h2>Executar consulta</h2>
+    <div class="run-buttons"><button type="button" id="btnExtrair" onclick="extrair()">Extrair dados do Forecast semanal</button>
+    <button type="button" class="secundario" id="btnParar" onclick="pararExtracao()" disabled>Parar</button>
+    <button type="button" class="secundario oculto" id="btnContinuar" onclick="continuarExtracao()">Continuar extração</button></div>
+    <div class="status-linha">
+      <div class="spinner" id="spinner"></div>
+      <span id="statusTexto"></span>
+    </div>
+    <div class="erro oculto" id="areaErro"></div>
+  </div>
+
+  <div class="card" id="bloco-forecast-semanal">
+    <h2><span class="num">📈</span> Forecast semanal • Comercial</h2>
+    <div class="aviso" id="forecastPeriodoTexto"></div>
+    <div class="relatorio-especial-grid" id="forecastKpis"></div>
+    <div id="forecastMetasBarras" class="meta-progress-wrap"></div>
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="window.location.href='extracao.html?relatorio=forecast_semanal&amp;ia=1'" title="Abre a Central de Inteligência v10 (Extração &amp; Diagnóstico) já com este relatório em foco">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualForecast()">Abrir modelo visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLForecastModelo()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastNegocios()">CSV • negócios</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastVendedores()">CSV • vendedores</button>
+      <button type="button" class="secundario" onclick="baixarJSONForecast()">JSON completo</button>
+    </div>
+    <div class="relatorio-subtitulo">Forecast por vendedor</div>
+    <div class="relatorio-scroll"><div id="forecastVendedoresTabela"></div></div>
+    <div class="relatorio-subtitulo">Negócios da semana</div>
+    <div class="relatorio-scroll"><div id="forecastNegociosTabela"></div></div>
+    <div class="relatorio-subtitulo">Higiene do forecast</div>
+    <div class="relatorio-scroll"><div id="forecastHigieneTabela"></div></div>
+    <p class="rodape-nota">
+      Forecast ponderado = OPPORTUNITY × probabilidade. O total previsto soma o que já foi ganho na semana
+      ao forecast ponderado dos negócios abertos com CLOSEDATE dentro da semana.
+    </p>
+  </div>
+
+</main>
+
+<div class="help-modal" id="helpModal" onclick="fecharAjudaPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitulo">
+    <div class="help-head"><div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Ajuda contextual</div><h3 id="helpTitulo">Como funciona</h3></div><button type="button" class="help-close" onclick="fecharAjuda()">×</button></div>
+    <div class="help-body" id="helpConteudo"></div>
+  </div>
+</div>
+
+<div class="ferramentas-flutuantes" id="ferramentasFlutuantes">
+  <button type="button" class="ferramentas-toggle" onclick="alternarPainelFerramentas()" title="Ferramentas">🛠️</button>
+  <div class="ferramentas-painel oculto" id="ferramentasPainel">
+    <div class="ferramentas-titulo">Ferramentas</div>
+    <button type="button" onclick="ferramentaImprimir()">🖨️ Imprimir</button>
+    <button type="button" onclick="ferramentaBaixar()">⬇️ Baixar</button>
+    <button type="button" id="btnFerramentaDitar" onclick="alternarDitado()">🎙️ Ditar</button>
+    <button type="button" id="btnFerramentaComandoVoz" onclick="alternarComandoDeVoz()">🗣️ Comando de Voz</button>
+    <p class="rodape-nota" id="ferramentasVozStatus" style="margin:6px 0 0;"></p>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Init específico desta página: mostra só os cards do grupo "Comercial &
+  // Receita" (reaproveita RELATORIOS/cardRelatorioRapidoHTML, sem duplicar
+  // lógica) e pré-seleciona o Forecast semanal, já pronto pra rodar.
+  (function () {
+    if (typeof renderizarAtalhosRelatoriosGrupo === "function") {
+      renderizarAtalhosRelatoriosGrupo("Comercial & Receita", "atalhosRelatoriosGrupoForecast");
+    }
+    var sel = document.getElementById("relatorio");
+    if (sel && typeof aoTrocarRelatorio === "function") {
+      sel.value = "forecast_semanal";
+      aoTrocarRelatorio();
+    }
+  })();
+</script>
+
+</body>
+</html>
