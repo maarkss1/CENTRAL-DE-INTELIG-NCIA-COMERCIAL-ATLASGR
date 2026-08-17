@@ -210,6 +210,21 @@ export interface HistoricalTrendsReport { points: HistoricalTrendPoint[] }
 export interface ExecutiveSummaryResult { summary: string; generatedAt: string }
 export interface BitrixNoteDraftResult { draft: string }
 
+// ─── Previsor — Faixa de Cenário (derivada client-side de ExecutiveOverview já carregado) ────────
+
+export interface ForecastScenario { label: string; amount: number; gapToGoal: number | null }
+export interface ForecastRange { conservative: ForecastScenario; likely: ForecastScenario; optimistic: ForecastScenario; currency: string }
+export type TrendDirection = 'melhorando' | 'estavel' | 'piorando';
+export interface TrendMomentum { direction: TrendDirection; latestWinRate: number; previousAverageWinRate: number; deltaPercentagePoints: number }
+
+// ─── Mentor Comercial (playbook de recomendações por IA) ─────────────────────
+
+export type MentorRecommendationPriority = 'alta' | 'media' | 'baixa';
+export interface MentorRecommendation {
+    priority: MentorRecommendationPriority; title: string; rationale: string; suggestedAction: string; relatedDealIds: string[];
+}
+export interface MentorPlaybookResult { recommendations: MentorRecommendation[]; source: 'ai' | 'fallback'; generatedAt: string }
+
 function qs(filter: CommercialFilter, extra?: Record<string, string | number | boolean | undefined>): string {
     const params = new URLSearchParams();
     params.set('month', filter.month);
@@ -236,7 +251,7 @@ export const commercialIntelligenceApi = {
     leadingIndicators: () => api.get<LeadingIndicatorsReport>(`${BASE}/leading-indicators`),
     alerts: (filter: CommercialFilter) => api.get<ExecutiveAlert[]>(`${BASE}/alerts?${qs(filter)}`),
     crmQuality: (filter: CommercialFilter) => api.get<CrmQualityIndex>(`${BASE}/crm-quality?${qs(filter)}`),
-    deals: (filter: CommercialFilter, extra?: { tier?: ForecastTier; stageId?: string; agingCritical?: boolean; missingNextAction?: boolean; limit?: number; offset?: number }) =>
+    deals: (filter: CommercialFilter, extra?: { tier?: ForecastTier; stageId?: string; agingCritical?: boolean; missingNextAction?: boolean; ids?: string; limit?: number; offset?: number; sort?: 'recent' | 'riskImpact' }) =>
         api.get<DealDrillDownResult>(`${BASE}/deals?${qs(filter, extra)}`),
     metricsDictionary: () => api.get<MetricDefinition[]>(`${BASE}/metrics-dictionary`),
     filterOptions: () => api.get<FilterOptions>(`${BASE}/filter-options`),
@@ -251,6 +266,7 @@ export const commercialIntelligenceApi = {
     // ao carregar a tela, sempre por ação explícita da pessoa.
     aiExecutiveSummary: (filter: CommercialFilter) => api.post<ExecutiveSummaryResult>(`${BASE}/ai/executive-summary`, filter),
     aiBitrixNote: (leadId: string) => api.post<BitrixNoteDraftResult>(`${BASE}/ai/bitrix-note`, { leadId }),
+    aiMentorPlaybook: (filter: CommercialFilter) => api.post<MentorPlaybookResult>(`${BASE}/ai/mentor-playbook`, filter),
 };
 
 /**
@@ -296,6 +312,43 @@ export function formatPercent(value: number | null | undefined): string {
 export function formatMultiple(value: number | null | undefined): string {
     if (value == null) return 'Não disponível';
     return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x`;
+}
+
+/**
+ * Previsor — Faixa de Cenário. Espelha `application/predictiveForecast.ts` (backend), não importa
+ * dele: mesmo padrão já usado neste arquivo de duplicar tipos/lógica pura em vez de cruzar a
+ * fronteira frontend/backend (`application/`/`domain/` nunca são importados por um componente).
+ * Nenhum cálculo novo — só recompõe campos que `ExecutiveOverview` já traz calculados.
+ */
+export function buildForecastRange(overview: ExecutiveOverview): ForecastRange {
+    const goalAmount = overview.goal?.amount ?? null;
+    const currency = overview.goal?.currency ?? 'BRL';
+    const gap = (amount: number) => (goalAmount == null ? null : Math.max(0, Math.round((goalAmount - amount) * 100) / 100));
+    const conservativeAmount = overview.closedAmount + overview.commitAmount;
+    // Fechado + Pipeline Total (todo negócio aberto, valor cheio) — precisa ser sempre >= Provável.
+    // Ver `application/predictiveForecast.ts` para o bug real que motivou esta fórmula (Otimista
+    // ficando MENOR que Provável ao somar só os tiers Commit/BestCase/Upside).
+    const optimisticAmount = overview.closedAmount + overview.pipelineTotal;
+    return {
+        conservative: { label: 'Conservador', amount: conservativeAmount, gapToGoal: gap(conservativeAmount) },
+        likely: { label: 'Provável', amount: overview.forecastAmount, gapToGoal: gap(overview.forecastAmount) },
+        optimistic: { label: 'Otimista', amount: optimisticAmount, gapToGoal: gap(optimisticAmount) },
+        currency,
+    };
+}
+
+export const TREND_MOMENTUM_THRESHOLD_PP = 3;
+
+export function computeTrendMomentum(trends: HistoricalTrendsReport): TrendMomentum | null {
+    const withSample = trends.points.filter((p) => p.closedSampleSize > 0 && p.winRate != null);
+    if (withSample.length < 2) return null;
+    const latest = withSample[withSample.length - 1];
+    const previous = withSample.slice(0, -1);
+    const previousAverageWinRate = previous.reduce((sum, p) => sum + (p.winRate as number), 0) / previous.length;
+    const latestWinRate = latest.winRate as number;
+    const delta = Math.round((latestWinRate - previousAverageWinRate) * 100) / 100;
+    const direction: TrendDirection = delta >= TREND_MOMENTUM_THRESHOLD_PP ? 'melhorando' : delta <= -TREND_MOMENTUM_THRESHOLD_PP ? 'piorando' : 'estavel';
+    return { direction, latestWinRate, previousAverageWinRate: Math.round(previousAverageWinRate * 100) / 100, deltaPercentagePoints: delta };
 }
 
 export function currentMonth(): string {

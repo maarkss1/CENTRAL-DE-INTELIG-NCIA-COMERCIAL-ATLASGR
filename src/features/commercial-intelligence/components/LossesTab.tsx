@@ -24,7 +24,7 @@ export function LossesTab({ filter }: { filter: CommercialFilter }) {
     }, [filter]);
 
     if (loading) return <Skeleton className="h-64 rounded-2xl" />;
-    if (error) return <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
+    if (error) return <div className="flex items-center gap-2 text-sm text-critical py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
     if (!data) return null;
 
     if (data.totalCount === 0) {
@@ -46,7 +46,7 @@ export function LossesTab({ filter }: { filter: CommercialFilter }) {
                             <div className="w-32 shrink-0 text-xs font-semibold text-ink truncate" title={row.reason}>{row.reason}</div>
                             <div className="flex-1 h-6 rounded-md bg-surface-2 overflow-hidden">
                                 <div
-                                    className="h-full rounded-md bg-[#d03b3b]/70"
+                                    className="h-full rounded-md bg-critical/70"
                                     style={{ width: `${data.totalAmount > 0 ? Math.max(4, (row.amount / data.totalAmount) * 100) : 0}%` }}
                                 />
                             </div>

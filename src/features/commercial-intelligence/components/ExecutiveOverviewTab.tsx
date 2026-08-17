@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, AlertTriangle, Pencil, MonitorPlay, Download } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Pencil, MonitorPlay, Download, RefreshCw } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -8,19 +8,26 @@ import { KpiTile } from './KpiTile';
 import { AlertsPanel } from './AlertsPanel';
 import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
-import { AiExecutiveSummaryCard } from './AiExecutiveSummaryCard';
+import { ForecastRangeCard } from './ForecastRangeCard';
+import { MentorPlaybookCard } from './MentorPlaybookCard';
+import { DecisionCenterPanel } from './DecisionCenterPanel';
 import { GoalCountdownOverlay } from './GoalCountdownOverlay';
 import { toast } from '../../../lib/toast';
 import {
     commercialIntelligenceApi, downloadExecutiveExport, formatCurrency, formatPercent, formatMultiple,
     type CommercialFilter, type ExecutiveOverview, type ExecutiveAlert, type LeadingIndicatorsReport,
-    type PerformanceMetrics, type PipelineCreation, type CoverageProtectionStatus, type ExportFormat
+    type PerformanceMetrics, type PipelineCreation, type CoverageProtectionStatus, type ExportFormat,
+    type HistoricalTrendsReport,
 } from '../commercialIntelligence.api';
+
+/** Ritmo do "Atualização automática" opcional (desligado por padrão) — regra de performance da
+ * constituição: nada roda em background sem o usuário pedir. */
+const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
 
 const PROTECTION_STATUS_STYLE: Record<CoverageProtectionStatus, { label: string; className: string }> = {
     saudavel: { label: 'Saudável', className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
     atencao: { label: 'Atenção', className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
-    critico: { label: 'Crítico', className: 'text-[#d03b3b] bg-[#d03b3b]/10 border-[#d03b3b]/20' },
+    critico: { label: 'Crítico', className: 'text-critical bg-critical/10 border-critical/20' },
     sem_dados: { label: 'Sem dados', className: 'text-ink-2 bg-surface-2 border-line' },
 };
 
@@ -75,33 +82,39 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
     const [indicators, setIndicators] = useState<LeadingIndicatorsReport | null>(null);
     const [performance, setPerformance] = useState<PerformanceMetrics | null>(null);
     const [creation, setCreation] = useState<PipelineCreation | null>(null);
+    const [trends, setTrends] = useState<HistoricalTrendsReport | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [goalDialogOpen, setGoalDialogOpen] = useState(false);
     const [drillDown, setDrillDown] = useState<DrillDownQuery | null>(null);
     const [showTvMode, setShowTvMode] = useState(false);
     const [exporting, setExporting] = useState<ExportFormat | null>(null);
+    const [autoRefresh, setAutoRefresh] = useState(false);
 
-    const load = useCallback(async () => {
-        setLoading(true);
+    const load = useCallback(async (isBackgroundRefresh = false) => {
+        if (isBackgroundRefresh) setRefreshing(true); else setLoading(true);
         setError(null);
         try {
-            const [overviewData, alertsData, indicatorsData, performanceData, creationData] = await Promise.all([
+            const [overviewData, alertsData, indicatorsData, performanceData, creationData, trendsData] = await Promise.all([
                 commercialIntelligenceApi.overview(filter),
                 commercialIntelligenceApi.alerts(filter),
                 commercialIntelligenceApi.leadingIndicators(),
                 commercialIntelligenceApi.performance(filter),
                 commercialIntelligenceApi.pipelineCreation(filter),
+                commercialIntelligenceApi.trends(filter),
             ]);
             setOverview(overviewData);
             setAlerts(alertsData);
             setIndicators(indicatorsData);
             setPerformance(performanceData);
             setCreation(creationData);
+            setTrends(trendsData);
         } catch (err) {
             setError((err as Error).message);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, [filter]);
 
@@ -118,6 +131,14 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
 
     useEffect(() => { void load(); }, [load]);
 
+    // Atualização automática opcional (desligada por padrão) — só faz polling quando a pessoa
+    // liga explicitamente o toggle; nunca dispara sozinha ao abrir a aba.
+    useEffect(() => {
+        if (!autoRefresh) return;
+        const id = window.setInterval(() => { void load(true); }, AUTO_REFRESH_INTERVAL_MS);
+        return () => window.clearInterval(id);
+    }, [autoRefresh, load]);
+
     if (loading) {
         return (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -128,7 +149,7 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
 
     if (error) {
         return (
-            <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6">
+            <div className="flex items-center gap-2 text-sm text-critical py-6">
                 <AlertTriangle className="w-4 h-4" /> {error}
                 <Button variant="outline" size="sm" onClick={() => void load()}>Tentar de novo</Button>
             </div>
@@ -153,9 +174,25 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-sm font-bold text-ink">Cockpit — {overview.period}</h2>
-                    <p className="text-[11px] text-ink-2">Atualizado em {new Date(overview.dataAsOf).toLocaleString('pt-BR')}</p>
+                    <p className="text-[11px] text-ink-2">
+                        {refreshing ? 'Atualizando…' : `Atualizado em ${new Date(overview.dataAsOf).toLocaleString('pt-BR')}`}
+                    </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant={autoRefresh ? 'secondary' : 'ghost'}
+                        size="sm"
+                        aria-pressed={autoRefresh}
+                        onClick={() => setAutoRefresh((v) => !v)}
+                        title="Atualiza o cockpit a cada 3 minutos automaticamente"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                        {autoRefresh ? 'Auto-atualização ligada' : 'Auto-atualização'}
+                    </Button>
+                    <Button variant="ghost" size="sm" disabled={loading || refreshing} onClick={() => void load()} title="Atualizar agora">
+                        <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span className="sr-only">Atualizar agora</span>
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowTvMode(true)}>
                         <MonitorPlay className="w-3.5 h-3.5 mr-1.5 text-brand" /> Modo TV
                     </Button>
@@ -179,6 +216,13 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                         <Download className="w-3.5 h-3.5 mr-1.5" /> {exporting === 'html' ? 'Exportando…' : 'Relatório HTML'}
                     </Button>
                 </div>
+            </div>
+
+            <ForecastRangeCard overview={overview} trends={trends} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <MentorPlaybookCard filter={filter} />
+                <DecisionCenterPanel filter={filter} onOpenDrillDown={setDrillDown} />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -298,7 +342,7 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                                 <div className="rounded-xl border border-line bg-surface px-3 py-2 min-w-[128px]">
                                     <p className="text-[10px] uppercase tracking-wide text-ink-2 font-semibold">{point.label}</p>
                                     <p className="text-lg font-black text-ink [font-variant-numeric:tabular-nums]">{point.current}</p>
-                                    <p className={`text-[10px] ${point.trend === 'up' ? 'text-[#0ca30c]' : point.trend === 'down' ? 'text-[#d03b3b]' : 'text-ink-2'}`}>
+                                    <p className={`text-[10px] ${point.trend === 'up' ? 'text-[#0ca30c]' : point.trend === 'down' ? 'text-critical' : 'text-ink-2'}`}>
                                         {point.trend === 'up' ? '↑' : point.trend === 'down' ? '↓' : '→'} vs. {point.previousWeek} sem. anterior
                                     </p>
                                 </div>
@@ -308,8 +352,6 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                     </div>
                 </div>
             )}
-
-            <AiExecutiveSummaryCard filter={filter} />
 
             <AlertsPanel alerts={alerts} loading={false} />
 

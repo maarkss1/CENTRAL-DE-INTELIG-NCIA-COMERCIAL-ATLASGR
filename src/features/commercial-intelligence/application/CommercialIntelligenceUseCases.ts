@@ -138,6 +138,11 @@ interface ScoredDeal {
     agingDays: number;
 }
 
+/** Valor em risco = valor do negócio × probabilidade de NÃO fechar (Centro de Decisão). */
+function riskImpactValue(s: ScoredDeal): number {
+    return s.deal.amount * (1 - s.forecast.probability / 100);
+}
+
 /** Filtro comum a quase todo relatório: só o funil "Negócio". `findDeals` já devolve só esse funil (ver o repositório Prisma). */
 export class CommercialIntelligenceUseCases {
     constructor(private repository: CommercialIntelligenceRepository) {}
@@ -1073,10 +1078,21 @@ export class CommercialIntelligenceUseCases {
         const { scored } = await this.loadScoredDeals(organizationId, now);
         let rows = this.applyScope(scored, { month: query.month, owner: query.owner, product: undefined, source: undefined, icp: undefined }).filter((s) => isDealOpen(s.deal));
 
+        if (query.ids && query.ids.length > 0) {
+            const idSet = new Set(query.ids);
+            rows = rows.filter((s) => idSet.has(s.deal.id));
+        }
         if (query.tier) rows = rows.filter((s) => s.forecast.tier === query.tier);
         if (query.stageId) rows = rows.filter((s) => s.deal.pipelineStageId === query.stageId);
         if (query.agingCritical) rows = rows.filter((s) => s.agingDays > STAGE_AGING_CRITICAL_DAYS);
         if (query.missingNextAction) rows = rows.filter((s) => !s.deal.nextAction);
+
+        // Centro de Decisão: ordena por "valor em risco" (amount × probabilidade de NÃO fechar),
+        // reaproveitando o mesmo `forecast.probability` explicável já usado no drill-down padrão —
+        // nenhum sinal novo, só uma ordenação alternativa do mesmo dado.
+        if (query.sort === 'riskImpact') {
+            rows = [...rows].sort((a, b) => riskImpactValue(b) - riskImpactValue(a));
+        }
 
         const total = rows.length;
         const offset = query.offset ?? 0;

@@ -17,7 +17,7 @@ interface KpiTileProps {
  * visual #3/#4 da constituição). `onClick` opcional habilita drill-down (seção 29).
  */
 export function KpiTile({ label, value, hint, tone = 'neutral', metricKey, onClick }: KpiTileProps) {
-    const toneClass = tone === 'good' ? 'text-[#0ca30c]' : tone === 'critical' ? 'text-[#d03b3b]' : 'text-ink';
+    const toneClass = tone === 'good' ? 'text-[#0ca30c]' : tone === 'critical' ? 'text-critical' : 'text-ink';
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">

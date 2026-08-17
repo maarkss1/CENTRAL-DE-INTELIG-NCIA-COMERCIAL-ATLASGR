@@ -61,5 +61,8 @@ router.put('/goals', (req, res, next) => resolve().putGoal(req, res, next));
 // rotas GET acima.
 router.post('/ai/executive-summary', aiLimiter, (req, res, next) => resolve().postAiExecutiveSummary(req, res, next));
 router.post('/ai/bitrix-note', aiLimiter, (req, res, next) => resolve().postAiBitrixNote(req, res, next));
+// Mentor Comercial — playbook de recomendações priorizadas (mesmo desenho de custo/efeito
+// colateral dos 2 endpoints de IA acima: `aiLimiter` dedicado, nunca disparado sem clique explícito).
+router.post('/ai/mentor-playbook', aiLimiter, (req, res, next) => resolve().postAiMentorPlaybook(req, res, next));
 
 export const commercialIntelligenceRoutes = router;

@@ -446,8 +446,73 @@ export interface DealDrillDownQuery {
     stageId?: string;
     agingCritical?: boolean;
     missingNextAction?: boolean;
+    /** Restringe aos IDs informados (`Lead.id`) — usado por CTAs que já sabem exatamente qual negócio abrir (Centro de Decisão, recomendações do Mentor), em vez de reaproveitar um filtro amplo que poderia não incluir o negócio certo. */
+    ids?: string[];
     limit?: number;
     offset?: number;
+    /**
+     * `'riskImpact'` ordena por valor em risco (`amount * (1 - probabilidade ponderada/100)`)
+     * decrescente — base do Centro de Decisão. `undefined`/`'recent'` preserva a ordenação padrão
+     * já existente (nunca muda o comportamento de quem já chama este endpoint sem o parâmetro).
+     */
+    sort?: 'recent' | 'riskImpact';
+}
+
+// ─── Projeção Estatística por Cenário / Previsor (seção nova) ───────────────
+
+/**
+ * Um cenário da faixa de previsão — nunca um número novo calculado aqui, sempre uma soma de campos
+ * que já existem em `ExecutiveOverview` (ver `application/predictiveForecast.ts`). `gapToGoal` segue
+ * a mesma regra de "nunca negativo fabricado" de `ExecutiveOverview.gapForecast`/`gapCommit`.
+ */
+export interface ForecastScenario {
+    label: string;
+    amount: number;
+    /** Meta − cenário, nunca negativo. `null` sem meta cadastrada. */
+    gapToGoal: number | null;
+}
+
+export interface ForecastRange {
+    conservative: ForecastScenario;
+    likely: ForecastScenario;
+    optimistic: ForecastScenario;
+    currency: string;
+}
+
+export type TrendDirection = 'melhorando' | 'estavel' | 'piorando';
+
+/**
+ * Momentum do Win Rate ao longo dos últimos meses com amostra suficiente (`HistoricalTrendsReport`)
+ * — não uma previsão de ML, apenas comparação explícita do último ponto contra a média dos
+ * anteriores, com limiar documentado em `predictiveForecast.ts`.
+ */
+export interface TrendMomentum {
+    direction: TrendDirection;
+    latestWinRate: number;
+    previousAverageWinRate: number;
+    deltaPercentagePoints: number;
+}
+
+// ─── Mentor Comercial por IA (playbook de recomendações) ────────────────────
+
+export type MentorRecommendationPriority = 'alta' | 'media' | 'baixa';
+
+export interface MentorRecommendation {
+    priority: MentorRecommendationPriority;
+    title: string;
+    rationale: string;
+    suggestedAction: string;
+    /** IDs de `Lead` relacionados (quando aplicável) — habilita drill-down direto na UI. */
+    relatedDealIds: string[];
+}
+
+export interface MentorPlaybookResult {
+    recommendations: MentorRecommendation[];
+    /** `'ai'` quando gerado pelo modelo; `'fallback'` quando a IA falhou/retornou algo não
+     * parseável e as recomendações foram derivadas deterministicamente de `alerts`/negócios em
+     * risco — a UI precisa rotular a origem, nunca apresentar fallback como se fosse IA. */
+    source: 'ai' | 'fallback';
+    generatedAt: string;
 }
 
 // ─── Exportações (HTML/CSV/JSON/Relatório Executivo) ────────────────────────

@@ -17,7 +17,7 @@ const IMPACT_LABEL: Record<'alto' | 'medio' | 'baixo', string> = { alto: 'Alto i
 const CLASSIFICATION_STYLE: Record<'saudavel' | 'atencao' | 'critico', string> = {
     saudavel: 'text-[#0ca30c] bg-[#0ca30c]/70',
     atencao: 'text-[#b8860b] bg-[#b8860b]/70',
-    critico: 'text-[#d03b3b] bg-[#d03b3b]/70',
+    critico: 'text-critical bg-critical/70',
 };
 
 /** "Confiabilidade dos Dados" (seção 5) — completude PONDERADA por impacto no forecast, distinta da completude bruta por campo abaixo. */
@@ -26,7 +26,7 @@ function DataReadinessCard({ data }: { data: DataReadinessScore }) {
         <Card padding="sm">
             <div className="flex items-center justify-between mb-1">
                 <h3 className="text-sm font-bold text-ink">Confiabilidade dos Dados</h3>
-                <span className={`text-lg font-black [font-variant-numeric:tabular-nums] ${data.classification === 'saudavel' ? 'text-[#0ca30c]' : data.classification === 'critico' ? 'text-[#d03b3b]' : data.classification === 'atencao' ? 'text-[#b8860b]' : 'text-ink'}`}>
+                <span className={`text-lg font-black [font-variant-numeric:tabular-nums] ${data.classification === 'saudavel' ? 'text-[#0ca30c]' : data.classification === 'critico' ? 'text-critical' : data.classification === 'atencao' ? 'text-[#b8860b]' : 'text-ink'}`}>
                     {formatPercent(data.overallScore)}
                 </span>
             </div>
@@ -102,7 +102,7 @@ function BitrixSyncCard({ data }: { data: CrmQualityIndex['bitrixSync'] }) {
                         <div key={f.leadId} className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 border border-line px-3 py-2">
                             <div className="min-w-0">
                                 <p className="text-xs font-bold text-ink truncate">{f.title || f.companyName || 'Negócio sem título'}</p>
-                                <p className="text-[11px] text-[#d03b3b] truncate">{f.error || 'Erro não especificado'}</p>
+                                <p className="text-[11px] text-critical truncate">{f.error || 'Erro não especificado'}</p>
                             </div>
                             <Button
                                 type="button"
@@ -141,7 +141,7 @@ export function CrmQualityTab({ filter }: { filter: CommercialFilter }) {
     }, [filter]);
 
     if (loading) return <Skeleton className="h-64 rounded-2xl" />;
-    if (error) return <div className="flex items-center gap-2 text-sm text-[#d03b3b] py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
+    if (error) return <div className="flex items-center gap-2 text-sm text-critical py-6"><AlertTriangle className="w-4 h-4" /> {error}</div>;
     if (!data) return null;
 
     return (
@@ -165,7 +165,7 @@ export function CrmQualityTab({ filter }: { filter: CommercialFilter }) {
                                     <div className="w-32 shrink-0 text-xs font-semibold text-ink">{field.label}</div>
                                     <div className="flex-1 h-5 rounded-md bg-surface-2 overflow-hidden">
                                         <div
-                                            className={`h-full rounded-md ${field.completeness != null && field.completeness >= 80 ? 'bg-[#0ca30c]/70' : field.completeness != null && field.completeness < 50 ? 'bg-[#d03b3b]/70' : 'bg-brand/70'}`}
+                                            className={`h-full rounded-md ${field.completeness != null && field.completeness >= 80 ? 'bg-[#0ca30c]/70' : field.completeness != null && field.completeness < 50 ? 'bg-critical/70' : 'bg-brand/70'}`}
                                             style={{ width: `${field.completeness ?? 0}%` }}
                                         />
                                     </div>

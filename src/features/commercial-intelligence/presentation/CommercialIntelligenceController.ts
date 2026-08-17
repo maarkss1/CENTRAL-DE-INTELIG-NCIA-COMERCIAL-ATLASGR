@@ -16,13 +16,23 @@ export function parseOwner(raw: unknown): string | undefined {
     return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 }
 
-function parseFilter(req: Request): CommercialIntelligenceFilter {
+/**
+ * Lê o filtro de `req.query` (rotas GET) com fallback para `req.body` (rotas POST de IA — ver
+ * `postAiExecutiveSummary`/`postAiMentorPlaybook` — o client posta o filtro como JSON body, nunca
+ * como query string; sem este fallback, todo endpoint de IA ignorava silenciosamente o mês/
+ * vendedor/produto/origem/ICP selecionado na tela e sempre respondia pelo mês atual).
+ */
+function pick(req: Request, key: string): unknown {
+    return (req.query as Record<string, unknown>)[key] ?? (req.body as Record<string, unknown> | undefined)?.[key];
+}
+
+export function parseFilter(req: Request): CommercialIntelligenceFilter {
     return {
-        month: parseMonth(req.query.month),
-        owner: parseOwner(req.query.owner),
-        product: typeof req.query.product === 'string' ? req.query.product.trim() : undefined,
-        source: typeof req.query.source === 'string' ? req.query.source.trim() : undefined,
-        icp: typeof req.query.icp === 'string' ? req.query.icp.trim() : undefined,
+        month: parseMonth(pick(req, 'month')),
+        owner: parseOwner(pick(req, 'owner')),
+        product: typeof pick(req, 'product') === 'string' ? (pick(req, 'product') as string).trim() : undefined,
+        source: typeof pick(req, 'source') === 'string' ? (pick(req, 'source') as string).trim() : undefined,
+        icp: typeof pick(req, 'icp') === 'string' ? (pick(req, 'icp') as string).trim() : undefined,
     };
 }
 
@@ -117,6 +127,9 @@ export class CommercialIntelligenceController {
             const { organizationId } = (req as AuthRequest).user;
             const tierRaw = req.query.tier;
             const tier = typeof tierRaw === 'string' && VALID_TIERS.includes(tierRaw as ForecastTier) ? (tierRaw as ForecastTier) : undefined;
+            const sort = req.query.sort === 'riskImpact' ? 'riskImpact' : undefined;
+            const idsRaw = req.query.ids;
+            const ids = typeof idsRaw === 'string' && idsRaw.trim() ? idsRaw.split(',').map((v) => v.trim()).filter(Boolean) : undefined;
             const query: DealDrillDownQuery = {
                 month: parseMonth(req.query.month),
                 owner: parseOwner(req.query.owner),
@@ -124,8 +137,10 @@ export class CommercialIntelligenceController {
                 stageId: typeof req.query.stageId === 'string' ? req.query.stageId : undefined,
                 agingCritical: req.query.agingCritical === 'true',
                 missingNextAction: req.query.missingNextAction === 'true',
+                ids,
                 limit: Number.isFinite(Number(req.query.limit)) ? Number(req.query.limit) : undefined,
                 offset: Number.isFinite(Number(req.query.offset)) ? Number(req.query.offset) : undefined,
+                sort,
             };
             const data = await this.useCases.dealsDrillDown(organizationId, query);
             res.json({ success: true, data });
@@ -208,6 +223,16 @@ export class CommercialIntelligenceController {
         try {
             const { organizationId } = (req as AuthRequest).user;
             const data = await this.aiService.generateExecutiveSummary(organizationId, parseFilter(req));
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    postAiMentorPlaybook = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId } = (req as AuthRequest).user;
+            const data = await this.aiService.generateMentorPlaybook(organizationId, parseFilter(req));
             res.json({ success: true, data });
         } catch (error) {
             next(error);

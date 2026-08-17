@@ -3,7 +3,7 @@ import { Card } from '../../../components/ui/Card';
 import type { ExecutiveAlert } from '../commercialIntelligence.api';
 
 const SEVERITY_STYLE: Record<ExecutiveAlert['severity'], { icon: typeof AlertTriangle; className: string }> = {
-    critical: { icon: AlertTriangle, className: 'text-[#d03b3b] bg-[#d03b3b]/10 border-[#d03b3b]/20' },
+    critical: { icon: AlertTriangle, className: 'text-critical bg-critical/10 border-critical/20' },
     warning: { icon: AlertCircle, className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
     info: { icon: Info, className: 'text-info bg-info/10 border-info/20' },
     positive: { icon: CheckCircle2, className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
