@@ -1,0 +1,106 @@
+name: Backup de produção (agendado)
+
+# Fase Final 3 (SRE, .agents/runs/final-fase-3.md): P0 encontrado nessa fase — o banco de produção
+# (Supabase, plano free da organização) não tem backup automático nem PITR gerenciado, e nenhuma
+# automação deste repositório apontava para produção. Este workflow fecha essa lacuna com um
+# pipeline próprio: dump diário do Postgres real, criptografado, enviado para um bucket R2
+# separado do repositório (nunca versionado em git — AGENTS.md → "Segurança e higiene").
+#
+# Não roda em push/PR de propósito — é um job agendado, não faz parte do gate de release.
+#
+# Papel de banco dedicado (`prospector_backup`): somente leitura, BYPASSRLS (necessário para um
+# dump completo de todos os tenants — diferente do papel `prospector_app` da aplicação, que nunca
+# tem BYPASSRLS), connection limit 3. Criado nesta fase, comentário no próprio papel documenta o
+# propósito (`COMMENT ON ROLE`). Rotacionar a senha (`ALTER ROLE prospector_backup PASSWORD ...`)
+# e atualizar o secret BACKUP_DATABASE_URL se este secret for exposto.
+
+on:
+  schedule:
+    # Diário, 05:00 UTC (02:00 America/Sao_Paulo) — antes do horário comercial, fora da janela do
+    # scan semanal do Trivy (segunda 06:00 UTC) para não competir por runner.
+    - cron: '0 5 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    name: Dump + upload criptografado
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Instalar postgresql-client 17 (mesma major do Postgres de produção)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client-17
+
+      - name: Dump do banco de produção (papel somente-leitura, BYPASSRLS)
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+          echo "BACKUP_FILE=prospectordb_prod_${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
+          pg_dump "$BACKUP_DATABASE_URL" --no-owner --no-acl | gzip -9 > "prospectordb_prod_${TIMESTAMP}.sql.gz"
+          ls -la "prospectordb_prod_${TIMESTAMP}.sql.gz"
+
+      - name: Criptografar o dump (GPG simétrico) antes de sair do runner
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_ENCRYPTION_PASSPHRASE" \
+            --output "${BACKUP_FILE}.gpg" "$BACKUP_FILE"
+          rm -f "$BACKUP_FILE"
+          ls -la "${BACKUP_FILE}.gpg"
+
+      - name: Upload para Cloudflare R2 (S3-compatível)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 cp "${BACKUP_FILE}.gpg" "s3://${R2_BUCKET}/${BACKUP_FILE}.gpg" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+      - name: Retenção — remover backups com mais de 30 dias
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          CUTOFF="$(date -u -d '30 days ago' +%Y-%m-%d)"
+          aws s3api list-objects-v2 --bucket "$R2_BUCKET" --endpoint-url "$ENDPOINT" \
+            --query "Contents[?LastModified<='${CUTOFF}'].Key" --output text | tr '\t' '\n' | \
+          while read -r KEY; do
+            if [ -n "$KEY" ] && [ "$KEY" != "None" ]; then
+              echo "Removendo backup expirado: $KEY"
+              aws s3 rm "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$ENDPOINT"
+            fi
+          done
+
+      - name: Confirmar backup do dia presente no bucket (sanity check, não é teste de restore)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          aws s3 ls "s3://${R2_BUCKET}/${BACKUP_FILE}.gpg" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "### Backup de produção" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Arquivo: \`${BACKUP_FILE}.gpg\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Confirmado no bucket \`${R2_BUCKET}\` em $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Sem Alertmanager configurado (débito já documentado em infrastructure/observability/
+      # RUNBOOK.md/alert.rules.yml) — se este job falhar, o GitHub já notifica por e-mail/UI quem
+      # tem acesso ao repositório (notificação nativa de workflow run falho), mas não há canal
+      # dedicado (Slack/PagerDuty). Mesma lacuna já registrada na Fase Final 3, não nova aqui.

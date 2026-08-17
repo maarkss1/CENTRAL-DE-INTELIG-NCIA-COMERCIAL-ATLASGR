@@ -295,3 +295,48 @@ Duas rotas possíveis (custo/arquitetura, não decido isso sozinho):
 Depois de uma das duas rotas ser executada: confirmar um backup real de produção existe e testar
 esse backup específico com um restore real (não só o ambiente isolado desta rodada), então reabrir
 esta fase para `APROVADA`.
+
+## 10. Pipeline próprio entregue (2026-08-17, mesma sessão — decisão do dono: rota 2)
+
+O dono do repositório escolheu a rota 2 (pipeline de backup próprio, não upgrade de plano
+Supabase). Entregue nesta sessão:
+
+1. **Papel de banco dedicado** `prospector_backup` criado no Postgres de produção real (via MCP
+   Supabase, `execute_sql`): `LOGIN`, `NOSUPERUSER`, `NOCREATEDB`, `NOCREATEROLE`,
+   `NOREPLICATION`, **`BYPASSRLS`** (necessário para o dump capturar todos os tenants — deliberado
+   e diferente do papel `prospector_app` da aplicação, que nunca tem `BYPASSRLS`),
+   `CONNECTION LIMIT 3`. `GRANT SELECT` em todas as tabelas existentes +
+   `ALTER DEFAULT PRIVILEGES` para tabelas futuras. Comentário no próprio papel (`COMMENT ON
+   ROLE`) documenta o propósito e a instrução de rotação. Confirmado via `pg_roles`
+   (`rolcanlogin=true`, `rolbypassrls=true`, `rolconnlimit=3`).
+2. **Workflow** `.github/workflows/backup-production.yml`: `pg_dump` diário (05:00 UTC) contra
+   produção → `gzip` → criptografia GPG simétrica (AES256) antes de sair do runner → upload para
+   bucket Cloudflare R2 dedicado (S3-compatível) → retenção de 30 dias aplicada pelo próprio
+   workflow. `workflow_dispatch` habilitado para rodar sob demanda. YAML validado sintaticamente.
+3. **`docs/SRE.md`** atualizado (seção 4) refletindo o mecanismo real em vez da meta aspiracional
+   anterior.
+
+**Não executado nesta sessão, depende de ação do dono do repositório** (fora do alcance de
+qualquer ferramenta disponível aqui):
+- Habilitar R2 no dashboard da Cloudflare (a API retorna `403 — Please enable R2 through the
+  Cloudflare Dashboard`, confirmado tentando `r2_buckets_list`/`r2_bucket_create` nesta sessão —
+  não é algo que a API permite ativar).
+- Depois de habilitado, eu crio o bucket via API (`r2_bucket_create`, já disponível nesta sessão)
+  — nome planejado: `prospector-atlas-backups`.
+- Criar um R2 API Token (Cloudflare dashboard → R2 → "Manage R2 API Tokens" → permissão
+  "Object Read & Write") para obter `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` — não exposto por
+  nenhuma ferramenta disponível nesta sessão, só pelo dashboard.
+- Adicionar os 6 secrets no GitHub (repositório → Settings → Secrets and variables → Actions):
+  `BACKUP_DATABASE_URL`, `BACKUP_ENCRYPTION_PASSPHRASE`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+  `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` — os dois primeiros valores foram gerados nesta sessão e
+  entregues ao dono diretamente no chat (nunca escritos em nenhum arquivo deste repositório, mesmo
+  padrão já usado para a senha do `prospector_app` em `docs/deploy/producao.md`).
+
+**Teste obrigatório "backup → restore → aplicação lê dados esperados" contra o backup real de
+produção**: ainda não executável — depende da primeira execução bem-sucedida do workflow acima
+(que por sua vez depende dos secrets). O ciclo mecânico já foi provado em ambiente isolado (§2.2);
+falta a prova final com o backup real gerado pela automação de produção, depois que o dono
+concluir a ativação.
+
+**Esta fase permanece REPROVADA até essa prova final acontecer** — o pipeline pronto, mas ainda
+inativo, é um passo real de fechamento do P0, não o fechamento em si.
