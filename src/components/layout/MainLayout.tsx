@@ -62,10 +62,10 @@ export function MainLayout({ children }: MainLayoutProps) {
                     mobileOpen={mobileNavOpen}
                     onCloseMobile={() => setMobileNavOpen(false)}
                 />
-                {/* Backdrop da navegação mobile — some em telas lg+, onde a Sidebar é estática */}
+                {/* Backdrop da navegação mobile — some em telas md+, onde a Sidebar é estática */}
                 {mobileNavOpen && (
                     <div
-                        className="fixed inset-0 z-30 bg-ink/50 backdrop-blur-sm lg:hidden"
+                        className="fixed inset-0 z-30 bg-ink/50 backdrop-blur-sm md:hidden"
                         onClick={() => setMobileNavOpen(false)}
                         aria-hidden="true"
                     />
