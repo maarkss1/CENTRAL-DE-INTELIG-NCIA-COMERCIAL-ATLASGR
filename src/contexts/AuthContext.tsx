@@ -39,7 +39,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const ROLE_TITLES: Record<Role, string> = {
   ADMIN: 'Administrador',
   GESTOR: 'Gestor',
-  VENDEDOR: 'Vendedor',
+  CLOSER: 'Closer',
+  SDR: 'SDR',
   VISUALIZADOR: 'Visualizador',
 };
 
@@ -50,7 +51,8 @@ const ROLE_TITLES: Record<Role, string> = {
 const ROLE_PERMISSIONS: Record<Role, string[]> = {
   ADMIN: ['crm.read', 'crm.write', 'crm.delete', 'settings.manage', 'users.manage', 'billing.manage'],
   GESTOR: ['crm.read', 'crm.write', 'crm.delete'],
-  VENDEDOR: ['crm.read', 'crm.write'],
+  CLOSER: ['crm.read', 'crm.write'],
+  SDR: ['crm.read', 'crm.write'],
   VISUALIZADOR: ['crm.read'],
 };
 

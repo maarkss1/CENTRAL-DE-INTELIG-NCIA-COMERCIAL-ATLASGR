@@ -22,12 +22,15 @@
  * verdade, sem criar um terceiro sistema).
  */
 
-export type Role = 'ADMIN' | 'GESTOR' | 'VENDEDOR' | 'VISUALIZADOR';
+import { UserRole } from '@prisma/client';
+
+export type Role = UserRole;
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
     ADMIN: 100,
     GESTOR: 75,
-    VENDEDOR: 50,
+    CLOSER: 50,
+    SDR: 40,
     VISUALIZADOR: 10,
 };
 
