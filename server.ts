@@ -461,24 +461,27 @@ async function startServer() {
         logger.info({ port: PORT, env: env.NODE_ENV }, `Server running on http://localhost:${PORT}`);
     });
 
-    // Gated por ENABLE_QUEUES: um BullMQ Worker (diferente de uma Queue) conecta no Redis
-    // avidamente ao ser criado — sem Redis disponível, isso derruba o processo com um
-    // AggregateError [ECONNREFUSED] não tratado em vez de degradar como o restante da app.
-    const leadsWorker = queuesEnabled ? createLeadsWorker() : null;
-    const agentWorker = queuesEnabled ? createAgentWorker() : null;
-    const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
-    const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
-    const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
-    const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
-    const execSummaryWorker = queuesEnabled ? createExecutiveSummaryWorker() : null;
-    const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
-    const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
-    const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
-    const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
+    // Gated por ENABLE_EMBEDDED_WORKERS: um BullMQ Worker (diferente de uma Queue) conecta no Redis
+    // avidamente ao ser criado — sem Redis disponível, isso derruba o processo.
+    // Agora isolado: apenas criados no server.ts se explícito. Senão, eles rodam no worker.ts.
+    const embeddedWorkersEnabled = queuesEnabled && env.ENABLE_EMBEDDED_WORKERS;
+
+    const leadsWorker = embeddedWorkersEnabled ? createLeadsWorker() : null;
+    const agentWorker = embeddedWorkersEnabled ? createAgentWorker() : null;
+    const enrichmentWorker = embeddedWorkersEnabled ? createEnrichmentWorker() : null;
+    const whatsappSignalWorker = embeddedWorkersEnabled ? createWhatsAppSignalWorker() : null;
+    const bitrixSyncWorker = embeddedWorkersEnabled ? createBitrixSyncWorker() : null;
+    const followUpWorker = embeddedWorkersEnabled ? createFollowUpWorker() : null;
+    const execSummaryWorker = embeddedWorkersEnabled ? createExecutiveSummaryWorker() : null;
+    const deduplicationWorker = embeddedWorkersEnabled ? createDeduplicationWorker() : null;
+    const winLossWorker = embeddedWorkersEnabled ? createWinLossAnalysisWorker() : null;
+    const pdfWorker = embeddedWorkersEnabled ? createWeeklyPdfReportWorker() : null;
+    const autoAnonymizeWorker = embeddedWorkersEnabled ? createAutoAnonymizeWorker() : null;
+
     // Sem Redis, `.add()` chega a enfileirar o comando e falha ao dar baixa nas retries —
     // o próprio `.catch()` abaixo não é suficiente pra cobrir esse caminho interno do BullMQ,
     // que já causou uma promise rejection não tratada (derrubando o processo) mesmo com ele.
-    if (queuesEnabled) {
+    if (embeddedWorkersEnabled) {
         scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
         scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
         scheduleExecutiveSummaryJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de summary executivo'));
@@ -488,7 +491,7 @@ async function startServer() {
         scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
     }
 
-    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
+    const searchWorker = embeddedWorkersEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
     if (queuesEnabled && env.ENABLE_SEARCH) {
         initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
     }
@@ -501,7 +504,7 @@ async function startServer() {
     let swarmSchedulerWorker: ReturnType<typeof createSwarmSchedulerWorker> | null = null;
 
     enabledOrganizations().then((coldCallOrgs) => {
-        coldCallWorker = queuesEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
+        coldCallWorker = embeddedWorkersEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
         if (coldCallWorker) {
             scheduleColdCallCampaigns().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
@@ -510,7 +513,7 @@ async function startServer() {
     }).catch(() => null);
 
     swarmSchedulerEnabledOrganizations().then((swarmOrgs) => {
-        swarmSchedulerWorker = queuesEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
+        swarmSchedulerWorker = embeddedWorkersEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
         if (swarmSchedulerWorker) {
             scheduleSwarmScheduler().catch((err) =>
                 logger.error({ err }, 'Falha ao agendar o enxame autônomo'),

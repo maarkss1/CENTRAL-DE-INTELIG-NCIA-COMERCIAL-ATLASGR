@@ -1,4 +1,4 @@
-import makeWASocket, { useMultiFileAuthState as getMultiFileAuthState, DisconnectReason, Browsers, WASocket, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, Browsers, WASocket, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode';
 import pino from 'pino';
@@ -14,6 +14,7 @@ import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { isOptedOut } from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
+import { useRedisAuthState } from './useRedisAuthState.js';
 
 /** Mesmo teto usado em fetchLatestBaileysVersion — chamadas ao socket Baileys também podem
  * travar indefinidamente (mesma classe de bug já corrigida ali; ver comentário lá). */
@@ -97,11 +98,12 @@ export async function initWhatsApp(organizationId: string) {
     let sock: WASocket;
     let saveCreds: () => Promise<void>;
     try {
-        if (!fs.existsSync(authFolder)) {
-            fs.mkdirSync(authFolder, { recursive: true });
+        // Se ainda existir pasta de auth antiga local, apagamos pois agora usamos Redis
+        if (fs.existsSync(authFolder)) {
+            fs.rmSync(authFolder, { recursive: true, force: true });
         }
 
-        const authState = await getMultiFileAuthState(authFolder);
+        const authState = await useRedisAuthState(cacheConnection, organizationId);
         saveCreds = authState.saveCreds;
 
         // Sem isso, o socket usa a versão do WhatsApp Web fixada no pacote @whiskeysockets/baileys
@@ -158,8 +160,11 @@ export async function initWhatsApp(organizationId: string) {
                     });
                 }, delay);
             } else if (!shouldReconnect) {
-                // Se foi deslogado, limpa a pasta de auth deste tenant.
-                fs.rmSync(authFolder, { recursive: true, force: true });
+                // Se foi deslogado, limpa as chaves no Redis (prefixo wa-auth:orgId)
+                const keys = await cacheConnection.keys(`wa-auth:${organizationId}:*`);
+                if (keys.length > 0) {
+                    await cacheConnection.del(...keys);
+                }
             }
             whatsappEvents.emit('status', { organizationId, status: session.status });
         } else if (connection === 'open') {

@@ -205,6 +205,61 @@ export function SalesMethodologyStudio() {
             </span>
           </div>
 
+          {/* Quick Presets */}
+          <div className="flex flex-wrap gap-1.5 pb-2">
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'Diretor de Logística & Head de GR',
+                  companySegment: 'Transporte Rodoviário de Cargas / Operadores Logísticos',
+                  icpSize: 'Enterprise (+500 colaboradores)',
+                  techStack: 'TMS proprietário, rastreadores híbridos e ERP SAP/Totvs',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Falta de tratativa operacional com SLA em desvios de rota e ocorrências críticas',
+                  mainBenefit: 'Redução de sinistros e automação do compliance com seguradoras em tempo real',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              🚛 GR & Logística
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'Gerente de SSMA & Frotas',
+                  companySegment: 'Embarcadores Químicos e Distribuição Pesada',
+                  icpSize: 'Mid-Market (50 a 500 colaboradores)',
+                  techStack: 'Telemetria CAN e câmeras analógicas',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Risco de acidentes por fadiga/distração do condutor e passivos trabalhistas',
+                  mainBenefit: 'Videotelemetria com IA preventiva e redução de custo de sinistros/combustível',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              🛡️ SSMA & Frotas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  targetPersona: 'CFO / VP de Operações',
+                  companySegment: 'Grandes Redes de Varejo & E-commerce',
+                  icpSize: 'Enterprise (+500 colaboradores)',
+                  techStack: 'WMS, TMS e torres de monitoramento manuais',
+                  solutionName: brandInfo.name,
+                  mainPainPoint: 'Custo oculto de ociosidade, tempo de parada não justificado e falta de ROI claro',
+                  mainBenefit: 'Visibilidade unificada de custo por quilômetro e mitigação proativa de perdas',
+                });
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-lg bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
+            >
+              📈 C-Level & ROI
+            </button>
+          </div>
+
           <div className="space-y-3.5 text-xs">
             <div>
               <label htmlFor="sales-target-persona" className="font-bold text-ink-2 block mb-1">Cargo da Persona Target (Decisor C-Level/VP)</label>
