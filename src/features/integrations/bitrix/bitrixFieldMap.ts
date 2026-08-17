@@ -92,7 +92,7 @@ export const BITRIX_FIELD_MAP: BitrixFieldMapping[] = [
     { label: 'Origem', type: 'enumeration', target: { kind: 'lead', field: 'source' }, leadCode: 'UF_CRM_1750448346', dealCode: 'UF_CRM_6855C08ACB72B' },
     { label: 'Temperatura', type: 'enumeration', target: { kind: 'lead', field: 'temperature' }, leadCode: 'UF_CRM_1785162221346', dealCode: 'UF_CRM_1784922718473' },
 
-    // Achado em public/tools/extrator-bitrix.html (ferramenta de referência standalone) — não
+    // Achado em public/tools/portal-comercial (ferramenta de referência standalone, ex-extrator-bitrix.html) — não
     // fazia parte do levantamento original de 2026-08-05 que gerou o resto deste mapa. Só código
     // Lead conhecido; nenhum equivalente Deal foi identificado até agora.
     { label: 'Data do contrato assinado', type: 'date', target: { kind: 'lead', field: 'contractSignedDate' }, leadCode: 'UF_CRM_1770928318695', dealCode: null },

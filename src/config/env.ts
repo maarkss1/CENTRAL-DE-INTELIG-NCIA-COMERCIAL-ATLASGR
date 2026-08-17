@@ -61,6 +61,7 @@ const envSchema = z.object({
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ENABLE_EMBEDDED_WORKERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
 
   // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
   // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook

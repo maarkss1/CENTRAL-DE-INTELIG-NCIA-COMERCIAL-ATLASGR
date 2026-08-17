@@ -14,6 +14,16 @@ Dois webhooks distintos estiveram versionados em texto claro (`connections.ts`,
 `extrator_bitrix (1).html`), remediados no working tree pelo commit `40a99c31`, mas recuperáveis no
 histórico do git:
 
+**Atualização — Portal Comercial (`public/tools/portal-comercial/`):** a ferramenta de referência
+standalone que sucedeu `extrator-bitrix.html` oferece um botão opt-in "Salvar webhook neste
+navegador" (`js/bitrix-api.js`, `CHAVE_WEBHOOK_LOCAL`), que grava o webhook ofuscado (XOR
+reversível, não criptografia real) no `localStorage` do navegador de quem usar o botão. Isso é uma
+credencial persistida **fora** de qualquer inventário centralizado (não é `BitrixConnection` nem
+env var) — nenhum comando de servidor a alcança. Sempre que rotacionar um webhook, avise quem usa
+essa ferramenta para clicar em "Esquecer webhook" (ou usar o DevTools para limpar
+`atlas-extrator-bitrix-webhook` do `localStorage`) e colar a URL nova; não há como forçar essa
+limpeza remotamente.
+
 | Marca | Env var | URL exposta (padrão) |
 |---|---|---|
 | AtlasGR | `BITRIX24_WEBHOOK_URL` (ou legado `BITRIX_WEBHOOK_URL`) | `.../rest/450/…` |
@@ -117,7 +127,14 @@ Só recupere a URL antiga do histórico do git dentro de uma sessão privada, ex
 este teste — nunca cole em ticket/chat/log. Ver `DECIDE_GIT_HISTORY_REWRITE.md` para a decisão
 sobre remover essas URLs do histórico definitivamente.
 
-## Passo 6 — Registrar a rotação
+## Passo 6 — Avisar usuários do Portal Comercial (ferramenta standalone)
+
+Se algum operador comercial usa `public/tools/portal-comercial/` com o webhook salvo no navegador
+(botão "Salvar webhook"), avise-o para clicar em "Esquecer webhook" e colar a URL nova — ver nota
+no topo deste runbook. Isso não aparece em nenhum inventário de banco/env, então depende de aviso
+manual.
+
+## Passo 7 — Registrar a rotação
 
 Atualize `.agents/completion/01-bloqueadores.md` (linha "Rotacionar os 2 webhooks Bitrix24") com
 data, portais confirmados e se havia `BitrixConnection` adicional rotacionada além das env vars

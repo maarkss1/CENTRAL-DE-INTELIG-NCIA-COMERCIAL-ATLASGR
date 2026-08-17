@@ -183,11 +183,11 @@ function gerarCodigoPython(webhook, method, campos, filtro) {
 
   const codigo = `import os, json, csv, time, urllib.request, urllib.parse, urllib.error
 
-WEBHOOK_URL = os.environ.get("BITRIX_WEBHOOK_URL", "").rstrip("/")
+WEBHOOK_URL = os.environ.get("BITRIX24_WEBHOOK_URL", "").rstrip("/")
 if not WEBHOOK_URL:
-    raise SystemExit("Defina BITRIX_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
+    raise SystemExit("Defina BITRIX24_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
 if "/rest/" not in WEBHOOK_URL:
-    raise SystemExit("BITRIX_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
+    raise SystemExit("BITRIX24_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
 
 METHOD = "${method}"
 SELECT = [${camposPy}]

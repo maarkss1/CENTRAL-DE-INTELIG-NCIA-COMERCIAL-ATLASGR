@@ -37,7 +37,9 @@ menu — ele é a fonte de verdade textual para quem produz roteiro/inventário 
     - Automações
     - Consumo de IA
   - **Ferramentas** — link externo, fora da SPA
-    - Extrator Bitrix24 (`/tools/extrator-bitrix.html`, abre em nova aba)
+    - Portal Comercial Bitrix24 (`/tools/portal-comercial/index.html`, abre em nova aba — portal
+      multi-página com Home, Cockpit Executivo, Extrator, Forecast Semanal e SDR; substitui o
+      antigo `extrator-bitrix.html` de página única)
   - **Administração** — visível apenas para papel administrativo
     - Equipe
 

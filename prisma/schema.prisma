@@ -304,7 +304,7 @@ model Lead {
   // no nosso LeadStatus fixo.
   bitrixStageLabel   String?
   // Data de assinatura do contrato — UF_CRM_1770928318695 no objeto Lead do Bitrix (achado em
-  // public/tools/extrator-bitrix.html, fora do BITRIX_FIELD_MAP original). Não existe código
+  // public/tools/portal-comercial, ex-extrator-bitrix.html, fora do BITRIX_FIELD_MAP original). Não existe código
   // equivalente conhecido no objeto Deal.
   contractSignedDate DateTime?
 

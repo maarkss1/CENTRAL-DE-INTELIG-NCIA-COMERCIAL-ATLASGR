@@ -42,7 +42,7 @@ export function isExtractionEntity(value: unknown): value is BitrixExtractionEnt
 
 /**
  * Campos fixos devolvidos por `user.get` — não há metadados dinâmicos como nos objetos CRM. Lista
- * alinhada à ferramenta de referência (`public/tools/extrator-bitrix.html`,
+ * alinhada à ferramenta de referência (`public/tools/portal-comercial/js/config.js`,
  * `CAMPOS_USUARIO_COMPLETO`), citada como material de referência funcional pelo prompt do 06A —
  * mesmas seis entidades, mesmos métodos REST, mesmo campo de data por entidade e a mesma decisão
  * de não filtrar Usuários por período, confirmados independentemente por este serviço.

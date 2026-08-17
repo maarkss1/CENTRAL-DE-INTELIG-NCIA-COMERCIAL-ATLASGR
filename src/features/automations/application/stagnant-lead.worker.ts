@@ -4,7 +4,7 @@ import { logger } from '../../../lib/logger.js';
 import { prisma } from '../../../lib/prisma.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { automationEngine } from './../automation.engine.js';
-import { fromPrismaLeadStatus, toPrismaLeadStatus } from '../../../lib/enumMap.js';
+import { fromPrismaLeadStatus } from '../../../lib/enumMap.js';
 
 export const STAGNANT_LEAD_QUEUE_NAME = 'stagnant-lead-queue';
 

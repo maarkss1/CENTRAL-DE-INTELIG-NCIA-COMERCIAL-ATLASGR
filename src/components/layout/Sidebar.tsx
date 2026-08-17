@@ -86,9 +86,11 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     // Ferramenta estática (HTML/JS puro, sem passar pelo router da SPA) servida direto de
     // public/tools — roda 100% no navegador do usuário, direto contra o webhook Bitrix24 dele,
-    // por isso abre em nova aba em vez de navegar dentro do app.
+    // por isso abre em nova aba em vez de navegar dentro do app. Portal multi-página (Home,
+    // Cockpit Executivo, Extrator, Forecast Semanal, SDR) que substituiu o antigo
+    // extrator-bitrix.html de arquivo único — ver docs/security/runbooks/ROTATE_BITRIX24_WEBHOOKS.md.
     const externalTools = [
-        { label: 'Extrator Bitrix24', href: '/tools/extrator-bitrix.html', icon: <Download size={20} /> },
+        { label: 'Portal Comercial Bitrix24', href: '/tools/portal-comercial/index.html', icon: <Download size={20} /> },
     ];
 
     return (

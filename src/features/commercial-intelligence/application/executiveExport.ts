@@ -61,7 +61,7 @@ export function buildExecutiveExportRows(
     add(
         'Pipeline',
         'Dias úteis decorridos / total do mês',
-        creation.businessDaysTotal > 0 ? `${creation.businessDaysElapsed}/${creation.businessDaysTotal}` : null,
+        creation.totalBusinessDays > 0 ? `${creation.elapsedBusinessDays}/${creation.totalBusinessDays}` : null,
         'dias úteis'
     );
 

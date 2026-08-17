@@ -56,7 +56,7 @@ async function executarLoteExtracao() {
         : "Se o erro persistir, o motivo mais provável é bloqueio de CORS do Bitrix para chamadas feitas " +
           "de um arquivo HTML local (isso não é um erro no seu webhook). " +
           "Solução: copie o código Python equivalente e rode localmente — " +
-          "ele usa a mesma variável de ambiente BITRIX_WEBHOOK_URL dos outros " +
+          "ele usa a mesma variável de ambiente BITRIX24_WEBHOOK_URL dos outros " +
           "scripts deste projeto.") +
       (ctx.acumulado.length ? `\n\n${ctx.acumulado.length} registros já haviam sido extraídos antes do erro — clique em "Continuar extração" para tentar retomar de onde parou.` : "")
     );
@@ -485,7 +485,7 @@ function construirLinhaProduto(nomeCliente, negocio, p, camposAlvo) {
 // Gera, dentro da própria página (bloco "Equivalente em Python", passo 8), o
 // script que busca crm.deal.productrows.get + crm.company.get para os negócios
 // já extraídos — mesmo padrão de gerarCodigoPython(): lê o webhook de
-// BITRIX_WEBHOOK_URL, nunca embute o valor da chave no código gerado.
+// BITRIX24_WEBHOOK_URL, nunca embute o valor da chave no código gerado.
 function gerarCodigoPythonProdutos(negocios, campos) {
   const bloco = document.getElementById("bloco-python");
   bloco.classList.remove("oculto");
@@ -500,11 +500,11 @@ function gerarCodigoPythonProdutos(negocios, campos) {
 
   const codigo = `import os, json, csv, time, urllib.request, urllib.parse, urllib.error
 
-WEBHOOK_URL = os.environ.get("BITRIX_WEBHOOK_URL", "").rstrip("/")
+WEBHOOK_URL = os.environ.get("BITRIX24_WEBHOOK_URL", "").rstrip("/")
 if not WEBHOOK_URL:
-    raise SystemExit("Defina BITRIX_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
+    raise SystemExit("Defina BITRIX24_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
 if "/rest/" not in WEBHOOK_URL:
-    raise SystemExit("BITRIX_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
+    raise SystemExit("BITRIX24_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
 
 # Negócios extraídos na página (passo 6) no momento em que este código foi gerado.
 DEALS = [

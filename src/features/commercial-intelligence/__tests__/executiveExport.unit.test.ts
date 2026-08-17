@@ -33,6 +33,16 @@ const OVERVIEW: ExecutiveOverview = {
     coverage30: { coverage: null, coverageRecommended: 2, pipelineEligible: 0, remainingGoal: 0 },
     coverage60: { coverage: null, coverageRecommended: 2, pipelineEligible: 0, remainingGoal: 0 },
     coverage90: { coverage: null, coverageRecommended: 2, pipelineEligible: 0, remainingGoal: 0 },
+    coverageProtection: [],
+    previousPeriod: null,
+    forecastConfidence: {
+        score: null,
+        classification: null,
+        sampleSize: 0,
+        fieldCompletenessScore: null,
+        stageHistoryCoverage: null,
+        sampleSizePenaltyApplied: false,
+    },
     isEmpty: false,
     dataAsOf: NOW.toISOString(),
 };
@@ -45,6 +55,7 @@ const PERFORMANCE: PerformanceMetrics = {
     opportunities: { open: 8, createdInPeriod: 3, won: 1, lost: 1, advanced: 2, stalled: 1, eligible: 6, commit: 1, bestCase: 1, atRisk: 1 },
     averageTicket: { created: 25_000, open: 40_000, won: 80_000, lost: 5_000 },
     salesCycle: { meanDays: 26, medianDays: 26, sampleSize: 2 },
+    funnelHistoricalTrackingSince: null,
     funnel: [],
 };
 
@@ -57,9 +68,10 @@ const CREATION: PipelineCreation = {
     byOwner: [],
     pipelineNeeded: 240_000,
     creationCoverage: 0.5,
-    businessDaysElapsed: 10,
-    businessDaysTotal: 21,
-    expectedByNow: 114_285.71,
+    elapsedBusinessDays: 10,
+    totalBusinessDays: 21,
+    paceExpectedAmount: 114_285.71,
+    paceGapAmount: null,
     pacePercent: 105,
 };
 
