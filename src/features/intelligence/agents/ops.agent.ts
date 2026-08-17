@@ -29,7 +29,7 @@ let cachedModelWithTools: any = null;
 function getModelWithTools() {
     if (cachedModelWithTools) return cachedModelWithTools;
 
-    cachedModelWithTools = buildModelWithFallbackAndTools('llama3-8b-8192', tools);
+    cachedModelWithTools = buildModelWithFallbackAndTools('llama-3.1-8b-instant', tools);
     return cachedModelWithTools;
 }
 
