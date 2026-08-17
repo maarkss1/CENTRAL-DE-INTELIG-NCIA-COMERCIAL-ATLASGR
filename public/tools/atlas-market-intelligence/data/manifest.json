@@ -50,7 +50,7 @@
       "status": "NAO_DISPONIVEL",
       "source": "Receita Federal / Dados Abertos do CNPJ",
       "geography": "Estabelecimento -> Município",
-      "note": "ETL v0.1 existe, mas nenhum snapshot nacional atual agregado está versionado nesta branch."
+      "note": "ETL corrigido para o novo portal Nextcloud/SERPRO+ da Receita (arquivos.receitafederal.gov.br) e validado com uma amostra real de 1 arquivo (Estabelecimentos8.zip + Empresas1.zip) processada com sucesso. Snapshot nacional completo (10 arquivos Empresas + 10 Estabelecimentos) ainda não foi publicado; aguarda execução do workflow market-intelligence-cnpj.yml."
     },
     {
       "id": "mdfe",

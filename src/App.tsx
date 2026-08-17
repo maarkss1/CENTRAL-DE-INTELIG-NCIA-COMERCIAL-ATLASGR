@@ -48,7 +48,7 @@ const Settings = lazy(() => import('./features/settings/components/Settings').th
 const OnboardingTour = lazy(() => import('./features/onboarding/components/OnboardingTour').then(m => ({ default: m.OnboardingTour })));
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
-import { MarketIntelligence } from './pages/MarketIntelligence';
+const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
 import { Propostas } from './pages/Propostas';
 
 function PageFallback() {
