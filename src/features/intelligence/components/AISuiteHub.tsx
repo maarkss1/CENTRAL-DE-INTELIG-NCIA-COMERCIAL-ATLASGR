@@ -445,11 +445,10 @@ export function AISuiteHub() {
                         const Icon = cap.icon;
                         const isSelected = cap.id === selectedId;
                         return (
-                            <button
-                                type="button"
+                            <div
                                 key={cap.id}
                                 onClick={() => handleSelectCapability(cap)}
-                                className={`w-full text-left group p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                                className={`group p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
                                     isSelected
                                         ? `bg-surface shadow-md ${accent.border} ring-2 ring-primary/20`
                                         : `bg-surface/50 hover:bg-surface border-border/50 ${accent.hoverBorder}`
@@ -478,7 +477,7 @@ export function AISuiteHub() {
                                         </p>
                                     </div>
                                 </div>
-                            </button>
+                            </div>
                         );
                     })}
                 </div>
@@ -505,7 +504,7 @@ export function AISuiteHub() {
                             <Button
                                 onClick={handleRunCapability}
                                 disabled={isRunning}
-                                className="gap-2 shrink-0 font-semibold cursor-pointer"
+                                className="gap-2 shrink-0 font-semibold"
                             >
                                 {isRunning ? (
                                     <>
@@ -525,20 +524,19 @@ export function AISuiteHub() {
                             {/* Editor de Payload */}
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <label htmlFor="ai-suite-payload-input" className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                                    <label className="text-xs font-semibold text-ink flex items-center gap-1.5">
                                         <SlidersHorizontal className="w-3.5 h-3.5 text-ink-3" />
                                         Parâmetros de Entrada (JSON Payload):
                                     </label>
                                     <button
                                         type="button"
                                         onClick={() => setPayloadText(JSON.stringify(selectedCap.samplePayload, null, 2))}
-                                        className="text-xs text-primary hover:underline font-medium cursor-pointer"
+                                        className="text-xs text-primary hover:underline font-medium"
                                     >
                                         Restaurar Exemplo da AtlasGR
                                     </button>
                                 </div>
                                 <textarea
-                                    id="ai-suite-payload-input"
                                     value={payloadText}
                                     onChange={e => setPayloadText(e.target.value)}
                                     rows={6}
@@ -550,15 +548,15 @@ export function AISuiteHub() {
                             {/* Resultado da Execução */}
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                                    <label className="text-xs font-semibold text-ink flex items-center gap-1.5">
                                         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                                         Resultado do Processamento:
-                                    </span>
+                                    </label>
                                     {executionResult && (
                                         <button
                                             type="button"
                                             onClick={handleCopyResult}
-                                            className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 font-medium cursor-pointer"
+                                            className="text-xs text-ink-2 hover:text-ink flex items-center gap-1 font-medium"
                                         >
                                             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                                             {copied ? 'Copiado!' : 'Copiar Resposta'}

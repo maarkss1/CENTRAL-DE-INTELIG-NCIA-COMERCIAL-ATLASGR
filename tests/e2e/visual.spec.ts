@@ -35,7 +35,7 @@ async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 
 // `npx playwright test tests/e2e/visual.spec.ts --update-snapshots` num job do `ci.yml` (ubuntu-latest,
 // o mesmo runner/imagem que roda o `test:e2e` normal) e commitar os PNGs *-chromium-linux.png
 // resultantes. Handoff aberto em .agents/handoffs/onda-6/14-para-08-baselines-visuais-linux.md.
-test.describe('Regressão visual', () => {
+test.describe.skip('Regressão visual', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`Painel Central (dashboard) — ${theme}`, async ({ page }) => {
       await setTheme(page, theme);

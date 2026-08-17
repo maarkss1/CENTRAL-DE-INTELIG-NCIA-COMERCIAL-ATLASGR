@@ -77,41 +77,6 @@ export function B2BGenerator() {
                     </p>
                 </div>
 
-                {/* Quick Presets */}
-                <div className="relative z-10 max-w-4xl mx-auto mb-6 flex flex-wrap items-center justify-center gap-2">
-                    <span className="text-[11px] font-bold text-ink-2 uppercase tracking-wider mr-1">Exemplos Prontos:</span>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIcp('Diretor de Logística & Head de GR (Transportadoras de Carga Pesada)');
-                            setSolution('Torre de Gerenciamento de Risco e Tratativa Operacional de Exceções em Tempo Real');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🚛 Cargas Pesadas & GR
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIcp('Gerente de SSMA e Frotas (Embarcadores Químicos e Perigosos)');
-                            setSolution('Videotelemetria com IA, Monitoramento de Fadiga e Checklist Digital de Jornada');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🧪 Químicos & Fadiga
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setIcp('CFO e Diretor de Suprimentos (Distribuição e E-commerce)');
-                            setSolution('Redução de Custo de Ociosidade de Frota e Rastreabilidade End-to-End');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        📦 E-commerce & Ociosidade
-                    </button>
-                </div>
-
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
                     <div className="group relative">
                         <div className={`absolute inset-0 bg-gradient-to-r ${accent.gradient} opacity-0 group-hover:opacity-15 rounded-2xl blur-xl transition-opacity duration-500`}></div>

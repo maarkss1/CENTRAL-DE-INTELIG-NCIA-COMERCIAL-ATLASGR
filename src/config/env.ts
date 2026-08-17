@@ -56,10 +56,8 @@ const envSchema = z.object({
   BUG_REPORT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   JSON_BODY_LIMIT: z.string().default('2mb'),
   TRUST_PROXY: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  ENABLE_QUEUES: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
-  ENABLE_EMBEDDED_WORKERS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   EXPOSE_METRICS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  ENABLE_SEARCH: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),

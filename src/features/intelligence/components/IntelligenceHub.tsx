@@ -90,26 +90,9 @@ export function IntelligenceHub({ initialTab }: IntelligenceHubProps) {
     if (activeTab === null) {
         return (
             <div className="flex-1 overflow-y-auto bg-transparent p-6 md:p-8 space-y-6">
-                <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-line/60">
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hub de IA</h1>
-                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
-                                20 Motores Ativos
-                            </span>
-                        </div>
-                        <p className="text-sm text-ink-2">Orquestrador unificado de agentes autônomos, metodologias B2B e motores cognitivos sincronizados.</p>
-                    </div>
-                    <div className="flex items-center gap-3 bg-surface-2/80 backdrop-blur px-3.5 py-2 rounded-2xl border border-line text-xs text-ink-2 shadow-sm shrink-0">
-                        <div className="flex items-center gap-1.5 font-medium text-ink">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Sincronia Global
-                        </div>
-                        <div className="h-3.5 w-px bg-line"></div>
-                        <span className="hidden sm:inline">Groq + RAG + Multi-Search</span>
-                        <div className="h-3.5 w-px bg-line hidden sm:block"></div>
-                        <span className="text-brand font-medium">RLS Ativo</span>
-                    </div>
+                <header>
+                    <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hub de IA</h1>
+                    <p className="text-sm text-ink-2 mt-1">Escolha a ferramenta de IA que você quer usar.</p>
                 </header>
 
                 <motion.nav

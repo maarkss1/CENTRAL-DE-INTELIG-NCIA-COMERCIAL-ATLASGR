@@ -136,63 +136,6 @@ export function RobustScriptGenerator() {
                     </p>
                 </div>
 
-                {/* Quick Presets */}
-                <div className="relative z-10 max-w-5xl mx-auto mb-6 flex flex-wrap items-center justify-center gap-2">
-                    <span className="text-[11px] font-bold text-ink-2 uppercase tracking-wider mr-1">Presets Prontos:</span>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setLanguage('python');
-                            setPurpose('scraping');
-                            setFramework('native');
-                            setComplexity('production');
-                            setCustomContext('Extração assíncrona de CNPJs, razão social e situação cadastral com rate-limiting e rotação de headers.');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🐍 Scraping CNPJ Async
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setLanguage('typescript');
-                            setPurpose('b2b_agent');
-                            setFramework('langchain');
-                            setComplexity('production');
-                            setCustomContext('Agente SDR autônomo com LangGraph, qualificação BANT e disparos condicionais de e-mail/WhatsApp.');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🤖 SDR com LangGraph (TS)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setLanguage('powershell');
-                            setPurpose('cron_tasks');
-                            setFramework('powershell_mod');
-                            setComplexity('production');
-                            setCustomContext('Auditoria de endpoints de IA, health probe e rotação segura de credenciais com log JSON estruturado.');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🛡️ Health Probe (PowerShell)
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setLanguage('prompt');
-                            setPurpose('sdr_outreach');
-                            setFramework('native');
-                            setComplexity('production');
-                            setCustomContext('System Prompt para qualificação de risco logístico com zero alucinação e contrato JSON rígido de saída.');
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface text-ink-2 hover:text-ink border border-line transition-all cursor-pointer font-medium"
-                    >
-                        🎯 System Prompt SDR
-                    </button>
-                </div>
-
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-6">
                     
                     {/* Linguagem */}
@@ -201,9 +144,8 @@ export function RobustScriptGenerator() {
                             <Braces size={14} /> Stack Tecnológico / Linguagem
                         </p>
                         <button
-                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'language' ? null : 'language')}
-                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{selectedLangObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -214,13 +156,12 @@ export function RobustScriptGenerator() {
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {LANGUAGES.map(l => (
-                                        <button
-                                            type="button"
+                                        <div
                                             key={l.id} onClick={() => { setLanguage(l.id); setActiveDropdown(null); }}
-                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center text-left"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {l.label} {language === l.id && <Check size={16} className={accent.text} />}
-                                        </button>
+                                        </div>
                                     ))}
                                 </motion.div>
                             )}
@@ -233,9 +174,8 @@ export function RobustScriptGenerator() {
                             <Globe size={14} /> Vetor de Propósito / Funcionalidade
                         </p>
                         <button
-                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'purpose' ? null : 'purpose')}
-                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
+                            className={`w-full bg-transparent text-ink text-lg focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{selectedPurposeObj.title}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -246,16 +186,15 @@ export function RobustScriptGenerator() {
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden max-h-60 overflow-y-auto"
                                 >
                                     {PURPOSES.map(p => (
-                                        <button
-                                            type="button"
+                                        <div
                                             key={p.id} onClick={() => { setPurpose(p.id); setActiveDropdown(null); }}
-                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none text-left"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex flex-col gap-0.5 border-b border-line last:border-none"
                                         >
-                                            <div className="flex justify-between items-center font-bold text-ink w-full">
+                                            <div className="flex justify-between items-center font-bold text-ink">
                                                 {p.title} {purpose === p.id && <Check size={16} className={accent.text} />}
                                             </div>
                                             <span className="text-xs text-ink-2">{p.desc}</span>
-                                        </button>
+                                        </div>
                                     ))}
                                 </motion.div>
                             )}
@@ -268,9 +207,8 @@ export function RobustScriptGenerator() {
                             <Layers size={14} /> Abordagem & Framework
                         </p>
                         <button
-                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'framework' ? null : 'framework')}
-                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
+                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{selectedFrameworkObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -281,13 +219,12 @@ export function RobustScriptGenerator() {
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {FRAMEWORKS.map(f => (
-                                        <button
-                                            type="button"
+                                        <div
                                             key={f.id} onClick={() => { setFramework(f.id); setActiveDropdown(null); }}
-                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center text-left"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {f.label} {framework === f.id && <Check size={16} className={accent.text} />}
-                                        </button>
+                                        </div>
                                     ))}
                                 </motion.div>
                             )}
@@ -300,9 +237,8 @@ export function RobustScriptGenerator() {
                             <ShieldCheck size={14} /> Nível de Resiliência & Complexidade
                         </p>
                         <button
-                            type="button"
                             onClick={() => setActiveDropdown(activeDropdown === 'complexity' ? null : 'complexity')}
-                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors cursor-pointer`}
+                            className={`w-full bg-transparent text-ink text-sm focus:outline-none border-b border-line pb-2 flex items-center justify-between text-left ${accent.hoverBorder} transition-colors`}
                         >
                             <span className="truncate">{selectedComplexityObj.label}</span> <ChevronDown size={16} className="text-ink-2 shrink-0" />
                         </button>
@@ -313,13 +249,12 @@ export function RobustScriptGenerator() {
                                     className="absolute left-0 right-0 top-full mt-2 bg-surface border border-line shadow-2xl rounded-2xl z-50 overflow-hidden"
                                 >
                                     {COMPLEXITIES.map(c => (
-                                        <button
-                                            type="button"
+                                        <div
                                             key={c.id} onClick={() => { setComplexity(c.id); setActiveDropdown(null); }}
-                                            className="w-full px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center text-left"
+                                            className="px-5 py-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink cursor-pointer flex justify-between items-center"
                                         >
                                             {c.label} {complexity === c.id && <Check size={16} className={accent.text} />}
-                                        </button>
+                                        </div>
                                     ))}
                                 </motion.div>
                             )}

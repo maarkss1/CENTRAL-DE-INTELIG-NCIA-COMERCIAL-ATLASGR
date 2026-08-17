@@ -1,0 +1,49 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarcloud:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    env:
+      # if: não pode ler o contexto "secrets" diretamente (só env/vars/job/etc — ver
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#context-availability).
+      # Copiamos pra env no nível do job pra poder condicionar o step de scan abaixo.
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # Sem isso, src/config/env.ts (importado por src/lib/prisma.ts, que quase todo teste unitário
+      # acaba puxando) falha a validação do zod por falta de NODE_ENV e chama process.exit(1) — o
+      # que derruba o processo do Vitest inteiro antes de qualquer teste rodar. production.yaml já
+      # seta isso pro job build-and-test; este workflow ficou de fora dessa correção.
+      NODE_ENV: test
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Tests with Coverage
+        run: npm run test:unit -- --coverage
+
+      - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@ad8210318ac8bb816e41990d5af2b304f7a6c213 # master (snapshot fixado em SHA — política de branch protection exige commit SHA completo, não branch)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}

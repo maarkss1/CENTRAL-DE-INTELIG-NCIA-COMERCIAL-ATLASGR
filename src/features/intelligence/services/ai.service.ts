@@ -179,7 +179,6 @@ export interface GenerateContentOptions {
     personaFallback?: string;
     brandId?: 'atlasgr' | 'totaltrac';
     organizationId?: string;
-    refinementInstruction?: string;
 }
 
 /**
@@ -258,7 +257,6 @@ export class AIService {
         const userSections: string[] = [];
         if (extra?.tone) userSections.push(`Tom solicitado pelo usuário: ${extra.tone}`);
         if (extra?.objective) userSections.push(`Objetivo informado pelo usuário: ${extra.objective}`);
-        if (extra?.refinementInstruction) userSections.push(`REFINAMENTO ESTRATÉGICO ESPECÍFICO SOLICITADO: ${extra.refinementInstruction}`);
 
         const toolPrompt = isTotalTrac
             ? TOTALTRAC_TOOL_OVERRIDES[toolId] || TOOL_PROMPTS[toolId]

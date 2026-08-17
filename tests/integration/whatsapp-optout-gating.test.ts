@@ -56,13 +56,19 @@ const mockSocket = {
     sendMessage: vi.fn().mockResolvedValue(undefined),
 };
 
-vi.mock('@whiskeysockets/baileys', () => ({
-    default: vi.fn(() => mockSocket),
-    useMultiFileAuthState: vi.fn(async () => ({ state: {}, saveCreds: vi.fn() })),
-    fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1015901307], isLatest: true }),
-    DisconnectReason: { loggedOut: 401 },
-    Browsers: { macOS: () => ['Atlas', 'Desktop', '1.0'] },
-}));
+vi.mock('@whiskeysockets/baileys', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        default: vi.fn(() => mockSocket),
+        useMultiFileAuthState: vi.fn(async () => ({ state: {}, saveCreds: vi.fn() })),
+        fetchLatestBaileysVersion: vi.fn().mockResolvedValue({ version: [2, 3000, 1015901307], isLatest: true }),
+        DisconnectReason: { loggedOut: 401 },
+        Browsers: { macOS: () => ['Atlas', 'Desktop', '1.0'] },
+        initAuthCreds: vi.fn(() => ({})),
+        BufferJSON: { replacer: vi.fn(), reviver: vi.fn() }
+    };
+});
 
 import { prisma } from '../../src/lib/prisma';
 import { requestContext } from '../../src/lib/async-context';
