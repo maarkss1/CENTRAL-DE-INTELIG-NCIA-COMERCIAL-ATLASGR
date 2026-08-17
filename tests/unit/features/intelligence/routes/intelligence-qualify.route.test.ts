@@ -30,7 +30,7 @@ function buildApp() {
     app.use(express.json());
     app.use((req, _res, next) => {
         (req as unknown as { user: { id: string; organizationId: string; role: string } }).user = {
-            id: 'test-user', organizationId: 'org-1', role: 'VENDEDOR',
+            id: 'test-user', organizationId: 'org-1', role: 'SDR',
         };
         next();
     });

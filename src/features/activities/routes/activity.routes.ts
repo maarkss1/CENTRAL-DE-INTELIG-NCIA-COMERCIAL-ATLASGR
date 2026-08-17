@@ -6,7 +6,7 @@ import { activitySchema } from '../../../lib/zod.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 router.get('/', (req, res, next) =>
     container.resolve<ActivityController>('ActivityController').getActivities(req, res, next)

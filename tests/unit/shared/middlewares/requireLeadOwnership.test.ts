@@ -33,9 +33,29 @@ describe('requireLeadOwnership', () => {
         expect(lead.findFirst).not.toHaveBeenCalled();
     });
 
-    it('VENDEDOR dono por id (fluxo normal, LeadUseCases.createLead): passa', async () => {
+    it('CLOSER dono por id: passa (mesma checagem que SDR — regressão: `role !== \'VENDEDOR\'` deixava de aplicar a checagem para qualquer papel real após a migração de UserRole)', async () => {
         lead.findFirst.mockResolvedValue({ owner: 'user-1' });
-        const { req, res, next } = buildReqRes('VENDEDOR', 'user-1');
+        const { req, res, next } = buildReqRes('CLOSER', 'user-1');
+
+        await requireLeadOwnership()(req, res, next);
+
+        expect(next).toHaveBeenCalled();
+    });
+
+    it('CLOSER não dono: 403 — sem isto, CLOSER podia editar qualquer lead da organização', async () => {
+        lead.findFirst.mockResolvedValue({ owner: 'user-2' });
+        user.findUnique.mockResolvedValue({ name: 'Fulano da Silva' });
+        const { req, res, next } = buildReqRes('CLOSER', 'user-1');
+
+        await requireLeadOwnership()(req, res, next);
+
+        expect(next).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('SDR dono por id (fluxo normal, LeadUseCases.createLead): passa', async () => {
+        lead.findFirst.mockResolvedValue({ owner: 'user-1' });
+        const { req, res, next } = buildReqRes('SDR', 'user-1');
 
         await requireLeadOwnership()(req, res, next);
 
@@ -43,10 +63,10 @@ describe('requireLeadOwnership', () => {
         expect(res.status).not.toHaveBeenCalled();
     });
 
-    it('VENDEDOR dono por nome (lead importado do Bitrix, owner = User.name): passa via fallback', async () => {
+    it('SDR dono por nome (lead importado do Bitrix, owner = User.name): passa via fallback', async () => {
         lead.findFirst.mockResolvedValue({ owner: 'Fulano da Silva' });
         user.findUnique.mockResolvedValue({ name: 'Fulano da Silva' });
-        const { req, res, next } = buildReqRes('VENDEDOR', 'user-1');
+        const { req, res, next } = buildReqRes('SDR', 'user-1');
 
         await requireLeadOwnership()(req, res, next);
 
@@ -54,10 +74,10 @@ describe('requireLeadOwnership', () => {
         expect(user.findUnique).toHaveBeenCalledWith({ where: { id: 'user-1' }, select: { name: true } });
     });
 
-    it('VENDEDOR não dono (nem por id, nem por nome): 403, sem mascarar como sucesso', async () => {
+    it('SDR não dono (nem por id, nem por nome): 403, sem mascarar como sucesso', async () => {
         lead.findFirst.mockResolvedValue({ owner: 'user-2' });
         user.findUnique.mockResolvedValue({ name: 'Fulano da Silva' });
-        const { req, res, next } = buildReqRes('VENDEDOR', 'user-1');
+        const { req, res, next } = buildReqRes('SDR', 'user-1');
 
         await requireLeadOwnership()(req, res, next);
 
@@ -67,7 +87,7 @@ describe('requireLeadOwnership', () => {
 
     it('lead não encontrado: 404', async () => {
         lead.findFirst.mockResolvedValue(null);
-        const { req, res, next } = buildReqRes('VENDEDOR', 'user-1');
+        const { req, res, next } = buildReqRes('SDR', 'user-1');
 
         await requireLeadOwnership()(req, res, next);
 
@@ -78,7 +98,7 @@ describe('requireLeadOwnership', () => {
     it('fallback por nome nunca compara contra o nome de outra pessoa (só o do próprio usuário autenticado)', async () => {
         lead.findFirst.mockResolvedValue({ owner: 'Outra Pessoa' });
         user.findUnique.mockResolvedValue({ name: 'Fulano da Silva' });
-        const { req, res, next } = buildReqRes('VENDEDOR', 'user-1');
+        const { req, res, next } = buildReqRes('SDR', 'user-1');
 
         await requireLeadOwnership()(req, res, next);
 

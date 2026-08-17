@@ -62,7 +62,7 @@ describe('lgpd.routes — tenant vem só do usuário autenticado', () => {
 });
 
 describe('lgpd.routes — RBAC na exclusão irreversível de titular', () => {
-    it('bloqueia VENDEDOR/VISUALIZADOR com 403 e não chama o service', async () => {
+    it('bloqueia CLOSER/SDR/VISUALIZADOR com 403 e não chama o service', async () => {
         const app = buildApp({ id: 'u1', organizationId: 'org-real', role: 'VISUALIZADOR' });
 
         const res = await request(app).delete('/api/lgpd/titular/contact-1');

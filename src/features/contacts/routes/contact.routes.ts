@@ -6,7 +6,7 @@ import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import { contactSchema } from '../../../lib/zod.js';
 
 const router = Router();
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 router.get('/', (req, res, next) =>
     container.resolve<ContactController>('ContactController').getContacts(req, res, next)

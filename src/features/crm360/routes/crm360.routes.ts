@@ -11,7 +11,7 @@ import {
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 router.get('/overview', (req, res, next) =>
     container.resolve<Crm360Controller>('Crm360Controller').getOverview(req, res, next)

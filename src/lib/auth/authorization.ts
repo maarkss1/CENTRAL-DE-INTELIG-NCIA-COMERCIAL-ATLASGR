@@ -4,7 +4,7 @@
  * Havia dois sistemas de autorização divergentes neste repositório (bloqueador prioritário
  * "RBAC duplicado ou divergente" — ver /AGENTS.md):
  *
- *  1. Um sistema de papéis hierárquico (ADMIN/GESTOR/VENDEDOR/VISUALIZADOR), antes duplicado
+ *  1. Um sistema de papéis hierárquico (ADMIN/GESTOR/CLOSER/SDR/VISUALIZADOR), antes duplicado
  *     entre `src/shared/middlewares/requireRole.ts` e `src/features/team/services/team.service.ts`,
  *     e efetivamente ligado a todas as rotas via `requireRole(...)` — alinhado ao valor default
  *     real da coluna `User.role` no schema Prisma ("VISUALIZADOR", ver prisma/schema.prisma) e ao
@@ -63,7 +63,7 @@ export function isKnownRole(role: string): role is Role {
  * Comercial Inteligente (Revenue Command Center executivo) — módulo restrito a quem toma decisão
  * de receita. O pedido de produto descreve os papéis permitidos como "Gestor/Diretor/CEO" e os
  * bloqueados como "SDR/vendedor/operador/financeiro/suporte/usuário comum/outros". Este sistema
- * de RBAC só tem os 4 papéis reais documentados acima — não existe DIRETOR, CEO, SDR, OPERADOR,
+ * de RBAC só tem os 5 papéis reais documentados acima — não existe DIRETOR, CEO, OPERADOR,
  * FINANCEIRO nem SUPORTE gravado em `User.role`, e criar um enum novo só para este módulo seria
  * reintroduzir exatamente o "terceiro sistema de permissões" que este arquivo já eliminou uma vez
  * (ver o comentário no topo do arquivo e o bloqueador "RBAC duplicado ou divergente" em
@@ -72,10 +72,10 @@ export function isKnownRole(role: string): role is Role {
  *   - GESTOR (75) e ADMIN (100) → autorizados. ADMIN é hoje também o papel do fundador da
  *     organização (ver `src/lib/auth.ts`) e cobre Diretor/CEO na ausência de um papel executivo
  *     próprio — é o nível mais alto da hierarquia existente, o análogo mais próximo disponível.
- *   - VENDEDOR (50), VISUALIZADOR (10) e qualquer papel desconhecido/UNVERIFIED (0) → bloqueados.
- *     Nenhum desses papéis distingue SDR de vendedor, nem operador/financeiro/suporte de
- *     visualizador — todos caem abaixo do nível mínimo exigido (GESTOR), que é o efeito prático
- *     pedido: só gestão para cima acessa o módulo.
+ *   - CLOSER (50), SDR (40), VISUALIZADOR (10) e qualquer papel desconhecido/UNVERIFIED (0) →
+ *     bloqueados. Nenhum desses papéis distingue operador/financeiro/suporte de visualizador —
+ *     todos caem abaixo do nível mínimo exigido (GESTOR), que é o efeito prático pedido: só gestão
+ *     para cima acessa o módulo.
  * `hasRequiredRole` é a MESMA função usada por todo o resto do RBAC — nenhuma lógica nova, só um
  * nome de domínio para o nível mínimo exigido por este módulo específico.
  */

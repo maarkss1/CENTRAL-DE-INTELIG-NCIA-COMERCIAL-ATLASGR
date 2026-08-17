@@ -145,7 +145,7 @@ describe('RBAC ponta-a-ponta em DELETE /api/leads/:id (TEST-006)', () => {
     expect(untouched?.organizationId).toBe(adminA.organizationId);
   });
 
-  it('(c-bis) GESTOR também tem role suficiente para deletar (hierarquia ADMIN > GESTOR > VENDEDOR > VISUALIZADOR)', async () => {
+  it('(c-bis) GESTOR também tem role suficiente para deletar (hierarquia ADMIN > GESTOR > CLOSER > SDR > VISUALIZADOR)', async () => {
     const gestor = await signUpRealUser('gestor-a', 'GESTOR');
     createdUserIds.push(gestor.userId);
     createdOrgIds.push(gestor.organizationId);

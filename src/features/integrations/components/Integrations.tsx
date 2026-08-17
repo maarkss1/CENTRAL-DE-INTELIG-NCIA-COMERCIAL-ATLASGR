@@ -16,7 +16,7 @@ import { hasRequiredRole } from '../../../lib/auth/authorization';
 export function Integrations() {
     // O backend já restringe conectar/desconectar/testar integração a ADMIN/GESTOR
     // (requireRole — ver auditoria de autorização da Onda 1); sem este espelho no front, um
-    // VISUALIZADOR ou VENDEDOR via os botões normalmente e só descobria que não tinha permissão
+    // VISUALIZADOR ou CLOSER/SDR via os botões normalmente e só descobria que não tinha permissão
     // quando a chamada voltava 403, sem nenhuma explicação na tela (achado do inventário de
     // navegação da Onda 1).
     const { currentUser } = useAuth();

@@ -32,7 +32,7 @@ describe('requireRole middleware', () => {
     });
 
     it('retorna 403 quando o papel do usuário não satisfaz a lista permitida (role negado)', () => {
-        const req = { user: { role: 'VENDEDOR' } } as unknown as Request;
+        const req = { user: { role: 'SDR' } } as unknown as Request;
         const res = makeRes();
         const next = vi.fn();
 

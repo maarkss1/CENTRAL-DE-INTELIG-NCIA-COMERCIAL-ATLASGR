@@ -69,7 +69,7 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
     app = buildCrmApp();
 
     adminA = await signUpRealUser('crmops-admin-a', 'ADMIN');
-    vendedorA = await signUpRealUser('crmops-vendedor-a', 'VENDEDOR');
+    vendedorA = await signUpRealUser('crmops-vendedor-a', 'SDR');
     viewerA = await signUpRealUser('crmops-viewer-a', 'VISUALIZADOR');
     adminB = await signUpRealUser('crmops-admin-b', 'ADMIN');
 
@@ -90,7 +90,7 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
   });
 
   describe('PUT /api/crm/records/:id/stage (mover lead entre estágios)', () => {
-    it('VENDEDOR (writeRoles) no próprio tenant: move de verdade (200)', async () => {
+    it('SDR (writeRoles) no próprio tenant: move de verdade (200)', async () => {
       const lead = await createLead(vendedorA.organizationId);
       const stageId = await firstDealStageId(vendedorA.organizationId);
 
@@ -212,9 +212,9 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('isolamento de tenant: VENDEDOR da Org B não consegue nem iniciar enriquecimento de lead da Org A', async () => {
+    it('isolamento de tenant: SDR da Org B não consegue nem iniciar enriquecimento de lead da Org A', async () => {
       const leadFromOrgA = await createLead(adminA.organizationId);
-      const vendedorB = await signUpRealUser('crmops-vendedor-b', 'VENDEDOR');
+      const vendedorB = await signUpRealUser('crmops-vendedor-b', 'SDR');
       createdUserIds.push(vendedorB.userId);
       createdOrgIds.push(vendedorB.organizationId);
 
@@ -240,7 +240,7 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
       expect(res.status).toBe(403);
     });
 
-    it('VENDEDOR: 404 (import agora permite VENDEDOR, então passa do 403 e dá 404 por conexão não encontrada)', async () => {
+    it('SDR: 404 (import agora permite SDR, então passa do 403 e dá 404 por conexão não encontrada)', async () => {
       const res = await request(app)
         .post('/api/bitrix/leads/import')
         .set('Cookie', vendedorA.cookie)

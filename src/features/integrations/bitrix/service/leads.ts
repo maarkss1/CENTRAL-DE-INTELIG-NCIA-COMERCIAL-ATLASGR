@@ -173,7 +173,7 @@ export async function importSelectedBitrixLeads(
     organizationId: string,
     connectionId: string,
     bitrixLeadIds: string[],
-    /** Quando informado (usuário VENDEDOR — ver bitrix.routes.ts), qualquer lead cujo ASSIGNED_BY_ID
+    /** Quando informado (usuário CLOSER/SDR — ver bitrix.routes.ts), qualquer lead cujo ASSIGNED_BY_ID
      * não bata é ignorado, mesmo que o ID tenha vindo explícito no corpo da requisição — a lista já
      * vem filtrada pela mesma trava, mas isso fecha a brecha de alguém montar a requisição na mão. */
     restrictToAssignedById?: string,

@@ -36,9 +36,9 @@ import { hasRequiredRole } from '../../../lib/auth/authorization.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
-// VENDEDOR pode importar/sincronizar Bitrix24 — mas só o próprio dado (ver resolveScopedAssignedById
+// CLOSER/SDR podem importar/sincronizar Bitrix24 — mas só o próprio dado (ver resolveScopedAssignedById
 // abaixo). VISUALIZADOR continua de fora: é o papel só-leitura em todo o resto do produto.
-const importRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const importRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 /**
  * Trava o filtro `ASSIGNED_BY_ID` (Bitrix) ao próprio usuário quando ele não é ADMIN/GESTOR — "cada
@@ -354,7 +354,7 @@ router.get('/sync-rules', async (req: Request, res: Response, next: NextFunction
     }
 });
 
-// VENDEDOR pode criar a PRÓPRIA regra (ver importRoles) — o ASSIGNED_BY_ID é travado no próprio
+// CLOSER/SDR podem criar a PRÓPRIA regra (ver importRoles) — o ASSIGNED_BY_ID é travado no próprio
 // usuário pela mesma resolveScopedAssignedById das rotas de listagem/import acima, então uma regra
 // criada por um vendedor nunca traz o dado de outra pessoa. Editar/remover uma regra já existente
 // (PUT/DELETE abaixo) continua só ADMIN/GESTOR — mudar automação que já está rodando é ação de

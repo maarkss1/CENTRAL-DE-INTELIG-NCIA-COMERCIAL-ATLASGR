@@ -3,7 +3,7 @@ import type { AuthRequest } from './authenticateToken.js';
 import { prisma } from '../../lib/prisma.js';
 
 /**
- * VENDEDOR só pode editar/excluir/reenriquecer os leads que capturou — GESTOR/ADMIN já são
+ * CLOSER/SDR só pode editar/excluir/reenriquecer os leads que capturou — GESTOR/ADMIN já são
  * liberados por `requireRole` antes desta checagem e continuam sem restrição de dono (gerenciam
  * qualquer lead da organização).
  *
@@ -14,7 +14,7 @@ import { prisma } from '../../lib/prisma.js';
  * responsável lá, não o id. O campo mistura as duas convenções na mesma coluna (ver
  * `.agents/handoffs/onda-7/04-para-06-owner-bitrix-nome-nao-id.md` para o achado completo e o
  * pedido de correção na origem, dono do arquivo é o Agente 06). Até essa correção chegar na
- * origem, comparar só por id bloquearia (403 indevido) um VENDEDOR tentando editar um lead que
+ * origem, comparar só por id bloquearia (403 indevido) um CLOSER/SDR tentando editar um lead que
  * ele mesmo importou/recebeu do Bitrix — por isso o fallback por nome abaixo, restrito ao próprio
  * usuário autenticado (nunca compara contra o nome de outra pessoa).
  */
@@ -22,7 +22,7 @@ export function requireLeadOwnership() {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         const authReq = req as AuthRequest;
 
-        if (authReq.user.role !== 'VENDEDOR') {
+        if (authReq.user.role !== 'CLOSER' && authReq.user.role !== 'SDR') {
             next();
             return;
         }

@@ -18,7 +18,7 @@ import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from 
 // DELETE/PUT/POST de lead ponta-a-ponta com sessão real, mas company/contact/activity nunca
 // tinham um teste de matriz de acesso real (só um unit test com role ADMIN fixo em
 // tests/unit/features/companies/routes/company.routes.test.ts) — este spec prova em runtime, com
-// sessão e RLS reais, que VISUALIZADOR é barrado e VENDEDOR/GESTOR conseguem escrever, para os
+// sessão e RLS reais, que VISUALIZADOR é barrado e SDR/GESTOR conseguem escrever, para os
 // três routers restantes do handoff que ainda não tinham essa cobertura.
 
 function buildApp(): Express {
@@ -57,7 +57,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
     setupDI();
     app = buildApp();
 
-    vendedorA = await signUpRealUser('crmwrite-vendedor-a', 'VENDEDOR');
+    vendedorA = await signUpRealUser('crmwrite-vendedor-a', 'SDR');
     viewerA = await signUpRealUser('crmwrite-viewer-a', 'VISUALIZADOR');
     gestorA = await signUpRealUser('crmwrite-gestor-a', 'GESTOR');
 
@@ -92,7 +92,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
       expect(after).toBe(before);
     });
 
-    it('VENDEDOR (writeRoles): cria de verdade (201)', async () => {
+    it('SDR (writeRoles): cria de verdade (201)', async () => {
       const res = await request(app)
         .post('/api/companies')
         .set('Cookie', vendedorA.cookie)
@@ -107,7 +107,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
   });
 
   describe('DELETE /api/companies/:id', () => {
-    it('VENDEDOR: 403 (exclusão é GESTOR/ADMIN)', async () => {
+    it('SDR: 403 (exclusão é GESTOR/ADMIN)', async () => {
       const company = await createCompany(vendedorA.organizationId);
 
       const res = await request(app)
@@ -142,7 +142,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
       expect(res.status).toBe(403);
     });
 
-    it('VENDEDOR (writeRoles): cria de verdade (201)', async () => {
+    it('SDR (writeRoles): cria de verdade (201)', async () => {
       const company = await createCompany(vendedorA.organizationId);
 
       const res = await request(app)
@@ -156,7 +156,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
   });
 
   describe('DELETE /api/contacts/:id', () => {
-    it('VENDEDOR: 403 (exclusão é GESTOR/ADMIN)', async () => {
+    it('SDR: 403 (exclusão é GESTOR/ADMIN)', async () => {
       const company = await createCompany(vendedorA.organizationId);
       const contact = await withTenant(vendedorA.organizationId, () =>
         prisma.contact.create({ data: { name: 'Ciclano', organizationId: vendedorA.organizationId, companyId: company.id } })
@@ -182,7 +182,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
       expect(res.status).toBe(403);
     });
 
-    it('VENDEDOR (writeRoles): cria de verdade (201)', async () => {
+    it('SDR (writeRoles): cria de verdade (201)', async () => {
       const lead = await createLead(vendedorA.organizationId);
 
       const res = await request(app)
@@ -194,7 +194,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
       expect(res.body.success).toBe(true);
     });
 
-    it('VENDEDOR: 422 quando o owner é um nome fabricado (ex.: fallback de ferramenta de IA)', async () => {
+    it('SDR: 422 quando o owner é um nome fabricado (ex.: fallback de ferramenta de IA)', async () => {
       const lead = await createLead(vendedorA.organizationId);
 
       const res = await request(app)
@@ -207,7 +207,7 @@ describe('RBAC ponta-a-ponta — rotas de escrita de company/contact/activity', 
   });
 
   describe('DELETE /api/activities/:id', () => {
-    it('VENDEDOR: 403 (exclusão é GESTOR/ADMIN)', async () => {
+    it('SDR: 403 (exclusão é GESTOR/ADMIN)', async () => {
       const lead = await createLead(vendedorA.organizationId);
       const activity = await withTenant(vendedorA.organizationId, () =>
         prisma.activity.create({

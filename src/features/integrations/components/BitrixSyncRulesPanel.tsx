@@ -49,7 +49,7 @@ interface BitrixSyncRulesPanelProps {
 
 export function BitrixSyncRulesPanel({ connectionId }: BitrixSyncRulesPanelProps) {
     const { currentUser } = useAuth();
-    // ADMIN/GESTOR escolhem qualquer vendedor ao criar a regra; qualquer outro papel (VENDEDOR)
+    // ADMIN/GESTOR escolhem qualquer vendedor ao criar a regra; qualquer outro papel (CLOSER/SDR)
     // só cria a PRÓPRIA (o backend trava isso em resolveScopedAssignedById, independente do que o
     // front manda) e não pode editar/remover regra já existente (PUT/DELETE continuam
     // ADMIN/GESTOR — mudar automação em produção é ação de gestão, criar a sua própria não).

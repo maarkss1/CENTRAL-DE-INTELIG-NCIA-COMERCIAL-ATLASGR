@@ -7,7 +7,7 @@ import { AppError } from '../../../shared/middlewares/errorHandler';
  * AGENTS.md > "Dados reais x demonstração" ("nenhuma métrica comercial pode ser fabricada para
  * preencher a interface") e a mission do Agente 04 ("não usar... fallback que mascara ausência de
  * owner"). Já foi encontrado pelo menos um chamador fazendo isso (ferramenta de IA em
- * `src/features/intelligence/tools/opsTools.ts`, que cria uma tarefa PARA UM VENDEDOR HUMANO
+ * `src/features/intelligence/tools/opsTools.ts`, que cria uma tarefa PARA UM CLOSER/SDR HUMANO
  * executar depois, mas atribui o dono como 'Enxame de IA Atlas' quando nenhum owner é informado —
  * ver `.agents/handoffs/onda-7/04-para-07-owner-fabricado-follow-up-ia.md`). Esta lista bloqueia
  * esses valores na origem, para qualquer chamador presente ou futuro (usado tanto pela camada

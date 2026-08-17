@@ -10,8 +10,8 @@ import {
 } from '../authorization';
 
 describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
-    it('expõe exatamente os quatro papéis realmente gravados em User.role', () => {
-        expect(ASSIGNABLE_ROLES.sort()).toEqual(['ADMIN', 'GESTOR', 'VENDEDOR', 'VISUALIZADOR'].sort());
+    it('expõe exatamente os cinco papéis realmente gravados em User.role', () => {
+        expect(ASSIGNABLE_ROLES.sort()).toEqual(['ADMIN', 'GESTOR', 'CLOSER', 'SDR', 'VISUALIZADOR'].sort());
         expect(Object.keys(ROLE_HIERARCHY).sort()).toEqual(ASSIGNABLE_ROLES.sort());
     });
 
@@ -22,11 +22,12 @@ describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
         });
 
         it('permite papel de nível maior que o mínimo exigido pela lista', () => {
-            expect(hasRequiredRole('ADMIN', ['GESTOR', 'VENDEDOR'])).toBe(true);
+            expect(hasRequiredRole('ADMIN', ['GESTOR', 'CLOSER'])).toBe(true);
         });
 
         it('nega papel de nível menor que o exigido', () => {
-            expect(hasRequiredRole('VENDEDOR', ['ADMIN', 'GESTOR'])).toBe(false);
+            expect(hasRequiredRole('CLOSER', ['ADMIN', 'GESTOR'])).toBe(false);
+            expect(hasRequiredRole('SDR', ['ADMIN', 'GESTOR'])).toBe(false);
             expect(hasRequiredRole('VISUALIZADOR', ['GESTOR'])).toBe(false);
         });
 
@@ -62,13 +63,13 @@ describe('RBAC canônico (src/lib/auth/authorization.ts)', () => {
             expect(canAccessCommercialIntelligence('GESTOR')).toBe(true);
         });
 
-        it('bloqueia VENDEDOR e VISUALIZADOR — cobre SDR/vendedor/operador/financeiro/suporte/usuário comum, que não são papéis distintos hoje', () => {
-            expect(canAccessCommercialIntelligence('VENDEDOR')).toBe(false);
+        it('bloqueia CLOSER, SDR e VISUALIZADOR — cobre vendedor/operador/financeiro/suporte/usuário comum, que não são papéis distintos hoje', () => {
+            expect(canAccessCommercialIntelligence('CLOSER')).toBe(false);
+            expect(canAccessCommercialIntelligence('SDR')).toBe(false);
             expect(canAccessCommercialIntelligence('VISUALIZADOR')).toBe(false);
         });
 
         it('bloqueia papel desconhecido, vazio ou o sentinela UNVERIFIED (fail-closed)', () => {
-            expect(canAccessCommercialIntelligence('SDR')).toBe(false);
             expect(canAccessCommercialIntelligence('DIRETOR')).toBe(false);
             expect(canAccessCommercialIntelligence('CEO')).toBe(false);
             expect(canAccessCommercialIntelligence('')).toBe(false);

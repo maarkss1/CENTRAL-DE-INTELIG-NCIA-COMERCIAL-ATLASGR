@@ -242,7 +242,7 @@ router.get('/pending', async (req: Request, res: Response, next: NextFunction): 
 // impacto, não uma leitura. Sem `requireRole` aqui, qualquer papel autenticado do tenant — inclusive
 // VISUALIZADOR (só leitura, ROLE_HIERARCHY=10) — podia aprovar/descartar, contornando a hierarquia
 // de papéis. Mesmo corte de VISUALIZADOR já aplicado por 01 em agent.routes.ts (`/swarm/mission`).
-const pendingActionRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const pendingActionRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 router.post('/pending/:id/approve', pendingActionRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

@@ -239,7 +239,7 @@ export async function importSelectedBitrixDeals(
     organizationId: string,
     connectionId: string,
     bitrixDealIds: string[],
-    /** Mesmo raciocínio de importSelectedBitrixLeads: fecha a brecha de um VENDEDOR montar a
+    /** Mesmo raciocínio de importSelectedBitrixLeads: fecha a brecha de um CLOSER/SDR montar a
      * requisição de import na mão com IDs fora do próprio escopo. */
     restrictToAssignedById?: string,
 ): Promise<{ imported: number; skipped: number; skippedConflicts: number; skippedNotOwned: number }> {

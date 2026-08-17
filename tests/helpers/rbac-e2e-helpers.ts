@@ -49,7 +49,7 @@ export interface RealSessionUser {
  * better-auth. Ver o comentário completo em tests/integration/rbac-e2e.test.ts (mesma função,
  * extraída aqui sem mudança de comportamento).
  */
-export async function signUpRealUser(prefix: string, role: 'ADMIN' | 'GESTOR' | 'VENDEDOR' | 'VISUALIZADOR'): Promise<RealSessionUser> {
+export async function signUpRealUser(prefix: string, role: 'ADMIN' | 'GESTOR' | 'CLOSER' | 'SDR' | 'VISUALIZADOR'): Promise<RealSessionUser> {
   const email = uniqueEmail(prefix);
 
   const { payload, headers } = await withRlsBypass(async () => {

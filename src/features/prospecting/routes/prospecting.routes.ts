@@ -117,7 +117,7 @@ router.post('/enrich-cnpj', async (req: Request, res: Response, next: NextFuncti
 });
 
 // Promove um candidato (IA ou CNPJ) para o CRM: cria Company + Contact + Lead e enriquece automaticamente.
-router.post('/promote', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/promote', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const body = req.body as { tradeName?: string; source?: string };
         if (!body.tradeName || !body.source) {
@@ -181,7 +181,7 @@ router.post('/icebreaker', async (req: Request, res: Response, next: NextFunctio
 import { sendColdEmail, ColdEmailCampaign } from '../services/cold-email.service.js';
 
 // Envia um cold email (ex: template de prospecção) com rotulagem LGPD
-router.post('/cold-email', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/cold-email', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         // organizationId sempre vem do tenant autenticado, nunca do corpo da requisição — é o que

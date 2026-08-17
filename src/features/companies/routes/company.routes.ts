@@ -7,7 +7,7 @@ import { container } from '../../../shared/di/container';
 import { CompanyController } from '../presentation/CompanyController';
 
 const router = Router();
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 router.get('/', (req, res, next) => container.resolve<CompanyController>('CompanyController').getCompanies(req, res, next));
 router.get('/:id', (req, res, next) => container.resolve<CompanyController>('CompanyController').getCompanyById(req, res, next));

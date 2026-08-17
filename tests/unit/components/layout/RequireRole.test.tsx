@@ -23,7 +23,7 @@ describe('RequireRole', () => {
     });
 
     it('bloqueia com mensagem explícita em PT-BR quando o papel não satisfaz (nunca uma tela em branco)', () => {
-        useAuthMock.mockReturnValue({ currentUser: { role: 'VENDEDOR' } });
+        useAuthMock.mockReturnValue({ currentUser: { role: 'SDR' } });
         render(<RequireRole allowedRoles={['ADMIN']}><p>Conteúdo restrito</p></RequireRole>);
         expect(screen.queryByText('Conteúdo restrito')).not.toBeInTheDocument();
         expect(screen.getByText('Acesso restrito')).toBeInTheDocument();

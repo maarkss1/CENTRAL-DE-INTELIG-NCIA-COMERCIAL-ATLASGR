@@ -15,7 +15,7 @@ import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from 
  * RBAC ponta-a-ponta do módulo "Comercial Inteligente" — o requisito não-negociável do prompt de
  * produto (seção 2/31/41): só ADMIN/GESTOR acessam, com sessão real (não role simulado) e RLS
  * real do Postgres. Cobre os itens 1-10 da seção 41 (Gestor/Diretor→ADMIN/GESTOR autorizado,
- * SDR/vendedor/operador→VENDEDOR/VISUALIZADOR bloqueado, acesso direto por URL/API bloqueado,
+ * SDR/vendedor/operador→CLOSER/SDR/VISUALIZADOR bloqueado, acesso direto por URL/API bloqueado,
  * tenant A não acessa tenant B).
  *
  * Mesma infraestrutura de `rbac-e2e-crm-operations.test.ts` (sessão real via Better Auth, RLS
@@ -49,7 +49,7 @@ describe('RBAC ponta-a-ponta — Comercial Inteligente', () => {
 
         adminA = await signUpRealUser('ci-admin-a', 'ADMIN');
         gestorA = await signUpRealUser('ci-gestor-a', 'GESTOR');
-        vendedorA = await signUpRealUser('ci-vendedor-a', 'VENDEDOR');
+        vendedorA = await signUpRealUser('ci-vendedor-a', 'SDR');
         viewerA = await signUpRealUser('ci-viewer-a', 'VISUALIZADOR');
         gestorB = await signUpRealUser('ci-gestor-b', 'GESTOR');
 
@@ -104,8 +104,8 @@ describe('RBAC ponta-a-ponta — Comercial Inteligente', () => {
         });
     });
 
-    describe('Bloqueados (VENDEDOR, VISUALIZADOR — cobre SDR/operador/financeiro/suporte/usuário comum)', () => {
-        it('VENDEDOR recebe 403 em GET /overview', async () => {
+    describe('Bloqueados (CLOSER, SDR, VISUALIZADOR — cobre vendedor/operador/financeiro/suporte/usuário comum)', () => {
+        it('SDR recebe 403 em GET /overview', async () => {
             const res = await request(app).get(`/api/commercial-intelligence/overview?month=${MONTH}`).set('Cookie', vendedorA.cookie);
             expect(res.status).toBe(403);
             expect(res.body.success).toBe(false);
@@ -116,7 +116,7 @@ describe('RBAC ponta-a-ponta — Comercial Inteligente', () => {
             expect(res.status).toBe(403);
         });
 
-        it('VENDEDOR recebe 403 em cada endpoint do módulo (acesso direto por URL/API bloqueado)', async () => {
+        it('SDR recebe 403 em cada endpoint do módulo (acesso direto por URL/API bloqueado)', async () => {
             const endpoints = [
                 '/api/commercial-intelligence/overview',
                 '/api/commercial-intelligence/pipeline-creation',
@@ -134,11 +134,11 @@ describe('RBAC ponta-a-ponta — Comercial Inteligente', () => {
             ];
             for (const endpoint of endpoints) {
                 const res = await request(app).get(`${endpoint}?month=${MONTH}`).set('Cookie', vendedorA.cookie);
-                expect(res.status, `${endpoint} deveria bloquear VENDEDOR`).toBe(403);
+                expect(res.status, `${endpoint} deveria bloquear SDR`).toBe(403);
             }
         });
 
-        it('VENDEDOR recebe 403 ao tentar definir a meta (PUT /goals)', async () => {
+        it('SDR recebe 403 ao tentar definir a meta (PUT /goals)', async () => {
             const res = await request(app)
                 .put('/api/commercial-intelligence/goals')
                 .set('Cookie', vendedorA.cookie)

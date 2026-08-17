@@ -19,7 +19,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 });
 
-router.post('/', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), validateRequest(noteSchema), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), validateRequest(noteSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { leadId } = req.params;

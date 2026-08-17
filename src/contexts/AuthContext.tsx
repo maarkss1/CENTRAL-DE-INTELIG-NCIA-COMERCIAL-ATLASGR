@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Papéis reais gravados em User.role (ver src/lib/auth/authorization.ts, fonte canônica de RBAC).
 // Este arquivo já usou um segundo taxonomia de papéis (SUPER_ADMIN/TENANT_OWNER/MANAGER/SDR/...)
-// que nunca era gravada no banco — qualquer usuário GESTOR/VENDEDOR/VISUALIZADOR real (a imensa
+// que nunca era gravada no banco — qualquer usuário GESTOR/CLOSER/SDR/VISUALIZADOR real (a imensa
 // maioria) caía no fallback `[] ` de permissões porque essas chaves não existiam na tabela antiga,
 // e `isAdmin`/`canAccessAdminPanel` só reconheciam papéis (SUPER_ADMIN/TENANT_OWNER) que nenhum
 // usuário jamais tem. Substituído pela hierarquia real, alinhada ao que o backend efetivamente

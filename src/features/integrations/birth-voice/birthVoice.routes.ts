@@ -40,7 +40,7 @@ router.get('/cold-call/status', async (req: Request, res: Response, next: NextFu
 });
 
 // Dispara uma ligação do SDR de voz para o lead informado.
-router.post('/call/:leadId', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/call/:leadId', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const agentType = req.body.agentType || 'sdr';
@@ -83,9 +83,9 @@ const addSuppressionSchema = z.object({
 });
 
 // Bloqueio manual — pedido que chegou por outro canal (e-mail, WhatsApp, atendimento humano).
-// VENDEDOR também pode registrar: opt-out é uma obrigação imediata do atendimento e não deve
+// CLOSER/SDR também podem registrar: opt-out é uma obrigação imediata do atendimento e não deve
 // depender da disponibilidade de um gestor. VISUALIZADOR continua estritamente somente leitura.
-router.post('/suppressions', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/suppressions', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const parsed = addSuppressionSchema.safeParse(req.body);

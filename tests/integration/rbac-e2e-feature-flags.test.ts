@@ -45,7 +45,7 @@ describe('RBAC ponta-a-ponta — Feature Flags', () => {
         await withRlsBypass(() => featureFlagsService.syncRegistry());
 
         adminA = await signUpRealUser('flags-admin-a', 'ADMIN');
-        vendedorA = await signUpRealUser('flags-vendedor-a', 'VENDEDOR');
+        vendedorA = await signUpRealUser('flags-vendedor-a', 'SDR');
         viewerA = await signUpRealUser('flags-viewer-a', 'VISUALIZADOR');
         adminB = await signUpRealUser('flags-admin-b', 'ADMIN');
 
@@ -83,7 +83,7 @@ describe('RBAC ponta-a-ponta — Feature Flags', () => {
             expect(res.status).toBe(403);
         });
 
-        it('VENDEDOR: 403', async () => {
+        it('SDR: 403', async () => {
             const res = await request(app)
                 .put('/api/feature-flags/bug_report_module')
                 .set('Cookie', vendedorA.cookie)

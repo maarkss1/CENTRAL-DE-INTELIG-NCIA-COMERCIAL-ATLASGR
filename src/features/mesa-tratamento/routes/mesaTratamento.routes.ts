@@ -17,7 +17,7 @@ import {
 import { rankLeadsForQueue } from '../mesaTratamento.priority.js';
 
 const router = Router();
-const mesaRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const mesaRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 /** Etapas "abertas" do funil de Lead (SDR) — as únicas que aparecem na Mesa de Tratamento.
  *  Convertido/Desqualificado saem da fila assim que o resultado é registrado. As etapas do funil
@@ -167,7 +167,7 @@ router.post('/lead/:id/register', mesaRoles, async (req: Request, res: Response,
         if (!lead) throw new AppError('Lead não encontrado.', 404);
         if (!lead.bitrixLeadId) throw new AppError('Este Lead ainda não está vinculado ao Bitrix24.', 400);
 
-        // VENDEDOR só registra em leads que são dele — mesmo princípio de requireLeadOwnership.ts
+        // CLOSER/SDR só registra em leads que são dele — mesmo princípio de requireLeadOwnership.ts
         // (lead.routes.ts), reimplementado aqui pois aquele middleware é específico da rota /api/leads.
         const { role, id: userId } = (req as AuthRequest).user;
         if (!hasRequiredRole(role, ['ADMIN', 'GESTOR'])) {

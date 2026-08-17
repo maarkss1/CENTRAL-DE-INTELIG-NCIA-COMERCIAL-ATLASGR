@@ -99,7 +99,7 @@ router.post('/disconnect', managementRoles, async (req: Request, res: Response, 
 // automatizado. `skipOptOutCheck: true` de propósito: o contrato de opt-out unificado
 // (`.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`) cobre cadência/prospecção/
 // automação, não uma resposta humana dentro de uma conversa já em andamento.
-router.post('/send', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post('/send', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { number, text } = req.body;

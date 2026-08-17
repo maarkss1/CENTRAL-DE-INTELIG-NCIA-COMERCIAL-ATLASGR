@@ -17,10 +17,10 @@ test.describe('Comercial Inteligente — RBAC na UI', () => {
     await expect(page.getByRole('button', { name: 'Visão Executiva' })).toBeVisible();
   });
 
-  test('VENDEDOR não vê o item de menu e acesso direto por URL mostra "Acesso restrito"', async ({ page }) => {
+  test('SDR não vê o item de menu e acesso direto por URL mostra "Acesso restrito"', async ({ page }) => {
     const email = uniqueTestEmail('ci-vendedor');
     await signUp(page, { email });
-    await setUserRole(email, 'VENDEDOR');
+    await setUserRole(email, 'SDR');
 
     // Recarrega para a sessão refletir o novo papel (o client do better-auth cacheia a sessão).
     await page.reload();

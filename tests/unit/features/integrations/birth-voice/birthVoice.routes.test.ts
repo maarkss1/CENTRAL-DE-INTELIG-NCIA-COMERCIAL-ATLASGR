@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe('POST /api/integrations/birth-voice/suppressions — autorização de opt-out', () => {
-    it.each(['ADMIN', 'GESTOR', 'VENDEDOR'])('%s pode registrar opt-out imediatamente', async (role) => {
+    it.each(['ADMIN', 'GESTOR', 'CLOSER', 'SDR'])('%s pode registrar opt-out imediatamente', async (role) => {
         const response = await request(buildApp(role))
             .post('/api/integrations/birth-voice/suppressions')
             .send(payload);

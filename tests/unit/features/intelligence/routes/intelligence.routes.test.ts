@@ -67,10 +67,10 @@ beforeEach(() => {
  * nota/atividade — ver executeAction em aiPendingAction.service.ts). Antes desta correção, as duas
  * rotas não tinham `requireRole` — qualquer papel autenticado do tenant, inclusive VISUALIZADOR
  * (só leitura), podia confirmar uma ação de alto impacto. Este teste tranca que só
- * ADMIN/GESTOR/VENDEDOR podem aprovar/descartar.
+ * ADMIN/GESTOR/CLOSER/SDR podem aprovar/descartar.
  */
 describe('POST /api/intelligence/pending/:id/approve — autorização (ação de alto impacto)', () => {
-    it.each(['ADMIN', 'GESTOR', 'VENDEDOR'])('%s aprova com sucesso (papel permitido)', async (role) => {
+    it.each(['ADMIN', 'GESTOR', 'CLOSER', 'SDR'])('%s aprova com sucesso (papel permitido)', async (role) => {
         const res = await request(buildApp(role)).post('/api/intelligence/pending/pending-1/approve');
 
         expect(res.status).toBe(200);
@@ -99,7 +99,7 @@ describe('POST /api/intelligence/pending/:id/approve — autorização (ação d
 });
 
 describe('DELETE /api/intelligence/pending/:id — autorização (descarte de ação de alto impacto)', () => {
-    it.each(['ADMIN', 'GESTOR', 'VENDEDOR'])('%s descarta com sucesso (papel permitido)', async (role) => {
+    it.each(['ADMIN', 'GESTOR', 'CLOSER', 'SDR'])('%s descarta com sucesso (papel permitido)', async (role) => {
         const res = await request(buildApp(role)).delete('/api/intelligence/pending/pending-1');
 
         expect(res.status).toBe(204);
@@ -123,7 +123,7 @@ describe('PUT /api/intelligence/ai-settings — autorização (config global, se
         expect(saveAiSettingsMock).toHaveBeenCalledWith(validPayload.settings);
     });
 
-    it.each(['GESTOR', 'VENDEDOR', 'VISUALIZADOR'])('%s recebe 403 e não grava (papel negado)', async (role) => {
+    it.each(['GESTOR', 'CLOSER', 'SDR', 'VISUALIZADOR'])('%s recebe 403 e não grava (papel negado)', async (role) => {
         const res = await request(buildApp(role)).put('/api/intelligence/ai-settings').send(validPayload);
 
         expect(res.status).toBe(403);

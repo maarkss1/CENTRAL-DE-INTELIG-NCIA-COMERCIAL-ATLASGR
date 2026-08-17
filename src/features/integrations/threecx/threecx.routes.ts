@@ -104,7 +104,7 @@ router.post('/disconnect/:connectionId', managementRoles, async (req: Request, r
     }
 });
 
-router.post('/call', requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']), async (req: Request, res: Response, next: NextFunction) => {
+router.post('/call', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { organizationId } = (req as AuthRequest).user;
         const { connectionId, phoneNumber, leadId } = req.body;

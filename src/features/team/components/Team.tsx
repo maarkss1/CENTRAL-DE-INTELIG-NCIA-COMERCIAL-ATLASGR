@@ -15,7 +15,8 @@ interface TeamMember {
 const ROLE_LABELS: Record<string, string> = {
     ADMIN: 'Administrador',
     GESTOR: 'Gestor',
-    VENDEDOR: 'Vendedor / SDR',
+    CLOSER: 'Closer',
+    SDR: 'SDR',
     VISUALIZADOR: 'Visualizador',
 };
 
@@ -28,7 +29,7 @@ export function Team() {
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
-    const [role, setRole] = useState('VENDEDOR');
+    const [role, setRole] = useState('SDR');
     const [isCreating, setIsCreating] = useState(false);
     const [createError, setCreateError] = useState('');
     const [revealedCredentials, setRevealedCredentials] = useState<{ email: string; tempPassword: string; justCreated: boolean } | null>(null);
@@ -67,7 +68,7 @@ export function Team() {
             setRevealedCredentials({ email: data.member.email, tempPassword: data.tempPassword, justCreated: true });
             setName('');
             setEmail('');
-            setRole('VENDEDOR');
+            setRole('SDR');
         } catch (error) {
             setCreateError(error instanceof Error ? error.message : 'Falha ao criar usuário.');
         } finally {

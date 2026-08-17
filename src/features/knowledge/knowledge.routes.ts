@@ -10,7 +10,7 @@ import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js'
 import { requireRole } from '../../shared/middlewares/requireRole.js';
 
 const router = Router();
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 /**
  * Teto de tamanho do texto de um documento. O `express.json` já limita o corpo a 10mb; este limite

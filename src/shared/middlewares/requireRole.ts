@@ -6,7 +6,7 @@ import { hasRequiredRole } from '../../lib/auth/authorization.js';
  * RBAC middleware — garante que o usuário autenticado possui pelo menos um dos
  * papéis (roles) especificados. Deve ser usado APÓS `authenticateToken`.
  *
- * Fonte canônica da hierarquia de papéis (ADMIN > GESTOR > VENDEDOR > VISUALIZADOR):
+ * Fonte canônica da hierarquia de papéis (ADMIN > GESTOR > CLOSER > SDR > VISUALIZADOR):
  * `src/lib/auth/authorization.ts`. Não duplicar a hierarquia aqui — ver comentário lá sobre o
  * sistema de RBAC divergente que existia antes.
  *

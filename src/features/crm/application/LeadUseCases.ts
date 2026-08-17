@@ -50,11 +50,11 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
     async createLead(organizationId: string, data: z.infer<typeof leadSchema>, actor?: { userId: string; role: string }) {
         const validated = leadSchema.parse(data);
 
-        // VENDEDOR sempre captura para si mesmo — nunca cria um lead em nome de outra pessoa
+        // CLOSER/SDR sempre captura para si mesmo — nunca cria um lead em nome de outra pessoa
         // (só GESTOR/ADMIN podem reatribuir, via update). Isso é o que torna a checagem de posse em
-        // requireLeadOwnership.ts significativa: sem isto, um VENDEDOR podia informar `owner` de
+        // requireLeadOwnership.ts significativa: sem isto, um CLOSER/SDR podia informar `owner` de
         // outra pessoa no corpo da requisição e escapar da própria regra.
-        if (actor?.role === 'VENDEDOR') {
+        if (actor?.role === 'CLOSER' || actor?.role === 'SDR') {
             validated.owner = actor.userId;
         }
 
@@ -80,7 +80,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
         const lead = await this.create(organizationId, validated);
 
-        // Se o lead foi criado sem dono (fluxo de gestão, sem VENDEDOR atribuído explicitamente),
+        // Se o lead foi criado sem dono (fluxo de gestão, sem CLOSER/SDR atribuído explicitamente),
         // tenta atribuir via Round-Robin.
         if (!validated.owner) {
             try {

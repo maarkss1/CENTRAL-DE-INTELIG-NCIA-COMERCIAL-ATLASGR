@@ -9,8 +9,8 @@ import { LeadController } from '../presentation/LeadController.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
-// VENDEDOR só edita/exclui/reenriquece leads que ele mesmo capturou — GESTOR/ADMIN continuam sem
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
+// CLOSER/SDR só edita/exclui/reenriquece leads que ele mesmo capturou — GESTOR/ADMIN continuam sem
 // restrição (ver requireLeadOwnership.ts).
 const ownLeadOnly = requireLeadOwnership();
 

@@ -11,7 +11,7 @@ import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
 
 const router = Router();
-const writeRoles = requireRole(['ADMIN', 'GESTOR', 'VENDEDOR']);
+const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
 
 const assistantModeSchema = z.enum([
     'copilot',

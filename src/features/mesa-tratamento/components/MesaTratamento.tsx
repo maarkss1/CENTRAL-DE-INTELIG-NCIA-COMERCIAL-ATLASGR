@@ -8,7 +8,7 @@ import { mesaTratamentoApi, type MesaQueueResponse } from '../mesaTratamento.api
 import { QueueList } from './QueueList';
 import { CurrentLeadCard } from './CurrentLeadCard';
 
-/** Página da Mesa de Tratamento SDR. ADMIN/GESTOR e VENDEDOR veem a mesma fila nesta primeira
+/** Página da Mesa de Tratamento SDR. ADMIN/GESTOR e CLOSER/SDR veem a mesma fila nesta primeira
  *  entrega (ADMIN/GESTOR sem filtro de dono = fila do time todo) — ações de gestão dedicadas
  *  (reatribuir, comentar, marcar decidido) ficam pra próxima rodada, ver AGENTS.md desta pasta. */
 export function MesaTratamento() {
