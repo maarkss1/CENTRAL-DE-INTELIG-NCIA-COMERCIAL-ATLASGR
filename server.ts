@@ -46,6 +46,7 @@ import { googleRoutes } from './src/features/integrations/google/google.routes.j
 import { bitrixRoutes } from './src/features/integrations/bitrix/bitrix.routes.js';
 import { bitrixWebhookRoutes } from './src/features/integrations/bitrix/bitrix.webhook.js';
 import { teamRoutes } from './src/features/team/routes/team.routes.js';
+import { authExtraRoutes } from './src/features/auth/routes/auth-extra.routes.js';
 import { agentRoutes } from './src/features/intelligence/routes/agent.routes.js';
 import { knowledgeRoutes } from './src/features/knowledge/knowledge.routes.js';
 import { notificationRoutes } from './src/features/notifications/notification.routes.js';
@@ -415,6 +416,7 @@ async function startServer() {
     app.use('/api/google', authenticateToken, requireTenant, googleRoutes);
     app.use('/api/bitrix', authenticateToken, requireTenant, bitrixRoutes);
     app.use('/api/team', authenticateToken, requireTenant, teamRoutes);
+    app.use('/api/auth-extra', authenticateToken, requireTenant, authExtraRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
     app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
 

@@ -41,6 +41,10 @@ export function ChangePasswordGate() {
             return;
         }
 
+        // Best-effort: e-mail de boas-vindas nunca deve atrasar ou bloquear a entrada no app —
+        // se falhar (SMTP fora do ar, etc.), o usuário já trocou a senha e precisa continuar.
+        fetch('/api/auth-extra/welcome-email', { method: 'POST', credentials: 'include' }).catch(() => {});
+
         window.location.href = '/app';
     };
 
