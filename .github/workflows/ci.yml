@@ -153,6 +153,18 @@ jobs:
       - name: Run Integration Tests
         run: npm run test:integration -- --coverage
 
+      - name: Verify integrations
+        run: npm run verify:integrations
+
+      - name: Verify AI
+        run: npm run verify:ai
+
+      - name: Verify prod config
+        run: npm run verify:prod
+
+      - name: Run Market Intelligence Python ETL fixtures
+        run: python3 -m unittest discover -s tests/python/market_intelligence -p 'test_*.py'
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
@@ -300,3 +312,40 @@ jobs:
           name: visual-baselines-playwright-report
           path: playwright-report/
         if: failure()
+
+  trivy-fs-scan:
+    name: "Trivy — scan de filesystem/dependências (HIGH/CRITICAL)"
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Rodar Trivy (fs scan, HIGH/CRITICAL)
+        id: trivy
+        run: npm run security:trivy
+
+  sonarcloud:
+    name: SonarQube
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      NODE_ENV: test
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Download coverage reports
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: coverage-reports
+          path: coverage/
+
+      - name: SonarQube Scan
+        if: ${{ env.SONAR_TOKEN != '' }}
+        uses: SonarSource/sonarqube-scan-action@ad8210318ac8bb816e41990d5af2b304f7a6c213
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
