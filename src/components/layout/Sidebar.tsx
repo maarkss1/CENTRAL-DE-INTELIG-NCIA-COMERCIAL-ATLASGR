@@ -13,7 +13,7 @@ import { TabType } from './tabMeta';
 
 interface SidebarProps {
     activeTab: TabType;
-    /** Controla a visibilidade em telas < lg, onde a Sidebar vira um painel off-canvas. */
+    /** Controla a visibilidade em telas < md, onde a Sidebar vira um painel off-canvas. */
     mobileOpen?: boolean;
     /** Chamado ao fechar a navegação mobile (backdrop, Escape ou seleção de item). */
     onCloseMobile?: () => void;
@@ -93,7 +93,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     return (
         <aside
-            className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex flex-col transition-transform duration-300 bg-surface border-r border-line lg:static lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-40 w-64 h-full flex flex-col transition-transform duration-300 bg-surface border-r border-line md:static md:translate-x-0 ${
                 mobileOpen ? 'translate-x-0' : '-translate-x-full'
             }`}
         >

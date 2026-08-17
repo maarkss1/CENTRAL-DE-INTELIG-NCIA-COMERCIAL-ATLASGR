@@ -10,7 +10,7 @@ import { notificationsApi } from '../../features/notifications/notifications.api
 
 interface AppTopbarProps {
     activeTab: TabType;
-    /** Abre a Sidebar off-canvas em telas < lg. */
+    /** Abre a Sidebar off-canvas em telas < md. */
     onOpenMobileNav?: () => void;
 }
 
@@ -57,7 +57,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
             <button
                 type="button"
                 onClick={onOpenMobileNav}
-                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 lg:hidden"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-surface-2 md:hidden"
                 aria-label="Abrir menu de navegação"
             >
                 <Menu className="h-5 w-5" />
@@ -71,7 +71,7 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
             <button
                 type="button"
                 onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))}
-                className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink-2 transition-colors hover:border-brand/40 hover:text-ink lg:flex"
+                className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-xl border border-line bg-surface-2 px-3 py-2 text-ink-2 transition-colors hover:border-brand/40 hover:text-ink md:flex"
             >
                 <Search className="h-4 w-4 shrink-0" />
                 <span className="text-sm">Buscar empresa, decisor ou comando…</span>
