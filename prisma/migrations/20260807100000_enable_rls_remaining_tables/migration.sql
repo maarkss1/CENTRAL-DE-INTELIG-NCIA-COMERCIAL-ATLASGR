@@ -24,7 +24,6 @@
 -- middleware da app (conexão própria do CLI), então FORCE arriscaria quebrar deploys. Só ENABLE
 -- já basta para bloquear as roles anon/authenticated do Supabase, que não são a role dona da
 -- tabela.
-ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
 
 -- 2. EnrichmentLog — sem organizationId próprio; é filho de Company (companyId). Mesmo padrão
 -- usado para Note/TimelineEvent na migration original (filtro via tabela pai).

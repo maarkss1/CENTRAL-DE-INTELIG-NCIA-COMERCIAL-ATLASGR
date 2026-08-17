@@ -91,6 +91,14 @@ enum CrmDocumentType {
   Contrato
 }
 
+enum UserRole {
+  ADMIN
+  GESTOR
+  CLOSER
+  SDR
+  VISUALIZADOR
+}
+
 enum CrmDocumentStatus {
   Rascunho
   Enviado
@@ -426,7 +434,7 @@ model User {
   // campo é resquício de um fluxo de auth anterior e não é mais escrito por ninguém no app real.
   // Precisa ser opcional para não quebrar `prisma.user.create()` do adapter do Better Auth.
   passwordHash       String?
-  role               String       @default("VISUALIZADOR")
+  role               UserRole     @default(VISUALIZADOR)
   // Força a troca de senha no próximo login — usado quando um admin define uma senha
   // temporária/padrão pra outra pessoa (ver POST /api/auth-extra/change-password).
   mustChangePassword Boolean      @default(false)

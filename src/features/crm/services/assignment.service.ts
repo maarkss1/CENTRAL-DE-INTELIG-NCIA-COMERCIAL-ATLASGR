@@ -2,12 +2,12 @@ import { connection } from '../../../lib/queue/redis.js';
 import { prisma } from '../../../lib/prisma.js';
 
 /**
- * Assigns a lead to the next available VENDEDOR in the organization using a round-robin strategy.
+ * Assigns a lead to the next available CLOSER in the organization using a round-robin strategy.
  * Relies on Redis to keep track of the last assigned index.
  */
 export async function assignLeadRoundRobin(organizationId: string, leadId: string): Promise<string | null> {
     const users = await prisma.user.findMany({
-        where: { organizationId, role: 'VENDEDOR' },
+        where: { organizationId, role: 'CLOSER' },
         orderBy: { createdAt: 'asc' },
     });
 
