@@ -340,3 +340,35 @@ concluir a ativação.
 
 **Esta fase permanece REPROVADA até essa prova final acontecer** — o pipeline pronto, mas ainda
 inativo, é um passo real de fechamento do P0, não o fechamento em si.
+
+## 11. Decisão final — risco aceito explicitamente pelo dono do repositório (2026-08-17)
+
+O dono do repositório decidiu, nesta sessão, aceitar o risco de operar sem backup de produção
+neste momento ("nesse momento não há necessidade de backup") e aprovar a Fase Final 3 mesmo com o
+P0 da seção 8 tecnicamente aberto. Registrado aqui por escrito, como toda exceção deste projeto
+exige (`/AGENTS.md`/seção 5 da constituição de engenharia): isto é uma **aceitação de risco
+consciente do dono**, não uma correção técnica do P0 — o mecanismo entregue na seção 10
+(`prospector_backup` + `.github/workflows/backup-production.yml`) segue pronto e **inativo** (falta
+habilitar R2 + adicionar 6 secrets no GitHub), disponível para ser ligado a qualquer momento sem
+trabalho de engenharia adicional quando o dono decidir que o risco deixou de ser aceitável.
+
+**Fase Final 3: APROVADA COM RESSALVA, por decisão explícita do dono do repositório.**
+
+Ressalva registrada para qualquer reabertura futura desta fase ou para a Fase Final 5 (Go-Live):
+não presumir que existe backup de produção só porque esta fase está "aprovada" — verificar o
+estado real do workflow `backup-production.yml` (rodou com sucesso ao menos uma vez?) antes de
+declarar RPO/RTO cumpridos. O restante do escopo desta fase (health/readiness, RLS pós-restore,
+logs/correlation ID, SLI/SLO, rollback documentado) segue com evidência real e não depende desta
+ressalva.
+
+```text
+AGENTE 19 — VERIFICAÇÃO CONTÍNUA (Fase Final 3, veredito final)
+BACKUP/RESTORE (mecanismo, ambiente isolado): PASS
+BACKUP DE PRODUÇÃO REAL: AUSENTE — risco aceito explicitamente pelo dono do repositório (não é PASS técnico)
+RLS PÓS-RESTORE: PASS
+HEALTH/READINESS SOB FALHA REAL: PASS
+LOGS/CORRELATION ID: PASS
+ROLLBACK: mecanismo comprovado; execução ao vivo não realizada (decisão de segurança)
+ALERTA CRÍTICO PONTA A PONTA (Prometheus/Alertmanager clássico): não testável neste ambiente (débito pré-existente)
+VEREDITO: APROVADA COM RESSALVA (aceitação de risco do dono do repositório, registrada acima)
+```
