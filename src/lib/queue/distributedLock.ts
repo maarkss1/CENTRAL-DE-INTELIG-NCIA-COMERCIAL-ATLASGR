@@ -1,56 +1,58 @@
 import { randomUUID } from 'node:crypto';
-import { cacheConnection, queuesEnabled } from './redis.js';
+import { cacheConnection, redisConfigured } from './redis.js';
 import { logger } from '../logger.js';
 
-/**
- * Trava distribuída via Redis (`SET key value NX EX ttl`), extraída de
- * `cold-leads-scanner.service.ts` para ser reaproveitada por qualquer varredura periódica própria
- * do domínio de IA/automações (ex.: `stagnation-scanner.service.ts`) sem duplicar a mesma lógica de
- * `SET NX`/dono-da-trava a cada novo scanner.
- *
- * Por que existe: `node-cron` roda por processo — em qualquer deploy com mais de uma instância do
- * servidor, cada instância dispararia a mesma varredura ao mesmo tempo, multiplicando o custo (de
- * IA, de e-mail, do que for) sem nenhum ganho. Sem Redis disponível (`queuesEnabled=false`, ambiente
- * local de instância única), roda direto, sem travar o boot — a trava é uma proteção de produção
- * multi-instância, não um requisito de correção em dev.
- */
+export type DistributedLockReason = 'acquired' | 'contended' | 'redis-unavailable' | 'redis-disabled';
+
 export interface DistributedLock {
-    /** Identificador desta execução — usado para não liberar a trava de uma execução mais nova. */
     readonly runId: string;
-    /** `false` quando outra instância já detém a trava; a execução deve ser pulada. */
     readonly acquired: boolean;
-    /** Libera a trava, mas só se ainda for o dono (evita apagar a trava de uma execução mais nova
-     *  depois de um timeout longo desta). Idempotente — seguro chamar mesmo se `acquired` for `false`. */
+    readonly reason: DistributedLockReason;
     release(): Promise<void>;
 }
 
 /**
- * Tenta adquirir uma trava distribuída identificada por `key`, com TTL de `ttlSeconds`. O TTL
- * precisa ser menor que o intervalo entre execuções para nunca travar o serviço indefinidamente se
- * uma instância morrer no meio da execução sem liberar a trava.
+ * Trava distribuída via Redis (SET key value NX EX ttl).
+ *
+ * Política de segurança:
+ * - sem REDIS_URL configurado: assume processo local único e permite a execução;
+ * - com Redis configurado: qualquer erro ao confirmar a trava é fail-closed. Sem lock confirmado,
+ *   a ação duplicável NÃO executa.
  */
 export async function acquireDistributedLock(key: string, ttlSeconds: number): Promise<DistributedLock> {
     const runId = randomUUID();
 
     const release = async (): Promise<void> => {
-        if (!queuesEnabled) return;
+        if (!redisConfigured) return;
         try {
             const current = await cacheConnection.get(key);
-            if (current === runId) await cacheConnection.del(key);
+            if (current !== runId) return;
+            // Compare-and-delete atômico: não apaga uma trava que mudou de dono entre GET e DEL.
+            await cacheConnection.eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                1,
+                key,
+                runId,
+            );
         } catch (err) {
-            logger.warn({ err, key, runId }, 'Falha ao liberar a trava distribuída (expira sozinha pelo TTL).');
+            logger.warn({ err, key, runId }, 'Falha ao liberar a trava distribuída; TTL fará a limpeza.');
         }
     };
 
-    if (!queuesEnabled) {
-        return { runId, acquired: true, release };
+    if (!redisConfigured) {
+        return { runId, acquired: true, reason: 'redis-disabled', release };
     }
 
     try {
         const result = await cacheConnection.set(key, runId, 'EX', ttlSeconds, 'NX');
-        return { runId, acquired: result === 'OK', release };
+        return {
+            runId,
+            acquired: result === 'OK',
+            reason: result === 'OK' ? 'acquired' : 'contended',
+            release,
+        };
     } catch (err) {
-        logger.warn({ err, key, runId }, 'Redis indisponível para a trava distribuída; seguindo sem travar.');
-        return { runId, acquired: true, release };
+        logger.error({ err, key, runId }, 'Redis indisponível para distributed lock; execução bloqueada por fail-closed.');
+        return { runId, acquired: false, reason: 'redis-unavailable', release };
     }
 }
