@@ -46,6 +46,14 @@ export default defineConfig({
     env: {
       NODE_ENV: process.env.NODE_ENV ?? 'test',
       PORT,
+      // O apiLimiter genérico envolve /api/auth antes do authLimiter dedicado. A suíte E2E inteira
+      // faz centenas de GETs de sessão + chamadas de API a partir do mesmo IP do runner e pode
+      // ultrapassar o default de produção (600/15min), mesmo com AUTH_RATE_LIMIT_MAX elevado.
+      // Isto vale SOMENTE para o processo de servidor criado pelo Playwright; produção continua
+      // usando o limite configurado em env.ts/Render. Mantemos um teto finito para ainda detectar
+      // loops explosivos em testes, mas sem transformar o tamanho da suíte em falso 429.
+      API_RATE_LIMIT_MAX: process.env.API_RATE_LIMIT_MAX ?? '5000',
+      AUTH_RATE_LIMIT_MAX: process.env.AUTH_RATE_LIMIT_MAX ?? '500',
     },
   },
 });
