@@ -1,7 +1,7 @@
 - De: 00 — Coordenador
 - Para: 01 — Plataforma, Segurança e Dados
 - Onda: LDR Fase 0 → Fase 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: bloqueador
 
 ## Problema
@@ -42,3 +42,18 @@ No incremento transitório também havia `pg_trgm` duplicado em
 
 Não restaurar automaticamente o incremento transitório. Se o catálogo for reintroduzido, fazê-lo
 sob ownership exclusivo do Agente 01 e com as correções acima desde a primeira migração versionada.
+
+## Resolução
+
+O catálogo global transitório `MarketIntelligenceCompany` não foi restaurado. Em seu lugar, a
+fundação persistente do LDR foi ligada às entidades reais do CRM por sete agregados tenant-scoped:
+`AccountIntelligenceSnapshot`, `AccountSignal`, `DecisionMaker`, `IntelligenceEvidence`,
+`AccountScore`, `AccountRecommendation` e `EconomicRelationship`.
+
+Todos exigem `organizationId` e possuem `FORCE ROW LEVEL SECURITY`, policy com filtro de tenant
+tanto em `USING` quanto em `WITH CHECK`, além de FKs compostas que impedem vínculos entre
+Company/snapshot/score de organizações diferentes mesmo sob bypass administrativo.
+
+`DecisionMaker` referencia um `Contact` real da mesma Company e organização por FK composta e não
+duplica e-mail ou telefone. A validação Prisma e o typecheck desta fundação foram executados pelo
+Coordenador na branch de integração.
