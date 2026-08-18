@@ -5,7 +5,7 @@ import { listConversations } from './whatsappMessage.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
-import { enqueueWhatsAppCommand } from '../../../lib/queue/whatsappCommand.worker.js';
+import { enqueueWhatsAppCommand } from '../../../lib/queue/whatsappCommand.queue.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
@@ -60,8 +60,6 @@ router.get('/signals', async (req: Request, res: Response, next: NextFunction): 
     }
 });
 
-// O processo HTTP nunca abre o WASocket. Ele apenas publica um comando no Redis;
-// o worker dedicado é o único dono do socket vivo.
 router.post('/connect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -75,7 +73,6 @@ router.post('/connect', managementRoles, async (req: Request, res: Response, nex
     }
 });
 
-// Status/QR continuam consultáveis por qualquer réplica web porque whatsapp.service.ts os espelha no Redis.
 router.get('/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
