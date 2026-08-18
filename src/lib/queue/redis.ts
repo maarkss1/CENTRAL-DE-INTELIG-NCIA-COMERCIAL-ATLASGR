@@ -1,76 +1,88 @@
 import Redis from 'ioredis';
 import { logger } from '../logger.js';
+import { recordRedisReconnect } from './metrics.js';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const configuredRedisUrl = process.env.REDIS_URL?.trim();
+const redisUrl = configuredRedisUrl || 'redis://localhost:6379';
 
-// Redis-backed queues are opt-in. A REDIS_URL by itself is not enough to activate
-// background workers or distributed rate limiting; operators must explicitly set
-// ENABLE_QUEUES=true as documented in render.yaml. This keeps an old/stale optional
-// Redis URL from participating in the web process boot.
-export const queuesEnabled =
-    process.env.ENABLE_QUEUES === 'true' && Boolean(process.env.REDIS_URL);
+/** Redis existe como dependência compartilhada mesmo quando consumidores BullMQ estão desligados. */
+export const redisConfigured = Boolean(configuredRedisUrl);
 
-// Connection instance for standard queue operations
+/** Consumidores/produtores BullMQ continuam opt-in. */
+export const queuesEnabled = process.env.ENABLE_QUEUES === 'true' && redisConfigured;
+
+/**
+ * O rate limit distribuído não depende de ENABLE_QUEUES. Em produção, se REDIS_URL existe,
+ * todas as réplicas web compartilham o mesmo contador mesmo com workers desligados.
+ */
+export const rateLimitRedisEnabled = process.env.NODE_ENV === 'production' && redisConfigured;
+
+function retryDelay(times: number): number {
+    return Math.min(Math.max(times, 1) * 500, 5_000);
+}
+
+function observeConnection(redis: Redis, role: 'bullmq' | 'rate-limit' | 'cache', enabled: () => boolean): void {
+    redis.on('connect', () => {
+        if (enabled()) logger.info({ redisRole: role }, 'Connected to Redis successfully');
+    });
+    redis.on('reconnecting', (delay: number) => {
+        if (!enabled()) return;
+        recordRedisReconnect(role);
+        logger.warn({ redisRole: role, delayMs: delay }, 'Redis reconnect scheduled');
+    });
+    redis.on('error', (err) => {
+        if (!enabled()) return;
+        if (process.env.NODE_ENV === 'development') {
+            logger.warn({ redisRole: role, message: err.message }, 'Redis offline or connecting...');
+        } else {
+            logger.error({ redisRole: role, err }, 'Redis connection error');
+        }
+    });
+}
+
+// BullMQ precisa de maxRetriesPerRequest=null para comandos bloqueantes.
 export const connection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
     enableOfflineQueue: queuesEnabled,
-    maxRetriesPerRequest: null, // Required by BullMQ
+    maxRetriesPerRequest: null,
+    connectTimeout: 10_000,
     retryStrategy(times) {
         if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
+        return retryDelay(times);
     },
 });
+observeConnection(connection, 'bullmq', () => queuesEnabled);
 
-connection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    if (process.env.NODE_ENV === 'development') {
-        logger.warn({ message: err.message }, 'Redis offline or connecting...');
-    } else {
-        logger.error({ err }, 'Redis connection error');
-    }
-});
-
-connection.on('connect', () => {
-    logger.info('Connected to Redis successfully');
-});
-
-// Dedicated connection for express-rate-limit (via rate-limit-redis).
-// Must NOT reuse `connection` above: that one sets maxRetriesPerRequest: null
-// (required by BullMQ, which needs blocking commands to retry forever). Rate-limit
-// checks run on the hot request path, so a transient Redis hiccup must fail fast.
+// Hot path HTTP: fail-fast, sem offline queue e independente de ENABLE_QUEUES.
 export const rateLimiterConnection = new Redis(redisUrl, {
-    lazyConnect: !queuesEnabled,
-    enableOfflineQueue: queuesEnabled,
-    maxRetriesPerRequest: 1,
-    retryStrategy(times) {
-        if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
-    },
-});
-
-rateLimiterConnection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    if (process.env.NODE_ENV === 'development') {
-        logger.warn({ message: err.message }, 'Rate limiter Redis connection offline or connecting...');
-    } else {
-        logger.error({ err }, 'Rate limiter Redis connection error');
-    }
-});
-
-// Conexão fail-fast para caches no caminho da aplicação. Ela é separada da conexão
-// bloqueante do BullMQ para que uma indisponibilidade do Redis nunca prenda uma
-// requisição de enriquecimento.
-export const cacheConnection = new Redis(redisUrl, {
-    lazyConnect: !queuesEnabled,
-    maxRetriesPerRequest: 1,
+    lazyConnect: !rateLimitRedisEnabled,
     enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+    connectTimeout: 3_000,
+    commandTimeout: 2_000,
     retryStrategy(times) {
-        if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
+        if (!rateLimitRedisEnabled) return null;
+        return retryDelay(times);
     },
 });
+observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
 
-cacheConnection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    logger.warn({ message: err.message }, 'Enrichment cache Redis unavailable; continuing without cache');
+// Cache/status/locks podem usar Redis sem ligar consumidores BullMQ.
+export const cacheConnection = new Redis(redisUrl, {
+    lazyConnect: !redisConfigured,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+    connectTimeout: 5_000,
+    commandTimeout: 3_000,
+    retryStrategy(times) {
+        if (!redisConfigured) return null;
+        return retryDelay(times);
+    },
 });
+observeConnection(cacheConnection, 'cache', () => redisConfigured);
+
+/** Probe explícito para startup/readiness. */
+export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {
+    const pong = await connectionToPing.ping();
+    if (pong !== 'PONG') throw new Error(`Redis health check returned ${pong}`);
+}
