@@ -130,7 +130,6 @@
   },
   "overrides": {
     "brace-expansion": "^2.0.1",
-    "uuid": "^10.0.0",
     "@xenova/transformers": {
       "sharp": "^0.35.3"
     },
