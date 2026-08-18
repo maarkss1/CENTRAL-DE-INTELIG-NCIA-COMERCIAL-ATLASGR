@@ -6,7 +6,7 @@ const configuredRedisUrl = process.env.REDIS_URL?.trim();
 const redisUrl = configuredRedisUrl || 'redis://localhost:6379';
 const isProduction = process.env.NODE_ENV === 'production';
 const entrypoint = process.argv[1] || '';
-const isDedicatedWorkerProcess = /(?:^|[/\\])worker\.(?:ts|js|cjs|mjs)$/.test(entrypoint);
+export const isDedicatedWorkerProcess = /(?:^|[/\\])worker\.(?:ts|js|cjs|mjs)$/.test(entrypoint);
 
 export const redisConfigured = Boolean(configuredRedisUrl);
 
@@ -19,8 +19,6 @@ export const queuesEnabled = redisConfigured && (
 
 export const rateLimitRedisEnabled = isProduction && redisConfigured && !isDedicatedWorkerProcess;
 
-// Defesa em profundidade do corte HTTP -> Redis -> worker: em produção jamais permitimos que a
-// flag legada reative consumers dentro do server.ts. Falha visivelmente no boot em vez de duplicar jobs.
 if (isProduction && process.env.ENABLE_EMBEDDED_WORKERS === 'true') {
     logger.fatal('ENABLE_EMBEDDED_WORKERS=true não é permitido em produção; use worker.ts dedicado.');
     if (process.env.NODE_ENV !== 'test') process.exit(1);
