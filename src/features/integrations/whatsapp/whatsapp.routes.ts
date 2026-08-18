@@ -67,7 +67,7 @@ router.post('/connect', managementRoles, async (req: Request, res: Response, nex
         const { organizationId } = (req as AuthRequest).user;
         const command = await enqueueWhatsAppCommand(
             { type: 'connect', organizationId },
-            idempotencyKey(req) || `connect:${organizationId}`,
+            idempotencyKey(req),
         );
         res.status(202).json({ success: true, message: 'WhatsApp connect command queued.', data: command });
     } catch (error) {
@@ -91,7 +91,7 @@ router.post('/disconnect', managementRoles, async (req: Request, res: Response, 
         const { organizationId } = (req as AuthRequest).user;
         const command = await enqueueWhatsAppCommand(
             { type: 'disconnect', organizationId },
-            idempotencyKey(req) || `disconnect:${organizationId}`,
+            idempotencyKey(req),
         );
         res.status(202).json({ success: true, message: 'WhatsApp disconnect command queued.', data: command });
     } catch (error) {
