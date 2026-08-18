@@ -1,5 +1,5 @@
 import client from 'prom-client';
-import type { Queue } from 'bullmq';
+import type { Job, Queue, Worker } from 'bullmq';
 import { logger } from '../logger.js';
 
 interface RegisteredQueue {
@@ -8,6 +8,7 @@ interface RegisteredQueue {
 }
 
 const registeredQueues: RegisteredQueue[] = [];
+const instrumentedWorkers = new WeakSet<object>();
 
 export function registerQueueForMetrics(name: string, queue: Queue | null | undefined): void {
     if (!queue) return;
@@ -57,13 +58,12 @@ export const bullmqQueueFailedJobs = new client.Gauge({
     },
 });
 
-export const bullmqQueueStalledJobs = new client.Gauge({
-    name: 'bullmq_queue_stalled_jobs',
-    help: 'Jobs stalled por fila BullMQ.',
+// BullMQ emite `stalled`, mas não mantém "stalled" como estado consultável de fila. Por isso
+// esta série é Counter por evento, não Gauge baseado em getJobCountByTypes().
+export const bullmqQueueStalledTotal = new client.Counter({
+    name: 'bullmq_queue_stalled_total',
+    help: 'Total de eventos stalled observados por fila desde o boot.',
     labelNames: ['queue'] as const,
-    async collect() {
-        await collectDepthGauge(this, (queue) => queue.getJobCountByTypes('stalled'));
-    },
 });
 
 export const bullmqOldestWaitingJobAgeSeconds = new client.Gauge({
@@ -122,4 +122,20 @@ export function setWorkerProcessUp(up: boolean): void {
 
 export function recordRedisReconnect(role: string): void {
     redisReconnectCount.inc({ role });
+}
+
+/** Instrumentação comum para qualquer Worker, sem obrigar cada domínio a duplicar listeners. */
+export function registerWorkerForRuntimeMetrics(name: string, worker: Worker | null | undefined): void {
+    if (!worker || instrumentedWorkers.has(worker)) return;
+    instrumentedWorkers.add(worker);
+
+    worker.on('stalled', () => {
+        bullmqQueueStalledTotal.inc({ queue: name });
+    });
+
+    worker.on('failed', (job: Job | undefined) => {
+        if (!job) return;
+        const attempts = job.opts.attempts ?? 1;
+        if (job.attemptsMade < attempts) bullmqQueueRetryCount.inc({ queue: name });
+    });
 }
