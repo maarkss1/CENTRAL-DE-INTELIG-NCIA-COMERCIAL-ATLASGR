@@ -1,10 +1,6 @@
 import { initTracing } from './src/lib/tracing.js';
 initTracing();
 
-// Mesmo motivo do server.ts: registrar o guard de processo antes de qualquer import que possa
-// tocar Redis/BullMQ. Sem Redis configurado, comandos internos do BullMQ rejeitam fora de
-// qualquer await nosso — sem o guard, essa unhandledRejection derruba o processo ~2s depois de
-// subir. Ver src/lib/process-guards.ts.
 import { registerProcessGuards } from './src/lib/process-guards.js';
 registerProcessGuards();
 
@@ -14,7 +10,14 @@ import { logger } from './src/lib/logger.js';
 import { prisma } from './src/lib/prisma.js';
 import { shutdownLangfuse } from './src/lib/langfuse.js';
 import client from 'prom-client';
-import { connection, rateLimiterConnection, cacheConnection, queuesEnabled } from './src/lib/queue/redis.js';
+import {
+    connection,
+    rateLimiterConnection,
+    cacheConnection,
+    queuesEnabled,
+    pingRedis,
+} from './src/lib/queue/redis.js';
+import { setWorkerProcessUp } from './src/lib/queue/metrics.js';
 
 import { createLeadsWorker } from './src/lib/queue/index.js';
 import { createAgentWorker } from './src/lib/queue/agent.worker.js';
@@ -23,6 +26,8 @@ import { createSearchWorker } from './src/lib/queue/search.queue.js';
 import { initMeiliIndexes } from './src/lib/search/index.js';
 import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
 import { createWhatsAppSignalWorker } from './src/lib/queue/whatsappSignal.worker.js';
+import { createWhatsAppCommandWorker } from './src/lib/queue/whatsappCommand.worker.js';
+import { shutdownWhatsAppSessions } from './src/features/integrations/whatsapp/whatsapp.service.js';
 import { enabledOrganizations } from './src/features/integrations/birth-voice/coldCall.service.js';
 import { createSwarmSchedulerWorker, scheduleSwarmScheduler } from './src/lib/queue/swarmScheduler.worker.js';
 import { enabledOrganizations as swarmSchedulerEnabledOrganizations } from './src/features/intelligence/services/swarmScheduler.service.js';
@@ -35,117 +40,67 @@ import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/f
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
-/**
- * worker.ts — entrypoint dedicado para processamento assíncrono (Onda 6, Agente 16).
- *
- * Sobe SOMENTE as 13 filas BullMQ + o cron de cold-leads-scanner — sem Express, sem SPA, sem SSE.
- * O processo HTTP (`server.ts`) continua podendo ENFILEIRAR (as `Queue` são criadas em cada
- * arquivo de domínio, fora daqui) — este entrypoint só decide quem PROCESSA.
- *
- * server.ts ainda cria os mesmos workers hoje (ver o diff proposto no handoff
- * `.agents/handoffs/onda-6/16-para-00-remover-workers-de-server-ts.md`). Até esse diff ser
- * aprovado pelo Agente 00, rodar os dois processos ao mesmo tempo com `ENABLE_QUEUES=true`
- * DUPLICA o processamento — BullMQ não impede dois `Worker` concorrentes na mesma fila, e ambos
- * vão competir/duplicar por jobs "fanned out" via `queuesEnabled` local. Enquanto o corte não
- * acontece:
- *   - desenvolvimento local: continue rodando só `npm run dev` (server.ts), como hoje;
- *   - para testar este entrypoint isoladamente: suba SOMENTE `worker.ts` com `ENABLE_QUEUES=true`
- *     e mantenha `server.ts` fora do ar, ou rode `server.ts` sem `ENABLE_QUEUES` (só enfileira via
- *     import direto da Queue teria efeito colateral) — a validação feita nesta onda seguiu o
- *     primeiro caminho: apenas `worker.ts` ativo contra o Redis do harness.
- *
- * Sessões Baileys (WhatsApp) NÃO foram movidas para cá nesta onda — permanecem no processo HTTP.
- * Ver handoff `.agents/handoffs/onda-6/16-para-06-plano-migracao-baileys.md`.
- */
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
-
+const SHUTDOWN_TIMEOUT_MS = 25_000;
 type CloseableWorker = { close: () => Promise<void> } | null;
 
 async function startWorkerProcess() {
+    // Worker sem Redis é configuração inválida, não modo degradado. Falha antes de registrar qualquer processor.
     if (!queuesEnabled) {
-        logger.warn(
-            'worker.ts iniciado com ENABLE_QUEUES/REDIS_URL desligado — nenhuma fila será processada. ' +
-            'Isso não é um erro silencioso: o processo sobe, o health check fica "degraded", mas nenhum ' +
-            'worker é criado. Configure REDIS_URL ou ENABLE_QUEUES=true para processar de verdade.',
-        );
+        throw new Error('Worker dedicado requer ENABLE_QUEUES=true e REDIS_URL configurada.');
     }
 
-    // ── Inventário: as 14 filas registradas neste processo (ver inventário completo no relatório
-    // da onda — o prompt original citava 13, a contagem real de `Queue`/`Worker` distintos no
-    // repositório é 14; documentado, não corrigido silenciosamente).
-    const leadsWorker = queuesEnabled ? createLeadsWorker() : null;
-    const agentWorker = queuesEnabled ? createAgentWorker() : null;
-    const enrichmentWorker = queuesEnabled ? createEnrichmentWorker() : null;
-    const whatsappSignalWorker = queuesEnabled ? createWhatsAppSignalWorker() : null;
-    const bitrixSyncWorker = queuesEnabled ? createBitrixSyncWorker() : null;
-    const followUpWorker = queuesEnabled ? createFollowUpWorker() : null;
-    const execSummaryWorker = queuesEnabled ? createExecutiveSummaryWorker() : null;
-    const deduplicationWorker = queuesEnabled ? createDeduplicationWorker() : null;
-    const winLossWorker = queuesEnabled ? createWinLossAnalysisWorker() : null;
-    const pdfWorker = queuesEnabled ? createWeeklyPdfReportWorker() : null;
-    const autoAnonymizeWorker = queuesEnabled ? createAutoAnonymizeWorker() : null;
-    const coldLeadsScannerWorker = queuesEnabled ? createColdLeadsScannerWorker() : null;
-    const stagnationScannerWorker = queuesEnabled ? createStagnationScannerWorker() : null;
-    if (queuesEnabled) {
-        scheduleBitrixSync().catch((err) => logger.error({ err }, 'Falha ao agendar a sincronização automática do Bitrix'));
-        scheduleFollowUpJobs().catch((err) => logger.error({ err }, 'Falha ao agendar jobs de follow-up'));
-        scheduleExecutiveSummaryJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de summary executivo'));
-        scheduleDeduplicationJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de deduplicacao'));
-        scheduleWinLossAnalysisJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de win/loss analysis'));
-        scheduleWeeklyPdfReportJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do pdf semanal'));
-        scheduleAutoAnonymizeJob().catch((err) => logger.error({ err }, 'Falha ao agendar job de anonimização automática'));
-        scheduleColdLeadsScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do cold leads scanner'));
-        scheduleStagnationScannerJob().catch((err) => logger.error({ err }, 'Falha ao agendar job do stagnation scanner'));
+    // Dependências obrigatórias precisam estar acessíveis antes do processo declarar readiness.
+    await pingRedis(connection);
+    await prisma.$queryRaw`SELECT 1`;
+
+    const leadsWorker = createLeadsWorker();
+    const agentWorker = createAgentWorker();
+    const enrichmentWorker = createEnrichmentWorker();
+    const whatsappSignalWorker = createWhatsAppSignalWorker();
+    const whatsappCommandWorker = createWhatsAppCommandWorker();
+    const bitrixSyncWorker = createBitrixSyncWorker();
+    const followUpWorker = createFollowUpWorker();
+    const execSummaryWorker = createExecutiveSummaryWorker();
+    const deduplicationWorker = createDeduplicationWorker();
+    const winLossWorker = createWinLossAnalysisWorker();
+    const pdfWorker = createWeeklyPdfReportWorker();
+    const autoAnonymizeWorker = createAutoAnonymizeWorker();
+    const coldLeadsScannerWorker = createColdLeadsScannerWorker();
+    const stagnationScannerWorker = createStagnationScannerWorker();
+
+    await Promise.all([
+        scheduleBitrixSync(),
+        scheduleFollowUpJobs(),
+        scheduleExecutiveSummaryJob(),
+        scheduleDeduplicationJob(),
+        scheduleWinLossAnalysisJob(),
+        scheduleWeeklyPdfReportJob(),
+        scheduleAutoAnonymizeJob(),
+        scheduleColdLeadsScannerJob(),
+        scheduleStagnationScannerJob(),
+    ]);
+
+    const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
+    if (env.ENABLE_SEARCH) {
+        initMeiliIndexes().catch((err) => logger.warn({ err }, 'Meilisearch offline'));
     }
 
-    const searchWorker = queuesEnabled && env.ENABLE_SEARCH ? createSearchWorker() : null;
-    if (queuesEnabled && env.ENABLE_SEARCH) {
-        initMeiliIndexes().catch(() => logger.warn('Meilisearch offline'));
-    }
-
-    // Hoisted de propósito (mesmo motivo do server.ts original): precisam continuar acessíveis em
-    // shutdown() abaixo, e a inicialização depende de uma consulta assíncrona por organizações
-    // habilitadas. Se essa consulta falhar na inicialização (banco fora do ar no boot do worker),
-    // isso NÃO pode ficar silencioso — ver "Mentira mais provável" no prompt desta onda.
     let coldCallWorker: CloseableWorker = null;
     let swarmSchedulerWorker: CloseableWorker = null;
-    let coldCallInitError: unknown = null;
-    let swarmInitError: unknown = null;
 
-    const coldCallInit = enabledOrganizations()
-        .then((coldCallOrgs) => {
-            coldCallWorker = queuesEnabled && coldCallOrgs.length > 0 ? createColdCallWorker() : null;
-            if (coldCallWorker) {
-                return scheduleColdCallCampaigns().catch((err) =>
-                    logger.error({ err }, 'Falha ao agendar a campanha de prospecção fria'),
-                );
-            }
-            return undefined;
-        })
-        .catch((err) => {
-            coldCallInitError = err;
-            logger.error({ err }, 'Falha ao inicializar o worker de prospecção fria (sdr-cold-call) — fila fica sem processamento até o próximo restart.');
-        });
+    const coldCallOrgs = await enabledOrganizations();
+    if (coldCallOrgs.length > 0) {
+        coldCallWorker = createColdCallWorker();
+        await scheduleColdCallCampaigns();
+    }
 
-    const swarmInit = swarmSchedulerEnabledOrganizations()
-        .then((swarmOrgs) => {
-            swarmSchedulerWorker = queuesEnabled && swarmOrgs.length > 0 ? createSwarmSchedulerWorker() : null;
-            if (swarmSchedulerWorker) {
-                return scheduleSwarmScheduler().catch((err) =>
-                    logger.error({ err }, 'Falha ao agendar o enxame autônomo'),
-                );
-            }
-            return undefined;
-        })
-        .catch((err) => {
-            swarmInitError = err;
-            logger.error({ err }, 'Falha ao inicializar o worker do enxame autônomo (swarm-scheduler) — fila fica sem processamento até o próximo restart.');
-        });
-
-
-
-    await Promise.all([coldCallInit, swarmInit]);
+    const swarmOrgs = await swarmSchedulerEnabledOrganizations();
+    if (swarmOrgs.length > 0) {
+        swarmSchedulerWorker = createSwarmSchedulerWorker();
+        await scheduleSwarmScheduler();
+    }
 
     const registeredWorkers: Array<{ name: string; worker: CloseableWorker }> = [
         { name: 'leads-enrichment', worker: leadsWorker },
@@ -153,6 +108,7 @@ async function startWorkerProcess() {
         { name: 'enrichment-queue', worker: enrichmentWorker },
         { name: 'search-indexing', worker: searchWorker },
         { name: 'whatsapp-conversation-signal', worker: whatsappSignalWorker },
+        { name: 'whatsapp-command', worker: whatsappCommandWorker },
         { name: 'bitrix-sync', worker: bitrixSyncWorker },
         { name: 'whatsapp-followup-queue', worker: followUpWorker },
         { name: 'daily-executive-summary-queue', worker: execSummaryWorker },
@@ -166,101 +122,88 @@ async function startWorkerProcess() {
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
     ];
 
-    const activeCount = registeredWorkers.filter((w) => w.worker !== null).length;
-    logger.info(
-        {
-            queuesEnabled,
-            searchEnabled: env.ENABLE_SEARCH,
-            activeWorkers: activeCount,
-            totalRegistered: registeredWorkers.length,
-            registered: registeredWorkers.map((w) => w.name),
-        },
-        'worker.ts: filas registradas nesta inicialização.',
-    );
+    const activeCount = registeredWorkers.filter((entry) => entry.worker !== null).length;
+    setWorkerProcessUp(true);
+    logger.info({
+        activeWorkers: activeCount,
+        totalRegistered: registeredWorkers.length,
+        registered: registeredWorkers.map((entry) => entry.name),
+    }, 'worker.ts: processors registrados');
 
-    // ── Health server ──────────────────────────────────────────────────────
-    // Health check próprio e minimalista (sem Express) — este processo não serve HTTP de
-    // aplicação, só um endpoint de saúde para o orquestrador de deploy (Render worker service,
-    // ver handoff para o Agente 08). "ready" exige queuesEnabled E nenhum erro de inicialização
-    // nos dois workers condicionais (cold-call/swarm) — worker morto em silêncio é a mentira mais
-    // provável deste domínio (ver prompt da onda), então o health check reporta o erro em vez de
-    // simplesmente reportar "ok" porque o processo Node ainda está de pé.
-    const healthServer = http.createServer((req, res) => {
+    if (env.EXPOSE_METRICS) client.collectDefaultMetrics();
+
+    const healthServer = http.createServer(async (req, res) => {
         if (req.url === '/health/live' || req.url === '/healthz') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
             return;
         }
+
         if (req.url === '/health/ready' || req.url === '/readyz') {
-            const errors: string[] = [];
-            if (coldCallInitError) errors.push('sdr-cold-call worker failed to initialize');
-            if (swarmInitError) errors.push('swarm-scheduler worker failed to initialize');
-            const ok = queuesEnabled && errors.length === 0;
-            res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: ok ? 'ok' : 'degraded',
-                queuesEnabled,
-                activeWorkers: activeCount,
-                totalRegistered: registeredWorkers.length,
-                errors,
-                timestamp: new Date().toISOString(),
-            }));
+            try {
+                await pingRedis(connection);
+                await prisma.$queryRaw`SELECT 1`;
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    status: 'ok',
+                    queuesEnabled: true,
+                    activeWorkers: activeCount,
+                    totalRegistered: registeredWorkers.length,
+                    timestamp: new Date().toISOString(),
+                }));
+            } catch (err) {
+                logger.error({ err }, 'worker.ts readiness failed');
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ status: 'error', message: 'Redis or database unavailable' }));
+            }
             return;
         }
+
         if (req.url === '/metrics' && env.EXPOSE_METRICS) {
-            client.collectDefaultMetrics();
-            res.writeHead(200, { 'Content-Type': client.register.contentType });
-            client.register.metrics().then((m) => res.end(m)).catch((err) => {
+            try {
+                res.writeHead(200, { 'Content-Type': client.register.contentType });
+                res.end(await client.register.metrics());
+            } catch (err) {
                 res.writeHead(500);
                 res.end(String(err));
-            });
+            }
             return;
         }
+
         res.writeHead(404);
         res.end();
     });
 
     healthServer.listen(WORKER_PORT, '0.0.0.0', () => {
-        logger.info({ port: WORKER_PORT }, `worker.ts health server escutando em http://localhost:${WORKER_PORT}`);
+        logger.info({ port: WORKER_PORT }, 'worker.ts health server listening');
     });
 
-    // ── Graceful shutdown ──────────────────────────────────────────────────
-    // Ordem: parar de aceitar handshake HTTP de health → dar aos workers BullMQ um prazo pra
-    // drenar o job em andamento (Worker#close() do BullMQ já faz exatamente isso: para de puxar
-    // job novo e aguarda o job ativo terminar antes de resolver) → fechar conexões Redis → sair.
-    // Timeout máximo para não travar o deploy pra sempre se algum job ficar preso.
-    const SHUTDOWN_TIMEOUT_MS = 25_000;
     let shuttingDown = false;
-
     const shutdown = async (signal: string) => {
         if (shuttingDown) return;
         shuttingDown = true;
-        logger.info({ signal }, 'worker.ts: sinal recebido, iniciando graceful shutdown.');
+        setWorkerProcessUp(false);
+        logger.info({ signal }, 'worker.ts: graceful shutdown started');
 
         const timeout = new Promise<void>((resolve) => {
             setTimeout(() => {
-                logger.error({ signal, timeoutMs: SHUTDOWN_TIMEOUT_MS }, 'worker.ts: shutdown excedeu o timeout — forçando saída (job em voo pode ter sido devolvido à fila, não perdido; BullMQ reprocessa jobs "stalled").');
+                logger.error({ signal, timeoutMs: SHUTDOWN_TIMEOUT_MS }, 'worker.ts: shutdown timeout reached');
                 resolve();
             }, SHUTDOWN_TIMEOUT_MS);
         });
 
         const drain = (async () => {
+            // 1) para health/novos handshakes; 2) Worker.close para novos jobs e drena job em voo;
+            // 3) fecha sockets Baileys; 4) fecha Redis; 5) sai.
             await new Promise<void>((resolve) => healthServer.close(() => resolve()));
-
             await Promise.allSettled(
                 registeredWorkers
-                    .filter((w): w is { name: string; worker: NonNullable<CloseableWorker> } => w.worker !== null)
-                    .map(async ({ name, worker }) => {
-                        try {
-                            await worker.close();
-                        } catch (err) {
-                            logger.error({ err, queue: name }, 'worker.ts: erro ao fechar worker durante shutdown.');
-                        }
-                    }),
+                    .filter((entry): entry is { name: string; worker: NonNullable<CloseableWorker> } => entry.worker !== null)
+                    .map(({ worker }) => worker.close()),
             );
-
-            await shutdownLangfuse().catch((err) => logger.error({ err }, 'worker.ts: erro ao encerrar Langfuse.'));
-            await prisma.$disconnect().catch((err) => logger.error({ err }, 'worker.ts: erro ao desconectar Prisma.'));
+            await shutdownWhatsAppSessions();
+            await shutdownLangfuse().catch((err) => logger.error({ err }, 'Erro ao encerrar Langfuse'));
+            await prisma.$disconnect().catch((err) => logger.error({ err }, 'Erro ao desconectar Prisma'));
             await Promise.allSettled([
                 connection.quit().catch(() => connection.disconnect()),
                 rateLimiterConnection.quit().catch(() => rateLimiterConnection.disconnect()),
@@ -269,7 +212,7 @@ async function startWorkerProcess() {
         })();
 
         await Promise.race([drain, timeout]);
-        logger.info({ signal }, 'worker.ts: shutdown concluído.');
+        logger.info({ signal }, 'worker.ts: graceful shutdown completed');
         process.exit(0);
     };
 
@@ -278,6 +221,7 @@ async function startWorkerProcess() {
 }
 
 startWorkerProcess().catch((err) => {
-    logger.error({ err }, 'worker.ts: falha fatal ao inicializar o processo de workers.');
+    setWorkerProcessUp(false);
+    logger.fatal({ err }, 'worker.ts: fatal bootstrap failure');
     process.exit(1);
 });
