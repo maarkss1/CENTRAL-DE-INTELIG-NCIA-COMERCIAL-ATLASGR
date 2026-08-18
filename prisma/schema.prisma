@@ -717,12 +717,14 @@ model DecisionMaker {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
   company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
-  contactId      String?
-  contact        Contact?     @relation(fields: [contactId, companyId, organizationId], references: [id, companyId, organizationId], onDelete: Cascade)
+  contactId      String
+  contact        Contact      @relation(fields: [contactId, companyId, organizationId], references: [id, companyId, organizationId], onDelete: Cascade)
   snapshotId     String?
   snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
   buyingRole      String
+  department      String?
+  seniority       String?
   roleEvidenceType IntelligenceEvidenceType
   source           String
   sourceUrl        String?
