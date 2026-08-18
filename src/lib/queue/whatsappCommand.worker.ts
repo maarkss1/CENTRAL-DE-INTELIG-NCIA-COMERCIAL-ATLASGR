@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Job, Queue, Worker } from 'bullmq';
 import { connection, queuesEnabled } from './redis.js';
 import { logger } from '../logger.js';
-import { registerQueueForMetrics, recordQueueJobCompleted, recordQueueRetry } from './metrics.js';
+import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 import { isFinalAttempt, recordDeadLetter } from './deadLetter.js';
 import {
     initWhatsApp,
@@ -13,22 +13,15 @@ import {
 
 export const WHATSAPP_COMMAND_QUEUE_NAME = 'whatsapp-command';
 
-type ConnectCommand = {
-    type: 'connect';
+type BaseCommand = {
     organizationId: string;
     correlationId: string;
 };
 
-type DisconnectCommand = {
-    type: 'disconnect';
-    organizationId: string;
-    correlationId: string;
-};
-
-type SendCommand = {
+type ConnectCommand = BaseCommand & { type: 'connect' };
+type DisconnectCommand = BaseCommand & { type: 'disconnect' };
+type SendCommand = BaseCommand & {
     type: 'send';
-    organizationId: string;
-    correlationId: string;
     number: string;
     text: string;
     buttons?: string[];
@@ -36,6 +29,10 @@ type SendCommand = {
 };
 
 export type WhatsAppCommand = ConnectCommand | DisconnectCommand | SendCommand;
+export type WhatsAppCommandInput =
+    | Omit<ConnectCommand, 'correlationId'> & { correlationId?: string }
+    | Omit<DisconnectCommand, 'correlationId'> & { correlationId?: string }
+    | Omit<SendCommand, 'correlationId'> & { correlationId?: string };
 
 export const whatsappCommandQueue = queuesEnabled
     ? new Queue<WhatsAppCommand>(WHATSAPP_COMMAND_QUEUE_NAME, {
@@ -49,13 +46,11 @@ export const whatsappCommandQueue = queuesEnabled
     })
     : null;
 
-whatsappCommandQueue?.on('error', (err) => {
-    logger.error({ err }, 'WhatsApp command queue unavailable');
-});
+whatsappCommandQueue?.on('error', (err) => logger.error({ err }, 'WhatsApp command queue unavailable'));
 registerQueueForMetrics(WHATSAPP_COMMAND_QUEUE_NAME, whatsappCommandQueue);
 
 export async function enqueueWhatsAppCommand(
-    command: Omit<WhatsAppCommand, 'correlationId'> & { correlationId?: string },
+    command: WhatsAppCommandInput,
     idempotencyKey?: string,
 ): Promise<{ jobId: string; correlationId: string }> {
     if (!whatsappCommandQueue) {
@@ -102,12 +97,8 @@ export function createWhatsAppCommandWorker(): Worker<WhatsAppCommand> {
 
     worker.on('completed', () => recordQueueJobCompleted(WHATSAPP_COMMAND_QUEUE_NAME));
     worker.on('failed', (job, err) => {
-        if (job && !isFinalAttempt(job.attemptsMade, job.opts.attempts)) {
-            recordQueueRetry(WHATSAPP_COMMAND_QUEUE_NAME);
-            return;
-        }
-        logger.error({ err, jobId: job?.id, command: job?.name }, 'WhatsApp command failed');
-        if (!job) return;
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        logger.error({ err, jobId: job.id, command: job.name }, 'WhatsApp command failed');
         void recordDeadLetter({
             queue: WHATSAPP_COMMAND_QUEUE_NAME,
             jobId: job.id,
