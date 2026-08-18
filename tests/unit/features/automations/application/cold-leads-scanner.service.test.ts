@@ -30,17 +30,23 @@ vi.mock('../../../../../src/features/intelligence/services/swarmScheduler.servic
 }));
 
 let queuesEnabledValue = false;
+let redisConfiguredValue = false;
 const cacheGet = vi.fn();
 const cacheSet = vi.fn();
 const cacheDel = vi.fn();
+const cacheEval = vi.fn();
 vi.mock('../../../../../src/lib/queue/redis.js', () => ({
     get queuesEnabled() {
         return queuesEnabledValue;
+    },
+    get redisConfigured() {
+        return redisConfiguredValue;
     },
     cacheConnection: {
         get: (...args: unknown[]) => cacheGet(...args),
         set: (...args: unknown[]) => cacheSet(...args),
         del: (...args: unknown[]) => cacheDel(...args),
+        eval: (...args: unknown[]) => cacheEval(...args),
     },
 }));
 
@@ -48,9 +54,6 @@ vi.mock('../../../../../src/lib/logger.js', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-// requestContext real (AsyncLocalStorage) — usamos a implementação de verdade para capturar,
-// dentro do worker de busca de leads, qual tenantId estava setado no momento da chamada a
-// prisma.lead.findMany.
 const { requestContext } = await import('../../../../../src/lib/async-context.js');
 const { runColdLeadsScan } = await import(
     '../../../../../src/features/automations/application/cold-leads-scanner.service.js'
@@ -58,7 +61,8 @@ const { runColdLeadsScan } = await import(
 
 beforeEach(() => {
     vi.clearAllMocks();
-    queuesEnabledValue = false; // sem Redis: a trava distribuída é pulada, execução direta.
+    queuesEnabledValue = false;
+    redisConfiguredValue = false; // ambiente unitário sem Redis configurado: execução local permitida.
     searchChunks.mockResolvedValue([]);
 });
 
