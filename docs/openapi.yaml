@@ -47,6 +47,10 @@ tags:
     description: Cadastro/login/sessão (Better Auth)
   - name: Companies
     description: Empresas do CRM
+  - name: Market Intelligence
+    description: >-
+      Account Intelligence do LDR sobre empresas reais do CRM. Neste contrato, `accountId` e o
+      `Company.id`; todas as leituras e comandos sao autenticados e isolados pelo tenant da sessao.
   - name: Contacts
     description: Contatos vinculados a empresas
   - name: Leads
@@ -311,6 +315,282 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompanyResponse'
+
+  # ───────────────────────────── LDR / Account Intelligence ─────────────────────────────
+  # Os sete endpoints abaixo formam o contrato da Fase 1. `accountId` sempre representa um
+  # `Company.id` real do CRM. organizationId nunca e aceito do cliente nem devolvido: vem da sessao
+  # e e aplicado no backend/RLS. Conta inexistente e conta de outro tenant retornam o mesmo 404.
+  /market-intelligence/accounts/{id}/intelligence:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+    get:
+      tags: [Market Intelligence]
+      summary: Retorna a fotografia mais recente da inteligencia e o ultimo score da conta
+      description: >-
+        Disponivel aos papeis autenticados autorizados a visualizar empresas. Uma empresa existente
+        sem snapshot retorna `200` com `state: empty`, permitindo que a interface diferencie ausencia
+        de inteligencia de empresa inexistente. `stale` indica snapshot expirado; fato observado,
+        inferencia e recomendacao permanecem classificados em campos estruturados.
+      responses:
+        '200':
+          description: Estado atual da Account Intelligence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountIntelligenceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/refresh:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/IdempotencyKeyHeader'
+    post:
+      tags: [Market Intelligence]
+      summary: Solicita atualização assíncrona da inteligência da conta
+      description: >-
+        Enfileira o refresh sem bloquear a requisição HTTP. Requer papel `ADMIN`, `GESTOR`, `CLOSER`
+        ou `SDR`, em paridade com as demais mutações/enriquecimentos de Company; `VISUALIZADOR`
+        recebe 403. A chave de idempotência é escopada ao tenant e à conta; quando omitida, o
+        servidor deve aplicar uma chave determinística para não criar trabalhos simultâneos
+        equivalentes. O comando pode materializar snapshot e evidências `FACT` somente a partir de
+        campos reais da `Company` com fonte rastreável; não fabrica score, sinal, recomendação ou
+        relação econômica para preencher a resposta. Nunca aceita credencial, payload bruto de
+        fornecedor ou `organizationId` no corpo.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountIntelligenceRefreshRequest'
+      responses:
+        '202':
+          description: Refresh aceito ou deduplicado contra um trabalho equivalente ainda ativo
+          headers:
+            Location:
+              description: URL relativa para consultar a fotografia da conta
+              schema:
+                type: string
+                example: /api/market-intelligence/accounts/cmp_demo_001/intelligence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountIntelligenceRefreshAcceptedResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/signals:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/LimitParam'
+      - name: status
+        in: query
+        description: Filtra pelo estado operacional do sinal.
+        schema:
+          $ref: '#/components/schemas/AccountSignalStatus'
+      - name: type
+        in: query
+        description: Filtra pela taxonomia de sinal definida pelo dominio.
+        schema:
+          type: string
+          maxLength: 100
+      - name: evidenceType
+        in: query
+        description: >-
+          Filtra a natureza do sinal. Sinais aceitam apenas fato observado ou inferência; uma
+          recomendação pertence ao recurso `/recommendations`.
+        schema:
+          $ref: '#/components/schemas/ObservedOrInferredEvidenceType'
+    get:
+      tags: [Market Intelligence]
+      summary: Lista sinais comerciais deduplicados da conta
+      description: Ordenacao padrao por `detectedAt` decrescente, sempre limitada ao tenant da sessao.
+      responses:
+        '200':
+          description: Pagina de sinais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountSignalListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/decision-makers:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/LimitParam'
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/DecisionMakerStatus'
+      - name: buyingRole
+        in: query
+        schema:
+          type: string
+          maxLength: 100
+    get:
+      tags: [Market Intelligence]
+      summary: Lista os papeis do buying committee vinculados a contatos reais da conta
+      description: >-
+        Por minimizacao de dados pessoais, este recurso devolve `contactId` e metadados do papel,
+        mas nao duplica nome, e-mail ou telefone de `Contact`. A exibicao de dados do contato deve
+        respeitar o contrato e as permissoes proprias do CRM. Esta leitura nao autoriza outreach e
+        nao substitui a base legal/proveniencia registrada para o `Contact`; sem base comprovada,
+        os identificadores diretos do contato nao devem ser consumidos.
+      responses:
+        '200':
+          description: Pagina de decisores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionMakerListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/relationships:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/LimitParam'
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/EconomicRelationshipStatus'
+      - name: direction
+        in: query
+        description: Posicao da conta consultada na relacao economica.
+        schema:
+          type: string
+          enum: [outbound, inbound, all]
+          default: all
+    get:
+      tags: [Market Intelligence]
+      summary: Lista relacoes economicas conhecidas da conta
+      description: >-
+        Inclui vínculos nos quais a conta consultada aparece como origem ou como destino; `direction`
+        permite restringir o lado e usa `all` por padrão. Relações verificadas e inferidas são
+        estados distintos. Uma inferência nunca é apresentada como relação societária confirmada
+        sem mudança explícita para `Verified`.
+      responses:
+        '200':
+          description: Pagina de relacoes economicas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EconomicRelationshipListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/recommendations:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/LimitParam'
+      - name: status
+        in: query
+        schema:
+          $ref: '#/components/schemas/AccountRecommendationStatus'
+    get:
+      tags: [Market Intelligence]
+      summary: Lista recomendacoes explicaveis e seu estado de execucao
+      description: >-
+        O recurso e somente leitura nesta fase. Executar uma recomendacao exige fluxo autorizado e
+        auditavel separado; indisponibilidade de IA nunca cria recomendacao generica de contingencia.
+      responses:
+        '200':
+          description: Pagina de recomendacoes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountRecommendationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /market-intelligence/accounts/{id}/evidence:
+    parameters:
+      - $ref: '#/components/parameters/AccountIdParam'
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/LimitParam'
+      - name: evidenceType
+        in: query
+        schema:
+          $ref: '#/components/schemas/IntelligenceEvidenceType'
+      - name: subjectType
+        in: query
+        schema:
+          type: string
+          maxLength: 100
+      - name: subjectId
+        in: query
+        schema:
+          type: string
+          maxLength: 200
+    get:
+      tags: [Market Intelligence]
+      summary: Lista evidencias normalizadas que sustentam a inteligencia da conta
+      description: >-
+        Retorna apenas valores normalizados, hashes ou referencias necessarias a explicabilidade.
+        Payload bruto de fornecedor, segredo e dado pessoal desnecessario nao fazem parte deste
+        contrato. `FACT`, `INFERENCE` e `RECOMMENDATION` nunca sao combinados num rotulo ambiguo.
+      responses:
+        '200':
+          description: Pagina de evidencias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntelligenceEvidenceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   # ───────────────────────────── Contacts ─────────────────────────────
   /contacts:
@@ -3171,6 +3451,48 @@ components:
       in: path
       required: true
       schema: { type: string }
+    AccountIdParam:
+      name: id
+      in: path
+      required: true
+      description: >-
+        Identificador da empresa real no CRM (`Company.id`). O servidor resolve o tenant pela sessão;
+        um id de outro tenant não fica distinguível de um id inexistente.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+      example: cmp_demo_001
+    PageParam:
+      name: page
+      in: query
+      description: Número da página, iniciado em 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Quantidade máxima de itens por página.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    IdempotencyKeyHeader:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: >-
+        Chave opaca fornecida pelo cliente para deduplicar o comando de refresh dentro da mesma
+        organização e conta. Não inclua e-mail, telefone, CNPJ, segredo ou outro dado pessoal.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+        pattern: '^[A-Za-z0-9._:-]+$'
+      example: refresh-cmp_demo_001-20260818T120000Z
 
   responses:
     BadRequest:
@@ -3197,6 +3519,32 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Sessão ausente, expirada ou inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Dependência necessária temporariamente indisponível; nenhum sucesso é fabricado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: >-
+        A requisição é válida, mas não existe fonte rastreável suficiente para materializar
+        inteligência sem fabricar dados
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Falha interna observável, sem payload de fornecedor nem detalhe sensível
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
     ErrorResponse:
@@ -3212,6 +3560,420 @@ components:
         success: { type: boolean, example: true }
         data: {}
         meta: { type: object, description: 'Presente em listagens paginadas (page, limit, total, etc.)' }
+
+    # ── LDR / Account Intelligence ──
+    # Representação pública dos sete models Prisma da Fase 1. Campos internos de tenancy
+    # (`organizationId`), chaves de dedupe/idempotência e PII duplicada ficam fora da API.
+    IntelligenceEvidenceType:
+      type: string
+      description: Natureza epistêmica; fato observado, inferência e recomendação não se confundem.
+      enum: [FACT, INFERENCE, RECOMMENDATION]
+    ObservedOrInferredEvidenceType:
+      type: string
+      description: >-
+        Subconjunto aceito por sinais e papéis de decisor. `RECOMMENDATION` é proibido pelas
+        constraints persistentes desses models.
+      enum: [FACT, INFERENCE]
+    IntelligenceSnapshotStatus:
+      type: string
+      enum: [Complete, Partial, Failed, Stale]
+    AccountSignalStatus:
+      type: string
+      enum: [Active, Dismissed, Expired]
+    DecisionMakerStatus:
+      type: string
+      enum: [Active, Inactive, Unverified]
+    AccountRecommendationStatus:
+      type: string
+      enum: [Pending, Approved, Executed, Dismissed, Superseded, Failed]
+    EconomicRelationshipStatus:
+      type: string
+      enum: [Verified, Inferred, Rejected, Inactive]
+
+    PaginationMeta:
+      type: object
+      required: [page, limit, total, totalPages, hasNext, hasPrevious]
+      properties:
+        page: { type: integer, minimum: 1, example: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100, example: 25 }
+        total: { type: integer, minimum: 0, example: 1 }
+        totalPages: { type: integer, minimum: 0, example: 1 }
+        hasNext: { type: boolean, example: false }
+        hasPrevious: { type: boolean, example: false }
+
+    IntelligenceSourceState:
+      type: object
+      required: [status]
+      description: >-
+        Estado normalizado de uma fonte. Mensagens brutas, credenciais e respostas integrais do
+        provedor não são expostas.
+      properties:
+        status:
+          type: string
+          enum: [available, partial, unavailable, not_requested]
+          example: available
+        checkedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-18T12:00:00Z'
+        errorCode:
+          type: string
+          nullable: true
+          description: Código sanitizado e estável; nunca a mensagem bruta do provedor.
+          example: null
+
+    AccountIntelligenceSnapshot:
+      type: object
+      required: [id, accountId, version, generatedAt, summary, structuredFacts, sourceStatus, status, createdAt]
+      properties:
+        id: { type: string, example: snap_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        version: { type: integer, minimum: 1, example: 3 }
+        generatedAt: { type: string, format: date-time, example: '2026-08-18T12:00:00Z' }
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-08-25T12:00:00Z'
+        summary:
+          type: string
+          description: Resumo sanitizado da conta; ausência de fonte deve permanecer explícita.
+          example: Conta com aderência ao ICP e um sinal recente confirmado por fonte pública.
+        structuredFacts:
+          type: object
+          additionalProperties: true
+          description: Fatos normalizados; nunca contêm segredo ou payload bruto de fornecedor.
+          example:
+            registrationStatus: ACTIVE
+            headquartersState: SP
+            employeeRange: 100-249
+        sourceStatus:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/IntelligenceSourceState'
+          example:
+            public_registry:
+              status: available
+              checkedAt: '2026-08-18T12:00:00Z'
+              errorCode: null
+            business_news:
+              status: unavailable
+              checkedAt: '2026-08-18T12:00:00Z'
+              errorCode: UPSTREAM_TIMEOUT
+        status:
+          $ref: '#/components/schemas/IntelligenceSnapshotStatus'
+        createdAt: { type: string, format: date-time, example: '2026-08-18T12:00:01Z' }
+
+    AccountScore:
+      type: object
+      required:
+        [id, accountId, snapshotId, total, fit, timing, intent, relationship, positiveReasons,
+         negativeReasons, calculation, scoreVersion, calculatedAt, createdAt]
+      properties:
+        id: { type: string, example: score_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        snapshotId: { type: string, example: snap_demo_001 }
+        total: { type: integer, minimum: 0, maximum: 100, example: 78 }
+        fit: { type: integer, minimum: 0, maximum: 100, example: 84 }
+        timing: { type: integer, minimum: 0, maximum: 100, example: 72 }
+        intent: { type: integer, minimum: 0, maximum: 100, example: 76 }
+        relationship: { type: integer, minimum: 0, maximum: 100, example: 65 }
+        positiveReasons:
+          type: array
+          items: { type: string }
+          example: [Segmento aderente ao ICP, Sinal de expansão recente]
+        negativeReasons:
+          type: array
+          items: { type: string }
+          example: [Relacionamento comercial ainda não confirmado]
+        calculation:
+          type: object
+          additionalProperties: true
+          description: Contribuições e pesos normalizados; nunca inclui payload bruto de fornecedor.
+          example:
+            methodology: weighted-v1
+            missingDimensions: []
+        scoreVersion: { type: string, example: account-score-v1 }
+        calculatedAt: { type: string, format: date-time, example: '2026-08-18T12:00:02Z' }
+        createdAt: { type: string, format: date-time, example: '2026-08-18T12:00:02Z' }
+
+    AccountIntelligenceView:
+      type: object
+      required: [accountId, state, snapshot, latestScore]
+      properties:
+        accountId: { type: string, example: cmp_demo_001 }
+        state:
+          type: string
+          enum: [current, stale, partial, failed, empty]
+          description: Estado de apresentação derivado da existência, validade e status do snapshot.
+          example: current
+        snapshot:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AccountIntelligenceSnapshot'
+        latestScore:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AccountScore'
+
+    AccountIntelligenceResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          $ref: '#/components/schemas/AccountIntelligenceView'
+
+    AccountIntelligenceRefreshRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        force:
+          type: boolean
+          default: false
+          description: >-
+            Quando true, ignora apenas a validade temporal do snapshot; não ignora autorização,
+            rate limit, idempotência, consentimento ou guardrails de fornecedor.
+          example: false
+
+    AccountIntelligenceRefreshJob:
+      type: object
+      required: [refreshId, accountId, status, deduplicated, acceptedAt]
+      properties:
+        refreshId: { type: string, example: refresh_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        status:
+          type: string
+          enum: [queued]
+          example: queued
+        deduplicated:
+          type: boolean
+          description: Indica que um trabalho equivalente em andamento foi reutilizado.
+          example: false
+        acceptedAt: { type: string, format: date-time, example: '2026-08-18T12:00:00Z' }
+
+    AccountIntelligenceRefreshAcceptedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          $ref: '#/components/schemas/AccountIntelligenceRefreshJob'
+
+    AccountSignal:
+      type: object
+      required:
+        [id, accountId, type, taxonomyVersion, title, description, detectedAt, source, confidence,
+         evidenceType, status, firstSeenAt, lastSeenAt, occurrenceCount, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: sig_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        snapshotId: { type: string, nullable: true, example: snap_demo_001 }
+        type: { type: string, example: expansion }
+        taxonomyVersion: { type: string, example: signal-taxonomy-v1 }
+        title: { type: string, example: Expansão operacional anunciada }
+        description: { type: string, example: Fonte pública indica ampliação de capacidade operacional. }
+        detectedAt: { type: string, format: date-time, example: '2026-08-18T10:00:00Z' }
+        effectiveAt: { type: string, format: date-time, nullable: true, example: '2026-08-20T00:00:00Z' }
+        source: { type: string, example: public_news }
+        sourceUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.invalid/evidence/company-update
+        confidence: { type: number, format: double, minimum: 0, maximum: 1, example: 0.91 }
+        evidenceType:
+          $ref: '#/components/schemas/ObservedOrInferredEvidenceType'
+        status:
+          $ref: '#/components/schemas/AccountSignalStatus'
+        firstSeenAt: { type: string, format: date-time, example: '2026-08-18T10:00:00Z' }
+        lastSeenAt: { type: string, format: date-time, example: '2026-08-18T11:30:00Z' }
+        occurrenceCount: { type: integer, minimum: 1, example: 2 }
+        createdAt: { type: string, format: date-time, example: '2026-08-18T10:00:01Z' }
+        updatedAt: { type: string, format: date-time, example: '2026-08-18T11:30:01Z' }
+
+    AccountSignalListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountSignal'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    DecisionMaker:
+      type: object
+      required:
+        [id, accountId, contactId, buyingRole, roleEvidenceType, source, confidence, status,
+         createdAt, updatedAt]
+      description: >-
+        Classificação do buying committee ligada a um `Contact` existente. Nome, e-mail e telefone
+        não são duplicados neste recurso por minimização de PII.
+      properties:
+        id: { type: string, example: dm_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        contactId: { type: string, example: contact_demo_001 }
+        snapshotId: { type: string, nullable: true, example: snap_demo_001 }
+        buyingRole: { type: string, example: EconomicBuyer }
+        department: { type: string, nullable: true, example: Operações }
+        seniority: { type: string, nullable: true, example: Diretoria }
+        roleEvidenceType:
+          $ref: '#/components/schemas/ObservedOrInferredEvidenceType'
+        source: { type: string, example: crm_verified }
+        sourceUrl: { type: string, format: uri, nullable: true, example: null }
+        verifiedAt: { type: string, format: date-time, nullable: true, example: '2026-08-17T15:00:00Z' }
+        confidence: { type: number, format: double, minimum: 0, maximum: 1, example: 0.86 }
+        status:
+          $ref: '#/components/schemas/DecisionMakerStatus'
+        createdAt: { type: string, format: date-time, example: '2026-08-17T15:00:01Z' }
+        updatedAt: { type: string, format: date-time, example: '2026-08-17T15:00:01Z' }
+
+    DecisionMakerListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionMaker'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    IntelligenceEvidence:
+      type: object
+      required:
+        [id, accountId, subjectType, factKey, source, collectedAt, evidenceType, createdAt]
+      properties:
+        id: { type: string, example: evidence_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        snapshotId: { type: string, nullable: true, example: snap_demo_001 }
+        subjectType: { type: string, example: AccountSignal }
+        subjectId: { type: string, nullable: true, example: sig_demo_001 }
+        factKey: { type: string, example: expansion.operational_capacity }
+        value:
+          nullable: true
+          description: Valor normalizado e minimizado. Pode ser omitido quando apenas hash/referência é necessário.
+          example:
+            announced: true
+            region: Southeast
+        valueHash:
+          type: string
+          nullable: true
+          description: Hash de integridade; nunca substitui a classificação epistêmica.
+          example: sha256:demo-redacted-value
+        reference: { type: string, nullable: true, example: public-record-2026-08 }
+        source: { type: string, example: public_registry }
+        sourceUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.invalid/evidence/public-record
+        collectedAt: { type: string, format: date-time, example: '2026-08-18T09:45:00Z' }
+        confidence: { type: number, format: double, minimum: 0, maximum: 1, nullable: true, example: 0.98 }
+        evidenceType:
+          $ref: '#/components/schemas/IntelligenceEvidenceType'
+        createdAt: { type: string, format: date-time, example: '2026-08-18T09:45:01Z' }
+
+    IntelligenceEvidenceListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntelligenceEvidence'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    AccountRecommendation:
+      type: object
+      required:
+        [id, accountId, snapshotId, actionType, title, rationale, priority, status,
+         recommendationVersion, generatedBy, generatedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: rec_demo_001 }
+        accountId: { type: string, example: cmp_demo_001 }
+        snapshotId: { type: string, example: snap_demo_001 }
+        accountScoreId: { type: string, nullable: true, example: score_demo_001 }
+        actionType: { type: string, example: schedule_discovery }
+        title: { type: string, example: Validar prioridade de expansão }
+        rationale:
+          type: string
+          example: Score e evidências públicas indicam momento adequado para contato consultivo.
+        priority: { type: integer, minimum: 1, maximum: 5, example: 4 }
+        expectedImpact: { type: string, nullable: true, example: Confirmar timing e escopo da oportunidade. }
+        status:
+          $ref: '#/components/schemas/AccountRecommendationStatus'
+        recommendationVersion: { type: string, example: nba-v1 }
+        generatedBy: { type: string, example: deterministic-rules-v1 }
+        generatedAt: { type: string, format: date-time, example: '2026-08-18T12:00:03Z' }
+        reviewedAt: { type: string, format: date-time, nullable: true, example: null }
+        executedAt: { type: string, format: date-time, nullable: true, example: null }
+        externalRef:
+          type: string
+          nullable: true
+          description: Referência opaca da execução externa, quando houver; nunca uma credencial.
+          example: null
+        statusReason: { type: string, nullable: true, example: null }
+        createdAt: { type: string, format: date-time, example: '2026-08-18T12:00:03Z' }
+        updatedAt: { type: string, format: date-time, example: '2026-08-18T12:00:03Z' }
+
+    AccountRecommendationListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountRecommendation'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    EconomicRelationship:
+      type: object
+      required:
+        [id, sourceAccountId, targetAccountId, relationType, status, source, confidence,
+         detectedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, example: rel_demo_001 }
+        sourceAccountId: { type: string, example: cmp_demo_001 }
+        targetAccountId: { type: string, example: cmp_demo_002 }
+        snapshotId: { type: string, nullable: true, example: snap_demo_001 }
+        relationType: { type: string, example: supplier }
+        status:
+          $ref: '#/components/schemas/EconomicRelationshipStatus'
+        source: { type: string, example: public_registry }
+        sourceUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://example.invalid/evidence/economic-relationship
+        confidence: { type: number, format: double, minimum: 0, maximum: 1, example: 0.79 }
+        detectedAt: { type: string, format: date-time, example: '2026-08-16T10:00:00Z' }
+        verifiedAt: { type: string, format: date-time, nullable: true, example: null }
+        validFrom: { type: string, format: date-time, nullable: true, example: '2026-01-01T00:00:00Z' }
+        validTo: { type: string, format: date-time, nullable: true, example: null }
+        createdAt: { type: string, format: date-time, example: '2026-08-16T10:00:01Z' }
+        updatedAt: { type: string, format: date-time, example: '2026-08-16T10:00:01Z' }
+
+    EconomicRelationshipListResponse:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EconomicRelationship'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
 
     AIPendingAction:
       type: object
