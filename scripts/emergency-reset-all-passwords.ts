@@ -1,9 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
-import { prisma } from '../src/lib/prisma.js';
-import { requestContext } from '../src/lib/async-context.js';
+import pg from 'pg';
 
+const { Pool } = pg;
 const emergencyPassword = process.env.EMERGENCY_RESET_ALL_PASSWORDS_PASSWORD?.trim();
+const databaseUrl = process.env.DATABASE_URL?.trim();
+
+type UserRow = { id: string; email: string };
+type CredentialRow = { id: string };
 
 async function main() {
   if (!emergencyPassword) {
@@ -15,75 +19,106 @@ async function main() {
     throw new Error('EMERGENCY_RESET_ALL_PASSWORDS_PASSWORD must have at least 16 characters.');
   }
 
-  requestContext.enterWith({ bypassRls: true });
-
-  const users = await prisma.user.findMany({
-    select: { id: true, email: true },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  if (users.length === 0) {
-    console.log('EMERGENCY_AUTH_RESET no users found.');
-    return;
+  if (!databaseUrl) {
+    throw new Error('DATABASE_URL is required for emergency password reset.');
   }
 
-  const passwordHash = await hashPassword(emergencyPassword);
-  let removedDuplicateCredentials = 0;
-  let revokedSessions = 0;
+  // Este caminho de recuperação usa pg diretamente de propósito. O Prisma Client desta aplicação
+  // encapsula operações em transações curtas para aplicar contexto/RLS; durante o incidente, esse
+  // wrapper falhou antes mesmo da primeira leitura com P2028 (timeout para iniciar transação).
+  // Uma conexão SQL dedicada evita esse wrapper, sem alterar o banco nem a configuração normal da API.
+  const pool = new Pool({
+    connectionString: databaseUrl,
+    max: 1,
+    connectionTimeoutMillis: 30_000,
+    idleTimeoutMillis: 5_000,
+  });
+  const client = await pool.connect();
 
-  for (const user of users) {
-    const credentialAccounts = await prisma.account.findMany({
-      where: { userId: user.id, providerId: 'credential' },
-      select: { id: true },
-    });
+  try {
+    const passwordHash = await hashPassword(emergencyPassword);
 
-    if (credentialAccounts.length === 0) {
-      await prisma.account.create({
-        data: {
-          id: randomUUID(),
-          userId: user.id,
-          accountId: user.id,
-          providerId: 'credential',
-          password: passwordHash,
-        },
-      });
-    } else {
-      const [canonicalCredential, ...duplicates] = credentialAccounts;
+    await client.query('BEGIN');
+    // As policies RLS do projeto usam app.bypass_rls para operações globais controladas.
+    await client.query(`SELECT set_config('app.bypass_rls', 'on', true)`);
 
-      await prisma.account.update({
-        where: { id: canonicalCredential.id },
-        data: { password: passwordHash },
-      });
+    const usersResult = await client.query<UserRow>(
+      `SELECT "id", "email" FROM "user" ORDER BY "createdAt" ASC`,
+    );
+    const users = usersResult.rows;
 
-      if (duplicates.length > 0) {
-        const deleted = await prisma.account.deleteMany({
-          where: { id: { in: duplicates.map((account) => account.id) } },
-        });
-        removedDuplicateCredentials += deleted.count;
-      }
+    if (users.length === 0) {
+      await client.query('COMMIT');
+      console.log('EMERGENCY_AUTH_RESET no users found.');
+      return;
     }
 
-    const sessions = await prisma.session.deleteMany({ where: { userId: user.id } });
-    revokedSessions += sessions.count;
+    let removedDuplicateCredentials = 0;
+    let revokedSessions = 0;
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { mustChangePassword: true },
-    });
+    for (const user of users) {
+      const credentialsResult = await client.query<CredentialRow>(
+        `SELECT "id" FROM "account" WHERE "userId" = $1 AND "providerId" = 'credential' ORDER BY "createdAt" ASC, "id" ASC`,
+        [user.id],
+      );
+      const credentialAccounts = credentialsResult.rows;
 
-    console.log(`EMERGENCY_AUTH_RESET user=${user.email} status=reset`);
+      if (credentialAccounts.length === 0) {
+        await client.query(
+          `INSERT INTO "account" ("id", "accountId", "providerId", "userId", "password", "createdAt", "updatedAt")
+           VALUES ($1, $2, 'credential', $3, $4, NOW(), NOW())`,
+          [randomUUID(), user.id, user.id, passwordHash],
+        );
+      } else {
+        const [canonicalCredential, ...duplicates] = credentialAccounts;
+
+        await client.query(
+          `UPDATE "account" SET "password" = $1, "updatedAt" = NOW() WHERE "id" = $2`,
+          [passwordHash, canonicalCredential.id],
+        );
+
+        if (duplicates.length > 0) {
+          const duplicateIds = duplicates.map((account) => account.id);
+          const deleted = await client.query(
+            `DELETE FROM "account" WHERE "id" = ANY($1::text[])`,
+            [duplicateIds],
+          );
+          removedDuplicateCredentials += deleted.rowCount ?? 0;
+        }
+      }
+
+      const sessions = await client.query(
+        `DELETE FROM "session" WHERE "userId" = $1`,
+        [user.id],
+      );
+      revokedSessions += sessions.rowCount ?? 0;
+
+      await client.query(
+        `UPDATE "user" SET "mustChangePassword" = TRUE, "updatedAt" = NOW() WHERE "id" = $1`,
+        [user.id],
+      );
+
+      console.log(`EMERGENCY_AUTH_RESET user=${user.email} status=reset`);
+    }
+
+    await client.query('COMMIT');
+    console.log(
+      `EMERGENCY_AUTH_RESET completed users=${users.length} revokedSessions=${revokedSessions} removedDuplicateCredentials=${removedDuplicateCredentials}`,
+    );
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Preserve the original incident error below.
+    }
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
   }
-
-  console.log(
-    `EMERGENCY_AUTH_RESET completed users=${users.length} revokedSessions=${revokedSessions} removedDuplicateCredentials=${removedDuplicateCredentials}`,
-  );
 }
 
-main()
-  .catch((error) => {
-    console.error('EMERGENCY_AUTH_RESET failed', error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((error) => {
+  console.error('EMERGENCY_AUTH_RESET failed', error);
+  process.exitCode = 1;
+});
