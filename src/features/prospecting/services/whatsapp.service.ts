@@ -1,18 +1,19 @@
 import { logger } from '../../../lib/logger.js';
-import { sendWhatsAppMessage, getWhatsAppStatus } from '../../integrations/whatsapp/whatsapp.service.js';
+import { enqueueWhatsAppCommand } from '../../../lib/queue/whatsappCommand.queue.js';
+import { getWhatsAppStatus } from '../../integrations/whatsapp/whatsapp.service.js';
 
 export class ProspectingWhatsAppService {
-    /**
-     * Envia uma mensagem WhatsApp consumindo o serviço Baileys de integração.
-     * @param organizationId O ID da organização/tenant
-     * @param to O número para o qual a mensagem deve ser enviada
-     * @param message O texto da mensagem
-     */
     async sendMessage(organizationId: string, to: string, message: string): Promise<boolean> {
         try {
-            return await sendWhatsAppMessage(organizationId, to, message);
+            await enqueueWhatsAppCommand({
+                type: 'send',
+                organizationId,
+                number: to,
+                text: message,
+            });
+            return true;
         } catch (error) {
-            logger.error({ error, organizationId, to }, 'Falha ao enviar mensagem de prospecção via WhatsApp Baileys');
+            logger.error({ error, organizationId, to }, 'Falha ao enfileirar mensagem de prospecção via WhatsApp');
             return false;
         }
     }
