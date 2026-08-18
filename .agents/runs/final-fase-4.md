@@ -124,6 +124,23 @@ ninguém reabra essa investigação achando que é um achado real.
   esse botão) — corrigido diretamente, como `/AGENTS.md` pede para todo problema solucionável
   ("reproduza, encaminhe ao dono, corrija, teste e valide").
 
+## 4.1. Sweep mobile ao vivo (segunda rodada, viewport Pixel 5 393×851)
+
+Lacuna explícita da seção 6 original ("viewport mobile... os outros 29 módulos não foram
+verificados") fechada nesta rodada: os 30 módulos navegáveis (incluindo os 6 já cobertos por E2E
+desktop) foram abertos com sessão real, viewport Pixel 5 (`devices['Pixel 5']` do Playwright,
+393×851, mesmo perfil usado por `crm-kanban-mobile.spec.ts`), medindo overflow horizontal real
+(`document.documentElement.scrollWidth`/`body.scrollWidth` vs `clientWidth`) — não uma inspeção
+visual subjetiva.
+
+**Resultado: 30/30 módulos sem overflow horizontal** (`clientWidth === scrollWidth === 393` em
+todos, sem exceção) e sem tela em branco. Script reutilizável: `scripts/qa-sweep-mobile.ts`.
+
+Isto não substitui teste de interação mobile real (toque, gestos, teclado virtual — já coberto
+separadamente para o Kanban por `crm-kanban-mobile.spec.ts`) nem RBAC/formulário em mobile — cobre
+especificamente a classe de bug mais comum em CRMs densos ao virar pra tela pequena (overflow
+horizontal forçando scroll lateral indesejado), que estava listada como não verificada.
+
 ## 5. QA transversal (Passo 5) — parcial
 
 - **Baselines visuais Linux**: seguem skipadas (`tests/e2e/visual.spec.ts`), débito já documentado
@@ -154,8 +171,9 @@ E2E prévio (além do já coberto pelos 6 módulos com teste automatizado):
   `VISUALIZADOR`) nesta rodada.
 - Cross-tenant (isolamento entre organizações) por módulo — testado só indiretamente para RLS de
   banco na Fase Final 3 (nível de dado, não de UI por módulo).
-- Viewport mobile — testado só para `crm`/kanban (já existente). Os outros 29 módulos não foram
-  verificados em mobile nesta rodada.
+- Viewport mobile — **fechado nesta rodada para overflow horizontal (seção 4.1, 30/30 OK)**.
+  Interação mobile real (toque, gestos) segue coberta só para `crm`/kanban (já existente); os
+  outros 29 módulos não tiveram teste de interação por toque, só de layout/overflow.
 - Teclado/foco — verificado só onde `accessibility.spec.ts`/`crm-kanban.spec.ts` já cobrem.
 - Export/upload/download, estados offline/stale.
 - Jornadas de integração assíncrona (Bitrix, IA, voz) ponta a ponta fora do que já está coberto por
