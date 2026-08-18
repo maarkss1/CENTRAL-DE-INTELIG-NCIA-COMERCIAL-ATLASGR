@@ -4,9 +4,7 @@ import { sendWhatsAppMessage, getWhatsAppStatus } from '../../integrations/whats
 export class ProspectingWhatsAppService {
     /**
      * Envia uma mensagem WhatsApp consumindo o serviço Baileys de integração.
-     * @param organizationId O ID da organização/tenant
-     * @param to O número para o qual a mensagem deve ser enviada
-     * @param message O texto da mensagem
+     * Em produção web, sendWhatsAppMessage encaminha ao broker quando o socket pertence ao worker.
      */
     async sendMessage(organizationId: string, to: string, message: string): Promise<boolean> {
         try {

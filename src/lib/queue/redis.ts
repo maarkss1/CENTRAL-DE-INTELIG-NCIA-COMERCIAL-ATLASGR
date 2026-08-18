@@ -1,76 +1,91 @@
 import Redis from 'ioredis';
 import { logger } from '../logger.js';
+import { recordRedisReconnect } from './metrics.js';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const configuredRedisUrl = process.env.REDIS_URL?.trim();
+const redisUrl = configuredRedisUrl || 'redis://localhost:6379';
+const isProduction = process.env.NODE_ENV === 'production';
+const entrypoint = process.argv[1] || '';
+export const isDedicatedWorkerProcess = /(?:^|[/\\])worker\.(?:ts|js|cjs|mjs)$/.test(entrypoint);
 
-// Redis-backed queues are opt-in. A REDIS_URL by itself is not enough to activate
-// background workers or distributed rate limiting; operators must explicitly set
-// ENABLE_QUEUES=true as documented in render.yaml. This keeps an old/stale optional
-// Redis URL from participating in the web process boot.
-export const queuesEnabled =
-    process.env.ENABLE_QUEUES === 'true' && Boolean(process.env.REDIS_URL);
+export const redisConfigured = Boolean(configuredRedisUrl);
 
-// Connection instance for standard queue operations
+// Em produção, o web precisa poder PRODUZIR jobs e usar o rate limit distribuído mesmo quando a
+// antiga flag ENABLE_QUEUES=false está mantida no Blueprint para impedir consumers embutidos.
+// O worker dedicado, por outro lado, continua exigindo ENABLE_QUEUES=true explicitamente.
+export const queuesEnabled = redisConfigured && (
+    process.env.ENABLE_QUEUES === 'true' || (isProduction && !isDedicatedWorkerProcess)
+);
+
+export const rateLimitRedisEnabled = isProduction && redisConfigured && !isDedicatedWorkerProcess;
+
+if (isProduction && process.env.ENABLE_EMBEDDED_WORKERS === 'true') {
+    logger.fatal('ENABLE_EMBEDDED_WORKERS=true não é permitido em produção; use worker.ts dedicado.');
+    if (process.env.NODE_ENV !== 'test') process.exit(1);
+}
+
+function retryDelay(times: number): number {
+    return Math.min(Math.max(times, 1) * 500, 5_000);
+}
+
+function observeConnection(redis: Redis, role: 'bullmq' | 'rate-limit' | 'cache', enabled: () => boolean): void {
+    redis.on('connect', () => {
+        if (enabled()) logger.info({ redisRole: role }, 'Connected to Redis successfully');
+    });
+    redis.on('reconnecting', (delay: number) => {
+        if (!enabled()) return;
+        recordRedisReconnect(role);
+        logger.warn({ redisRole: role, delayMs: delay }, 'Redis reconnect scheduled');
+    });
+    redis.on('error', (err) => {
+        if (!enabled()) return;
+        if (process.env.NODE_ENV === 'development') {
+            logger.warn({ redisRole: role, message: err.message }, 'Redis offline or connecting...');
+        } else {
+            logger.error({ redisRole: role, err }, 'Redis connection error');
+        }
+    });
+}
+
 export const connection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
     enableOfflineQueue: queuesEnabled,
-    maxRetriesPerRequest: null, // Required by BullMQ
+    maxRetriesPerRequest: null,
+    connectTimeout: 10_000,
     retryStrategy(times) {
         if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
+        return retryDelay(times);
     },
 });
+observeConnection(connection, 'bullmq', () => queuesEnabled);
 
-connection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    if (process.env.NODE_ENV === 'development') {
-        logger.warn({ message: err.message }, 'Redis offline or connecting...');
-    } else {
-        logger.error({ err }, 'Redis connection error');
-    }
-});
-
-connection.on('connect', () => {
-    logger.info('Connected to Redis successfully');
-});
-
-// Dedicated connection for express-rate-limit (via rate-limit-redis).
-// Must NOT reuse `connection` above: that one sets maxRetriesPerRequest: null
-// (required by BullMQ, which needs blocking commands to retry forever). Rate-limit
-// checks run on the hot request path, so a transient Redis hiccup must fail fast.
 export const rateLimiterConnection = new Redis(redisUrl, {
-    lazyConnect: !queuesEnabled,
-    enableOfflineQueue: queuesEnabled,
-    maxRetriesPerRequest: 1,
-    retryStrategy(times) {
-        if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
-    },
-});
-
-rateLimiterConnection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    if (process.env.NODE_ENV === 'development') {
-        logger.warn({ message: err.message }, 'Rate limiter Redis connection offline or connecting...');
-    } else {
-        logger.error({ err }, 'Rate limiter Redis connection error');
-    }
-});
-
-// Conexão fail-fast para caches no caminho da aplicação. Ela é separada da conexão
-// bloqueante do BullMQ para que uma indisponibilidade do Redis nunca prenda uma
-// requisição de enriquecimento.
-export const cacheConnection = new Redis(redisUrl, {
-    lazyConnect: !queuesEnabled,
-    maxRetriesPerRequest: 1,
+    lazyConnect: !rateLimitRedisEnabled,
     enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+    connectTimeout: 3_000,
+    commandTimeout: 2_000,
     retryStrategy(times) {
-        if (!queuesEnabled) return null;
-        return Math.min(times * 500, 5000);
+        if (!rateLimitRedisEnabled) return null;
+        return retryDelay(times);
     },
 });
+observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
 
-cacheConnection.on('error', (err) => {
-    if (!queuesEnabled) return;
-    logger.warn({ message: err.message }, 'Enrichment cache Redis unavailable; continuing without cache');
+export const cacheConnection = new Redis(redisUrl, {
+    lazyConnect: !redisConfigured,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
+    connectTimeout: 5_000,
+    commandTimeout: 3_000,
+    retryStrategy(times) {
+        if (!redisConfigured) return null;
+        return retryDelay(times);
+    },
 });
+observeConnection(cacheConnection, 'cache', () => redisConfigured);
+
+export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {
+    const pong = await connectionToPing.ping();
+    if (pong !== 'PONG') throw new Error(`Redis health check returned ${pong}`);
+}

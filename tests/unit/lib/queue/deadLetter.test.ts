@@ -9,7 +9,7 @@ vi.mock('../../../../src/lib/logger.js', () => ({
     logger: { error: vi.fn() },
 }));
 
-const { recordDeadLetter, isFinalAttempt } = await import('../../../../src/lib/queue/deadLetter.js');
+const { recordDeadLetter, isFinalAttempt, buildFailureState } = await import('../../../../src/lib/queue/deadLetter.js');
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -27,19 +27,48 @@ describe('isFinalAttempt', () => {
         expect(isFinalAttempt(4, 3)).toBe(true);
     });
 
-    it('assume 1 tentativa quando `attempts` não foi configurado no job', () => {
+    it('assume 1 tentativa quando attempts não foi configurado', () => {
         expect(isFinalAttempt(1, undefined)).toBe(true);
     });
 });
 
+describe('failure state', () => {
+    it('gera contrato comum com attempts, lastError, failedAt, correlationId e chave idempotente', () => {
+        const first = buildFailureState({
+            queue: 'q',
+            jobId: 'job-1',
+            jobName: 'run',
+            attemptsMade: 3,
+            error: new Error('token=sk-abcdefghijklmnop expirado'),
+            correlationId: 'corr-1',
+        });
+        const second = buildFailureState({
+            queue: 'q',
+            jobId: 'job-1',
+            jobName: 'run',
+            attemptsMade: 3,
+            error: new Error('outro erro'),
+            correlationId: 'corr-1',
+        });
+
+        expect(first.attempts).toBe(3);
+        expect(first.lastError).toContain('[REDACTED]');
+        expect(first.lastError).not.toContain('sk-abcdefghijklmnop');
+        expect(first.failedAt).toEqual(expect.any(String));
+        expect(first.correlationId).toBe('corr-1');
+        expect(first.reprocessKey).toBe(second.reprocessKey);
+    });
+});
+
 describe('recordDeadLetter', () => {
-    it('persiste a falha no AuditLog com a fila, tentativas e erro sanitizado', async () => {
+    it('persiste a falha normalizada e mantém campos legados compatíveis', async () => {
         await recordDeadLetter({
             queue: 'leads-enrichment',
             jobId: 'job-1',
             jobName: 'qualify-lead',
             organizationId: 'org-1',
             attemptsMade: 3,
+            correlationId: 'corr-1',
             error: new Error('token=sk-abcdefghijklmnop expirado'),
             data: { leadId: 'lead-1' },
         });
@@ -53,15 +82,18 @@ describe('recordDeadLetter', () => {
 
         const details = JSON.parse(data.details);
         expect(details.queue).toBe('leads-enrichment');
+        expect(details.attempts).toBe(3);
         expect(details.attemptsMade).toBe(3);
-        expect(details.error).toContain('[REDACTED]');
-        expect(details.error).not.toContain('sk-abcdefghijklmnop');
+        expect(details.lastError).toContain('[REDACTED]');
+        expect(details.error).toBe(details.lastError);
+        expect(details.failedAt).toEqual(expect.any(String));
+        expect(details.correlationId).toBe('corr-1');
+        expect(details.reprocessKey).toMatch(/^[a-f0-9]{64}$/);
         expect(details.data).toEqual({ leadId: 'lead-1' });
     });
 
-    it('nunca lança — falha ao persistir a dead-letter não pode virar uma segunda falha', async () => {
+    it('nunca lança se AuditLog estiver indisponível', async () => {
         auditLogCreateMock.mockRejectedValue(new Error('AuditLog indisponível'));
-
         await expect(recordDeadLetter({
             queue: 'search-indexing', jobId: 'job-2', jobName: 'add', attemptsMade: 1, error: new Error('x'),
         })).resolves.toBeUndefined();

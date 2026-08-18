@@ -1,16 +1,20 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
-import { initWhatsApp, getWhatsAppStatus, logoutWhatsApp, sendWhatsAppMessage } from './whatsapp.service.js';
+import { getWhatsAppStatus } from './whatsapp.service.js';
 import { listConversations } from './whatsappMessage.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { toE164BR } from '../../../lib/phone.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { enqueueWhatsAppCommand } from '../../../lib/queue/whatsappCommand.queue.js';
 
 const router = Router();
 const managementRoles = requireRole(['ADMIN', 'GESTOR']);
 
-// Lista de conversas (uma por número, mensagem mais recente primeiro) — alimenta o painel
-// "WhatsApp Web" embutido na tela de Integrações.
+function idempotencyKey(req: Request): string | undefined {
+    const value = req.header('x-idempotency-key');
+    return value?.trim() || undefined;
+}
+
 router.get('/conversations', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -21,9 +25,6 @@ router.get('/conversations', async (req: Request, res: Response, next: NextFunct
     }
 });
 
-// Histórico de mensagens persistidas — de um lead específico, de um telefone específico (útil para
-// candidatos de prospecção ainda não promovidos a Lead), ou as mais recentes de toda a organização
-// quando nenhum filtro é informado.
 router.get('/messages', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -40,8 +41,6 @@ router.get('/messages', async (req: Request, res: Response, next: NextFunction):
     }
 });
 
-// Sinais de intenção extraídos por IA das conversas de WhatsApp de um lead (ver
-// conversation-intelligence.service.ts) — mais recentes primeiro.
 router.get('/signals', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -61,18 +60,19 @@ router.get('/signals', async (req: Request, res: Response, next: NextFunction): 
     }
 });
 
-// Inicia a sessão e gera QR Code (por tenant)
 router.post('/connect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        await initWhatsApp(organizationId);
-        res.json({ success: true, message: 'WhatsApp connect request sent.' });
+        const command = await enqueueWhatsAppCommand(
+            { type: 'connect', organizationId },
+            idempotencyKey(req),
+        );
+        res.status(202).json({ success: true, message: 'WhatsApp connect command queued.', data: command });
     } catch (error) {
         next(error);
     }
 });
 
-// Pega o status (conectado, desconectado, QR Code) do tenant autenticado
 router.get('/status', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -83,22 +83,19 @@ router.get('/status', async (req: Request, res: Response, next: NextFunction): P
     }
 });
 
-// Desconecta a sessão do tenant autenticado
 router.post('/disconnect', managementRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
-        await logoutWhatsApp(organizationId);
-        res.json({ success: true, message: 'WhatsApp disconnected.' });
+        const command = await enqueueWhatsAppCommand(
+            { type: 'disconnect', organizationId },
+            idempotencyKey(req),
+        );
+        res.status(202).json({ success: true, message: 'WhatsApp disconnect command queued.', data: command });
     } catch (error) {
         next(error);
     }
 });
 
-// Envia uma mensagem pela sessão do tenant autenticado — mensagem manual digitada por um
-// vendedor/gestor no painel de conversa (WhatsAppChatPanel/WhatsAppWebPanel), não um disparo
-// automatizado. `skipOptOutCheck: true` de propósito: o contrato de opt-out unificado
-// (`.agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md`) cobre cadência/prospecção/
-// automação, não uma resposta humana dentro de uma conversa já em andamento.
 router.post('/send', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -108,8 +105,17 @@ router.post('/send', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (r
             return;
         }
 
-        await sendWhatsAppMessage(organizationId, number, text, undefined, { skipOptOutCheck: true });
-        res.json({ success: true, message: 'Mensagem enviada com sucesso.' });
+        const command = await enqueueWhatsAppCommand(
+            {
+                type: 'send',
+                organizationId,
+                number,
+                text,
+                context: { skipOptOutCheck: true },
+            },
+            idempotencyKey(req),
+        );
+        res.status(202).json({ success: true, message: 'Mensagem enfileirada para envio.', data: command });
     } catch (error) {
         next(error);
     }
