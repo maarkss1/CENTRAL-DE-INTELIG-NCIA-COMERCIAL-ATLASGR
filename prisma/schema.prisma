@@ -15,6 +15,31 @@ enum CompanyStatus {
   Em_analise @map("Em análise")
 }
 
+enum MarketIntelligenceDatasetStatus {
+  PENDING
+  PROCESSING
+  VALIDATING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum MarketIntelligenceIcpTier {
+  MUITO_ALTO
+  ALTO
+  MEDIO
+  BAIXO
+  FORA_DO_ICP
+}
+
+enum MarketIntelligenceDataOrigin {
+  OBSERVED
+  DERIVED
+  ESTIMATED
+  SIMULATED
+  NOT_AVAILABLE
+}
+
 enum ContactStatus {
   Ativo
   Inativo
@@ -186,6 +211,141 @@ model Company {
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])
+}
+
+/// Snapshot rastreável de uma fonte do Market Intelligence. Esta entidade é global e não possui
+/// organizationId: todas as organizações autenticadas consultam a mesma fotografia oficial, mas
+/// somente o importador (app.bypass_rls=on) pode gravar ou publicar uma competência.
+model MarketIntelligenceDataset {
+  id               String                          @id
+  dataset          String
+  competencia      String
+  source           String
+  sourceVersion    String?
+  sourceUrl        String?
+  status           MarketIntelligenceDatasetStatus @default(PENDING)
+  /// Apenas o snapshot publicado recebe "CNPJ_ACTIVE". NULL nos demais; o unique index torna a
+  /// troca atômica e impede duas competências ativas ao mesmo tempo.
+  publicationSlot  String?                         @unique
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  activatedAt      DateTime?
+  recordsRead      BigInt                          @default(0)
+  recordsImported  BigInt                          @default(0)
+  recordsRejected  BigInt                          @default(0)
+  recordsActive    BigInt                          @default(0)
+  hash             String
+  pipelineVersion  String
+  outputManifest   Json?
+  error            String?                         @db.Text
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
+  companies        MarketIntelligenceCompany[]
+
+  @@unique([dataset, competencia, hash])
+  @@index([dataset, status, competencia])
+  @@index([competencia])
+}
+
+/// Universo empresarial pesquisável da Receita Federal. Não se relaciona automaticamente com
+/// Company (CRM); a conversão para conta comercial exige uma ação explícita em outro fluxo.
+model MarketIntelligenceCompany {
+  id                         String                       @id
+  datasetId                  String
+  dataset                    MarketIntelligenceDataset    @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  cnpj                       String
+  cnpjBasico                 String
+  cnpjOrdem                  String
+  cnpjDv                     String
+  razaoSocial                String
+  razaoSocialSearch          String
+  nomeFantasia               String?
+  nomeFantasiaSearch         String?
+  matrizFilial               String?
+  situacaoCadastralCodigo    String?
+  situacaoCadastral          String?
+  dataSituacaoCadastral      DateTime?                    @db.Date
+  motivoSituacaoCodigo       String?
+  motivoSituacaoCadastral    String?
+  dataInicioAtividade        DateTime?                    @db.Date
+  cnaePrincipal              String?
+  cnaePrincipalDescricao     String?
+  cnaesSecundarios           Json?
+  naturezaJuridicaCodigo     String?
+  naturezaJuridica           String?
+  porteCodigo                String?
+  porte                      String?
+  capitalSocial              Decimal?                     @db.Decimal(20, 2)
+  qualificacaoResponsavelCodigo String?
+  qualificacaoResponsavel    String?
+  enteFederativoResponsavel  String?
+  opcaoSimples               String?
+  dataOpcaoSimples           DateTime?                    @db.Date
+  dataExclusaoSimples        DateTime?                    @db.Date
+  opcaoMei                   String?
+  dataOpcaoMei               DateTime?                    @db.Date
+  dataExclusaoMei            DateTime?                    @db.Date
+  tipoLogradouro             String?
+  logradouro                 String?
+  numero                     String?
+  complemento                String?
+  bairro                     String?
+  cep                        String?
+  municipioCodigoReceita     String?
+  municipioIbge              String?
+  municipioNome              String?
+  uf                         String?
+  ddd1                       String?
+  telefone1                  String?
+  ddd2                       String?
+  telefone2                  String?
+  dddFax                     String?
+  fax                        String?
+  email                      String?
+  icpTier                    MarketIntelligenceIcpTier?
+  icpScore                   Int?
+  icpReasons                 Json?
+  icpTaxonomyVersion         String?
+  icpCalculatedAt            DateTime?
+  hasRntrc                   Boolean?
+  rntrcStatus                String?
+  rntrcType                  String?
+  rntrcNumber                String?
+  rntrcSource                String?
+  rntrcUpdatedAt             DateTime?
+  dataOrigin                 MarketIntelligenceDataOrigin @default(OBSERVED)
+  competencia                String
+  importedAt                 DateTime                      @default(now())
+
+  @@unique([datasetId, cnpj])
+  @@index([datasetId, cnpjBasico])
+  @@index([datasetId, cnaePrincipal, uf])
+  @@index([datasetId, uf, municipioIbge])
+  @@index([datasetId, uf, situacaoCadastral])
+  @@index([datasetId, municipioIbge, situacaoCadastral])
+  @@index([datasetId, municipioIbge, icpTier])
+  @@index([datasetId, matrizFilial])
+  @@index([datasetId, hasRntrc])
+  @@index([datasetId, icpScore])
+  @@index([datasetId, capitalSocial])
+  @@index([competencia])
+}
+
+/// Crosswalk persistido Receita -> IBGE produzido pelo ETL a partir das duas fontes oficiais.
+/// A API usa o código já resolvido; não tenta associar município por texto durante a consulta.
+model MarketIntelligenceMunicipalityMapping {
+  id              String   @id
+  receitaCode     String   @unique
+  receitaName     String
+  uf              String
+  ibgeCode        String
+  ibgeName        String
+  mappingMethod   String
+  sourceVersion   String
+  importedAt      DateTime @default(now())
+
+  @@index([ibgeCode])
+  @@index([uf, ibgeName])
 }
 
 model EnrichmentLog {

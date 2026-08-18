@@ -29,6 +29,7 @@ WHERE EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'prospector_app')
 -- CREATE EXTENSION exige superusuario; roda aqui (com a conexao ainda autenticada como
 -- superusuario de bootstrap) pra garantir que exista antes de qualquer coisa depender dela.
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Transfere a posse do schema e das tabelas/sequences existentes pro papel de aplicacao. Sem
 -- isso, prospector_app so teria os GRANTs explicitos abaixo, mas continuaria isento de RLS onde

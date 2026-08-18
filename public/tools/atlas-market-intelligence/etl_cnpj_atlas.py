@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from cnpj_company_pipeline import build_company_snapshot
+
 # A Receita Federal migrou o antigo indice HTML estatico (arquivos.receitafederal.gov.br/dados/...)
 # para um compartilhamento publico Nextcloud/SERPRO+. O host raiz redireciona (302) para
 # /index.php/s/<token>; o conteudo e navegavel via WebDAV em /public.php/webdav/ usando o token
@@ -121,13 +123,19 @@ def discover_latest_competence(token: str) -> str:
     return found[-1]
 
 
-def list_remote_archives(token: str, competence: str) -> list[tuple[str, str]]:
+def list_remote_archives(token: str, competence: str, include_company_details: bool = False) -> list[tuple[str, str]]:
     folder = f"{CNPJ_REMOTE_PATH}/{competence}/"
     children = propfind_children(webdav_url(folder), token)
     names = sorted(name for name, is_dir in children if not is_dir and name.lower().endswith(".zip"))
     wanted = [n for n in names if re.match(r"(?:Empresas|Estabelecimentos)\d+\.zip$", n, re.I)]
     if "Municipios.zip" in names:
         wanted.append("Municipios.zip")
+    if include_company_details:
+        for required in ["Simples.zip", "Cnaes.zip", "Naturezas.zip", "Qualificacoes.zip", "Motivos.zip"]:
+            if required in names:
+                wanted.append(required)
+            else:
+                raise RuntimeError(f"Indice Receita sem {required} para {competence}")
     if not any(n.lower().startswith("empresas") for n in wanted) or not any(n.lower().startswith("estabelecimentos") for n in wanted) or "Municipios.zip" not in wanted:
         raise RuntimeError(f"Indice Receita incompleto para {competence}")
     return [(name, webdav_url(f"{folder}{name}")) for name in wanted]
@@ -304,6 +312,10 @@ def main() -> int:
     parser.add_argument("--taxonomy", type=Path, default=Path(__file__).with_name("icp_taxonomy.v1.json"))
     parser.add_argument("--output", type=Path, default=Path("public/tools/atlas-market-intelligence/data/icp_municipios.json"))
     parser.add_argument("--metadata", type=Path)
+    parser.add_argument("--companies-output-dir", type=Path, help="Gera snapshot empresarial detalhado particionado por UF")
+    parser.add_argument("--companies-uf", help="Restringe a prova detalhada a uma UF, sem alterar a arquitetura nacional")
+    parser.add_argument("--companies-municipality-ibge", help="Restringe a prova detalhada a um municipio IBGE")
+    parser.add_argument("--companies-chunk-size", type=int, default=10_000)
     args = parser.parse_args()
 
     started = datetime.now(timezone.utc)
@@ -315,7 +327,7 @@ def main() -> int:
     if not args.no_download:
         if not competence:
             raise RuntimeError("Competencia CNPJ nao resolvida")
-        for name, url in list_remote_archives(token, competence):
+        for name, url in list_remote_archives(token, competence, include_company_details=bool(args.companies_output_dir)):
             archive_meta.append(download_archive(name, url, source_dir, token))
 
     establishments, companies, municipalities_zip = select_archives(source_dir)
@@ -348,6 +360,43 @@ def main() -> int:
         "transformations": ["situacao ativa 02", "CNAE principal+secundarios", "precedencia A>B>C", "porte e matriz/filial preservados", "join municipal por codigo IBGE", "agregacao municipal compacta"],
         "limitations": ["taxonomia v1 nao calibrada com ganhos/perdas Atlas", "porte nao promove tier sozinho", "capital social nao vira score", "frota/MDF-e/risco nao sao inferidos do CNPJ"]
     }
+
+    if args.companies_output_dir:
+        required = {
+            "Simples.zip": source_dir / "Simples.zip",
+            "Cnaes.zip": source_dir / "Cnaes.zip",
+            "Naturezas.zip": source_dir / "Naturezas.zip",
+            "Qualificacoes.zip": source_dir / "Qualificacoes.zip",
+            "Motivos.zip": source_dir / "Motivos.zip",
+        }
+        missing = [name for name, path in required.items() if not path.exists()]
+        if missing:
+            raise RuntimeError(f"Arquivos detalhados ausentes em {source_dir}: {', '.join(missing)}")
+        ibge_rows = json.loads((args.workdir / "raw" / "ibge" / "municipios.json").read_text(encoding="utf-8"))
+        company_manifest = build_company_snapshot(
+            competence=competence or "",
+            workdir=args.workdir,
+            output_root=args.companies_output_dir,
+            establishment_archives=establishments,
+            company_archives=companies,
+            simples_archive=required["Simples.zip"],
+            municipalities_archive=municipalities_zip,
+            cnaes_archive=required["Cnaes.zip"],
+            naturezas_archive=required["Naturezas.zip"],
+            qualificacoes_archive=required["Qualificacoes.zip"],
+            motivos_archive=required["Motivos.zip"],
+            ibge_rows=ibge_rows,
+            source_url=f"{BASE_HOST}/index.php/s/{token}" if token else "MANUAL_NAO_INFORMADA",
+            filter_uf=args.companies_uf,
+            filter_ibge=args.companies_municipality_ibge,
+            chunk_size=args.companies_chunk_size,
+        )
+        metadata["companySnapshot"] = {
+            "datasetHash": company_manifest["datasetHash"],
+            "recordsExported": company_manifest["stats"]["recordsExported"],
+            "activeRecordsExported": company_manifest["stats"].get("activeRecordsExported", 0),
+            "filters": company_manifest["filters"],
+        }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(metadata, ensure_ascii=False, indent=2))
     if geo_stats["unmatched_geography_rows"]:
