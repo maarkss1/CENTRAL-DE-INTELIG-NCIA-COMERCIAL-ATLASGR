@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: market-intelligence-fleet-${{ github.ref }}
@@ -236,6 +237,29 @@ jobs:
           if len(seen) < 20:
               raise SystemExit(f'cobertura UF materialmente incompleta: {len(seen)} UFs')
 
+          # MI-005: mesmo gate de nao-regressao de competencia/cobertura dos outros dois
+          # workflows de dados (ver market-intelligence-cnpj.yml) -- so se aplica aqui, no
+          # ramo em que o recurso oficial ESTA disponivel; o ramo de indisponibilidade acima
+          # (linha ~104) so declara ausencia, nunca sobrescreve um numero por outro numero.
+          previous = next((d for d in manifest['datasets'] if d['id'] == 'fleet'), None)
+          prev_competence = previous.get('competence') if previous else None
+          if prev_competence and prev_competence not in ('MANUAL_NAO_INFORMADA',) and '2026-08' < prev_competence:
+              raise SystemExit(f"competencia regrediu: nova='2026-08' anterior={prev_competence!r}")
+
+          # 'coverage' mantem o mesmo significado espacial que tem em CNPJ/RNTRC (quanto do
+          # universo geografico esta representado); a frota total (variavel de negocio, nao
+          # geografica) usa seu proprio campo 'fleetTotal' para o gate de variacao anormal --
+          # UFs sao no maximo 27, entao 15% de variacao em contagem de UF dispararia por
+          # oscilacao trivial (1 UF a mais/menos), enquanto uma queda de 15% na frota total e
+          # o sinal real de corrupcao/regressao de dado.
+          prev_fleet_total = previous.get('fleetTotal') if previous else None
+          if isinstance(prev_fleet_total, int) and prev_fleet_total > 0:
+              variation = (total - prev_fleet_total) / prev_fleet_total
+              if abs(variation) > 0.15:
+                  raise SystemExit(
+                      f'variacao anormal de frota total sem justificativa: {prev_fleet_total} -> {total} veiculos ({variation:+.2%})'
+                  )
+
           status = meta.get('health', 'PARCIAL')
           for dataset in manifest['datasets']:
               if dataset['id'] == 'fleet':
@@ -247,6 +271,10 @@ jobs:
                       'sha256': meta.get('outputSha256'),
                       'geography': 'UF',
                       'municipalUse': 'PROXY_UF',
+                      'coverage': len(seen),
+                      'fleetTotal': total,
+                      'unmatchedRows': 0,
+                      'unmatchedRate': 0.0,
                       'note': (
                           f"Snapshot oficial Ago/2026: {total} veículos em {len(seen)} UFs; "
                           f"tração={traction}, implementos={implements}, outros={other}. "
@@ -259,7 +287,9 @@ jobs:
           manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY
 
-      - name: Commit fleet health or compact derived data
+      - name: Publish fleet health or compact derived data via pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "atlas-market-data-bot"
           git config user.email "130610135+MaarksN@users.noreply.github.com"
@@ -274,15 +304,14 @@ jobs:
             echo "No fleet-data health changes to commit."
             exit 0
           fi
+          BRANCH="data/market-intelligence-fleet-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
           git commit -m "data(rntrc): registra saúde da frota oficial Ago/2026"
+          git push -u origin "$BRANCH"
 
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              exit 0
-            fi
-            sleep $((attempt * 3))
-          done
-          echo "::error::Saúde da frota foi validada, mas a publicação falhou após 5 tentativas."
-          exit 1
+          PR_URL=$(gh pr create \
+            --title "data(rntrc): registra saúde da frota oficial Ago/2026" \
+            --body "Snapshot/saúde da frota RNTRC gerado automaticamente pelo workflow \`market-intelligence-fleet.yml\` (run ${GITHUB_RUN_ID}). \`main\` é protegida e exige PR + check \`build\`, então este bot publica via PR em vez de push direto." \
+            --base main --head "$BRANCH")
+          echo "Pull request criado: $PR_URL"
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Auto-merge não habilitado ou PR requer aprovação manual — revisar $PR_URL."

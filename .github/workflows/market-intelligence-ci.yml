@@ -3,7 +3,7 @@ name: Market Intelligence - Quality Gate
 on:
   push:
     branches:
-      - feat/atlas-national-territory-intelligence
+      - main
   workflow_dispatch:
 
 permissions:

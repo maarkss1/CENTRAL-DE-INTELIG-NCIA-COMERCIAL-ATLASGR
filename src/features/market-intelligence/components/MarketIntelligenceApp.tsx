@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
     AlertTriangle,
     BarChart3,
     Calculator,
     CheckCircle2,
+    Clock,
     Database,
     FileSearch,
     Loader2,
@@ -12,6 +15,7 @@ import {
     Target,
 } from 'lucide-react';
 import {
+    type DatasetHealth,
     type MarketIntelligenceManifest,
     type TerritoryRecord,
 } from '../domain/MarketIntelligence';
@@ -73,6 +77,37 @@ function statusTone(status: string) {
     if (status === 'PARCIAL') return 'border-amber-200 bg-amber-50 text-amber-800';
     if (status === 'DESATUALIZADO') return 'border-rose-200 bg-rose-50 text-rose-700';
     return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
+// MI-006 (Sprint 04/Onda 16): os workflows de dados rodam mensalmente (ver `on.schedule` em
+// market-intelligence-{cnpj,rntrc,fleet}.yml) — se o cron parar de disparar (falha silenciosa
+// de agendamento, limite do GitHub Actions, etc.), o `status` gravado no manifest continua
+// dizendo "ATUALIZADO" indefinidamente, porque é um valor estático escrito na última execução
+// bem-sucedida, não recalculado a cada carregamento. Este limiar (mensal + buffer de ~50% para
+// a janela real do cron, que roda todo dia 10) é calculado no cliente, a cada render, e nunca
+// depende do pipeline continuar escrevendo algo nesse dataset específico.
+const STALE_THRESHOLD_DAYS = 45;
+
+function freshnessTimestamp(dataset: DatasetHealth): string | undefined {
+    return dataset.downloadedAt ?? dataset.probedAt;
+}
+
+function isStale(dataset: DatasetHealth): boolean {
+    const timestamp = freshnessTimestamp(dataset);
+    if (!timestamp) return false;
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return false;
+    const ageMs = Date.now() - parsed.getTime();
+    return ageMs > STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function formatFreshness(dataset: DatasetHealth): string | null {
+    const timestamp = freshnessTimestamp(dataset);
+    if (!timestamp) return null;
+    const parsed = new Date(timestamp);
+    if (Number.isNaN(parsed.getTime())) return null;
+    const label = dataset.downloadedAt ? 'Baixado' : 'Verificado';
+    return `${label} ${formatDistanceToNow(parsed, { addSuffix: true, locale: ptBR })}`;
 }
 
 function DecisionBlocked({ manifest }: { manifest: MarketIntelligenceManifest }) {
@@ -267,13 +302,40 @@ function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
                 <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Saúde dos Dados</p><h2 className="text-xl font-black text-[#333333]">Competência, cobertura e confiança antes do score</h2></div></div>
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {manifest.datasets.map((dataset) => (
-                        <article key={dataset.id} className="rounded-2xl border border-slate-200 p-4">
-                            <div className="flex items-start justify-between gap-3"><h3 className="text-sm font-black text-[#333333]">{dataset.label}</h3><span className={`rounded-full border px-2 py-1 text-[9px] font-black ${statusTone(dataset.status)}`}>{dataset.status.replaceAll('_', ' ')}</span></div>
-                            <dl className="mt-3 space-y-1 text-xs text-slate-600"><div><dt className="inline font-bold">Fonte: </dt><dd className="inline">{dataset.source ?? 'NÃO DISPONÍVEL'}</dd></div><div><dt className="inline font-bold">Competência: </dt><dd className="inline">{dataset.competence ?? 'NÃO DISPONÍVEL'}</dd></div><div><dt className="inline font-bold">Geografia: </dt><dd className="inline">{dataset.geography ?? 'NÃO DISPONÍVEL'}</dd></div></dl>
-                            {dataset.note && <p className="mt-3 text-xs leading-5 text-slate-500">{dataset.note}</p>}
-                        </article>
-                    ))}
+                    {manifest.datasets.map((dataset) => {
+                        const freshness = formatFreshness(dataset);
+                        const stale = isStale(dataset);
+                        return (
+                            <article key={dataset.id} className="rounded-2xl border border-slate-200 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <h3 className="text-sm font-black text-[#333333]">{dataset.label}</h3>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${statusTone(dataset.status)}`}>{dataset.status.replaceAll('_', ' ')}</span>
+                                        {stale && (
+                                            <span className="flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-700">
+                                                <AlertTriangle className="h-3 w-3" aria-hidden="true" />DESATUALIZADO
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <dl className="mt-3 space-y-1 text-xs text-slate-600">
+                                    <div><dt className="inline font-bold">Fonte: </dt><dd className="inline">{dataset.source ?? 'NÃO DISPONÍVEL'}</dd></div>
+                                    <div><dt className="inline font-bold">Competência: </dt><dd className="inline">{dataset.competence ?? 'NÃO DISPONÍVEL'}</dd></div>
+                                    <div><dt className="inline font-bold">Geografia: </dt><dd className="inline">{dataset.geography ?? 'NÃO DISPONÍVEL'}</dd></div>
+                                    {typeof dataset.coverage === 'number' && <div><dt className="inline font-bold">Cobertura: </dt><dd className="inline">{number.format(dataset.coverage)}</dd></div>}
+                                    {typeof dataset.unmatchedRate === 'number' && <div><dt className="inline font-bold">Qualidade: </dt><dd className="inline">{(1 - dataset.unmatchedRate).toLocaleString('pt-BR', { style: 'percent', minimumFractionDigits: 2 })} de match ({number.format(dataset.unmatchedRows ?? 0)} rejeitados)</dd></div>}
+                                    {dataset.taxonomyVersion && <div><dt className="inline font-bold">Taxonomia: </dt><dd className="inline">{dataset.taxonomyVersion}</dd></div>}
+                                </dl>
+                                {freshness && (
+                                    <p className={`mt-3 flex items-center gap-1.5 text-xs font-bold ${stale ? 'text-rose-700' : 'text-slate-500'}`}>
+                                        <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{freshness}
+                                        {stale && ' — acima da cadência mensal esperada'}
+                                    </p>
+                                )}
+                                {dataset.note && <p className="mt-3 text-xs leading-5 text-slate-500">{dataset.note}</p>}
+                            </article>
+                        );
+                    })}
                 </div>
             </div>
         </section>
