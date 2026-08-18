@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { ThreeCXConnection } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
@@ -96,7 +97,7 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
     const pbxUrl = input.pbxUrl.trim().replace(/\/$/, '');
     await assertSafeWebhookUrl(pbxUrl);
 
-    const connectionId = `3cx-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const connectionId = `3cx-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const newConn = {
         id: connectionId,
         label: input.label?.trim() || `3CX Ramal ${input.extension}`,

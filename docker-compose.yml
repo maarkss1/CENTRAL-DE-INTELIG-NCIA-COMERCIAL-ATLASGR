@@ -28,6 +28,8 @@ services:
       - ./scripts/db/docker-init.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
       - ./scripts/db/02-enable-extensions.sql:/docker-entrypoint-initdb.d/02-enable-extensions.sql:ro
       - ./scripts/db/03-create-langfuse-db.sql:/docker-entrypoint-initdb.d/03-create-langfuse-db.sql:ro
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   redis:
@@ -38,6 +40,8 @@ services:
       - "6379:6379"
     volumes:
       - atlas_redisdata:/data
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   meilisearch:
@@ -50,6 +54,8 @@ services:
       - "7700:7700"
     volumes:
       - atlas_meilidata:/meili_data
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   litellm:
@@ -64,6 +70,8 @@ services:
     # explícito abaixo é só para portabilidade caso alguém rode isso num host Linux.
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   ollama:
@@ -73,6 +81,8 @@ services:
       - "11434:11434"
     volumes:
       - atlas_ollamadata:/root/.ollama
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
     # Descomente abaixo para habilitar GPU Nvidia na nuvem / host Linux:
     # deploy:

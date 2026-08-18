@@ -53,7 +53,7 @@ export function _resetKeyCacheForTests(): void {
 
 export function encryptField(plaintext: string): string {
     const iv = randomBytes(IV_LENGTH);
-    const cipher = createCipheriv(ALGORITHM, getKey(), iv);
+    const cipher = createCipheriv(ALGORITHM, getKey(), iv, { authTagLength: 16 });
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     const authTag = cipher.getAuthTag();
     return `${VERSION_PREFIX}${iv.toString('base64')}:${authTag.toString('base64')}:${ciphertext.toString('base64')}`;
@@ -70,7 +70,7 @@ export function decryptField(stored: string): string {
     if (parts.length === 3) {
         const [ivB64, authTagB64, ciphertextB64] = parts;
         try {
-            const decipher = createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivB64, 'base64'));
+            const decipher = createDecipheriv(ALGORITHM, getKey(), Buffer.from(ivB64, 'base64'), { authTagLength: 16 });
             decipher.setAuthTag(Buffer.from(authTagB64, 'base64'));
             const plaintext = Buffer.concat([decipher.update(Buffer.from(ciphertextB64, 'base64')), decipher.final()]);
             return plaintext.toString('utf8');

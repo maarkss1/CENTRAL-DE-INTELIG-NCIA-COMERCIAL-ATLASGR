@@ -16,6 +16,10 @@ spec:
     spec:
       containers:
       - name: prospector-api
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 10001
         image: prospector-atlas:latest
         imagePullPolicy: Never # using local docker image for minikube
         ports:

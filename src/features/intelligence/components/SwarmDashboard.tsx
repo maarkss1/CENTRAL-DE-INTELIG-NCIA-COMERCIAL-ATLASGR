@@ -96,7 +96,10 @@ const MISSION_SUGGESTIONS = [
 ];
 
 function createId() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
 
 export function SwarmDashboard() {

@@ -17,6 +17,8 @@ spec:
     spec:
       containers:
       - name: postgres
+        securityContext:
+          allowPrivilegeEscalation: false
         image: pgvector/pgvector:pg15
         ports:
         - containerPort: 5432

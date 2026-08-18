@@ -35,6 +35,10 @@ spec:
       restartPolicy: Never
       containers:
       - name: prisma-migrate
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 10001
         image: prospector-atlas:latest
         imagePullPolicy: Never # using local docker image for minikube — mesmo padrão de api-deployment.yaml
         command: ["npx", "prisma", "migrate", "deploy"]
