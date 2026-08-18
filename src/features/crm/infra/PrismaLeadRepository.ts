@@ -8,6 +8,7 @@ import {
     fromPrismaCompanyStatus,
     fromPrismaActivityType,
     fromPrismaActivityStatus,
+    isLeadClosingStatus,
 } from '../../../lib/enumMap';
 import { searchLeadIds } from '../../../lib/search/index.js';
 
@@ -125,7 +126,7 @@ export class PrismaLeadRepository implements LeadRepository {
         // Mesmo cast de conveniência da linha de baixo (toPrismaLeadStatus(data.status as LeadStatus)):
         // o tipo de domínio de Lead.status não bate 1:1 com o LeadStatus "rótulo legível" do zod.
         const statusLabel = data.status as LeadStatus | undefined;
-        const isClosingNow = statusLabel === 'Negócios Ganhos' || statusLabel === 'Negócios Perdidos';
+        const isClosingNow = isLeadClosingStatus(statusLabel);
         const expectedCloseAt = data.expectedCloseAt
             ? new Date(data.expectedCloseAt as unknown as string | Date)
             : data.expectedCloseAt;
@@ -169,13 +170,9 @@ export class PrismaLeadRepository implements LeadRepository {
         // "Negócios Perdidos": crm360.service.ts (DEAL_STAGES) já os define como isLost:true — sem
         // fechar closedAt aqui, um piloto cancelado por este caminho (update legado de status, sem
         // passar por /api/crm/records/:id/stage) ficaria "aberto" para sempre nos relatórios.
-        const CLOSING_STATUSES = new Set([
-            'Negócios Ganhos',
-            'Negócios Perdidos',
-            'Piloto Atlas Profile - Cancelado',
-            'Piloto Logístico - Cancelado',
-        ]);
-        const isClosingNow = CLOSING_STATUSES.has(newStatus);
+        // Lista compartilhada com update() (acima) e PrismaCrm360Repository.updateLeadStage() —
+        // ver isLeadClosingStatus em src/lib/enumMap.ts.
+        const isClosingNow = isLeadClosingStatus(newStatus);
         // O `where` inclui organizationId para garantir isolamento de tenant no update.
         const lead = await prisma.lead.update({
             where: { id, organizationId },

@@ -8,6 +8,7 @@ import { Lead, Note, LeadStatus, LeadQualification } from '../../../types';
 // LEAD_STATUS é reexportado como tipo em ../../../types (export type {...}) — o array em
 // runtime só existe na fonte original.
 import { LEAD_STATUS } from '../../../lib/zod';
+import { LEAD_STATUS_EMOJI as STATUS_EMOJI } from '../../../lib/enumMap';
 import { api } from '../../../lib/api';
 import { toast } from '../../../lib/toast';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
@@ -17,18 +18,6 @@ import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 // de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
 // de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
 import { WhatsAppChatPanel } from '../../integrations/whatsapp/components/WhatsAppChatPanel';
-
-// Mesmo mapa de emoji por status usado em KanbanColumn.tsx (fonte de verdade visual do board) —
-// mantido em sincronia manualmente até haver um único lugar para essa constante.
-const STATUS_EMOJI: Record<string, string> = {
-    'Lead Recebido': '🆕', 'Cadência Iniciada': '📣', 'Qualificação (SDR)': '🔎', 'Reunião Agendada': '📅',
-    'Lead Desqualificado': '🚫', 'Convertido em Oportunidade': '⭐', 'Nova Oportunidade': '💡',
-    'Proposta Enviada': '📄', 'Call/Visita Agendada': '🤝',
-    'Piloto VTECH': '🧪', 'Piloto Atlas Profile': '🧪',
-    'Piloto Atlas Profile - Concluído': '✅', 'Piloto Atlas Profile - Cancelado': '⛔',
-    'Piloto Logística': '🚚', 'Piloto Logístico - Concluído': '✅', 'Piloto Logístico - Cancelado': '⛔',
-    'Negócios Perdidos': '❌', 'Negócios Ganhos': '🏆',
-};
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
@@ -142,9 +131,11 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         if (!lead) return;
         setSavingOwner(true);
         try {
-            const selectedOwner = owners.find((o) => o.id === newOwnerId);
-            const ownerName = selectedOwner?.name || newOwnerId;
-            const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { owner: ownerName });
+            // DATA-003 (Sprint 05/Onda 17): Lead.owner é contrato User.id, não nome — enviar o
+            // nome aqui reintroduzia o mesmo bug já corrigido no import Bitrix (onda 10, ver
+            // requireLeadOwnership.ts). Todo o resto da aplicação (autoatribuição, round-robin,
+            // import Bitrix atual) já grava o id.
+            const updated = await api.put<Lead>(`/api/leads/${lead.id}`, { owner: newOwnerId || null });
             setLead(updated);
             onChanged();
             toast.success('Responsável atualizado com sucesso');
