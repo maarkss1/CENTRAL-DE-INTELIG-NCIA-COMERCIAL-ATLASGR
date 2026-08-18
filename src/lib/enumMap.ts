@@ -78,6 +78,48 @@ const AUTOMATION_ACTION_FROM_PRISMA = invert(AUTOMATION_ACTION_TO_PRISMA);
 export const toPrismaLeadStatus = (v: LeadStatus): string => LEAD_STATUS_TO_PRISMA[v] ?? v;
 export const fromPrismaLeadStatus = (v: string): LeadStatus => (LEAD_STATUS_FROM_PRISMA[v] ?? v) as LeadStatus;
 
+// DATA-004 (Sprint 05/Onda 17): fonte única do que conta como "fechado" para Lead.closedAt.
+// Antes desta correção, PrismaLeadRepository.update(), PrismaLeadRepository.updateStatus() e
+// PrismaCrm360Repository.updateLeadStage() mantinham 3 listas divergentes (2, 4 e 2 status
+// respectivamente) — a mesma transição de status fechava closedAt por um caminho e não por
+// outro, dependendo de qual rota o cliente chamava. União dos 3 conjuntos que já existiam:
+// nenhum comportamento existente é revertido, só os dois caminhos mais estreitos (update() e
+// updateLeadStage()) passam a tratar os 2 estágios "Cancelado" como fechamento, igual updateStatus()
+// já fazia.
+export const LEAD_CLOSING_STATUSES: ReadonlySet<LeadStatus> = new Set<LeadStatus>([
+    'Negócios Ganhos',
+    'Negócios Perdidos',
+    'Piloto Atlas Profile - Cancelado',
+    'Piloto Logístico - Cancelado',
+]);
+
+export const isLeadClosingStatus = (v: LeadStatus | string | null | undefined): boolean =>
+    v != null && LEAD_CLOSING_STATUSES.has(v as LeadStatus);
+
+// DATA-004 (Sprint 05/Onda 17): antes desta correção, KanbanColumn.tsx e LeadDetailDrawer.tsx
+// mantinham a mesma constante duplicada manualmente (o próprio comentário do drawer já reconhecia
+// isso: "mantido em sincronia manualmente até haver um único lugar para essa constante").
+export const LEAD_STATUS_EMOJI: Record<LeadStatus, string> = {
+    'Lead Recebido': '🆕',
+    'Cadência Iniciada': '📣',
+    'Qualificação (SDR)': '🔎',
+    'Reunião Agendada': '📅',
+    'Lead Desqualificado': '🚫',
+    'Convertido em Oportunidade': '⭐',
+    'Nova Oportunidade': '💡',
+    'Proposta Enviada': '📄',
+    'Call/Visita Agendada': '🤝',
+    'Piloto VTECH': '🧪',
+    'Piloto Atlas Profile': '🧪',
+    'Piloto Atlas Profile - Concluído': '✅',
+    'Piloto Atlas Profile - Cancelado': '⛔',
+    'Piloto Logística': '🚚',
+    'Piloto Logístico - Concluído': '✅',
+    'Piloto Logístico - Cancelado': '⛔',
+    'Negócios Perdidos': '❌',
+    'Negócios Ganhos': '🏆',
+};
+
 export const toPrismaCompanyStatus = (v: CompanyStatus): string => COMPANY_STATUS_TO_PRISMA[v] ?? v;
 export const fromPrismaCompanyStatus = (v: string): CompanyStatus => (COMPANY_STATUS_FROM_PRISMA[v] ?? v) as CompanyStatus;
 

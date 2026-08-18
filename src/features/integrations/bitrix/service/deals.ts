@@ -1,5 +1,5 @@
 import { prisma } from '../../../../lib/prisma.js';
-import { LeadStatus, Prisma } from '@prisma/client';
+import { LeadFunnel, LeadStatus, Prisma } from '@prisma/client';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';
@@ -344,6 +344,11 @@ export async function importSelectedBitrixDeals(
             const lead = await prisma.lead.create({
                 data: {
                     status: LeadStatus.Lead_Recebido,
+                    // DATA-005 (Sprint 05/Onda 17): importado via crm.deal.get — sem isto o Lead
+                    // ficava no default do schema (LeadFunnel.Lead), quebrando a segmentação usada
+                    // por PrismaCommercialIntelligenceRepository/crm360.service.ts (que esperam
+                    // funnel=Negocio para todo negócio real).
+                    funnel: LeadFunnel.Negocio,
                     source: 'Bitrix24 (importado via Negócio)',
                     companyId: company.id,
                     contactId: contact?.id,
