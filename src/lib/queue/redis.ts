@@ -4,18 +4,27 @@ import { recordRedisReconnect } from './metrics.js';
 
 const configuredRedisUrl = process.env.REDIS_URL?.trim();
 const redisUrl = configuredRedisUrl || 'redis://localhost:6379';
+const isProduction = process.env.NODE_ENV === 'production';
+const entrypoint = process.argv[1] || '';
+const isDedicatedWorkerProcess = /(?:^|[/\\])worker\.(?:ts|js|cjs|mjs)$/.test(entrypoint);
 
-/** Redis existe como dependência compartilhada mesmo quando consumidores BullMQ estão desligados. */
 export const redisConfigured = Boolean(configuredRedisUrl);
 
-/** Consumidores/produtores BullMQ continuam opt-in. */
-export const queuesEnabled = process.env.ENABLE_QUEUES === 'true' && redisConfigured;
+// Em produção, o web precisa poder PRODUZIR jobs e usar o rate limit distribuído mesmo quando a
+// antiga flag ENABLE_QUEUES=false está mantida no Blueprint para impedir consumers embutidos.
+// O worker dedicado, por outro lado, continua exigindo ENABLE_QUEUES=true explicitamente.
+export const queuesEnabled = redisConfigured && (
+    process.env.ENABLE_QUEUES === 'true' || (isProduction && !isDedicatedWorkerProcess)
+);
 
-/**
- * O rate limit distribuído não depende de ENABLE_QUEUES. Em produção, se REDIS_URL existe,
- * todas as réplicas web compartilham o mesmo contador mesmo com workers desligados.
- */
-export const rateLimitRedisEnabled = process.env.NODE_ENV === 'production' && redisConfigured;
+export const rateLimitRedisEnabled = isProduction && redisConfigured && !isDedicatedWorkerProcess;
+
+// Defesa em profundidade do corte HTTP -> Redis -> worker: em produção jamais permitimos que a
+// flag legada reative consumers dentro do server.ts. Falha visivelmente no boot em vez de duplicar jobs.
+if (isProduction && process.env.ENABLE_EMBEDDED_WORKERS === 'true') {
+    logger.fatal('ENABLE_EMBEDDED_WORKERS=true não é permitido em produção; use worker.ts dedicado.');
+    if (process.env.NODE_ENV !== 'test') process.exit(1);
+}
 
 function retryDelay(times: number): number {
     return Math.min(Math.max(times, 1) * 500, 5_000);
@@ -40,7 +49,6 @@ function observeConnection(redis: Redis, role: 'bullmq' | 'rate-limit' | 'cache'
     });
 }
 
-// BullMQ precisa de maxRetriesPerRequest=null para comandos bloqueantes.
 export const connection = new Redis(redisUrl, {
     lazyConnect: !queuesEnabled,
     enableOfflineQueue: queuesEnabled,
@@ -53,7 +61,6 @@ export const connection = new Redis(redisUrl, {
 });
 observeConnection(connection, 'bullmq', () => queuesEnabled);
 
-// Hot path HTTP: fail-fast, sem offline queue e independente de ENABLE_QUEUES.
 export const rateLimiterConnection = new Redis(redisUrl, {
     lazyConnect: !rateLimitRedisEnabled,
     enableOfflineQueue: false,
@@ -67,7 +74,6 @@ export const rateLimiterConnection = new Redis(redisUrl, {
 });
 observeConnection(rateLimiterConnection, 'rate-limit', () => rateLimitRedisEnabled);
 
-// Cache/status/locks podem usar Redis sem ligar consumidores BullMQ.
 export const cacheConnection = new Redis(redisUrl, {
     lazyConnect: !redisConfigured,
     enableOfflineQueue: false,
@@ -81,7 +87,6 @@ export const cacheConnection = new Redis(redisUrl, {
 });
 observeConnection(cacheConnection, 'cache', () => redisConfigured);
 
-/** Probe explícito para startup/readiness. */
 export async function pingRedis(connectionToPing: Redis = connection): Promise<void> {
     const pong = await connectionToPing.ping();
     if (pong !== 'PONG') throw new Error(`Redis health check returned ${pong}`);
