@@ -153,6 +153,38 @@ Arquivos compartilhados permanecem com os donos exclusivos de `AGENTS.md`, espec
 - O checkout `codex/etapa-2-market-intelligence` não será usado para integrar código enquanto a
   outra sessão continuar modificando-o.
 
+## Primeiro incremento da Fase 1
+
+- `20b1935 feat(01): adiciona fundacao de account intelligence` criou os sete agregados ligados a
+  `Company`: `AccountIntelligenceSnapshot`, `AccountSignal`, `DecisionMaker`,
+  `IntelligenceEvidence`, `AccountScore`, `AccountRecommendation` e `EconomicRelationship`.
+- `dce3320 fix(01): exige contato real para decisor` fechou a lacuna de identidade: decisor exige
+  `Contact` tenant-safe, guarda área/senioridade e não duplica e-mail/telefone.
+- Merges na integração: `0b9214e` e `27d11bb`.
+- Todas as tabelas novas carregam `organizationId`, RLS `FORCE ROW LEVEL SECURITY`, `WITH CHECK`
+  fail-closed e FKs compostas para impedir referências cross-tenant inclusive sob bypass.
+- Snapshot e score são históricos/versionados; sinais e evidências têm dedupe; recomendações têm
+  rationale, `externalRef` e chave de idempotência parcial; relações econômicas exigem origem e
+  destino distintos no mesmo tenant.
+
+## Validação do primeiro incremento
+
+| Validação | Resultado | Evidência |
+|---|---|---|
+| `prisma validate` | PASS | Schema integrado válido após as duas levas. |
+| `prisma generate` | PASS | Prisma Client 7.9.1 gerado. |
+| `tsc --noEmit` | PASS | 0 erros após regenerar o client. |
+| ESLint somente leitura sobre `src` | PASS com avisos preexistentes | 0 erros, 85 warnings; nenhum arquivo alterado. |
+| Suíte unitária completa | FALHOU por timeout isolado | 160 arquivos/1266 testes passaram; 1 teste 3CX excedeu 5 s. |
+| Reexecução isolada do teste 3CX | PASS | 1 arquivo, 12/12 testes, 3,34 s; falha classificada como flutuação de tempo, não regressão LDR. |
+| Build frontend (Vite) | PASS | 3593 módulos transformados. |
+| Bundle servidor (esbuild) | PASS | `dist/server.cjs` gerado. |
+| Wrapper `npm run build` | BLOQUEADO pelo ambiente | Runtime não expõe `node` no PATH; os dois comandos internos foram executados diretamente e passaram. |
+| Integração/E2E/migração em PostgreSQL | NÃO EXECUTADO | Fase 1 ainda não concluiu API; baseline registra Docker indisponível. Não declarar gate verde. |
+
+O incremento está integrado apenas em `integracao/ldr-fase-1`; não houve merge ou push para a
+branch compartilhada/principal.
+
 ## Ordem de implementação
 
 1. Resolver PII/RLS e estabilizar o catálogo empresarial em andamento.
@@ -177,11 +209,13 @@ Arquivos compartilhados permanecem com os donos exclusivos de `AGENTS.md`, espec
 
 ## Handoffs
 
-- `.agents/handoffs/ldr-fase-0/00-para-01-catalogo-cnpj-pii-rls.md` — bloqueador aberto.
+- `.agents/handoffs/ldr-fase-0/00-para-01-catalogo-cnpj-pii-rls.md` — resolvido pelo Agente 01 no
+  commit `4373faa`; pedido original e seção de resolução preservados.
 
 ## Veredito
 
 **FASE 0: PASS.** Arquitetura e lacunas foram classificadas com evidência do repositório.
 
-**FASE 1: EM ANDAMENTO, mas BLOCKED para merge enquanto o handoff de PII/RLS estiver aberto.** O
-primeiro incremento persistente foi entregue ao Agente 01 em worktree isolado.
+**FASE 1: EM ANDAMENTO.** O bloqueador de PII/RLS foi resolvido e a fundação persistente está
+integrada em branch isolada. A fase ainda não recebe PASS: faltam data access/APIs, testes reais de
+migração/RLS em PostgreSQL e o vertical slice com empresa real.
