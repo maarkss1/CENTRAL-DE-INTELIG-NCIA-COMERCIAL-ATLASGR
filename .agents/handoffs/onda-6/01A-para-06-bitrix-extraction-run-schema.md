@@ -1,7 +1,7 @@
 - De: Agente 01A (Confiabilidade de Dados, RLS e Retenção)
 - Para: Agente 06 (Integrações e Bitrix) / 06A (Extrações Bitrix)
 - Onda: 6
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -117,3 +117,9 @@ implementado, item pendente do 06/06A, não deste handoff).
 Nota: uma confirmação anterior registrada neste mesmo arquivo (também datada de 2026-08-15, outra
 sessão de coordenação ativa no repositório no mesmo dia) tinha fixado 90 dias. Esta é a decisão
 final, confirmada diretamente pelo dono do produto.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+Status corrigido de `aberto` para `resolvido` — o schema já estava implementado e confirmado em
+`prisma/schema.prisma` (só o campo `Status` deste arquivo estava desatualizado). O módulo real de
+extração (serviço/worker/UI) segue não implementado — isso é escopo de feature nova, não deste
+handoff de schema, e fica registrado como item de backlog pós-freeze (GOV-003), não como bloqueador.

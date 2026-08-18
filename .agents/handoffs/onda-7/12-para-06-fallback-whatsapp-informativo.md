@@ -1,7 +1,7 @@
 - De: Agente 12 (Voz e Telefonia)
 - Para: Agente 06 (Integrações, WhatsApp/Baileys)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal (informativo — nenhuma ação obrigatória sua)
 
 ## Problema
@@ -49,3 +49,6 @@ Também abri `.agents/handoffs/onda-7/12-para-17-optout-unificado-voz.md` sobre 
 `CallSuppression` (voz) e `Lead.customFields.optOutWhatsApp` (WhatsApp, alimentado pelo seu
 `whatsappMessage.service.ts`) — pode ser do seu interesse acompanhar, já que WhatsApp é um dos dois
 lados dessa fragmentação.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+Handoff puramente informativo, sem pedido de ação — fechado sem alteração de código.

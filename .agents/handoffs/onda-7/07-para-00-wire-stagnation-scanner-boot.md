@@ -1,7 +1,7 @@
 - De: Agente 07 (IA, RAG, Filas e Automações)
 - Para: Agente 00 (Coordenador) / quem tiver aprovação sobre `server.ts`
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal (não bloqueia a onda — a varredura já pode ser disparada manualmente)
 
 ## Problema
@@ -52,3 +52,7 @@ Testes cobrindo o scanner em si (idempotência, escopo de tenant, seleção de l
 `tests/unit/features/automations/application/stagnation-scanner.service.test.ts` (8 casos, todos
 verdes). Não é necessário testar a chamada de boot em si — o próprio `ColdLeadsScannerService.start()`
 já não tem teste dedicado no `server.ts`, mesmo padrão.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+Confirmado: `scheduleStagnationScannerJob()`/`createStagnationScannerWorker` já estão ligados no
+boot de `server.ts`. Status corrigido de `aberto` para `resolvido`.

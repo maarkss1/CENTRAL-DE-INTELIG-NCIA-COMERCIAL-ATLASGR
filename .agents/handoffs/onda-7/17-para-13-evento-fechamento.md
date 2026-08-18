@@ -1,7 +1,7 @@
 - De: 17
 - Para: 13
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 ## Problema
 `AUTONOMIA_COMERCIAL_24X7.md` → "Critério honesto de Closer autônomo" já proíbe o modelo de
@@ -70,3 +70,7 @@ de contrato. Se você tiver um evento adicional que precise contar como fechamen
 (algo específico do seu guardrail que eu não conheço), me avise por handoff de volta e eu ajusto o
 enum — a lista de 3 tipos acima é o mínimo que cobre a entrega 5 do meu prompt, não uma lista
 fechada por princípio.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+Confirmado em `prisma/schema.prisma`: modelo `DealClosureEvent` e enum `DealClosureEventType`
+presentes, refletindo o contrato proposto aqui. Status corrigido de `aberto` para `resolvido`.

@@ -6,24 +6,65 @@ CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR
 Este arquivo é a regra global para qualquer agente que trabalhe neste repositório. Regras locais em `AGENTS.md` dentro de subpastas refinam o escopo, mas nunca anulam as regras de segurança, qualidade e coordenação deste arquivo. Em caso de conflito entre um `AGENTS.md` local e este arquivo, este arquivo vence.
 
 ## Estrutura oficial de agentes
+
+Este é o roster real e completo — qualquer relatório, handoff ou onda que cite um agente fora desta
+lista está referenciando algo que não existe na estrutura atual (ver "Agentes 19/20", abaixo).
+
 - 00 — Coordenador
 - 01 — Plataforma, Segurança e Dados
+- 01A — Confiabilidade de Dados, RLS e Retenção (especialista interno do 01, **mesmo slot**: 01 e
+  01A nunca rodam ao mesmo tempo, porque `prisma/schema.prisma` e `prisma/migrations/**` têm dono
+  exclusivo e dois agentes editando schema em paralelo corrompe a onda)
 - 02 — Produto e UX
 - 03 — Design e Acessibilidade
 - 04 — CRM e BI
 - 05 — Prospecção
 - 06 — Integrações e Bitrix
-- 06A — Extrações Bitrix (especialista interno do 06, mesmo slot)
+- 06A — Extrações Bitrix (especialista interno do 06, **mesmo slot**: 06 e 06A nunca rodam ao mesmo
+  tempo, pelo mesmo motivo que 01/01A)
 - 07 — IA e Automações
 - 08 — QA e Release
 - 09 — Mobile (Capacitor/Android)
 - 10 — Infraestrutura, Observabilidade e SRE
 - 11 — Marca e Ativos Institucionais
 - 12 — Voz e Telefonia (Birthub Voices)
+- 13 — Enxame Autônomo e Governança de Agentes de Runtime (agentes de IA que o cliente usa —
+  Supervisor/SDR/BDR/Closer/CRM/Ops/Learning, scheduler 24/7, `AIPendingAction`, guardrails de PII;
+  não confundir com os agentes de desenvolvimento 00-18 deste arquivo)
+- 14 — Ambiente de Execução e Test Harness (mantém o gate obrigatório executável de verdade e
+  estável entre execuções)
+- 15 — Segurança Aplicada e Rotação de Segredos
+- 16 — Runtime, Workers e Escala (filas BullMQ, cron, agendadores, ciclo de vida do processo)
+- 17 — Cadência Multicanal e Ciclo de Receita
+- 18 — Contratos, API e Documentação Viva (OpenAPI, paridade de tipos backend/frontend)
 
 Prompts: `.agents/prompts/`. Nenhum agente edita o próprio prompt ou o prompt de outro agente durante a execução — mudança de prompt é decisão humana, fora do ciclo de ondas.
 
-Os agentes 09, 10 e 11 foram adicionados depois da primeira instalação do pacote, ao identificar pastas reais do repositório (`android/`, `k8s/`+`argocd/`+`charts/`+`infrastructure/`, `identidade-visual/`+`documentacao-aplicacao/`) sem dono explícito. Ver `Onda 4` abaixo.
+Os agentes 09, 10 e 11 foram adicionados depois da primeira instalação do pacote, ao identificar pastas reais do repositório (`android/`, `k8s/`+`argocd/`+`charts/`+`infrastructure/`, `identidade-visual/`+`documentacao-aplicacao/`) sem dono explícito. Ver `Onda 4` abaixo. Os agentes 13-18 foram adicionados depois disso, quando o programa passou a cobrir o Enxame autônomo, o harness de teste, segurança aplicada, runtime/workers, cadência de receita e contratos de API como domínios com dono próprio.
+
+### Agentes 19/20 — não existem, não usar
+
+Relatórios de "Fase Final" anteriores a esta onda (`.agents/runs/final-fase-0.md` a `final-fase-4.md`)
+citam repetidamente "Agente 19 — Verificação Contínua" e "Agente 20 — Experiência Real/smoke". Esses
+dois números **nunca foram formalizados neste roster** e não devem ser referenciados como agentes
+ativos daqui em diante — qualquer prompt, handoff ou relatório novo que precise desses papéis usa a
+atribuição abaixo:
+
+- **Verificação contínua** (o gate técnico completo — typecheck/lint/unit/integration/E2E/build/
+  secret-scan/npm audit/`verify:integrations`/`verify:ai`, sempre com evidência real e nunca herdado
+  por suposição) é responsabilidade conjunta de **14** (dono do harness que faz o gate ser executável)
+  **+ 08** (dono do critério de release e do veredito PASS/BLOCKED).
+- **Experiência real** (jornada de usuário ponta a ponta — login real, navegação real, formulários
+  reais, estados vazio/erro/loading, captura de tela, mobile) é responsabilidade conjunta de **02**
+  (produto/UX dono do fluxo) **+ 03** (acessibilidade/design) **+ 08** (critério de release) **+ 14**
+  (harness que sobe o ambiente real para o smoke rodar).
+
+Ressalva registrada, não resolvida por esta onda: o antigo Agente 20 também cobria dois pontos que
+não estão claramente em nenhum dos quatro perfis acima — (a) confirmar a persistência de uma ação de
+UI **diretamente no banco**, não só na tela, e (b) confirmar que dado sensível/PII foi sanitizado
+ponta a ponta em produção real. Até isso ganhar dono explícito, tratar como responsabilidade
+compartilhada de **01/01A** (dados) na dimensão (a) e **15** (segurança aplicada) na dimensão (b),
+acionados por 08 quando o release em questão tocar dado sensível.
 
 ## Regra de concorrência
 
@@ -172,6 +213,26 @@ Antes de adicionar novas funcionalidades, eliminar ou validar como resolvidos:
 13. Tratamento de dados pessoais sem base legal, retenção definida ou meio de exclusão (ver seção LGPD).
 14. Dump/backup de banco versionado no git (ex.: arquivos em `backups/**`). Isso já foi encontrado neste repositório — ver `/AGENTS.md` → "Segurança e higiene" e tratar como bloqueador imediato, não como item de backlog.
 
+## Freeze de escopo (Sprint 00 → Sprint 13)
+
+Decisão de governança da Sprint 00/Onda 12 (GOV-003), vigente até a Sprint 13:
+
+- **Bloqueado**: qualquer feature nova fora do que já está listado como necessário para cumprir uma
+  promessa já feita ao usuário/produto (ver `docs/`, `AUTONOMIA_COMERCIAL_24X7.md`,
+  `PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md` e handoffs abertos com sprint destino "onda-13" no
+  inventário de `.agents/handoffs/**`, consolidado em `.agents/runs/onda-12.md`).
+- **Permitido**:
+  - remediação de bug, débito técnico, achado de segurança/RBAC/tenancy/LGPD (ver "Bloqueadores
+    prioritários" acima);
+  - trabalho já em andamento que fecha uma promessa existente (ex.: as seis "Fases Finais" citadas
+    em `.agents/runs/final-fase-0.md` a `final-fase-4.md`, e a Fase Final 5/Go-Live ainda pendente);
+  - correção de drift entre o que o produto diz que faz e o que o código realmente faz.
+- Qualquer agente que identificar uma ideia de feature nova fora desse critério durante o freeze
+  registra em handoff com sprint destino "pós-Sprint 13" em vez de implementar — não é decisão do
+  agente decidir que uma feature é urgente o suficiente para furar o freeze.
+- O Coordenador (00) é quem decide se algo é "remediação"/"promessa já existente" ou "feature nova"
+  em caso de dúvida, e registra a decisão no relatório da onda em questão.
+
 ## Regra de autonomia
 Não interromper o usuário para decisões técnicas rotineiras.
 
@@ -226,7 +287,7 @@ Nunca colocar segredos em fixtures, screenshots, relatórios, prompts ou mensage
 
 Antes de finalizar qualquer onda, rodar varredura de segredo versionado (ferramenta disponível no projeto, por exemplo `gitleaks`/`trufflehog`, ou busca manual por padrões de chave/token) sobre o diff acumulado da onda. Achado positivo é bloqueador — ver protocolo em 08 e regra de credenciais em 01.
 
-**Achado conhecido, ainda não remediado:** `backups/prospector-*.dump` está versionado no git deste repositório, violando a regra acima. Contém dump de banco com dado pessoal real de prospecção. Ação recomendada, em ordem: (1) `git rm --cached backups/*.dump` e adicionar `backups/` ao `.gitignore` — remove do próximo commit, não do histórico; (2) avaliar com o Agente 01 se algum segredo/credencial estava embutido no dump e rotacionar se necessário; (3) decidir com o dono do repositório se vale a pena reescrever o histórico (`git filter-repo`/BFG) para remover definitivamente — isso reescreve hashes de commit e exige coordenação se o repositório é compartilhado/já tem PRs abertos, portanto é decisão humana, não automática de agente.
+**Achado conhecido, parcialmente remediado:** `backups/prospector-*.dump` chegou a ser versionado no git deste repositório, violando a regra acima, com dado pessoal real de prospecção. Estado atual (verificado nesta onda, Sprint 00/Onda 12 — GOV-002): o arquivo **já foi removido do working tree atual** (`git ls-files` não retorna nenhum `.dump`; `backups/` só contém `AGENTS.md`) e `.gitignore` cobre `backups/*.dump`, `*.sql`, `*.backup`, `*.tar`, `*.tar.gz` e `*.gz`, então não há reincidência silenciosa. Isso **não** significa que o dado desapareceu: **o histórico do git continua recuperável** — o arquivo ainda existe nos commits antigos para quem tiver acesso ao repositório e souber navegar o histórico, então o risco de exposição de dado pessoal não está eliminado, só contido no HEAD. Pendências reais, nesta ordem: (1) confirmar com o Agente 01 se algum segredo/credencial estava embutido no dump e rotacionar se ainda não foi feito; (2) decidir com o dono do repositório se vale reescrever o histórico (`git filter-repo`/BFG) para remover definitivamente — isso reescreve hashes de commit e exige coordenação com PRs abertos, portanto continua sendo **decisão humana separada, não automática de agente**, e não é aprovada nem rejeitada por esta onda.
 
 ## Dados reais x demonstração
 - Dados de demonstração devem ser explicitamente rotulados e isolados.

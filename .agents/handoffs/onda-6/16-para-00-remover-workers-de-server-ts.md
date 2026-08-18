@@ -1,7 +1,7 @@
 - De: Agente 16 (Runtime, Workers e Escala)
 - Para: Agente 00 (Coordenador)
 - Onda: 6
-- Status: em-andamento
+- Status: resolvido
 - Prioridade: bloqueador (bloqueia só o corte final de duplicação de processamento — não bloqueia
   esta onda, ver "Contexto adicional")
 
@@ -195,3 +195,13 @@ processo que roda em produção — comportamento atual preservado, sem regress�
 Fica para a Onda 7 (ou uma leva dedicada), combinado com o deploy do 08: subir `worker.ts` real →
 confirmar processamento → só então aplicar este diff e derrubar os workers de `server.ts` no mesmo
 corte.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+O risco de duplicação de processamento que motivava este handoff foi eliminado por um caminho
+diferente do diff original: `server.ts` e `src/config/env.ts` hoje gatam a criação de todos os
+workers embutidos por `ENABLE_EMBEDDED_WORKERS` (default `false`, confirmado em `server.ts:472-475`
+e `src/config/env.ts:66`) — com o flag desligado (estado padrão), `server.ts` nunca cria um `Worker`
+BullMQ, só enfileira. Isso resolve o problema real (dois processos competindo pela mesma fila) sem
+depender do corte completo proposto no diff original. `worker.ts` como serviço real no Render (ver
+`onda-6/16-para-08-deploy-worker-service.md`) continua pendente e permanece registrado como item de
+backlog pós-freeze — não bloqueia esta onda porque o estado padrão já é seguro.

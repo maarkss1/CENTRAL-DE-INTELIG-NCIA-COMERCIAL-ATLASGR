@@ -1,7 +1,7 @@
 - De: Agente 06A (Extrações Bitrix, especialista interno do Agente 06)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -56,3 +56,9 @@ arquivo associado.
 ## Contexto adicional
 Este handoff é preparatório — não bloqueia a Onda 1 atual (o módulo em si está fora de escopo
 desta rodada). Fica pronto pra quando o Coordenador priorizar esta feature.
+
+## Resolução (Sprint 00/Onda 12 — GOV-006, 2026-08-18)
+O modelo `BitrixExtractionRun` sugerido aqui foi implementado na Onda 6 pelo Agente 01A — ver
+`.agents/handoffs/onda-6/01A-para-06-bitrix-extraction-run-schema.md` para o schema final aplicado
+(inclui RLS, retenção configurável via env e a análise de campos que este handoff pedia).
+Confirmado presente em `prisma/schema.prisma`. Fechado como superado pela implementação real.
