@@ -15,7 +15,7 @@ export const WON = 'Negocios_Ganhos';
 export const LOST = 'Negocios_Perdidos';
 const DESQUALIFICADO = 'Lead_Desqualificado';
 // Os dois estágios "...Cancelado" dos pilotos comerciais (funil Negócio) contam como fechamento
-// sem venda, assim como em crm360.service.ts (DEAL_STAGES, isLost:true) e em analytics.service.ts
+// sem venda, assim como em PrismaCrm360Repository.ts (DEAL_STAGES, isLost:true) e em analytics.service.ts
 // (o serviço legado usado pelo relatório semanal em PDF). Sem isso, um lead desqualificado ou com
 // piloto cancelado contava como "pipeline ainda aberto" aqui mas não nos outros dois lugares —
 // dashboard, relatório em PDF e API divergindo silenciosamente na mesma métrica (ver mission do

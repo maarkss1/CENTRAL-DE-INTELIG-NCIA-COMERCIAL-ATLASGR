@@ -132,22 +132,3 @@ export const loginSchema = z.object({
     password: z.string().min(1, 'Senha é obrigatória'),
 });
 
-export const LEAD_FUNNEL_STATUS = [
-    'Lead Recebido',
-    'Cadência Iniciada',
-    'Qualificação (SDR)',
-    'Reunião Agendada',
-    'Lead Desqualificado',
-] as const;
-
-export const DEAL_FUNNEL_STATUS = [
-    'Convertido em Oportunidade',
-    'Nova Oportunidade',
-    'Proposta Enviada',
-    'Call/Visita Agendada',
-    'Negócios Perdidos',
-    'Negócios Ganhos',
-] as const;
-
-export const LEAD_FUNNEL = ['LEADS', 'DEALS'] as const;
-export type LeadFunnel = (typeof LEAD_FUNNEL)[number];

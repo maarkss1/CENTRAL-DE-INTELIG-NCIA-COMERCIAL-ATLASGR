@@ -67,6 +67,12 @@ const envSchema = z.object({
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // SEC-001/SEC-002 (Sprint 01/Onda 13): segredo de "operador de plataforma", separado do papel
+  // ADMIN de tenant. ADMIN de tenant já é exigido pelo próprio RBAC de negócio — este token é a
+  // segunda trava de "isso é infraestrutura compartilhada entre TODAS as organizações, não uma
+  // permissão de uma organização". Sem este valor configurado, /admin/queues e /metrics negam
+  // acesso por padrão (fail-closed) — ver src/shared/middlewares/requirePlatformOperator.ts.
+  PLATFORM_OPERATOR_TOKEN: z.string().min(16).optional(),
 
   // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
   // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook

@@ -4,6 +4,7 @@ import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 import { SDROutboundDraftAgent } from '../../features/intelligence/agents/sdr-agent.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const AGENT_QUEUE_NAME = 'intelligence-agents';
 export const agentQueue = new Queue(AGENT_QUEUE_NAME, { connection });
@@ -75,6 +76,16 @@ export function createAgentWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Worker job permanently failed');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: AGENT_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            organizationId: job.data.payload?.tenantId,
+            attemptsMade: job.attemptsMade,
+            correlationId: job.data.payload?.leadId,
+            error: err,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(AGENT_QUEUE_NAME));

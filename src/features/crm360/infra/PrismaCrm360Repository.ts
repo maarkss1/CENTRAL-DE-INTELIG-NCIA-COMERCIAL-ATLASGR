@@ -6,7 +6,7 @@ import {
     Prisma,
 } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
-import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus } from '../../../lib/enumMap.js';
+import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus, LEAD_CLOSING_STATUSES } from '../../../lib/enumMap.js';
 import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
@@ -46,7 +46,13 @@ const DEAL_STAGES: DefaultStage[] = [
     { name: 'Negócios Perdidos', code: 'perdido', color: '#dc2626', probability: 0, leadStatus: LeadStatus.Negocios_Perdidos, isLost: true },
 ];
 
-const CLOSED_DEAL_STATUSES: LeadStatus[] = [LeadStatus.Negocios_Ganhos, LeadStatus.Negocios_Perdidos];
+// DATA-004 (Sprint 05/Onda 17): derivado da mesma fonte única usada por PrismaLeadRepository
+// (update()/updateStatus()) — antes desta correção esta lista tinha só 2 status (Ganhos/Perdidos),
+// diferente da lista de 4 usada por updateStatus(), então um piloto cancelado por este caminho
+// (PUT /api/crm/records/:id/stage) continuava contando como "negócio aberto" em openDeals/pipelineValue.
+const CLOSED_DEAL_STATUSES: LeadStatus[] = [...LEAD_CLOSING_STATUSES].map(
+    (label) => toPrismaLeadStatus(label) as LeadStatus,
+);
 
 function roundMoney(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;

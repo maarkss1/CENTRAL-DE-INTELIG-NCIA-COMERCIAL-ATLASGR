@@ -3,6 +3,7 @@ import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runColdCallCampaign, enabledOrganizations } from '../../features/integrations/birth-voice/coldCall.service.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const COLD_CALL_QUEUE_NAME = 'sdr-cold-call';
 
@@ -28,6 +29,15 @@ export function createColdCallWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Campanha de prospecção fria falhou.');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: COLD_CALL_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            organizationId: job.data.organizationId,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(COLD_CALL_QUEUE_NAME));

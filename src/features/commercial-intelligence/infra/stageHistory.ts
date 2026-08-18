@@ -2,8 +2,8 @@ import { prisma } from '../../../lib/prisma.js';
 
 /**
  * Ponto único de escrita de `LeadStageHistory` (ver comentário no schema). Chamado pelos mesmos
- * pontos do CRM que já movem uma oportunidade de etapa (`crm360.service.ts`: `moveRecord`,
- * `createDeal`, `convertLead`) — este módulo pertence a `commercial-intelligence` (dono do
+ * pontos do CRM que já movem uma oportunidade de etapa (`PrismaCrm360Repository.ts`:
+ * `updateLeadStage`, `convertLead`) — este módulo pertence a `commercial-intelligence` (dono do
  * histórico), mas é importado por `crm360` no ponto exato da escrita real, em vez de duplicar a
  * lógica de "qual é a etapa atual" em outro lugar.
  *

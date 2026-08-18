@@ -65,3 +65,15 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
   acima (não existia em 2026-08-16, surgiu de uma atualização do Prisma entre essa data e agora).
   `continue-on-error: true` foi reintroduzido em `ci.yml`, `production.yaml` e `cd-homolog.yml`
   citando esta entrada — não é o mesmo débito vestigial de antes.
+- 2026-08-18 — Sprint 01/Onda 13 (SEC-005): o `continue-on-error: true` foi removido dos 3
+  workflows e substituído por `npm run security:audit-waivers`
+  (`scripts/security/check-audit-waivers.ts`), que roda `npm audit --audit-level=high --json`,
+  atravessa a cadeia de dependência de cada achado até o advisory real, e falha o gate para
+  qualquer `HIGH`/`CRITICAL` cujo advisory ID não esteja listado na seção "## Waivers ativos"
+  deste arquivo. O escopo do waiver `GHSA-ggr8-5vv4-36mx` (só esse advisory, só essa cadeia) agora
+  é verificado automaticamente, não só por convenção de comentário. Também corrigido nesta sprint:
+  `package.json` tinha `overrides.uuid: "^10.0.0"` conflitando com a dependência direta
+  `uuid@^14.0.1` (adicionado sem reconciliar em `41d5d98`, remediação GitGuard) — isso fazia
+  `npm audit`/`npm install` falharem com `EOVERRIDE` **antes** de produzir qualquer relatório,
+  e o `continue-on-error: true` antigo mascarava esse erro estrutural junto com o achado real de
+  vulnerabilidade. Override alinhado para `^14.0.1`, igual à dependência direta.

@@ -39,7 +39,7 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: prospector
           POSTGRES_PASSWORD: prospector_test_pass
@@ -84,6 +84,8 @@ jobs:
       # 429, sem nenhuma falha de asserção real por trás (só timeout esperando a navegação pro
       # /app que o 429 nunca deixava acontecer).
       AUTH_RATE_LIMIT_MAX: 500
+      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
+      PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -106,18 +108,12 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      # Fase Final 1: gate real, não mais continue-on-error. Em 2026-08-16, `npm audit
-      # --audit-level=high` já retorna 0 high/critical (só 2 moderate, uuid via exceljs, fora do
-      # escopo de --audit-level=high). Qualquer HIGH/CRITICAL novo deve bloquear aqui; se for aceito
-      # temporariamente, documentar em docs/security/AUDIT_WAIVERS.md antes de reintroduzir
-      # continue-on-error — nunca silenciosamente.
-      #
-      # continue-on-error ativo: waiver "GHSA-ggr8-5vv4-36mx — deepmerge-ts via @prisma/config"
-      # em docs/security/AUDIT_WAIVERS.md (registrado 2026-08-17, reavaliar na próxima major do
-      # Prisma ou em 30 dias). Escopo do waiver é só esse advisory — não é licença geral.
-      - name: Audit for vulnerabilities
-        run: npm audit --audit-level=high
-        continue-on-error: true # waiver GHSA-ggr8-5vv4-36mx, ver docs/security/AUDIT_WAIVERS.md
+      # SEC-005 (Sprint 01/Onda 13): substitui o `continue-on-error: true` solto, que suprimia
+      # falha do step inteiro (não só do advisory waivado), por um script que cruza o achado real
+      # do `npm audit` com docs/security/AUDIT_WAIVERS.md advisory por advisory. Um HIGH/CRITICAL
+      # novo, sem waiver correspondente, falha o gate de verdade — sem exceção genérica.
+      - name: Audit for vulnerabilities (waiver-aware)
+        run: npm run security:audit-waivers
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -151,6 +147,7 @@ jobs:
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           ALLOWED_ORIGINS=$ALLOWED_ORIGINS
           AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
           EOF
 
       - name: Run Integration Tests
@@ -206,7 +203,7 @@ jobs:
     # MEILI_MASTER_KEY estarem no env — ver comentário do job build-and-test).
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: prospector
           POSTGRES_PASSWORD: prospector_test_pass
@@ -241,6 +238,8 @@ jobs:
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
+      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
+      PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -275,6 +274,7 @@ jobs:
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           ALLOWED_ORIGINS=$ALLOWED_ORIGINS
           AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
           EOF
 
       - name: Install Playwright browsers

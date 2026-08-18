@@ -39,7 +39,7 @@ jobs:
     # Mesmos service containers do ci.yml — sem eles não dá pra rodar test:integration/E2E aqui.
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: prospector
           POSTGRES_PASSWORD: prospector_test_pass
@@ -78,6 +78,8 @@ jobs:
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
+      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
+      PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
       - name: Checkout code
@@ -101,11 +103,10 @@ jobs:
       - name: Prisma Generate
         run: npx prisma generate
 
-      # continue-on-error ativo: waiver "GHSA-ggr8-5vv4-36mx — deepmerge-ts via @prisma/config"
-      # em docs/security/AUDIT_WAIVERS.md — ver comentário equivalente em ci.yml.
-      - name: Audit for vulnerabilities
-        run: npm audit --audit-level=high
-        continue-on-error: true # waiver GHSA-ggr8-5vv4-36mx, ver docs/security/AUDIT_WAIVERS.md
+      # SEC-005 (Sprint 01/Onda 13): gate real advisory-por-advisory — ver comentário equivalente
+      # em ci.yml e scripts/security/check-audit-waivers.ts.
+      - name: Audit for vulnerabilities (waiver-aware)
+        run: npm run security:audit-waivers
 
       - name: Run Lint
         run: npm run lint
@@ -136,6 +137,7 @@ jobs:
           BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
           ALLOWED_ORIGINS=$ALLOWED_ORIGINS
           AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
           EOF
 
       - name: Run Integration Tests

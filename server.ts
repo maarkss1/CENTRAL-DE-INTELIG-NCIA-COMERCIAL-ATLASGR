@@ -25,6 +25,7 @@ import { authenticateToken, type AuthRequest } from './src/shared/middlewares/au
 import { requestContext } from './src/lib/async-context.js';
 import { requireTenant } from './src/shared/middlewares/authorization.js';
 import { requireRole } from './src/shared/middlewares/requireRole.js';
+import { requirePlatformOperator } from './src/shared/middlewares/requirePlatformOperator.js';
 import { COMMERCIAL_INTELLIGENCE_ROLES } from './src/lib/auth/authorization.js';
 import { prisma } from './src/lib/prisma.js';
 import { shutdownLangfuse } from './src/lib/langfuse.js';
@@ -284,7 +285,11 @@ async function startServer() {
     // montado publicamente (sem autenticação), independentemente da flag.
     if (env.EXPOSE_METRICS) {
         client.collectDefaultMetrics();
-        app.get('/metrics', async (_req, res) => {
+        // SEC-002 (Sprint 01/Onda 13): quando habilitado, /metrics não tem conceito de sessão de
+        // usuário (é um endpoint de scraping, tipicamente chamado pelo Prometheus, não por um
+        // navegador logado) — a trava aqui é só o token de operador de plataforma, configurado no
+        // scraper como header `x-platform-operator-token` ou query `?operator_token=`.
+        app.get('/metrics', requirePlatformOperator, async (_req, res) => {
             try {
                 res.set('Content-Type', client.register.contentType);
                 res.end(await client.register.metrics());
@@ -372,7 +377,19 @@ async function startServer() {
     // qualquer usuário comum autenticado poder abrir isso era exposição cross-tenant. Restringir a
     // ADMIN reduz a superfície ao papel mais alto existente; o risco residual (ADMIN de uma
     // organização enxergar jobs de outra) fica documentado no relatório de segurança.
-    app.use('/admin/queues', authenticateToken, requireTenant, requireRole(['ADMIN']), serverAdapter.getRouter());
+    //
+    // SEC-001 (Sprint 01/Onda 13): `requirePlatformOperator` é a segunda trava, obrigatória —
+    // ADMIN de uma organização não é automaticamente "operador de infraestrutura" (a distinção que
+    // o próprio pacote SEC-001 pede). Sem PLATFORM_OPERATOR_TOKEN configurado, a rota nega por
+    // padrão mesmo para um ADMIN de verdade.
+    app.use(
+        '/admin/queues',
+        authenticateToken,
+        requireTenant,
+        requireRole(['ADMIN']),
+        requirePlatformOperator,
+        serverAdapter.getRouter()
+    );
 
     // ── Rotas protegidas ───────────────────────────────────────────────────
     app.use(observabilityMiddleware);

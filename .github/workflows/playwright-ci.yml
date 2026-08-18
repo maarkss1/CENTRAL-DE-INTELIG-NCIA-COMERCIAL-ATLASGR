@@ -20,7 +20,7 @@ jobs:
     # do ci.yml) em vez de tentar concertar o docker-compose só pra CI.
     services:
       postgres:
-        image: pgvector/pgvector:pg15
+        image: pgvector/pgvector:pg17
         env:
           POSTGRES_USER: prospector
           POSTGRES_PASSWORD: prospector_test_pass
