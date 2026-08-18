@@ -218,10 +218,13 @@ export async function sendWhatsAppMessage(
 ) {
     const session = sessions.get(organizationId);
 
-    // Compatibilidade dos callers HTTP antigos: depois do cutover, nenhum web process possui
-    // WASocket. Se uma rota/webhook legado chegar aqui, publica o comando e retorna aceitação.
-    // No worker dedicado, NUNCA re-enfileira: ausência de socket é falha real do processor.
-    if ((!session?.sock || session.status !== 'connected') && !isDedicatedWorkerProcess) {
+    // Só produção web recebe o fallback para broker. Dev/test preservam a semântica histórica,
+    // e o worker dedicado nunca re-enfileira o próprio job.
+    if (
+        process.env.NODE_ENV === 'production'
+        && !isDedicatedWorkerProcess
+        && (!session?.sock || session.status !== 'connected')
+    ) {
         await enqueueWhatsAppCommand({
             type: 'send',
             organizationId,
