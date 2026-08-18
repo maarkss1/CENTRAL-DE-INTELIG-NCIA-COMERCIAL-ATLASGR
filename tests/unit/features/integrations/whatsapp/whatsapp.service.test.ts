@@ -12,6 +12,11 @@ const redisSet = vi.fn(async (key: string, value: string) => {
     return 'OK';
 });
 vi.mock('../../../../../src/lib/queue/redis.js', () => ({
+    // O broker novo importa estes bindings no mesmo grafo do whatsapp.service. Neste teste unitário
+    // não existe fila real nem processo worker dedicado: validamos somente a sessão Baileys local.
+    queuesEnabled: false,
+    isDedicatedWorkerProcess: false,
+    connection: {},
     cacheConnection: {
         get: (...args: [string]) => redisGet(...args),
         set: (...args: unknown[]) => redisSet(args[0] as string, args[1] as string),
@@ -141,7 +146,6 @@ describe('WhatsApp service — sessão por tenant', () => {
         await initWhatsApp(orgA);
         (await socketHandlers.get('connection.update')!)({ connection: 'open' });
 
-        // orgB nunca conectou — não deve herdar nada do estado de orgA.
         const statusB = await getWhatsAppStatus(orgB);
         expect(statusB).toEqual({ status: 'disconnected', qr: null });
 
@@ -156,7 +160,6 @@ describe('WhatsApp service — sessão por tenant', () => {
 
         redisGet.mockRejectedValueOnce(new Error('ECONNREFUSED'));
         const status = await getWhatsAppStatus(orgId);
-        // Mesmo sem conseguir ler do Redis, a instância dona do socket sabe seu próprio estado local.
         expect(status.status).toBe('connected');
     });
 
