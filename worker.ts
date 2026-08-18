@@ -5,6 +5,7 @@ import { registerProcessGuards } from './src/lib/process-guards.js';
 registerProcessGuards();
 
 import http from 'http';
+import type { Worker as BullWorker } from 'bullmq';
 import { env } from './src/config/env.js';
 import { logger } from './src/lib/logger.js';
 import { prisma } from './src/lib/prisma.js';
@@ -17,7 +18,7 @@ import {
     queuesEnabled,
     pingRedis,
 } from './src/lib/queue/redis.js';
-import { setWorkerProcessUp } from './src/lib/queue/metrics.js';
+import { registerWorkerForRuntimeMetrics, setWorkerProcessUp } from './src/lib/queue/metrics.js';
 
 import { createLeadsWorker } from './src/lib/queue/index.js';
 import { createAgentWorker } from './src/lib/queue/agent.worker.js';
@@ -43,15 +44,13 @@ import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './s
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
-type CloseableWorker = { close: () => Promise<void> } | null;
+type CloseableWorker = BullWorker<any, any, string> | null;
 
 async function startWorkerProcess() {
-    // Worker sem Redis é configuração inválida, não modo degradado. Falha antes de registrar qualquer processor.
     if (!queuesEnabled) {
         throw new Error('Worker dedicado requer ENABLE_QUEUES=true e REDIS_URL configurada.');
     }
 
-    // Dependências obrigatórias precisam estar acessíveis antes do processo declarar readiness.
     await pingRedis(connection);
     await prisma.$queryRaw`SELECT 1`;
 
@@ -121,6 +120,10 @@ async function startWorkerProcess() {
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
     ];
+
+    for (const { name, worker } of registeredWorkers) {
+        registerWorkerForRuntimeMetrics(name, worker);
+    }
 
     const activeCount = registeredWorkers.filter((entry) => entry.worker !== null).length;
     setWorkerProcessUp(true);
@@ -193,8 +196,6 @@ async function startWorkerProcess() {
         });
 
         const drain = (async () => {
-            // 1) para health/novos handshakes; 2) Worker.close para novos jobs e drena job em voo;
-            // 3) fecha sockets Baileys; 4) fecha Redis; 5) sai.
             await new Promise<void>((resolve) => healthServer.close(() => resolve()));
             await Promise.allSettled(
                 registeredWorkers
