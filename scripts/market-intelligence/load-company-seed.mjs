@@ -160,32 +160,31 @@ FROM mi_seed_stage
 `;
 
 async function publishSeed(seedDir, manifest) {
-  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL;
   if (!connectionString) throw new Error('DATABASE_URL/DIRECT_URL ausente para publicar o seed');
   const datasetId = `mi_seed_${manifest.seedHash.slice(0, 24)}`;
   const client = new Client({ connectionString });
   await client.connect();
   try {
-    const active = await client.query(
-      'SELECT "id", "status", "publicationSlot" FROM "MarketIntelligenceDataset" WHERE "id" = $1',
-      [datasetId],
-    );
-    if (active.rows[0]?.status === 'READY' && active.rows[0]?.publicationSlot === 'CNPJ_ACTIVE') {
-      console.log(JSON.stringify({ status: 'idempotent', datasetId, records: manifest.records }));
-      return;
-    }
-
     await client.query('BEGIN');
     await client.query("SELECT set_config('app.bypass_rls', 'on', TRUE)");
     await client.query("SELECT set_config('app.current_tenant_id', '', TRUE)");
     await client.query("SET LOCAL statement_timeout = '0'");
 
-    const existing = await client.query('SELECT "id", "status" FROM "MarketIntelligenceDataset" WHERE "id" = $1 FOR UPDATE', [datasetId]);
+    const existing = await client.query(
+      'SELECT "id", "status", "publicationSlot" FROM "MarketIntelligenceDataset" WHERE "id" = $1 FOR UPDATE',
+      [datasetId],
+    );
+    if (existing.rows[0]?.status === 'READY' && existing.rows[0]?.publicationSlot === 'CNPJ_ACTIVE') {
+      await client.query('COMMIT');
+      console.log(JSON.stringify({ status: 'idempotent', datasetId, records: manifest.records }));
+      return;
+    }
     if (existing.rows.length && existing.rows[0].status !== 'READY') {
       await client.query('DELETE FROM "MarketIntelligenceDataset" WHERE "id" = $1', [datasetId]);
     }
 
-    let reusable = existing.rows.length && existing.rows[0].status === 'READY';
+    const reusable = existing.rows.length > 0 && existing.rows[0].status === 'READY';
     if (!reusable) {
       await client.query(
         `INSERT INTO "MarketIntelligenceDataset" (
