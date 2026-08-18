@@ -110,6 +110,49 @@ enum CrmDocumentStatus {
   Cancelado
 }
 
+/// Classifica a natureza epistemica de cada item do LDR. O valor fica estruturado no banco para
+/// que fato observado, inferencia e recomendacao nunca dependam de convencao em texto livre.
+enum IntelligenceEvidenceType {
+  FACT
+  INFERENCE
+  RECOMMENDATION
+}
+
+enum IntelligenceSnapshotStatus {
+  Complete
+  Partial
+  Failed
+  Stale
+}
+
+enum AccountSignalStatus {
+  Active
+  Dismissed
+  Expired
+}
+
+enum DecisionMakerStatus {
+  Active
+  Inactive
+  Unverified
+}
+
+enum AccountRecommendationStatus {
+  Pending
+  Approved
+  Executed
+  Dismissed
+  Superseded
+  Failed
+}
+
+enum EconomicRelationshipStatus {
+  Verified
+  Inferred
+  Rejected
+  Inactive
+}
+
 model Company {
   id                String        @id @default(cuid())
   legalName         String
@@ -173,12 +216,20 @@ model Company {
   lookalikeScore      Float?
   lookalikeTopMatches Json?
 
-  contacts            Contact[]
-  leads               Lead[]
-  commercialDocuments CrmCommercialDocument[]
-  enrichmentLogs      EnrichmentLog[]
-  organizationId      String?
-  organization        Organization?           @relation(fields: [organizationId], references: [id])
+  contacts                    Contact[]
+  leads                       Lead[]
+  commercialDocuments         CrmCommercialDocument[]
+  enrichmentLogs              EnrichmentLog[]
+  intelligenceSnapshots       AccountIntelligenceSnapshot[]
+  accountSignals              AccountSignal[]
+  decisionMakers              DecisionMaker[]
+  intelligenceEvidence        IntelligenceEvidence[]
+  accountScores               AccountScore[]
+  accountRecommendations      AccountRecommendation[]
+  sourceEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipSource")
+  targetEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipTarget")
+  organizationId              String?
+  organization                Organization?                  @relation(fields: [organizationId], references: [id])
   deletedAt           DateTime?
   deletedBy           String?
   deleteReason        String?
@@ -186,6 +237,9 @@ model Company {
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])
+  // Permite FKs compostas nas tabelas de Account Intelligence: uma linha tenant-scoped nunca
+  // pode apontar para uma Company de outra organizacao, mesmo sob bypass administrativo.
+  @@unique([id, organizationId])
 }
 
 model EnrichmentLog {
@@ -226,6 +280,7 @@ model Contact {
   whatsAppMessages WhatsAppMessage[]
   organizationId   String?
   organization     Organization?     @relation(fields: [organizationId], references: [id])
+  decisionMakerProfiles DecisionMaker[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -235,6 +290,9 @@ model Contact {
 
   @@index([organizationId])
   @@index([email])
+  // DecisionMaker referencia este trio para garantir no banco que contato, conta e tenant sao os
+  // mesmos. Os campos pessoais continuam apenas em Contact; o LDR nao cria uma copia global.
+  @@unique([id, companyId, organizationId])
 }
 
 model Lead {
@@ -500,6 +558,13 @@ model Organization {
   crmDocumentSignatureRequests  CrmDocumentSignatureRequest[]
   dealClosureEvents             DealClosureEvent[]
   prospectRejections            ProspectRejection[]
+  accountIntelligenceSnapshots  AccountIntelligenceSnapshot[]
+  accountSignals                AccountSignal[]
+  decisionMakers                DecisionMaker[]
+  intelligenceEvidence          IntelligenceEvidence[]
+  accountScores                 AccountScore[]
+  accountRecommendations        AccountRecommendation[]
+  economicRelationships         EconomicRelationship[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
 }
@@ -567,6 +632,250 @@ model LeadStageHistory {
   @@index([organizationId, leadId, enteredAt])
   @@index([organizationId, stageId])
   @@index([leadId, exitedAt])
+}
+
+// ─── LDR / Account Intelligence ────────────────────────────────────────────
+// Esta fundacao estende a Company real do CRM; nao cria uma segunda entidade de empresa, contato
+// ou lead. Todas as tabelas sao por organizationId, usam RLS e mantem historico/evidencia em vez de
+// sobrescrever a explicacao que produziu um score ou uma recomendacao.
+
+/// Fotografia versionada da inteligencia conhecida sobre uma Company em um instante. `sourceStatus`
+/// registra sucesso/falha por fonte para que uma integracao indisponivel nao apague fatos validos
+/// das demais. `structuredFacts` contem somente fatos normalizados, nunca segredo/payload bruto.
+model AccountIntelligenceSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+
+  version         Int
+  generatedAt     DateTime                   @default(now())
+  expiresAt       DateTime?
+  summary         String                     @db.Text
+  structuredFacts Json
+  sourceStatus    Json
+  status          IntelligenceSnapshotStatus @default(Partial)
+  createdAt       DateTime                   @default(now())
+
+  signals         AccountSignal[]
+  decisionMakers  DecisionMaker[]
+  evidence        IntelligenceEvidence[]
+  scores          AccountScore[]
+  recommendations AccountRecommendation[]
+  relationships   EconomicRelationship[]
+
+  @@unique([organizationId, companyId, version])
+  @@unique([id, organizationId, companyId])
+  @@index([organizationId, companyId, generatedAt(sort: Desc)])
+  @@index([organizationId, companyId, status])
+  @@index([organizationId, expiresAt])
+}
+
+/// Sinal comercial deduplicavel por conta. Reobservacoes atualizam lastSeenAt/occurrenceCount em
+/// vez de gerar varias acoes para o mesmo evento. A taxonomia e versionada separadamente do tipo.
+model AccountSignal {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  snapshotId     String?
+  snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  type            String
+  taxonomyVersion String
+  title           String
+  description     String                   @db.Text
+  detectedAt      DateTime                 @default(now())
+  effectiveAt     DateTime?
+  source          String
+  sourceUrl       String?
+  confidence      Float
+  evidenceType    IntelligenceEvidenceType
+  status          AccountSignalStatus      @default(Active)
+  dedupeKey       String
+  firstSeenAt     DateTime                 @default(now())
+  lastSeenAt      DateTime                 @default(now())
+  occurrenceCount Int                      @default(1)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@unique([organizationId, companyId, dedupeKey])
+  @@index([organizationId, companyId, detectedAt(sort: Desc)])
+  @@index([organizationId, companyId, type, status])
+  @@index([organizationId, status, lastSeenAt(sort: Desc)])
+  @@index([snapshotId])
+}
+
+/// Metadados de buying committee sobre um Contact ja existente. Nome, cargo, telefone e e-mail
+/// permanecem exclusivamente em Contact: esta tabela so guarda classificacao, fonte e confianca.
+/// A FK composta prova que Contact, Company e organizationId pertencem ao mesmo tenant.
+model DecisionMaker {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  contactId      String?
+  contact        Contact?     @relation(fields: [contactId, companyId, organizationId], references: [id, companyId, organizationId], onDelete: Cascade)
+  snapshotId     String?
+  snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  buyingRole      String
+  roleEvidenceType IntelligenceEvidenceType
+  source           String
+  sourceUrl        String?
+  verifiedAt       DateTime?
+  confidence       Float
+  status           DecisionMakerStatus     @default(Unverified)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  @@unique([organizationId, companyId, contactId])
+  @@index([organizationId, companyId, status])
+  @@index([organizationId, companyId, buyingRole])
+  @@index([snapshotId])
+}
+
+/// Evidencia normalizada e deduplicavel. subjectType/subjectId permitem vincular a um signal,
+/// score, decisor, relacionamento ou recomendacao sem armazenar payload bruto de fornecedor.
+/// `evidenceType` torna FATO/INFERENCIA/RECOMENDACAO uma propriedade consultavel, nao um rotulo UI.
+model IntelligenceEvidence {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  snapshotId     String?
+  snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  subjectType String
+  subjectId   String?
+  factKey     String
+  value       Json?
+  valueHash   String?
+  reference   String?
+  source      String
+  sourceUrl   String?
+  collectedAt DateTime                 @default(now())
+  confidence  Float?
+  evidenceType IntelligenceEvidenceType
+  dedupeKey   String
+  createdAt   DateTime                 @default(now())
+
+  @@unique([organizationId, companyId, dedupeKey])
+  @@index([organizationId, companyId, collectedAt(sort: Desc)])
+  @@index([organizationId, companyId, evidenceType])
+  @@index([organizationId, subjectType, subjectId])
+  @@index([snapshotId])
+}
+
+/// Historico append-only de score. O hash de entrada + versao torna repeticoes idempotentes;
+/// `calculation` preserva pesos/contribuicoes e os reasons positivos/negativos explicam o total.
+model AccountScore {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  snapshotId     String
+  snapshot       AccountIntelligenceSnapshot @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  total           Int
+  fit             Int
+  timing          Int
+  intent          Int
+  relationship    Int
+  positiveReasons String[]
+  negativeReasons String[]
+  calculation     Json
+  scoreVersion    String
+  inputHash       String
+  calculatedAt    DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  recommendations AccountRecommendation[]
+
+  @@unique([organizationId, companyId, scoreVersion, inputHash])
+  @@unique([id, organizationId, companyId])
+  @@index([organizationId, companyId, calculatedAt(sort: Desc)])
+  @@index([organizationId, total(sort: Desc), calculatedAt(sort: Desc)])
+  @@index([snapshotId])
+}
+
+/// Next Best Action auditavel: guarda a versao/entrada que a gerou, revisao humana, execucao e
+/// referencia externa. O rationale permanece historico, mesmo quando a recomendacao e superada.
+model AccountRecommendation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  snapshotId     String
+  snapshot       AccountIntelligenceSnapshot @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+  accountScoreId String?
+  accountScore   AccountScore? @relation(fields: [accountScoreId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  actionType            String
+  title                 String
+  rationale             String                      @db.Text
+  priority              Int
+  expectedImpact        String?                     @db.Text
+  status                AccountRecommendationStatus @default(Pending)
+  recommendationVersion String
+  inputHash             String
+  generatedBy           String
+  generatedAt           DateTime                    @default(now())
+  reviewedAt            DateTime?
+  reviewedBy            String?
+  executedAt            DateTime?
+  externalRef           String?
+  idempotencyKey        String?
+  statusReason          String?                     @db.Text
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  @@unique([organizationId, companyId, actionType, inputHash])
+  // Unicidade quando preenchida e garantida por indice parcial na migration; indice parcial nao
+  // e representavel na DSL do Prisma e por isso nao aparece como @@unique aqui.
+  @@index([organizationId, companyId, status, generatedAt(sort: Desc)])
+  @@index([organizationId, status, priority])
+  @@index([snapshotId])
+  @@index([accountScoreId])
+}
+
+/// Relacao economica entre duas Companies reais do mesmo tenant. `Verified` e `Inferred` sao
+/// estados distintos; uma inferencia nunca vira automaticamente uma relacao verificada.
+model EconomicRelationship {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceCompanyId String
+  sourceCompany   Company      @relation("EconomicRelationshipSource", fields: [sourceCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  targetCompanyId String
+  targetCompany   Company      @relation("EconomicRelationshipTarget", fields: [targetCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  snapshotId      String?
+  snapshot        AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, sourceCompanyId], references: [id, organizationId, companyId], onDelete: Restrict)
+
+  relationType String
+  status       EconomicRelationshipStatus @default(Inferred)
+  source       String
+  sourceUrl    String?
+  confidence   Float
+  dedupeKey    String
+  detectedAt   DateTime @default(now())
+  verifiedAt   DateTime?
+  validFrom    DateTime?
+  validTo      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([organizationId, dedupeKey])
+  @@index([organizationId, sourceCompanyId, status])
+  @@index([organizationId, targetCompanyId, status])
+  @@index([organizationId, relationType, detectedAt(sort: Desc)])
+  @@index([snapshotId])
 }
 
 // ProspectRejection — candidato de descoberta ("Motor de Busca Turbo") marcado como "Não é esse
