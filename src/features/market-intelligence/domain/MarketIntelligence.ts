@@ -127,6 +127,16 @@ export interface DatasetHealth {
     competence?: string;
     source?: string;
     downloadedAt?: string;
+    // MI-006 (Sprint 04/Onda 16): campos que os workflows de dados (market-intelligence-
+    // {cnpj,rntrc,fleet}.yml) já gravam no manifest.json, mas que a UI nunca lia — sem eles,
+    // freshness/cobertura/qualidade só existiam como texto embutido em `note`, não como dado
+    // exibível de forma consistente.
+    probedAt?: string;
+    coverage?: number;
+    fleetTotal?: number;
+    unmatchedRows?: number;
+    unmatchedRate?: number;
+    taxonomyVersion?: string;
     geography?: string;
     sha256?: string;
     note?: string;

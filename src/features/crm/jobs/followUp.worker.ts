@@ -2,6 +2,7 @@ import { Worker, Queue } from 'bullmq';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { connection } from '../../../lib/queue/redis.js';
+import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
 import { sendWhatsAppMessage } from '../../integrations/whatsapp/whatsapp.service.js';
 
 export const FOLLOWUP_QUEUE_NAME = 'whatsapp-followup-queue';
@@ -60,6 +61,14 @@ export function createFollowUpWorker() {
 
     followUpWorker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Follow-up worker job falhou');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: FOLLOWUP_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     followUpWorker.on('error', (err) => {

@@ -218,6 +218,7 @@ export async function runStagnationScan(): Promise<StagnationScanResult> {
 
 import { Worker, Queue } from 'bullmq';
 import { connection } from '../../../lib/queue/redis.js';
+import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
 
 export const STAGNATION_SCANNER_QUEUE_NAME = 'stagnation-scanner-queue';
 
@@ -232,6 +233,14 @@ export function createStagnationScannerWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'StagnationScanner worker job falhou');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: STAGNATION_SCANNER_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('error', (err) => {

@@ -25,6 +25,7 @@
     "load:k6": "docker compose -f docker-compose.yml -f docker-compose.opensource.yml --profile tools run --rm k6",
     "security:zap": "docker compose -f docker-compose.yml -f docker-compose.opensource.yml --profile tools run --rm zap",
     "security:trivy": "docker compose -f docker-compose.yml -f docker-compose.opensource.yml --profile tools run --rm trivy",
+    "security:audit-waivers": "tsx scripts/security/check-audit-waivers.ts",
     "clean": "rm -rf dist server.js",
     "lint": "eslint src --fix",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
@@ -129,6 +130,8 @@
     "zod": "^4.4.3"
   },
   "overrides": {
+    "brace-expansion": "^2.0.1",
+    "uuid": "^14.0.1",
     "@xenova/transformers": {
       "sharp": "^0.35.3"
     },

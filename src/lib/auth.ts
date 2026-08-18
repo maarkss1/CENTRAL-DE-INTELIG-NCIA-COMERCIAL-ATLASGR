@@ -36,9 +36,22 @@ export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
-    trustedOrigins: [...parseAllowedOrigins(process.env.ALLOWED_ORIGINS), "https://atlasgr-dev-server.loca.lt"],
+    // SEC-006 (Sprint 01/Onda 13): o túnel de dev (loca.lt) só é uma origem confiável fora de
+    // produção — antes, ele era adicionado incondicionalmente, então essa origem específica
+    // também era aceita em produção, ampliando a superfície de CSRF/origin-spoofing sem
+    // necessidade (nenhum fluxo de produção depende de um túnel de desenvolvimento).
+    trustedOrigins: [
+        ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+        ...(process.env.NODE_ENV === "production" ? [] : ["https://atlasgr-dev-server.loca.lt"]),
+    ],
     emailAndPassword: {
         enabled: true,
+        // SEC-006 (Sprint 01/Onda 13): sem isto, um reset de senha por e-mail (ex.: após a conta
+        // ser comprometida, exatamente o cenário em que reset é usado) deixava sessões antigas —
+        // em outros dispositivos/navegadores — válidas até expirarem naturalmente (7 dias). Um
+        // atacante com uma sessão já aberta continuava com acesso mesmo depois da vítima trocar a
+        // senha.
+        revokeSessionsOnPasswordReset: true,
         // Sem isto, POST /api/auth/request-password-reset responde "Reset password isn't enabled"
         // (ver node_modules/better-auth/dist/api/routes/password.mjs) — o endpoint só existe de
         // verdade quando um envio de e-mail é fornecido.

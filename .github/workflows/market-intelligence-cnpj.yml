@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: market-intelligence-cnpj-${{ github.ref }}
@@ -84,6 +85,25 @@ jobs:
           status = 'ATUALIZADO' if unmatched_rate <= 0.01 else 'PARCIAL'
           competence = meta.get('competence') or 'MANUAL_NAO_INFORMADA'
 
+          # MI-005 (Sprint 04/Onda 16): os gates abaixo comparam esta execucao com o que ja
+          # esta publicado no manifest ANTES de sobrescreve-lo -- sem isso, um recurso oficial
+          # republicado com competencia regredida ou uma queda abrupta de cobertura passariam
+          # por todos os gates de consistencia interna (vazio/schema/duplicidade) e
+          # sobrescreveriam silenciosamente um snapshot melhor ja publicado.
+          previous = next((d for d in manifest['datasets'] if d['id'] == 'cnpj'), None)
+          prev_competence = previous.get('competence') if previous else None
+          is_yyyymm = lambda value: bool(value) and len(value) == 7 and value[4] == '-' and value[:4].isdigit() and value[5:].isdigit()
+          if is_yyyymm(prev_competence) and is_yyyymm(competence) and competence < prev_competence:
+              raise SystemExit(f'competencia regrediu: nova={competence!r} anterior={prev_competence!r}')
+
+          prev_coverage = previous.get('coverage') if previous else None
+          if isinstance(prev_coverage, int) and prev_coverage > 0:
+              variation = (len(rows) - prev_coverage) / prev_coverage
+              if abs(variation) > 0.15:
+                  raise SystemExit(
+                      f'variacao anormal de cobertura sem justificativa: {prev_coverage} -> {len(rows)} municipios ({variation:+.2%})'
+                  )
+
           for dataset in manifest['datasets']:
               if dataset['id'] == 'cnpj':
                   dataset.update({
@@ -91,6 +111,13 @@ jobs:
                       'competence': competence,
                       'downloadedAt': meta.get('processedAt'),
                       'sha256': meta.get('outputSha256'),
+                      # MI-004: campos estruturados (consultaveis por qualquer consumidor do
+                      # manifest, nao so por quem le a prosa de 'note') -- antes esses tres
+                      # numeros so existiam embutidos em texto livre.
+                      'coverage': len(rows),
+                      'unmatchedRows': unmatched,
+                      'unmatchedRate': round(unmatched_rate, 6),
+                      'taxonomyVersion': meta.get('taxonomyVersion'),
                       'note': (
                           f"Snapshot oficial {competence} processado em {len(rows)} municipios com estabelecimentos "
                           f"ICP (tiers A/B/C); {unmatched} de {aggregated} registros candidatos sem match IBGE "
@@ -117,7 +144,9 @@ jobs:
           }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Commit compact derived data only
+      - name: Publish compact derived data via pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "atlas-market-data-bot"
           git config user.email "130610135+MaarksN@users.noreply.github.com"
@@ -129,18 +158,14 @@ jobs:
             echo "No derived-data changes to commit."
             exit 0
           fi
+          BRANCH="data/market-intelligence-cnpj-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
           git commit -m "data(cnpj): atualiza snapshot municipal ICP oficial"
+          git push -u origin "$BRANCH"
 
-          for attempt in 1 2 3 4 5; do
-            echo "Publication attempt $attempt/5"
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              echo "Derived CNPJ/ICP snapshot published successfully."
-              exit 0
-            fi
-            sleep $((attempt * 3))
-          done
-
-          echo "::error::CNPJ/ICP snapshot validado, mas publicação falhou após 5 tentativas de reconciliação."
-          exit 1
+          PR_URL=$(gh pr create \
+            --title "data(cnpj): atualiza snapshot municipal ICP oficial" \
+            --body "Snapshot nacional de CNPJ/ICP gerado automaticamente pelo workflow \`market-intelligence-cnpj.yml\` (run ${GITHUB_RUN_ID}). \`main\` é protegida e exige PR + check \`build\`, então este bot publica via PR em vez de push direto." \
+            --base main --head "$BRANCH")
+          echo "Pull request criado: $PR_URL"
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Auto-merge não habilitado ou PR requer aprovação manual — revisar $PR_URL."

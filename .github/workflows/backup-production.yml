@@ -27,8 +27,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Onda 15/SRE-001: a primeira execução real deste workflow (agendada, 2026-08-18T05:27:54Z,
+      # run 32102973547) falhou aqui com "E: Unable to locate package postgresql-client-17" --
+      # o Ubuntu 24.04 (noble) do runner só traz postgresql-client-16 nos repositórios padrão;
+      # a major 17 exige o repositório oficial do PGDG (apt.postgresql.org), nunca adicionado.
+      # Sem isso, o job nunca chegava no dump de verdade (todos os passos seguintes ficavam
+      # "skipped") -- não era um problema de segredo ausente, era a instalação do cliente.
       - name: Instalar postgresql-client 17 (mesma major do Postgres de produção)
         run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends postgresql-client-17
 

@@ -2,7 +2,8 @@
 
 - Fonte: inventário Onda Zero (5 agentes) + baseline executável.
 - Branch de trabalho: `fable/finalizacao-plataforma`.
-- Última atualização: 2026-08-14 (Onda 1 em execução).
+- Última atualização: 2026-08-18 (Sprint 01/Onda 13 — SEC-003/SEC-004: rotação Bland/Bitrix
+  fechada, hashes de commit do dump corrigidos).
 
 ## P0 — Segredos e PII versionados (TODOS remediados no working tree)
 
@@ -15,17 +16,34 @@
 | 5 | `reset-passwords.ts` sem argumento resetava TODAS as senhas p/ `00000000` | Alvo explícito obrigatório (`email` ou `--all`) | ✅ commit `40a99c31` |
 | 6 | Segredo default hardcoded no webhook voice-result (`server.ts`) | Fail-closed (503 sem env), tempo constante | ✅ commit `55bde4c` |
 
-**⚠️ AÇÃO EXTERNA OBRIGATÓRIA (fora do alcance do código):**
-1. **Rotacionar a chave Bland AI** (dispara ligações pagas) — estava versionada com remote no GitHub.
-   **Confirmado na Fase Final 0 (2026-08-16) que AINDA NÃO foi rotacionada** — bloqueador aberto,
-   runbook em `docs/security/runbooks/ROTATE_BLAND_AI_KEY.md`.
-2. **Rotacionar os 2 webhooks Bitrix24** (AtlasGR `/rest/450/…` e TotalTrac `/rest/2486/…`) — a URL é a credencial.
-   **Confirmado na Fase Final 0 (2026-08-16) que AINDA NÃO foram rotacionados** — bloqueador aberto,
-   runbook em `docs/security/runbooks/ROTATE_BITRIX24_WEBHOOKS.md`.
-3. **Dump `backups/prospector-*.dump` segue recuperável no HISTÓRICO git** (commit `2e30b2f`, adiciona o blob; removido do rastreamento — não do histórico — em `8b1bc38`). Remoção definitiva exige `git filter-repo`/BFG — reescreve hashes, decisão humana (ver AGENTS.md → Segurança e higiene). **Correção (Fase Final 0):** o hash `543c5b0`, citado aqui em revisões anteriores como um terceiro commit, foi reverificado e não existe neste repositório — era erro de transcrição, não um segundo dump; ver `docs/security/runbooks/DECIDE_GIT_HISTORY_REWRITE.md` para a reverificação completa.
-   **Decidido na Fase Final 0 (2026-08-16):** dono do repositório escolheu o Caminho A (manter
-   histórico, mitigar daqui pra frente) — sem force-push. Risco residual aceito e registrado, ver
-   runbook.
+**⚠️ AÇÃO EXTERNA (fora do alcance do código):**
+1. **Chave Bland AI** (dispara ligações pagas) — estava versionada com remote no GitHub.
+   Reprovado na Fase Final 0 (2026-08-16) por rotação não confirmada; `final-fase-3.md` (17/08)
+   registrou uma confirmação informal do dono do produto, mas a reabertura formal do gate nunca
+   aconteceu (nenhum relatório posterior — `final-fase-4.md`, `onda-12.md` — reverificou o item).
+   **Fechado formalmente na Sprint 01/Onda 13 (2026-08-18, SEC-003):** dono do repositório
+   confirmou diretamente nesta sessão que a chave já foi rotacionada. ✅ Runbook usado:
+   `docs/security/runbooks/ROTATE_BLAND_AI_KEY.md`.
+2. **2 webhooks Bitrix24** (AtlasGR `/rest/450/…` e TotalTrac `/rest/2486/…`) — a URL é a
+   credencial. Mesmo histórico do item 1 (reprovado 16/08, confirmação informal 17/08 nunca
+   formalizada). **Fechado formalmente na Sprint 01/Onda 13 (2026-08-18, SEC-003):** dono do
+   repositório confirmou diretamente nesta sessão que os dois webhooks já foram rotacionados.
+   ✅ Runbook usado: `docs/security/runbooks/ROTATE_BITRIX24_WEBHOOKS.md`.
+3. **Dump `backups/prospector-*.dump` segue recuperável no HISTÓRICO git.** **Correção de fato
+   (Sprint 01/Onda 13, SEC-004):** os hashes `2e30b2f` (adição) e `8b1bc38` (remoção do
+   rastreamento) citados aqui não existem neste repositório — mesmo padrão de erro de transcrição
+   já encontrado uma vez antes para `543c5b0` (ver nota anterior desta linha). Hashes reais,
+   reverificados via `git cat-file`/`git rev-list --objects --all`: o blob (166075 bytes) foi
+   adicionado em duas linhas de branch paralelas — `9a9c9506` e `40dd9478` (ambos 2026-08-07),
+   unidas no merge `5467e2a8` (2026-08-11) — e desaparece dentro de uma resolução de merge
+   (`3731ce04`), não por um commit `git rm` dedicado. Nenhum destes hashes muda a conclusão já
+   registrada: o dump ainda existe, com PII real, recuperável por quem tiver acesso ao histórico.
+   Remoção definitiva exige `git filter-repo`/BFG — reescreve hashes, decisão humana (ver
+   AGENTS.md → Segurança e higiene).
+   **Decidido na Fase Final 0 (2026-08-16), reafirmado na Sprint 01/Onda 13 (2026-08-18):** dono
+   do repositório escolheu o Caminho A (manter histórico, mitigar daqui pra frente) — sem
+   force-push. Risco residual aceito e registrado, ver runbook
+   `docs/security/runbooks/DECIDE_GIT_HISTORY_REWRITE.md`.
 
 ## P0 — Plataforma quebrada no main (remediados)
 
