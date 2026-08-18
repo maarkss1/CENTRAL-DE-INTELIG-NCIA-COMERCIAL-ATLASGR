@@ -1,11 +1,10 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-14T03:34:01.165670+00:00",
+  "generatedAt": "2026-08-18T20:55:32.739874+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
     "RNTRC municipal Jul/2026 está publicado; frota oficial permanece NÃO DISPONÍVEL no recurso vigente. Pelo dicionário ANTT, a frota pública tem granularidade UF e qualquer uso municipal é somente PROXY_UF.",
-    "Base CNPJ/ICP nacional atual ainda não foi processada para o snapshot municipal.",
     "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
@@ -47,10 +46,17 @@
     {
       "id": "cnpj",
       "label": "Receita Federal / CNPJ + ICP Atlas",
-      "status": "NAO_DISPONIVEL",
+      "status": "ATUALIZADO",
       "source": "Receita Federal / Dados Abertos do CNPJ",
       "geography": "Estabelecimento -> Município",
-      "note": "ETL corrigido para o novo portal Nextcloud/SERPRO+ da Receita (arquivos.receitafederal.gov.br) e validado com uma amostra real de 1 arquivo (Estabelecimentos8.zip + Empresas1.zip) processada com sucesso. Snapshot nacional completo (10 arquivos Empresas + 10 Estabelecimentos) ainda não foi publicado; aguarda execução do workflow market-intelligence-cnpj.yml."
+      "note": "Snapshot oficial 2026-08 processado em 5554 municipios com estabelecimentos ICP (tiers A/B/C); 15231 de 6639808 registros candidatos sem match IBGE (0.2294%). Taxonomia 1.0.0 (REGRA_DE_MODELO_NAO_CALIBRADA) ainda nao calibrada com ganhos/perdas Atlas. Base bruta permanece fora do bundle web.",
+      "competence": "2026-08",
+      "downloadedAt": "2026-08-18T20:55:32.739874+00:00",
+      "sha256": "ac4b9404235f3f03bbdde7d1ab728047b35f94db30a9a77d292a3b5bf85b420c",
+      "coverage": 5554,
+      "unmatchedRows": 15231,
+      "unmatchedRate": 0.002294,
+      "taxonomyVersion": "1.0.0"
     },
     {
       "id": "mdfe",
