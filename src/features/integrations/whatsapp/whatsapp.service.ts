@@ -8,7 +8,8 @@ import { EventEmitter } from 'events';
 import { requestContext } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 import { extractMessageText, persistWhatsAppMessage } from './whatsappMessage.service.js';
-import { cacheConnection } from '../../../lib/queue/redis.js';
+import { cacheConnection, isDedicatedWorkerProcess } from '../../../lib/queue/redis.js';
+import { enqueueWhatsAppCommand } from '../../../lib/queue/whatsappCommand.queue.js';
 import { withTimeout } from '../../../lib/http.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { toE164BR } from '../../../lib/phone.js';
@@ -182,11 +183,6 @@ export async function logoutWhatsApp(organizationId: string) {
     }
 }
 
-/**
- * Fecha todos os transportes Baileys sem apagar credenciais. Usado somente no graceful shutdown
- * do worker dedicado para que SIGTERM não deixe reconnect agendado nem socket vivo enquanto Redis
- * e Prisma já estão sendo encerrados.
- */
 export async function shutdownWhatsAppSessions(): Promise<void> {
     await Promise.allSettled(
         [...sessions.entries()].map(async ([organizationId, session]) => {
@@ -221,6 +217,22 @@ export async function sendWhatsAppMessage(
     context?: SendWhatsAppMessageContext,
 ) {
     const session = sessions.get(organizationId);
+
+    // Compatibilidade dos callers HTTP antigos: depois do cutover, nenhum web process possui
+    // WASocket. Se uma rota/webhook legado chegar aqui, publica o comando e retorna aceitação.
+    // No worker dedicado, NUNCA re-enfileira: ausência de socket é falha real do processor.
+    if ((!session?.sock || session.status !== 'connected') && !isDedicatedWorkerProcess) {
+        await enqueueWhatsAppCommand({
+            type: 'send',
+            organizationId,
+            number,
+            text,
+            buttons,
+            context,
+        });
+        return true;
+    }
+
     if (!session?.sock || session.status !== 'connected') {
         throw new AppError('WhatsApp não está conectado.', 409);
     }
