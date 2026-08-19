@@ -10,6 +10,9 @@ import { prismaOptOutRepository } from './infra/PrismaOptOutRepository.js';
 import { prismaCadenceRunRepository } from './infra/PrismaCadenceRunRepository.js';
 import { parseCadenceSequenceDefinition } from './jobs/cadenceRun.worker.js';
 import { startCadenceRun, validateSequence, type CadenceRunStatus } from './domain/cadence.js';
+import { scheduleVerifiedMeeting } from './application/scheduleMeeting.js';
+import { prismaMeetingConfirmationNotePort } from './infra/PrismaMeetingConfirmationNotePort.js';
+import { prismaCalendarSchedulerPort } from './infra/PrismaCalendarSchedulerPort.js';
 
 /**
  * Router de cadência multicanal e opt-out unificado. Leitura (opt-outs/runs) desde a Onda 10;
@@ -47,6 +50,11 @@ const createSequenceSchema = z.object({
 const startRunSchema = z.object({
     leadId: z.string().trim().min(1, 'leadId é obrigatório.'),
     sequenceId: z.string().trim().min(1, 'sequenceId é obrigatório.'),
+});
+
+const scheduleMeetingSchema = z.object({
+    proposedStart: z.string().datetime({ message: 'proposedStart deve ser uma data/hora ISO 8601.' }),
+    proposedEnd: z.string().datetime({ message: 'proposedEnd deve ser uma data/hora ISO 8601.' }),
 });
 
 /** Enum Postgres (PascalCase) aceito na query `?status=Active,Paused` — mesma casing de `CadenceRunStatus` no schema, para não obrigar quem chama a API a conhecer a convenção lowercase do domínio interno. */
@@ -165,6 +173,48 @@ router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Re
         }
 
         res.status(201).json({ success: true, data: { ...run, sequenceName: sequence.name } });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// CYC-004 (onda 27) — agendamento de reunião com confirmação verificável (ver
+// `domain/scheduling.ts` e `application/scheduleMeeting.ts`). Só aceita `evidenceType:
+// 'manual-verified'` (vendedor confirmando após contato ao vivo) — os outros dois tipos de
+// evidência do domínio (réplica de calendário por e-mail, clique em link de agendamento
+// self-service) exigem um transporte que ainda não existe neste produto.
+router.post('/leads/:leadId/schedule-meeting', writeRoles, validateRequest(scheduleMeetingSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId, id: actorUserId, email: actorEmail } = (req as AuthRequest).user;
+        const { leadId } = req.params;
+        const { proposedStart, proposedEnd } = req.body as z.infer<typeof scheduleMeetingSchema>;
+
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, organizationId },
+            select: { id: true, title: true, contact: { select: { email: true } } },
+        });
+        if (!lead) throw new AppError('Lead não encontrado nesta organização.', 404);
+
+        const result = await scheduleVerifiedMeeting(
+            { notes: prismaMeetingConfirmationNotePort, scheduler: prismaCalendarSchedulerPort },
+            {
+                organizationId,
+                leadId,
+                actorUserId,
+                proposedStart: new Date(proposedStart),
+                proposedEnd: new Date(proposedEnd),
+                leadTitle: lead.title || 'Lead sem título',
+                leadEmail: lead.contact?.email || '',
+                ownerEmail: actorEmail,
+            },
+            new Date(),
+        );
+
+        if (!result.scheduled) {
+            throw new AppError('Confirmação de horário não é verificável — informe um horário futuro válido (fim depois do início).', 422);
+        }
+
+        res.status(201).json({ success: true, data: result });
     } catch (error) {
         next(error);
     }

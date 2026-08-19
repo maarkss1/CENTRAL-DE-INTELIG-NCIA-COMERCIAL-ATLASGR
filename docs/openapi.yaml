@@ -2001,6 +2001,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /cadence/leads/{leadId}/schedule-meeting:
+    post:
+      tags: [Cadence]
+      summary: >-
+        Confirma manualmente um horário de reunião com o lead (CYC-004) — só aceita confirmação
+        verificável (`evidenceType: manual-verified`, nunca inferência de IA sobre o texto de uma
+        mensagem). Cria uma Note de evidência real e um `CadenceCalendarEvent`. A criação do evento
+        real no Google Calendar é um stub de transporte nesta rodada (nenhum provedor externo
+        chamado ainda) — o `googleEventId` devolvido é sintético.
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proposedStart, proposedEnd]
+              properties:
+                proposedStart: { type: string, format: date-time }
+                proposedEnd: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Reunião confirmada e agendada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Lead não encontrado nesta organização
+        '422':
+          description: Confirmação não verificável (horário no passado, ou fim antes do início)
+
   # ───────────────────────────── WhatsApp ─────────────────────────────
   /whatsapp/messages:
     get:

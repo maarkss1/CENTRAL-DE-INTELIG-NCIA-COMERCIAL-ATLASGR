@@ -45,6 +45,21 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > `advanceCadenceRun` usa para parar a cadência) passou a enxergar réplica de e-mail além de
 > WhatsApp. CYC-004, CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados
 > (seguem em PRs separados).
+>
+> **Atualização — Onda 27**: CYC-004 (agendamento Google) conectado — ver seção CYC-004 abaixo. Dos
+> 3 tipos de evidência que `scheduling.ts` aceita, só `manual-verified` (vendedor confirma
+> manualmente após contato ao vivo) tem um caminho de escrita real agora — os outros dois (réplica
+> de calendário por e-mail, clique em link de agendamento self-service) exigem um transporte que
+> ainda não existe neste produto, mesmo raciocínio de CYC-003/CYC-006. `POST
+> /api/cadence/leads/:leadId/schedule-meeting` cria uma `Note` real de evidência (mesmo padrão de
+> `dealClosureGate.ts` — confirmação manual "ainda exige nota, não é confiança geral") e um
+> `CadenceCalendarEvent` real. **Decisão de produto confirmada com o usuário**: a criação do evento
+> no Google Calendar em si é um **stub de transporte** — a integração OAuth real já existe e
+> funciona para leitura (`google.service.ts::getUpcomingCalendarEvents`), mas o escopo hoje
+> conectado é só `calendar.readonly`; escrever eventos exigiria pedir `calendar.events` e forçar
+> reconsentimento de toda organização já conectada, uma mudança de produto real fora do escopo
+> desta rodada. `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas. CYC-006 e CYC-009
+> permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados).
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -71,10 +86,10 @@ produção**:
   contra "texto de IA nunca fecha negócio"; nunca chamado por `LeadUseCases.updateLeadStatus`.
 - `CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
   qualquer provedor (gov.br foi a decisão de produto documentada, mas nada foi implementado).
-- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `CadenceCalendarEvent`
-  e `CrmDocumentSignatureRequest` (ambas ainda sem provedor real plugado, CYC-004/CYC-006).
-  `EmailMessage` saiu desta lista na Onda 26 (CYC-003); `CrmCommercialDocumentVersion` saiu na
-  Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24 (CYC-007).
+- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `CrmDocumentSignatureRequest`
+  (ainda sem provedor real plugado, CYC-006). `EmailMessage` saiu desta lista na Onda 26 (CYC-003);
+  `CrmCommercialDocumentVersion` saiu na Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24
+  (CYC-007); `CadenceCalendarEvent` saiu na Onda 27 (CYC-004).
 
 O que **está** ativo em produção hoje, cobrindo parcialmente o mesmo território, é um sistema
 legado paralelo que não conhece nada do módulo novo: `src/features/crm/jobs/followUp.worker.ts`
@@ -176,13 +191,36 @@ conectado desde a onda-19/onda-22.**
 
 ## CYC-004 — Agendamento Google
 
-**Estado: inexistente em produção.** A integração Google real é hoje só OAuth + leitura
-(`getUpcomingCalendarEvents`). Não há criação de evento, não há freebusy, não há
-`CalendarSchedulerPort` real. O domínio `scheduling.ts` tem guardrails muito bem desenhados e
-testados contra confirmação inferida por LLM (`FORBIDDEN_EVIDENCE_MARKERS`,
-`isVerifiableConfirmation`) — o requisito "LLM inferindo não é confirmação" é respeitado por
-construção, mas nunca é exercitado em produção porque a funcionalidade que ele guardaria não
-existe. `CadenceCalendarEvent` é tabela morta.
+**Estado (Onda 27): confirmação verificável conectada para o caminho `manual-verified`; criação de
+evento no Google Calendar é um stub de transporte.**
+
+- `POST /api/cadence/leads/:leadId/schedule-meeting` (`cadence.routes.ts`) — vendedor confirma
+  manualmente um horário depois de contato ao vivo com o lead. Segue o único portão de decisão do
+  domínio (`isVerifiableConfirmation`): rejeita com 422 qualquer horário no passado ou com fim
+  antes do início, sem criar nenhum registro. Quando válido, cria uma `Note` real no lead
+  (`scheduleMeeting.ts::scheduleVerifiedMeeting` → `PrismaMeetingConfirmationNotePort`) — a mesma
+  garantia de `dealClosureGate.ts`: nenhuma "confirmação" fica registrada sem uma evidência
+  auditável e visível no histórico do lead — e só então grava o `CadenceCalendarEvent`
+  (`PrismaCalendarSchedulerPort`), vinculando o `CadenceRun` ativo do lead quando existe.
+- Dos 3 tipos de evidência aceitos pelo domínio (`lead-calendar-reply`, `lead-scheduling-link-click`,
+  `manual-verified`), só o último tem transporte real agora — os outros dois dependem de réplica de
+  calendário por e-mail (sem parser dedicado) e de uma página de agendamento self-service (não
+  existe), nenhum dos dois construído nesta rodada.
+- **Decisão de produto confirmada com o usuário**: a chamada real ao Google Calendar
+  (`PrismaCalendarSchedulerPort.createEvent`) é um **stub de transporte**, mesma categoria de
+  CYC-003/CYC-006. A integração OAuth já é real e funciona para leitura
+  (`google.service.ts::getUpcomingCalendarEvents`, `getValidAccessToken` + `fetchWithTimeout`), mas
+  o escopo hoje conectado é só `calendar.readonly` — pedir `calendar.events` forçaria
+  reconsentimento de toda organização já conectada ao Google, decisão de produto real fora do
+  escopo desta rodada. O stub devolve um `googleEventId` sintético (`stub-google-event-<uuid>`,
+  logado como tal) e grava o `CadenceCalendarEvent` normalmente: o Google é sincronização
+  best-effort, nunca a fonte de verdade do agendamento comercial (ver comentário do campo
+  `googleEventId` no schema, escrito numa sprint anterior a esta onda). Quando o escopo for
+  ampliado, a implementação real segue exatamente o padrão de `getUpcomingCalendarEvents`.
+- `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas deste documento.
+- Fora de escopo desta rodada (documentado, não corrigido): freebusy antes de propor um horário,
+  cancelamento/reagendamento de um `CadenceCalendarEvent` já criado, e os 2 outros tipos de
+  evidência (`lead-calendar-reply`/`lead-scheduling-link-click`).
 
 ## CYC-005 — Proposta versionada
 
@@ -322,7 +360,7 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 | CYC-001 Opt-out | Sim — gap de enforcement no WhatsApp manual | Maioria implementada e enforced; unificação parcial |
 | CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
 | CYC-003 Reply tracking e-mail | Sim (Onda 26) | Webhook real (stub de transporte) conectado; `hasLeadReplied` cobre e-mail |
-| CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
+| CYC-004 Agendamento Google | Sim (Onda 27) | `manual-verified` conectado (Note + CadenceCalendarEvent reais); criação no Google é stub de transporte |
 | CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
 | CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
