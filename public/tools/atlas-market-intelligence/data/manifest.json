@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-19T00:10:24.211913+00:00",
+  "generatedAt": "2026-08-19T01:24:24.894495+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
@@ -48,9 +48,9 @@
       "status": "ATUALIZADO",
       "source": "Receita Federal / Dados Abertos do CNPJ",
       "geography": "Estabelecimento -> Município",
-      "note": "Snapshot oficial 2026-08 processado em 5554 municipios com estabelecimentos ICP (tiers A/B/C); 15231 de 6639808 registros candidatos sem match IBGE (0.2294%). Taxonomia 1.0.0 (REGRA_DE_MODELO_NAO_CALIBRADA) ainda nao calibrada com ganhos/perdas Atlas. Base bruta permanece fora do bundle web.",
+      "note": "Snapshot oficial 2026-08 processado em 5554 municipios com estabelecimentos ICP (tiers A/B/C); 15231 de 6639808 registros candidatos sem match IBGE (0.2294%). Taxonomia 1.0.0 (REGRA_DE_MODELO_NAO_CALIBRADA) ainda nao calibrada com ganhos/perdas Atlas. Base bruta permanece fora do bundle web. Recorte empresarial operacional de Ribeirao Preto e publicado separadamente, sem telefone/fax/e-mail.",
       "competence": "2026-08",
-      "downloadedAt": "2026-08-18T20:55:32.739874+00:00",
+      "downloadedAt": "2026-08-19T01:24:24.894495+00:00",
       "sha256": "ac4b9404235f3f03bbdde7d1ab728047b35f94db30a9a77d292a3b5bf85b420c",
       "coverage": 5554,
       "unmatchedRows": 15231,

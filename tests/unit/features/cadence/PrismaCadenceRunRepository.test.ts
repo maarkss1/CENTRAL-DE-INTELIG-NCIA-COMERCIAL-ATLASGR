@@ -57,11 +57,13 @@ const DB_ROW = {
     touchAttempts: [
         {
             touchOrder: 1,
+            attemptNumber: 1,
             channel: 'Email' as const,
             attemptedAt: new Date('2026-08-01T10:05:00Z'),
             result: 'Sent' as const,
             skipReason: null,
             error: null,
+            providerMessageId: null,
         },
     ],
 };
@@ -87,11 +89,13 @@ describe('PrismaCadenceRunRepository.findById', () => {
             attempts: [
                 {
                     touchOrder: 1,
+                    attemptNumber: 1,
                     channel: 'email',
                     attemptedAt: DB_ROW.touchAttempts[0].attemptedAt,
                     result: 'sent',
                     skipReason: undefined,
                     error: null,
+                    providerMessageId: null,
                 },
             ],
         });
@@ -170,7 +174,7 @@ describe('PrismaCadenceRunRepository.save', () => {
         pausedAt: null,
         stoppedAt: null,
         attempts: [
-            { touchOrder: 1, channel: 'email', attemptedAt: new Date('2026-08-01T10:05:00Z'), result: 'sent', error: null },
+            { touchOrder: 1, attemptNumber: 1, channel: 'email', attemptedAt: new Date('2026-08-01T10:05:00Z'), result: 'sent', error: null },
         ],
     };
 
@@ -204,7 +208,7 @@ describe('PrismaCadenceRunRepository.save', () => {
             ...RUN,
             attempts: [
                 ...RUN.attempts,
-                { touchOrder: 1, channel: 'email', attemptedAt: new Date('2026-08-01T11:00:00Z'), result: 'failed', error: 'timeout' },
+                { touchOrder: 1, attemptNumber: 2, channel: 'email', attemptedAt: new Date('2026-08-01T11:00:00Z'), result: 'failed', error: 'timeout' },
             ],
         };
         mockedPrisma.cadenceTouchAttempt.count.mockResolvedValue(1); // só a primeira já estava persistida
@@ -227,7 +231,7 @@ describe('PrismaCadenceRunRepository.save', () => {
 
         const failedRun: CadenceRunState = {
             ...RUN,
-            attempts: [{ touchOrder: 1, channel: 'voice', attemptedAt: new Date(), result: 'failed', error: 'provedor recusou' }],
+            attempts: [{ touchOrder: 1, attemptNumber: 1, channel: 'voice', attemptedAt: new Date(), result: 'failed', error: 'provedor recusou' }],
         };
         await repo.save(failedRun);
 

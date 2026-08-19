@@ -29,30 +29,36 @@ import type {
  * `CadenceTouchAttempt` mais recente inconsistentes entre si sob concorrência.
  */
 
-const STATUS_TO_DB: Record<CadenceRunStatus, 'Active' | 'Paused' | 'Stopped'> = {
+const STATUS_TO_DB: Record<CadenceRunStatus, 'Active' | 'Paused' | 'Stopped' | 'Completed' | 'Failed'> = {
     active: 'Active',
     paused: 'Paused',
     stopped: 'Stopped',
+    completed: 'Completed',
+    failed: 'Failed',
 };
 
-const STATUS_FROM_DB: Record<'Active' | 'Paused' | 'Stopped', CadenceRunStatus> = {
+const STATUS_FROM_DB: Record<'Active' | 'Paused' | 'Stopped' | 'Completed' | 'Failed', CadenceRunStatus> = {
     Active: 'active',
     Paused: 'paused',
     Stopped: 'stopped',
+    Completed: 'completed',
+    Failed: 'failed',
 };
 
-const STOP_REASON_TO_DB: Record<CadenceStopReason, 'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop'> = {
+const STOP_REASON_TO_DB: Record<CadenceStopReason, 'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop' | 'PolicyGuardrail'> = {
     'opt-out': 'OptOut',
     'lead-reply': 'LeadReply',
     completed: 'Completed',
     'manual-stop': 'ManualStop',
+    'policy-guardrail': 'PolicyGuardrail',
 };
 
-const STOP_REASON_FROM_DB: Record<'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop', CadenceStopReason> = {
+const STOP_REASON_FROM_DB: Record<'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop' | 'PolicyGuardrail', CadenceStopReason> = {
     OptOut: 'opt-out',
     LeadReply: 'lead-reply',
     Completed: 'completed',
     ManualStop: 'manual-stop',
+    PolicyGuardrail: 'policy-guardrail',
 };
 
 const CHANNEL_TO_DB: Record<CadenceChannel, 'Email' | 'WhatsApp' | 'Voice'> = {
@@ -81,11 +87,13 @@ const TOUCH_RESULT_FROM_DB: Record<'Sent' | 'Failed' | 'Skipped', CadenceTouchRe
 
 type CadenceTouchAttemptRow = {
     touchOrder: number;
+    attemptNumber: number;
     channel: 'Email' | 'WhatsApp' | 'Voice';
     attemptedAt: Date;
     result: 'Sent' | 'Failed' | 'Skipped';
     skipReason: string | null;
     error: string | null;
+    providerMessageId: string | null;
 };
 
 type CadenceRunRow = {
@@ -93,9 +101,9 @@ type CadenceRunRow = {
     organizationId: string;
     leadId: string;
     sequenceId: string;
-    status: 'Active' | 'Paused' | 'Stopped';
+    status: 'Active' | 'Paused' | 'Stopped' | 'Completed' | 'Failed';
     currentTouchOrder: number;
-    stopReason: 'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop' | null;
+    stopReason: 'OptOut' | 'LeadReply' | 'Completed' | 'ManualStop' | 'PolicyGuardrail' | null;
     startedAt: Date;
     lastTouchAt: Date | null;
     pausedAt: Date | null;
@@ -106,11 +114,13 @@ type CadenceRunRow = {
 function toDomainAttempt(row: CadenceTouchAttemptRow): CadenceTouchAttempt {
     return {
         touchOrder: row.touchOrder,
+        attemptNumber: row.attemptNumber,
         channel: CHANNEL_FROM_DB[row.channel],
         attemptedAt: row.attemptedAt,
         result: TOUCH_RESULT_FROM_DB[row.result],
         skipReason: (row.skipReason as CadenceSkipReason | null) ?? undefined,
         error: row.error,
+        providerMessageId: row.providerMessageId,
     };
 }
 
@@ -171,11 +181,13 @@ export class PrismaCadenceRunRepository implements CadenceRunRepository {
                         organizationId: run.organizationId,
                         cadenceRunId: run.id,
                         touchOrder: attempt.touchOrder,
+                        attemptNumber: attempt.attemptNumber,
                         channel: CHANNEL_TO_DB[attempt.channel],
                         attemptedAt: attempt.attemptedAt,
                         result: TOUCH_RESULT_TO_DB[attempt.result],
                         skipReason: attempt.skipReason ?? null,
                         error: attempt.error ?? null,
+                        providerMessageId: attempt.providerMessageId ?? null,
                     })),
                 });
             }

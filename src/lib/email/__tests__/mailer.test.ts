@@ -46,6 +46,26 @@ describe('sendEmail', () => {
         });
     });
 
+    it('devolve o messageId real do transporte SMTP (CYC-008/onda-19: correlação de envio)', async () => {
+        mockedEnv = { SMTP_HOST: 'smtp.example.com', SMTP_PORT: 587, SMTP_SECURE: false };
+        sendMailMock.mockResolvedValueOnce({ messageId: '<abc123@smtp.example.com>' });
+        const { sendEmail } = await import('../mailer.js');
+
+        const result = await sendEmail({ to: 'lead@empresa.com', subject: 'Proposta', text: 'Corpo' });
+
+        expect(result).toEqual({ messageId: '<abc123@smtp.example.com>' });
+    });
+
+    it('devolve messageId null quando o transporte não informa um (nunca lança por isso)', async () => {
+        mockedEnv = { SMTP_HOST: 'smtp.example.com', SMTP_PORT: 587, SMTP_SECURE: false };
+        sendMailMock.mockResolvedValueOnce({});
+        const { sendEmail } = await import('../mailer.js');
+
+        const result = await sendEmail({ to: 'lead@empresa.com', subject: 'Proposta', text: 'Corpo' });
+
+        expect(result).toEqual({ messageId: null });
+    });
+
     it('usa SMTP_USER como remetente quando SMTP_FROM não está definido', async () => {
         mockedEnv = { SMTP_HOST: 'smtp.example.com', SMTP_PORT: 587, SMTP_SECURE: false, SMTP_USER: 'sdr@atlasgr.com.br' };
         const { sendEmail } = await import('../mailer.js');

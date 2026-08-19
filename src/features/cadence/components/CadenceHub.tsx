@@ -1,15 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, RefreshCw, Repeat, ShieldOff } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Play, Plus, RefreshCw, Repeat, ShieldOff, Trash2 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge, type BadgeProps } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { Button } from '../../../components/ui/Button';
+import { Dialog } from '../../../components/ui/Dialog';
+import { toast } from '../../../lib/toast';
 import {
     cadenceApi,
     type CadenceChannel,
     type CadenceRunDTO,
     type CadenceRunStatus,
+    type CadenceSequenceDTO,
     type CadenceStopReason,
+    type CadenceTouchInput,
     type CadenceTouchResult,
     type OptOutRecordDTO,
     type OptOutOriginChannel,
@@ -53,6 +58,8 @@ const STATUS_LABEL: Record<CadenceRunStatus, string> = {
     active: 'Ativa',
     paused: 'Pausada',
     stopped: 'Encerrada',
+    completed: 'Concluída',
+    failed: 'Falhou',
 };
 
 const STOP_REASON_LABEL: Record<CadenceStopReason, string> = {
@@ -60,6 +67,7 @@ const STOP_REASON_LABEL: Record<CadenceStopReason, string> = {
     'lead-reply': 'Lead respondeu',
     completed: 'Sequência concluída',
     'manual-stop': 'Parada manual',
+    'policy-guardrail': 'Falha estrutural (sequência inválida)',
 };
 
 const TOUCH_RESULT_LABEL: Record<CadenceTouchResult, string> = {
@@ -68,7 +76,7 @@ const TOUCH_RESULT_LABEL: Record<CadenceTouchResult, string> = {
     skipped: 'Pulado',
 };
 
-const STATUS_FILTERS: CadenceRunStatus[] = ['active', 'paused', 'stopped'];
+const STATUS_FILTERS: CadenceRunStatus[] = ['active', 'paused', 'stopped', 'completed', 'failed'];
 
 function formatDateTime(iso: string | null): string {
     if (!iso) return '—';
@@ -78,6 +86,8 @@ function formatDateTime(iso: string | null): string {
 function runStatusBadgeVariant(status: CadenceRunStatus): BadgeProps['variant'] {
     if (status === 'active') return 'success';
     if (status === 'paused') return 'warning';
+    if (status === 'completed') return 'info';
+    if (status === 'failed') return 'danger';
     return 'default';
 }
 
@@ -85,6 +95,7 @@ function stopReasonBadgeVariant(reason: CadenceStopReason): BadgeProps['variant'
     if (reason === 'opt-out') return 'danger';
     if (reason === 'lead-reply') return 'info';
     if (reason === 'manual-stop') return 'outline';
+    if (reason === 'policy-guardrail') return 'danger';
     return 'default';
 }
 
@@ -247,6 +258,7 @@ function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
                             <thead>
                                 <tr className="text-ink-2">
                                     <th className="text-left font-semibold py-1 pr-3">Toque</th>
+                                    <th className="text-left font-semibold py-1 pr-3">Tentativa</th>
                                     <th className="text-left font-semibold py-1 pr-3">Canal</th>
                                     <th className="text-left font-semibold py-1 pr-3">Resultado</th>
                                     <th className="text-left font-semibold py-1 pr-3">Erro</th>
@@ -255,9 +267,10 @@ function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
                             </thead>
                             <tbody>
                                 {run.attempts.map((attempt, idx) => (
-                                     
+
                                     <tr key={idx}>
                                         <td className="py-1 pr-3 text-ink-2">{attempt.touchOrder}</td>
+                                        <td className="py-1 pr-3 text-ink-2 [font-variant-numeric:tabular-nums]">{attempt.attemptNumber}</td>
                                         <td className="py-1 pr-3 text-ink-2">{CHANNEL_LABEL[attempt.channel]}</td>
                                         <td className="py-1 pr-3"><Badge variant={touchResultBadgeVariant(attempt.result)}>{TOUCH_RESULT_LABEL[attempt.result]}</Badge></td>
                                         <td className="py-1 pr-3 text-ink-2 max-w-xs truncate" title={attempt.error ?? undefined}>{attempt.error ?? '—'}</td>
@@ -387,24 +400,280 @@ function CadenceRunsSection() {
     );
 }
 
+// ── Nova sequência ───────────────────────────────────────────────────────
+
+const CHANNEL_OPTIONS: CadenceChannel[] = ['email', 'whatsapp', 'voice'];
+const EMPTY_TOUCH: CadenceTouchInput = { order: 1, channel: 'email', delayHoursFromPrevious: 0, templateRef: '' };
+
+function NewSequenceDialog({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: () => void }) {
+    const [name, setName] = useState('');
+    const [touches, setTouches] = useState<CadenceTouchInput[]>([{ ...EMPTY_TOUCH }]);
+    const [submitting, setSubmitting] = useState(false);
+
+    const reset = () => {
+        setName('');
+        setTouches([{ ...EMPTY_TOUCH }]);
+    };
+
+    const addTouch = () => {
+        setTouches((prev) => [...prev, { ...EMPTY_TOUCH, order: prev.length + 1 }]);
+    };
+
+    const removeTouch = (index: number) => {
+        setTouches((prev) => prev.filter((_, i) => i !== index).map((t, i) => ({ ...t, order: i + 1 })));
+    };
+
+    const updateTouch = (index: number, patch: Partial<CadenceTouchInput>) => {
+        setTouches((prev) => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
+    };
+
+    const handleSubmit = async () => {
+        if (!name.trim()) {
+            toast.error('Dê um nome para a sequência.');
+            return;
+        }
+        if (touches.some((t) => !t.templateRef?.trim())) {
+            toast.error('Toda mensagem precisa de conteúdo — nenhum toque pode ficar vazio.');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await cadenceApi.createSequence({ name: name.trim(), touches });
+            toast.success('Sequência criada.');
+            reset();
+            onCreated();
+            onClose();
+        } catch (err) {
+            toast.error((err as Error).message || 'Não foi possível criar a sequência.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={() => { if (!submitting) { reset(); onClose(); } }}
+            title="Nova sequência de cadência"
+            maxWidth="max-w-2xl"
+            preventClose={submitting}
+            footer={
+                <>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancelar</Button>
+                    <Button type="button" onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? 'Criando…' : 'Criar sequência'}
+                    </Button>
+                </>
+            }
+        >
+            {/* Corpo só renderiza aberto — o <dialog> nativo não desmonta filhos ao fechar, e um
+                <select> de canal sempre presente no DOM (mesmo fechado) colidiria com badges de
+                canal renderizados em outras seções da mesma tela para queries de teste/a11y. */}
+            {isOpen && <div className="space-y-4">
+                <div>
+                    <label htmlFor="sequence-name" className="block text-xs font-semibold text-ink-2 mb-1">Nome da sequência</label>
+                    <input
+                        id="sequence-name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ex.: E-mail → WhatsApp (follow-up padrão)"
+                        className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-ink-2">Toques (na ordem em que disparam)</span>
+                        <Button type="button" variant="outline" size="sm" onClick={addTouch}>
+                            <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Adicionar toque
+                        </Button>
+                    </div>
+                    {touches.map((touch, index) => (
+                        <div key={index} className="rounded-lg border border-line p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-ink">Toque {touch.order}</span>
+                                {touches.length > 1 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeTouch(index)}
+                                        aria-label={`Remover toque ${touch.order}`}
+                                        className="p-1 text-ink-2 hover:text-danger rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label htmlFor={`touch-channel-${index}`} className="block text-[11px] font-semibold text-ink-2 mb-1">Canal</label>
+                                    <select
+                                        id={`touch-channel-${index}`}
+                                        value={touch.channel}
+                                        onChange={(e) => updateTouch(index, { channel: e.target.value as CadenceChannel })}
+                                        className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                    >
+                                        {CHANNEL_OPTIONS.map((c) => (
+                                            <option key={c} value={c}>{CHANNEL_LABEL[c]}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor={`touch-delay-${index}`} className="block text-[11px] font-semibold text-ink-2 mb-1">
+                                        Horas após o toque anterior
+                                    </label>
+                                    <input
+                                        id={`touch-delay-${index}`}
+                                        type="number"
+                                        min={0}
+                                        value={touch.delayHoursFromPrevious}
+                                        onChange={(e) => updateTouch(index, { delayHoursFromPrevious: Math.max(0, Number(e.target.value)) })}
+                                        className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label htmlFor={`touch-content-${index}`} className="block text-[11px] font-semibold text-ink-2 mb-1">
+                                    Conteúdo da mensagem (sem sistema de template ainda — é o texto final)
+                                </label>
+                                <textarea
+                                    id={`touch-content-${index}`}
+                                    value={touch.templateRef ?? ''}
+                                    onChange={(e) => updateTouch(index, { templateRef: e.target.value })}
+                                    rows={2}
+                                    className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-xs text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>}
+        </Dialog>
+    );
+}
+
+// ── Iniciar cadência ─────────────────────────────────────────────────────
+
+function StartRunDialog({ isOpen, onClose, onStarted }: { isOpen: boolean; onClose: () => void; onStarted: () => void }) {
+    const [leadId, setLeadId] = useState('');
+    const [sequenceId, setSequenceId] = useState('');
+    const [sequences, setSequences] = useState<CadenceSequenceDTO[] | null>(null);
+    const [loadingSequences, setLoadingSequences] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        let cancelled = false;
+        setLoadingSequences(true);
+        cadenceApi.sequences()
+            .then((result) => { if (!cancelled) { setSequences(result); if (result[0]) setSequenceId(result[0].id); } })
+            .catch((err) => !cancelled && toast.error((err as Error).message || 'Não foi possível carregar as sequências.'))
+            .finally(() => !cancelled && setLoadingSequences(false));
+        return () => { cancelled = true; };
+    }, [isOpen]);
+
+    const handleSubmit = async () => {
+        if (!leadId.trim() || !sequenceId) {
+            toast.error('Informe o lead e escolha uma sequência.');
+            return;
+        }
+        setSubmitting(true);
+        try {
+            const result = await cadenceApi.startRun({ leadId: leadId.trim(), sequenceId });
+            toast.success(`Cadência "${result.sequenceName}" iniciada para o lead.`);
+            setLeadId('');
+            onStarted();
+            onClose();
+        } catch (err) {
+            toast.error((err as Error).message || 'Não foi possível iniciar a cadência.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={() => { if (!submitting) onClose(); }}
+            title="Iniciar cadência para um lead"
+            preventClose={submitting}
+            footer={
+                <>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancelar</Button>
+                    <Button type="button" onClick={handleSubmit} disabled={submitting || !sequences || sequences.length === 0}>
+                        {submitting ? 'Iniciando…' : 'Iniciar'}
+                    </Button>
+                </>
+            }
+        >
+            <div className="space-y-4">
+                <div>
+                    <label htmlFor="run-lead-id" className="block text-xs font-semibold text-ink-2 mb-1">ID do lead</label>
+                    <input
+                        id="run-lead-id"
+                        type="text"
+                        value={leadId}
+                        onChange={(e) => setLeadId(e.target.value)}
+                        placeholder="Cole o ID do lead (visível na tabela de execuções ou no CRM)"
+                        className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    />
+                </div>
+                <div>
+                    <label htmlFor="run-sequence" className="block text-xs font-semibold text-ink-2 mb-1">Sequência</label>
+                    {loadingSequences ? (
+                        <Skeleton className="h-9 w-full" />
+                    ) : !sequences || sequences.length === 0 ? (
+                        <p className="text-xs text-ink-2">Nenhuma sequência criada ainda — crie uma primeiro em &ldquo;Nova sequência&rdquo;.</p>
+                    ) : (
+                        <select
+                            id="run-sequence"
+                            value={sequenceId}
+                            onChange={(e) => setSequenceId(e.target.value)}
+                            className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        >
+                            {sequences.map((seq) => (
+                                <option key={seq.id} value={seq.id}>{seq.name} ({seq.touches.length} toque{seq.touches.length === 1 ? '' : 's'})</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            </div>
+        </Dialog>
+    );
+}
+
 // ── Página ───────────────────────────────────────────────────────────────
 
 export function CadenceHub() {
+    const [runsKey, setRunsKey] = useState(0);
+    const [newSequenceOpen, setNewSequenceOpen] = useState(false);
+    const [startRunOpen, setStartRunOpen] = useState(false);
+
     return (
         <main className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
             <div className="max-w-6xl mx-auto space-y-6">
-                <header className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-extrabold text-ink flex items-center gap-2 tracking-tight">
-                        <Repeat className="w-5 h-5 text-brand" aria-hidden="true" />
-                        Cadência & Ciclo de Receita
-                    </h1>
-                    <p className="text-sm text-ink-2 max-w-2xl">
-                        Opt-outs unificados por lead/canal e o estado real de cada sequência multicanal em
-                        andamento — nada aqui é inferido, é o que os canais confirmaram de verdade.
-                    </p>
+                <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="flex flex-col gap-1">
+                        <h1 className="text-2xl font-extrabold text-ink flex items-center gap-2 tracking-tight">
+                            <Repeat className="w-5 h-5 text-brand" aria-hidden="true" />
+                            Cadência & Ciclo de Receita
+                        </h1>
+                        <p className="text-sm text-ink-2 max-w-2xl">
+                            Opt-outs unificados por lead/canal e o estado real de cada sequência multicanal em
+                            andamento — nada aqui é inferido, é o que os canais confirmaram de verdade.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setNewSequenceOpen(true)}>
+                            <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Nova sequência
+                        </Button>
+                        <Button type="button" size="sm" onClick={() => setStartRunOpen(true)}>
+                            <Play className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Iniciar cadência
+                        </Button>
+                    </div>
                 </header>
 
-                <CadenceRunsSection />
+                <CadenceRunsSection key={runsKey} />
                 <OptOutsSection />
 
                 <Card padding="sm" variant="outline" className="border-dashed">
@@ -412,11 +681,14 @@ export function CadenceHub() {
                     <p className="text-xs text-ink-2 leading-relaxed">
                         Reply-tracking de e-mail, agendamento no Google Calendar e proposta/assinatura/fechamento
                         (entregas 3–5 do ciclo de receita) ainda não têm API própria — quando existirem, entram
-                        aqui como novas seções. Esta nota é só um aviso honesto do escopo atual, não um espaço
-                        reservado com dado de exemplo.
+                        aqui como novas seções. Pausar/retomar/parar um run em andamento também ainda não existe.
+                        Esta nota é só um aviso honesto do escopo atual, não um espaço reservado com dado de exemplo.
                     </p>
                 </Card>
             </div>
+
+            <NewSequenceDialog isOpen={newSequenceOpen} onClose={() => setNewSequenceOpen(false)} onCreated={() => setRunsKey((k) => k + 1)} />
+            <StartRunDialog isOpen={startRunOpen} onClose={() => setStartRunOpen(false)} onStarted={() => setRunsKey((k) => k + 1)} />
         </main>
     );
 }

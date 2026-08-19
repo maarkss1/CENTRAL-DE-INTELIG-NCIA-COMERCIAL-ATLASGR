@@ -247,7 +247,7 @@ describe('WhatsApp service — bloqueio por opt-out (contrato onda-7)', () => {
         );
     });
 
-    it('skipOptOutCheck (mensagem manual do painel) nunca chama isOptedOut e envia normalmente', async () => {
+    it('skipOptOutCheck: true no context nunca chama isOptedOut e envia normalmente (contrato da função — nenhum caller de produção usa isto hoje, ver CYC-001/onda-18)', async () => {
         const orgId = 'org-optout-manual';
         await initWhatsApp(orgId);
         (await socketHandlers.get('connection.update')!)({ connection: 'open' });

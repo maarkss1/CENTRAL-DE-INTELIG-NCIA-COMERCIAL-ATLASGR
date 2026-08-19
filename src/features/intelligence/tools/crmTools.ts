@@ -108,7 +108,7 @@ export const getLeadContextTool = tool(
 
         // SEC-013b: este texto vira uma ToolMessage devolvida ao LLM externo (Groq/OpenAI)
         // dentro do loop de tool-calling do agente — sem isto, o nome real do contato ia direto pro
-        // provedor. Diferente de ai.service.ts/sdr-agent.ts (chamada única, resposta reidratada no
+        // provedor. Diferente de ai.service.ts/sdrOutboundDraft.agent.ts (chamada única, resposta reidratada no
         // fim), aqui o texto reentra num agente multi-turn: reidratar de volta exigiria rastrear o
         // token pelo estado do grafo até onde a saída final chega no humano — não coberto ainda,
         // então o pior caso hoje é "[NOME_DO_CONTATO]" aparecer cru se a IA ecoar o token de volta

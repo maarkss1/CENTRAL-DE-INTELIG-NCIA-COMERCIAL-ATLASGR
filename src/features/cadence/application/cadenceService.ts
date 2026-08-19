@@ -1,5 +1,6 @@
 import { logger } from '../../../lib/logger.js';
 import {
+    applyStopDecision,
     decideCadenceAction,
     recordTouchAttempt,
     type CadenceDecision,
@@ -40,7 +41,7 @@ export interface CadenceDispatcher {
     dispatch(
         touch: CadenceTouch,
         run: CadenceRunState,
-    ): Promise<{ result: 'sent' | 'failed'; error?: string | null }>;
+    ): Promise<{ result: 'sent' | 'failed'; error?: string | null; providerMessageId?: string | null }>;
 }
 
 /** Resolve o sujeito de opt-out (leadId + e-mail + telefone) a partir do lead — evita repetir a busca em cada chamada. */
@@ -48,11 +49,24 @@ export interface LeadSubjectResolver {
     resolve(organizationId: string, leadId: string): Promise<OptOutSubject>;
 }
 
+/**
+ * Trava de execução por run — corrige CYC-008 (onda-18): antes desta porta, `advanceCadenceRun`
+ * não tinha nenhum mecanismo impedindo dois ciclos concorrentes (dois workers, ou um retry de
+ * fila) para o MESMO `runId` de chamarem `dispatcher.dispatch` duas vezes para o mesmo toque —
+ * nada gravava "em andamento" antes do envio real. `acquire` deve devolver `acquired: false`
+ * quando outro ciclo já detém a trava para este `runId` (nunca bloquear esperando); `release`
+ * deve ser idempotente e seguro de chamar mesmo se a trava já expirou por TTL.
+ */
+export interface CadenceRunLockPort {
+    acquire(runId: string): Promise<{ acquired: boolean; release: () => Promise<void> }>;
+}
+
 export interface AdvanceCadenceRunDeps {
     runRepo: CadenceRunRepository;
     optOutRepo: OptOutRepository;
     subjectResolver: LeadSubjectResolver;
     dispatcher: CadenceDispatcher;
+    lock: CadenceRunLockPort;
     isWithinBusinessWindow: (now: Date) => boolean;
     hasLeadReplied: (organizationId: string, leadId: string) => Promise<boolean>;
 }
@@ -78,50 +92,66 @@ export async function advanceCadenceRun(
     const run = await deps.runRepo.findById(organizationId, runId);
     if (!run) throw new Error(`CadenceRun ${runId} não encontrado para a organização ${organizationId}.`);
 
-    const hasLeadReplied = await deps.hasLeadReplied(organizationId, run.leadId);
-
-    // Opt-out é checado para o canal do PRÓXIMO toque (ou global, coberto por isOptedOut) — se o
-    // run já terminou (sem próximo toque), não há canal a checar e `decideCadenceAction` resolve
-    // isso sozinho como 'completed'.
-    const upcomingTouch = sequence.touches.find((t) => t.order === run.currentTouchOrder);
-    let isOptedOutForUpcoming = false;
-    if (upcomingTouch) {
-        const subject = await deps.subjectResolver.resolve(organizationId, run.leadId);
-        isOptedOutForUpcoming = await isOptedOut(deps.optOutRepo, organizationId, subject, upcomingTouch.channel);
+    // Trava todo o ciclo (leitura já feita → decisão → despacho real → gravação) para este runId.
+    // Sem isso, dois ciclos concorrentes (dois workers, ou um retry de fila) para o MESMO run podiam
+    // ler o mesmo `currentTouchOrder`, os dois decidirem 'dispatch', e os dois chamarem
+    // `dispatcher.dispatch` — duplicando o envio real ao lead antes que qualquer gravação existisse
+    // para o segundo checar (CYC-008, onda-18). Se não conseguir a trava, este ciclo não faz nada:
+    // o run já está sendo avançado por outro processo agora, e o próximo tick tenta de novo.
+    const lock = await deps.lock.acquire(runId);
+    if (!lock.acquired) {
+        logger.warn({ organizationId, runId }, 'Ciclo de cadência pulado: outro processo já está avançando este run.');
+        return { run, decision: { type: 'wait', reason: 'locked' } };
     }
 
-    const decision = decideCadenceAction(run, sequence, now, {
-        isOptedOut: isOptedOutForUpcoming,
-        hasLeadReplied,
-        isWithinBusinessWindow: deps.isWithinBusinessWindow,
-    });
+    try {
+        const hasLeadReplied = await deps.hasLeadReplied(organizationId, run.leadId);
 
-    if (decision.type === 'stop') {
-        const stopped: CadenceRunState =
-            run.status === 'stopped' ? run : { ...run, status: 'stopped', stopReason: decision.reason, stoppedAt: now };
-        await deps.runRepo.save(stopped);
-        if (run.status !== 'stopped') {
-            logger.info({ organizationId, runId, leadId: run.leadId, reason: decision.reason }, 'Cadência encerrada.');
+        // Opt-out é checado para o canal do PRÓXIMO toque (ou global, coberto por isOptedOut) — se o
+        // run já terminou (sem próximo toque), não há canal a checar e `decideCadenceAction` resolve
+        // isso sozinho como 'completed'.
+        const upcomingTouch = sequence.touches.find((t) => t.order === run.currentTouchOrder);
+        let isOptedOutForUpcoming = false;
+        if (upcomingTouch) {
+            const subject = await deps.subjectResolver.resolve(organizationId, run.leadId);
+            isOptedOutForUpcoming = await isOptedOut(deps.optOutRepo, organizationId, subject, upcomingTouch.channel);
         }
-        return { run: stopped, decision };
+
+        const decision = decideCadenceAction(run, sequence, now, {
+            isOptedOut: isOptedOutForUpcoming,
+            hasLeadReplied,
+            isWithinBusinessWindow: deps.isWithinBusinessWindow,
+        });
+
+        if (decision.type === 'stop') {
+            const stopped: CadenceRunState = applyStopDecision(run, decision.reason, now);
+            await deps.runRepo.save(stopped);
+            if (stopped !== run) {
+                logger.info({ organizationId, runId, leadId: run.leadId, reason: decision.reason, status: stopped.status }, 'Cadência encerrada.');
+            }
+            return { run: stopped, decision };
+        }
+
+        if (decision.type === 'wait') {
+            return { run, decision };
+        }
+
+        // decision.type === 'dispatch'
+        const outcome = await deps.dispatcher.dispatch(decision.touch, run);
+        const updated = recordTouchAttempt(run, sequence, decision.touch, now, {
+            result: outcome.result,
+            error: outcome.error ?? null,
+            providerMessageId: outcome.providerMessageId ?? null,
+        });
+        await deps.runRepo.save(updated);
+
+        logger.info(
+            { organizationId, runId, leadId: run.leadId, touchOrder: decision.touch.order, channel: decision.touch.channel, result: outcome.result },
+            outcome.result === 'sent' ? 'Toque de cadência enviado.' : 'Toque de cadência falhou.',
+        );
+
+        return { run: updated, decision };
+    } finally {
+        await lock.release();
     }
-
-    if (decision.type === 'wait') {
-        return { run, decision };
-    }
-
-    // decision.type === 'dispatch'
-    const outcome = await deps.dispatcher.dispatch(decision.touch, run);
-    const updated = recordTouchAttempt(run, sequence, decision.touch, now, {
-        result: outcome.result,
-        error: outcome.error ?? null,
-    });
-    await deps.runRepo.save(updated);
-
-    logger.info(
-        { organizationId, runId, leadId: run.leadId, touchOrder: decision.touch.order, channel: decision.touch.channel, result: outcome.result },
-        outcome.result === 'sent' ? 'Toque de cadência enviado.' : 'Toque de cadência falhou.',
-    );
-
-    return { run: updated, decision };
 }

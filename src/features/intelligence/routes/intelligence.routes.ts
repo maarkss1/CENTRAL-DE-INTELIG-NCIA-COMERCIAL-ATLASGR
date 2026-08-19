@@ -143,7 +143,7 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
     }
 });
 
-import { SDRQualificationAgent } from '../agents/sdr.agent.js';
+import { SDRQualificationAgent } from '../agents/sdrQualification.agent.js';
 
 router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -174,7 +174,7 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
 // A rota acima dispara o SDRQualificationAgent sem aguardar e devolve 202 imediatamente — sem esta
 // rota não havia nenhuma forma de buscar o resultado depois (o cliente ficava sem saber quando/se a
 // qualificação terminou). O agente persiste seu progresso em AgentMemory a cada rodada do grafo
-// (sdr.agent.ts updateMemory), então "ainda não existe registro" é o sinal confiável de "pendente".
+// (sdrQualification.agent.ts updateMemory), então "ainda não existe registro" é o sinal confiável de "pendente".
 router.get('/agents/sdr/status/:sessionId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { sessionId } = req.params;

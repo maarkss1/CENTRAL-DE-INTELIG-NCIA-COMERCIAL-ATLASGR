@@ -2,7 +2,9 @@ import { getAiModel, logAiUsage, withRetry } from '../../../lib/ai/gateway.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
-import { redactSensitiveData, minimizePii, rehydratePii, type PiiToken } from './guardrails.service.js';
+import { redactSensitiveData, minimizePii, rehydratePii, hasPiiExternalConsent, type PiiToken } from './guardrails.service.js';
+import { getTenantId } from '../../../lib/async-context.js';
+import { logger } from '../../../lib/logger.js';
 
 export type ContentTool =
     | 'script_call'
@@ -329,6 +331,23 @@ export class AIService {
     }
 
     async qualifyLead(leadId: string, companyInfo: string) {
+        // AI-007 (Sprint 07/onda-20): este é o fluxo PADRÃO de qualificação de todo lead (worker
+        // `createLeadsWorker`) — antes desta correção era o caminho de maior volume que enviava
+        // nome real do contato/decisor a um provedor de IA externo (Groq/OpenAI) sem nenhuma
+        // checagem de base legal/consentimento LGPD, ao contrário de SDR Outbound/SDR
+        // Autônomo/Ops Agent, que já tinham essa trava. Mesmo padrão fail-closed usado nesses três.
+        const organizationId = getTenantId();
+        if (!hasPiiExternalConsent(organizationId)) {
+            logger.warn({ leadId, organizationId }, 'Qualificação de lead por IA bloqueada: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
+            return {
+                leadId,
+                companyInfo,
+                qualificationScore: undefined,
+                summary: 'Qualificação não realizada: consentimento/base legal LGPD não registrado para esta organização enviar dado pessoal a provedor de IA externo.',
+                status: 'BLOCKED_NO_CONSENT',
+            };
+        }
+
         const graph = compileLeadGraph();
         const finalState = await graph.invoke({ leadId, companyInfo });
         return finalState;

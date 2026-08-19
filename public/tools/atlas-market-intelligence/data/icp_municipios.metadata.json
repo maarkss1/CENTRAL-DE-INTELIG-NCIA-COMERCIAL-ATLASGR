@@ -1,8 +1,8 @@
 {
   "dataset": "Receita Federal - Dados Abertos CNPJ / ICP Atlas",
   "competence": "2026-08",
-  "processedAt": "2026-08-18T20:55:32.739874+00:00",
-  "durationSeconds": 10307.606,
+  "processedAt": "2026-08-19T01:24:24.894495+00:00",
+  "durationSeconds": 8082.731,
   "sourcePortal": "https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK",
   "taxonomyVersion": "1.0.0",
   "taxonomyStatus": "REGRA_DE_MODELO_NAO_CALIBRADA",
@@ -132,6 +132,36 @@
       "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Municipios.zip",
       "size": 43443,
       "sha256": "41d51a06f2da48d8f0d8e7459203c3f5d0018a06d7d16ca1edace785a7fd0d90"
+    },
+    {
+      "name": "Simples.zip",
+      "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Simples.zip",
+      "size": 302289129,
+      "sha256": "2facb08ae19c7e65bfb07ab11f3983cd8f65c222bf4fa70b3f5ae1f90bb9b268"
+    },
+    {
+      "name": "Cnaes.zip",
+      "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Cnaes.zip",
+      "size": 22078,
+      "sha256": "28d12ffd7f0585b923d791766b4bf2f29fac5841ac1049453c4cb16c1b303db0"
+    },
+    {
+      "name": "Naturezas.zip",
+      "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Naturezas.zip",
+      "size": 1563,
+      "sha256": "6f0056741de99e4d81ee39f55c17ddf0aeb309a80098b6f011d1adaf73b004bc"
+    },
+    {
+      "name": "Qualificacoes.zip",
+      "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Qualificacoes.zip",
+      "size": 980,
+      "sha256": "85d98d650593caa2618037050e66ede5d499af3b985d942176c6c6e516a2a119"
+    },
+    {
+      "name": "Motivos.zip",
+      "url": "https://arquivos.receitafederal.gov.br/public.php/webdav/Dados/Cadastros/CNPJ/2026-08/Motivos.zip",
+      "size": 1180,
+      "sha256": "e0fd5d44838fe69c050d2dd96dd8798db81687f22371a751c8c198c7ab2f9513"
     }
   ],
   "outputSha256": "ac4b9404235f3f03bbdde7d1ab728047b35f94db30a9a77d292a3b5bf85b420c",
@@ -162,5 +192,14 @@
     "porte nao promove tier sozinho",
     "capital social nao vira score",
     "frota/MDF-e/risco nao sao inferidos do CNPJ"
-  ]
+  ],
+  "companySnapshot": {
+    "datasetHash": "0ca6f0104ef847a9dbd84afe3dda29bc0e6bf9843ddc5b8e6acd08e18f5aac82",
+    "recordsExported": 381212,
+    "activeRecordsExported": 156199,
+    "filters": {
+      "uf": "SP",
+      "municipioIbge": "3543402"
+    }
+  }
 }
