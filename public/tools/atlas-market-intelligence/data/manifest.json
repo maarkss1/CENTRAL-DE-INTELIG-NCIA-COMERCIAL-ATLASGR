@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-19T14:09:24.659646+00:00",
+  "generatedAt": "2026-08-19T19:38:32.965480+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
@@ -61,10 +61,13 @@
     {
       "id": "mdfe",
       "label": "ANTT / MDF-e movimentação de cargas",
-      "status": "NAO_DISPONIVEL",
-      "source": "ANTT / CIOT (proxy documentado; portal MDF-e só expõe dashboard, sem exportação -- ver FONTES.md)",
+      "status": "ATUALIZADO",
+      "source": "ANTT / CIOT (proxy documentado para fluxo origem-destino; NAO e MDF-e literal -- ver FONTES.md)",
       "geography": "Origem / Destino / Corredor",
-      "note": "ETL implementado (etl_mdfe_atlas.py) com descoberta automática do CIOT mensal via API CKAN da ANTT, validado com dado real (competência 2026-07, 97,8% de match geográfico). Aguarda a primeira execução do workflow market-intelligence-mdfe.yml para publicar mdfe_fluxos.json e os agregados municipais."
+      "note": "Competencia 2026-07: 676267 de 690063 linhas casadas com IBGE (1.9992% sem match), 318162 interestaduais, 1210 grupos NCM observados. Fonte: CIOT (proxy documentado para fluxo origem-destino; NAO e MDF-e literal -- ver FONTES.md). Nunca inclui contagem de MDF-e (manifests permanece null), apenas viagens/operacoes CIOT.",
+      "competence": "2026-07",
+      "downloadedAt": "2026-08-19T19:38:32.965480+00:00",
+      "sha256": "4b2bc31fd319065041c685f98e5dd522ac70ac109a286c172c203fd666aa13f3"
     },
     {
       "id": "risk",
