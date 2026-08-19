@@ -1,5 +1,6 @@
 import { withRlsContext } from '../../../lib/prisma.js';
 import { callBitrix } from '../../integrations/bitrix/service/client.js';
+import { getUserId } from '../../../lib/async-context.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
 export const actionExecutorService = {
@@ -20,12 +21,15 @@ export const actionExecutorService = {
                 if (recommendation.actionType === 'CREATE_BITRIX_TASK') {
                     if (!webhookUrl) throw new AppError('Bitrix não conectado nesta organização', 400);
 
+                    const currentUser = await prisma.user.findUnique({ where: { id: getUserId() } });
+                    const responsibleId = currentUser?.bitrixUserId || 1;
+
                     // Criação da task no Bitrix
                     const response = await callBitrix<any>(webhookUrl, 'tasks.task.add', {
                         fields: {
                             TITLE: recommendation.title,
                             DESCRIPTION: `${recommendation.rationale}\n\nCriado via Central AtlasGR para a conta: ${company.legalName}`,
-                            RESPONSIBLE_ID: 1, // fallback se não tiver mapping
+                            RESPONSIBLE_ID: responsibleId,
                             // Outras props relevantes
                         }
                     });

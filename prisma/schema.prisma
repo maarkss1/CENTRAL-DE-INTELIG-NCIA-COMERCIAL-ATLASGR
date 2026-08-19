@@ -600,6 +600,7 @@ model User {
   // Precisa ser opcional para não quebrar `prisma.user.create()` do adapter do Better Auth.
   passwordHash       String?
   role               UserRole     @default(VISUALIZADOR)
+  bitrixUserId       Int?
   // Força a troca de senha no próximo login — usado quando um admin define uma senha
   // temporária/padrão pra outra pessoa (ver POST /api/auth-extra/change-password).
   mustChangePassword Boolean      @default(false)
