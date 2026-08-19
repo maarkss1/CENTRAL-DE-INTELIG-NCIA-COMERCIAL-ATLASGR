@@ -1,7 +1,11 @@
+# LEGACY/FROZEN: a Central AtlasGR está em modo local-first durante o desenvolvimento.
+# Não reative deploy automático neste Blueprint. Os serviços existentes ficam preservados
+# temporariamente apenas para rollback/migração de dados até a retirada definitiva.
 services:
   - type: web
     name: prospector-atlas
     runtime: node
+    autoDeployTrigger: off
     # free por enquanto: o workspace do Render ainda não tem cartão cadastrado, e o
     # Blueprint recusa criar/sincronizar serviços em plano pago (starter) sem forma de
     # pagamento no ambiente. Trocar para starter no dashboard depois de cadastrar o cartão —
@@ -105,6 +109,7 @@ services:
   - type: worker
     name: prospector-atlas-worker
     runtime: node
+    autoDeployTrigger: off
     plan: free
     buildCommand: npm ci --include=dev && npm run build:worker
     startCommand: npx prisma migrate deploy && npm run start:worker
