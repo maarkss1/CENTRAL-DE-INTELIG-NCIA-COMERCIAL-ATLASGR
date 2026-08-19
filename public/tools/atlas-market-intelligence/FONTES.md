@@ -307,23 +307,46 @@ latitude/longitude do município.
 
 **Órgão:** Ministério da Justiça e Segurança Pública / Sinesp  
 **Portal:** `https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica/estatistica`  
-**Conjunto de referência:** Sinesp VDE / Base de dados nacional  
-**Cobertura encontrada na revisão:** série publicada abrangendo 2015-2026  
-**Data de acesso desta revisão:** 2026-08-13/14
+**Recurso ativo:** `bancovde-<ano>.xlsx`, publicado em
+`.../estatistica/download/dnsp-base-de-dados/bancovde-<ano>.xlsx/@@download/file`  
+**Cobertura encontrada na revisão:** arquivos anuais de 2015 a 2026 (`bancovde-2026.xlsx` vigente)  
+**Data de auditoria desta revisão:** 2026-08-19
 
-### Indicadores pretendidos
+### Indicadores utilizados
 
 - roubo de carga;
 - roubo de veículo;
-- furto de veículo;
-- demais indicadores securitários apenas quando metodologicamente pertinentes.
+- furto de veículo.
+
+### Achado real de granularidade (não é limitação do parser)
+
+O `bancovde` publica dezenas de indicadores de segurança pública com granularidade **mista**:
+crimes contra a pessoa (feminicídio, homicídio doloso, latrocínio, etc.) têm `municipio`
+preenchido com o nome real; **os 3 indicadores de risco de carga/veículo que este projeto usa têm
+`municipio = "NÃO INFORMADO"` em 100% das linhas** (confirmado processando o arquivo real de
+2026: 1.134 linhas relevantes, 0 com município real, 27 UFs). Ou seja, para estes indicadores
+específicos a fonte oficial só publica granularidade **UF**, nunca municipal.
+
+`etl_sinesp_risco.py` (reescrita completa do `etl_risco_sinesp.py` legado -- aquele exigia
+`openpyxl`, entrada manual e produzia CSV sem código IBGE) publica `risco_uf.json` com
+`geography: "PROXY_UF"` explícito. Nenhuma distribuição municipal é inventada/estimada a partir
+do dado estadual; `etl_municipal_aggregate.py` aplica o mesmo valor de UF a cada município daquela
+UF com `availability: "PROXY"` (nunca `"OBSERVADO"`) e confiança reduzida.
+
+### Transformação
+
+Descoberta automática do `bancovde-<ano>.xlsx` do ano vigente (com fallback ao ano anterior),
+parser stdlib em streaming (`zipfile` + `xml.etree.ElementTree.iterparse` -- o arquivo real tem
+~485 mil linhas / ~250 MB de XML descomprimido, grande demais para DOM completo como usado no
+SENATRAN), filtro pelos 3 eventos-alvo, soma do campo `total` por UF em todos os meses presentes
+no arquivo do ano.
 
 ### Limitações
 
-- alimentação e consolidação dependem dos entes federativos;
-- atualização pode sofrer defasagem/revisões posteriores;
-- granularidade nem sempre é municipal;
-- dado estadual usado em município deve ser explicitamente `PROXY_UF` e ter confiança reduzida.
+- alimentação e consolidação dependem dos entes federativos; atualização pode sofrer defasagem/revisões posteriores;
+- janela observada é apenas os meses presentes no arquivo do ano vigente (não cruza automaticamente para o arquivo do ano anterior para completar 12 meses);
+- `total` é contagem bruta de ocorrências, sem normalização por população;
+- `etl_risco_sinesp.py` (legado, exige `openpyxl`) permanece no repositório para processamento manual de arquivos ZIP/XLSX antigos com layout ambíguo longo/largo -- não é usado pelo pipeline automatizado.
 
 ---
 

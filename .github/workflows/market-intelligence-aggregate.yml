@@ -13,6 +13,7 @@ on:
       - 'public/tools/atlas-market-intelligence/data/senatran_frota_municipios.json'
       - 'public/tools/atlas-market-intelligence/data/mdfe_origens_municipios.json'
       - 'public/tools/atlas-market-intelligence/data/mdfe_destinos_municipios.json'
+      - 'public/tools/atlas-market-intelligence/data/risco_uf.json'
       - 'public/tools/atlas-market-intelligence/concorrencia_seed_verificada.csv'
   workflow_dispatch:
 
