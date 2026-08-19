@@ -16,13 +16,13 @@ consulta a essa tabela em ambiente com tráfego, não de estimativa.
 | --- | --- | --- | --- | --- |
 | Chat/geração genérica | `src/lib/ai/gateway.ts` | LiteLLM → Groq → OpenAI | — (é o gateway) | Timeout, retry, circuit breaker e fallback já implementados e cobertos por teste |
 | Embeddings (RAG) | `src/lib/ai/gateway.ts`, `local-embeddings.ts` | Local (padrão) → LiteLLM → Google | Sim | `EMBEDDINGS_PROVIDER=local` é o padrão, sem dependência de chave |
-| Agente SDR (qualificação) | `src/features/intelligence/agents/sdr.agent.ts` | `ChatOpenAI` direto → LiteLLM, fallback Groq | **Não** | Desvio consciente e documentado no arquivo: `bindTools` exige LangChain e o gateway não transporta `tool_call_id`. Uso é logado manualmente em `AILog` |
+| Agente SDR (qualificação) | `src/features/intelligence/agents/sdrQualification.agent.ts` | `ChatOpenAI` direto → LiteLLM, fallback Groq | **Não** | Desvio consciente e documentado no arquivo: `bindTools` exige LangChain e o gateway não transporta `tool_call_id`. Uso é logado manualmente em `AILog` |
 | Agente Ops (execução) | `src/features/intelligence/agents/ops.agent.ts` | idem | **Não** | Mesmo desvio, mesma justificativa |
 | TTS do VoiceRoleplay | `src/features/intelligence/services/voicebox.service.ts` | Voicebox local | N/A (não é LLM) | — |
 | Discagem do SDR de voz | `src/features/integrations/birth-voice/birthVoice.service.ts` | Birth Voices Hub (HTTP) | N/A (não é LLM) | A IA conversacional roda **dentro do Hub**, fora deste repositório |
 
 **Conclusão da auditoria:** a centralização das chamadas de IA está quase completa. As duas exceções
-(`sdr.agent.ts`, `ops.agent.ts`) são conscientes e logadas, mas continuam sendo exceções reais ao
+(`sdrQualification.agent.ts`, `ops.agent.ts`) são conscientes e logadas, mas continuam sendo exceções reais ao
 critério de aceite "todas as chamadas de IA centralizadas" — fechá-las exige dar suporte a
 `tool_calls` no gateway, o que **não** foi feito nesta entrega.
 
@@ -144,5 +144,5 @@ Nenhum dos itens abaixo foi entregue; estão listados para não serem confundido
   de finalidade nem de base legal por lead.
 - **Sem extração estruturada pós-ligação.** A transcrição continua indo para `Activity.observations`
   como texto: não há campos com confiança e proveniência, nem lead scoring alimentado pela ligação.
-- **Gateway ainda não transporta `tool_calls`**, então `sdr.agent.ts` e `ops.agent.ts` seguem fora dele.
+- **Gateway ainda não transporta `tool_calls`**, então `sdrQualification.agent.ts` e `ops.agent.ts` seguem fora dele.
 - **Risco de licença 3CX para trunk SIP** continua em aberto e precede qualquer código novo de SIP.

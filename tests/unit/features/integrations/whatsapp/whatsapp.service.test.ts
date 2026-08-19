@@ -65,6 +65,15 @@ vi.mock('qrcode', () => ({
     default: { toDataURL: vi.fn(async (qr: string) => `data:image/png;base64,${qr}`) },
 }));
 
+// RUN-007b (Sprint 02/Onda 14): o fallback pro broker agora depende só de `isDedicatedWorkerProcess`
+// (mockado `false` acima — este teste roda como se fosse o processo web), não mais de
+// `NODE_ENV === 'production'`. Sem sessão local, sendWhatsAppMessage deve enfileirar via broker em
+// vez de lançar erro — ver teste "sem sessão local: enfileira via broker" abaixo.
+const enqueueWhatsAppCommandMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../../../../src/lib/queue/whatsappCommand.queue.js', () => ({
+    enqueueWhatsAppCommand: (...args: unknown[]) => enqueueWhatsAppCommandMock(...args),
+}));
+
 type EventHandler = (...args: unknown[]) => unknown;
 const socketHandlers = new Map<string, EventHandler>();
 const mockSocket = {
@@ -109,9 +118,17 @@ describe('WhatsApp service — sessão por tenant', () => {
         expect(status).toEqual({ status: 'disconnected', qr: null });
     });
 
-    it('sendWhatsAppMessage falha se o tenant não tem sessão conectada', async () => {
-        await expect(sendWhatsAppMessage('org-sem-sessao', '5511999999999', 'oi')).rejects.toThrow(
-            'WhatsApp não está conectado.',
+    it('sendWhatsAppMessage sem sessão local: enfileira via broker (RUN-007b) em vez de falhar direto', async () => {
+        const result = await sendWhatsAppMessage('org-sem-sessao', '5511999999999', 'oi');
+
+        expect(result).toBe(true);
+        expect(enqueueWhatsAppCommandMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: 'send',
+                organizationId: 'org-sem-sessao',
+                number: '5511999999999',
+                text: 'oi',
+            }),
         );
     });
 
@@ -230,7 +247,7 @@ describe('WhatsApp service — bloqueio por opt-out (contrato onda-7)', () => {
         );
     });
 
-    it('skipOptOutCheck (mensagem manual do painel) nunca chama isOptedOut e envia normalmente', async () => {
+    it('skipOptOutCheck: true no context nunca chama isOptedOut e envia normalmente (contrato da função — nenhum caller de produção usa isto hoje, ver CYC-001/onda-18)', async () => {
         const orgId = 'org-optout-manual';
         await initWhatsApp(orgId);
         (await socketHandlers.get('connection.update')!)({ connection: 'open' });

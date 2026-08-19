@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: market-intelligence-rntrc-${{ github.ref }}
@@ -97,12 +98,34 @@ jobs:
                   value = row.get(key)
                   if not isinstance(value, int) or value < 0:
                       raise SystemExit(f'valor RNTRC invalido em {code}/{key}: {value!r}')
+              # etcEquiparada e subconjunto de etc (nao soma separadamente -- ver
+              # category_bucket()/etc_equiparada em etl_rntrc_atlas.py); uma linha pode ficar
+              # sem categoria reconhecida (bucket=None) e ainda assim contar em transporters,
+              # entao a invariante correta e >=, nunca ==.
+              if row['etc'] + row['tac'] + row['ctc'] > row['transporters']:
+                  raise SystemExit(f'soma de categorias RNTRC excede transporters em {code}')
 
           stats = meta['stats']
           active = max(int(stats.get('rows_active') or 0), 1)
           unmatched = int(stats.get('rows_unmatched_geography') or 0)
           unmatched_rate = unmatched / active
           status = 'ATUALIZADO' if unmatched_rate <= 0.001 else 'PARCIAL'
+
+          # MI-005: mesmo gate de nao-regressao de competencia/cobertura do CNPJ (ver
+          # market-intelligence-cnpj.yml) -- comparado contra o que ja esta publicado, antes
+          # de dataset.update() sobrescrever.
+          previous = next((d for d in manifest['datasets'] if d['id'] == 'rntrc'), None)
+          prev_competence = previous.get('competence') if previous else None
+          if prev_competence and prev_competence not in ('MANUAL_NAO_INFORMADA',) and '2026-07' < prev_competence:
+              raise SystemExit(f"competencia regrediu: nova='2026-07' anterior={prev_competence!r}")
+
+          prev_coverage = previous.get('coverage') if previous else None
+          if isinstance(prev_coverage, int) and prev_coverage > 0:
+              variation = (len(rows) - prev_coverage) / prev_coverage
+              if abs(variation) > 0.15:
+                  raise SystemExit(
+                      f'variacao anormal de cobertura sem justificativa: {prev_coverage} -> {len(rows)} municipios ({variation:+.2%})'
+                  )
 
           meta['resource'].update({
               'id': resource_id,
@@ -121,6 +144,9 @@ jobs:
                       'competence': '2026-07',
                       'downloadedAt': meta.get('downloadedAt'),
                       'sha256': meta.get('outputSha256'),
+                      'coverage': len(rows),
+                      'unmatchedRows': unmatched,
+                      'unmatchedRate': round(unmatched_rate, 6),
                       'note': f"Snapshot oficial Jul/2026 processado em {len(rows)} municipios com transportadores; {unmatched} linhas ativas sem match IBGE ({unmatched_rate:.4%}). Base bruta permanece fora do bundle web."
                   })
                   break
@@ -140,7 +166,9 @@ jobs:
           }, ensure_ascii=False, indent=2))
           PY
 
-      - name: Commit compact derived data only
+      - name: Publish compact derived data via pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "atlas-market-data-bot"
           git config user.email "130610135+MaarksN@users.noreply.github.com"
@@ -152,18 +180,14 @@ jobs:
             echo "No derived-data changes to commit."
             exit 0
           fi
+          BRANCH="data/market-intelligence-rntrc-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
           git commit -m "data(rntrc): atualiza snapshot municipal oficial"
+          git push -u origin "$BRANCH"
 
-          for attempt in 1 2 3 4 5; do
-            echo "Publication attempt $attempt/5"
-            git fetch origin main
-            git rebase origin/main
-            if git push origin HEAD:main; then
-              echo "Derived RNTRC snapshot published successfully."
-              exit 0
-            fi
-            sleep $((attempt * 3))
-          done
-
-          echo "::error::RNTRC snapshot validado, mas publicação falhou após 5 tentativas de reconciliação."
-          exit 1
+          PR_URL=$(gh pr create \
+            --title "data(rntrc): atualiza snapshot municipal oficial" \
+            --body "Snapshot RNTRC gerado automaticamente pelo workflow \`market-intelligence-rntrc.yml\` (run ${GITHUB_RUN_ID}). \`main\` é protegida e exige PR + check \`build\`, então este bot publica via PR em vez de push direto." \
+            --base main --head "$BRANCH")
+          echo "Pull request criado: $PR_URL"
+          gh pr merge "$BRANCH" --auto --squash || echo "::warning::Auto-merge não habilitado ou PR requer aprovação manual — revisar $PR_URL."

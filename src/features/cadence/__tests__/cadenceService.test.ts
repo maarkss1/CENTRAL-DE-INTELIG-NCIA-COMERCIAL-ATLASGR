@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { startCadenceRun, type CadenceSequenceDefinition, type CadenceTouch, type CadenceRunState } from '../domain/cadence';
-import { advanceCadenceRun, type CadenceDispatcher, type LeadSubjectResolver } from '../application/cadenceService';
+import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type LeadSubjectResolver } from '../application/cadenceService';
 import { InMemoryCadenceRunRepository } from '../infra/InMemoryCadenceRunRepository';
 import { InMemoryOptOutRepository } from '../infra/InMemoryOptOutRepository';
 import { recordOptOut } from '../application/optOutService';
@@ -24,6 +24,11 @@ function alwaysResolveSubject(): LeadSubjectResolver {
             return { leadId: LEAD, email: 'lead@empresa.com', phoneE164: '+5511999998888' };
         },
     };
+}
+
+/** Trava sempre concedida — a corrida real que a trava previne é coberta à parte, em `advanceCadenceRun.lock.test.ts`. */
+function noopLock(): CadenceRunLockPort {
+    return { async acquire() { return { acquired: true, release: async () => {} }; } };
 }
 
 class ScriptedDispatcher implements CadenceDispatcher {
@@ -55,6 +60,7 @@ describe('advanceCadenceRun', () => {
                 optOutRepo,
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
+                lock: noopLock(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -81,6 +87,7 @@ describe('advanceCadenceRun', () => {
                 optOutRepo,
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
+                lock: noopLock(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -113,6 +120,7 @@ describe('advanceCadenceRun', () => {
                 optOutRepo,
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
+                lock: noopLock(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -139,6 +147,7 @@ describe('advanceCadenceRun', () => {
                 optOutRepo,
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
+                lock: noopLock(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => true,
             },
@@ -163,6 +172,7 @@ describe('advanceCadenceRun', () => {
                 optOutRepo,
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
+                lock: noopLock(),
                 isWithinBusinessWindow: () => false,
                 hasLeadReplied: async () => false,
             },
@@ -188,6 +198,7 @@ describe('advanceCadenceRun', () => {
                     optOutRepo,
                     subjectResolver: alwaysResolveSubject(),
                     dispatcher: new ScriptedDispatcher({ result: 'sent' }),
+                    lock: noopLock(),
                     isWithinBusinessWindow: () => true,
                     hasLeadReplied: async () => false,
                 },

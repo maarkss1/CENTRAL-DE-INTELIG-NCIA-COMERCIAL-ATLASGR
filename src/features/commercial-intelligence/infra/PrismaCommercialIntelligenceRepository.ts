@@ -10,11 +10,13 @@ import type {
 
 /**
  * Status terminais usados como FALLBACK quando um negócio não tem `pipelineStageId` (registro
- * legado, nunca movido pelo Kanban de `crm360`). Espelha exatamente `CLOSED_DEAL_STATUSES`/
- * `DEAL_STAGES` de `src/features/crm360/services/crm360.service.ts` — a fonte real de quais
- * status são "ganho"/"perdido" hoje. Quando `pipelineStageId` existe, o repositório usa
- * `CrmPipelineStage.isWon`/`isLost` diretamente (mais robusto — reflete configuração real do
- * pipeline em vez de uma lista hardcoded que pode divergir de um pipeline customizado).
+ * legado, nunca movido pelo Kanban de `crm360`). Espelha `CLOSED_DEAL_STATUSES`/`DEAL_STAGES` de
+ * `src/features/crm360/infra/PrismaCrm360Repository.ts` — a implementação real (via DI), fonte de
+ * quais status são "ganho"/"perdido" hoje; `CLOSED_DEAL_STATUSES` por sua vez deriva de
+ * `LEAD_CLOSING_STATUSES` em `src/lib/enumMap.ts` (Sprint 05/Onda 17, DATA-004). Quando
+ * `pipelineStageId` existe, o repositório usa `CrmPipelineStage.isWon`/`isLost` diretamente (mais
+ * robusto — reflete configuração real do pipeline em vez de uma lista hardcoded que pode divergir
+ * de um pipeline customizado).
  */
 const FALLBACK_WON_STATUSES = new Set<LeadStatus>([LeadStatus.Negocios_Ganhos]);
 const FALLBACK_LOST_STATUSES = new Set<LeadStatus>([

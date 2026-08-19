@@ -136,6 +136,7 @@ router.post('/tts', validateRequest(ttsRequestSchema), async (req: Request, res:
 // --- SWARM & CONTINUOUS LEARNING ENDPOINTS ---
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
 import { LearningAgent } from '../agents/learning.agent.js';
+import { getSwarmSloSnapshot } from '../services/swarmScheduler.service.js';
 
 const swarmMissionSchema = z.object({
     mission: z.string().trim().min(1, 'A missão é obrigatória.').max(4_000),
@@ -183,6 +184,29 @@ router.post('/swarm/stream', writeRoles, validateRequest(swarmMissionSchema), as
             res.write(`event: error\ndata: ${JSON.stringify((err as Error).message)}\n\n`);
             res.end();
         }
+    }
+});
+
+// AI-009 (Sprint 07/onda-20): fonte de dados e UI (SwarmDashboard.tsx, aba "SLO por agente") já
+// existiam desde a onda 7 — só faltava esta rota, nunca registrada (ver
+// .agents/handoffs/onda-7/13-para-07-rota-slo-swarm.md). `validateRequest` só valida `req.body`
+// hoje (não `query`), então o parse de querystring é manual aqui.
+const sloQuerySchema = z.object({
+    days: z.coerce.number().int().min(1).max(90).optional(),
+});
+
+router.get('/swarm/slo', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const parsed = sloQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, error: parsed.error.flatten() });
+            return;
+        }
+        const { organizationId } = (req as AuthRequest).user;
+        const snapshot = await getSwarmSloSnapshot(organizationId, parsed.data.days ?? 30);
+        res.json(snapshot);
+    } catch (err) {
+        next(err);
     }
 });
 

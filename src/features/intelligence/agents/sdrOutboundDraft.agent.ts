@@ -49,9 +49,13 @@ Retorne SOMENTE JSON válido neste formato exato: {"subject":"assunto curto","bo
         });
 
         // Se o modo full foi habilitado depois que o rascunho nasceu, o mesmo ledger pode ser
-        // executado sem gerar uma segunda mensagem diferente para a mesma pessoa.
+        // executado sem gerar uma segunda mensagem diferente para a mesma pessoa. `undefined`
+        // (registro criado antes desta correção, campo ainda não existia) é tratado como "não
+        // validado" — fail-closed, mesma regra do bloco de criação logo abaixo (AI-004/onda-20).
+        const existingPayload = existing?.payload as { structuredOutputValid?: boolean } | null | undefined;
+        const existingIsStructuredOutputValid = existingPayload?.structuredOutputValid === true;
         if (existing) {
-            if (autoExecute && !existing.approved && !existing.executed && !existing.discardedAt) {
+            if (autoExecute && existingIsStructuredOutputValid && !existing.approved && !existing.executed && !existing.discardedAt) {
                 const execution = await executeAndRecord(existing);
                 if (execution.sent) {
                     await prisma.aIPendingAction.update({
@@ -103,16 +107,22 @@ Escreva um primeiro e-mail curto, específico e consultivo. Valide uma hipótese
         const rehydrated = piiTokens.length > 0 ? rehydratePii(rawDraft, piiTokens) : rawDraft;
 
         let draft: z.infer<typeof emailDraftSchema>;
+        let isStructuredOutputValid: boolean;
         try {
             draft = emailDraftSchema.parse(cleanAndParseJson<unknown>(rehydrated));
+            isStructuredOutputValid = true;
         } catch (error) {
             // Modelos pequenos ocasionalmente cercam o JSON com texto. O corpo bruto continua útil
-            // e auditável; não perdemos o job inteiro por um problema apenas de formatação.
-            logger.warn({ err: error, leadId }, 'SDR outbound retornou formato não estruturado; usando fallback textual.');
+            // e auditável (fica salvo na AIPendingAction para revisão humana) — não perdemos o job
+            // inteiro por um problema apenas de formatação. Mas este texto NUNCA passou pelo
+            // schema: AI-004 (Sprint 07/onda-20) exige que um fallback assim nunca seja executado
+            // de forma autônoma, só revisado por humano — ver `isStructuredOutputValid` abaixo.
+            logger.warn({ err: error, leadId }, 'SDR outbound retornou formato não estruturado; usando fallback textual (revisão humana obrigatória).');
             draft = {
                 subject: `Uma hipótese para ${lead.company.tradeName || lead.company.legalName}`.slice(0, 160),
                 body: rehydrated.slice(0, 8_000),
             };
+            isStructuredOutputValid = false;
         }
 
         const action = await prisma.aIPendingAction.create({
@@ -130,11 +140,16 @@ Escreva um primeiro e-mail curto, específico e consultivo. Valide uma hipótese
                     subject: draft.subject,
                     body: draft.body,
                     generatedFrom: 'playbook_rag',
+                    structuredOutputValid: isStructuredOutputValid,
                 },
             },
         });
 
-        if (autoExecute) {
+        // AI-004 (Sprint 07/onda-20): schema inválido → sempre human review, nunca autoExecute,
+        // mesmo com o modo autônomo ligado. Antes desta correção, um fallback textual (nunca
+        // validado por Zod) podia ser enviado por e-mail de forma totalmente autônoma quando
+        // SWARM_AUTONOMY_MODE=full — exatamente o que o roadmap proíbe.
+        if (autoExecute && isStructuredOutputValid) {
             const execution = await executeAndRecord(action);
             if (execution.sent) {
                 await prisma.aIPendingAction.update({

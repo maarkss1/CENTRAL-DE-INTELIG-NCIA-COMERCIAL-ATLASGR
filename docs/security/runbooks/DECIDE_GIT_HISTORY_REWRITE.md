@@ -3,19 +3,28 @@
 ## Estado atual, verificado nesta onda
 
 `backups/prospector-*.dump` **não está mais no working tree** (removido em commit anterior), mas
-segue **recuperável no histórico** do repositório. **Verificado de novo na Fase Final 0** (Agente 00,
-`git log --all --diff-filter=AMD -- '*.dump'` + `git rev-list --objects --all | grep '\.dump'`, contra
-o SHA `0d55a99` de `main`): existe exatamente **um** arquivo de dump em todo o histórico —
-`backups/prospector-20260806-152827.dump` (blob `fbe6d831…`) — adicionado no commit `2e30b2f`
-("Restrict seed to primary administrator") e removido do rastreamento (sem reescrever histórico) no
-commit `8b1bc38` ("fix(00): remediar bloqueador de dump versionado..."). **Correção de registro:** o
-terceiro hash citado em revisões anteriores deste runbook e em
-`.agents/completion/01-bloqueadores.md`/`.agents/prompts/15-seguranca-aplicada.md` — `543c5b0` — **não
-existe neste repositório** (`git cat-file -e 543c5b0` falha com "Not a valid object name"); é um erro
-de transcrição carregado de onda em onda sem reverificação, não um segundo dump real. Isso não muda a
-gravidade do achado (ainda é PII real, real e recuperável), só corrige a lista de commits que qualquer
-`git filter-repo`/BFG precisa mirar — dado pessoal real de prospecção (nome, telefone, e-mail, empresa)
-sob a LGPD, não só higiene de repositório.
+segue **recuperável no histórico** do repositório. **Reverificado na Sprint 01/Onda 13 (2026-08-18,
+SEC-004)** via `git rev-list --objects --all | grep dump` + `git cat-file -s <blob>` + `git log
+--all --oneline -- 'backups/*.dump'`, contra o HEAD atual de `main`: existe exatamente **um**
+arquivo de dump em todo o histórico — `backups/prospector-20260806-152827.dump` (blob
+`fbe6d831…`, 166075 bytes) — presente na árvore de 107 commits entre 2026-08-07 e 2026-08-11.
+
+**Correção de registro (2ª vez que isso acontece — ver nota abaixo sobre `543c5b0`):** os hashes
+`2e30b2f` (adição) e `8b1bc38` (remoção do rastreamento) citados em revisões anteriores deste
+runbook e em `.agents/completion/01-bloqueadores.md` **não existem neste repositório**
+(`git cat-file -e 2e30b2f`/`8b1bc38` falham com "Not a valid object name"). Os hashes reais: o blob
+foi adicionado de forma duplicada em duas linhas de branch paralelas, ambas em 2026-08-07—
+`9a9c9506` ("chore(deploy): provisiona Supabase... e prepara deploy automatico no Render") e
+`40dd9478` ("fix(render): força instalação de devDependencies no build") — unidas no merge
+`5467e2a8` (2026-08-11). Não há um commit `git rm` dedicado de remoção: o arquivo desaparece dentro
+da resolução de um merge posterior (`3731ce04`), não como um commit isolado. Antes dela, o hash
+`543c5b0`, citado em revisões ainda mais antigas deste runbook e em
+`.agents/prompts/15-seguranca-aplicada.md`, também já havia sido reverificado e confirmado
+inexistente. É um padrão real: hashes citados de onda em onda sem reverificação direta contra o
+git tendem a ficar desatualizados/errados conforme o histórico segue avançando. Nada disso muda a
+gravidade do achado (ainda é PII real, real e recuperável), só corrige a lista de commits que
+qualquer `git filter-repo`/BFG precisaria mirar — dado pessoal real de prospecção (nome, telefone,
+e-mail, empresa) sob a LGPD, não só higiene de repositório.
 
 **Isso não é uma decisão que um agente de código pode tomar sozinho.** Reescrever histórico muda o
 hash de todo commit descendente dos afetados, o que quebra qualquer clone, fork, PR aberto ou
@@ -45,9 +54,9 @@ precisa de ação, hashes de commit permanecem estáveis, histórico de blame/lo
 ## Caminho B — `git filter-repo` (ou BFG Repo-Cleaner) para remover definitivamente
 
 **O que isso faz:** reescreve todo commit que toca `backups/*.dump`, removendo o arquivo do
-histórico inteiro — o commit `2e30b2f` (que introduz o blob), `8b1bc38` (que só o remove do
-rastreamento, mas cuja árvore de pais ainda referencia o blob) e todo commit descendente deles
-recebem **hashes novos**.
+histórico inteiro — os commits `9a9c9506` e `40dd9478` (que introduzem o blob em duas linhas de
+branch paralelas), o merge `5467e2a8` (que as une) e todo commit descendente deles recebem
+**hashes novos**.
 
 **Custo/risco de escolher este caminho:**
 - Qualquer branch local, fork ou PR aberto baseado no histórico antigo fica divergente — precisa
@@ -109,8 +118,11 @@ Depois de aplicado (Caminho A: só a mitigação de acesso; Caminho B: a reescri
 scripts/security/scan-secrets.sh
 
 # Caminho B: confirma que os commits antigos não existem mais no repositório reescrito.
-git cat-file -e 2e30b2f 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
-git cat-file -e 8b1bc38 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
+git cat-file -e 9a9c9506 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
+git cat-file -e 40dd9478 2>&1 && echo "AINDA PRESENTE — reescrita falhou" || echo "commit não encontrado — reescrita efetiva"
+# Mais direto que confiar em hashes de commit específicos (que já erraram 2x neste runbook):
+# confirma que o blob em si não existe mais em nenhum lugar do histórico reescrito.
+git rev-list --objects --all | grep -i '\.dump$' && echo "AINDA PRESENTE" || echo "nenhum .dump em todo o histórico — reescrita efetiva"
 ```
 
 ## Recomendação registrada, sem decidir por conta própria
@@ -121,7 +133,7 @@ registra essa avaliação técnica, mas a decisão final — por envolver custo 
 organizacional e reescrita de histórico compartilhado — é do dono do repositório, não deste
 agente. Nenhuma ação do Caminho B foi executada nesta onda.
 
-## Decisão humana registrada (Fase Final 0, 2026-08-16)
+## Decisão humana registrada (Fase Final 0, 2026-08-16 — reafirmada na Sprint 01/Onda 13, 2026-08-18)
 
 O dono do repositório escolheu explicitamente o **Caminho A** para esta fase (manter o histórico,
 mitigar daqui pra frente) — nenhuma reescrita de histórico/force-push foi autorizada. Verificação do
@@ -136,6 +148,11 @@ $ git ls-files | grep -E '\.dump$'
 ```
 
 Pré-requisito do Caminho A atendido: `backups/*.dump` está no `.gitignore` e nenhum novo dump está
-rastreado. A exposição histórica do único dump real (`2e30b2f`, ver seção acima) permanece um risco
-aceito e registrado, não resolvido — reabrir esta decisão exige nova autorização humana explícita
-para o Caminho B, não uma reinterpretação por qualquer agente.
+rastreado. A exposição histórica do único dump real (commits `9a9c9506`/`40dd9478`, ver seção
+acima) permanece um risco aceito e registrado, não resolvido — reabrir esta decisão exige nova
+autorização humana explícita para o Caminho B, não uma reinterpretação por qualquer agente.
+
+**Sprint 01/Onda 13 (SEC-004, 2026-08-18):** reverificação completa do achado (fatos do git, não
+a decisão) — nenhum fato novo que mude a decisão. Caminho A continua em vigor. Única mudança desta
+sprint: correção dos hashes de commit citados (ver topo deste arquivo) — a decisão em si (manter
+histórico) não foi reaberta nem precisou ser.

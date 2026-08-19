@@ -123,6 +123,7 @@ export async function runColdLeadsScan(): Promise<{ runId: string; organizations
 
 import { Worker, Queue } from 'bullmq';
 import { connection } from '../../../lib/queue/redis.js';
+import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
 
 export const COLD_LEADS_SCANNER_QUEUE_NAME = 'cold-leads-scanner-queue';
 
@@ -137,6 +138,14 @@ export function createColdLeadsScannerWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'ColdLeadsScanner worker job falhou');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: COLD_LEADS_SCANNER_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('error', (err) => {

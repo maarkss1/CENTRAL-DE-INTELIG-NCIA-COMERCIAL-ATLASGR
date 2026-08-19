@@ -116,7 +116,32 @@ export const prisma = basePrisma.$extends({
         // visibilidade da cláusula USING para checar conflito, mesmo indo pelo ramo de INSERT.
         // Sem este bypass, o catálogo de flags nunca seria semeado em produção. Zero risco de
         // vazamento cross-tenant: a tabela não tem nenhuma linha "de uma organização" para vazar.
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag'];
+        // CadenceRun/CadenceSequence entraram nesta allowlist pelo mesmo motivo já documentado acima
+        // para BitrixConnection: o worker de cadência (CYC-008, onda-19) precisa descobrir QUAIS
+        // organizações têm CadenceRun ativo antes de saber qual tenant escopar — sem isso, a
+        // varredura cross-tenant devolve sempre 0 linhas em produção (confirmado por teste de
+        // integração real: FORCE ROW LEVEL SECURITY nessas tabelas nega qualquer leitura sem
+        // app.current_tenant_id OU app.bypass_rls setados, e nenhum dos dois é setado numa query sem
+        // contexto de request). bypassRls só cobre esta descoberta inicial: assim que o worker sabe o
+        // `organizationId` de cada run, todo o resto do ciclo (`advanceCadenceRun`, dispatch,
+        // gravação em CadenceTouchAttempt) roda escopado normalmente por tenant, sem bypass — nenhum
+        // dado de outra organização é lido além da lista de runs ativos e das sequências que eles
+        // referenciam (nenhuma delas contém credencial ou dado pessoal do lead, diferente de
+        // BitrixConnection).
+        // Lead entrou nesta allowlist pelo MESMO motivo e pelo MESMO teste de integração real que
+        // confirmou CadenceRun/CadenceSequence: `followUp.worker.ts` (job diário de follow-up de
+        // WhatsApp, cron 0 9 * * *) varre leads elegíveis de TODAS as organizações antes de saber
+        // qual tenant escopar, exatamente como o worker de cadência. Sem isto, essa varredura
+        // sempre devolvia 0 linhas em produção — o follow-up automático nunca disparava para
+        // ninguém, silenciosamente (nenhum erro, nenhum log de falha: o worker via "0 leads
+        // elegíveis hoje" e seguia em frente). O `include: { contact: true }` da mesma query
+        // também precisa do bypass: a política de RLS é por sessão Postgres (`app.bypass_rls`),
+        // não por model do Prisma, então o JOIN para Contact dentro dessa MESMA transação herda o
+        // mesmo bypass — inerente ao que este worker já precisa fazer (ler telefone de leads de
+        // qualquer tenant para decidir quem mensagear), não uma exposição nova. bypassRls só cobre
+        // esta descoberta inicial: o envio real e o `Lead.update` seguinte rodam escopados por
+        // tenant (`requestContext.run({ tenantId: lead.organizationId })`), sem bypass.
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

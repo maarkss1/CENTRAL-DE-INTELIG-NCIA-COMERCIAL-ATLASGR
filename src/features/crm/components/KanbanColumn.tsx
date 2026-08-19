@@ -3,27 +3,7 @@ import { LeadStatus, Lead } from '../../../types';
 import { KanbanCard } from './KanbanCard';
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
-
-const STATUS_EMOJI: Record<LeadStatus, string> = {
-    'Lead Recebido': '🆕',
-    'Cadência Iniciada': '📣',
-    'Qualificação (SDR)': '🔎',
-    'Reunião Agendada': '📅',
-    'Lead Desqualificado': '🚫',
-    'Convertido em Oportunidade': '⭐',
-    'Nova Oportunidade': '💡',
-    'Proposta Enviada': '📄',
-    'Call/Visita Agendada': '🤝',
-    'Piloto VTECH': '🧪',
-    'Piloto Atlas Profile': '🧪',
-    'Piloto Atlas Profile - Concluído': '✅',
-    'Piloto Atlas Profile - Cancelado': '⛔',
-    'Piloto Logística': '🚚',
-    'Piloto Logístico - Concluído': '✅',
-    'Piloto Logístico - Cancelado': '⛔',
-    'Negócios Perdidos': '❌',
-    'Negócios Ganhos': '🏆',
-};
+import { LEAD_STATUS_EMOJI as STATUS_EMOJI } from '../../../lib/enumMap';
 
 interface KanbanColumnProps {
     status: LeadStatus;

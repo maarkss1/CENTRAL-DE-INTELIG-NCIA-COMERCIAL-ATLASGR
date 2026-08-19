@@ -6,8 +6,8 @@ import { notificationService } from '../../../notifications/notification.service
  * Status terminais usados só para decidir se um Lead/Negócio já existente ainda "conta" como
  * pertencendo a alguém para fins de bloqueio de duplicidade — um registro fechado (ganho, perdido,
  * desqualificado, piloto cancelado) não deve travar um import novo do mesmo contato. Espelha a
- * mesma lista de `CLOSED_DEAL_STATUSES` em crm360.service.ts (não exportada de lá) mais os status
- * terminais do funil Lead — ver mesmo raciocínio documentado em
+ * mesma lista de `CLOSED_DEAL_STATUSES` em PrismaCrm360Repository.ts (não exportada de lá) mais os
+ * status terminais do funil Lead — ver mesmo raciocínio documentado em
  * PrismaCommercialIntelligenceRepository.ts sobre por que essa duplicação pequena é aceitável.
  */
 const TERMINAL_STATUSES: LeadStatus[] = [

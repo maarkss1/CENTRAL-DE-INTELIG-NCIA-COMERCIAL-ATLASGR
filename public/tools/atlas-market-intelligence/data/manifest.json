@@ -1,11 +1,10 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-14T03:34:01.165670+00:00",
+  "generatedAt": "2026-08-19T01:24:24.894495+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
-    "RNTRC municipal Jul/2026 está publicado; frota oficial permanece NÃO DISPONÍVEL no recurso vigente. Pelo dicionário ANTT, a frota pública tem granularidade UF e qualquer uso municipal é somente PROXY_UF.",
-    "Base CNPJ/ICP nacional atual ainda não foi processada para o snapshot municipal.",
+    "Frota de veículos (SENATRAN) tem ETL pronto e validado, mas ainda não foi publicada pelo workflow automatizado; snapshot municipal real aguarda a primeira execução de market-intelligence-senatran.yml.",
     "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
@@ -15,10 +14,12 @@
     {
       "id": "ibge",
       "label": "IBGE / geografia municipal",
-      "status": "PARCIAL",
-      "source": "IBGE",
+      "status": "ATUALIZADO",
+      "source": "IBGE (Localidades) + IBGE BCIM (lim_municipio_a)",
       "geography": "Município / UF / Região",
-      "note": "Fonte oficial localizada; cadastro canônico com código IBGE, coordenadas e divisões territoriais ainda será gerado pelo pipeline."
+      "note": "Cadastro com 5571 municipios; codigo IBGE, nome, UF e regiao do cadastro de localidades. Latitude/longitude sao o centroide geometrico do poligono municipal (BCIM 2016, camada lim_municipio_a, join por geocodigo -- nunca por nome). 3 municipio(s) sem poligono correspondente permanecem sem coordenada.",
+      "downloadedAt": "2026-08-19T00:10:41.927110+00:00",
+      "sha256": "9af90f0c9dfea7246fe4178323da067d8fae57441a20444ec97379d85a9fd146"
     },
     {
       "id": "rntrc",
@@ -33,24 +34,30 @@
     },
     {
       "id": "fleet",
-      "label": "ANTT / RNTRC veículos",
-      "status": "NAO_DISPONIVEL",
-      "source": "ANTT / Portal de Dados Abertos",
-      "geography": "UF",
-      "note": "Recurso oficial vigente auditado, porém payload não validável (124 bytes observados). O recurso histórico Jul/2026, catalogado com 10.5 MiB, retornou HTTP 404 em 14/08/2026. Nenhum número de frota foi inferido ou publicado.",
-      "competence": "2026-08",
-      "downloadedAt": null,
-      "probedAt": "2026-08-14T03:34:01.165670+00:00",
-      "sha256": null,
-      "municipalUse": "PROXY_UF"
+      "label": "SENATRAN / Frota de veículos por município e tipo",
+      "status": "ATUALIZADO",
+      "source": "SENATRAN / Ministério dos Transportes (Frota por município e tipo)",
+      "geography": "Município",
+      "note": "Snapshot oficial 2026-07 processado em 5535 municipios; 37 de 5572 linhas sem match IBGE (0.6640%). cargoFleet soma CAMINHAO + CAMINHAO TRATOR + REBOQUE + SEMI-REBOQUE; demais tipos de veiculo disponiveis em byType. Substitui a tentativa anterior via ANTT RNTRC-Dados de Veiculos (granularidade UF, recurso indisponivel -- ver FONTES.md).",
+      "downloadedAt": "2026-08-19T00:10:24.211913+00:00",
+      "sha256": "d71d42d588d5c3cb6ab6f83f558f8dcc51223076092e10a80eacbac70a142283",
+      "municipalUse": "OBSERVADO",
+      "competence": "2026-07"
     },
     {
       "id": "cnpj",
       "label": "Receita Federal / CNPJ + ICP Atlas",
-      "status": "NAO_DISPONIVEL",
+      "status": "ATUALIZADO",
       "source": "Receita Federal / Dados Abertos do CNPJ",
       "geography": "Estabelecimento -> Município",
-      "note": "ETL corrigido para o novo portal Nextcloud/SERPRO+ da Receita (arquivos.receitafederal.gov.br) e validado com uma amostra real de 1 arquivo (Estabelecimentos8.zip + Empresas1.zip) processada com sucesso. Snapshot nacional completo (10 arquivos Empresas + 10 Estabelecimentos) ainda não foi publicado; aguarda execução do workflow market-intelligence-cnpj.yml."
+      "note": "Snapshot oficial 2026-08 processado em 5554 municipios com estabelecimentos ICP (tiers A/B/C); 15231 de 6639808 registros candidatos sem match IBGE (0.2294%). Taxonomia 1.0.0 (REGRA_DE_MODELO_NAO_CALIBRADA) ainda nao calibrada com ganhos/perdas Atlas. Base bruta permanece fora do bundle web. Recorte empresarial operacional de Ribeirao Preto e publicado separadamente, sem telefone/fax/e-mail.",
+      "competence": "2026-08",
+      "downloadedAt": "2026-08-19T01:24:24.894495+00:00",
+      "sha256": "ac4b9404235f3f03bbdde7d1ab728047b35f94db30a9a77d292a3b5bf85b420c",
+      "coverage": 5554,
+      "unmatchedRows": 15231,
+      "unmatchedRate": 0.002294,
+      "taxonomyVersion": "1.0.0"
     },
     {
       "id": "mdfe",

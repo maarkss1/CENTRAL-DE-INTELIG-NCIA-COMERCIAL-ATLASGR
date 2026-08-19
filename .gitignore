@@ -52,3 +52,8 @@ backups/*.gz
 /*.png
 public/tools/atlas-market-intelligence/*.csv
 public/tools/atlas-market-intelligence/*.sqlite
+
+# Cache de bytecode do Python, gerado ao rodar tests/python/market_intelligence/ ou os scripts
+# ETL localmente — nunca esteve coberto, achado ao validar as correções de MI-004/MI-005.
+__pycache__/
+*.pyc

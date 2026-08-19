@@ -2,6 +2,7 @@ import { Worker, Queue } from 'bullmq';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { connection } from '../../../lib/queue/redis.js';
+import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
 
 export const DEDUP_QUEUE_NAME = 'deduplication-queue';
 
@@ -52,6 +53,14 @@ export function createDeduplicationWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Deduplication worker job falhou');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: DEDUP_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('error', (err) => {

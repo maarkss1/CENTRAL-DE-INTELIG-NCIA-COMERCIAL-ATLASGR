@@ -3,6 +3,7 @@ import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { runSwarmScheduler, enabledOrganizations } from '../../features/intelligence/services/swarmScheduler.service.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
+import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 
 export const SWARM_SCHEDULER_QUEUE_NAME = 'swarm-scheduler';
 
@@ -28,6 +29,15 @@ export function createSwarmSchedulerWorker() {
 
     worker.on('failed', (job, err) => {
         logger.error({ err, jobId: job?.id }, 'Execução do enxame autônomo falhou.');
+        if (!job || !isFinalAttempt(job.attemptsMade, job.opts.attempts)) return;
+        void recordDeadLetter({
+            queue: SWARM_SCHEDULER_QUEUE_NAME,
+            jobId: job.id,
+            jobName: job.name,
+            organizationId: job.data.organizationId,
+            attemptsMade: job.attemptsMade,
+            error: err,
+        });
     });
 
     worker.on('completed', () => recordQueueJobCompleted(SWARM_SCHEDULER_QUEUE_NAME));

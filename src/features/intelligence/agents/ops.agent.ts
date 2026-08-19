@@ -102,13 +102,13 @@ const app = workflow.compile({ checkpointer: memory });
 export class OpsAgent {
     async run(instruction: string, sessionId?: string, leadId?: string) {
         const sid = sessionId || `session-ops-${Date.now()}`;
+        const organizationId = getTenantId();
 
         // Só verifica base legal quando há um leadId real: é o caso em que get_lead_context pode
         // trazer o Contact real do lead para dentro do loop de tool-calling com o provedor de IA
         // externo. Sem leadId, a instrução é texto livre sem titular associado — ver
         // guardrails.service.ts:assertPiiExternalConsent.
         if (leadId) {
-            const organizationId = getTenantId();
             try {
                 assertPiiExternalConsent(organizationId);
             } catch (error) {
@@ -122,7 +122,9 @@ export class OpsAgent {
             : `Instrução: ${instruction}\n\nNenhum Lead ID foi informado para esta missão.`;
 
         const inputs = { messages: [new HumanMessage(humanContent)] };
-        const config = { configurable: { thread_id: sid } };
+        // AI-002 (Sprint 07/onda-20): thread_id prefixado pelo tenant — o checkpointer (MemorySaver)
+        // deste grafo é singleton de módulo, compartilhado por todas as organizações do processo.
+        const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
         let finalState;
 
         try {

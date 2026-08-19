@@ -30,6 +30,11 @@ vi.mock('../../src/lib/queue/redis.js', () => ({
     // scheduleConversationAnalysis vira no-op, igual ao comportamento de produção sem fila habilitada.
     queuesEnabled: false,
     connection: {},
+    // RUN-007b (Sprint 02/Onda 14): sendWhatsAppMessage agora lê isDedicatedWorkerProcess para
+    // decidir entre broker e falha direta quando não há sessão local conectada. Este arquivo só
+    // exercita o caminho "sessão conectada" (socket mockado sempre presente), então o valor não
+    // muda o comportamento testado aqui — só precisa existir para o módulo carregar.
+    isDedicatedWorkerProcess: false,
 }));
 
 vi.mock('fs', () => ({
@@ -198,7 +203,7 @@ describe('sendWhatsAppMessage — bloqueio de disparo automatizado por opt-out (
         expect(mockSocket.sendMessage).toHaveBeenCalled();
     });
 
-    it('skipOptOutCheck (mensagem manual do painel) ignora um opt-out global existente', async () => {
+    it('skipOptOutCheck: true no context ignora um opt-out global existente (contrato da função — CYC-001/onda-18 corrigiu a rota POST /api/whatsapp/send, que passava isto sem justificativa; nenhum caller de produção usa mais este flag)', async () => {
         const orgId = await createSessionOrg();
         await connectFakeSession(orgId);
         await asOrg(orgId, () =>

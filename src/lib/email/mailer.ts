@@ -28,13 +28,19 @@ function getTransporter(): Transporter {
     return cachedTransporter;
 }
 
+export interface SendEmailResult {
+    /** Message-Id devolvido pelo transporte SMTP — correlação para suporte/depuração, nunca usado para decidir estado. */
+    messageId: string | null;
+}
+
 /** Envia um e-mail de verdade via SMTP. Lança `MailerNotConfiguredError` quando SMTP_HOST não está definido. */
-export async function sendEmail(input: SendEmailInput): Promise<void> {
+export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
     const transporter = getTransporter();
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
         from: env.SMTP_FROM || env.SMTP_USER,
         to: input.to,
         subject: input.subject,
         text: input.text,
     });
+    return { messageId: info.messageId ?? null };
 }

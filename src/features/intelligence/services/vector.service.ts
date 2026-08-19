@@ -13,7 +13,7 @@ export interface SemanticSearchResult {
  * paralelo ao pipeline real da Base de Conhecimento ("Document"/"DocumentChunk", ver
  * `src/features/knowledge/`). `ingestDocument` nunca teve nenhum chamador em todo o app — a tabela
  * ficava sempre vazia na prática — então todo consumidor de `searchSimilar` (inclusive o agente de
- * SDR que redige e-mails automáticos reais, `sdr-agent.ts`) sempre recebia zero resultados e caía no
+ * SDR que redige e-mails automáticos reais, `sdrOutboundDraft.agent.ts`) sempre recebia zero resultados e caía no
  * fallback "Sem contexto adicional no playbook", mesmo com documentos reais indexados pelos usuários
  * na Base de Conhecimento. Dois pipelines de RAG conflitantes (proibido pela missão de IA da Onda 2)
  * — este agora delega para o pipeline real em vez de manter uma segunda fonte de verdade morta.

@@ -3,11 +3,14 @@ import {
     decideCadenceAction,
     startCadenceRun,
     applyOptOutStop,
+    applyPolicyGuardrailFailure,
     applyReplyStop,
+    applyStopDecision,
     stopCadenceManually,
     pauseCadenceRun,
     resumeCadenceRun,
     recordTouchAttempt,
+    sanitizeTouchError,
     validateSequence,
     type CadenceSequenceDefinition,
     type CadenceDecisionContext,
@@ -113,17 +116,86 @@ describe('decideCadenceAction — janela comercial e progressão', () => {
         expect(decision).toEqual({ type: 'dispatch', touch: SEQUENCE.touches[1] });
     });
 
-    it('conclui a cadência (status stopped, reason completed) após o último toque enviado', () => {
+    it('conclui a cadência (status completed, reason completed) após o último toque enviado — CYC-002: completed é estado próprio, não reaproveita stopped', () => {
         let run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
         run = recordTouchAttempt(run, SEQUENCE, SEQUENCE.touches[0], NOW, { result: 'sent' });
         run = recordTouchAttempt(run, SEQUENCE, SEQUENCE.touches[1], NOW, { result: 'sent' });
         run = recordTouchAttempt(run, SEQUENCE, SEQUENCE.touches[2], NOW, { result: 'sent' });
 
-        expect(run.status).toBe('stopped');
+        expect(run.status).toBe('completed');
         expect(run.stopReason).toBe('completed');
 
         const decision = decideCadenceAction(run, SEQUENCE, NOW, ctx());
         expect(decision).toEqual({ type: 'stop', reason: 'completed' });
+    });
+
+    it('status completed/failed são terminais para decideCadenceAction, igual a stopped', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const completed = { ...run, status: 'completed' as const, stopReason: 'completed' as const };
+        expect(decideCadenceAction(completed, SEQUENCE, NOW, ctx())).toEqual({ type: 'stop', reason: 'completed' });
+
+        const failed = applyPolicyGuardrailFailure(run, NOW);
+        expect(decideCadenceAction(failed, SEQUENCE, NOW, ctx())).toEqual({ type: 'stop', reason: 'policy-guardrail' });
+    });
+});
+
+describe('applyPolicyGuardrailFailure — CYC-002: único caminho para status failed', () => {
+    it('encerra um run ativo como failed/policy-guardrail', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const failed = applyPolicyGuardrailFailure(run, NOW);
+        expect(failed.status).toBe('failed');
+        expect(failed.stopReason).toBe('policy-guardrail');
+        expect(failed.stoppedAt).toEqual(NOW);
+    });
+
+    it('é idempotente — não sobrescreve um run já terminal (ex.: já completed)', () => {
+        let run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        run = applyStopDecision(run, 'completed', NOW);
+        const attempted = applyPolicyGuardrailFailure(run, new Date(NOW.getTime() + 1000));
+        expect(attempted).toEqual(run);
+    });
+});
+
+describe('applyStopDecision — único ponto que decide completed vs stopped a partir de um motivo', () => {
+    it('motivo "completed" resulta em status completed', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        expect(applyStopDecision(run, 'completed', NOW).status).toBe('completed');
+    });
+
+    it('qualquer outro motivo (opt-out/lead-reply/manual-stop/policy-guardrail) resulta em status stopped', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        for (const reason of ['opt-out', 'lead-reply', 'manual-stop', 'policy-guardrail'] as const) {
+            expect(applyStopDecision(run, reason, NOW).status).toBe('stopped');
+        }
+    });
+});
+
+describe('recordTouchAttempt — attemptNumber (CYC-002)', () => {
+    it('começa em 1 e incrementa por touchOrder, não globalmente entre toques diferentes', () => {
+        const seqComRetry: CadenceSequenceDefinition = {
+            id: 'seq-retry',
+            name: 'com retry',
+            touches: [{ order: 1, channel: 'email', delayHoursFromPrevious: 0, maxAttempts: 3 }, { order: 2, channel: 'whatsapp', delayHoursFromPrevious: 0 }],
+        };
+        let run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-retry', startedAt: NOW });
+
+        run = recordTouchAttempt(run, seqComRetry, seqComRetry.touches[0], NOW, { result: 'failed' });
+        expect(run.attempts[0].attemptNumber).toBe(1);
+
+        run = recordTouchAttempt(run, seqComRetry, seqComRetry.touches[0], NOW, { result: 'sent' });
+        expect(run.attempts[1].attemptNumber).toBe(2); // 2ª tentativa do MESMO toque (order 1)
+
+        run = recordTouchAttempt(run, seqComRetry, seqComRetry.touches[1], NOW, { result: 'sent' });
+        expect(run.attempts[2].attemptNumber).toBe(1); // toque DIFERENTE (order 2) — reinicia em 1
+    });
+});
+
+describe('recordTouchAttempt — sanitização de erro (CYC-002)', () => {
+    it('grava o erro sanitizado, nunca o texto cru com PII do lead', () => {
+        const run = startCadenceRun({ id: 'r1', organizationId: 'org', leadId: 'lead', sequenceId: 'seq-1', startedAt: NOW });
+        const updated = recordTouchAttempt(run, SEQUENCE, SEQUENCE.touches[0], NOW, { result: 'failed', error: 'Falha ao enviar para lead@empresa.com' });
+        expect(updated.attempts[0].error).toBe(sanitizeTouchError('Falha ao enviar para lead@empresa.com'));
+        expect(updated.attempts[0].error).not.toContain('lead@empresa.com');
     });
 });
 
@@ -154,7 +226,7 @@ describe('recordTouchAttempt — honestidade de resultado', () => {
 
         run = recordTouchAttempt(run, seqComRetry, seqComRetry.touches[0], NOW, { result: 'failed', error: 'SMTP indisponível' });
         // esgotou as 2 tentativas — sequência acaba (era o único toque), mas nunca marcado como sent
-        expect(run.status).toBe('stopped');
+        expect(run.status).toBe('completed');
         expect(run.stopReason).toBe('completed');
         expect(run.attempts.every((a) => a.result !== 'sent')).toBe(true);
     });

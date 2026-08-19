@@ -61,7 +61,12 @@ observeConnection(connection, 'bullmq', () => queuesEnabled);
 
 export const rateLimiterConnection = new Redis(redisUrl, {
     lazyConnect: !rateLimitRedisEnabled,
-    enableOfflineQueue: false,
+    // rate-limit-redis carrega os scripts Lua no construtor do middleware, poucos milissegundos
+    // antes de o evento `connect` poder ocorrer num cold-start. Sem offline queue, essa primeira
+    // carga falha com "Stream isn't writeable" apesar de a conexão ficar pronta logo em seguida.
+    // A fila é segura aqui porque commandTimeout/maxRetries continuam limitando indisponibilidade;
+    // ela serve apenas para atravessar a janela de conexão inicial, não para esconder outage longa.
+    enableOfflineQueue: rateLimitRedisEnabled,
     maxRetriesPerRequest: 1,
     connectTimeout: 3_000,
     commandTimeout: 2_000,

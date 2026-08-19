@@ -67,6 +67,12 @@ const envSchema = z.object({
   // DOC-002: documentação OpenAPI (/api-docs, Swagger UI). Default false — a rota só é montada
   // explicitamente (ver server.ts), nunca implicitamente por NODE_ENV !== 'production' sozinho.
   EXPOSE_API_DOCS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // SEC-001/SEC-002 (Sprint 01/Onda 13): segredo de "operador de plataforma", separado do papel
+  // ADMIN de tenant. ADMIN de tenant já é exigido pelo próprio RBAC de negócio — este token é a
+  // segunda trava de "isso é infraestrutura compartilhada entre TODAS as organizações, não uma
+  // permissão de uma organização". Sem este valor configurado, /admin/queues e /metrics negam
+  // acesso por padrão (fail-closed) — ver src/shared/middlewares/requirePlatformOperator.ts.
+  PLATFORM_OPERATOR_TOKEN: z.string().min(16).optional(),
 
   // ── SDR de voz (Birth Voices Hub) ────────────────────────────────────────
   // Todas opcionais: sem elas a integração fica inerte (nenhuma ligação é disparada e o webhook
@@ -157,10 +163,13 @@ const envSchema = z.object({
 
   // ── Base legal LGPD para dado pessoal enviado a provedor de IA externo ──────
   // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
-  // assertPiiExternalConsent), consumido pelos 3 caminhos reais do enxame que buscam dado pessoal
-  // de um titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
-  // de IA externo (Groq/OpenAI/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId)
-  // e SDROutboundDraftAgent. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
+  // assertPiiExternalConsent), consumido pelos caminhos reais que buscam dado pessoal de um
+  // titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
+  // de IA externo (Groq/OpenAI/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId),
+  // SDROutboundDraftAgent e AIService.qualifyLead (fluxo padrão de qualificação de todo lead —
+  // trava adicionada na AI-007, Sprint 07/onda-20; faltava até então). Os agentes BDR/Closer/CRM
+  // do enxame (autonomyRoleRunner) ainda NÃO passam por esta trava — gap documentado, não
+  // corrigido nesta rodada. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
   // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
   // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).
   AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: z.string().optional(),

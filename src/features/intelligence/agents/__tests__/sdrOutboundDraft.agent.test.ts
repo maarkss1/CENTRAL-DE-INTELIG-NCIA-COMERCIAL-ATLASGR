@@ -34,16 +34,20 @@ vi.mock('../../services/aiPendingAction.service.js', () => ({
 
 // processMessage vem de AgentService (base) — mockamos só o suficiente para produzir um JSON
 // válido de rascunho, já que o que este arquivo de teste cobre é o gate de consentimento e a
-// idempotência, não a geração de copy em si.
+// idempotência, não a geração de copy em si. `processMessageMock` é controlável por teste (ver
+// describe AI-004 abaixo, que precisa simular um retorno fora do schema).
+const processMessageMock = vi.fn().mockResolvedValue(
+    JSON.stringify({ subject: 'Uma ideia para sua operação', body: 'Olá, tudo bem?' }),
+);
 vi.mock('../../services/agent.service.js', () => ({
     AgentService: class {
-        async processMessage() {
-            return JSON.stringify({ subject: 'Uma ideia para sua operação', body: 'Olá, tudo bem?' });
+        async processMessage(...args: unknown[]) {
+            return processMessageMock(...args);
         }
     },
 }));
 
-const { SDROutboundDraftAgent } = await import('../sdr-agent');
+const { SDROutboundDraftAgent } = await import('../sdrOutboundDraft.agent');
 
 const baseLead = {
     id: 'lead-1',
@@ -105,11 +109,12 @@ describe('SDROutboundDraftAgent.draftEmailForLead — trava de idempotência (re
         expect(searchSimilar).not.toHaveBeenCalled();
     });
 
-    it('em modo full, reaproveita a ação existente e não gera um segundo rascunho para o mesmo lead', async () => {
+    it('em modo full, reaproveita a ação existente (rascunho validado por schema) e não gera um segundo rascunho para o mesmo lead', async () => {
         mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
         leadFindFirst.mockResolvedValue(baseLead);
         pendingActionFindUnique.mockResolvedValue({
             id: 'action-existing', approved: false, executed: false, discardedAt: null,
+            payload: { structuredOutputValid: true },
         });
         executeAndRecord.mockResolvedValue({ sent: true });
         pendingActionUpdate.mockResolvedValue({});
@@ -121,6 +126,62 @@ describe('SDROutboundDraftAgent.draftEmailForLead — trava de idempotência (re
         expect(result.actionId).toBe('action-existing');
         expect(pendingActionCreate).not.toHaveBeenCalled();
         expect(executeAndRecord).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('SDROutboundDraftAgent.draftEmailForLead — AI-004 (onda-20): schema inválido nunca autoExecute', () => {
+    it('LLM devolve texto fora do schema: cria a ação para revisão humana, mas NUNCA autoExecute mesmo com autoExecute=true', async () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
+        leadFindFirst.mockResolvedValue(baseLead);
+        pendingActionFindUnique.mockResolvedValue(null);
+        pendingActionCreate.mockResolvedValue({ id: 'action-fallback' });
+        processMessageMock.mockResolvedValueOnce('Isto não é JSON, é só um parágrafo de texto livre que o modelo devolveu.');
+
+        const agent = new SDROutboundDraftAgent('session-1', 'org-1');
+        const result = await agent.draftEmailForLead('lead-1', 'org-1', true);
+
+        expect(result.status).toBe('created');
+        expect(result.actionId).toBe('action-fallback');
+        expect(executeAndRecord).not.toHaveBeenCalled();
+        expect(pendingActionCreate).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                payload: expect.objectContaining({ structuredOutputValid: false }),
+            }),
+        }));
+    });
+
+    it('rascunho validado por schema grava structuredOutputValid:true e pode autoExecute', async () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
+        leadFindFirst.mockResolvedValue(baseLead);
+        pendingActionFindUnique.mockResolvedValue(null);
+        pendingActionCreate.mockResolvedValue({ id: 'action-valid' });
+        executeAndRecord.mockResolvedValue({ sent: true });
+        pendingActionUpdate.mockResolvedValue({});
+
+        const agent = new SDROutboundDraftAgent('session-1', 'org-1');
+        const result = await agent.draftEmailForLead('lead-1', 'org-1', true);
+
+        expect(result.status).toBe('executed');
+        expect(pendingActionCreate).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                payload: expect.objectContaining({ structuredOutputValid: true }),
+            }),
+        }));
+    });
+
+    it('ação existente sem structuredOutputValid (criada antes desta correção) não é autoExecutada — fail-closed', async () => {
+        mockEnv.AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS = 'org-1';
+        leadFindFirst.mockResolvedValue(baseLead);
+        pendingActionFindUnique.mockResolvedValue({
+            id: 'action-legacy', approved: false, executed: false, discardedAt: null,
+            payload: { subject: 'x', body: 'y' },
+        });
+
+        const agent = new SDROutboundDraftAgent('session-1', 'org-1');
+        const result = await agent.draftEmailForLead('lead-1', 'org-1', true);
+
+        expect(result.status).toBe('existing');
+        expect(executeAndRecord).not.toHaveBeenCalled();
     });
 });
 

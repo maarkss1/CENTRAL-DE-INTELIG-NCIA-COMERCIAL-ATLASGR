@@ -223,9 +223,26 @@ Vivem em `src/features/intelligence/agents/`. São o que o cliente final usa.
 | **Ops** | `OpsAgent` | executa ação concreta | `create_follow_up_task`, `notify_team` |
 | **Learning** | `LearningAgent` | aprende estilo do usuário; persiste em `AgentMemory` (`LEARNING_PROFILE`) | — |
 
-**8 ferramentas registradas:** `search_leads`, `get_lead_context`, `update_lead_qualification`,
-`market_research`, `search_playbook`, `summarize_lead_history`, `create_follow_up_task`,
-`notify_team`, `generate_cold_email_copy`.
+**9 ferramentas registradas** (contagem corrigida — AI-008, Sprint 07/onda-20; a lista abaixo já
+tinha as 9, só o número no cabeçalho estava desatualizado), classificadas por impacto
+(leitura / escrita interna / ação externa) — confirmado por leitura de código, ver
+`.agents/runs/onda-7.md` §"Leva 4" para o achado original:
+
+| Ferramenta | Impacto |
+|---|---|
+| `search_leads` | Leitura |
+| `get_lead_context` | Leitura (com minimização de PII antes de retornar ao LLM) |
+| `search_playbook` | Leitura |
+| `summarize_lead_history` | Leitura |
+| `market_research` | Ação externa passiva (busca pública via Tavily/Serper/DuckDuckGo — sem efeito colateral, não envia nem muda nada em terceiro) |
+| `update_lead_qualification` | Escrita interna |
+| `create_follow_up_task` | Escrita interna (agenda lembrete para humano; não conduz a ação externa) |
+| `notify_team` | Escrita interna (notificação no CRM, não envia nada para fora) |
+| `generate_cold_email_copy` | Escrita interna (salva rascunho como nota; não envia e-mail apesar do nome) |
+
+Nenhuma das 9 tools executa ação externa de alto impacto diretamente. A única ação externa de alto
+impacto do domínio SDR (envio de e-mail) não é uma tool de LangGraph — é `SDROutboundDraftAgent`,
+que sempre cria uma `AIPendingAction` (`riskLevel: 'high'`) antes de qualquer envio real.
 
 **Identidade unificada:** `swarm.constants.ts` (`SWARM_IDENTITY`, `SWARM_OUTPUT_CONTRACT`).
 

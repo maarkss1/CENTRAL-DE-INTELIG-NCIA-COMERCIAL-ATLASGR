@@ -1,5 +1,13 @@
 # Runbook — Rotação dos webhooks de saída Bitrix24 (AtlasGR + TotalTrac)
 
+## Status: ✅ Concluído (confirmado pelo dono do repositório, Sprint 01/Onda 13, 2026-08-18 — SEC-003)
+
+Fase Final 0 (2026-08-16) reprovou por rotação não confirmada; uma confirmação informal registrada
+em `final-fase-3.md` (2026-08-17) nunca foi formalmente reverificada/fechada no gate (ver
+`.agents/completion/01-bloqueadores.md`). Nesta sprint, o dono do repositório confirmou
+diretamente que os dois webhooks (AtlasGR e TotalTrac) já foram rotacionados — bloqueador fechado.
+Este runbook permanece como referência para uma futura rotação.
+
 ## Por que isso é bloqueador, e por que é diferente de rotacionar uma API key comum
 
 No Bitrix24, um **webhook de entrada** ("входящий вебхук") é uma URL do tipo

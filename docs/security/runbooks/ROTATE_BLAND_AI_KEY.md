@@ -1,5 +1,13 @@
 # Runbook — Rotação da chave Bland AI
 
+## Status: ✅ Concluído (confirmado pelo dono do repositório, Sprint 01/Onda 13, 2026-08-18 — SEC-003)
+
+Fase Final 0 (2026-08-16) reprovou por rotação não confirmada; uma confirmação informal registrada
+em `final-fase-3.md` (2026-08-17) nunca foi formalmente reverificada/fechada no gate (ver
+`.agents/completion/01-bloqueadores.md`). Nesta sprint, o dono do repositório confirmou
+diretamente que a chave já foi rotacionada — bloqueador fechado. Este runbook permanece como
+referência para uma futura rotação (ex.: se a chave for comprometida de novo).
+
 ## Por que isso é bloqueador
 
 A chave da API da Bland AI esteve versionada em texto claro em `scripts/call_bland_juliana.py`

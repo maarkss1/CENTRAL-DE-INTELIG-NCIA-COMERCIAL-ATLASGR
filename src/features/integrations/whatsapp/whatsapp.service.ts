@@ -218,13 +218,14 @@ export async function sendWhatsAppMessage(
 ) {
     const session = sessions.get(organizationId);
 
-    // Só produção web recebe o fallback para broker. Dev/test preservam a semântica histórica,
-    // e o worker dedicado nunca re-enfileira o próprio job.
-    if (
-        process.env.NODE_ENV === 'production'
-        && !isDedicatedWorkerProcess
-        && (!session?.sock || session.status !== 'connected')
-    ) {
+    // RUN-007b (Sprint 02/Onda 14): o gate original comparava `NODE_ENV === 'production'`
+    // (string exata) — em qualquer ambiente que não usasse esse valor exato (staging, homolog,
+    // ou simplesmente uma env var diferente), uma réplica web sem socket local caía direto no
+    // AppError abaixo em vez de usar o broker, mesmo sendo tecnicamente uma "réplica web sem
+    // WASocket" (o cenário exato que o broker existe para resolver). O sinal correto é
+    // `isDedicatedWorkerProcess`: só o worker dedicado é dono do WASocket de verdade — qualquer
+    // outro processo (web, em qualquer ambiente) sem sessão local deve enfileirar via broker.
+    if (!isDedicatedWorkerProcess && (!session?.sock || session.status !== 'connected')) {
         await enqueueWhatsAppCommand({
             type: 'send',
             organizationId,

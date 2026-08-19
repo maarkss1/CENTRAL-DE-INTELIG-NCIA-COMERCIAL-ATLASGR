@@ -27,7 +27,13 @@ export function ChangePasswordGate() {
         }
 
         setIsSubmitting(true);
-        const changeResult = await authClient.changePassword({ currentPassword, newPassword });
+        // SEC-006 (Sprint 01/Onda 13): revokeOtherSessions invalida TODAS as sessões existentes
+        // (inclusive a deste navegador) e emite uma sessão nova — crítico aqui porque este fluxo
+        // troca justamente uma senha temporária/padrão (ver comentário no topo do componente), o
+        // cenário onde mais de uma pessoa pode ter conhecido a senha antiga. O browser aceita o
+        // novo cookie de sessão automaticamente (Set-Cookie da própria resposta), então quem troca
+        // a senha não é deslogado — só passa a usar um token novo sem perceber.
+        const changeResult = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
         if (changeResult.error) {
             setError(changeResult.error.message || 'Não foi possível trocar a senha. Confira a senha atual.');
             setIsSubmitting(false);

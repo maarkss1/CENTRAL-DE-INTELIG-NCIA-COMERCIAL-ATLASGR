@@ -2,12 +2,13 @@ import { StateGraph, Annotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { SDRQualificationAgent } from './sdr.agent.js';
+import { SDRQualificationAgent } from './sdrQualification.agent.js';
 import { BDRAgent } from './bdr.agent.js';
 import { CloserAgent } from './closer.agent.js';
 import { CRMAgent } from './crm.agent.js';
 import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
+import { getTenantId } from '../../../lib/async-context.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 
 // Lazy + memoizado: monta o cliente só no primeiro uso real, nunca na carga do módulo —
@@ -539,7 +540,11 @@ const swarmApp = workflow.compile({ checkpointer: memory });
 export class SwarmOrchestrator {
     async executeMission(mission: string, sessionId?: string, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
-        const config = { configurable: { thread_id: sid }, recursionLimit: 25 };
+        // AI-002 (Sprint 07/onda-20): thread_id prefixado pelo tenant. `sessionId` chega cru do
+        // corpo da requisição HTTP (POST /swarm/mission) — sem o prefixo, duas organizações que
+        // (coincidentemente ou não) mandassem o mesmo sessionId reaproveitariam o checkpoint em
+        // RAM uma da outra, já que o MemorySaver deste grafo é um singleton de módulo.
+        const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
             const finalState = await swarmApp.invoke({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
@@ -552,7 +557,8 @@ export class SwarmOrchestrator {
 
     async executeMissionStream(mission: string, sessionId: string, onChunk: (event: SwarmEvent) => void, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
-        const config = { configurable: { thread_id: sid }, recursionLimit: 25 };
+        // AI-002 (Sprint 07/onda-20): mesmo motivo do prefixo em executeMission acima.
+        const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
             const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);

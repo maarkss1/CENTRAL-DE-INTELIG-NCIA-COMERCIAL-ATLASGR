@@ -178,7 +178,12 @@ export class SDRQualificationAgent {
             messages: [new HumanMessage(humanContent)]
         };
 
-        const config = { configurable: { thread_id: sid } };
+        // AI-002 (Sprint 07/onda-20): o checkpointer (MemorySaver) deste grafo é um singleton de
+        // módulo compartilhado por TODAS as organizações do processo — sem prefixar o thread_id
+        // pelo tenant, um `sessionId` coincidente entre duas organizações reaproveitaria o
+        // checkpoint em RAM da outra. Persistência real (Postgres/Redis) continua pendente — ver
+        // docs do achado; isto fecha só a colisão entre tenants.
+        const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
         let finalState;
 
         try {

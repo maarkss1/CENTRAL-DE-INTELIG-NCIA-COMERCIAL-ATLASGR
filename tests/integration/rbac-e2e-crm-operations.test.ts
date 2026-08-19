@@ -41,11 +41,15 @@ async function createLead(organizationId: string): Promise<{ id: string }> {
 }
 
 /** Garante o pipeline padrão do funil Negócio e devolve o id da sua primeira etapa (usado pelo
- * teste de PUT /records/:id/stage — precisa de um stageId real pertencente ao tenant). */
+ * teste de PUT /records/:id/stage — precisa de um stageId real pertencente ao tenant).
+ * Usa o repositório real (mesmo que crm360Routes resolve via DI) — não a implementação alternativa
+ * de src/features/crm360/services/crm360.service.ts, que nenhuma rota da aplicação usa (removida
+ * na Sprint 05/Onda 17, DATA-004, por ser um segundo conjunto de LEAD_STAGES/DEAL_STAGES mantido
+ * manualmente em paralelo ao real, sem nenhum import fora de si mesma). */
 async function firstDealStageId(organizationId: string): Promise<string> {
   return withTenant(organizationId, async () => {
-    const { crm360Service } = await import('../../src/features/crm360/services/crm360.service');
-    const pipelines = await crm360Service.listPipelines(organizationId);
+    const { PrismaCrm360Repository } = await import('../../src/features/crm360/infra/PrismaCrm360Repository');
+    const pipelines = await new PrismaCrm360Repository().getPipelines(organizationId);
     const dealPipeline = pipelines.find((p) => p.entity === 'Negocio');
     const stage = dealPipeline?.stages[0];
     if (!stage) throw new Error('Pipeline de Negócio sem etapa inicial — setup do teste está errado.');
@@ -134,8 +138,9 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
         .set('Cookie', adminB.cookie)
         .send({ stageId: stageIdFromOrgB });
 
-      // crm360Service.moveRecord faz where:{id, organizationId} no update — um leadId de outra
-      // org simplesmente não é encontrado (P2025), o que o errorHandler não mapeia como 2xx.
+      // PrismaCrm360Repository.updateLeadStage faz findFirstOrThrow com where:{id, organizationId}
+      // — um leadId de outra org simplesmente não é encontrado (P2025), o que o errorHandler não
+      // mapeia como 2xx.
       expect(res.status).not.toBe(200);
 
       const untouched = await withTenant(adminA.organizationId, () => prisma.lead.findUnique({ where: { id: leadFromOrgA.id } }));
@@ -152,8 +157,9 @@ describe('RBAC ponta-a-ponta — operações do CRM (Etapa 02)', () => {
         .set('Cookie', adminB.cookie)
         .send({ stageId: stageIdFromOrgA });
 
-      // crm360Service.moveRecord busca a etapa com where:{id, pipeline:{organizationId,active}} —
-      // um stageId de outra org não é "encontrado" (mesmo existindo na tabela).
+      // PrismaCrm360Repository.updateLeadStage busca a etapa com
+      // where:{id, pipeline:{organizationId}} — um stageId de outra org não é "encontrado" (mesmo
+      // existindo na tabela).
       expect(res.status).not.toBe(200);
       expect(res.body.success).toBe(false);
     });

@@ -12,6 +12,28 @@ vi.mock('node-cron', () => ({
     default: { schedule: vi.fn() },
 }));
 
+// Captura os handlers registrados em `worker.on(...)` para exercer `createColdLeadsScannerWorker`
+// sem precisar de um Redis/BullMQ real — mesmo padrão de mock (`class`, não arrow function) usado
+// em coldCall.worker.test.ts/swarmScheduler.worker.test.ts.
+const workerOn = vi.fn();
+vi.mock('bullmq', () => {
+    class MockQueue {
+        on() { /* no-op */ }
+        upsertJobScheduler() { return Promise.resolve(); }
+    }
+    class MockWorker {
+        on(...args: unknown[]) { return workerOn(...args); }
+    }
+    return { Queue: MockQueue, Worker: MockWorker };
+});
+
+const recordDeadLetterMock = vi.fn();
+const isFinalAttemptMock = vi.fn();
+vi.mock('../../../../../src/lib/queue/deadLetter.js', () => ({
+    recordDeadLetter: (...args: unknown[]) => recordDeadLetterMock(...args),
+    isFinalAttempt: (...args: unknown[]) => isFinalAttemptMock(...args),
+}));
+
 const leadFindMany = vi.fn();
 vi.mock('../../../../../src/lib/prisma.js', () => ({
     prisma: {
@@ -36,6 +58,7 @@ const cacheSet = vi.fn();
 const cacheDel = vi.fn();
 const cacheEval = vi.fn();
 vi.mock('../../../../../src/lib/queue/redis.js', () => ({
+    connection: {},
     get queuesEnabled() {
         return queuesEnabledValue;
     },
@@ -55,7 +78,7 @@ vi.mock('../../../../../src/lib/logger.js', () => ({
 }));
 
 const { requestContext } = await import('../../../../../src/lib/async-context.js');
-const { runColdLeadsScan } = await import(
+const { runColdLeadsScan, createColdLeadsScannerWorker, COLD_LEADS_SCANNER_QUEUE_NAME } = await import(
     '../../../../../src/features/automations/application/cold-leads-scanner.service.js'
 );
 
@@ -102,5 +125,43 @@ describe('runColdLeadsScan — contexto de RLS por organização', () => {
 
         expect(result).toEqual(expect.objectContaining({ organizations: 0, scanned: 0, failures: 0 }));
         expect(leadFindMany).not.toHaveBeenCalled();
+    });
+});
+
+// RUN-006 (Sprint 02/Onda 14): contrato comum de dead-letter (`recordDeadLetter`/`isFinalAttempt`,
+// ver src/lib/queue/deadLetter.ts) adotado no `worker.on('failed', ...)` deste worker.
+describe('createColdLeadsScannerWorker — dead-letter na última tentativa', () => {
+    function getFailedHandler(): (job: unknown, err: Error) => void {
+        createColdLeadsScannerWorker();
+        const call = workerOn.mock.calls.find(([event]) => event === 'failed');
+        expect(call).toBeDefined();
+        return call![1];
+    }
+
+    it('registra recordDeadLetter com os campos do job quando a falha é a última tentativa', () => {
+        isFinalAttemptMock.mockReturnValue(true);
+        const failedHandler = getFailedHandler();
+
+        const job = { id: 'job-1', name: 'daily-cold-leads-scan', attemptsMade: 3, opts: { attempts: 3 } };
+        const err = new Error('provedor de embeddings fora do ar');
+        failedHandler(job, err);
+
+        expect(isFinalAttemptMock).toHaveBeenCalledWith(3, 3);
+        expect(recordDeadLetterMock).toHaveBeenCalledWith(expect.objectContaining({
+            queue: COLD_LEADS_SCANNER_QUEUE_NAME,
+            jobId: 'job-1',
+            jobName: 'daily-cold-leads-scan',
+            attemptsMade: 3,
+            error: err,
+        }));
+    });
+
+    it('não registra dead-letter quando ainda restam tentativas', () => {
+        isFinalAttemptMock.mockReturnValue(false);
+        const failedHandler = getFailedHandler();
+
+        failedHandler({ id: 'job-1', name: 'daily-cold-leads-scan', attemptsMade: 1, opts: { attempts: 3 } }, new Error('falha transitória'));
+
+        expect(recordDeadLetterMock).not.toHaveBeenCalled();
     });
 });

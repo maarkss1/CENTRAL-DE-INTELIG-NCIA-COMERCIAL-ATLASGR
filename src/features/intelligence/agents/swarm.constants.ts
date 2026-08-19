@@ -1,7 +1,7 @@
 /**
  * Identidade de marca e contrato de saída compartilhados por todo o Enxame (Swarm) de Agentes de
  * Inteligência Comercial: Supervisor + especialistas (SDR, BDR, CRM, Ops) em supervisor.agent.ts,
- * sdr.agent.ts, bdr.agent.ts, crm.agent.ts e ops.agent.ts — e pelo próprio SwarmDashboard.tsx no
+ * sdrQualification.agent.ts, bdr.agent.ts, crm.agent.ts e ops.agent.ts — e pelo próprio SwarmDashboard.tsx no
  * título da UI.
  *
  * Antes desta constante, cada um dos 5 arquivos de prompt escrevia sua própria variação de

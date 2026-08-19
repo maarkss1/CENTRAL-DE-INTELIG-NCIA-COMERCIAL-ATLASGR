@@ -63,7 +63,12 @@
 
 ---
 
-## 2. ANTT - RNTRC-Dados de Veículos / frota
+## 2. ANTT - RNTRC-Dados de Veículos / frota (SUPERSEDIDA)
+
+**Status:** superseded em `2026-08-18`. A plataforma passou a usar o SENATRAN (seção 2-A) como
+fonte de frota, por publicar granularidade municipal real (o recurso ANTT abaixo é apenas UF e, no
+momento da auditoria, retornava payload inválido). Esta seção é mantida como registro histórico de
+governança -- não é mais a fonte ativa de `fleet` no manifest.
 
 **Órgão:** Agência Nacional de Transportes Terrestres  
 **Conjunto:** `RNTRC-Dados de Veículos`  
@@ -110,6 +115,49 @@ municipalUse = PROXY_UF
 ```
 
 A plataforma não estima frota a partir do número de transportadores e não transforma ausência de arquivo em zero.
+
+---
+
+## 2-A. SENATRAN - Frota de veículos por município e tipo
+
+**Órgão:** Secretaria Nacional de Trânsito / Ministério dos Transportes  
+**Conjunto:** `Frota de veículos, por tipo e com placa, segundo os Municípios da Federação`  
+**Página oficial (por ano):** `https://www.gov.br/transportes/pt-br/assuntos/transito/conteudo-Senatran/frota-de-veiculos-<ano>`  
+**Página de estatísticas:** `https://www.gov.br/transportes/pt-br/assuntos/transito/conteudo-Senatran/estatisticas-frota-de-veiculos-senatran`  
+**Data de auditoria:** `2026-08-18`  
+**Competência mais recente validada:** `2026-07`
+
+### Por que esta fonte substitui a ANTT (seção 2)
+
+A ANTT só publica frota em granularidade UF (sem coluna de município e sem RNTRC individual para
+join). O SENATRAN publica mensalmente uma planilha `.xlsx` com frota **por município e tipo de
+veículo**, incluindo as categorias relevantes para carga: `CAMINHAO`, `CAMINHAO TRATOR`, `REBOQUE`,
+`SEMI-REBOQUE`.
+
+### Dados utilizados
+
+- UF e nome do município (texto, sem código IBGE -- join por nome+UF contra o cadastro IBGE, como já
+  feito para RNTRC/CNPJ);
+- total de veículos;
+- quantidade por tipo (frota completa por categoria; `cargoFleet` no dataset derivado soma as 4
+  categorias relevantes para transporte de carga, mantendo cada tipo individual em `byType`).
+
+### Transformação
+
+`etl_senatran_frota.py` descobre dinamicamente o recurso do mês/ano vigente varrendo os links reais
+da página oficial (o nome do arquivo não segue um padrão estável de separador entre meses), baixa o
+`.xlsx`, parseia o formato OOXML com `zipfile` + `xml.etree.ElementTree` (sem dependência externa),
+cruza município+UF contra o cadastro IBGE e agrega por código IBGE.
+
+### Limitações
+
+- a planilha não publica código IBGE, então o join é por nome+UF normalizado -- mesma técnica já
+  validada em RNTRC (0,04% sem match) e CNPJ (0,23% sem match); taxa real observada e documentada em
+  `senatran_frota_municipios.metadata.json` a cada execução, nunca assumida como 100%;
+  alguns nomes municipais no arquivo SENATRAN usam grafia/histórico anterior ao cadastro IBGE atual
+  (ex.: `PARATI` em vez de `PARATY`) e permanecem sem match até uma tabela de sinônimos oficial ser
+  adotada -- não são corrigidos por heurística ad-hoc;
+- `cargoFleet` é uma soma de categorias definida pela plataforma, não um indicador oficial SENATRAN.
 
 ---
 
@@ -194,6 +242,34 @@ A disponibilidade de visualização institucional não implica existência de do
 ### Limitações
 
 Divisões geográficas históricas, atuais e unidades político-administrativas não devem ser misturadas. O ETL rejeita cadastro municipal materialmente incompleto.
+
+### Latitude/longitude: IBGE BCIM (Base Cartográfica Contínua)
+
+**Camada:** `lim_municipio_a` (polígonos municipais)  
+**Pacote:** `https://geoftp.ibge.gov.br/cartas_e_mapas/bases_cartograficas_continuas/bcim/versao2016/shapefile/bcim_2016_shapefiles_21-11-2018.zip`  
+**CRS:** `GEOGCS SIRGAS 2000` (graus decimais -- compatível com WGS84 para esta finalidade)  
+**Data de auditoria:** `2026-08-18`
+
+A API de localidades do IBGE não publica coordenadas. A camada `loc_cidade_p` do mesmo pacote BCIM
+(pontos de sede de cidade/vila) foi avaliada e **descartada**: contém mais registros que municípios
+(inclui sedes distritais) e não tem nenhum campo de código IBGE ou UF, o que só permitiria join por
+nome de cidade -- risco de homônimo que o projeto proíbe para coordenadas (ver DATA_LINEAGE.md,
+seção 1).
+
+A camada `lim_municipio_a` (polígonos dos limites municipais), por outro lado, carrega o campo
+`geocodigo` com o código IBGE de 7 dígitos em cada registro. `etl_municipios_ibge.py` usa esse campo
+como chave direta (nunca por nome) e calcula o **centroide geométrico** de cada polígono (fórmula de
+shoelace ponderada por área, com múltiplos anéis/furos tratados por área assinada) como
+latitude/longitude do município.
+
+### Limitações
+
+- o centroide é geométrico (pondera a área real do município), não um ponto de sede/endereço -- mais
+  representativo para cálculo de raio de território (Territory Optimizer) do que um ponto único de
+  "centro da cidade";
+- BCIM versão 2016 é a edição vigente publicada pelo IBGE para esta camada; não houve nova edição
+  nacional completa da malha municipal desde então;
+  municípios sem polígono correspondente ficam com `latitude`/`longitude` nulos, nunca estimados.
 
 ---
 

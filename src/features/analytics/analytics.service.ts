@@ -22,7 +22,7 @@ export const FUNNEL_STAGES = [
 const WON: PrismaLeadStatus = 'Negocios_Ganhos';
 const LOST: PrismaLeadStatus = 'Negocios_Perdidos';
 const DESQUALIFICADO: PrismaLeadStatus = 'Lead_Desqualificado';
-// Os dois estágios "...Cancelado" dos pilotos comerciais (funil Negócio) — crm360.service.ts
+// Os dois estágios "...Cancelado" dos pilotos comerciais (funil Negócio) — PrismaCrm360Repository.ts
 // (DEAL_STAGES) já os trata como isLost:true, mas este serviço (que lê Lead.status diretamente,
 // caminho legado) não os reconhecia como fechamento. Sem isso, um lead cancelado num piloto
 // contava como "pipeline ainda aberto" nestas métricas — inconsistente com o resto do produto.
