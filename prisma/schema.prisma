@@ -15,6 +15,31 @@ enum CompanyStatus {
   Em_analise @map("Em análise")
 }
 
+enum MarketIntelligenceDatasetStatus {
+  PENDING
+  PROCESSING
+  VALIDATING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum MarketIntelligenceIcpTier {
+  MUITO_ALTO
+  ALTO
+  MEDIO
+  BAIXO
+  FORA_DO_ICP
+}
+
+enum MarketIntelligenceDataOrigin {
+  OBSERVED
+  DERIVED
+  ESTIMATED
+  SIMULATED
+  NOT_AVAILABLE
+}
+
 enum ContactStatus {
   Ativo
   Inativo
@@ -183,9 +208,149 @@ model Company {
   deletedBy           String?
   deleteReason        String?
 
+  accountIntelligenceSnapshots AccountIntelligenceSnapshot[]
+  accountSignals               AccountSignal[]
+  decisionMakers               DecisionMaker[]
+  sourceEconomicRelationships  EconomicRelationship[]        @relation("SourceRelationship")
+  targetEconomicRelationships  EconomicRelationship[]        @relation("TargetRelationship")
+  accountScores                AccountScore[]
+  accountRecommendations       AccountRecommendation[]
+
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])
+}
+
+/// Snapshot rastreável e global. Só o importador com bypass de RLS pode gravar/publicar.
+model MarketIntelligenceDataset {
+  id              String                          @id
+  dataset         String
+  competencia     String
+  source          String
+  sourceVersion   String?
+  sourceUrl       String?
+  status          MarketIntelligenceDatasetStatus @default(PENDING)
+  publicationSlot String?                         @unique
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  activatedAt     DateTime?
+  recordsRead     BigInt                          @default(0)
+  recordsImported BigInt                          @default(0)
+  recordsRejected BigInt                          @default(0)
+  recordsActive   BigInt                          @default(0)
+  hash            String
+  pipelineVersion String
+  outputManifest  Json?
+  error           String?                         @db.Text
+  createdAt       DateTime                        @default(now())
+  updatedAt       DateTime                        @updatedAt
+  companies       MarketIntelligenceCompany[]
+
+  @@unique([dataset, competencia, hash])
+  @@index([dataset, status, competencia])
+  @@index([competencia])
+}
+
+/// Universo empresarial pesquisável. Não se relaciona automaticamente com Company (CRM).
+model MarketIntelligenceCompany {
+  id                            String                       @id
+  datasetId                     String
+  dataset                       MarketIntelligenceDataset    @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  cnpj                          String
+  cnpjBasico                    String
+  cnpjOrdem                     String
+  cnpjDv                        String
+  razaoSocial                   String
+  razaoSocialSearch             String
+  nomeFantasia                  String?
+  nomeFantasiaSearch            String?
+  matrizFilial                  String?
+  situacaoCadastralCodigo       String?
+  situacaoCadastral             String?
+  dataSituacaoCadastral         DateTime?                    @db.Date
+  motivoSituacaoCodigo          String?
+  motivoSituacaoCadastral       String?
+  dataInicioAtividade           DateTime?                    @db.Date
+  cnaePrincipal                 String?
+  cnaePrincipalDescricao        String?
+  cnaesSecundarios              Json?
+  naturezaJuridicaCodigo        String?
+  naturezaJuridica              String?
+  porteCodigo                   String?
+  porte                         String?
+  capitalSocial                 Decimal?                     @db.Decimal(20, 2)
+  qualificacaoResponsavelCodigo String?
+  qualificacaoResponsavel       String?
+  enteFederativoResponsavel     String?
+  opcaoSimples                  String?
+  dataOpcaoSimples              DateTime?                    @db.Date
+  dataExclusaoSimples           DateTime?                    @db.Date
+  opcaoMei                      String?
+  dataOpcaoMei                  DateTime?                    @db.Date
+  dataExclusaoMei               DateTime?                    @db.Date
+  tipoLogradouro                String?
+  logradouro                    String?
+  numero                        String?
+  complemento                   String?
+  bairro                        String?
+  cep                           String?
+  municipioCodigoReceita        String?
+  municipioIbge                 String?
+  municipioNome                 String?
+  municipioNomeSearch           String?
+  uf                            String?
+  ddd1                          String?
+  telefone1                     String?
+  ddd2                          String?
+  telefone2                     String?
+  dddFax                        String?
+  fax                           String?
+  email                         String?
+  icpTier                       MarketIntelligenceIcpTier?
+  icpScore                      Int?
+  icpReasons                    Json?
+  icpTaxonomyVersion            String?
+  icpCalculatedAt               DateTime?
+  hasRntrc                      Boolean?
+  rntrcStatus                   String?
+  rntrcType                     String?
+  rntrcNumber                   String?
+  rntrcSource                   String?
+  rntrcUpdatedAt                DateTime?
+  dataOrigin                    MarketIntelligenceDataOrigin @default(OBSERVED)
+  competencia                   String
+  importedAt                    DateTime                     @default(now())
+
+  @@unique([datasetId, cnpj])
+  @@index([datasetId, cnpjBasico])
+  @@index([datasetId, cnaePrincipal, uf])
+  @@index([datasetId, uf, municipioIbge])
+  @@index([datasetId, uf, situacaoCadastral])
+  @@index([datasetId, municipioIbge, situacaoCadastral])
+  @@index([datasetId, municipioIbge, icpTier])
+  @@index([datasetId, municipioNomeSearch])
+  @@index([datasetId, matrizFilial])
+  @@index([datasetId, hasRntrc])
+  @@index([datasetId, icpScore])
+  @@index([datasetId, capitalSocial])
+  @@index([competencia])
+}
+
+/// Crosswalk persistido Receita -> IBGE; a API não associa município por texto em runtime.
+model MarketIntelligenceMunicipalityMapping {
+  id            String   @id
+  receitaCode   String   @unique
+  receitaName   String
+  uf            String
+  ibgeCode      String
+  ibgeName      String
+  region        String?
+  mappingMethod String
+  sourceVersion String
+  importedAt    DateTime @default(now())
+
+  @@index([ibgeCode])
+  @@index([uf, ibgeName])
 }
 
 model EnrichmentLog {
@@ -1904,4 +2069,121 @@ model DealClosureEvent {
 
   @@index([leadId])
   @@index([organizationId])
+}
+
+// --- FASE 1: LDR Account Intelligence ---
+
+model AccountIntelligenceSnapshot {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  version         Int
+  summary         String?   @db.Text
+  structuredFacts Json?
+  sourceStatus    String?
+  generatedAt     DateTime  @default(now())
+  expiresAt       DateTime?
+
+  @@index([companyId])
+}
+
+model AccountSignal {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  description String?   @db.Text
+  source      String
+  sourceUrl   String?
+  confidence  Float?
+  status      String    @default("active")
+  dedupeKey   String?
+  detectedAt  DateTime  @default(now())
+  effectiveAt DateTime?
+
+  @@index([companyId, type])
+  @@index([companyId, detectedAt])
+}
+
+model DecisionMaker {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  role       String?
+  department String?
+  seniority  String?
+  buyingRole String?
+  phone      String?
+  email      String?
+  source     String?
+  confidence Float?
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId])
+}
+
+model EconomicRelationship {
+  id              String   @id @default(cuid())
+  sourceCompanyId String
+  sourceCompany   Company  @relation("SourceRelationship", fields: [sourceCompanyId], references: [id], onDelete: Cascade)
+  targetCompanyId String
+  targetCompany   Company  @relation("TargetRelationship", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+  relationType    String
+  evidence        String?  @db.Text
+  confidence      Float?
+  createdAt       DateTime @default(now())
+
+  @@index([sourceCompanyId])
+  @@index([targetCompanyId])
+}
+
+model IntelligenceEvidence {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  factKey      String
+  value        String?  @db.Text
+  source       String
+  sourceUrl    String?
+  confidence   Float?
+  evidenceType String?
+  collectedAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
+model AccountScore {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  total        Int
+  fit          Int?
+  timing       Int?
+  intent       Int?
+  relationship Int?
+  reasons      Json?
+  scoreVersion String?
+  calculatedAt DateTime @default(now())
+
+  @@index([companyId])
+}
+
+model AccountRecommendation {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actionType     String
+  title          String
+  rationale      String?   @db.Text
+  priority       String?
+  expectedImpact String?
+  status         String    @default("pending")
+  externalRef    String?
+  generatedAt    DateTime  @default(now())
+  executedAt     DateTime?
+
+  @@index([companyId, status])
 }

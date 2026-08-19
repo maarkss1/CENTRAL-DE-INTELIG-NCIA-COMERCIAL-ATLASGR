@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
     AlertTriangle,
     BarChart3,
+    Building2,
     Calculator,
     CheckCircle2,
     Database,
@@ -23,10 +24,13 @@ import {
     type SellerCostAssumptions,
 } from '../domain/sellerEconomics';
 import { loadMarketIntelligenceSnapshot } from '../marketIntelligence.data';
+import { CompanyExplorer } from './CompanyExplorer';
+import { marketIntelligenceApi, type MarketSource } from '../marketIntelligence.api';
 
-type TabId = 'board' | 'territories' | 'simulator' | 'data';
+type TabId = 'companies' | 'board' | 'territories' | 'simulator' | 'data';
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Target }> = [
+    { id: 'companies', label: 'Empresas', icon: Building2 },
     { id: 'board', label: 'Onde contratar agora?', icon: Target },
     { id: 'territories', label: 'Territórios', icon: MapPinned },
     { id: 'simulator', label: 'Simulador econômico', icon: Calculator },
@@ -261,11 +265,20 @@ function SellerSimulator() {
     );
 }
 
-function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
+function DataHealth({ manifest, detailedSources }: { manifest: MarketIntelligenceManifest; detailedSources: MarketSource[] }) {
     return (
         <section className="space-y-4">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
                 <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Saúde dos Dados</p><h2 className="text-xl font-black text-[#333333]">Competência, cobertura e confiança antes do score</h2></div></div>
+                {detailedSources.length > 0 && <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {detailedSources.map((source) => (
+                        <article key={source.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-start justify-between gap-3"><h3 className="text-sm font-black text-[#333333]">{source.name}</h3><span className={`rounded-full border px-2 py-1 text-[9px] font-black ${source.active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : statusTone(source.status)}`}>{source.active ? 'PUBLICADO' : source.status}</span></div>
+                            <dl className="mt-3 space-y-1 text-xs text-slate-600"><div><dt className="inline font-bold">Fornecedor: </dt><dd className="inline">{source.provider}</dd></div><div><dt className="inline font-bold">Competência: </dt><dd className="inline">{source.competencia}</dd></div><div><dt className="inline font-bold">Registros: </dt><dd className="inline">{number.format(source.records)} ({number.format(source.recordsActive)} ativos)</dd></div><div><dt className="inline font-bold">Granularidade: </dt><dd className="inline">{source.granularity}</dd></div></dl>
+                            <p className="mt-3 truncate font-mono text-[10px] text-slate-500" title={source.hash}>SHA-256 {source.hash}</p>
+                        </article>
+                    ))}
+                </div>}
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {manifest.datasets.map((dataset) => (
                         <article key={dataset.id} className="rounded-2xl border border-slate-200 p-4">
@@ -281,9 +294,10 @@ function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
 }
 
 export function MarketIntelligenceApp() {
-    const [tab, setTab] = useState<TabId>('board');
+    const [tab, setTab] = useState<TabId>('companies');
     const [manifest, setManifest] = useState<MarketIntelligenceManifest | null>(null);
     const [territories, setTerritories] = useState<TerritoryRecord[]>([]);
+    const [detailedSources, setDetailedSources] = useState<MarketSource[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -292,6 +306,14 @@ export function MarketIntelligenceApp() {
             .then((snapshot) => { if (!alive) return; setManifest(snapshot.manifest); setTerritories(snapshot.territories); })
             .catch((cause: unknown) => { if (!alive) return; setError(cause instanceof Error ? cause.message : 'Falha ao carregar Market Intelligence.'); });
         return () => { alive = false; };
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        marketIntelligenceApi.sources(controller.signal)
+            .then((response) => setDetailedSources(response.sources))
+            .catch(() => { /* A ausência da API detalhada não oculta a saúde do snapshot territorial. */ });
+        return () => controller.abort();
     }, []);
 
     if (error) return <main className="flex-1 overflow-y-auto p-6"><div role="alert" className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><AlertTriangle className="mb-2 h-5 w-5" aria-hidden="true" />{error}</div></main>;
@@ -306,8 +328,8 @@ export function MarketIntelligenceApp() {
                         <div className="max-w-4xl">
                             <img src="/tools/atlas-market-intelligence/atlas-logo-negative.png" alt="Atlas GR" className="h-auto w-28" />
                             <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#FFC500]">National Market & Territory Intelligence System</p>
-                            <h1 className="mt-2 text-3xl font-black leading-tight tracking-[-0.04em] md:text-5xl">Onde a Atlas GR deve contratar o próximo vendedor?</h1>
-                            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Geointeligência, demanda, risco, logística, concorrência e unit economics com evidência rastreável. Sem converter lacuna de dados em certeza comercial.</p>
+                            <h1 className="mt-2 text-3xl font-black leading-tight tracking-[-0.04em] md:text-5xl">Do território à empresa real.</h1>
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">CNPJ, atividade, localização, perfil e proveniência em um snapshot pesquisável, sem converter lacuna de dados em certeza comercial.</p>
                         </div>
                         <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-[#FFC500]/30 bg-[#FFC500]/10'}`}>
                             <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-[#FFC500]" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
@@ -320,10 +342,11 @@ export function MarketIntelligenceApp() {
                     {TABS.map((item) => { const Icon = item.icon; const active = tab === item.id; return <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${active ? 'bg-[#FF5618] text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-[#333333]'}`}><Icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>; })}
                 </nav>
 
+                {tab === 'companies' && <CompanyExplorer />}
                 {tab === 'board' && <BoardView manifest={manifest} territories={territories} />}
                 {tab === 'territories' && <TerritoryView manifest={manifest} territories={territories} />}
                 {tab === 'simulator' && <SellerSimulator />}
-                {tab === 'data' && <DataHealth manifest={manifest} />}
+                {tab === 'data' && <DataHealth manifest={manifest} detailedSources={detailedSources} />}
 
                 <footer className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 md:flex-row md:items-center md:justify-between">
                     <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-[#FF5618]" aria-hidden="true" />Scores finais só aparecem quando o dataset e a confiança permitem.</span>

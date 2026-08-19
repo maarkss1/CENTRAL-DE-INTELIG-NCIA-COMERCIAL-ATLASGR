@@ -9,6 +9,7 @@ from pathlib import Path
 
 MODULE_DIR = Path(__file__).resolve().parents[3] / "public" / "tools" / "atlas-market-intelligence"
 sys.path.insert(0, str(MODULE_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "market_intelligence"))
 
 from cnpj_company_pipeline import (  # noqa: E402
     COMPANY_EXPORT_COLUMNS,
@@ -17,6 +18,7 @@ from cnpj_company_pipeline import (  # noqa: E402
     normalize_search,
     split_secondary_cnaes,
 )
+from import_companies import company_select_expression, validate_manifest  # noqa: E402
 
 
 def write_zip(path: Path, rows: list[list[str]]) -> None:
@@ -116,6 +118,7 @@ class CnpjCompanyPipelineTest(unittest.TestCase):
             self.assertEqual(list(rows[0].keys()), COMPANY_EXPORT_COLUMNS)
             self.assertEqual(rows[0]["cnpj"], "A2345678000195")
             self.assertEqual(rows[0]["municipioIbge"], "3543402")
+            self.assertEqual(rows[0]["municipioNomeSearch"], "RIBEIRAO PRETO")
             self.assertEqual(rows[0]["situacaoCadastral"], "ATIVA")
             self.assertEqual(rows[0]["capitalSocial"], "123456.78")
             self.assertEqual(rows[0]["opcaoSimples"], "SIM")
@@ -129,6 +132,9 @@ class CnpjCompanyPipelineTest(unittest.TestCase):
                 mapping = next(csv.DictReader(handle))
             self.assertEqual(mapping["receitaCode"], "6969")
             self.assertEqual(mapping["ibgeCode"], "3543402")
+            validated = validate_manifest(snapshot / "manifest.json")
+            self.assertEqual(validated["stats"]["recordsExported"], 1)
+            self.assertEqual(company_select_expression("capitalSocial"), "NULLIF(s.\"capitalSocial\", '')::numeric(20,2)")
 
 
 if __name__ == "__main__":

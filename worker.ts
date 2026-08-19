@@ -41,6 +41,7 @@ import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/f
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
+import { createAccountIntelligenceWorker } from './src/lib/queue/accountIntelligence.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -68,6 +69,7 @@ async function startWorkerProcess() {
     const autoAnonymizeWorker = createAutoAnonymizeWorker();
     const coldLeadsScannerWorker = createColdLeadsScannerWorker();
     const stagnationScannerWorker = createStagnationScannerWorker();
+    const accountIntelligenceWorker = createAccountIntelligenceWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -119,6 +121,7 @@ async function startWorkerProcess() {
         { name: 'swarm-scheduler', worker: swarmSchedulerWorker },
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
+        { name: 'account-intelligence-queue', worker: accountIntelligenceWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

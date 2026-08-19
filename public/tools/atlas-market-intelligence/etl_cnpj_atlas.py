@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from cnpj_company_pipeline import build_company_snapshot
+
 # A Receita Federal migrou o antigo indice HTML estatico (arquivos.receitafederal.gov.br/dados/...)
 # para um compartilhamento publico Nextcloud/SERPRO+. O host raiz redireciona (302) para
 # /index.php/s/<token>; o conteudo e navegavel via WebDAV em /public.php/webdav/ usando o token
@@ -121,13 +123,18 @@ def discover_latest_competence(token: str) -> str:
     return found[-1]
 
 
-def list_remote_archives(token: str, competence: str) -> list[tuple[str, str]]:
+def list_remote_archives(token: str, competence: str, include_company_details: bool = False) -> list[tuple[str, str]]:
     folder = f"{CNPJ_REMOTE_PATH}/{competence}/"
     children = propfind_children(webdav_url(folder), token)
     names = sorted(name for name, is_dir in children if not is_dir and name.lower().endswith(".zip"))
     wanted = [n for n in names if re.match(r"(?:Empresas|Estabelecimentos)\d+\.zip$", n, re.I)]
     if "Municipios.zip" in names:
         wanted.append("Municipios.zip")
+    if include_company_details:
+        for required in ["Simples.zip", "Cnaes.zip", "Naturezas.zip", "Qualificacoes.zip", "Motivos.zip"]:
+            if required not in names:
+                raise RuntimeError(f"Indice Receita sem {required} para {competence}")
+            wanted.append(required)
     if not any(n.lower().startswith("empresas") for n in wanted) or not any(n.lower().startswith("estabelecimentos") for n in wanted) or "Municipios.zip" not in wanted:
         raise RuntimeError(f"Indice Receita incompleto para {competence}")
     return [(name, webdav_url(f"{folder}{name}")) for name in wanted]
@@ -136,27 +143,49 @@ def list_remote_archives(token: str, competence: str) -> list[tuple[str, str]]:
 def download_archive(name: str, url: str, target_dir: Path, token: str, attempts: int = 4) -> ArchiveMeta:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / name
-    if target.exists() and target.stat().st_size >= 100 and not zipfile.is_zipfile(target):
+    partial = target.with_suffix(target.suffix + ".part")
+    if target.exists() and zipfile.is_zipfile(target):
+        return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
+    if target.exists():
         target.unlink()
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
-        if target.exists() and target.stat().st_size >= 100:
-            break
         try:
-            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Authorization": basic_auth_header(token)})
-            with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as output:  # noqa: S310
-                while chunk := response.read(1024 * 1024):
-                    output.write(chunk)
+            received = partial.stat().st_size if partial.exists() else 0
+            headers = {
+                "User-Agent": USER_AGENT,
+                "Authorization": basic_auth_header(token),
+                "Accept-Encoding": "identity",
+                "Range": f"bytes={received}-",
+            }
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=600) as response:  # noqa: S310
+                resumed = received > 0 and getattr(response, "status", 200) == 206
+                if received and not resumed:
+                    received = 0
+                expected = int(response.headers.get("Content-Length") or 0) + received
+                mode = "ab" if resumed else "wb"
+                next_progress = received + 256 * 1024 * 1024
+                with partial.open(mode) as output:
+                    while chunk := response.read(1024 * 1024):
+                        output.write(chunk)
+                        received += len(chunk)
+                        if received >= next_progress:
+                            print(json.dumps({"phase": "DOWNLOAD", "file": name, "bytes": received, "expectedBytes": expected}), flush=True)
+                            next_progress += 256 * 1024 * 1024
         except OSError as error:
             last_error = error
-            target.unlink(missing_ok=True)
             if attempt < attempts:
                 time.sleep(2**attempt)
+                continue
+        if partial.exists() and zipfile.is_zipfile(partial):
+            partial.replace(target)
+            break
+        last_error = RuntimeError(f"download parcial/invalido: {partial.stat().st_size if partial.exists() else 0} bytes")
+        if attempt < attempts:
+            time.sleep(2**attempt)
     if not target.exists() or target.stat().st_size < 100:
         raise RuntimeError(f"Falha ao baixar {name} apos {attempts} tentativas: {last_error}")
-    if not zipfile.is_zipfile(target):
-        target.unlink(missing_ok=True)
-        raise RuntimeError(f"ZIP invalido: {target}")
     return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
 
 
@@ -233,6 +262,8 @@ def process_establishments(db: sqlite3.Connection, archives: list[Path], taxonom
     sql = "INSERT OR REPLACE INTO candidate_establishment VALUES (?,?,?,?,?,?,?,?)"
     batch: list[tuple[str, ...]] = []
     for archive in archives:
+        print(json.dumps({"phase": "AGGREGATE_ESTABLISHMENTS", "file": archive.name,
+                          "recordsRead": stats["establishment_rows"]}), flush=True)
         for row in zip_rows(archive):
             stats["establishment_rows"] += 1
             if len(row) < 22 or row[5].strip() != ACTIVE_SITUATION:
@@ -258,6 +289,8 @@ def process_companies(db: sqlite3.Connection, archives: list[Path]) -> dict[str,
     stats = defaultdict(int)
     batch: list[tuple[str, str, str]] = []
     for archive in archives:
+        print(json.dumps({"phase": "AGGREGATE_COMPANIES", "file": archive.name,
+                          "recordsRead": stats["company_rows"]}), flush=True)
         for row in zip_rows(archive):
             stats["company_rows"] += 1
             if len(row) < 6 or row[0].strip() not in candidate_basics:
@@ -304,6 +337,10 @@ def main() -> int:
     parser.add_argument("--taxonomy", type=Path, default=Path(__file__).with_name("icp_taxonomy.v1.json"))
     parser.add_argument("--output", type=Path, default=Path("public/tools/atlas-market-intelligence/data/icp_municipios.json"))
     parser.add_argument("--metadata", type=Path)
+    parser.add_argument("--companies-output-dir", type=Path, help="Gera snapshot empresarial detalhado particionado por UF")
+    parser.add_argument("--companies-uf", help="Restringe a prova detalhada a uma UF")
+    parser.add_argument("--companies-municipality-ibge", help="Restringe a prova detalhada a um municipio IBGE")
+    parser.add_argument("--companies-chunk-size", type=int, default=10_000)
     args = parser.parse_args()
 
     started = datetime.now(timezone.utc)
@@ -315,7 +352,7 @@ def main() -> int:
     if not args.no_download:
         if not competence:
             raise RuntimeError("Competencia CNPJ nao resolvida")
-        for name, url in list_remote_archives(token, competence):
+        for name, url in list_remote_archives(token, competence, include_company_details=bool(args.companies_output_dir)):
             archive_meta.append(download_archive(name, url, source_dir, token))
 
     establishments, companies, municipalities_zip = select_archives(source_dir)
@@ -348,6 +385,38 @@ def main() -> int:
         "transformations": ["situacao ativa 02", "CNAE principal+secundarios", "precedencia A>B>C", "porte e matriz/filial preservados", "join municipal por codigo IBGE", "agregacao municipal compacta"],
         "limitations": ["taxonomia v1 nao calibrada com ganhos/perdas Atlas", "porte nao promove tier sozinho", "capital social nao vira score", "frota/MDF-e/risco nao sao inferidos do CNPJ"]
     }
+    if args.companies_output_dir:
+        required = {name: source_dir / name for name in [
+            "Simples.zip", "Cnaes.zip", "Naturezas.zip", "Qualificacoes.zip", "Motivos.zip",
+        ]}
+        missing = [name for name, path in required.items() if not path.exists()]
+        if missing:
+            raise RuntimeError(f"Arquivos detalhados ausentes em {source_dir}: {', '.join(missing)}")
+        ibge_rows = json.loads((args.workdir / "raw" / "ibge" / "municipios.json").read_text(encoding="utf-8"))
+        company_manifest = build_company_snapshot(
+            competence=competence or "",
+            workdir=args.workdir,
+            output_root=args.companies_output_dir,
+            establishment_archives=establishments,
+            company_archives=companies,
+            simples_archive=required["Simples.zip"],
+            municipalities_archive=municipalities_zip,
+            cnaes_archive=required["Cnaes.zip"],
+            naturezas_archive=required["Naturezas.zip"],
+            qualificacoes_archive=required["Qualificacoes.zip"],
+            motivos_archive=required["Motivos.zip"],
+            ibge_rows=ibge_rows,
+            source_url=f"{BASE_HOST}/index.php/s/{token}" if token else "MANUAL_NAO_INFORMADA",
+            filter_uf=args.companies_uf,
+            filter_ibge=args.companies_municipality_ibge,
+            chunk_size=args.companies_chunk_size,
+        )
+        metadata["companySnapshot"] = {
+            "datasetHash": company_manifest["datasetHash"],
+            "recordsExported": company_manifest["stats"]["recordsExported"],
+            "activeRecordsExported": company_manifest["stats"].get("activeRecordsExported", 0),
+            "filters": company_manifest["filters"],
+        }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(metadata, ensure_ascii=False, indent=2))
     if geo_stats["unmatched_geography_rows"]:

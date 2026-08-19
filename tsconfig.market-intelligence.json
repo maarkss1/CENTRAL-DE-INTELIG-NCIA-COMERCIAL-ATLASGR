@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "include": [
+    "src/vite-env.d.ts",
     "src/features/market-intelligence/**/*.ts",
     "src/features/market-intelligence/**/*.tsx",
     "src/pages/MarketIntelligence.tsx"
