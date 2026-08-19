@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 
 export interface ActiveRecord {
-    type: 'company' | 'lead';
+    type: 'company' | 'contact' | 'lead' | 'deal';
     id: string;
     label: string;
-    /** Linha curta de contexto (segmento/cidade para empresa, status/temperatura para negócio). */
+    /** Linha curta de contexto (segmento/cidade, cargo/canal, status/temperatura ou etapa do negócio). */
     summary?: string;
 }
 
