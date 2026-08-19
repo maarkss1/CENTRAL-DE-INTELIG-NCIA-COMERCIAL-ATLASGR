@@ -149,7 +149,7 @@ export const prisma = basePrisma.$extends({
         // atualização real de `viewCount`/`firstViewedAt`/`lastViewedAt`/`status` roda dentro de
         // `requestContext.run({ tenantId: doc.organizationId })` com RLS normal, igual ao lookup de
         // BitrixConnection.
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument'];
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument', 'CrmDocumentSignatureRequest'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

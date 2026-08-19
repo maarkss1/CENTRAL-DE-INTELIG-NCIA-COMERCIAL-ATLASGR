@@ -9,13 +9,16 @@ import { prisma } from '../../../lib/prisma.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus, LEAD_CLOSING_STATUSES } from '../../../lib/enumMap.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentSignatureRequestInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
 import type { CrmCommercialDocument, CrmCommercialDocumentVersionDTO, CrmDealItem, CrmOverviewData, CrmPipeline, CrmProduct, CrmPublicDocumentView } from '../crm360.types.js';
 import { ensureManualDealClosureAllowed } from '../../crm/application/dealClosureGate.js';
 import { prismaDealClosureGate } from '../../crm/infra/PrismaDealClosureGate.js';
 import { draftNextProposalVersion, type ProposalSnapshot, type ProposalVersion } from '../../cadence/domain/proposal.js';
+import { requestDocumentSignature as requestDocumentSignatureUseCase } from '../../cadence/application/documentSignature.js';
+import { prismaSignatureRequestRepository } from '../../cadence/infra/PrismaSignatureRequestRepository.js';
+import { govBrSignatureProviderPort } from '../../cadence/infra/GovBrSignatureProviderPort.js';
 
 type DefaultStage = {
     name: string;
@@ -606,5 +609,30 @@ export class PrismaCrm360Repository implements ICrm360Repository {
                 terms: updated.terms,
             } as unknown as CrmPublicDocumentView;
         });
+    }
+
+    async requestDocumentSignature(organizationId: string, documentId: string, actorUserId: string | undefined, input: CrmDocumentSignatureRequestInput): Promise<{ id: string; providerRequestId: string }> {
+        const doc = await prisma.crmCommercialDocument.findFirst({
+            where: { id: documentId, organizationId },
+            include: { contact: true },
+        });
+        if (!doc) throw new AppError('Documento não encontrado nesta organização.', 404);
+
+        const signerEmail = input.signerEmail ?? doc.contact?.email ?? undefined;
+        if (!signerEmail) {
+            throw new AppError('Documento sem e-mail de assinante — informe signerEmail ou vincule um contato com e-mail ao documento.', 422);
+        }
+
+        return requestDocumentSignatureUseCase(
+            { repository: prismaSignatureRequestRepository, provider: govBrSignatureProviderPort },
+            {
+                organizationId,
+                documentId,
+                provider: 'govbr',
+                signerEmail,
+                signerName: input.signerName ?? doc.contact?.name ?? null,
+                requestedBy: actorUserId ?? null,
+            },
+        );
     }
 }
