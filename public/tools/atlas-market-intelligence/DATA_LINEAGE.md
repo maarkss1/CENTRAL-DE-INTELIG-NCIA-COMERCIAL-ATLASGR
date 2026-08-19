@@ -253,28 +253,32 @@ RNTRC mede **estoque logístico**. MDF-e mede **fluxo logístico observado**. Os
 
 ## 6. Need Atlas / risco
 
+**Implementado em `etl_sinesp_risco.py`** (`risco_uf.json`). Achado real ao processar o
+`bancovde-2026.xlsx` oficial: para os 3 indicadores usados (roubo de carga, roubo de veículo,
+furto de veículo), a fonte só publica granularidade **UF** -- 100% das linhas relevantes têm
+`municipio = "NÃO INFORMADO"` (crimes contra a pessoa, no mesmo arquivo, têm município real; só
+estes 3 indicadores de propriedade não têm). Não é limitação do parser, é a fonte oficial.
+
 ```text
-MJSP / Sinesp VDE
-+ fontes oficiais complementares quando justificadas
+MJSP / Sinesp VDE (bancovde-<ano>.xlsx)
 ↓
-snapshot por competência
-↓
-etl_risco_sinesp.py
+descoberta automática do ano vigente + parser stdlib em streaming (iterparse)
 ↓
 roubo de carga
 + roubo de veículo
 + furto de veículo
 ↓
-join geográfico
+soma por UF (granularidade municipal não existe na fonte para estes indicadores)
 ↓
-se municipal: OBSERVADO MUNICÍPIO
-se apenas estadual: PROXY_UF
+risco_uf.json (geography: PROXY_UF)
 ↓
-combinação com exposição MDF-e / carga, conforme metodologia versionada
+etl_municipal_aggregate.py aplica o valor de UF a cada município da UF,
+availability: PROXY (nunca OBSERVADO), confiança reduzida
 ↓
-Risk / Need Score + confidence
+Risk Score (scores.risk) -- calculado
+Need Score (componente do Opportunity Score) -- fórmula risco→Need ainda não definida
 ↓
-Opportunity Score
+Opportunity Score -- permanece bloqueado até Need existir
 ↓
 Interface
 ```
@@ -355,13 +359,17 @@ A fórmula final deve ser acompanhada de análise de sensibilidade e `methodolog
 - **RNTRC component**: percentil nacional da contagem de transportadores ativos, mesma técnica.
 - **MDF-e component**: percentil nacional de viagens CIOT (origem + destino) por município,
   quando `mdfe_origens/destinos_municipios.json` existem; caso contrário `NAO_DISPONIVEL`.
-- **Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até os pipelines
-  correspondentes existirem (Need depende do risco Sinesp; White Space depende de
-  `CENSO_COMPLETO`; Territorial Efficiency ainda não tem fórmula definida).
+- **Risk (`scores.risk`, fora do Opportunity Score)**: percentil nacional (roubo de carga + roubo
+  de veículo + furto de veículo) por UF, quando `risco_uf.json` existe; sempre `PROXY` (nunca
+  `OBSERVADO`), pois a fonte só publica granularidade UF para estes indicadores.
+- **Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até serem definidos (Need é a
+  fórmula que converte risco em sinal de oportunidade -- ainda não definida, mesmo com o risco já
+  disponível; White Space depende de `CENSO_COMPLETO`; Territorial Efficiency ainda não tem
+  fórmula definida).
 
 Como o Opportunity Score exige todos os componentes ponderados presentes, ele permanece
-**bloqueado (`null`) para todo município** enquanto risco Sinesp e White Space não forem
-processados — isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em
+**bloqueado (`null`) para todo município** enquanto Need, White Space e Territorial Efficiency não
+forem definidos — isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em
 oportunidade.
 
 ```text

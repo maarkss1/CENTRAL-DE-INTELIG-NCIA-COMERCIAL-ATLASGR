@@ -179,6 +179,10 @@ def index_by_ibge(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {row["ibgeCode"]: row for row in rows}
 
 
+def index_by_uf(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {row["uf"]: row for row in rows}
+
+
 def build_records(
     municipios: list[dict[str, Any]],
     icp_by_code: dict[str, dict[str, Any]],
@@ -187,15 +191,26 @@ def build_records(
     competition_by_code: dict[str, dict[str, Any]],
     mdfe_origins_by_code: dict[str, dict[str, Any]] | None = None,
     mdfe_destinations_by_code: dict[str, dict[str, Any]] | None = None,
+    risk_by_uf: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     mdfe_origins_by_code = mdfe_origins_by_code or {}
     mdfe_destinations_by_code = mdfe_destinations_by_code or {}
+    risk_by_uf = risk_by_uf or {}
 
     icp_weighted = {
         code: sum(row.get(tier, 0) * weight for tier, weight in ICP_TIER_WEIGHTS.items())
         for code, row in icp_by_code.items()
     }
     icp_percentiles = percentile_scores(icp_weighted)
+
+    # Risco (Sinesp) so existe em granularidade UF (achado real da fonte, ver FONTES.md) --
+    # percentil calculado uma vez por UF e aplicado a todo municipio daquela UF como PROXY,
+    # nunca como OBSERVADO municipal.
+    risk_weighted_by_uf = {
+        uf: (row.get("cargoRobbery", 0) + row.get("vehicleRobbery", 0) + row.get("vehicleTheft", 0))
+        for uf, row in risk_by_uf.items()
+    }
+    risk_percentiles_by_uf = percentile_scores(risk_weighted_by_uf)
 
     rntrc_weighted = {code: row.get("transporters", 0) for code, row in rntrc_by_code.items()}
     rntrc_percentiles = percentile_scores(rntrc_weighted)
@@ -208,7 +223,7 @@ def build_records(
     mdfe_percentiles = percentile_scores(mdfe_weighted)
 
     records: list[dict[str, Any]] = []
-    stats = {"total": 0, "with_icp": 0, "with_rntrc": 0, "with_fleet": 0, "with_mdfe": 0, "with_competition_signal": 0}
+    stats = {"total": 0, "with_icp": 0, "with_rntrc": 0, "with_fleet": 0, "with_mdfe": 0, "with_risk_proxy": 0, "with_competition_signal": 0}
 
     for muni in municipios:
         code = muni["ibgeCode"]
@@ -271,7 +286,20 @@ def build_records(
             "nationalRemoteCoverage": 0,
         }
 
-        risk_component = NAO_DISPONIVEL("Base nacional de risco Sinesp ainda nao processada.")
+        risk_uf_row = risk_by_uf.get(muni["uf"])
+        if risk_uf_row:
+            stats["with_risk_proxy"] += 1
+            risk_metrics = {
+                "cargoRobbery": risk_uf_row["cargoRobbery"], "vehicleRobbery": risk_uf_row["vehicleRobbery"],
+                "vehicleTheft": risk_uf_row["vehicleTheft"], "geography": "PROXY_UF",
+            }
+            # PROXY, nunca OBSERVADO: e o mesmo valor de UF aplicado a todo municipio da UF,
+            # com confianca reduzida por nao ser observacao municipal direta.
+            risk_component = ScoreComponent(risk_percentiles_by_uf.get(muni["uf"], 0.0), 0.5, "PROXY", f"Risco Sinesp disponivel apenas em nivel UF ({muni['uf']}), aplicado como proxy municipal.")
+        else:
+            risk_metrics = {"cargoRobbery": None, "vehicleRobbery": None, "vehicleTheft": None, "geography": "NAO_DISPONIVEL"}
+            risk_component = NAO_DISPONIVEL("Base nacional de risco Sinesp ainda nao processada.")
+
         competition_pressure = NAO_DISPONIVEL(f"Censo de concorrencia em {census_status}, nao CENSO_COMPLETO.")
         white_space = NAO_DISPONIVEL(f"White Space bloqueado: concorrencia esta em {census_status}.")
         territorial_efficiency = NAO_DISPONIVEL("Formula de eficiencia territorial ainda nao definida (depende de malha viaria).")
@@ -304,6 +332,8 @@ def build_records(
             evidence_ids.append("senatran")
         if code in mdfe_codes:
             evidence_ids.append("mdfe-ciot")
+        if risk_uf_row:
+            evidence_ids.append("sinesp-vde-uf")
 
         records.append({
             "ibgeCode": code, "name": muni["name"], "uf": muni["uf"], "region": muni["region"],
@@ -313,7 +343,7 @@ def build_records(
             # manifests/tonnes/tku permanecem null: a fonte (CIOT) mede operacoes contratadas,
             # nao manifestos, e nao publica peso/TKU por municipio -- ver FONTES.md.
             "mdfe": {"trips": mdfe_trips, "manifests": None, "tonnes": None, "tku": None, "interstateShare": None},
-            "risk": {"cargoRobbery": None, "vehicleRobbery": None, "vehicleTheft": None, "geography": "NAO_DISPONIVEL"},
+            "risk": risk_metrics,
             "competition": competition_metrics,
             "scores": {
                 "demand": demand.to_json(),
@@ -356,12 +386,15 @@ def main() -> int:
     mdfe_origins_by_code = index_by_ibge(load_json(mdfe_origins_path)) if mdfe_origins_path.exists() else {}
     mdfe_destinations_by_code = index_by_ibge(load_json(mdfe_destinations_path)) if mdfe_destinations_path.exists() else {}
 
+    risk_uf_path = args.data_dir / "risco_uf.json"
+    risk_by_uf = index_by_uf(load_json(risk_uf_path)) if risk_uf_path.exists() else {}
+
     ibge_by_name = {(norm(row["uf"]), norm(row["name"])): row for row in municipios}
     competition_by_code = load_competition_seed(args.concorrencia_seed, ibge_by_name)
 
     records, stats = build_records(
         municipios, icp_by_code, rntrc_by_code, senatran_by_code, competition_by_code,
-        mdfe_origins_by_code, mdfe_destinations_by_code,
+        mdfe_origins_by_code, mdfe_destinations_by_code, risk_by_uf,
     )
     if not records:
         raise SystemExit("Agregacao municipal vazia")
@@ -370,12 +403,15 @@ def main() -> int:
     output.write_text(json.dumps(records, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
     has_mdfe = stats["with_mdfe"] > 0
-    unavailable_components = ["risk", "need", "whiteSpace", "territorialEfficiency"]
+    has_risk = stats["with_risk_proxy"] > 0
+    unavailable_components = ["need", "whiteSpace", "territorialEfficiency"]
     if not has_mdfe:
         unavailable_components.insert(0, "mdfe")
+    if not has_risk:
+        unavailable_components.insert(0, "risk")
 
     metadata = {
-        "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + MDF-e/CIOT + IBGE/BCIM + seed de concorrencia)",
+        "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + MDF-e/CIOT + risco Sinesp + IBGE/BCIM + seed de concorrencia)",
         "processedAt": datetime.now(timezone.utc).isoformat(),
         "outputSha256": sha256_file(output),
         "stats": stats,
@@ -383,14 +419,16 @@ def main() -> int:
             "demandScore": "percentil nacional ponderado por tier ICP (A=3, B=2, C=1)",
             "rntrcScore": "percentil nacional da contagem de transportadores RNTRC ativos",
             "mdfeScore": "percentil nacional de viagens CIOT (origem + destino) por municipio, quando o dataset mdfe_*.json existe",
-            "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate risco Sinesp/White Space/eficiencia territorial existirem",
+            "riskScore": "percentil nacional (roubo de carga + roubo de veiculo + furto de veiculo) por UF, quando risco_uf.json existe; PROXY, nao OBSERVADO -- e o mesmo valor de UF aplicado a todo municipio da UF, fonte nao publica granularidade municipal para estes indicadores (ver FONTES.md)",
+            "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate 'need' (derivado do risco, formula ainda nao definida), White Space e eficiencia territorial existirem",
         },
         "unavailableComponents": unavailable_components,
         "transformations": [
             "join por codigo IBGE entre municipios.json, icp_municipios.json, rntrc_municipios.json, senatran_frota_municipios.json e mdfe_origens/destinos_municipios.json (quando presentes)",
+            "join por UF entre municipios.json e risco_uf.json (quando presente) -- risco Sinesp e PROXY_UF, nunca municipal",
             "join do seed de concorrencia por nome+UF (unico dataset sem codigo IBGE na fonte)",
             "frota SENATRAN reclassificada em tracao (CAMINHAO + CAMINHAO TRATOR) e implemento (REBOQUE + SEMI-REBOQUE), mesma distincao do dicionario ANTT",
-            "opportunity score por municipio permanece bloqueado enquanto risco Sinesp e White Space nao existirem -- nunca estimado",
+            "opportunity score por municipio permanece bloqueado enquanto 'need' (derivado do risco), White Space e eficiencia territorial nao existirem -- nunca estimado",
         ],
     }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")

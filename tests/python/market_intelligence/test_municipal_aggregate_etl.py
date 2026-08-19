@@ -115,6 +115,32 @@ class BuildRecordsTests(unittest.TestCase):
         self.assertIsNone(row["scores"]["rawOpportunity"]["value"])
         self.assertNotIn("mdfe:", row["scores"]["rawOpportunity"]["reason"])
 
+    def test_risk_is_proxy_uf_shared_across_municipalities_in_the_same_uf(self) -> None:
+        municipios = [
+            {"ibgeCode": "1", "name": "Alfa", "uf": "SP", "region": "Sudeste", "latitude": -1.0, "longitude": -2.0},
+            {"ibgeCode": "2", "name": "Beta", "uf": "SP", "region": "Sudeste", "latitude": -3.0, "longitude": -4.0},
+            {"ibgeCode": "3", "name": "Gama", "uf": "GO", "region": "Centro-Oeste", "latitude": -5.0, "longitude": -6.0},
+        ]
+        risk_by_uf = {
+            "SP": {"uf": "SP", "cargoRobbery": 100, "vehicleRobbery": 50, "vehicleTheft": 200},
+        }
+
+        records, stats = build_records(municipios, {}, {}, {}, {}, risk_by_uf=risk_by_uf)
+        self.assertEqual(stats["with_risk_proxy"], 2)  # so as 2 de SP, nao a de GO
+
+        by_code = {row["ibgeCode"]: row for row in records}
+        alfa, beta, gama = by_code["1"], by_code["2"], by_code["3"]
+
+        self.assertEqual(alfa["risk"], beta["risk"])  # mesmo valor de UF compartilhado
+        self.assertEqual(alfa["risk"]["cargoRobbery"], 100)
+        self.assertEqual(alfa["risk"]["geography"], "PROXY_UF")
+        self.assertEqual(alfa["scores"]["risk"]["availability"], "PROXY")
+        self.assertIn("sinesp-vde-uf", alfa["evidenceIds"])
+
+        self.assertEqual(gama["risk"]["geography"], "NAO_DISPONIVEL")
+        self.assertEqual(gama["scores"]["risk"]["availability"], "NAO_DISPONIVEL")
+        self.assertNotIn("sinesp-vde-uf", gama["evidenceIds"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,7 +5,7 @@
   "decisionReady": false,
   "decisionBlockers": [
     "Fluxo de carga (MDF-e via proxy CIOT) tem ETL pronto e validado, mas ainda não foi publicado pelo workflow automatizado; agregado municipal/corredor real aguarda a primeira execução de market-intelligence-mdfe.yml.",
-    "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
+    "Risco Sinesp tem ETL pronto e validado (granularidade UF -- fonte oficial não publica granularidade municipal para roubo de carga/veículo e furto de veículo), mas ainda não foi publicado pelo workflow automatizado; aguarda a primeira execução de market-intelligence-sinesp.yml. Mesmo publicado, o Opportunity Score continua bloqueado até a fórmula de 'Need' (risco → oportunidade) ser definida.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
     "Premissas econômicas reais da Atlas para ticket, margem, win rate, ciclo e custo do vendedor ainda não foram informadas/calibradas."
   ],
@@ -70,9 +70,10 @@
       "id": "risk",
       "label": "MJSP / Sinesp VDE",
       "status": "NAO_DISPONIVEL",
-      "source": "MJSP / Sinesp",
-      "geography": "Município quando disponível; PROXY UF quando necessário",
-      "note": "ETL existe; snapshot nacional da janela definida ainda não foi produzido."
+      "source": "MJSP / Sinesp (bancovde-<ano>.xlsx)",
+      "geography": "PROXY_UF (fonte não publica granularidade municipal para roubo de carga/veículo e furto de veículo -- confirmado processando o arquivo real)",
+      "municipalUse": "PROXY_UF",
+      "note": "ETL implementado (etl_sinesp_risco.py) com descoberta automática do ano vigente e parser stdlib em streaming, validado com dado real (2026-01 a 2026-07, 27 UFs). Aguarda a primeira execução do workflow market-intelligence-sinesp.yml para publicar risco_uf.json."
     },
     {
       "id": "competition",
