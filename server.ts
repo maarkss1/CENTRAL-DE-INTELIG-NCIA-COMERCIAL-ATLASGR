@@ -34,6 +34,7 @@ import { contactRoutes } from './src/features/contacts/routes/contact.routes.js'
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { crm360PublicRoutes } from './src/features/crm360/routes/crm360Public.routes.js';
+import { emailReplyWebhookRoutes } from './src/features/integrations/email/emailReply.webhook.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
 import { mesaTratamentoRoutes } from './src/features/mesa-tratamento/routes/mesaTratamento.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
@@ -273,6 +274,10 @@ async function startServer() {
     // lead cross-tenant sem RLS, nenhuma idempotência e req.body undefined (montado antes do
     // express.json() global sem parser próprio) — ver o comentário no topo daquele arquivo.
     app.use('/api/webhooks/voice-result', voiceResultWebhookRoutes);
+    // Webhook de e-mail de ENTRADA (CYC-003, onda 26) — stub de transporte: nenhum provedor real de
+    // inbound-parse plugado ainda, ver comentário no topo de emailReply.webhook.ts. Mesmo padrão de
+    // montagem pré-express.json() dos webhooks acima (assinatura HMAC sobre o corpo cru).
+    app.use('/api/webhooks/email', emailReplyWebhookRoutes);
     // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
     // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver

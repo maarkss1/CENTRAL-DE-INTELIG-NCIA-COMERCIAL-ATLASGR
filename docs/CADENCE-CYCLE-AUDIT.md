@@ -32,6 +32,19 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > visualização real e avança `Enviado → Visualizado` na primeira abertura do link. CYC-003, CYC-004,
 > CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs
 > separados).
+>
+> **Atualização — Onda 26**: CYC-003 (reply tracking de e-mail) conectado — ver seção CYC-003
+> abaixo. Decisão de produto confirmada com o usuário: construir a arquitetura completa (webhook de
+> entrada real, idempotência, filtro de auto-resposta/bounce, classificação de intenção,
+> `ConversationSignal`/timeline reais) com um **stub de transporte** — nenhum provedor real de
+> inbound-parse de e-mail (SendGrid/Postmark/Mailgun) está plugado ainda, porque este projeto não
+> tem hoje uma caixa de e-mail dedicada por organização (`SMTP_*` é uma conta compartilhada). O
+> endpoint (`POST /api/webhooks/email/webhook`) aceita o payload que um provedor real entregaria
+> depois de resolver `organizationId` — plugar o provedor real depois é só apontar o webhook dele
+> para cá. `EmailMessage` sai da lista de tabelas mortas. `hasLeadReplied` (o sinal real que
+> `advanceCadenceRun` usa para parar a cadência) passou a enxergar réplica de e-mail além de
+> WhatsApp. CYC-004, CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados
+> (seguem em PRs separados).
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -46,8 +59,9 @@ Concretamente, os seguintes módulos existem como domínio testado mas **sem nen
 produção**:
 - `src/features/cadence/application/cadenceService.ts` (`advanceCadenceRun`) — ninguém o chama
   fora de testes; não há worker BullMQ, fila ou cron para cadência.
-- `src/features/cadence/domain/replyTracking.ts` — porta pronta para reply tracking de e-mail;
-  sem transporte de e-mail de entrada (IMAP/webhook) para alimentá-la.
+- ~~`src/features/cadence/domain/replyTracking.ts` — porta pronta para reply tracking de e-mail;
+  sem transporte de e-mail de entrada (IMAP/webhook) para alimentá-la.~~ Conectado na Onda 26 (ver
+  CYC-003) com um stub de transporte real (`emailReply.webhook.ts`).
 - `src/features/cadence/domain/scheduling.ts` — guardrails anti-inferência-de-IA para agendamento
   bem desenhados e testados; sem `CalendarSchedulerPort` real (não existe criação de evento no
   Google Calendar em lugar nenhum do código, só leitura via OAuth).
@@ -57,9 +71,10 @@ produção**:
   contra "texto de IA nunca fecha negócio"; nunca chamado por `LeadUseCases.updateLeadStatus`.
 - `CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
   qualquer provedor (gov.br foi a decisão de produto documentada, mas nada foi implementado).
-- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `EmailMessage`,
-  `CadenceCalendarEvent`, `CrmCommercialDocumentVersion`, `CrmDocumentSignatureRequest`,
-  `DealClosureEvent`.
+- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `CadenceCalendarEvent`
+  e `CrmDocumentSignatureRequest` (ambas ainda sem provedor real plugado, CYC-004/CYC-006).
+  `EmailMessage` saiu desta lista na Onda 26 (CYC-003); `CrmCommercialDocumentVersion` saiu na
+  Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24 (CYC-007).
 
 O que **está** ativo em produção hoje, cobrindo parcialmente o mesmo território, é um sistema
 legado paralelo que não conhece nada do módulo novo: `src/features/crm/jobs/followUp.worker.ts`
@@ -122,11 +137,42 @@ conectado desde a onda-19/onda-22.**
 
 ## CYC-003 — Reply tracking de e-mail
 
-**Estado: inexistente em produção.** Só a "porta" de domínio (`replyTracking.ts`) e o schema
-(`EmailMessage`) existem, ambos órfãos — sem IMAP/webhook de entrada, sem persistência, sem
-`ConversationSignal` de canal `email` gravado. O padrão de referência (WhatsApp) está implementado
-e conectado ponta a ponta, exceto o passo "encerra/pausa cadência", que não está ligado à máquina
-de estados formal para nenhum canal — hoje só reage a opt-out explícito.
+**Estado: conectado com um stub de transporte real (Onda 26).** A "porta" de domínio
+(`replyTracking.ts`, `isGenuineLeadReply`/`handleEmailReply`) agora tem um caller de produção real:
+
+- `POST /api/webhooks/email/webhook` (`src/features/integrations/email/emailReply.webhook.ts`) —
+  transporte de ENTRADA. Fail-closed (503 sem `EMAIL_INBOUND_WEBHOOK_SECRET`), assinatura HMAC
+  sobre o corpo cru (mesmo esquema de `birthVoice.webhook.ts`), idempotente por
+  `providerMessageId` (`@@unique([organizationId, providerMessageId])` em `EmailMessage`). É um
+  **stub** de propósito (decisão de produto: "construir com stub, plugar depois"): nenhum provedor
+  real de inbound-parse (SendGrid/Postmark/Mailgun) está plugado — o endpoint aceita diretamente o
+  payload que esse provedor entregaria depois de resolver `organizationId`, já que o projeto não
+  tem hoje uma caixa de e-mail dedicada por tenant (`SMTP_*` é uma conta compartilhada). Tudo a
+  partir da assinatura — idempotência, filtro de auto-resposta/bounce, classificação, persistência
+  — é real, não simulado.
+- Auto-resposta/bounce (`isGenuineLeadReply` — assunto tipo "Out of Office"/"Undeliverable", header
+  `Auto-Submitted` diferente de `no`) nunca vira `EmailMessage` nem `ConversationSignal` — o próprio
+  módulo de domínio documenta que isso não pode virar sinal, e o webhook aplica o filtro antes de
+  qualquer escrita.
+- Réplica genuína: resolve o lead em aberto por dica direta (`leadId`, quando o provedor já
+  souber) ou pelo e-mail do contato dentro da própria organização (mesmo raciocínio de
+  `findContactByPhone` do WhatsApp, mas por e-mail — sempre dentro de
+  `requestContext.run({ tenantId })`, nunca cross-tenant). Persiste `EmailMessage` (`direction:
+  'inbound'`) mesmo quando nenhum lead corresponde (auditoria, `leadId` nulo). Quando há lead,
+  classifica a intenção via `emailIntentClassifier` (implementação real de `IntentClassifierPort`,
+  mesmo padrão de extração de `conversation-intelligence.service.ts` do WhatsApp) e grava
+  `ConversationSignal` com `channel: 'email'` via `prismaConversationSignalPort`, mais um evento de
+  timeline.
+- `hasLeadReplied` (`src/features/cadence/infra/hasLeadReplied.ts`) — o sinal real que
+  `advanceCadenceRun` usa para parar a cadência com o motivo `lead-reply` — passou a checar
+  `EmailMessage.direction === 'inbound'` além de `WhatsAppMessage`. Antes desta rodada, uma cadência
+  com toques de e-mail que só recebia resposta por e-mail nunca parava sozinha por esta checagem;
+  agora para, com a mesma garantia (auto-resposta/bounce nunca conta como réplica).
+- `EmailMessage` sai da lista de tabelas mortas confirmadas deste documento.
+- Gap que permanece fora de escopo desta rodada: como resolver `organizationId` a partir de uma
+  caixa de e-mail real (sem stub) — depende de decisão de produto sobre inbox por tenant vs. tag de
+  endereço de resposta, e do provedor de inbound-parse escolhido. O padrão de referência (WhatsApp)
+  segue implementado e conectado ponta a ponta.
 
 ## CYC-004 — Agendamento Google
 
@@ -275,7 +321,7 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 |---|---|---|
 | CYC-001 Opt-out | Sim — gap de enforcement no WhatsApp manual | Maioria implementada e enforced; unificação parcial |
 | CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
-| CYC-003 Reply tracking e-mail | Não | Só domínio/schema órfãos |
+| CYC-003 Reply tracking e-mail | Sim (Onda 26) | Webhook real (stub de transporte) conectado; `hasLeadReplied` cobre e-mail |
 | CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
 | CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
 | CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |

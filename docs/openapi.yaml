@@ -3130,6 +3130,46 @@ paths:
         '503':
           description: ATLASGR_WEBHOOK_SECRET não configurado (fail-closed)
 
+  /webhooks/email/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de e-mail de ENTRADA (CYC-003, onda 26) — stub de transporte: aceita diretamente o
+        payload que um provedor real de inbound-parse (SendGrid/Postmark/Mailgun) entregaria depois
+        de resolver `organizationId`, já que este projeto não tem hoje uma caixa de e-mail dedicada
+        por tenant (ver `src/features/integrations/email/emailReply.webhook.ts`). Corpo cru
+        (`express.raw`, não depende do `express.json()` global), assinatura HMAC em
+        `x-email-inbound-signature` comparada em tempo constante contra
+        `EMAIL_INBOUND_WEBHOOK_SECRET`, idempotente por `providerMessageId`. Auto-respostas/bounce
+        (`isGenuineLeadReply`) nunca viram `EmailMessage`/`ConversationSignal`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId, providerMessageId, fromEmail]
+              properties:
+                organizationId: { type: string }
+                leadId: { type: string, description: 'Dica direta de lead — resolvido por e-mail do contato quando ausente.' }
+                providerMessageId: { type: string }
+                inReplyTo: { type: string, nullable: true }
+                fromEmail: { type: string }
+                toEmail: { type: string }
+                subject: { type: string, nullable: true }
+                body: { type: string }
+                autoSubmittedHeader: { type: string, nullable: true }
+                receivedAt: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Processado (outcome ignored-auto-reply | duplicate | lead-not-found | recorded)
+        '400':
+          description: Corpo inválido ou campos obrigatórios ausentes
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: EMAIL_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
+
   /integrations/bitrix:
     post:
       tags: [Webhooks]

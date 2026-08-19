@@ -142,6 +142,12 @@ const envSchema = z.object({
   /** Endereço "De" usado no envio — cai para SMTP_USER quando ausente. */
   SMTP_FROM: z.string().optional(),
 
+  // Segredo do webhook /api/webhooks/email/inbound (CYC-003, onda 26) — transporte de e-mail de
+  // ENTRADA, hoje um stub (nenhum provedor real de inbound-parse plugado, ver
+  // emailReply.webhook.ts). Mesmo esquema fail-closed de BIRTH_VOICES_WEBHOOK_SECRET: sem ele o
+  // webhook responde 503, nunca cai para um valor default versionado.
+  EMAIL_INBOUND_WEBHOOK_SECRET: z.string().optional(),
+
   // ── Retenção de histórico de extrações Bitrix (BitrixExtractionRun) ─────
   // Onda 6, Agente 01A: o schema não precisa esperar a decisão humana de prazo pra existir, só o
   // parâmetro. Mesmo padrão de janela já usado no worker de anonimização de leads desqualificados
