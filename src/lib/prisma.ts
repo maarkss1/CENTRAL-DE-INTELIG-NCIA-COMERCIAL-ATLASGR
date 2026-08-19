@@ -128,7 +128,20 @@ export const prisma = basePrisma.$extends({
         // dado de outra organização é lido além da lista de runs ativos e das sequências que eles
         // referenciam (nenhuma delas contém credencial ou dado pessoal do lead, diferente de
         // BitrixConnection).
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence'];
+        // Lead entrou nesta allowlist pelo MESMO motivo e pelo MESMO teste de integração real que
+        // confirmou CadenceRun/CadenceSequence: `followUp.worker.ts` (job diário de follow-up de
+        // WhatsApp, cron 0 9 * * *) varre leads elegíveis de TODAS as organizações antes de saber
+        // qual tenant escopar, exatamente como o worker de cadência. Sem isto, essa varredura
+        // sempre devolvia 0 linhas em produção — o follow-up automático nunca disparava para
+        // ninguém, silenciosamente (nenhum erro, nenhum log de falha: o worker via "0 leads
+        // elegíveis hoje" e seguia em frente). O `include: { contact: true }` da mesma query
+        // também precisa do bypass: a política de RLS é por sessão Postgres (`app.bypass_rls`),
+        // não por model do Prisma, então o JOIN para Contact dentro dessa MESMA transação herda o
+        // mesmo bypass — inerente ao que este worker já precisa fazer (ler telefone de leads de
+        // qualquer tenant para decidir quem mensagear), não uma exposição nova. bypassRls só cobre
+        // esta descoberta inicial: o envio real e o `Lead.update` seguinte rodam escopados por
+        // tenant (`requestContext.run({ tenantId: lead.organizationId })`), sem bypass.
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [
