@@ -309,17 +309,15 @@ def main() -> int:
 
     ibge = load_ibge(args.workdir / "ibge_municipios.json")
     result = aggregate(args.input, ibge)
-    flow_rows, origin_rows, destination_rows, corridors = result["flowRows"], result["originRows"], result["destinationRows"], result["corridors"]
+    origin_rows, destination_rows, corridors = result["originRows"], result["destinationRows"], result["corridors"]
     stats, cargo_mix, recognized = result["stats"], result["cargoMix"], result["recognized"]
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
-        "flows": args.output_dir / "mdfe_fluxos.json",
         "origins": args.output_dir / "mdfe_origens_municipios.json",
         "destinations": args.output_dir / "mdfe_destinos_municipios.json",
         "corridors": args.output_dir / "mdfe_corredores.json",
     }
-    outputs["flows"].write_text(json.dumps(flow_rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     outputs["origins"].write_text(json.dumps(origin_rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     outputs["destinations"].write_text(json.dumps(destination_rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     outputs["corridors"].write_text(json.dumps(corridors[:5000], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -350,7 +348,10 @@ def main() -> int:
             "A página pública da ANTT de MDF-e expõe apenas um painel interativo (Power BI), sem exportação aberta; CIOT é usado como proxy documentado de fluxo origem-destino até uma exportação MDF-e oficial existir.",
             "CIOT mede operação de transporte contratada (1 CIOT = 1 operação), não manifesto eletrônico; o campo 'manifests' (contagem de MDF-e) permanece null quando a fonte é CIOT.",
             "Campos ausentes permanecem null e não são convertidos em zero.",
-            "Top corredores no JSON web é limitado a 5.000 linhas; o agregado completo permanece reproduzível pelo ETL.",
+            "Top corredores no JSON web é limitado a 5.000 linhas. O agregado completo por origem+destino+carga "
+            "(mdfe_fluxos.json, granularidade de linha) não é publicado no bundle web: excede o limite de 100MB "
+            "por arquivo do GitHub (161MB observado na competência 2026-07, ~1200 grupos NCM por par de município). "
+            "Permanece reproduzível localmente rodando este ETL; nenhum código do produto le esse arquivo hoje.",
         ],
     }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
