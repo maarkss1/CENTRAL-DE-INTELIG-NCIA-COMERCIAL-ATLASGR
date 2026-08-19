@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../features/chatbook/constants/brandMatrices';
 import type { BrandInfo } from '../contexts/BrandContext';
 import { useActiveRecord } from '../contexts/ActiveRecordContext';
+import { buildAssistantLocalContext, getAssistantRouteContext, type AssistantContextSource } from './assistantContext';
 
 export interface ChatMessage {
     id: string;
     sender: 'user' | 'bot';
     text: string;
     timestamp: string;
-    source?: 'internal' | 'web_search' | 'roleplay';
+    source?: AssistantContextSource;
 }
 
 function timestamp(): string {
@@ -25,7 +27,7 @@ function greeting(brandInfo: BrandInfo, activeRecordLabel?: string): ChatMessage
         sender: 'bot',
         text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.${recordLine}`,
         timestamp: timestamp(),
-        source: 'web_search',
+        source: 'general',
     };
 }
 
@@ -36,10 +38,11 @@ function greeting(brandInfo: BrandInfo, activeRecordLabel?: string): ChatMessage
  */
 export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, selectedBrand: 'atlasgr' | 'totaltrac') {
     const { activeRecord } = useActiveRecord();
+    const location = useLocation();
     const [messages, setMessages] = useState<ChatMessage[]>([greeting(brandInfo, activeRecord?.label)]);
     const [inputQuery, setInputQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
-    const [searchMode, setSearchMode] = useState<'internal' | 'web_search' | 'roleplay'>('web_search');
+    const [searchMode, setSearchMode] = useState<'internal' | 'general'>('general');
 
     useEffect(() => {
         setMessages([greeting(brandInfo, activeRecord?.label)]);
@@ -88,11 +91,9 @@ export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, sele
             )
         );
 
-        // O registro aberto na tela (empresa/negócio) vale em qualquer modo — não é "base interna
-        // da marca", é literalmente o que o usuário está olhando agora.
-        const activeRecordContext = activeRecord
-            ? `REGISTRO ABERTO NA TELA (${activeRecord.type === 'company' ? 'empresa' : 'negócio'}): ${activeRecord.label}${activeRecord.summary ? ` — ${activeRecord.summary}` : ''}`
-            : '';
+        // A rota e o registro aberto na tela valem em qualquer modo — não são "base interna
+        // da marca", são literalmente o fluxo comercial que o usuário está executando agora.
+        const routeContext = getAssistantRouteContext(location.pathname);
 
         const internalContext = searchMode === 'internal'
             ? [
@@ -105,7 +106,11 @@ export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, sele
             ].filter(Boolean).join('\n\n')
             : '';
 
-        const localContext = [activeRecordContext, internalContext].filter(Boolean).join('\n\n');
+        const localContext = buildAssistantLocalContext({
+            route: routeContext,
+            activeRecord,
+            internalContext,
+        });
 
         try {
             const response = await api.post<{ result: { answer: string; webAccess: false } }>('/api/intelligence/studio', {
@@ -116,7 +121,7 @@ export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, sele
                 },
                 inputs: {
                     question: userText,
-                    mode: searchMode === 'internal' ? 'internal' : 'general',
+                    mode: searchMode,
                     localContext,
                 },
             }, { timeoutMs: 90_000 });
