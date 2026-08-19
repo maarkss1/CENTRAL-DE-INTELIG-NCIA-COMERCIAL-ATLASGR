@@ -2488,6 +2488,35 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/DataEnvelope' }
 
+  /crm/documents/{id}/request-signature:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [CRM 360]
+      summary: >-
+        Solicita assinatura eletrônica real de um documento (CYC-006, onda 28) — provedor
+        `'govbr'`, stub de transporte (ver `GovBrSignatureProviderPort.ts`). `signerEmail`/
+        `signerName` são opcionais: caem no e-mail/nome do Contact vinculado ao documento quando
+        ausentes.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signerEmail: { type: string, format: email }
+                signerName: { type: string }
+      responses:
+        '201':
+          description: Solicitação criada e enviada ao provedor (stub)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Documento não encontrado nesta organização
+        '422':
+          description: Documento sem e-mail de assinante (nem contato vinculado, nem signerEmail no body)
+
   /public/proposals/{token}/view:
     parameters:
       - name: token
@@ -3205,6 +3234,40 @@ paths:
           description: Assinatura HMAC inválida
         '503':
           description: EMAIL_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /webhooks/signature/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de status de assinatura eletrônica de ENTRADA (CYC-006, onda 28). O ENVIO da
+        solicitação é um stub (nenhuma credencial de integrador gov.br configurada, ver
+        `src/features/cadence/infra/GovBrSignatureProviderPort.ts`), mas este webhook de entrada já
+        é real. Corpo cru (`express.raw`), assinatura HMAC em `x-signature-webhook-signature`
+        comparada em tempo constante contra `SIGNATURE_INBOUND_WEBHOOK_SECRET`. Idempotente/seguro
+        contra reentrega e entrega fora de ordem: `isValidSignatureTransition` rejeita qualquer
+        transição que não seja permitida pelo fluxo real de assinatura, nunca reverte um estado
+        terminal (`signed`/`declined`/`expired`/`cancelled`) já aplicado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, providerRequestId, status]
+              properties:
+                provider: { type: string, example: govbr }
+                providerRequestId: { type: string }
+                status: { type: string, enum: [created, sent, viewed, signed, declined, expired, cancelled] }
+                evidenceRef: { type: string, nullable: true, description: 'URL/id do certificado de assinatura devolvido pelo provedor.' }
+      responses:
+        '200':
+          description: Processado (outcome applied | ignored, com reason not-found | invalid-transition quando ignored)
+        '400':
+          description: Corpo inválido, ou status ausente/fora do vocabulário aceito
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: SIGNATURE_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
 
   /integrations/bitrix:
     post:

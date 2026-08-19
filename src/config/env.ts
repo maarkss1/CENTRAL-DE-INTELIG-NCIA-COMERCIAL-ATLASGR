@@ -148,6 +148,13 @@ const envSchema = z.object({
   // webhook responde 503, nunca cai para um valor default versionado.
   EMAIL_INBOUND_WEBHOOK_SECRET: z.string().optional(),
 
+  // Segredo do webhook /api/webhooks/signature/webhook (CYC-006, onda 28) — atualização de status
+  // de assinatura eletrônica vinda do provedor. O ENVIO da solicitação é um stub (nenhuma
+  // credencial de integrador gov.br configurada, ver GovBrSignatureProviderPort.ts), mas este
+  // webhook de ENTRADA já é real: fail-closed sem o segredo, mesmo esquema de
+  // EMAIL_INBOUND_WEBHOOK_SECRET.
+  SIGNATURE_INBOUND_WEBHOOK_SECRET: z.string().optional(),
+
   // ── Retenção de histórico de extrações Bitrix (BitrixExtractionRun) ─────
   // Onda 6, Agente 01A: o schema não precisa esperar a decisão humana de prazo pra existir, só o
   // parâmetro. Mesmo padrão de janela já usado no worker de anonimização de leads desqualificados

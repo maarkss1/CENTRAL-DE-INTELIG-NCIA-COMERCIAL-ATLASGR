@@ -60,6 +60,15 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > reconsentimento de toda organização já conectada, uma mudança de produto real fora do escopo
 > desta rodada. `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas. CYC-006 e CYC-009
 > permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados).
+>
+> **Atualização — Onda 28**: CYC-006 (assinatura eletrônica) conectado — ver seção CYC-006 abaixo.
+> `POST /api/crm/documents/:id/request-signature` cria uma solicitação real (provedor `'govbr'`,
+> stub de transporte — mesma categoria de CYC-003/CYC-004: nenhuma credencial de integrador gov.br
+> configurada) e `POST /api/webhooks/signature/webhook` aplica atualizações de status reais vindas
+> do provedor, com um guardrail novo (`isValidSignatureTransition`, domínio puro testado) que
+> nunca reverte um estado terminal já aplicado (proteção real contra webhook fora de ordem ou
+> reentregue). `CrmDocumentSignatureRequest` sai da lista de tabelas mortas confirmadas. CYC-009
+> permanece como estava na Onda 18 — ainda não revisitado.
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -84,12 +93,13 @@ produção**:
   `CrmCommercialDocumentVersion` nunca é lido/escrito.
 - `src/features/cadence/domain/dealClosure.ts` (evento verificável de fechamento) — bem desenhado
   contra "texto de IA nunca fecha negócio"; nunca chamado por `LeadUseCases.updateLeadStatus`.
-- `CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
-  qualquer provedor (gov.br foi a decisão de produto documentada, mas nada foi implementado).
-- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `CrmDocumentSignatureRequest`
-  (ainda sem provedor real plugado, CYC-006). `EmailMessage` saiu desta lista na Onda 26 (CYC-003);
-  `CrmCommercialDocumentVersion` saiu na Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24
-  (CYC-007); `CadenceCalendarEvent` saiu na Onda 27 (CYC-004).
+- ~~`CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
+  qualquer provedor.~~ Conectado na Onda 28 (ver CYC-006) com um stub de transporte real (provedor
+  `'govbr'`, envio da solicitação é stub, webhook de status de entrada é real).
+- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): nenhuma restante
+  desta lista original. `EmailMessage` saiu na Onda 26 (CYC-003); `CrmCommercialDocumentVersion`
+  saiu na Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24 (CYC-007); `CadenceCalendarEvent`
+  saiu na Onda 27 (CYC-004); `CrmDocumentSignatureRequest` saiu na Onda 28 (CYC-006).
 
 O que **está** ativo em produção hoje, cobrindo parcialmente o mesmo território, é um sistema
 legado paralelo que não conhece nada do módulo novo: `src/features/crm/jobs/followUp.worker.ts`
@@ -250,11 +260,42 @@ rota pública nova.**
 
 ## CYC-006 — Assinatura eletrônica
 
-**Estado: inexistente em código.** Só o model `CrmDocumentSignatureRequest` + decisão de produto
-documentada (provedor gov.br, escolhido por ser oficial e gratuito) em comentário de schema e
-handoff. `provider` foi modelado como texto livre de propósito, para não travar em um enum —
-decisão saudável para quando a integração for construída, mas hoje não há nenhuma linha de
-integração real com nenhum provedor.
+**Estado (Onda 28): solicitação e atualização de status reais conectadas; envio ao provedor gov.br
+é um stub de transporte.**
+
+- **Domínio novo** (`src/features/cadence/domain/signature.ts`) — `isValidSignatureTransition`,
+  guardrail que decide se uma transição de status vinda de um webhook é aceitável dado o estado
+  atual: nunca permite sair de um estado terminal (`signed`/`declined`/`expired`/`cancelled`),
+  nunca pula etapa que o fluxo real de assinatura não anuncia (ex.: `created → signed` direto).
+  Protege contra o risco real de qualquer webhook externo — entrega fora de ordem ou reentregue.
+- **`POST /api/crm/documents/:id/request-signature`** (`crm360.routes.ts`, via
+  `Crm360UseCases`/`PrismaCrm360Repository`, mesmo padrão de `createDocument`/
+  `updateDocumentContent`) — cria a solicitação real (`CrmDocumentSignatureRequest`, status
+  `Created`), resolve `signerEmail`/`signerName` do `Contact` vinculado ao documento quando não
+  informados no corpo, e chama o provedor (stub) para obter um `providerRequestId` (status passa
+  para `Sent`).
+- **`POST /api/webhooks/signature/webhook`** (`signatureStatus.webhook.ts`, mesmo esquema de
+  `emailReply.webhook.ts`: HMAC fail-closed via `SIGNATURE_INBOUND_WEBHOOK_SECRET`, corpo cru) —
+  aplica a atualização de status real vinda do provedor via `applySignatureStatusUpdate`, que
+  resolve a solicitação por `provider`+`providerRequestId` (lookup com bypass de RLS controlado,
+  mesmo modelo de confiança de `recordDocumentView`/`publicToken` — o id é opaco e não
+  adivinhável) e só aplica quando `isValidSignatureTransition` aprova; caso contrário devolve 200
+  com `outcome: ignored`, nunca 5xx (reentregar não mudaria o resultado).
+- **Decisão de produto confirmada com o usuário**: o envio real da solicitação ao gov.br
+  (`GovBrSignatureProviderPort.ts`) é um **stub de transporte**, mesma categoria de CYC-003/CYC-004
+  — nenhuma credencial de integrador gov.br está configurada neste projeto. O stub devolve um
+  `providerRequestId` sintético (`stub-govbr-request-<uuid>`, logado como tal); tudo em volta —
+  criação da solicitação, guardrail de transição, webhook de status de entrada, persistência real
+  — não é simulado: plugar o provedor real depois é só trocar a função de envio por uma chamada
+  HTTP real à API do gov.br.
+- `provider` continua texto livre no schema (decisão de produto pré-existente, não alterada) —
+  `'govbr'` é o único valor usado nesta rodada.
+- `CrmDocumentSignatureRequest` sai da lista de tabelas mortas confirmadas.
+- Fora de escopo desta rodada (documentado, não corrigido): conectar `signature_completed` ao gate
+  de fechamento determinístico (`dealClosureGate.ts`, CYC-007) — o tipo já é aceito pelo domínio
+  `dealClosure.ts`, mas fechar automaticamente um negócio ao receber `signed` é uma decisão de
+  produto própria (mesmo peso da decisão já tomada no CYC-007 de não bloquear o fechamento manual
+  por falta de evidência), fora do escopo desta rodada.
 
 ## CYC-007 — Fechamento determinístico
 
@@ -362,7 +403,7 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 | CYC-003 Reply tracking e-mail | Sim (Onda 26) | Webhook real (stub de transporte) conectado; `hasLeadReplied` cobre e-mail |
 | CYC-004 Agendamento Google | Sim (Onda 27) | `manual-verified` conectado (Note + CadenceCalendarEvent reais); criação no Google é stub de transporte |
 | CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
-| CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
+| CYC-006 Assinatura eletrônica | Sim (Onda 28) | Solicitação + webhook de status reais; envio ao gov.br é stub de transporte |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
 | CYC-009 UI | Não | Rota real e no menu; somente leitura, sem E2E/a11y |

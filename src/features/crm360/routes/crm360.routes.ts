@@ -5,6 +5,7 @@ import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import {
     crmDealItemSchema,
     crmDocumentSchema,
+    crmDocumentSignatureRequestSchema,
     crmDocumentUpdateSchema,
     crmProductSchema,
     moveCrmRecordSchema,
@@ -79,5 +80,13 @@ router.put('/documents/:id', writeRoles, (req, res, next) => {
 router.get('/documents/:id/versions', (req, res, next) =>
     container.resolve<Crm360Controller>('Crm360Controller').listDocumentVersions(req, res, next)
 );
+
+// CYC-006 (onda 28): solicita assinatura eletrônica real (provedor 'govbr', stub de transporte —
+// ver GovBrSignatureProviderPort.ts). signerEmail/signerName no body são opcionais: caem no
+// e-mail/nome do Contact vinculado ao documento quando ausentes.
+router.post('/documents/:id/request-signature', writeRoles, (req, res, next) => {
+    crmDocumentSignatureRequestSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').requestDocumentSignature(req, res, next);
+});
 
 export const crm360Routes = router;
