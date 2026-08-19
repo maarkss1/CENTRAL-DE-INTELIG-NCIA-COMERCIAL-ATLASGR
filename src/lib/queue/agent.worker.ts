@@ -2,7 +2,7 @@ import { Worker, Job, Queue } from 'bullmq';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
-import { SDROutboundDraftAgent } from '../../features/intelligence/agents/sdr-agent.js';
+import { SDROutboundDraftAgent } from '../../features/intelligence/agents/sdrOutboundDraft.agent.js';
 import { registerQueueForMetrics, recordQueueJobCompleted } from './metrics.js';
 import { recordDeadLetter, isFinalAttempt } from './deadLetter.js';
 

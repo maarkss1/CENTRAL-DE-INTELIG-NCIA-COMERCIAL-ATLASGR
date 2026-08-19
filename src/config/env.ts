@@ -163,10 +163,13 @@ const envSchema = z.object({
 
   // ── Base legal LGPD para dado pessoal enviado a provedor de IA externo ──────
   // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
-  // assertPiiExternalConsent), consumido pelos 3 caminhos reais do enxame que buscam dado pessoal
-  // de um titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
-  // de IA externo (Groq/OpenAI/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId)
-  // e SDROutboundDraftAgent. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
+  // assertPiiExternalConsent), consumido pelos caminhos reais que buscam dado pessoal de um
+  // titular (Contact) real e o encaminham — mesmo que minimizado/tokenizado — a um provedor
+  // de IA externo (Groq/OpenAI/LiteLLM): SDRQualificationAgent, OpsAgent (quando há leadId),
+  // SDROutboundDraftAgent e AIService.qualifyLead (fluxo padrão de qualificação de todo lead —
+  // trava adicionada na AI-007, Sprint 07/onda-20; faltava até então). Os agentes BDR/Closer/CRM
+  // do enxame (autonomyRoleRunner) ainda NÃO passam por esta trava — gap documentado, não
+  // corrigido nesta rodada. Mesmo padrão de dois-fatores/fail-closed de SWARM_SCHEDULER_* e
   // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
   // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).
   AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: z.string().optional(),

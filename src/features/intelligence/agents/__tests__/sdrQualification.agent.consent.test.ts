@@ -13,7 +13,7 @@ vi.mock('../../../../lib/logger.js', () => ({
 }));
 
 const { requestContext } = await import('../../../../lib/async-context');
-const { SDRQualificationAgent } = await import('../sdr.agent');
+const { SDRQualificationAgent } = await import('../sdrQualification.agent');
 const { PiiConsentRequiredError } = await import('../../services/guardrails.service');
 
 afterEach(() => {
