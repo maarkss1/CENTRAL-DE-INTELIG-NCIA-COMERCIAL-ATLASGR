@@ -1,18 +1,20 @@
 {
-  "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + IBGE/BCIM + seed de concorrencia)",
-  "processedAt": "2026-08-19T13:28:30.914862+00:00",
-  "outputSha256": "bbef96a2da308c31e25a36411d9f8bd630aa25c2b43ed9179522df69e411b5c8",
+  "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + MDF-e/CIOT + IBGE/BCIM + seed de concorrencia)",
+  "processedAt": "2026-08-19T13:40:20.764284+00:00",
+  "outputSha256": "a382ad778c926d2014c50b5edefec6c38f5ec01888b92cc52d0ace206fcecbbc",
   "stats": {
     "total": 5571,
     "with_icp": 5554,
     "with_rntrc": 5422,
     "with_fleet": 5535,
+    "with_mdfe": 0,
     "with_competition_signal": 7
   },
   "methodology": {
     "demandScore": "percentil nacional ponderado por tier ICP (A=3, B=2, C=1)",
     "rntrcScore": "percentil nacional da contagem de transportadores RNTRC ativos",
-    "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate MDF-e/risco/White Space/eficiencia territorial existirem"
+    "mdfeScore": "percentil nacional de viagens CIOT (origem + destino) por municipio, quando o dataset mdfe_*.json existe",
+    "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate risco Sinesp/White Space/eficiencia territorial existirem"
   },
   "unavailableComponents": [
     "mdfe",
@@ -22,9 +24,9 @@
     "territorialEfficiency"
   ],
   "transformations": [
-    "join por codigo IBGE entre municipios.json, icp_municipios.json, rntrc_municipios.json e senatran_frota_municipios.json",
+    "join por codigo IBGE entre municipios.json, icp_municipios.json, rntrc_municipios.json, senatran_frota_municipios.json e mdfe_origens/destinos_municipios.json (quando presentes)",
     "join do seed de concorrencia por nome+UF (unico dataset sem codigo IBGE na fonte)",
     "frota SENATRAN reclassificada em tracao (CAMINHAO + CAMINHAO TRATOR) e implemento (REBOQUE + SEMI-REBOQUE), mesma distincao do dicionario ANTT",
-    "opportunity score por municipio permanece bloqueado enquanto MDF-e, risco Sinesp e White Space nao existirem -- nunca estimado"
+    "opportunity score por municipio permanece bloqueado enquanto risco Sinesp e White Space nao existirem -- nunca estimado"
   ]
 }
