@@ -6,8 +6,8 @@ import { api } from '../../lib/api';
  * (não os tipos de domínio do backend, `src/features/cadence/domain/cadence.ts`/`optOut.ts` — sobre
  * o arame, datas chegam como string ISO, não `Date`).
  *
- * Só leitura por enquanto: `cadence.routes.ts` ainda não expõe pausar/retomar/parar um run (ver
- * nota no router) — quando existir, os métodos entram aqui.
+ * Criar sequência e iniciar run para um lead adicionados nesta rodada. Pausar/retomar/parar um run
+ * em andamento ainda não existe (ver CYC-009) — quando existir, os métodos entram aqui.
  */
 
 export type CadenceRunStatus = 'active' | 'paused' | 'stopped';
@@ -63,6 +63,36 @@ const STATUS_TO_QUERY: Record<CadenceRunStatus, string> = {
     stopped: 'Stopped',
 };
 
+export interface CadenceTouchInput {
+    order: number;
+    channel: CadenceChannel;
+    delayHoursFromPrevious: number;
+    maxAttempts?: number;
+    /** Sem sistema de template ainda — este é o conteúdo final da mensagem em si. */
+    templateRef?: string;
+}
+
+export interface CadenceSequenceDTO {
+    id: string;
+    organizationId: string;
+    name: string;
+    touches: CadenceTouchInput[];
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface StartCadenceRunResponse {
+    id: string;
+    organizationId: string;
+    leadId: string;
+    sequenceId: string;
+    status: CadenceRunStatus;
+    currentTouchOrder: number;
+    startedAt: string;
+    sequenceName: string;
+}
+
 export const cadenceApi = {
     optOuts: () => api.get<OptOutRecordDTO[]>('/api/cadence/opt-outs'),
     runs: (status?: CadenceRunStatus[]) => {
@@ -71,4 +101,9 @@ export const cadenceApi = {
             : '';
         return api.get<CadenceRunDTO[]>(`/api/cadence/runs${query}`);
     },
+    sequences: () => api.get<CadenceSequenceDTO[]>('/api/cadence/sequences'),
+    createSequence: (input: { name: string; touches: CadenceTouchInput[] }) =>
+        api.post<CadenceSequenceDTO>('/api/cadence/sequences', input),
+    startRun: (input: { leadId: string; sequenceId: string }) =>
+        api.post<StartCadenceRunResponse>('/api/cadence/runs', input),
 };
