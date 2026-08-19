@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-19T13:28:30.914862+00:00",
+  "generatedAt": "2026-08-19T14:06:37.119872+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
@@ -69,11 +69,14 @@
     {
       "id": "risk",
       "label": "MJSP / Sinesp VDE",
-      "status": "NAO_DISPONIVEL",
+      "status": "ATUALIZADO",
       "source": "MJSP / Sinesp (bancovde-<ano>.xlsx)",
-      "geography": "PROXY_UF (fonte não publica granularidade municipal para roubo de carga/veículo e furto de veículo -- confirmado processando o arquivo real)",
+      "geography": "PROXY_UF (fonte não publica granularidade municipal para roubo de carga/veículo e furto de veículo)",
       "municipalUse": "PROXY_UF",
-      "note": "ETL implementado (etl_sinesp_risco.py) com descoberta automática do ano vigente e parser stdlib em streaming, validado com dado real (2026-01 a 2026-07, 27 UFs). Aguarda a primeira execução do workflow market-intelligence-sinesp.yml para publicar risco_uf.json."
+      "note": "Competencia 2026-01 a 2026-07: 27 UFs processadas, 1134 linhas relevantes (0 com municipio real -- confirma que a fonte so publica granularidade UF para estes 3 indicadores). Aplicado como PROXY_UF por municipio, nunca como observacao municipal.",
+      "competence": "2026-01 a 2026-07",
+      "downloadedAt": "2026-08-19T14:06:37.119872+00:00",
+      "sha256": "ebfa9e71b1603b84edfb2768516f04527c3df6471009480d5dc436b4a1da2aac"
     },
     {
       "id": "competition",
