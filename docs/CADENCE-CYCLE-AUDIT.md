@@ -24,6 +24,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > (`manual_crm_confirmation`), e o que o gate garante de verdade é que nenhum fechamento
 > automatizado passa por nenhum dos 3 caminhos de escrita. CYC-003, CYC-004, CYC-005, CYC-006 e
 > CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados).
+>
+> **Atualização — Onda 25**: CYC-005 (proposta versionada) conectado — ver seção CYC-005 abaixo.
+> `CrmCommercialDocumentVersion` sai da lista de tabelas mortas: criar ou editar um documento agora
+> grava uma versão real (nunca sobrescreve o histórico), e `publicToken` passou a ser lido de
+> verdade por uma rota pública nova (`GET /api/public/proposals/:token/view`) que registra
+> visualização real e avança `Enviado → Visualizado` na primeira abertura do link. CYC-003, CYC-004,
+> CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs
+> separados).
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -132,17 +140,28 @@ existe. `CadenceCalendarEvent` é tabela morta.
 
 ## CYC-005 — Proposta versionada
 
-**Estado: CRUD básico real existe (`CrmCommercialDocument`, `/api/crm/documents`); versionamento e
-rastreamento real de "visualizado" não existem.**
+**Estado (Onda 25): versionamento real conectado; rastreamento real de "visualizado" conectado via
+rota pública nova.**
 
+- `CrmCommercialDocumentVersion` deixa de ser tabela morta: `createDocument` grava a versão 1 na
+  própria criação; a nova rota `PUT /api/crm/documents/:id` (conteúdo, distinta da rota de status
+  já existente) cria sempre uma versão nova via `draftNextProposalVersion` — o histórico nunca é
+  sobrescrito, provado por teste de integração (3 edições sucessivas → 4 versões, 1..4 sem lacuna).
+  `GET /api/crm/documents/:id/versions` lista o histórico, mais recente primeiro.
+- `publicToken` passa a ser lido de verdade: `GET /api/public/proposals/:token/view` — rota
+  pública, sem `authenticateToken`/`requireTenant` (o `publicToken`, uuid não adivinhável, é a
+  credencial, mesmo modelo já usado para `BitrixConnection`) — registra `viewCount`/
+  `firstViewedAt`/`lastViewedAt` reais e avança `Enviado → Visualizado` só na primeira visualização
+  (reabrir o link depois de `Aceito`/`Recusado`/`Pago` não regride o status real do negócio).
+  `sentAt` também passa a ser gravado (na primeira transição para `Enviado`, nunca sobrescrito
+  depois).
 - Máquina de estados nominal (`Rascunho→Enviado→Visualizado→Aceito/Recusado/Vencido/Pago/Cancelado`)
-  cobre os nomes do roadmap, mas a transição é um `PUT` sem validação de transição nem Zod, 100%
-  manual. `publicToken` (pensado para link público de visualização) nunca é lido em lugar nenhum —
-  não existe rastreamento real de "visualizado".
-- `CrmCommercialDocumentVersion` e a lógica de domínio (`proposal.ts`) existem, mas nada os
-  conecta — hoje, editar um documento sobrescreve o registro sem preservar histórico.
-- Os 6 templates HTML estáticos em `public/tools/propostas/` são um gerador client-side totalmente
-  desconectado do backend (sem `fetch`, sem persistência). O catálogo `CrmProduct`/`CrmDealItem` é
+  continua sem validação formal de transição (ex.: nada impede `PUT /status` mover de `Rascunho`
+  direto para `Pago`) — fora de escopo desta rodada, não corrigido.
+- Os 6 templates HTML estáticos em `public/tools/propostas/` continuam um gerador client-side
+  totalmente desconectado do backend (sem `fetch`, sem persistência) — conectar essa UI (ou
+  construir uma nova) ao backend real de versionamento/visualização é trabalho de produto/frontend
+  fora do escopo desta rodada (backend-only). O catálogo `CrmProduct`/`CrmDealItem` continua sendo
   o "modelo comercial reutilizável" mais próximo do que o roadmap pede.
 
 ## CYC-006 — Assinatura eletrônica
@@ -258,7 +277,7 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 | CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
 | CYC-003 Reply tracking e-mail | Não | Só domínio/schema órfãos |
 | CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
-| CYC-005 Proposta versionada | Não | CRUD básico real; versionamento/tracking órfãos |
+| CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
 | CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |

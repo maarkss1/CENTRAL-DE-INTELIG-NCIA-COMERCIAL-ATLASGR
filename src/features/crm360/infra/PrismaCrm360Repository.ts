@@ -6,14 +6,16 @@ import {
     Prisma,
 } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
+import { requestContext } from '../../../lib/async-context.js';
 import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus, LEAD_CLOSING_STATUSES } from '../../../lib/enumMap.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
-import type { CrmCommercialDocument, CrmDealItem, CrmOverviewData, CrmPipeline, CrmProduct } from '../crm360.types.js';
+import type { CrmCommercialDocument, CrmCommercialDocumentVersionDTO, CrmDealItem, CrmOverviewData, CrmPipeline, CrmProduct, CrmPublicDocumentView } from '../crm360.types.js';
 import { ensureManualDealClosureAllowed } from '../../crm/application/dealClosureGate.js';
 import { prismaDealClosureGate } from '../../crm/infra/PrismaDealClosureGate.js';
+import { draftNextProposalVersion, type ProposalSnapshot, type ProposalVersion } from '../../cadence/domain/proposal.js';
 
 type DefaultStage = {
     name: string;
@@ -64,6 +66,31 @@ function roundMoney(value: number): number {
 function calculateItem<T extends { quantity: number; unitPrice: number; discountPercent: number; taxPercent: number }>(input: T) {
     const discounted = input.quantity * input.unitPrice * (1 - input.discountPercent / 100);
     return { ...input, total: roundMoney(discounted * (1 + input.taxPercent / 100)) };
+}
+
+function computeDocumentTotals(lineItems: ReturnType<typeof calculateItem>[]) {
+    const subtotal = roundMoney(lineItems.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0));
+    const discount = roundMoney(lineItems.reduce((acc, i) => acc + (i.quantity * i.unitPrice * (i.discountPercent / 100)), 0));
+    const tax = roundMoney(lineItems.reduce((acc, i) => acc + ((i.quantity * i.unitPrice - (i.quantity * i.unitPrice * (i.discountPercent / 100))) * (i.taxPercent / 100)), 0));
+    const total = roundMoney(subtotal - discount + tax);
+    return { subtotal, discount, tax, total };
+}
+
+/** Mesma serialização de datas repetida nos 3 métodos de escrita — CYC-005 (onda 25) acrescentou `sentAt`/`firstViewedAt`/`lastViewedAt` à lista de campos Date que precisam virar ISO string antes de sair do repositório. */
+function serializeDocument(doc: Record<string, unknown>): CrmCommercialDocument {
+    const d = doc as Record<string, unknown> & { lineItems: unknown; issueDate: Date; validUntil: Date | null; dueDate: Date | null; sentAt: Date | null; firstViewedAt: Date | null; lastViewedAt: Date | null; createdAt: Date; updatedAt: Date };
+    return {
+        ...d,
+        lineItems: d.lineItems as unknown as CrmCommercialDocument['lineItems'],
+        issueDate: d.issueDate.toISOString(),
+        validUntil: d.validUntil?.toISOString() ?? null,
+        dueDate: d.dueDate?.toISOString() ?? null,
+        sentAt: d.sentAt?.toISOString() ?? null,
+        firstViewedAt: d.firstViewedAt?.toISOString() ?? null,
+        lastViewedAt: d.lastViewedAt?.toISOString() ?? null,
+        createdAt: d.createdAt.toISOString(),
+        updatedAt: d.updatedAt.toISOString(),
+    } as unknown as CrmCommercialDocument;
 }
 
 async function upsertDefaultPipeline(
@@ -377,23 +404,12 @@ export class PrismaCrm360Repository implements ICrm360Repository {
             include: { lead: true, company: true, contact: true },
             orderBy: { createdAt: 'desc' },
         });
-        return docs.map(d => ({
-            ...d,
-            lineItems: d.lineItems as unknown as CrmCommercialDocument['lineItems'],
-            issueDate: d.issueDate.toISOString(),
-            validUntil: d.validUntil?.toISOString() ?? null,
-            dueDate: d.dueDate?.toISOString() ?? null,
-            createdAt: d.createdAt.toISOString(),
-            updatedAt: d.updatedAt.toISOString(),
-        })) as unknown as CrmCommercialDocument[];
+        return docs.map((d) => serializeDocument(d));
     }
 
-    async createDocument(organizationId: string, input: CrmDocumentInput): Promise<CrmCommercialDocument> {
+    async createDocument(organizationId: string, input: CrmDocumentInput, actorUserId?: string): Promise<CrmCommercialDocument> {
         const lineItems = input.lineItems.map(calculateItem);
-        const subtotal = roundMoney(lineItems.reduce((acc, i) => acc + (i.quantity * i.unitPrice), 0));
-        const discount = roundMoney(lineItems.reduce((acc, i) => acc + (i.quantity * i.unitPrice * (i.discountPercent / 100)), 0));
-        const tax = roundMoney(lineItems.reduce((acc, i) => acc + ((i.quantity * i.unitPrice - (i.quantity * i.unitPrice * (i.discountPercent / 100))) * (i.taxPercent / 100)), 0));
-        const total = roundMoney(subtotal - discount + tax);
+        const { subtotal, discount, tax, total } = computeDocumentTotals(lineItems);
 
         const doc = await prisma.crmCommercialDocument.create({
             data: {
@@ -412,31 +428,183 @@ export class PrismaCrm360Repository implements ICrm360Repository {
             include: { lead: true, company: true, contact: true },
         });
 
-        return {
-            ...doc,
-            lineItems: doc.lineItems as unknown as CrmCommercialDocument['lineItems'],
-            issueDate: doc.issueDate.toISOString(),
-            validUntil: doc.validUntil?.toISOString() ?? null,
-            dueDate: doc.dueDate?.toISOString() ?? null,
-            createdAt: doc.createdAt.toISOString(),
-            updatedAt: doc.updatedAt.toISOString(),
-        } as unknown as CrmCommercialDocument;
+        // CYC-005 (onda 25): versão 1 é gravada na própria criação — antes desta correção,
+        // `CrmCommercialDocumentVersion` era uma tabela morta confirmada (schema existia, zero
+        // linha escrita em código). `draftNextProposalVersion([], ...)` sempre resolve para
+        // versionNumber=1 aqui (histórico vazio).
+        const version1 = draftNextProposalVersion([], {
+            documentId: doc.id,
+            snapshot: {
+                title: doc.title,
+                currency: doc.currency,
+                lineItems: lineItems as unknown as ProposalSnapshot['lineItems'],
+                subtotal,
+                discount,
+                tax,
+                total,
+                notes: doc.notes,
+                terms: doc.terms,
+            },
+            changedBy: actorUserId ?? null,
+            changeReason: 'Criação do documento',
+        });
+        await prisma.crmCommercialDocumentVersion.create({
+            data: {
+                organizationId,
+                documentId: version1.documentId,
+                versionNumber: version1.versionNumber,
+                snapshot: version1.snapshot as unknown as Prisma.InputJsonValue,
+                changedBy: version1.changedBy,
+                changeReason: version1.changeReason,
+            },
+        });
+
+        return serializeDocument(doc);
+    }
+
+    async updateDocumentContent(organizationId: string, documentId: string, input: CrmDocumentUpdateInput, actorUserId?: string): Promise<CrmCommercialDocument> {
+        const existingRows = await prisma.crmCommercialDocumentVersion.findMany({
+            where: { organizationId, documentId },
+            orderBy: { versionNumber: 'asc' },
+        });
+        const existingVersions: ProposalVersion[] = existingRows.map((v) => ({
+            id: v.id,
+            documentId: v.documentId,
+            versionNumber: v.versionNumber,
+            snapshot: v.snapshot as unknown as ProposalSnapshot,
+            changedBy: v.changedBy,
+            changeReason: v.changeReason,
+            createdAt: v.createdAt,
+        }));
+
+        const lineItems = input.lineItems.map(calculateItem);
+        const { subtotal, discount, tax, total } = computeDocumentTotals(lineItems);
+
+        const nextVersion = draftNextProposalVersion(existingVersions, {
+            documentId,
+            snapshot: {
+                title: input.title,
+                currency: input.currency,
+                lineItems: lineItems as unknown as ProposalSnapshot['lineItems'],
+                subtotal,
+                discount,
+                tax,
+                total,
+                notes: input.notes ?? null,
+                terms: input.terms ?? null,
+            },
+            changedBy: actorUserId ?? null,
+            changeReason: input.changeReason ?? null,
+        });
+
+        const [, doc] = await prisma.$transaction([
+            prisma.crmCommercialDocumentVersion.create({
+                data: {
+                    organizationId,
+                    documentId: nextVersion.documentId,
+                    versionNumber: nextVersion.versionNumber,
+                    snapshot: nextVersion.snapshot as unknown as Prisma.InputJsonValue,
+                    changedBy: nextVersion.changedBy,
+                    changeReason: nextVersion.changeReason,
+                },
+            }),
+            prisma.crmCommercialDocument.update({
+                where: { id: documentId, organizationId },
+                data: {
+                    title: input.title,
+                    currency: input.currency,
+                    validUntil: input.validUntil ? new Date(input.validUntil) : null,
+                    dueDate: input.dueDate ? new Date(input.dueDate) : null,
+                    subtotal,
+                    discount,
+                    tax,
+                    total,
+                    lineItems: lineItems as unknown as Prisma.InputJsonValue,
+                    notes: input.notes ?? null,
+                    terms: input.terms ?? null,
+                },
+                include: { lead: true, company: true, contact: true },
+            }),
+        ]);
+
+        return serializeDocument(doc);
+    }
+
+    async listDocumentVersions(organizationId: string, documentId: string): Promise<CrmCommercialDocumentVersionDTO[]> {
+        const rows = await prisma.crmCommercialDocumentVersion.findMany({
+            where: { organizationId, documentId },
+            orderBy: { versionNumber: 'desc' },
+        });
+        return rows.map((v) => ({
+            id: v.id,
+            documentId: v.documentId,
+            versionNumber: v.versionNumber,
+            snapshot: v.snapshot as unknown as CrmCommercialDocumentVersionDTO['snapshot'],
+            changedBy: v.changedBy,
+            changeReason: v.changeReason,
+            createdAt: v.createdAt.toISOString(),
+        }));
     }
 
     async updateDocumentStatus(organizationId: string, documentId: string, status: string): Promise<CrmCommercialDocument> {
+        const nextStatus = status as CrmDocumentStatus;
+        const current = await prisma.crmCommercialDocument.findFirst({ where: { id: documentId, organizationId }, select: { sentAt: true } });
         const doc = await prisma.crmCommercialDocument.update({
             where: { id: documentId, organizationId },
-            data: { status: status as CrmDocumentStatus },
+            data: {
+                status: nextStatus,
+                // Grava sentAt na primeira vez que o documento sai de rascunho — nunca sobrescrito
+                // em transições seguintes (motivo real de envio é o primeiro, não o mais recente).
+                ...(nextStatus === CrmDocumentStatus.Enviado && !current?.sentAt ? { sentAt: new Date() } : {}),
+            },
             include: { lead: true, company: true, contact: true },
         });
-        return {
-            ...doc,
-            lineItems: doc.lineItems as unknown as CrmCommercialDocument['lineItems'],
-            issueDate: doc.issueDate.toISOString(),
-            validUntil: doc.validUntil?.toISOString() ?? null,
-            dueDate: doc.dueDate?.toISOString() ?? null,
-            createdAt: doc.createdAt.toISOString(),
-            updatedAt: doc.updatedAt.toISOString(),
-        } as unknown as CrmCommercialDocument;
+        return serializeDocument(doc);
+    }
+
+    /**
+     * Rota pública (`GET /api/public/proposals/:token/view`, sem `authenticateToken`) — o
+     * `publicToken` (uuid, não adivinhável) É a credencial, mesmo modelo de confiança de
+     * `BitrixConnection` (ver comentário em `src/lib/prisma.ts`). O bypass de RLS cobre só este
+     * `findUnique`; a escrita do contador/timestamps roda escopada por tenant normalmente.
+     */
+    async recordDocumentView(publicToken: string): Promise<CrmPublicDocumentView | null> {
+        const doc = await requestContext.run({ bypassRls: true }, () =>
+            prisma.crmCommercialDocument.findUnique({ where: { publicToken } }),
+        );
+        if (!doc || doc.deletedAt) return null;
+
+        return requestContext.run({ tenantId: doc.organizationId }, async () => {
+            const now = new Date();
+            // Só a primeira visualização avança o status (Enviado -> Visualizado) — reabrir o link
+            // depois de Aceito/Recusado/Pago/etc. não deve regredir o status real do negócio.
+            const nextStatus = doc.status === CrmDocumentStatus.Enviado ? CrmDocumentStatus.Visualizado : doc.status;
+            const updated = await prisma.crmCommercialDocument.update({
+                where: { id: doc.id },
+                data: {
+                    viewCount: { increment: 1 },
+                    firstViewedAt: doc.firstViewedAt ?? now,
+                    lastViewedAt: now,
+                    status: nextStatus,
+                },
+            });
+
+            return {
+                number: updated.number,
+                type: updated.type,
+                status: updated.status,
+                title: updated.title,
+                currency: updated.currency,
+                issueDate: updated.issueDate.toISOString(),
+                validUntil: updated.validUntil?.toISOString() ?? null,
+                subtotal: updated.subtotal,
+                discount: updated.discount,
+                tax: updated.tax,
+                total: updated.total,
+                lineItems: updated.lineItems as unknown as CrmPublicDocumentView['lineItems'],
+                notes: updated.notes,
+                terms: updated.terms,
+            } as unknown as CrmPublicDocumentView;
+        });
     }
 }

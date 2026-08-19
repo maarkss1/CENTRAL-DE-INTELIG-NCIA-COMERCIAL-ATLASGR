@@ -5,6 +5,7 @@ import { requireRole } from '../../../shared/middlewares/requireRole.js';
 import {
     crmDealItemSchema,
     crmDocumentSchema,
+    crmDocumentUpdateSchema,
     crmProductSchema,
     moveCrmRecordSchema,
 } from '../crm360.schema.js';
@@ -67,6 +68,16 @@ router.post('/documents', writeRoles, (req, res, next) => {
 
 router.put('/documents/:id/status', writeRoles, (req, res, next) =>
     container.resolve<Crm360Controller>('Crm360Controller').updateDocumentStatus(req, res, next)
+);
+
+// CYC-005 (onda 25): edição de conteúdo cria uma nova versão — nunca sobrescreve o histórico.
+router.put('/documents/:id', writeRoles, (req, res, next) => {
+    crmDocumentUpdateSchema.parse(req.body);
+    return container.resolve<Crm360Controller>('Crm360Controller').updateDocumentContent(req, res, next);
+});
+
+router.get('/documents/:id/versions', (req, res, next) =>
+    container.resolve<Crm360Controller>('Crm360Controller').listDocumentVersions(req, res, next)
 );
 
 export const crm360Routes = router;

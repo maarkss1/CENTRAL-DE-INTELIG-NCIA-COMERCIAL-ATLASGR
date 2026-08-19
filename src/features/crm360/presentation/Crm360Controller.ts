@@ -127,9 +127,29 @@ export class Crm360Controller {
 
     createDocument = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const orgId = (req as AuthRequest).user.organizationId;
-            const data = await this.crm360UseCases.createDocument(orgId, req.body);
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
+            const data = await this.crm360UseCases.createDocument(orgId, req.body, actorUserId);
             res.status(201).json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    updateDocumentContent = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
+            const data = await this.crm360UseCases.updateDocumentContent(orgId, req.params.id, req.body, actorUserId);
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    listDocumentVersions = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const orgId = (req as AuthRequest).user.organizationId;
+            const data = await this.crm360UseCases.listDocumentVersions(orgId, req.params.id);
+            res.json({ success: true, data });
         } catch (error) {
             next(error);
         }
@@ -140,6 +160,20 @@ export class Crm360Controller {
             const orgId = (req as AuthRequest).user.organizationId;
             const { status } = req.body;
             const data = await this.crm360UseCases.updateDocumentStatus(orgId, req.params.id, status);
+            res.json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    /** Rota pública (sem `authenticateToken`) — ver `crm360Public.routes.ts`. */
+    viewPublicDocument = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const data = await this.crm360UseCases.recordDocumentView(req.params.token);
+            if (!data) {
+                res.status(404).json({ success: false, error: 'Proposta não encontrada.' });
+                return;
+            }
             res.json({ success: true, data });
         } catch (error) {
             next(error);

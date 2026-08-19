@@ -108,6 +108,11 @@ export interface CrmCommercialDocument {
     notes?: string | null;
     terms?: string | null;
     publicToken: string;
+    /** CYC-005 (onda 25) — timestamps reais de envio/visualização, ver prisma/schema.prisma. */
+    sentAt?: string | null;
+    firstViewedAt?: string | null;
+    lastViewedAt?: string | null;
+    viewCount: number;
     leadId?: string | null;
     lead?: Lead | null;
     companyId?: string | null;
@@ -116,4 +121,43 @@ export interface CrmCommercialDocument {
     contact?: Contact | null;
     createdAt: string;
     updatedAt: string;
+}
+
+/** CYC-005 (onda 25) — uma fotografia imutável do documento, ver `src/features/cadence/domain/proposal.ts`. */
+export interface CrmCommercialDocumentVersionDTO {
+    id: string;
+    documentId: string;
+    versionNumber: number;
+    snapshot: {
+        title: string;
+        currency: string;
+        lineItems: CrmDocumentLineItem[];
+        subtotal: number;
+        discount: number;
+        tax: number;
+        total: number;
+        notes: string | null;
+        terms: string | null;
+    };
+    changedBy: string | null;
+    changeReason: string | null;
+    createdAt: string;
+}
+
+/** CYC-005 (onda 25) — subconjunto seguro de `CrmCommercialDocument` devolvido pela rota pública (`GET /api/public/proposals/:token/view`), sem ids internos nem dados de outras entidades relacionadas. */
+export interface CrmPublicDocumentView {
+    number: string;
+    type: CrmCommercialDocument['type'];
+    status: CrmCommercialDocument['status'];
+    title: string;
+    currency: string;
+    issueDate: string;
+    validUntil?: string | null;
+    subtotal: number;
+    discount: number;
+    tax: number;
+    total: number;
+    lineItems: CrmDocumentLineItem[];
+    notes?: string | null;
+    terms?: string | null;
 }

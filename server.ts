@@ -33,6 +33,7 @@ import { companyRoutes } from './src/features/companies/routes/company.routes.js
 import { contactRoutes } from './src/features/contacts/routes/contact.routes.js';
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
+import { crm360PublicRoutes } from './src/features/crm360/routes/crm360Public.routes.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
 import { mesaTratamentoRoutes } from './src/features/mesa-tratamento/routes/mesaTratamento.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
@@ -275,6 +276,11 @@ async function startServer() {
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
     // bitrix.webhook.ts). Parser próprio (urlencoded, não json) porque o Bitrix envia form-encoded.
     app.use('/api/integrations/bitrix', bitrixWebhookRoutes);
+
+    // CYC-005 (onda 25): visualização pública de proposta comercial. Quem abre o link é o
+    // cliente/lead, sem conta no sistema — não passa por authenticateToken. O publicToken (uuid,
+    // não adivinhável) na URL é a credencial, mesmo modelo dos webhooks acima.
+    app.use('/api/public/proposals', crm360PublicRoutes);
 
     app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
     // CORREÇÃO: JSON_BODY_LIMIT definida em env.ts (default '2mb') mas o valor

@@ -141,7 +141,15 @@ export const prisma = basePrisma.$extends({
         // qualquer tenant para decidir quem mensagear), não uma exposição nova. bypassRls só cobre
         // esta descoberta inicial: o envio real e o `Lead.update` seguinte rodam escopados por
         // tenant (`requestContext.run({ tenantId: lead.organizationId })`), sem bypass.
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead'];
+        // CrmCommercialDocument entrou nesta allowlist pelo MESMO motivo/modelo de confiança já
+        // documentado acima para BitrixConnection: a rota pública de rastreamento de visualização
+        // (CYC-005, onda 25 — `GET /api/public/proposals/:token/view`, sem authenticateToken)
+        // recebe só um `publicToken` opaco (uuid, não adivinhável) na URL — não há tenant conhecido
+        // até achar o documento. O bypass aqui cobre só o `findUnique` por `publicToken`; a
+        // atualização real de `viewCount`/`firstViewedAt`/`lastViewedAt`/`status` roda dentro de
+        // `requestContext.run({ tenantId: doc.organizationId })` com RLS normal, igual ao lookup de
+        // BitrixConnection.
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

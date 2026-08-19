@@ -104,3 +104,24 @@ export const crmDealSchema = z.object({
 export type CrmProductInput = z.infer<typeof crmProductSchema>;
 export type CrmDealItemInput = z.infer<typeof crmDealItemSchema>;
 export type CrmDocumentInput = z.infer<typeof crmDocumentSchema>;
+
+/**
+ * CYC-005 (onda 25) — edição de conteúdo de um documento comercial já criado. Sem `status` (tem
+ * rota própria, `PUT /documents/:id/status`) nem `number`/`publicToken` (imutáveis após criação).
+ * Cada chamada gera uma nova `CrmCommercialDocumentVersion` — nunca sobrescreve a anterior, ver
+ * `src/features/cadence/domain/proposal.ts`.
+ */
+export const crmDocumentUpdateSchema = z.object({
+    title: z.string().trim().min(1).max(180),
+    currency: z.string().trim().length(3).default('BRL'),
+    validUntil: z.string().datetime().optional().nullable(),
+    dueDate: z.string().datetime().optional().nullable(),
+    discount: z.number().finite().min(0).default(0),
+    lineItems: z.array(commercialLineItemSchema).min(1),
+    notes: optionalText,
+    terms: optionalText,
+    /** Motivo da alteração, gravado na versão nova para auditoria — não obrigatório para não travar edições rápidas. */
+    changeReason: z.string().trim().max(500).optional().nullable(),
+});
+
+export type CrmDocumentUpdateInput = z.infer<typeof crmDocumentUpdateSchema>;

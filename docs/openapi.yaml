@@ -2341,6 +2341,67 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /crm/documents/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [CRM 360]
+      summary: >-
+        Edita o conteúdo de um documento comercial (CYC-005) — ADMIN/GESTOR/VENDEDOR. Cada chamada
+        cria uma nova `CrmCommercialDocumentVersion` (histórico imutável, nunca sobrescrito).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Formato de `crmDocumentUpdateSchema` (crm360.schema.ts)
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /crm/documents/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [CRM 360]
+      summary: Lista o histórico de versões de um documento comercial (CYC-005), mais recente primeiro
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+
+  /public/proposals/{token}/view:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        schema: { type: string }
+        description: publicToken opaco do documento comercial — é a credencial, não há autenticação de sessão nesta rota
+    get:
+      tags: [CRM 360]
+      summary: >-
+        Visualização pública de uma proposta (CYC-005) — sem `authenticateToken`/`requireTenant`,
+        montada fora do bloco autenticado (mesmo lugar dos webhooks de integração). Registra a
+        visualização real (`viewCount`/`firstViewedAt`/`lastViewedAt`) e avança o status de
+        `Enviado` para `Visualizado` na primeira abertura do link — nunca regride um status já mais
+        avançado (ex.: Aceito).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Token inexistente ou documento excluído
+
   # ─────────────────────── Comercial Inteligente (BI executivo) ───────────────────────
   # Router inteiro restrito a ADMIN/GESTOR (COMMERCIAL_INTELLIGENCE_ROLES), reforçado tanto no
   # mount de server.ts quanto dentro do próprio router (defesa em profundidade).

@@ -3,9 +3,11 @@ import type {
     CrmPipeline,
     CrmProduct,
     CrmDealItem,
-    CrmCommercialDocument
+    CrmCommercialDocument,
+    CrmCommercialDocumentVersionDTO,
+    CrmPublicDocumentView
 } from '../crm360.types.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 
 export interface ICrm360Repository {
     getOverviewData(organizationId: string): Promise<CrmOverviewData>;
@@ -22,8 +24,14 @@ export interface ICrm360Repository {
     addDealItem(organizationId: string, leadId: string, input: CrmDealItemInput): Promise<CrmDealItem>;
     removeDealItem(organizationId: string, leadId: string, itemId: string): Promise<void>;
 
-    // Documentos Comerciais
+    // Documentos Comerciais (CYC-005, onda 25: versionamento + rastreamento de visualização)
     listDocuments(organizationId: string, leadId?: string): Promise<CrmCommercialDocument[]>;
-    createDocument(organizationId: string, input: CrmDocumentInput): Promise<CrmCommercialDocument>;
+    createDocument(organizationId: string, input: CrmDocumentInput, actorUserId?: string): Promise<CrmCommercialDocument>;
+    /** Cria uma nova `CrmCommercialDocumentVersion` (nunca sobrescreve a anterior) e atualiza os campos de conteúdo do documento. */
+    updateDocumentContent(organizationId: string, documentId: string, input: CrmDocumentUpdateInput, actorUserId?: string): Promise<CrmCommercialDocument>;
+    listDocumentVersions(organizationId: string, documentId: string): Promise<CrmCommercialDocumentVersionDTO[]>;
+    /** Grava `sentAt` na primeira transição para `Enviado`, além de aplicar o novo status. */
     updateDocumentStatus(organizationId: string, documentId: string, status: string): Promise<CrmCommercialDocument>;
+    /** Rota pública (sem tenant conhecido a priori) — resolve o documento pelo `publicToken` opaco e registra a visualização. `null` quando o token não existe ou o documento foi excluído. */
+    recordDocumentView(publicToken: string): Promise<CrmPublicDocumentView | null>;
 }

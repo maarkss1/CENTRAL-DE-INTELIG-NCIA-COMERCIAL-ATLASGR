@@ -1,5 +1,5 @@
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 
 export class Crm360UseCases {
     constructor(private crm360Repository: ICrm360Repository) {}
@@ -48,11 +48,24 @@ export class Crm360UseCases {
         return this.crm360Repository.listDocuments(organizationId, leadId);
     }
 
-    async createDocument(organizationId: string, input: CrmDocumentInput) {
-        return this.crm360Repository.createDocument(organizationId, input);
+    async createDocument(organizationId: string, input: CrmDocumentInput, actorUserId?: string) {
+        return this.crm360Repository.createDocument(organizationId, input, actorUserId);
+    }
+
+    async updateDocumentContent(organizationId: string, documentId: string, input: CrmDocumentUpdateInput, actorUserId?: string) {
+        return this.crm360Repository.updateDocumentContent(organizationId, documentId, input, actorUserId);
+    }
+
+    async listDocumentVersions(organizationId: string, documentId: string) {
+        return this.crm360Repository.listDocumentVersions(organizationId, documentId);
     }
 
     async updateDocumentStatus(organizationId: string, documentId: string, status: string) {
         return this.crm360Repository.updateDocumentStatus(organizationId, documentId, status);
+    }
+
+    /** Rota pública — sem organizationId conhecido a priori, ver `PrismaCrm360Repository.recordDocumentView`. */
+    async recordDocumentView(publicToken: string) {
+        return this.crm360Repository.recordDocumentView(publicToken);
     }
 }

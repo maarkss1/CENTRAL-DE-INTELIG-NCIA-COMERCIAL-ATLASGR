@@ -863,6 +863,15 @@ model CrmCommercialDocument {
   notes          String?
   terms          String?
   publicToken    String            @unique @default(uuid())
+  /// CYC-005 (onda 25): timestamps reais de envio/visualização — `sentAt` gravado na transição
+  /// para `Enviado`; `firstViewedAt`/`lastViewedAt`/`viewCount` gravados por `GET
+  /// /api/public/proposals/:token/view` (rota pública, sem autenticação — o `publicToken` opaco É
+  /// a credencial) toda vez que o link é aberto, e a transição real `Enviado -> Visualizado`
+  /// acontece na primeira visualização, nunca inferida.
+  sentAt         DateTime?
+  firstViewedAt  DateTime?
+  lastViewedAt   DateTime?
+  viewCount      Int               @default(0)
   leadId         String?
   lead           Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
   companyId      String?
