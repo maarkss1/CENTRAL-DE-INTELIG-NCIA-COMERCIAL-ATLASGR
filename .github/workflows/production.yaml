@@ -1,24 +1,16 @@
 name: Production CI/CD
 
+# LOCAL-FIRST: nenhum push/PR pode publicar artefato de produção enquanto a Central
+# estiver em desenvolvimento local. Este workflow fica disponível somente sob ação
+# humana explícita via workflow_dispatch.
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # DEVOPS-001 (resolvido na Fase Final 1, ver .agents/runs/final-fase-1.md): este é o workflow que
-  # decide o que vai pro GHCR/produção — antes rodava um subconjunto mais fraco de verificações que
-  # o ci.yml (sem secret scan, sem E2E, com continue-on-error no audit). Agora roda o mesmo gate
-  # completo, com dependência explícita (needs) dentro do próprio arquivo, porque GitHub Actions
-  # trata workflows de arquivos diferentes como pipelines independentes — ci.yml passar não impede
-  # este arquivo de publicar sozinho, então o gate tem que estar aqui dentro também, não só lá.
   secret-scan:
     runs-on: ubuntu-latest
     steps:
@@ -36,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: secret-scan
 
-    # Mesmos service containers do ci.yml — sem eles não dá pra rodar test:integration/E2E aqui.
     services:
       postgres:
         image: pgvector/pgvector:pg17
@@ -64,21 +55,16 @@ jobs:
 
     env:
       NODE_ENV: test
-      # Papel NOSUPERUSER — nunca o superusuário de bootstrap (prospector) — pra que os testes de
-      # integração de RLS (tests/integration/tenant-isolation-db001.test.ts e afins) rodem sob as
-      # mesmas condições de produção. Ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md.
       DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: ci-test-meili-key
       PORT: 3000
-      # Necessário para test:e2e (Fase Final 1) — mesmos valores de ci.yml, ver comentários lá.
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
-      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
       PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
@@ -103,8 +89,6 @@ jobs:
       - name: Prisma Generate
         run: npx prisma generate
 
-      # SEC-005 (Sprint 01/Onda 13): gate real advisory-por-advisory — ver comentário equivalente
-      # em ci.yml e scripts/security/check-audit-waivers.ts.
       - name: Audit for vulnerabilities (waiver-aware)
         run: npm run security:audit-waivers
 
@@ -120,11 +104,6 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
-      # Sem este arquivo, scripts/test/prepare-integration-env.js (pretest:integration) cai pro
-      # .env.test.example versionado — cujas credenciais (prospector_app_pass) não batem com a
-      # senha que "Bootstrap papel NOSUPERUSER da aplicação" configurou neste job
-      # (ci_app_test_pass), e prospector_app fica com "password authentication failed" já na
-      # primeira query de teste. Mesmo passo do ci.yml.
       - name: Criar .env.test para os testes de integração e E2E
         run: |
           cat > .env.test <<EOF
@@ -146,8 +125,6 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # Fase Final 1: E2E agora faz parte do gate que decide o que vai pro GHCR — antes só rodava
-      # no ci.yml, que não bloqueia este workflow.
       - name: Run E2E Tests
         run: npm run test:e2e
 
@@ -165,10 +142,7 @@ jobs:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # Gate de aprovação manual (DEVOPS-001): "production" precisa existir em
-    # Settings > Environments com "Required reviewers" configurado — sem isso no lado do GitHub,
-    # esta linha sozinha não bloqueia nada. Ver nota de configuração no PLANO-DE-SEGURANCA/checklist.
+    if: github.event_name == 'workflow_dispatch'
     environment: production
     permissions:
       contents: read
