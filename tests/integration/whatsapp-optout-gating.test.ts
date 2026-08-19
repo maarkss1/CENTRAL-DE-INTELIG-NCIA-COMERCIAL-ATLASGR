@@ -203,7 +203,7 @@ describe('sendWhatsAppMessage — bloqueio de disparo automatizado por opt-out (
         expect(mockSocket.sendMessage).toHaveBeenCalled();
     });
 
-    it('skipOptOutCheck (mensagem manual do painel) ignora um opt-out global existente', async () => {
+    it('skipOptOutCheck: true no context ignora um opt-out global existente (contrato da função — CYC-001/onda-18 corrigiu a rota POST /api/whatsapp/send, que passava isto sem justificativa; nenhum caller de produção usa mais este flag)', async () => {
         const orgId = await createSessionOrg();
         await connectFakeSession(orgId);
         await asOrg(orgId, () =>
