@@ -58,6 +58,40 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
 
+  # Storage S3 local. Substitui a dependência de Supabase Storage durante o desenvolvimento.
+  # As credenciais abaixo são exclusivamente de desenvolvimento e ficam restritas ao Docker local.
+  minio:
+    image: minio/minio:latest
+    container_name: atlas_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: atlasgr
+      MINIO_ROOT_PASSWORD: atlasgr_minio_dev_only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - atlas_miniodata:/data
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  # Cria o bucket esperado pela aplicação de forma idempotente após o MinIO responder.
+  minio-init:
+    image: minio/mc:latest
+    container_name: atlas_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 atlasgr atlasgr_minio_dev_only; do sleep 2; done;
+      mc mb --ignore-existing local/prospector-assets;
+      exit 0;
+      "
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: atlas_litellm
@@ -97,5 +131,5 @@ volumes:
   atlas_pgdata:
   atlas_redisdata:
   atlas_meilidata:
+  atlas_miniodata:
   atlas_ollamadata:
-
