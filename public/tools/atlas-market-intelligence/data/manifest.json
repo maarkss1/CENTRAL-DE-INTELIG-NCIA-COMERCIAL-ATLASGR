@@ -4,7 +4,6 @@
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
-    "Frota de veículos (SENATRAN) tem ETL pronto e validado, mas ainda não foi publicada pelo workflow automatizado; snapshot municipal real aguarda a primeira execução de market-intelligence-senatran.yml.",
     "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",

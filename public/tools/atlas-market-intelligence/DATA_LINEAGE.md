@@ -341,6 +341,21 @@ A fórmula final deve ser acompanhada de análise de sensibilidade e `methodolog
 
 ## 9. Opportunity Score
 
+**Implementado em `etl_municipal_aggregate.py`** (`municipios_scored.json`, publicado via
+`market-intelligence-aggregate.yml`), espelhando `calculateOpportunityScore` de `scoreEngine.ts`.
+
+- **ICP component**: percentil nacional ponderado por tier ICP (peso A=3, B=2, C=1) sobre o
+  snapshot CNPJ/ICP. Metodologia validada explicitamente com o usuário, não é uma escolha
+  arbitrária da IA.
+- **RNTRC component**: percentil nacional da contagem de transportadores ativos, mesma técnica.
+- **MDF-e / Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até os pipelines
+  correspondentes existirem (Need depende do risco Sinesp; White Space depende de
+  `CENSO_COMPLETO`; Territorial Efficiency ainda não tem fórmula definida).
+
+Como o Opportunity Score exige todos os componentes ponderados presentes, ele permanece
+**bloqueado (`null`) para todo município** enquanto MDF-e e risco Sinesp não forem processados —
+isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em oportunidade.
+
 ```text
 ICP component
 RNTRC component

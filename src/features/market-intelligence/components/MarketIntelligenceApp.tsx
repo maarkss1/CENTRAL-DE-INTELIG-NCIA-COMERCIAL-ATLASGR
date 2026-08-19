@@ -17,6 +17,7 @@ import {
 import {
     type DatasetHealth,
     type MarketIntelligenceManifest,
+    type MunicipalityRecord,
     type TerritoryRecord,
 } from '../domain/MarketIntelligence';
 import {
@@ -170,17 +171,60 @@ function BoardView({ manifest, territories }: { manifest: MarketIntelligenceMani
     );
 }
 
-function TerritoryView({ manifest, territories }: { manifest: MarketIntelligenceManifest; territories: TerritoryRecord[] }) {
+function TopMunicipalitiesByDemand({ municipalities }: { municipalities: MunicipalityRecord[] }) {
+    const ranked = useMemo(
+        () => [...municipalities]
+            .filter((row) => row.scores.demand.availability === 'OBSERVADO')
+            .sort((a, b) => (b.scores.demand.value ?? 0) - (a.scores.demand.value ?? 0))
+            .slice(0, 20),
+        [municipalities],
+    );
+
+    if (!ranked.length) return null;
+
+    return (
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 p-5">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Componentes observados · Opportunity Score bloqueado</p>
+                <h2 className="mt-1 text-lg font-black text-[#333333]">Top 20 municípios por demanda (ICP)</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Percentil nacional ponderado por tier ICP (A/B/C). Não é ranking de oportunidade — MDF-e, risco e concorrência ainda faltam para liberar o score final.</p>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500">
+                        <tr><th className="p-3">Município</th><th className="p-3">Demanda (percentil)</th><th className="p-3">Contas ICP</th><th className="p-3">Transportadores RNTRC</th><th className="p-3">Frota de carga (SENATRAN)</th></tr>
+                    </thead>
+                    <tbody>
+                        {ranked.map((row) => (
+                            <tr key={row.ibgeCode} className="border-t border-slate-100">
+                                <td className="p-3 font-black text-[#333333]">{row.name}/{row.uf}</td>
+                                <td className="p-3">{row.scores.demand.value?.toFixed(1)}</td>
+                                <td className="p-3">{row.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(row.icp.total)}</td>
+                                <td className="p-3">{row.rntrc.transporters === null ? 'NÃO DISPONÍVEL' : number.format(row.rntrc.transporters)}</td>
+                                <td className="p-3">{row.rntrc.activeVehicles === null ? 'NÃO DISPONÍVEL' : number.format(row.rntrc.activeVehicles)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    );
+}
+
+function TerritoryView({ manifest, territories, municipalities }: { manifest: MarketIntelligenceManifest; territories: TerritoryRecord[]; municipalities: MunicipalityRecord[] }) {
     if (!territories.length) {
         return (
-            <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
-                <MapPinned className="mx-auto h-9 w-9 text-[#FF5618]" aria-hidden="true" />
-                <h2 className="mt-3 text-xl font-black text-[#333333]">Territory Optimizer aguardando dados nacionais</h2>
-                <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km e penalização de sobreposição.
-                </p>
-                <p className="mt-4 text-xs font-bold text-amber-700">Status: {manifest.decisionReady ? 'PRONTO' : 'BLOQUEADO POR DADOS'}</p>
-            </section>
+            <div className="space-y-3">
+                <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+                    <MapPinned className="mx-auto h-9 w-9 text-[#FF5618]" aria-hidden="true" />
+                    <h2 className="mt-3 text-xl font-black text-[#333333]">Territory Optimizer aguardando dados nacionais</h2>
+                    <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                        Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km e penalização de sobreposição.
+                    </p>
+                    <p className="mt-4 text-xs font-bold text-amber-700">Status: {manifest.decisionReady ? 'PRONTO' : 'BLOQUEADO POR DADOS'}</p>
+                </section>
+                <TopMunicipalitiesByDemand municipalities={municipalities} />
+            </div>
         );
     }
 
@@ -346,12 +390,18 @@ export function MarketIntelligenceApp() {
     const [tab, setTab] = useState<TabId>('board');
     const [manifest, setManifest] = useState<MarketIntelligenceManifest | null>(null);
     const [territories, setTerritories] = useState<TerritoryRecord[]>([]);
+    const [municipalities, setMunicipalities] = useState<MunicipalityRecord[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let alive = true;
         loadMarketIntelligenceSnapshot()
-            .then((snapshot) => { if (!alive) return; setManifest(snapshot.manifest); setTerritories(snapshot.territories); })
+            .then((snapshot) => {
+                if (!alive) return;
+                setManifest(snapshot.manifest);
+                setTerritories(snapshot.territories);
+                setMunicipalities(snapshot.municipalities);
+            })
             .catch((cause: unknown) => { if (!alive) return; setError(cause instanceof Error ? cause.message : 'Falha ao carregar Market Intelligence.'); });
         return () => { alive = false; };
     }, []);
@@ -383,7 +433,7 @@ export function MarketIntelligenceApp() {
                 </nav>
 
                 {tab === 'board' && <BoardView manifest={manifest} territories={territories} />}
-                {tab === 'territories' && <TerritoryView manifest={manifest} territories={territories} />}
+                {tab === 'territories' && <TerritoryView manifest={manifest} territories={territories} municipalities={municipalities} />}
                 {tab === 'simulator' && <SellerSimulator />}
                 {tab === 'data' && <DataHealth manifest={manifest} />}
 
