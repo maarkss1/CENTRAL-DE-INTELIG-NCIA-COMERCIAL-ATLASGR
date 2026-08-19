@@ -5,14 +5,14 @@ import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
 export const actionExecutorService = {
     async executeAction(recommendationId: string) {
-        return withRlsContext(null, async (prisma) => {
+        return withRlsContext(async (prisma) => {
             const recommendation = await prisma.accountRecommendation.findUnique({
                 where: { id: recommendationId },
                 include: { company: { include: { organization: { include: { bitrixConnections: true } } } } }
             });
 
             if (!recommendation) throw new AppError('Recomendação não encontrada', 404);
-            if (recommendation.status === 'executed') throw new AppError('Recomendação já executada', 400);
+            if (recommendation.status === 'Executed') throw new AppError('Recomendação já executada', 400);
 
             const company = recommendation.company;
             const webhookUrl = company?.organization?.bitrixConnections?.[0]?.webhookUrl;
@@ -37,7 +37,7 @@ export const actionExecutorService = {
                     await prisma.accountRecommendation.update({
                         where: { id: recommendationId },
                         data: {
-                            status: 'executed',
+                            status: 'Executed',
                             executedAt: new Date(),
                             externalRef: response?.result?.task?.id?.toString()
                         }
@@ -50,7 +50,7 @@ export const actionExecutorService = {
                     await prisma.accountRecommendation.update({
                         where: { id: recommendationId },
                         data: {
-                            status: 'executed',
+                            status: 'Executed',
                             executedAt: new Date()
                         }
                     });
@@ -60,7 +60,7 @@ export const actionExecutorService = {
                     await prisma.accountRecommendation.update({
                         where: { id: recommendationId },
                         data: {
-                            status: 'executed',
+                            status: 'Executed',
                             executedAt: new Date()
                         }
                     });
@@ -69,7 +69,7 @@ export const actionExecutorService = {
             } catch (err: any) {
                 await prisma.accountRecommendation.update({
                     where: { id: recommendationId },
-                    data: { status: 'failed' }
+                    data: { status: 'Failed' }
                 });
                 throw err;
             }

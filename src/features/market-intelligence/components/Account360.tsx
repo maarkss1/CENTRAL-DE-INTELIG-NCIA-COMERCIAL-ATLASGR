@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card.js';
 import { Button } from '../../../components/ui/Button.js';
-import { Badge } from '../../../components/ui/Badge.js';
 import { EmptyState } from '../../../components/ui/EmptyState.js';
 import { Building2, AlertCircle, Loader2, ArrowLeft, Target, TrendingUp, Zap, Users, BrainCircuit } from 'lucide-react';
 // As tabs não estão no /ui/, o padrão antigo pode não existir localmente, então mock de layout ou uso do que existe
@@ -139,7 +138,7 @@ export function Account360() {
                 
                 {activeTab !== 'overview' && (
                     <EmptyState 
-                        icon={AlertCircle}
+                        icon={<AlertCircle className="w-8 h-8 text-amber-400" />}
                         title="Sem dados" 
                         description={`Não há registros disponíveis para ${tabs.find(t => t.id === activeTab)?.label?.toLowerCase()}.`} 
                     />

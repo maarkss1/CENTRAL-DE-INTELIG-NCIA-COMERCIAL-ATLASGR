@@ -35,18 +35,22 @@ export function createNewsMonitorWorker() {
                 });
 
                 // Cria um sinal de intenção baseado na notícia
-                await prisma.conversationSignal.create({
-                    data: {
-                        organizationId: company.organizationId,
-                        tenantId: company.tenantId,
-                        companyId: company.id,
-                        type: 'news_mention',
-                        relevanceScore: 85,
-                        snippet: randomNews,
-                        extractedNeeds: ['expansão', 'tecnologia'],
-                        source: 'GDELT-News'
-                    }
-                });
+                if (company.organizationId) {
+                    await prisma.accountSignal.create({
+                        data: {
+                            organizationId: company.organizationId,
+                            companyId: company.id,
+                            type: 'news_mention',
+                            taxonomyVersion: 'v1',
+                            title: 'Menção em notícia recente',
+                            description: randomNews,
+                            source: 'GDELT-News',
+                            confidence: 0.85,
+                            evidenceType: 'FACT',
+                            dedupeKey: `news:${company.id}:${Date.now()}`
+                        }
+                    });
+                }
 
                 logger.info(`News scan finished for company ${companyId}`);
             } else if (job.name === 'scan-all-companies-news') {
@@ -62,7 +66,7 @@ export function createNewsMonitorWorker() {
 }
 
 export async function scheduleGlobalNewsScan() {
-    await newsMonitorQueue.add('scan-all-companies-news', {}, {
-        repeat: { pattern: '0 8 * * *' } // 8 AM everyday
+    await (newsMonitorQueue as any).add('scan-all-companies-news', {}, {
+        repeat: { pattern: '0 8 * * *' }
     });
 }

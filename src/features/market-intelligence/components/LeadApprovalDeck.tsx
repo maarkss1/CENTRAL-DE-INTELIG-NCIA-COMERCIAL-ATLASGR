@@ -1,16 +1,14 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, CheckCircle, BrainCircuit } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../../components/ui/Card.js';
+import { Button } from '../../../components/ui/Button.js';
+import { Badge } from '../../../components/ui/Badge.js';
+import { ThumbsUp, ThumbsDown, BrainCircuit } from 'lucide-react';
 
 export function LeadApprovalDeck() {
     const [accounts, setAccounts] = useState<any[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
+    const [feedback, setFeedback] = useState<string | null>(null);
 
     useEffect(() => {
         // Fetch top accounts (MUITO_ALTO or ALTO)
@@ -26,10 +24,9 @@ export function LeadApprovalDeck() {
     const handleAction = async (approved: boolean) => {
         const account = accounts[currentIndex];
         if (approved) {
-            toast({ title: 'Lead Aprovado!', description: `${account.razaoSocial} foi enviado para o CRM.` });
-            // Aqui chamaria a /execute da recomendacao real
+            setFeedback(`${account.razaoSocial} foi aprovado para o CRM.`);
         } else {
-            toast({ title: 'Lead Descartado', variant: 'destructive', description: `${account.razaoSocial} ignorado.` });
+            setFeedback(`${account.razaoSocial} descartado.`);
         }
         setCurrentIndex(prev => prev + 1);
     };
@@ -42,6 +39,11 @@ export function LeadApprovalDeck() {
     return (
         <div className="flex flex-col items-center justify-center p-8 min-h-[600px] bg-slate-950">
             <h1 className="text-2xl text-emerald-400 mb-8 font-bold flex items-center gap-2"><BrainCircuit /> LDR - Aprovação Ágil</h1>
+            {feedback && (
+                <div className="mb-4 p-3 bg-emerald-950/80 border border-emerald-800 text-emerald-300 rounded text-sm max-w-md w-full text-center">
+                    {feedback}
+                </div>
+            )}
             <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-xl relative overflow-hidden">
                 <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500" />
                 <CardHeader>
