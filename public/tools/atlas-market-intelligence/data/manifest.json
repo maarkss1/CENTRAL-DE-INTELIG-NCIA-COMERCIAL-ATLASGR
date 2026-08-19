@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-18T20:55:32.739874+00:00",
+  "generatedAt": "2026-08-19T00:10:24.211913+00:00",
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
@@ -33,13 +33,14 @@
     {
       "id": "fleet",
       "label": "SENATRAN / Frota de veículos por município e tipo",
-      "status": "NAO_DISPONIVEL",
-      "source": "SENATRAN / Ministério dos Transportes",
+      "status": "ATUALIZADO",
+      "source": "SENATRAN / Ministério dos Transportes (Frota por município e tipo)",
       "geography": "Município",
-      "note": "Fonte trocada de ANTT (RNTRC-Dados de Veículos, granularidade UF, recurso vigente inválido -- ver FONTES.md seção 2, mantida como registro histórico) para SENATRAN (planilha oficial 'Frota por município e tipo', granularidade municipal real). ETL implementado (etl_senatran_frota.py), validado com dado real (competência 2026-07). Aguarda a primeira execução do workflow market-intelligence-senatran.yml para publicar senatran_frota_municipios.json.",
-      "downloadedAt": null,
-      "sha256": null,
-      "municipalUse": "OBSERVADO"
+      "note": "Snapshot oficial 2026-07 processado em 5535 municipios; 37 de 5572 linhas sem match IBGE (0.6640%). cargoFleet soma CAMINHAO + CAMINHAO TRATOR + REBOQUE + SEMI-REBOQUE; demais tipos de veiculo disponiveis em byType. Substitui a tentativa anterior via ANTT RNTRC-Dados de Veiculos (granularidade UF, recurso indisponivel -- ver FONTES.md).",
+      "downloadedAt": "2026-08-19T00:10:24.211913+00:00",
+      "sha256": "d71d42d588d5c3cb6ab6f83f558f8dcc51223076092e10a80eacbac70a142283",
+      "municipalUse": "OBSERVADO",
+      "competence": "2026-07"
     },
     {
       "id": "cnpj",
