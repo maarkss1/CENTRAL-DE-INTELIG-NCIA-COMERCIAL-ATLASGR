@@ -1,16 +1,14 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ThumbsUp, ThumbsDown, CheckCircle, BrainCircuit } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { Badge } from '../../../components/ui/Badge';
+import { ThumbsUp, ThumbsDown, BrainCircuit } from 'lucide-react';
+import { toast } from '../../../lib/toast';
 
 export function LeadApprovalDeck() {
     const [accounts, setAccounts] = useState<any[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
-    const { toast } = useToast();
 
     useEffect(() => {
         // Fetch top accounts (MUITO_ALTO or ALTO)
@@ -26,10 +24,10 @@ export function LeadApprovalDeck() {
     const handleAction = async (approved: boolean) => {
         const account = accounts[currentIndex];
         if (approved) {
-            toast({ title: 'Lead Aprovado!', description: `${account.razaoSocial} foi enviado para o CRM.` });
+            toast.success(`${account.razaoSocial} foi enviado para o CRM.`);
             // Aqui chamaria a /execute da recomendacao real
         } else {
-            toast({ title: 'Lead Descartado', variant: 'destructive', description: `${account.razaoSocial} ignorado.` });
+            toast.info(`${account.razaoSocial} ignorado.`);
         }
         setCurrentIndex(prev => prev + 1);
     };
