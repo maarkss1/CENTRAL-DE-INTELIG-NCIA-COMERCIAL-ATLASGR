@@ -111,7 +111,6 @@ router.post('/send', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), async (r
                 organizationId,
                 number,
                 text,
-                context: { skipOptOutCheck: true },
             },
             idempotencyKey(req),
         );
