@@ -6,6 +6,7 @@ import {
   listMarketIntelligenceCompanies,
   parseCompanyCatalogQuery,
 } from './marketIntelligenceCompany.service.js';
+import { getAccountIntelligence } from './accountIntelligence.service.js';
 
 const router = Router();
 
@@ -14,6 +15,28 @@ router.get('/', async (req, res, next) => {
     const query = parseCompanyCatalogQuery(req.query as Record<string, unknown>);
     const result = await listMarketIntelligenceCompanies(query);
     res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof CompanyCatalogValidationError) {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.get('/:cnpj/intelligence', async (req, res, next) => {
+  try {
+    const result = await getAccountIntelligence(req.params.cnpj);
+    if (!result.account) {
+      res.status(404).json({
+        success: false,
+        error: result.dataset ? 'Empresa não encontrada no snapshot ativo.' : 'Nenhum snapshot empresarial ativo foi publicado.',
+        dataset: result.dataset,
+      });
+      return;
+    }
+
+    res.json({ success: true, data: result.account, dataset: result.dataset });
   } catch (error) {
     if (error instanceof CompanyCatalogValidationError) {
       res.status(400).json({ success: false, error: error.message });
