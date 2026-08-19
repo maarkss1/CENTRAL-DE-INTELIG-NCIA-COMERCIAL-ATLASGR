@@ -6,7 +6,8 @@ Plataforma de geointeligência, inteligência de mercado e planejamento territor
 
 ## Estado
 
-A evolução nacional está em desenvolvimento na branch `feat/atlas-national-territory-intelligence` e PR draft #108. O sistema **não publica um vencedor enquanto os datasets mínimos não sustentarem a decisão**.
+A base empresarial detalhada está implementada no backend e no frontend. O sistema territorial
+continua sem publicar um vencedor enquanto os datasets mínimos não sustentarem a decisão.
 
 Os 16 clusters históricos são `HIPÓTESES DE TRIAGEM`, não ranking final.
 
@@ -92,6 +93,32 @@ Workflow: `.github/workflows/market-intelligence-rntrc.yml`.
 - preserva matriz/filial e porte como sinais;
 - publica agregado municipal por código IBGE.
 
+Quando `--companies-output-dir` é informado, a mesma execução também produz a base empresarial
+detalhada em CSV gzip particionado por UF, com Empresas + Estabelecimentos + Simples/MEI + tabelas
+de domínio da Receita. O output é imutável por `competencia` e `datasetHash`; ICP e RNTRC
+empresarial permanecem nulos quando não há evidência individual.
+
+Prova de Ribeirão Preto, preparada para a competência realmente disponível na fonte:
+
+```bash
+python public/tools/atlas-market-intelligence/etl_cnpj_atlas.py \
+  --competence YYYY-MM \
+  --workdir .cache/market-intelligence/cnpj \
+  --companies-output-dir .cache/market-intelligence/normalized/companies \
+  --companies-uf SP \
+  --companies-municipality-ibge 3543402
+```
+
+Carga em massa do manifest validado (requer `psql` e `DATABASE_URL`/`DIRECT_URL`):
+
+```bash
+python scripts/market_intelligence/import_companies.py \
+  --manifest .cache/market-intelligence/normalized/companies/competencia=YYYY-MM/snapshot=HASH/manifest.json
+```
+
+O importador usa `COPY` para uma tabela temporária, valida contagens e só então troca o
+`publicationSlot=CNPJ_ACTIVE` em transação. Reexecutar o mesmo hash é idempotente.
+
 A taxonomia é regra de modelo versionada e ainda deve ser calibrada com dados comerciais Atlas.
 
 ### MDF-e
@@ -108,14 +135,21 @@ Feature:
 
 ```text
 src/features/market-intelligence/
+  components/CompanyExplorer.tsx
   components/MarketIntelligenceApp.tsx
   domain/MarketIntelligence.ts
   domain/territoryOptimizer.ts
   marketIntelligence.data.ts
+  marketIntelligence.api.ts
+  server/marketIntelligence.routes.ts
+  server/marketIntelligence.service.ts
 ```
 
 Já implementado:
 
+- consulta empresarial real e separada do CRM;
+- paginação e filtros server-side;
+- detalhe por CNPJ com proveniência;
 - Board View com gate de decisão;
 - Saúde dos Dados;
 - simulador econômico sem defaults inventados;
@@ -174,7 +208,8 @@ O projeto só será marcado como concluído após lint, typecheck, unit, integra
 
 - sem secrets/tokens no Market Intelligence;
 - cache bruto ignorado pelo Git;
-- dados empresariais agregados por padrão;
+- catálogo empresarial detalhado em tabelas próprias, somente leitura para tenants autenticados e
+  separado do CRM; exports brutos não são publicados no bundle;
 - nenhuma necessidade de dados pessoais de sócios;
 - hashes e evidências permitem auditoria sem republicar bases públicas gigantes.
 

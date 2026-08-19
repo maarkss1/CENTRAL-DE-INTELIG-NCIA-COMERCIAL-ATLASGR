@@ -15,8 +15,10 @@ info:
     `/api/auth/sign-out`, `/api/auth/get-session`, etc.) é o padrão do Better Auth.
 
     **Multi-tenant**: toda rota autenticada (exceto `/api/auth/*`) roda sob
-    `requireTenant`, que resolve o `organizationId` da sessão; todos os recursos
-    abaixo são implicitamente filtrados por esse tenant.
+    `requireTenant`, que resolve o `organizationId` da sessão. Recursos operacionais
+    são filtrados pelo tenant. O catálogo público oficial de Market Intelligence é
+    global e somente leitura para tenants autenticados; ele nunca é misturado à
+    entidade `Company` do CRM.
 
     **Envelope de resposta**: a maior parte dos endpoints devolve
     `{ "success": true, "data": ... }` (e opcionalmente `meta` para paginação) em
@@ -47,6 +49,8 @@ tags:
     description: Cadastro/login/sessão (Better Auth)
   - name: Companies
     description: Empresas do CRM
+  - name: Market Intelligence
+    description: Universo empresarial oficial, versionado e separado das empresas do CRM
   - name: Contacts
     description: Contatos vinculados a empresas
   - name: Leads
@@ -115,6 +119,76 @@ security:
   - sessionCookie: []
 
 paths:
+  /market-intelligence/companies:
+    get:
+      tags: [Market Intelligence]
+      summary: Pesquisa empresas do snapshot CNPJ publicado
+      description: Filtros, ordenação e paginação são executados no PostgreSQL. pageSize máximo 200.
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { name: cnpj, in: query, schema: { type: string } }
+        - { name: razaoSocial, in: query, schema: { type: string, minLength: 2 } }
+        - { name: nomeFantasia, in: query, schema: { type: string, minLength: 2 } }
+        - { name: cnae, in: query, schema: { type: string } }
+        - { name: cnaeScope, in: query, schema: { type: string, enum: [principal, all], default: all } }
+        - { name: municipio, in: query, schema: { type: string } }
+        - { name: municipioIbge, in: query, schema: { type: string, pattern: '^\d{7}$' } }
+        - { name: uf, in: query, schema: { type: string, pattern: '^[A-Z]{2}$' } }
+        - { name: situacaoCadastral, in: query, schema: { type: string, enum: [ATIVA, SUSPENSA, INAPTA, BAIXADA, NULA] } }
+        - { name: icpMinimo, in: query, schema: { type: string, enum: [MUITO_ALTO, ALTO, MEDIO, BAIXO, FORA_DO_ICP] } }
+        - { name: matrizFilial, in: query, schema: { type: string, enum: [MATRIZ, FILIAL] } }
+        - { name: rntrc, in: query, schema: { type: boolean } }
+        - { name: porte, in: query, schema: { type: string } }
+        - { name: simples, in: query, schema: { type: string, enum: [SIM, NAO, NAO_INFORMADO] } }
+        - { name: mei, in: query, schema: { type: string, enum: [SIM, NAO, NAO_INFORMADO] } }
+        - { name: capitalSocialMin, in: query, schema: { type: number, minimum: 0 } }
+        - { name: capitalSocialMax, in: query, schema: { type: number, minimum: 0 } }
+        - { name: sort, in: query, schema: { type: string, enum: [razaoSocial, nomeFantasia, capitalSocial, icpScore, dataInicioAtividade] } }
+        - { name: order, in: query, schema: { type: string, enum: [asc, desc] } }
+      responses:
+        '200': { description: Página de empresas e metadados da competência }
+        '400': { description: Filtro inválido }
+        '503': { description: Nenhum snapshot READY publicado }
+  /market-intelligence/companies/{cnpj}:
+    get:
+      tags: [Market Intelligence]
+      summary: Abre o detalhe empresarial de um CNPJ
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Identificação, CNAE, endereço, contato público, ICP, RNTRC e proveniência }
+        '400': { description: CNPJ inválido }
+        '404': { description: CNPJ ausente no snapshot publicado }
+  /market-intelligence/territories:
+    get:
+      tags: [Market Intelligence]
+      summary: Agrega a base empresarial real e o RNTRC territorial por município
+      parameters:
+        - { name: uf, in: query, schema: { type: string, pattern: '^[A-Z]{2}$' } }
+        - { name: municipioIbge, in: query, schema: { type: string, pattern: '^\d{7}$' } }
+      responses:
+        '200': { description: Hierarquia Brasil, região, UF e município com contagens empresariais e indicador RNTRC municipal rotulado separadamente }
+  /market-intelligence/rankings:
+    get:
+      tags: [Market Intelligence]
+      summary: Ranking municipal por indicador disponível
+      parameters:
+        - { name: metric, in: query, schema: { type: string, enum: [EMPRESAS_ATIVAS, EMPRESAS_ICP, RNTRC_EMPRESARIAL, RNTRC_TERRITORIAL] } }
+        - { name: uf, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200': { description: Ranking sem score fabricado }
+  /market-intelligence/sources:
+    get:
+      tags: [Market Intelligence]
+      summary: Lista fontes, competências, hashes e status dos snapshots
+      responses:
+        '200': { description: Histórico de importações e snapshot ativo }
+
   # ───────────────────────────── Mesa de Tratamento ─────────────────────────────
   /mesa-tratamento/queue:
     get:

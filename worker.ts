@@ -10,7 +10,6 @@ import { env } from './src/config/env.js';
 import { logger } from './src/lib/logger.js';
 import { prisma } from './src/lib/prisma.js';
 import { shutdownLangfuse } from './src/lib/langfuse.js';
-import { withTimeout } from './src/lib/http.js';
 import client from 'prom-client';
 import {
     connection,
@@ -42,17 +41,11 @@ import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/f
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
-import { createCadenceRunWorker, scheduleCadenceRunJob } from './src/features/cadence/jobs/cadenceRun.worker.js';
+import { createAccountIntelligenceWorker } from './src/lib/queue/accountIntelligence.worker.js';
+import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue/newsMonitor.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
-// RUN-002e (Sprint 02/Onda 14): o retryStrategy do ioredis (src/lib/queue/redis.ts) reconecta
-// indefinidamente enquanto queuesEnabled=true — correto para resiliência a blips durante o
-// runtime, mas isso também significa que `pingRedis` nunca rejeita sozinho. Sem um teto aqui, um
-// Redis indisponível no boot deixava o processo pendurado para sempre (nem crash visível, nem
-// "pronto") em vez de falhar do jeito que o orquestrador (Render/k8s) espera de um healthcheck de
-// inicialização.
-const STARTUP_REDIS_TIMEOUT_MS = 10_000;
 type CloseableWorker = BullWorker<any, any, string> | null;
 
 async function startWorkerProcess() {
@@ -60,7 +53,7 @@ async function startWorkerProcess() {
         throw new Error('Worker dedicado requer ENABLE_QUEUES=true e REDIS_URL configurada.');
     }
 
-    await withTimeout(pingRedis(connection), STARTUP_REDIS_TIMEOUT_MS);
+    await pingRedis(connection);
     await prisma.$queryRaw`SELECT 1`;
 
     const leadsWorker = createLeadsWorker();
@@ -77,7 +70,8 @@ async function startWorkerProcess() {
     const autoAnonymizeWorker = createAutoAnonymizeWorker();
     const coldLeadsScannerWorker = createColdLeadsScannerWorker();
     const stagnationScannerWorker = createStagnationScannerWorker();
-    const cadenceRunWorker = createCadenceRunWorker();
+    const accountIntelligenceWorker = createAccountIntelligenceWorker();
+    const newsMonitorWorker = createNewsMonitorWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -89,7 +83,7 @@ async function startWorkerProcess() {
         scheduleAutoAnonymizeJob(),
         scheduleColdLeadsScannerJob(),
         scheduleStagnationScannerJob(),
-        scheduleCadenceRunJob(),
+        scheduleGlobalNewsScan(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -130,7 +124,8 @@ async function startWorkerProcess() {
         { name: 'swarm-scheduler', worker: swarmSchedulerWorker },
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
-        { name: 'cadence-run-scanner', worker: cadenceRunWorker },
+        { name: 'account-intelligence-queue', worker: accountIntelligenceWorker },
+        { name: 'news-monitor-queue', worker: newsMonitorWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {
@@ -156,10 +151,7 @@ async function startWorkerProcess() {
 
         if (req.url === '/health/ready' || req.url === '/readyz') {
             try {
-                // Mesmo motivo do boot acima: sem timeout, um Redis fora do ar faz este endpoint
-                // travar em vez de responder 503 — o orquestrador precisa de uma resposta rápida
-                // para decidir remover a réplica de rotação.
-                await withTimeout(pingRedis(connection), 3_000);
+                await pingRedis(connection);
                 await prisma.$queryRaw`SELECT 1`;
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({

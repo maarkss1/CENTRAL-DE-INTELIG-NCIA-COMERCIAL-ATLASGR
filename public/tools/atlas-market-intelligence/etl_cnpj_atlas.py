@@ -132,10 +132,9 @@ def list_remote_archives(token: str, competence: str, include_company_details: b
         wanted.append("Municipios.zip")
     if include_company_details:
         for required in ["Simples.zip", "Cnaes.zip", "Naturezas.zip", "Qualificacoes.zip", "Motivos.zip"]:
-            if required in names:
-                wanted.append(required)
-            else:
+            if required not in names:
                 raise RuntimeError(f"Indice Receita sem {required} para {competence}")
+            wanted.append(required)
     if not any(n.lower().startswith("empresas") for n in wanted) or not any(n.lower().startswith("estabelecimentos") for n in wanted) or "Municipios.zip" not in wanted:
         raise RuntimeError(f"Indice Receita incompleto para {competence}")
     return [(name, webdav_url(f"{folder}{name}")) for name in wanted]
@@ -144,27 +143,49 @@ def list_remote_archives(token: str, competence: str, include_company_details: b
 def download_archive(name: str, url: str, target_dir: Path, token: str, attempts: int = 4) -> ArchiveMeta:
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / name
-    if target.exists() and target.stat().st_size >= 100 and not zipfile.is_zipfile(target):
+    partial = target.with_suffix(target.suffix + ".part")
+    if target.exists() and zipfile.is_zipfile(target):
+        return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
+    if target.exists():
         target.unlink()
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
-        if target.exists() and target.stat().st_size >= 100:
-            break
         try:
-            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Authorization": basic_auth_header(token)})
-            with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as output:  # noqa: S310
-                while chunk := response.read(1024 * 1024):
-                    output.write(chunk)
+            received = partial.stat().st_size if partial.exists() else 0
+            headers = {
+                "User-Agent": USER_AGENT,
+                "Authorization": basic_auth_header(token),
+                "Accept-Encoding": "identity",
+                "Range": f"bytes={received}-",
+            }
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=600) as response:  # noqa: S310
+                resumed = received > 0 and getattr(response, "status", 200) == 206
+                if received and not resumed:
+                    received = 0
+                expected = int(response.headers.get("Content-Length") or 0) + received
+                mode = "ab" if resumed else "wb"
+                next_progress = received + 256 * 1024 * 1024
+                with partial.open(mode) as output:
+                    while chunk := response.read(1024 * 1024):
+                        output.write(chunk)
+                        received += len(chunk)
+                        if received >= next_progress:
+                            print(json.dumps({"phase": "DOWNLOAD", "file": name, "bytes": received, "expectedBytes": expected}), flush=True)
+                            next_progress += 256 * 1024 * 1024
         except OSError as error:
             last_error = error
-            target.unlink(missing_ok=True)
             if attempt < attempts:
                 time.sleep(2**attempt)
+                continue
+        if partial.exists() and zipfile.is_zipfile(partial):
+            partial.replace(target)
+            break
+        last_error = RuntimeError(f"download parcial/invalido: {partial.stat().st_size if partial.exists() else 0} bytes")
+        if attempt < attempts:
+            time.sleep(2**attempt)
     if not target.exists() or target.stat().st_size < 100:
         raise RuntimeError(f"Falha ao baixar {name} apos {attempts} tentativas: {last_error}")
-    if not zipfile.is_zipfile(target):
-        target.unlink(missing_ok=True)
-        raise RuntimeError(f"ZIP invalido: {target}")
     return ArchiveMeta(name, url, target.stat().st_size, sha256_file(target))
 
 
@@ -241,6 +262,8 @@ def process_establishments(db: sqlite3.Connection, archives: list[Path], taxonom
     sql = "INSERT OR REPLACE INTO candidate_establishment VALUES (?,?,?,?,?,?,?,?)"
     batch: list[tuple[str, ...]] = []
     for archive in archives:
+        print(json.dumps({"phase": "AGGREGATE_ESTABLISHMENTS", "file": archive.name,
+                          "recordsRead": stats["establishment_rows"]}), flush=True)
         for row in zip_rows(archive):
             stats["establishment_rows"] += 1
             if len(row) < 22 or row[5].strip() != ACTIVE_SITUATION:
@@ -266,6 +289,8 @@ def process_companies(db: sqlite3.Connection, archives: list[Path]) -> dict[str,
     stats = defaultdict(int)
     batch: list[tuple[str, str, str]] = []
     for archive in archives:
+        print(json.dumps({"phase": "AGGREGATE_COMPANIES", "file": archive.name,
+                          "recordsRead": stats["company_rows"]}), flush=True)
         for row in zip_rows(archive):
             stats["company_rows"] += 1
             if len(row) < 6 or row[0].strip() not in candidate_basics:
@@ -313,7 +338,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("public/tools/atlas-market-intelligence/data/icp_municipios.json"))
     parser.add_argument("--metadata", type=Path)
     parser.add_argument("--companies-output-dir", type=Path, help="Gera snapshot empresarial detalhado particionado por UF")
-    parser.add_argument("--companies-uf", help="Restringe a prova detalhada a uma UF, sem alterar a arquitetura nacional")
+    parser.add_argument("--companies-uf", help="Restringe a prova detalhada a uma UF")
     parser.add_argument("--companies-municipality-ibge", help="Restringe a prova detalhada a um municipio IBGE")
     parser.add_argument("--companies-chunk-size", type=int, default=10_000)
     args = parser.parse_args()
@@ -360,15 +385,10 @@ def main() -> int:
         "transformations": ["situacao ativa 02", "CNAE principal+secundarios", "precedencia A>B>C", "porte e matriz/filial preservados", "join municipal por codigo IBGE", "agregacao municipal compacta"],
         "limitations": ["taxonomia v1 nao calibrada com ganhos/perdas Atlas", "porte nao promove tier sozinho", "capital social nao vira score", "frota/MDF-e/risco nao sao inferidos do CNPJ"]
     }
-
     if args.companies_output_dir:
-        required = {
-            "Simples.zip": source_dir / "Simples.zip",
-            "Cnaes.zip": source_dir / "Cnaes.zip",
-            "Naturezas.zip": source_dir / "Naturezas.zip",
-            "Qualificacoes.zip": source_dir / "Qualificacoes.zip",
-            "Motivos.zip": source_dir / "Motivos.zip",
-        }
+        required = {name: source_dir / name for name in [
+            "Simples.zip", "Cnaes.zip", "Naturezas.zip", "Qualificacoes.zip", "Motivos.zip",
+        ]}
         missing = [name for name, path in required.items() if not path.exists()]
         if missing:
             raise RuntimeError(f"Arquivos detalhados ausentes em {source_dir}: {', '.join(missing)}")

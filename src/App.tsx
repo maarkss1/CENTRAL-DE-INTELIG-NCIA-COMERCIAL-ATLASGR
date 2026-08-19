@@ -49,6 +49,8 @@ const OnboardingTour = lazy(() => import('./features/onboarding/components/Onboa
 const WelcomeScreen = lazy(() => import('./features/auth/components/WelcomeScreen').then(m => ({ default: m.WelcomeScreen })));
 const SelectionScreen = lazy(() => import('./features/auth/components/SelectionScreen').then(m => ({ default: m.SelectionScreen })));
 const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
+const Account360 = lazy(() => import('./features/market-intelligence/components/Account360').then(m => ({ default: m.Account360 })));
+const LeadApprovalDeck = lazy(() => import('./features/market-intelligence/components/LeadApprovalDeck').then(m => ({ default: m.LeadApprovalDeck })));
 import { Propostas } from './pages/Propostas';
 
 function PageFallback() {
@@ -114,6 +116,8 @@ function AppLayout() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="winloss" element={<WinLossAnalysis />} />
           <Route path="market-intelligence" element={<MarketIntelligence />} />
+          <Route path="market-intelligence/accounts/:id" element={<Account360 />} />
+          <Route path="market-intelligence/deck" element={<LeadApprovalDeck />} />
           <Route path="propostas" element={<Propostas />} />
           {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
               direto por URL (não só o item de menu); a autorização real (que nunca confia no
