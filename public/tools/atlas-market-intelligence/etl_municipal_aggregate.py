@@ -10,9 +10,10 @@ por `src/features/market-intelligence/domain/MarketIntelligence.ts` via
 Formula de demanda (ICP): percentil nacional ponderado por tier
 (peso A=3, B=2, C=1) -- decisao de metodologia validada explicitamente pelo
 usuario nesta sessao, nao uma escolha arbitraria. O mesmo metodo de percentil
-e aplicado ao RNTRC (transportadores) por consistencia.
+e aplicado ao RNTRC (transportadores) e ao MDF-e/CIOT (viagens de carga como
+origem + destino) por consistencia -- mesma tecnica, fonte de dado diferente.
 
-Componentes sem fonte processada ainda (MDF-e, risco Sinesp, White Space
+Componentes sem fonte processada ainda (risco Sinesp, White Space
 competitivo, eficiencia territorial) permanecem `NAO_DISPONIVEL`/bloqueados --
 o Opportunity Score de cada municipio so deixa de ser None quando TODOS os
 componentes ponderados de `BASE_OPPORTUNITY_WEIGHTS` estiverem presentes
@@ -184,7 +185,12 @@ def build_records(
     rntrc_by_code: dict[str, dict[str, Any]],
     senatran_by_code: dict[str, dict[str, Any]],
     competition_by_code: dict[str, dict[str, Any]],
+    mdfe_origins_by_code: dict[str, dict[str, Any]] | None = None,
+    mdfe_destinations_by_code: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    mdfe_origins_by_code = mdfe_origins_by_code or {}
+    mdfe_destinations_by_code = mdfe_destinations_by_code or {}
+
     icp_weighted = {
         code: sum(row.get(tier, 0) * weight for tier, weight in ICP_TIER_WEIGHTS.items())
         for code, row in icp_by_code.items()
@@ -194,8 +200,15 @@ def build_records(
     rntrc_weighted = {code: row.get("transporters", 0) for code, row in rntrc_by_code.items()}
     rntrc_percentiles = percentile_scores(rntrc_weighted)
 
+    mdfe_codes = set(mdfe_origins_by_code) | set(mdfe_destinations_by_code)
+    mdfe_weighted = {
+        code: (mdfe_origins_by_code.get(code, {}).get("trips") or 0) + (mdfe_destinations_by_code.get(code, {}).get("trips") or 0)
+        for code in mdfe_codes
+    }
+    mdfe_percentiles = percentile_scores(mdfe_weighted)
+
     records: list[dict[str, Any]] = []
-    stats = {"total": 0, "with_icp": 0, "with_rntrc": 0, "with_fleet": 0, "with_competition_signal": 0}
+    stats = {"total": 0, "with_icp": 0, "with_rntrc": 0, "with_fleet": 0, "with_mdfe": 0, "with_competition_signal": 0}
 
     for muni in municipios:
         code = muni["ibgeCode"]
@@ -204,6 +217,8 @@ def build_records(
         rntrc_row = rntrc_by_code.get(code)
         senatran_row = senatran_by_code.get(code)
         competition_row = competition_by_code.get(code)
+        mdfe_origin_row = mdfe_origins_by_code.get(code)
+        mdfe_destination_row = mdfe_destinations_by_code.get(code)
 
         if icp_row:
             stats["with_icp"] += 1
@@ -259,9 +274,18 @@ def build_records(
         risk_component = NAO_DISPONIVEL("Base nacional de risco Sinesp ainda nao processada.")
         competition_pressure = NAO_DISPONIVEL(f"Censo de concorrencia em {census_status}, nao CENSO_COMPLETO.")
         white_space = NAO_DISPONIVEL(f"White Space bloqueado: concorrencia esta em {census_status}.")
-        territorial_efficiency = NAO_DISPONIVEL("Formula de eficiencia territorial ainda nao definida (depende de MDF-e/malha viaria).")
-        mdfe_component = NAO_DISPONIVEL("Fluxo MDF-e ainda nao transformado em agregado municipal.")
+        territorial_efficiency = NAO_DISPONIVEL("Formula de eficiencia territorial ainda nao definida (depende de malha viaria).")
         need_component = NAO_DISPONIVEL("Need depende do risco Sinesp, ainda nao processado.")
+
+        mdfe_trips = None
+        if code in mdfe_codes:
+            stats["with_mdfe"] += 1
+            origin_trips = (mdfe_origin_row or {}).get("trips") or 0
+            destination_trips = (mdfe_destination_row or {}).get("trips") or 0
+            mdfe_trips = origin_trips + destination_trips
+            mdfe_component = ScoreComponent(mdfe_percentiles.get(code, 0.0), 0.85, "OBSERVADO")
+        else:
+            mdfe_component = NAO_DISPONIVEL("Municipio sem viagens CIOT/MDF-e no snapshot processado.")
 
         opportunity_inputs = {
             "icp": demand, "rntrc": rntrc_score, "mdfe": mdfe_component,
@@ -278,13 +302,17 @@ def build_records(
             evidence_ids.append("rntrc")
         if senatran_row:
             evidence_ids.append("senatran")
+        if code in mdfe_codes:
+            evidence_ids.append("mdfe-ciot")
 
         records.append({
             "ibgeCode": code, "name": muni["name"], "uf": muni["uf"], "region": muni["region"],
             "latitude": muni["latitude"], "longitude": muni["longitude"],
             "icp": icp_population,
             "rntrc": rntrc_metrics,
-            "mdfe": {"trips": None, "manifests": None, "tonnes": None, "tku": None, "interstateShare": None},
+            # manifests/tonnes/tku permanecem null: a fonte (CIOT) mede operacoes contratadas,
+            # nao manifestos, e nao publica peso/TKU por municipio -- ver FONTES.md.
+            "mdfe": {"trips": mdfe_trips, "manifests": None, "tonnes": None, "tku": None, "interstateShare": None},
             "risk": {"cargoRobbery": None, "vehicleRobbery": None, "vehicleTheft": None, "geography": "NAO_DISPONIVEL"},
             "competition": competition_metrics,
             "scores": {
@@ -323,32 +351,46 @@ def main() -> int:
     rntrc_by_code = index_by_ibge(load_json(args.data_dir / "rntrc_municipios.json"))
     senatran_by_code = index_by_ibge(load_json(args.data_dir / "senatran_frota_municipios.json"))
 
+    mdfe_origins_path = args.data_dir / "mdfe_origens_municipios.json"
+    mdfe_destinations_path = args.data_dir / "mdfe_destinos_municipios.json"
+    mdfe_origins_by_code = index_by_ibge(load_json(mdfe_origins_path)) if mdfe_origins_path.exists() else {}
+    mdfe_destinations_by_code = index_by_ibge(load_json(mdfe_destinations_path)) if mdfe_destinations_path.exists() else {}
+
     ibge_by_name = {(norm(row["uf"]), norm(row["name"])): row for row in municipios}
     competition_by_code = load_competition_seed(args.concorrencia_seed, ibge_by_name)
 
-    records, stats = build_records(municipios, icp_by_code, rntrc_by_code, senatran_by_code, competition_by_code)
+    records, stats = build_records(
+        municipios, icp_by_code, rntrc_by_code, senatran_by_code, competition_by_code,
+        mdfe_origins_by_code, mdfe_destinations_by_code,
+    )
     if not records:
         raise SystemExit("Agregacao municipal vazia")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(records, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
+    has_mdfe = stats["with_mdfe"] > 0
+    unavailable_components = ["risk", "need", "whiteSpace", "territorialEfficiency"]
+    if not has_mdfe:
+        unavailable_components.insert(0, "mdfe")
+
     metadata = {
-        "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + IBGE/BCIM + seed de concorrencia)",
+        "dataset": "Agregado municipal (ICP + RNTRC + SENATRAN + MDF-e/CIOT + IBGE/BCIM + seed de concorrencia)",
         "processedAt": datetime.now(timezone.utc).isoformat(),
         "outputSha256": sha256_file(output),
         "stats": stats,
         "methodology": {
             "demandScore": "percentil nacional ponderado por tier ICP (A=3, B=2, C=1)",
             "rntrcScore": "percentil nacional da contagem de transportadores RNTRC ativos",
-            "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate MDF-e/risco/White Space/eficiencia territorial existirem",
+            "mdfeScore": "percentil nacional de viagens CIOT (origem + destino) por municipio, quando o dataset mdfe_*.json existe",
+            "opportunityScore": "identico a calculateOpportunityScore em scoreEngine.ts (BASE_OPPORTUNITY_WEIGHTS); bloqueado ate risco Sinesp/White Space/eficiencia territorial existirem",
         },
-        "unavailableComponents": ["mdfe", "risk", "need", "whiteSpace", "territorialEfficiency"],
+        "unavailableComponents": unavailable_components,
         "transformations": [
-            "join por codigo IBGE entre municipios.json, icp_municipios.json, rntrc_municipios.json e senatran_frota_municipios.json",
+            "join por codigo IBGE entre municipios.json, icp_municipios.json, rntrc_municipios.json, senatran_frota_municipios.json e mdfe_origens/destinos_municipios.json (quando presentes)",
             "join do seed de concorrencia por nome+UF (unico dataset sem codigo IBGE na fonte)",
             "frota SENATRAN reclassificada em tracao (CAMINHAO + CAMINHAO TRATOR) e implemento (REBOQUE + SEMI-REBOQUE), mesma distincao do dicionario ANTT",
-            "opportunity score por municipio permanece bloqueado enquanto MDF-e, risco Sinesp e White Space nao existirem -- nunca estimado",
+            "opportunity score por municipio permanece bloqueado enquanto risco Sinesp e White Space nao existirem -- nunca estimado",
         ],
     }
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")

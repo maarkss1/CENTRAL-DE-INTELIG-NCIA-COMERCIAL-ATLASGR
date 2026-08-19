@@ -161,27 +161,57 @@ cruza município+UF contra o cadastro IBGE e agrega por código IBGE.
 
 ---
 
-## 3. ANTT - Movimentação de Cargas / MDF-e
+## 3. ANTT - Movimentação de Cargas / MDF-e (via proxy CIOT)
 
 **Órgão:** ANTT  
-**Portal:** `https://www.gov.br/antt/pt-br/assuntos/cargas/dados-do-transporte-rodoviario-de-cargas`  
-**Origem metodológica:** MDF-e integrado a dados do RNTRC  
-**Data de acesso desta revisão:** 2026-08-13/14
+**Portal MDF-e:** `https://www.gov.br/antt/pt-br/assuntos/cargas/dados-do-transporte-rodoviario-de-cargas`  
+**Status MDF-e:** o portal público expõe apenas um dashboard interativo (Power BI embedado), sem
+CSV/JSON reproduzível -- confirmado em `2026-08-19` consultando `dados.antt.gov.br/dataset/
+transporte-rodoviario-de-cargas` via API CKAN (`package_show`): o único recurso listado é
+`format: HTML` apontando para `app.powerbi.com`. Não há exportação MDF-e automatizável hoje.
 
-### Dados pretendidos
+### Fonte ativa: CIOT (Código Identificador da Operação de Transporte)
 
-- município/UF de origem;
-- município/UF de destino;
-- quantidade de viagens/MDF-e;
-- toneladas;
-- TKU quando disponível;
-- corredores;
-- interestadualidade;
-- tipos/categorias de carga quando disponibilizados.
+**Catálogo:** `https://dados.antt.gov.br/dataset/ciot`  
+**Dataset ID CKAN:** `ciot`  
+**Data de auditoria:** `2026-08-19`  
+**Competência mais recente validada:** `2026-07`
+
+O CIOT é emitido para toda operação de transporte rodoviário de carga contratada por
+transportador RNTRC -- a única fonte oficial reproduzível de fluxo origem-destino disponível
+hoje. **CIOT não é MDF-e**: CIOT identifica a operação de transporte contratada (1 CIOT = 1
+operação), MDF-e é o manifesto eletrônico do documento fiscal da carga física. São universos
+regulatórios distintos que se sobrepõem parcialmente. `etl_mdfe_atlas.py` usa CIOT como **proxy
+documentado**, nunca apresentado como MDF-e literal:
+
+- `sourceKind` no metadata e a `note` do dataset `mdfe` no manifest deixam essa distinção
+  explícita em todo lugar que o dado aparece;
+- o campo `manifests` (contagem de MDF-e) permanece `null` quando a fonte é CIOT -- nunca
+  preenchido com contagem de CIOT;
+- `viagens`/`trips` é preenchido a partir de `quantidade_ciots` (1 CIOT ~ 1 operação de
+  transporte, o análogo mais próximo de uma viagem).
+
+### Dados utilizados
+
+- `municipio_origem` / `uf_origem` / `municipio_destino` / `uf_destino`;
+- `ncm_carga` (grupo de mercadoria);
+- `quantidade_ciots` (mapeado para viagens/trips).
+
+### Transformação
+
+Descoberta dinâmica do CSV mensal mais recente via API CKAN (mesmo padrão do RNTRC), download com
+retry, join origem+destino contra o cadastro IBGE, agregação em fluxos origem-destino-NCM,
+municípios de origem, municípios de destino e corredores (top 5.000 por tonelagem/manifestos/
+viagens, o que estiver disponível).
 
 ### Limitações
 
-A disponibilidade de visualização institucional não implica existência de download automatizável no mesmo formato. A plataforma só publicará agregado MDF-e quando houver exportação oficial reproduzível e competência registrada.
+- toneladas e TKU não estão presentes no CSV CIOT -- permanecem `null`, nunca inferidos;
+- ~2,2% das linhas têm geografia em branco (linhas de agregado nacional por NCM, sem
+  origem/destino) e ~2% adicionais não casam com o cadastro IBGE -- ambos contabilizados e
+  documentados em `mdfe.metadata.json`, nunca descartados silenciosamente;
+- se uma exportação MDF-e oficial reproduzível vier a existir, `etl_mdfe_atlas.py` já aceita
+  `--input` manual com o mesmo layout genérico origem/destino, sem mudança de código.
 
 ---
 

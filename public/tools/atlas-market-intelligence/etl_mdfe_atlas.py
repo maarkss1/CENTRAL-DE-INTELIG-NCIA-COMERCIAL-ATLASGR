@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-"""ETL de exportações oficiais ANTT / Movimentação de Cargas (MDF-e).
+"""ETL de exportações oficiais ANTT / Movimentação de Cargas (MDF-e / CIOT).
 
-A página pública da ANTT atualmente expõe o painel interativo. Este script NÃO
-raspa valores do HTML e NÃO inventa MDF-e ausente. Ele processa CSV exportado do
-painel/fonte oficial quando disponível e produz:
+A ANTT não publica exportação aberta de MDF-e (o painel público é um dashboard
+interativo, sem CSV/JSON reproduzível -- ver `FONTES.md` seção 3). O CIOT
+(Código Identificador da Operação de Transporte), por outro lado, é publicado
+mensalmente em `dados.antt.gov.br` com origem/destino municipal e grupo NCM
+por operação de transporte rodoviário contratada -- a melhor fonte oficial
+reproduzível de fluxo de carga origem-destino disponível hoje. Este ETL usa o
+CIOT como PROXY documentado de fluxo logístico, nunca apresentado como MDF-e
+literal: `sourceKind` no metadata e `municipalUse` no manifest deixam essa
+distinção explícita em todo lugar que o dataset aparece.
 
-- fluxo origem-destino por código IBGE;
-- agregação municipal de origem e destino;
-- corredores principais;
-- interestadualidade;
-- toneladas, MDF-e, viagens e TKU somente quando observados;
-- metadata com competência, hash, campos reconhecidos e perdas geográficas.
+Também aceita, via `--input`, qualquer CSV de exportação MDF-e oficial que
+venha a existir no futuro (mesmo layout genérico origem/destino ou
+município/UF), sem alterar a lógica de agregação.
 
-Uso:
+Uso automatico (CIOT, mesmo padrao de descoberta dinamica do RNTRC):
+  python etl_mdfe_atlas.py --output-dir public/tools/atlas-market-intelligence/data
+
+Uso manual (exportação MDF-e oficial, se/quando existir):
   python etl_mdfe_atlas.py exportacao_oficial.csv \
     --output-dir public/tools/atlas-market-intelligence/data \
     --source-url 'https://www.gov.br/antt/.../movimentacao-de-cargas' \
@@ -27,6 +33,7 @@ import hashlib
 import json
 import math
 import re
+import time
 import unicodedata
 import urllib.request
 from collections import defaultdict
@@ -36,6 +43,9 @@ from typing import Any, Iterable
 
 IBGE_MUNICIPIOS = "https://servicodados.ibge.gov.br/api/v1/localidades/municipios"
 DEFAULT_SOURCE_PAGE = "https://www.gov.br/antt/pt-br/assuntos/cargas/dadostrc/movimentacao-de-cargas"
+CIOT_CKAN_PACKAGE = "https://dados.antt.gov.br/api/3/action/package_show?id=ciot"
+CIOT_SOURCE_PAGE = "https://dados.antt.gov.br/dataset/ciot"
+USER_AGENT = "AtlasGR-MarketIntelligence/1.0 (+data engineering)"
 
 ALIASES = {
     "municipio_origem": ["municipio_origem", "origem_municipio", "municipio_de_origem", "origem"],
@@ -44,13 +54,55 @@ ALIASES = {
     "uf_destino": ["uf_destino", "destino_uf", "estado_destino", "uf_de_destino"],
     "municipio": ["municipio", "localidade", "municipio_nome"],
     "uf": ["uf", "estado", "sigla_uf"],
-    "viagens": ["viagens", "numero_de_viagens", "qtd_viagens", "jornadas", "quantidade_viagens"],
+    # "quantidade_ciots" (1 CIOT ~ 1 operacao de transporte contratada) mapeia para
+    # "viagens" -- nunca para "mdfe" (contagem de manifestos), que o CIOT nao mede.
+    "viagens": ["viagens", "numero_de_viagens", "qtd_viagens", "jornadas", "quantidade_viagens", "quantidade_ciots"],
     "mdfe": ["mdfe", "mdf_e", "quantidade_mdfe", "qtd_mdfe", "manifestos", "quantidade_de_mdf_e"],
     "toneladas": ["toneladas", "peso_toneladas", "peso_t", "ton", "peso_carga_toneladas"],
     "tku": ["tku", "tonelada_quilometro_util", "toneladas_quilometro_util"],
-    "ncm_grupo": ["ncm_grupo", "ncm", "grupo_ncm", "produto", "tipo_carga", "grupo_de_produto"],
+    "ncm_grupo": ["ncm_grupo", "ncm", "grupo_ncm", "produto", "tipo_carga", "grupo_de_produto", "ncm_carga"],
     "periodo": ["periodo", "mes_ano", "ano_mes", "competencia", "data", "ano_mes_emissao"],
 }
+
+
+def discover_latest_ciot() -> tuple[str, str]:
+    """Retorna (url, competencia AAAA-MM) do CSV CIOT mais recente no portal ANTT."""
+    payload = json.loads(http_bytes(CIOT_CKAN_PACKAGE).decode("utf-8"))
+    if not payload.get("success"):
+        raise RuntimeError("CKAN ANTT nao retornou success=true para o pacote CIOT")
+    candidates: list[tuple[str, str]] = []
+    for resource in payload["result"].get("resources", []):
+        url = str(resource.get("url") or "")
+        if resource.get("format") != "CSV":
+            continue
+        match = re.search(r"(0[1-9]|1[0-2])_(\d{4})_ciots\.csv", url)
+        if not match:
+            continue
+        candidates.append((f"{match.group(2)}-{match.group(1)}", url))
+    if not candidates:
+        raise RuntimeError("Nenhum recurso CSV CIOT encontrado no pacote oficial da ANTT")
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1], candidates[0][0]
+
+
+def download_with_retry(url: str, target: Path, attempts: int = 4, timeout: int = 300) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        if target.exists() and target.stat().st_size >= 1000:
+            return
+        try:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request, timeout=timeout) as response, target.open("wb") as output:  # noqa: S310
+                while chunk := response.read(1024 * 1024):
+                    output.write(chunk)
+        except OSError as error:
+            last_error = error
+            target.unlink(missing_ok=True)
+            if attempt < attempts:
+                time.sleep(2**attempt)
+    if not target.exists() or target.stat().st_size < 1000:
+        raise RuntimeError(f"Falha ao baixar {url} apos {attempts} tentativas: {last_error}")
 
 
 def norm(value: Any) -> str:
@@ -135,7 +187,7 @@ def load_ibge(cache: Path) -> dict[tuple[str, str], dict[str, Any]]:
         cache.write_bytes(http_bytes(IBGE_MUNICIPIOS))
     lookup: dict[tuple[str, str], dict[str, Any]] = {}
     for row in json.loads(cache.read_text(encoding="utf-8")):
-        uf = row.get("microrregiao", {}).get("mesorregiao", {}).get("UF", {})
+        uf = ((row.get("microrregiao") or {}).get("mesorregiao") or {}).get("UF") or {}
         if not uf:
             immediate = row.get("regiao-imediata") or {}
             uf = ((immediate.get("regiao-intermediaria") or {}).get("UF")) or {}
@@ -157,28 +209,15 @@ def empty_metrics() -> dict[str, float | None]:
     return {"trips": None, "manifests": None, "tonnes": None, "tku": None}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="ETL de exportação oficial MDF-e / ANTT")
-    parser.add_argument("input", type=Path)
-    parser.add_argument("--output-dir", type=Path, default=Path("public/tools/atlas-market-intelligence/data"))
-    parser.add_argument("--workdir", type=Path, default=Path(".cache/market-intelligence/mdfe"))
-    parser.add_argument("--source-url", default=DEFAULT_SOURCE_PAGE)
-    parser.add_argument("--competence", required=True, help="Competência explícita do export oficial, ex.: 2026-07")
-    args = parser.parse_args()
-
-    if not args.input.exists() or args.input.stat().st_size <= 0:
-        raise SystemExit(f"Entrada MDF-e inválida: {args.input}")
-
-    ibge = load_ibge(args.workdir / "ibge_municipios.json")
-    encoding = detect_encoding(args.input)
+def aggregate(path: Path, ibge: dict[tuple[str, str], dict[str, Any]]) -> dict[str, Any]:
+    encoding = detect_encoding(path)
     origin_agg: dict[str, dict[str, Any]] = {}
     destination_agg: dict[str, dict[str, Any]] = {}
     flows: dict[tuple[str, str, str], dict[str, Any]] = {}
     cargo_mix: defaultdict[str, float] = defaultdict(float)
-    stats = defaultdict(int)
-    recognized: dict[str, str]
+    stats: defaultdict[str, int] = defaultdict(int)
 
-    with args.input.open("r", encoding=encoding, errors="replace", newline="") as handle:
+    with path.open("r", encoding=encoding, errors="replace", newline="") as handle:
         sample = handle.read(65536)
         handle.seek(0)
         reader = csv.DictReader(handle, dialect=detect_dialect(sample))
@@ -231,12 +270,49 @@ def main() -> int:
                 item = origin_agg.setdefault(geo["ibgeCode"], {**geo, **empty_metrics()})
                 for key, value in metrics.items(): add_metric(item, key, value)
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     flow_rows = sorted(flows.values(), key=lambda row: (row["originUf"], row["originName"], row["destinationUf"], row["destinationName"], row["cargoGroup"] or ""))
     origin_rows = sorted(origin_agg.values(), key=lambda row: (row["uf"], row["name"]))
     destination_rows = sorted(destination_agg.values(), key=lambda row: (row["uf"], row["name"]))
     corridors = sorted(flow_rows, key=lambda row: row.get("tonnes") or row.get("manifests") or row.get("trips") or 0, reverse=True)
 
+    return {
+        "flowRows": flow_rows, "originRows": origin_rows, "destinationRows": destination_rows,
+        "corridors": corridors, "stats": dict(stats), "cargoMix": dict(cargo_mix), "recognized": recognized,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="ETL de exportação oficial MDF-e / ANTT (ou CIOT como proxy, ver docstring)")
+    parser.add_argument("input", type=Path, nargs="?", help="CSV de exportação oficial. Omitido: baixa o CIOT mais recente automaticamente.")
+    parser.add_argument("--output-dir", type=Path, default=Path("public/tools/atlas-market-intelligence/data"))
+    parser.add_argument("--workdir", type=Path, default=Path(".cache/market-intelligence/mdfe"))
+    parser.add_argument("--source-url", default=None)
+    parser.add_argument("--competence", default=None, help="Competência explícita do export oficial, ex.: 2026-07. Obrigatório com --input manual.")
+    args = parser.parse_args()
+
+    source_kind = "MDF-e (exportacao oficial informada manualmente)"
+    if args.input is None:
+        url, competence = discover_latest_ciot()
+        args.competence = args.competence or competence
+        args.source_url = args.source_url or CIOT_SOURCE_PAGE
+        raw_dir = args.workdir / "raw" / args.competence
+        args.input = raw_dir / Path(url).name
+        download_with_retry(url, args.input)
+        source_kind = "CIOT (proxy documentado para fluxo origem-destino; NAO e MDF-e literal -- ver FONTES.md)"
+    else:
+        if not args.competence:
+            raise SystemExit("--competence e obrigatorio quando um CSV e informado manualmente via --input")
+        args.source_url = args.source_url or DEFAULT_SOURCE_PAGE
+
+    if not args.input.exists() or args.input.stat().st_size <= 0:
+        raise SystemExit(f"Entrada MDF-e/CIOT inválida: {args.input}")
+
+    ibge = load_ibge(args.workdir / "ibge_municipios.json")
+    result = aggregate(args.input, ibge)
+    flow_rows, origin_rows, destination_rows, corridors = result["flowRows"], result["originRows"], result["destinationRows"], result["corridors"]
+    stats, cargo_mix, recognized = result["stats"], result["cargoMix"], result["recognized"]
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
         "flows": args.output_dir / "mdfe_fluxos.json",
         "origins": args.output_dir / "mdfe_origens_municipios.json",
@@ -248,10 +324,11 @@ def main() -> int:
     outputs["destinations"].write_text(json.dumps(destination_rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     outputs["corridors"].write_text(json.dumps(corridors[:5000], ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-    total_rows = max(1, stats["rowsRead"])
+    total_rows = max(1, stats.get("rowsRead", 0))
     metadata_path = args.output_dir / "mdfe.metadata.json"
     metadata = {
-        "dataset": "ANTT / Movimentação de Cargas baseada em MDF-e",
+        "dataset": "ANTT / Movimentação de Cargas",
+        "sourceKind": source_kind,
         "sourceUrl": args.source_url,
         "competence": args.competence,
         "processedAt": datetime.now(timezone.utc).isoformat(),
@@ -260,7 +337,7 @@ def main() -> int:
         "inputSha256": sha256_file(args.input),
         "recognizedColumns": recognized,
         "stats": dict(stats),
-        "unmatchedGeographyRate": stats["unmatchedGeographyRows"] / total_rows,
+        "unmatchedGeographyRate": stats.get("unmatchedGeographyRows", 0) / total_rows,
         "cargoGroupsObserved": len(cargo_mix),
         "outputs": {name: {"file": path.name, "sha256": sha256_file(path)} for name, path in outputs.items()},
         "semantics": {
@@ -270,7 +347,8 @@ def main() -> int:
             "tku": "somente publicado quando presente no export oficial; nunca inferido de Haversine",
         },
         "limitations": [
-            "A página pública da ANTT expõe painel interativo; este ETL exige exportação oficial identificável.",
+            "A página pública da ANTT de MDF-e expõe apenas um painel interativo (Power BI), sem exportação aberta; CIOT é usado como proxy documentado de fluxo origem-destino até uma exportação MDF-e oficial existir.",
+            "CIOT mede operação de transporte contratada (1 CIOT = 1 operação), não manifesto eletrônico; o campo 'manifests' (contagem de MDF-e) permanece null quando a fonte é CIOT.",
             "Campos ausentes permanecem null e não são convertidos em zero.",
             "Top corredores no JSON web é limitado a 5.000 linhas; o agregado completo permanece reproduzível pelo ETL.",
         ],

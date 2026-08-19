@@ -212,10 +212,15 @@ O front recebe agregações empresariais e, futuramente, uma lista de contas B2B
 
 ## 5. MDF-e / fluxo logístico real
 
+**Implementado via CIOT** (proxy documentado -- o portal MDF-e da ANTT só expõe dashboard
+interativo, sem exportação reproduzível; ver `FONTES.md` seção 3). `sourceKind` no metadata e a
+`note` do dataset `mdfe` deixam a distinção CIOT-vs-MDF-e explícita em todo lugar que o dado
+aparece; `manifests` (contagem de MDF-e) permanece `null` quando a fonte é CIOT.
+
 ```text
-ANTT / Movimentação de Cargas baseada em MDF-e
+ANTT / Movimentação de Cargas (CIOT como proxy documentado; MDF-e oficial quando/se existir)
 ↓
-snapshot/exportação oficial com competência
+descoberta automática do CSV mensal (API CKAN) ou exportação oficial informada manualmente
 ↓
 etl_mdfe_atlas.py
 ↓
@@ -348,13 +353,16 @@ A fórmula final deve ser acompanhada de análise de sensibilidade e `methodolog
   snapshot CNPJ/ICP. Metodologia validada explicitamente com o usuário, não é uma escolha
   arbitrária da IA.
 - **RNTRC component**: percentil nacional da contagem de transportadores ativos, mesma técnica.
-- **MDF-e / Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até os pipelines
+- **MDF-e component**: percentil nacional de viagens CIOT (origem + destino) por município,
+  quando `mdfe_origens/destinos_municipios.json` existem; caso contrário `NAO_DISPONIVEL`.
+- **Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até os pipelines
   correspondentes existirem (Need depende do risco Sinesp; White Space depende de
   `CENSO_COMPLETO`; Territorial Efficiency ainda não tem fórmula definida).
 
 Como o Opportunity Score exige todos os componentes ponderados presentes, ele permanece
-**bloqueado (`null`) para todo município** enquanto MDF-e e risco Sinesp não forem processados —
-isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em oportunidade.
+**bloqueado (`null`) para todo município** enquanto risco Sinesp e White Space não forem
+processados — isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em
+oportunidade.
 
 ```text
 ICP component

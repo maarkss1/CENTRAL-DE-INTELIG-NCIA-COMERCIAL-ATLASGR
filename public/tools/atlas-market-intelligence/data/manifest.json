@@ -4,7 +4,7 @@
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
-    "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
+    "Fluxo de carga (MDF-e via proxy CIOT) tem ETL pronto e validado, mas ainda não foi publicado pelo workflow automatizado; agregado municipal/corredor real aguarda a primeira execução de market-intelligence-mdfe.yml.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
     "Premissas econômicas reais da Atlas para ticket, margem, win rate, ciclo e custo do vendedor ainda não foram informadas/calibradas."
@@ -62,9 +62,9 @@
       "id": "mdfe",
       "label": "ANTT / MDF-e movimentação de cargas",
       "status": "NAO_DISPONIVEL",
-      "source": "ANTT / Dados do TRC",
+      "source": "ANTT / CIOT (proxy documentado; portal MDF-e só expõe dashboard, sem exportação -- ver FONTES.md)",
       "geography": "Origem / Destino / Corredor",
-      "note": "Normalizador v0.4 existe; agregado nacional auditável ainda não foi produzido."
+      "note": "ETL implementado (etl_mdfe_atlas.py) com descoberta automática do CIOT mensal via API CKAN da ANTT, validado com dado real (competência 2026-07, 97,8% de match geográfico). Aguarda a primeira execução do workflow market-intelligence-mdfe.yml para publicar mdfe_fluxos.json e os agregados municipais."
     },
     {
       "id": "risk",

@@ -97,6 +97,24 @@ class BuildRecordsTests(unittest.TestCase):
         self.assertIsNone(beta["rntrc"]["activeVehicles"])
         self.assertIsNone(beta["scores"]["rawOpportunity"]["value"])
 
+    def test_mdfe_trips_sum_origin_and_destination_and_unblock_only_that_component(self) -> None:
+        municipios = [
+            {"ibgeCode": "1", "name": "Alfa", "uf": "SP", "region": "Sudeste", "latitude": -1.0, "longitude": -2.0},
+        ]
+        mdfe_origins = {"1": {"trips": 30}}
+        mdfe_destinations = {"1": {"trips": 12}}
+
+        records, stats = build_records(municipios, {}, {}, {}, {}, mdfe_origins, mdfe_destinations)
+        self.assertEqual(stats["with_mdfe"], 1)
+
+        row = records[0]
+        self.assertEqual(row["mdfe"]["trips"], 42)
+        self.assertIn("mdfe-ciot", row["evidenceIds"])
+        # opportunity continua bloqueado (need/whiteSpace/territorialEfficiency ausentes),
+        # mas o motivo nao deve mais citar "mdfe" -- esse componente ja esta OBSERVADO.
+        self.assertIsNone(row["scores"]["rawOpportunity"]["value"])
+        self.assertNotIn("mdfe:", row["scores"]["rawOpportunity"]["reason"])
+
 
 if __name__ == "__main__":
     unittest.main()
