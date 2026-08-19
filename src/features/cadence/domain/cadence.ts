@@ -42,13 +42,22 @@ export interface CadenceSequenceDefinition {
     touches: CadenceTouch[];
 }
 
-export type CadenceRunStatus = 'active' | 'paused' | 'stopped';
-export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop';
+/**
+ * 5 estados do roadmap (CYC-002): `completed`/`failed` são terminais distintos de `stopped` —
+ * `completed` é o fim natural da sequência (todos os toques resolvidos), `failed` é uma falha
+ * estrutural do próprio run (hoje, só a sequência associada ter ficado inválida/inacessível —
+ * ver `applyPolicyGuardrailFailure`), `stopped` é encerramento por sinal externo (opt-out,
+ * resposta do lead, ou parada manual do vendedor).
+ */
+export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
+export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop' | 'policy-guardrail';
 export type CadenceTouchResult = 'sent' | 'failed' | 'skipped';
 export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused';
 
 export interface CadenceTouchAttempt {
     touchOrder: number;
+    /** 1-based, conta quantas linhas (de qualquer resultado) já existem para este `touchOrder` — inclui esta. Nunca reseta entre tentativas com/sem sucesso; é o "tentativa nº X deste toque" citado no roadmap (CYC-002). */
+    attemptNumber: number;
     channel: CadenceChannel;
     attemptedAt: Date;
     result: CadenceTouchResult;
@@ -105,6 +114,16 @@ function attemptsForTouch(run: CadenceRunState, touchOrder: number): CadenceTouc
     return run.attempts.filter((a) => a.touchOrder === touchOrder);
 }
 
+/** `stopped`/`completed`/`failed` são todos terminais — nenhum admite nova ação nem retomada (só `paused` retoma, via `resumeCadenceRun`). */
+function isTerminalStatus(status: CadenceRunStatus): boolean {
+    return status === 'stopped' || status === 'completed' || status === 'failed';
+}
+
+/** `completed` é o único motivo de parada que corresponde ao status `completed` (fim natural da sequência); todos os outros motivos levam a `stopped`. `policy-guardrail` nunca passa por aqui — é sempre `failed`, ver `applyPolicyGuardrailFailure`. */
+function terminalStatusForStopReason(reason: CadenceStopReason): 'completed' | 'stopped' {
+    return reason === 'completed' ? 'completed' : 'stopped';
+}
+
 /**
  * Decide a próxima ação para este run, sem alterar nada. A ordem das checagens é a regra de
  * negócio: opt-out e resposta do lead vêm antes de status `paused`/`stopped` de propósito — um
@@ -121,7 +140,7 @@ export function decideCadenceAction(
     if (ctx.isOptedOut) return { type: 'stop', reason: 'opt-out' };
     if (ctx.hasLeadReplied) return { type: 'stop', reason: 'lead-reply' };
 
-    if (run.status === 'stopped') return { type: 'stop', reason: run.stopReason ?? 'completed' };
+    if (isTerminalStatus(run.status)) return { type: 'stop', reason: run.stopReason ?? 'completed' };
     if (run.status === 'paused') return { type: 'wait', reason: 'paused' };
 
     const touch = touchesForOrder(sequence, run.currentTouchOrder);
@@ -166,8 +185,13 @@ export function startCadenceRun(input: {
 }
 
 function stop(run: CadenceRunState, reason: CadenceStopReason, now: Date): CadenceRunState {
-    if (run.status === 'stopped') return run; // já parado — idempotente, não sobrescreve o motivo original
-    return { ...run, status: 'stopped', stopReason: reason, stoppedAt: now };
+    if (isTerminalStatus(run.status)) return run; // já num estado terminal — idempotente, não sobrescreve o motivo original
+    return { ...run, status: terminalStatusForStopReason(reason), stopReason: reason, stoppedAt: now };
+}
+
+/** Aplica o resultado de uma decisão `{type:'stop'}` de `decideCadenceAction` — único ponto que decide se o motivo leva a `completed` ou `stopped`. Exportado para `cadenceService.ts` não duplicar essa regra. */
+export function applyStopDecision(run: CadenceRunState, reason: CadenceStopReason, now: Date): CadenceRunState {
+    return stop(run, reason, now);
 }
 
 /** Opt-out encerra imediatamente — nenhuma outra regra tem precedência sobre esta. */
@@ -183,6 +207,18 @@ export function applyReplyStop(run: CadenceRunState, now: Date): CadenceRunState
 /** Parada manual pelo vendedor — distinta de pausa: não tem retomada. */
 export function stopCadenceManually(run: CadenceRunState, now: Date): CadenceRunState {
     return stop(run, 'manual-stop', now);
+}
+
+/**
+ * Falha estrutural do run — não é uma decisão humana nem um sinal do lead, é o sistema
+ * constatando que não pode mais avançar esta cadência com segurança (hoje, o único gatilho real:
+ * a `CadenceSequence` associada ficou malformada/inacessível entre uma varredura e outra — ver
+ * `scanAndAdvanceCadenceRuns` em `cadenceRun.worker.ts`). Terminal e não retomável, mesmo espírito
+ * de `stopCadenceManually`; único caminho que leva a `status: 'failed'`.
+ */
+export function applyPolicyGuardrailFailure(run: CadenceRunState, now: Date): CadenceRunState {
+    if (isTerminalStatus(run.status)) return run;
+    return { ...run, status: 'failed', stopReason: 'policy-guardrail', stoppedAt: now };
 }
 
 /** Pausa manual — retomável, diferente de `stop` (que é definitivo). Idempotente. */
@@ -220,11 +256,12 @@ export function recordTouchAttempt(
 ): CadenceRunState {
     const attempt: CadenceTouchAttempt = {
         touchOrder: touch.order,
+        attemptNumber: attemptsForTouch(run, touch.order).length + 1,
         channel: touch.channel,
         attemptedAt: now,
         result: outcome.result,
         skipReason: outcome.skipReason,
-        error: outcome.error ?? null,
+        error: sanitizeTouchError(outcome.error),
         providerMessageId: outcome.providerMessageId ?? null,
     };
     const attempts = [...run.attempts, attempt];
@@ -250,6 +287,28 @@ export function recordTouchAttempt(
         attempts,
         lastTouchAt: now,
         currentTouchOrder: nextOrder,
-        ...(hasNext ? {} : { status: 'stopped' as const, stopReason: 'completed' as const, stoppedAt: now }),
+        ...(hasNext ? {} : { status: 'completed' as const, stopReason: 'completed' as const, stoppedAt: now }),
     };
+}
+
+const MAX_TOUCH_ERROR_LENGTH = 500;
+
+/**
+ * Sanitização defensiva do texto de erro antes de persistir (CYC-002: "erro sanitizado" é
+ * requisito do roadmap para cada toque). Provedores externos (WhatsApp/e-mail/voz) às vezes ecoam
+ * o próprio payload da requisição no corpo de erro — nunca grave e-mail/telefone/CPF do lead nem
+ * credencial que por acaso apareça nessa mensagem. Trunca para não deixar um stack trace gigante
+ * numa coluna de auditoria.
+ */
+export function sanitizeTouchError(rawError: string | null | undefined): string | null {
+    if (!rawError) return null;
+    // CPF exige a pontuação (XXX.XXX.XXX-XX) para não colidir com um telefone de 11 dígitos sem
+    // formatação — ambos têm a mesma contagem de dígitos, e um número sem pontuação neste
+    // contexto (erro de dispatcher de canal) é quase sempre telefone, não CPF.
+    const redacted = rawError
+        .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[email redigido]')
+        .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, '[cpf redigido]')
+        .replace(/\b(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?(?:9\d{4}|\d{4})[-.\s]?\d{4}\b/g, '[telefone redigido]')
+        .replace(/\b(?:bearer|token|api[_-]?key)\s*[:=]?\s*['"]?[A-Za-z0-9._-]{8,}['"]?/gi, '[credencial redigida]');
+    return redacted.length > MAX_TOUCH_ERROR_LENGTH ? `${redacted.slice(0, MAX_TOUCH_ERROR_LENGTH)}…` : redacted;
 }

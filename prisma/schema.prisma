@@ -1779,6 +1779,8 @@ enum CadenceRunStatus {
   Active
   Paused
   Stopped
+  Completed
+  Failed
 }
 
 enum CadenceStopReason {
@@ -1786,6 +1788,7 @@ enum CadenceStopReason {
   LeadReply
   Completed
   ManualStop
+  PolicyGuardrail
 }
 
 enum CadenceTouchResult {
@@ -1871,6 +1874,9 @@ model CadenceTouchAttempt {
   cadenceRun   CadenceRun @relation(fields: [cadenceRunId], references: [id], onDelete: Cascade)
 
   touchOrder        Int
+  /// 1-based, quantas linhas (de qualquer resultado) já existiam para este `touchOrder` antes desta
+  /// — ver comentário em `CadenceTouchAttempt` no domínio (`src/features/cadence/domain/cadence.ts`).
+  attemptNumber     Int                @default(1)
   channel           CadenceChannel
   attemptedAt       DateTime           @default(now())
   result            CadenceTouchResult

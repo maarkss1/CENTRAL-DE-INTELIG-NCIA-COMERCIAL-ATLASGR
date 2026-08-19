@@ -54,6 +54,8 @@ const STATUS_QUERY_TO_DOMAIN: Record<string, CadenceRunStatus> = {
     Active: 'active',
     Paused: 'paused',
     Stopped: 'stopped',
+    Completed: 'completed',
+    Failed: 'failed',
 };
 
 function parseStatusFilter(raw: unknown): CadenceRunStatus[] | undefined {
@@ -62,7 +64,7 @@ function parseStatusFilter(raw: unknown): CadenceRunStatus[] | undefined {
     const parsed = values.map((v) => {
         const mapped = STATUS_QUERY_TO_DOMAIN[v];
         if (!mapped) {
-            throw new AppError(`Status de cadência inválido: '${v}'. Use Active, Paused e/ou Stopped.`, 400);
+            throw new AppError(`Status de cadência inválido: '${v}'. Use Active, Paused, Stopped, Completed e/ou Failed.`, 400);
         }
         return mapped;
     });

@@ -10,8 +10,8 @@ import { api } from '../../lib/api';
  * em andamento ainda não existe (ver CYC-009) — quando existir, os métodos entram aqui.
  */
 
-export type CadenceRunStatus = 'active' | 'paused' | 'stopped';
-export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop';
+export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
+export type CadenceStopReason = 'opt-out' | 'lead-reply' | 'completed' | 'manual-stop' | 'policy-guardrail';
 export type CadenceChannel = 'email' | 'whatsapp' | 'voice';
 export type CadenceTouchResult = 'sent' | 'failed' | 'skipped';
 export type CadenceSkipReason = 'outside-business-window' | 'opt-out' | 'lead-replied' | 'paused';
@@ -34,6 +34,7 @@ export interface OptOutRecordDTO {
 
 export interface CadenceTouchAttemptDTO {
     touchOrder: number;
+    attemptNumber: number;
     channel: CadenceChannel;
     attemptedAt: string;
     result: CadenceTouchResult;
@@ -56,11 +57,13 @@ export interface CadenceRunDTO {
     attempts: CadenceTouchAttemptDTO[];
 }
 
-/** A rota aceita status em PascalCase (`Active`/`Paused`/`Stopped`, mesma casing do enum Postgres) — mapeado aqui pra não vazar essa convenção pro resto do frontend. */
+/** A rota aceita status em PascalCase (`Active`/`Paused`/`Stopped`/`Completed`/`Failed`, mesma casing do enum Postgres) — mapeado aqui pra não vazar essa convenção pro resto do frontend. */
 const STATUS_TO_QUERY: Record<CadenceRunStatus, string> = {
     active: 'Active',
     paused: 'Paused',
     stopped: 'Stopped',
+    completed: 'Completed',
+    failed: 'Failed',
 };
 
 export interface CadenceTouchInput {

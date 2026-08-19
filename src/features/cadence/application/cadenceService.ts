@@ -1,5 +1,6 @@
 import { logger } from '../../../lib/logger.js';
 import {
+    applyStopDecision,
     decideCadenceAction,
     recordTouchAttempt,
     type CadenceDecision,
@@ -123,11 +124,10 @@ export async function advanceCadenceRun(
         });
 
         if (decision.type === 'stop') {
-            const stopped: CadenceRunState =
-                run.status === 'stopped' ? run : { ...run, status: 'stopped', stopReason: decision.reason, stoppedAt: now };
+            const stopped: CadenceRunState = applyStopDecision(run, decision.reason, now);
             await deps.runRepo.save(stopped);
-            if (run.status !== 'stopped') {
-                logger.info({ organizationId, runId, leadId: run.leadId, reason: decision.reason }, 'Cadência encerrada.');
+            if (stopped !== run) {
+                logger.info({ organizationId, runId, leadId: run.leadId, reason: decision.reason, status: stopped.status }, 'Cadência encerrada.');
             }
             return { run: stopped, decision };
         }

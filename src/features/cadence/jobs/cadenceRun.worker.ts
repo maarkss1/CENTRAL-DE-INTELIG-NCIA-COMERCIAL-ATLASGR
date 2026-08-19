@@ -6,7 +6,7 @@ import { connection } from '../../../lib/queue/redis.js';
 import { recordDeadLetter, isFinalAttempt } from '../../../lib/queue/deadLetter.js';
 import { isWithinCallWindow } from '../../integrations/birth-voice/coldCall.policy.js';
 import { advanceCadenceRun, type AdvanceCadenceRunDeps } from '../application/cadenceService.js';
-import { validateSequence, type CadenceChannel, type CadenceSequenceDefinition, type CadenceTouch } from '../domain/cadence.js';
+import { applyPolicyGuardrailFailure, validateSequence, type CadenceChannel, type CadenceSequenceDefinition, type CadenceTouch } from '../domain/cadence.js';
 import { prismaCadenceRunRepository } from '../infra/PrismaCadenceRunRepository.js';
 import { prismaOptOutRepository } from '../infra/PrismaOptOutRepository.js';
 import { prismaLeadSubjectResolver } from '../infra/PrismaLeadSubjectResolver.js';
@@ -25,9 +25,12 @@ import { redisCadenceRunLock } from '../infra/RedisCadenceRunLock.js';
  * `Worker` + `Queue.upsertJobScheduler` para o agendamento recorrente (BullMQ v6 não tem mais
  * `repeat` em `Queue.add`).
  *
- * Limitação conhecida (ver `docs/CADENCE-CYCLE-AUDIT.md`): não existe ainda nenhuma rota/UI para
- * criar uma `CadenceSequence` ou iniciar uma `CadenceRun` — este worker fica correto, mas ocioso,
- * até essa decisão de produto (quem inicia uma cadência, e com que conteúdo) ser tomada.
+ * CYC-002 (onda 22): quando a sequência de um run ativo não pode ser resolvida (dados
+ * malformados ou linha ausente — `parseCadenceSequenceDefinition` devolve `null`), o run agora é
+ * encerrado com `status: 'failed'`/`stopReason: 'policy-guardrail'` em vez de ficar pulado
+ * silenciosamente para sempre a cada tick — antes desta correção, um run nessa condição nunca
+ * saía de `Active`, sendo re-tentado (e re-pulado) a cada 5 minutos indefinidamente, invisível
+ * para o vendedor.
  */
 
 export const CADENCE_RUN_QUEUE_NAME = 'cadence-run-scanner';
@@ -82,7 +85,7 @@ function buildDeps(): AdvanceCadenceRunDeps {
  * sem esperar o tick da fila. Uma falha em UM run é isolada e logada — nunca aborta o restante da
  * varredura.
  */
-export async function scanAndAdvanceCadenceRuns(now: Date = new Date()): Promise<{ processed: number; errors: number; skippedInvalidSequence: number }> {
+export async function scanAndAdvanceCadenceRuns(now: Date = new Date()): Promise<{ processed: number; errors: number; failedInvalidSequence: number }> {
     // Descoberta cross-tenant: nenhum organizationId conhecido ainda, então precisa do bypass de RLS
     // (só liberado para os models CadenceRun/CadenceSequence — ver comentário em src/lib/prisma.ts).
     // A partir daqui, cada run é processado com o tenant real escopado — nunca com bypass.
@@ -105,17 +108,31 @@ export async function scanAndAdvanceCadenceRuns(now: Date = new Date()): Promise
         return { activeRuns: runs, sequences: seqMap };
     });
 
-    if (activeRuns.length === 0) return { processed: 0, errors: 0, skippedInvalidSequence: 0 };
+    if (activeRuns.length === 0) return { processed: 0, errors: 0, failedInvalidSequence: 0 };
 
     const deps = buildDeps();
     let processed = 0;
     let errors = 0;
-    let skippedInvalidSequence = 0;
+    let failedInvalidSequence = 0;
 
     for (const run of activeRuns) {
         const sequence = sequences.get(run.sequenceId);
         if (!sequence) {
-            skippedInvalidSequence++;
+            // Sequência ausente/malformada — encerra o run como `failed` em vez de deixá-lo `Active`
+            // para sempre (o próximo tick voltaria a pular exatamente do mesmo jeito). Roda com o
+            // tenant real (nunca bypass) para respeitar RLS na escrita, mesmo padrão do ciclo normal.
+            try {
+                await requestContext.run({ tenantId: run.organizationId }, async () => {
+                    const full = await prismaCadenceRunRepository.findById(run.organizationId, run.id);
+                    if (!full) return;
+                    await prismaCadenceRunRepository.save(applyPolicyGuardrailFailure(full, now));
+                });
+                failedInvalidSequence++;
+                logger.error({ organizationId: run.organizationId, runId: run.id, sequenceId: run.sequenceId }, 'CadenceRun encerrado como failed: sequência associada inválida/inacessível.');
+            } catch (err) {
+                errors++;
+                logger.error({ err, organizationId: run.organizationId, runId: run.id }, 'Falha ao encerrar CadenceRun com sequência inválida.');
+            }
             continue;
         }
         try {
@@ -129,8 +146,8 @@ export async function scanAndAdvanceCadenceRuns(now: Date = new Date()): Promise
         }
     }
 
-    logger.info({ activeRuns: activeRuns.length, processed, errors, skippedInvalidSequence }, 'Varredura de cadência concluída.');
-    return { processed, errors, skippedInvalidSequence };
+    logger.info({ activeRuns: activeRuns.length, processed, errors, failedInvalidSequence }, 'Varredura de cadência concluída.');
+    return { processed, errors, failedInvalidSequence };
 }
 
 export function createCadenceRunWorker(): Worker {

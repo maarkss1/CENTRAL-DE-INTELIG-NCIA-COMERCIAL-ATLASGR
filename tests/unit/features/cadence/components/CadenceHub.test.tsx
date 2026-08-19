@@ -50,7 +50,7 @@ const RUN_FIXTURE = [
         pausedAt: null,
         stoppedAt: null,
         attempts: [
-            { touchOrder: 1, channel: 'email', attemptedAt: '2026-08-01T10:05:00Z', result: 'sent', error: null },
+            { touchOrder: 1, attemptNumber: 1, channel: 'email', attemptedAt: '2026-08-01T10:05:00Z', result: 'sent', error: null },
         ],
     },
 ];

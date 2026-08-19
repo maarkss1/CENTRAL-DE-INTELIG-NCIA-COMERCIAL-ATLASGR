@@ -58,6 +58,8 @@ const STATUS_LABEL: Record<CadenceRunStatus, string> = {
     active: 'Ativa',
     paused: 'Pausada',
     stopped: 'Encerrada',
+    completed: 'Concluída',
+    failed: 'Falhou',
 };
 
 const STOP_REASON_LABEL: Record<CadenceStopReason, string> = {
@@ -65,6 +67,7 @@ const STOP_REASON_LABEL: Record<CadenceStopReason, string> = {
     'lead-reply': 'Lead respondeu',
     completed: 'Sequência concluída',
     'manual-stop': 'Parada manual',
+    'policy-guardrail': 'Falha estrutural (sequência inválida)',
 };
 
 const TOUCH_RESULT_LABEL: Record<CadenceTouchResult, string> = {
@@ -73,7 +76,7 @@ const TOUCH_RESULT_LABEL: Record<CadenceTouchResult, string> = {
     skipped: 'Pulado',
 };
 
-const STATUS_FILTERS: CadenceRunStatus[] = ['active', 'paused', 'stopped'];
+const STATUS_FILTERS: CadenceRunStatus[] = ['active', 'paused', 'stopped', 'completed', 'failed'];
 
 function formatDateTime(iso: string | null): string {
     if (!iso) return '—';
@@ -83,6 +86,8 @@ function formatDateTime(iso: string | null): string {
 function runStatusBadgeVariant(status: CadenceRunStatus): BadgeProps['variant'] {
     if (status === 'active') return 'success';
     if (status === 'paused') return 'warning';
+    if (status === 'completed') return 'info';
+    if (status === 'failed') return 'danger';
     return 'default';
 }
 
@@ -90,6 +95,7 @@ function stopReasonBadgeVariant(reason: CadenceStopReason): BadgeProps['variant'
     if (reason === 'opt-out') return 'danger';
     if (reason === 'lead-reply') return 'info';
     if (reason === 'manual-stop') return 'outline';
+    if (reason === 'policy-guardrail') return 'danger';
     return 'default';
 }
 
@@ -252,6 +258,7 @@ function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
                             <thead>
                                 <tr className="text-ink-2">
                                     <th className="text-left font-semibold py-1 pr-3">Toque</th>
+                                    <th className="text-left font-semibold py-1 pr-3">Tentativa</th>
                                     <th className="text-left font-semibold py-1 pr-3">Canal</th>
                                     <th className="text-left font-semibold py-1 pr-3">Resultado</th>
                                     <th className="text-left font-semibold py-1 pr-3">Erro</th>
@@ -260,9 +267,10 @@ function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
                             </thead>
                             <tbody>
                                 {run.attempts.map((attempt, idx) => (
-                                     
+
                                     <tr key={idx}>
                                         <td className="py-1 pr-3 text-ink-2">{attempt.touchOrder}</td>
+                                        <td className="py-1 pr-3 text-ink-2 [font-variant-numeric:tabular-nums]">{attempt.attemptNumber}</td>
                                         <td className="py-1 pr-3 text-ink-2">{CHANNEL_LABEL[attempt.channel]}</td>
                                         <td className="py-1 pr-3"><Badge variant={touchResultBadgeVariant(attempt.result)}>{TOUCH_RESULT_LABEL[attempt.result]}</Badge></td>
                                         <td className="py-1 pr-3 text-ink-2 max-w-xs truncate" title={attempt.error ?? undefined}>{attempt.error ?? '—'}</td>

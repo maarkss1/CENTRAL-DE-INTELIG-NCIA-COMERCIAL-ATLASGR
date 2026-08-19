@@ -138,7 +138,7 @@ afterEach(async () => {
 describe('scanAndAdvanceCadenceRuns — runtime real de cadência (CYC-008/onda-19, Postgres + Redis reais)', () => {
     it('sem nenhum CadenceRun ativo, não faz nada e não lança', async () => {
         const result = await scanAndAdvanceCadenceRuns(NOW);
-        expect(result).toEqual({ processed: 0, errors: 0, skippedInvalidSequence: 0 });
+        expect(result).toEqual({ processed: 0, errors: 0, failedInvalidSequence: 0 });
     });
 
     it('despacha o toque via WhatsApp real, grava o attempt e conclui o run (sequência de 1 toque)', async () => {
@@ -149,17 +149,18 @@ describe('scanAndAdvanceCadenceRuns — runtime real de cadência (CYC-008/onda-
 
         const result = await scanAndAdvanceCadenceRuns(NOW);
 
-        expect(result).toEqual({ processed: 1, errors: 0, skippedInvalidSequence: 0 });
+        expect(result).toEqual({ processed: 1, errors: 0, failedInvalidSequence: 0 });
         expect(mockSocket.sendMessage).toHaveBeenCalledTimes(1);
 
         const updatedRun = await asOrg(org, () => prisma.cadenceRun.findFirstOrThrow({ where: { organizationId: org, leadId: lead.id } }));
-        expect(updatedRun.status).toBe('Stopped');
+        expect(updatedRun.status).toBe('Completed');
         expect(updatedRun.stopReason).toBe('Completed');
 
         const attempts = await asOrg(org, () => prisma.cadenceTouchAttempt.findMany({ where: { organizationId: org, cadenceRunId: updatedRun.id } }));
         expect(attempts).toHaveLength(1);
         expect(attempts[0].result).toBe('Sent');
         expect(attempts[0].channel).toBe('WhatsApp');
+        expect(attempts[0].attemptNumber).toBe(1);
     });
 
     it('opt-out registrado para o lead encerra o run sem despachar (gating real, Postgres)', async () => {
@@ -179,7 +180,7 @@ describe('scanAndAdvanceCadenceRuns — runtime real de cadência (CYC-008/onda-
 
         const result = await scanAndAdvanceCadenceRuns(NOW);
 
-        expect(result).toEqual({ processed: 1, errors: 0, skippedInvalidSequence: 0 });
+        expect(result).toEqual({ processed: 1, errors: 0, failedInvalidSequence: 0 });
         expect(mockSocket.sendMessage).not.toHaveBeenCalled();
 
         const updatedRun = await asOrg(org, () => prisma.cadenceRun.findFirstOrThrow({ where: { organizationId: org, leadId: lead.id } }));
@@ -187,15 +188,23 @@ describe('scanAndAdvanceCadenceRuns — runtime real de cadência (CYC-008/onda-
         expect(updatedRun.stopReason).toBe('OptOut');
     });
 
-    it('CadenceSequence.touches malformado é pulado (skippedInvalidSequence) sem derrubar a varredura', async () => {
+    it('CadenceSequence.touches malformado encerra o run como failed/policy-guardrail (CYC-002) — não fica preso em Active para sempre', async () => {
         const org = await createTestOrg();
         const { lead } = await seedLeadWithWhatsApp(org, '11966665555');
-        await seedActiveRun(org, lead.id, [{ order: 1, channel: 'sms-invalido', delayHoursFromPrevious: 0 }]);
+        const { run } = await seedActiveRun(org, lead.id, [{ order: 1, channel: 'sms-invalido', delayHoursFromPrevious: 0 }]);
 
         const result = await scanAndAdvanceCadenceRuns(NOW);
 
-        expect(result).toEqual({ processed: 0, errors: 0, skippedInvalidSequence: 1 });
+        expect(result).toEqual({ processed: 0, errors: 0, failedInvalidSequence: 1 });
         expect(mockSocket.sendMessage).not.toHaveBeenCalled();
+
+        const updatedRun = await asOrg(org, () => prisma.cadenceRun.findUniqueOrThrow({ where: { id: run.id } }));
+        expect(updatedRun.status).toBe('Failed');
+        expect(updatedRun.stopReason).toBe('PolicyGuardrail');
+
+        // Idempotente: um segundo tick não tenta reprocessar um run já terminal.
+        const secondResult = await scanAndAdvanceCadenceRuns(NOW);
+        expect(secondResult).toEqual({ processed: 0, errors: 0, failedInvalidSequence: 0 });
     });
 
     it('varredura cross-tenant: runs ativos de DUAS organizações diferentes são ambos processados, sem vazar dado entre elas', async () => {
@@ -212,13 +221,13 @@ describe('scanAndAdvanceCadenceRuns — runtime real de cadência (CYC-008/onda-
 
         const result = await scanAndAdvanceCadenceRuns(NOW);
 
-        expect(result).toEqual({ processed: 2, errors: 0, skippedInvalidSequence: 0 });
+        expect(result).toEqual({ processed: 2, errors: 0, failedInvalidSequence: 0 });
         expect(mockSocket.sendMessage).toHaveBeenCalledTimes(2);
 
         const runA = await asOrg(orgA, () => prisma.cadenceRun.findFirstOrThrow({ where: { organizationId: orgA, leadId: leadA.id } }));
         const runB = await asOrg(orgB, () => prisma.cadenceRun.findFirstOrThrow({ where: { organizationId: orgB, leadId: leadB.id } }));
-        expect(runA.status).toBe('Stopped');
-        expect(runB.status).toBe('Stopped');
+        expect(runA.status).toBe('Completed');
+        expect(runB.status).toBe('Completed');
 
         // RLS: nenhuma organização enxerga o CadenceRun da outra por uma leitura escopada normal.
         const runAFromOrgB = await asOrg(orgB, () => prisma.cadenceRun.findFirst({ where: { id: runA.id } }));

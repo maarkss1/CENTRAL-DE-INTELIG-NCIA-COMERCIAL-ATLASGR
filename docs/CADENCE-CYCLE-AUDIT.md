@@ -8,6 +8,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > "construído e verificado contra Postgres/Redis reais". Ver seção CYC-008 abaixo para o estado
 > atual; o restante deste documento (CYC-002 a CYC-007, CYC-009) permanece como estava na Onda 18 —
 > ainda não revisitado.
+>
+> **Atualização — Onda 22**: a onda-22 resolveu duas pendências. Primeiro, a rota/UI para criar
+> `CadenceSequence` e iniciar `CadenceRun` (pré-requisito para o runtime da onda-19 ter efeito
+> prático — ver `.agents/runs/onda-22.md`). Segundo, CYC-002 (máquina de estados) saiu de "3 dos 5
+> estados" para os 5 estados/5 motivos completos do roadmap, com `attemptNumber` e sanitização de
+> erro por toque — ver seção CYC-002 abaixo para o estado atual. CYC-003 a CYC-007 e CYC-009
+> permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados desta mesma
+> rodada).
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -70,20 +78,31 @@ sprint.**
 
 ## CYC-002 — Máquina de estados da cadência
 
-**Estado: 3 dos 5 estados do roadmap implementados; lógica de domínio correta e testada, mas sem
-runtime.**
+**Estado (Onda 22): 5 de 5 estados e 5 de 5 motivos do roadmap implementados, com runtime real
+conectado desde a onda-19/onda-22.**
 
-- `CadenceRunStatus` tem só `active | paused | stopped`. `completed` está representado como
-  `stopReason`, não como estado; `failed` não existe em nível de run (só por touch individual).
-- 4 dos 5 motivos de parada existem (`opt-out`, `lead-reply`, `manual-stop`, `completed`); falta
-  `policy/guardrail` como motivo dedicado. O motivo é rastreado explicitamente e nunca sobrescrito
-  uma vez setado (proteção real contra perda de causa raiz).
-- Campos do touch: canal e horário completos; número de tentativa é reconstituível mas não é um
-  campo próprio; `result` cobre só "aceito pelo provedor" (não entrega/leitura); `error` não passa
-  por nenhuma sanitização de código (só convenção em comentário); `providerMessageId` existe na
-  coluna mas nunca é escrito (correlation id "morto").
-- Nenhum destes gaps foi corrigido nesta rodada — são decisões de modelagem que exigiriam migration
-  e mudança de contrato, mais apropriadas para quando o runtime for construído de fato.
+- `CadenceRunStatus` agora é `active | paused | stopped | completed | failed` — `completed` é
+  estado próprio (fim natural da sequência), não mais só um `stopReason` disfarçado de `stopped`.
+  `failed` existe em nível de run: hoje o único gatilho real é `applyPolicyGuardrailFailure`,
+  acionado pelo worker (`cadenceRun.worker.ts`) quando a `CadenceSequence` associada a um run ativo
+  fica malformada/inacessível entre uma varredura e outra — antes desta correção esse run ficava
+  `Active` para sempre, pulado (e re-tentado) silenciosamente a cada tick.
+- 5 de 5 motivos de parada existem (`opt-out`, `lead-reply`, `manual-stop`, `completed`,
+  `policy-guardrail`). O motivo continua rastreado explicitamente e nunca sobrescrito uma vez
+  setado.
+- Campos do touch: canal e horário completos; `attemptNumber` agora é coluna própria (1-based,
+  por `touchOrder`, não reconstituído por contagem); `result` continua cobrindo só "aceito pelo
+  provedor" (não entrega/leitura — fora de escopo desta rodada); `error` passa por sanitização real
+  (`sanitizeTouchError` — redige e-mail/CPF/telefone/credencial e trunca em 500 caracteres antes de
+  persistir, não é mais só convenção em comentário); `providerMessageId` já vinha sendo escrito
+  pelos dispatchers desde a correção anterior a esta rodada (ver `.agents/runs/`).
+- Migration `20260819120000_cadence_state_machine_completion` — escrita à mão (não via
+  `prisma migrate dev`) pela mesma limitação de shadow database já documentada na Onda 5
+  (`.agents/runs/onda-5.md`), aplicada e validada contra Postgres real neste ambiente.
+- Gaps que permanecem fora de escopo desta rodada (não fazem parte dos 5 estados/5 motivos do
+  roadmap): `result` do touch ainda não distingue "aceito pelo provedor" de confirmação de
+  entrega/leitura — exigiria integração de webhook de status por canal, tratado à parte se/quando
+  for priorizado.
 
 ## CYC-003 — Reply tracking de e-mail
 
@@ -201,17 +220,20 @@ via WhatsApp mockado só no socket Baileys, opt-out, RLS cross-tenant, sequênci
 
 ## CYC-009 — UI de cadência
 
-**Estado: rota real, no menu principal, mas somente leitura.** `/app/cadence` existe e está na
-Sidebar (não é deep-link escondido). Mostra 3 estados de run (não 5 — mesmo gap do CYC-002,
-refletido na UI). Não há botão de criar/pausar/retomar/parar — a própria tela avisa isso ao
-usuário. Sem teste E2E (Playwright) e sem cobertura em `accessibility.spec.ts`.
+**Estado (Onda 22): rota real, no menu principal, com criação de sequência e início de run —
+pausar/retomar/parar ainda não existem.** `/app/cadence` existe e está na Sidebar (não é
+deep-link escondido). Mostra os 5 estados de run do CYC-002 (`active/paused/stopped/completed/
+failed`, corrigido na onda-22 junto com o domínio — antes eram só 3). Os botões "Nova sequência" e
+"Iniciar cadência" (onda-22) cobrem criação — pausar/retomar/parar um run em andamento continuam
+sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem cobertura em
+`accessibility.spec.ts` — ver item CYC-009 na lista de pendências (#82) para o trabalho restante.
 
 ## Resumo por item
 
 | Item | Corrigido nesta sprint | Estado real |
 |---|---|---|
 | CYC-001 Opt-out | Sim — gap de enforcement no WhatsApp manual | Maioria implementada e enforced; unificação parcial |
-| CYC-002 Máquina de estados | Não | 3/5 estados, 4/5 motivos; sem runtime |
+| CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
 | CYC-003 Reply tracking e-mail | Não | Só domínio/schema órfãos |
 | CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
 | CYC-005 Proposta versionada | Não | CRUD básico real; versionamento/tracking órfãos |
