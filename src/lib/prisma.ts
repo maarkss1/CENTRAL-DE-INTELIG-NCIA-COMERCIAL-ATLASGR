@@ -116,7 +116,19 @@ export const prisma = basePrisma.$extends({
         // visibilidade da cláusula USING para checar conflito, mesmo indo pelo ramo de INSERT.
         // Sem este bypass, o catálogo de flags nunca seria semeado em produção. Zero risco de
         // vazamento cross-tenant: a tabela não tem nenhuma linha "de uma organização" para vazar.
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag'];
+        // CadenceRun/CadenceSequence entraram nesta allowlist pelo mesmo motivo já documentado acima
+        // para BitrixConnection: o worker de cadência (CYC-008, onda-19) precisa descobrir QUAIS
+        // organizações têm CadenceRun ativo antes de saber qual tenant escopar — sem isso, a
+        // varredura cross-tenant devolve sempre 0 linhas em produção (confirmado por teste de
+        // integração real: FORCE ROW LEVEL SECURITY nessas tabelas nega qualquer leitura sem
+        // app.current_tenant_id OU app.bypass_rls setados, e nenhum dos dois é setado numa query sem
+        // contexto de request). bypassRls só cobre esta descoberta inicial: assim que o worker sabe o
+        // `organizationId` de cada run, todo o resto do ciclo (`advanceCadenceRun`, dispatch,
+        // gravação em CadenceTouchAttempt) roda escopado normalmente por tenant, sem bypass — nenhum
+        // dado de outra organização é lido além da lista de runs ativos e das sequências que eles
+        // referenciam (nenhuma delas contém credencial ou dado pessoal do lead, diferente de
+        // BitrixConnection).
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [

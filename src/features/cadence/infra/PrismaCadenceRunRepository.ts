@@ -86,6 +86,7 @@ type CadenceTouchAttemptRow = {
     result: 'Sent' | 'Failed' | 'Skipped';
     skipReason: string | null;
     error: string | null;
+    providerMessageId: string | null;
 };
 
 type CadenceRunRow = {
@@ -111,6 +112,7 @@ function toDomainAttempt(row: CadenceTouchAttemptRow): CadenceTouchAttempt {
         result: TOUCH_RESULT_FROM_DB[row.result],
         skipReason: (row.skipReason as CadenceSkipReason | null) ?? undefined,
         error: row.error,
+        providerMessageId: row.providerMessageId,
     };
 }
 
@@ -176,6 +178,7 @@ export class PrismaCadenceRunRepository implements CadenceRunRepository {
                         result: TOUCH_RESULT_TO_DB[attempt.result],
                         skipReason: attempt.skipReason ?? null,
                         error: attempt.error ?? null,
+                        providerMessageId: attempt.providerMessageId ?? null,
                     })),
                 });
             }

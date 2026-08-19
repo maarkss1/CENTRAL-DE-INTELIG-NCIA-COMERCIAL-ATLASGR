@@ -42,6 +42,7 @@ import { createWeeklyPdfReportWorker, scheduleWeeklyPdfReportJob } from './src/f
 import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/features/crm/jobs/autoAnonymizeDisqualified.worker.js';
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
+import { createCadenceRunWorker, scheduleCadenceRunJob } from './src/features/cadence/jobs/cadenceRun.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -76,6 +77,7 @@ async function startWorkerProcess() {
     const autoAnonymizeWorker = createAutoAnonymizeWorker();
     const coldLeadsScannerWorker = createColdLeadsScannerWorker();
     const stagnationScannerWorker = createStagnationScannerWorker();
+    const cadenceRunWorker = createCadenceRunWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -87,6 +89,7 @@ async function startWorkerProcess() {
         scheduleAutoAnonymizeJob(),
         scheduleColdLeadsScannerJob(),
         scheduleStagnationScannerJob(),
+        scheduleCadenceRunJob(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -127,6 +130,7 @@ async function startWorkerProcess() {
         { name: 'swarm-scheduler', worker: swarmSchedulerWorker },
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
+        { name: 'cadence-run-scanner', worker: cadenceRunWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

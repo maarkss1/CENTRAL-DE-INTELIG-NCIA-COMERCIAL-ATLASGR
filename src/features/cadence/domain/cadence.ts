@@ -54,6 +54,8 @@ export interface CadenceTouchAttempt {
     result: CadenceTouchResult;
     skipReason?: CadenceSkipReason;
     error?: string | null;
+    /** Id da mensagem devolvido pelo provedor (WhatsApp/e-mail) quando `result === 'sent'` — correlação para suporte/depuração, nunca usado para decidir estado. */
+    providerMessageId?: string | null;
 }
 
 export interface CadenceRunState {
@@ -81,7 +83,7 @@ export interface CadenceDecisionContext {
 
 export type CadenceDecision =
     | { type: 'stop'; reason: CadenceStopReason }
-    | { type: 'wait'; reason: CadenceSkipReason | 'delay-not-elapsed'; nextEligibleAt?: Date }
+    | { type: 'wait'; reason: CadenceSkipReason | 'delay-not-elapsed' | 'locked'; nextEligibleAt?: Date }
     | { type: 'dispatch'; touch: CadenceTouch };
 
 /** Sequência válida: `touches` não vazio, ordenado 1..N sem lacunas nem repetição. */
@@ -214,7 +216,7 @@ export function recordTouchAttempt(
     sequence: CadenceSequenceDefinition,
     touch: CadenceTouch,
     now: Date,
-    outcome: { result: CadenceTouchResult; skipReason?: CadenceSkipReason; error?: string | null },
+    outcome: { result: CadenceTouchResult; skipReason?: CadenceSkipReason; error?: string | null; providerMessageId?: string | null },
 ): CadenceRunState {
     const attempt: CadenceTouchAttempt = {
         touchOrder: touch.order,
@@ -223,6 +225,7 @@ export function recordTouchAttempt(
         result: outcome.result,
         skipReason: outcome.skipReason,
         error: outcome.error ?? null,
+        providerMessageId: outcome.providerMessageId ?? null,
     };
     const attempts = [...run.attempts, attempt];
 

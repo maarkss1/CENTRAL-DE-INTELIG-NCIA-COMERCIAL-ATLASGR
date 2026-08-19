@@ -4,6 +4,11 @@ Sprint 06 / Onda 18. Auditoria real (5 investigações paralelas independentes, 
 código-fonte diretamente) do estado atual de cada entrega do roadmap
 `SPRINT-06-CADENCIA-CICLO-RECEITA.md` contra o que existe implementado e conectado em produção.
 
+> **Atualização — Sprint 07 / Onda 19**: CYC-008 (runtime/idempotência) saiu de "inexistente" para
+> "construído e verificado contra Postgres/Redis reais". Ver seção CYC-008 abaixo para o estado
+> atual; o restante deste documento (CYC-002 a CYC-007, CYC-009) permanece como estava na Onda 18 —
+> ainda não revisitado.
+
 ## Achado estrutural que atravessa quase toda a sprint
 
 Existe um padrão consistente em praticamente todos os 9 itens: **schema Prisma bem desenhado +
@@ -140,14 +145,59 @@ integração real com nenhum provedor.
 
 ## CYC-008 — Runtime/idempotência
 
-**Estado: o runtime que este item audita não existe ainda.** Boa notícia: nada envia mensagem
-duplicada hoje pelo módulo novo, porque nada o executa. Má notícia: o código de
-`advanceCadenceRun` já tem uma falha de concorrência real — despacha (`dispatcher.dispatch`) antes
-de qualquer checagem/gravação, sem lock distribuído nem constraint único em
-`CadenceTouchAttempt`. No dia em que um worker for plugado nele, um retry do BullMQ duplicaria o
-envio real ao lead antes mesmo de qualquer gravação acontecer. Não corrigido nesta rodada (não há
-runtime para testar a correção contra), mas registrado como bloqueador para quando o worker for
-construído.
+**Estado (Sprint 07/onda-19): construído e verificado contra Postgres + Redis reais.** Até a
+Onda 18 o runtime que este item audita não existia — nada chamava `advanceCadenceRun` fora de
+teste, e a função tinha uma falha de concorrência real (despachava antes de qualquer
+checagem/gravação). As duas coisas foram corrigidas nesta rodada:
+
+- **Trava de concorrência real**: `AdvanceCadenceRunDeps` ganhou uma porta `lock:
+  CadenceRunLockPort` — `advanceCadenceRun` agora adquire uma trava por `runId` antes de
+  ler/decidir/despachar/gravar, e libera no `finally` (mesmo em erro). Implementação de produção
+  (`RedisCadenceRunLock.ts`) reusa a trava distribuída já usada por
+  `cold-leads-scanner.service.ts`/`stagnation-scanner.service.ts` (`SET NX EX`, fail-closed se o
+  Redis estiver configurado mas indisponível). Prova por teste:
+  `src/features/cadence/__tests__/advanceCadenceRun.lock.test.ts` — dois ciclos concorrentes para o
+  MESMO run, só um chama o dispatcher.
+- **Worker/scheduler real**: `src/features/cadence/jobs/cadenceRun.worker.ts` — BullMQ
+  `Worker`/`Queue.upsertJobScheduler` (tick a cada 5 min, mesmo padrão de `followUp.worker.ts`),
+  registrado em `worker.ts` junto aos demais workers dedicados. Varre `CadenceRun` com
+  `status=Active`, resolve a `CadenceSequence` (com validação real do JSON armazenado — sequência
+  malformada é pulada e logada, nunca derruba a varredura), e chama `advanceCadenceRun` por run.
+- **Dispatchers reais**: `src/features/cadence/infra/dispatchers/CadenceDispatchers.ts` — WhatsApp
+  via `sendWhatsAppMessage` (já existente) e e-mail via `sendEmail`/`mailer.ts` (que passou a
+  devolver `messageId` real — antes devolvia `void`). `providerMessageId` agora é gravado de
+  verdade em `CadenceTouchAttempt` para e-mail (campo que existia na coluna desde sempre, nunca
+  escrito); para WhatsApp continua `null` — `sendWhatsAppMessage` não expõe o id da mensagem do
+  Baileys hoje, e alterar isso ficou fora do escopo desta rodada (função usada por outros
+  callers). Canal de voz falha de forma honesta (`'Canal de voz ainda não tem dispatcher real de
+  cadência'`) em vez de fingir envio — não existe integração de voz para cadência (CYC-004 é só
+  agendamento, não é isto).
+- **Descoberta cross-tenant corrigida (achado novo, não estava mapeado até esta rodada)**:
+  `CadenceRun`/`CadenceSequence` têm RLS `FORCE ROW LEVEL SECURITY` — uma leitura sem
+  `app.current_tenant_id`/`app.bypass_rls` setados devolve **zero linhas**, sempre, mesmo que
+  existam runs ativos de verdade no banco. Um worker que precisa descobrir "quais organizações têm
+  CadenceRun ativo agora" *antes* de saber qual tenant escopar não tinha nenhuma forma seria de
+  fazer essa pergunta: nem uma leitura sem contexto (RLS nega), nem `bypassRls:true` sem estar na
+  allowlist de produção (`BYPASS_RLS_ALLOWED_MODELS` em `src/lib/prisma.ts`, que em produção
+  restringe o efeito do bypass a poucos models). Adicionamos `CadenceRun`/`CadenceSequence` a essa
+  allowlist (não contêm credencial nem dado pessoal do lead, diferente de `BitrixConnection`, que
+  já estava lá) — o bypass cobre só a descoberta inicial; a partir do momento em que o worker sabe
+  o `organizationId` de cada run, todo o resto do ciclo roda escopado normalmente por tenant.
+  **Suspeita não confirmada nesta rodada**: o mesmo padrão de leitura sem contexto existe em
+  `followUp.worker.ts` (`prisma.lead.findMany` sem `requestContext.run`) — se `Lead` tem a mesma
+  política `FORCE ROW LEVEL SECURITY` (tem, ver `20260722020322_enable_rls/migration.sql`), esse
+  worker já em produção pode estar processando sempre 0 leads. Não investigado/corrigido aqui (é
+  outro worker, outra feature, merece verificação própria) — registrado como risco a checar.
+- **Limitação real e deliberada, ainda não resolvida**: não existe nenhuma rota/UI para criar uma
+  `CadenceSequence` ou iniciar uma `CadenceRun` (`cadence.routes.ts` é só leitura, ver CYC-009). O
+  runtime agora está correto e testado ponta a ponta, mas fica ocioso em produção até essa decisão
+  de produto (quem inicia uma cadência, com que sequência/conteúdo) ser tomada — não é algo que um
+  worker deva decidir sozinho.
+
+Testes: `src/features/cadence/__tests__/advanceCadenceRun.lock.test.ts` (unit, trava),
+`tests/integration/cadenceRun.worker.test.ts` (Postgres + Redis reais — varredura, despacho real
+via WhatsApp mockado só no socket Baileys, opt-out, RLS cross-tenant, sequência malformada),
+`src/lib/email/__tests__/mailer.test.ts` (messageId real do SMTP).
 
 ## CYC-009 — UI de cadência
 
@@ -167,5 +217,5 @@ usuário. Sem teste E2E (Playwright) e sem cobertura em `accessibility.spec.ts`.
 | CYC-005 Proposta versionada | Não | CRUD básico real; versionamento/tracking órfãos |
 | CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
 | CYC-007 Fechamento determinístico | Não | Sem violação ativa; gate de evidência não conectado |
-| CYC-008 Runtime/idempotência | Não | Runtime inexistente; falha de concorrência latente no código pronto |
+| CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
 | CYC-009 UI | Não | Rota real e no menu; somente leitura, sem E2E/a11y |
