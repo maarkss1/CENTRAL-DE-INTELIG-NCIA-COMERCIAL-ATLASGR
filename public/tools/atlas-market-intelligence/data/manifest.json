@@ -14,10 +14,12 @@
     {
       "id": "ibge",
       "label": "IBGE / geografia municipal",
-      "status": "PARCIAL",
+      "status": "ATUALIZADO",
       "source": "IBGE (Localidades) + IBGE BCIM (lim_municipio_a)",
       "geography": "Município / UF / Região",
-      "note": "ETL implementado (etl_municipios_ibge.py): cadastro com código IBGE/nome/UF/região do cadastro de localidades, cruzado por código IBGE (geocodigo) com o centroide geométrico oficial dos polígonos municipais do BCIM 2016 -- nunca por casamento de nome. Aguarda a primeira execução do workflow market-intelligence-municipios.yml para publicar municipios.json."
+      "note": "Cadastro com 5571 municipios; codigo IBGE, nome, UF e regiao do cadastro de localidades. Latitude/longitude sao o centroide geometrico do poligono municipal (BCIM 2016, camada lim_municipio_a, join por geocodigo -- nunca por nome). 3 municipio(s) sem poligono correspondente permanecem sem coordenada.",
+      "downloadedAt": "2026-08-19T00:10:41.927110+00:00",
+      "sha256": "9af90f0c9dfea7246fe4178323da067d8fae57441a20444ec97379d85a9fd146"
     },
     {
       "id": "rntrc",
