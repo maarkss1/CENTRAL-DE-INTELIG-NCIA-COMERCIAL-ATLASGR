@@ -42,6 +42,7 @@ import { createAutoAnonymizeWorker, scheduleAutoAnonymizeJob } from './src/featu
 import { createColdLeadsScannerWorker, scheduleColdLeadsScannerJob } from './src/features/automations/application/cold-leads-scanner.service.js';
 import { createStagnationScannerWorker, scheduleStagnationScannerJob } from './src/features/automations/application/stagnation-scanner.service.js';
 import { createAccountIntelligenceWorker } from './src/lib/queue/accountIntelligence.worker.js';
+import { createNewsMonitorWorker, scheduleGlobalNewsScan } from './src/lib/queue/newsMonitor.worker.js';
 
 const WORKER_PORT = parseInt(process.env.WORKER_HEALTH_PORT || '3006', 10);
 const SHUTDOWN_TIMEOUT_MS = 25_000;
@@ -70,6 +71,7 @@ async function startWorkerProcess() {
     const coldLeadsScannerWorker = createColdLeadsScannerWorker();
     const stagnationScannerWorker = createStagnationScannerWorker();
     const accountIntelligenceWorker = createAccountIntelligenceWorker();
+    const newsMonitorWorker = createNewsMonitorWorker();
 
     await Promise.all([
         scheduleBitrixSync(),
@@ -81,6 +83,7 @@ async function startWorkerProcess() {
         scheduleAutoAnonymizeJob(),
         scheduleColdLeadsScannerJob(),
         scheduleStagnationScannerJob(),
+        scheduleGlobalNewsScan(),
     ]);
 
     const searchWorker = env.ENABLE_SEARCH ? createSearchWorker() : null;
@@ -122,6 +125,7 @@ async function startWorkerProcess() {
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
         { name: 'account-intelligence-queue', worker: accountIntelligenceWorker },
+        { name: 'news-monitor-queue', worker: newsMonitorWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

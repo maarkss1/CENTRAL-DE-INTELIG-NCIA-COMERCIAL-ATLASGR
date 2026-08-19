@@ -91,4 +91,14 @@ router.post('/accounts/recommendations/:id/execute', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+
+router.post('/accounts/:id/chat', async (req, res, next) => {
+    try {
+        const { message } = req.body;
+        if (!message) throw new Error('Message is required');
+        res.json({ success: true, data: await accountIntelligenceService.chatWithAccount(req.params.id, message) });
+    } catch (error) { next(error); }
+});
+
 export const marketIntelligenceRoutes = router;
+

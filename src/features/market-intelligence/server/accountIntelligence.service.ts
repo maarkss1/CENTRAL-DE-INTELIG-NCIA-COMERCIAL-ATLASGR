@@ -2,6 +2,27 @@ import { withRlsContext } from '../../../lib/prisma.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
 export const accountIntelligenceService = {
+
+    async chatWithAccount(companyId: string, message: string) {
+        const intelligence = await this.getIntelligence(companyId);
+        const signals = await this.getSignals(companyId);
+        
+        const systemPrompt = `Você é o Analista de Inteligência Comercial (LDR) do AtlasGR.
+Contexto da Empresa:
+- Nome/Razão Social: ${intelligence?.snapshot?.razaoSocial || 'Desconhecido'}
+- Score de Intenção: ${intelligence?.score || 0}/100
+- ICP Fit: ${intelligence?.icpFit || 'N/A'}
+- Sinais Recentes: ${signals.map(s => s.snippet).join('; ')}
+
+Seu objetivo é ajudar o vendedor a abordar essa conta de forma cirúrgica. Responda à pergunta do usuário de forma curta, direta e em português do Brasil.`;
+
+        const { text } = await getAiModel('local-llama3-fast', 0.5, systemPrompt, [
+            { role: 'user', content: message }
+        ]);
+
+        return { reply: text };
+    },
+
     async getIntelligence(companyId: string) {
         return withRlsContext(null, async (prisma) => {
             const snapshot = await prisma.accountIntelligenceSnapshot.findFirst({
