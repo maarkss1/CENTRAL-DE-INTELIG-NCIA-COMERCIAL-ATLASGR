@@ -16,8 +16,8 @@ export class Crm360UseCases {
         return this.crm360Repository.getBoardLeads(organizationId, funnel, pipelineId);
     }
 
-    async updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date) {
-        return this.crm360Repository.updateLeadStage(organizationId, leadId, stageId, expectedCloseDate);
+    async updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date, actorUserId?: string) {
+        return this.crm360Repository.updateLeadStage(organizationId, leadId, stageId, expectedCloseDate, actorUserId);
     }
 
     async convertLead(organizationId: string, leadId: string) {

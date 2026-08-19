@@ -11,7 +11,8 @@ export interface ICrm360Repository {
     getOverviewData(organizationId: string): Promise<CrmOverviewData>;
     getPipelines(organizationId: string, entity?: string): Promise<CrmPipeline[]>;
     getBoardLeads(organizationId: string, funnel?: string, pipelineId?: string): Promise<{ stages: unknown[]; leads: unknown[] }>;
-    updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date): Promise<unknown>;
+    /** `actorUserId` obrigatório quando o destino é uma etapa "ganho" (CYC-007 — ver `dealClosureGate.ts`). */
+    updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date, actorUserId?: string): Promise<unknown>;
     convertLead(organizationId: string, leadId: string): Promise<unknown>;
 
     // Produtos & Itens de Negócio

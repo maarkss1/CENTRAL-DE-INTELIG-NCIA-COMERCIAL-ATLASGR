@@ -16,6 +16,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > erro por toque — ver seção CYC-002 abaixo para o estado atual. CYC-003 a CYC-007 e CYC-009
 > permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados desta mesma
 > rodada).
+>
+> **Atualização — Onda 24**: CYC-007 (fechamento determinístico) conectado — ver seção CYC-007
+> abaixo. Decisão de produto confirmada com o usuário: o gate não bloqueia o fluxo humano de
+> fechamento manual que já funciona em produção (bloquear exigiria CYC-005/CYC-006, que ainda não
+> têm integração real de provedor); em vez disso, a confirmação humana pelo CRM É a evidência
+> (`manual_crm_confirmation`), e o que o gate garante de verdade é que nenhum fechamento
+> automatizado passa por nenhum dos 3 caminhos de escrita. CYC-003, CYC-004, CYC-005, CYC-006 e
+> CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados).
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -147,20 +155,34 @@ integração real com nenhum provedor.
 
 ## CYC-007 — Fechamento determinístico
 
-**Estado: nenhuma violação ativa; gate de evidência desenhado mas não conectado.**
+**Estado (Onda 24): gate conectado nos 3 caminhos de escrita reais que movem um Lead para
+"Negócios Ganhos".**
 
 - Confirmado por leitura de código (não só teste): a única ferramenta de IA que escreve
   `Lead.status` (`updateLeadQualificationTool`) tem o enum Zod restrito a 4 valores que **não**
   incluem `Negocios_Ganhos`. Nenhuma automação (`AutomationActionLabel`, 3 valores) toca status.
   Teste dedicado (`closer.no-win-path.test.ts`) prova isso por código-fonte.
-- O único caminho de escrita real é 100% humano: drag-and-drop no Kanban, autenticado por RBAC
-  (`ADMIN|GESTOR|CLOSER|SDR`), via `LeadUseCases.updateLeadStatus`.
-- **Gap real**: `dealClosure.ts` (`isDeterministicCloseEvent`, que exigiria evidência de aceite/
-  assinatura/pagamento) existe e está bem desenhado, mas `updateLeadStatus` não o chama — qualquer
-  humano com role de escrita move para "Negócios Ganhos" hoje sem nenhuma evidência anexada. Não
-  corrigido nesta rodada: conectar esse gate mudaria o fluxo de fechamento manual que funciona hoje
-  em produção (bloquearia fechamentos sem evidência estruturada) — é uma decisão de produto, não
-  uma correção pontual de baixo risco.
+- Auditoria desta rodada encontrou **3** caminhos de escrita reais, não 1: `LeadUseCases.
+  updateLeadStatus` (drag no Kanban), `LeadUseCases.updateLead` (edição completa do lead, quando o
+  payload inclui `status`) e `PrismaCrm360Repository.updateLeadStage` (módulo CRM360, quando a
+  etapa de destino tem `leadStatus: Negocios_Ganhos`) — os três agora passam pelo gate.
+- **Decisão de produto confirmada com o usuário** (não inventada): bloquear o fechamento até existir
+  evidência estruturada de assinatura/pagamento (CYC-005/CYC-006) quebraria o fluxo manual que
+  funciona hoje em produção, já que essas integrações reais ainda não existem. Em vez disso —
+  `dealClosureGate.ts` (`ensureManualDealClosureAllowed`, `src/features/crm/application/`) —
+  a confirmação humana pelo próprio CRM é tratada como a evidência: ao mover um lead para "Negócios
+  Ganhos", uma `Note` real é criada automaticamente no lead e um `DealClosureEvent`
+  (`manual_crm_confirmation`) é gravado referenciando essa nota, com `triggeredBy` = id do usuário
+  autenticado. `DealClosureEvent` saiu da lista de "tabelas mortas confirmadas" deste documento.
+- O que o gate garante de verdade (o objetivo central do item): `isDeterministicCloseEvent` rejeita
+  qualquer `triggeredBy` com cara de IA/automação (`ai-`, `agent-`, `swarm-`, `closer-`, `bot-`) —
+  um fechamento automatizado por qualquer um dos 3 caminhos é bloqueado com 403, nunca aceito
+  silenciosamente. Prova por teste de integração contra Postgres real
+  (`tests/integration/dealClosureGate.test.ts`).
+- Fora de escopo desta rodada (documentado, não corrigido): criar um Lead já com
+  `status: 'Negócios Ganhos'` via `POST /api/crm/leads` não passa pelo gate — não há fluxo de UI
+  real que crie um lead já fechado, e a ordenação (a evidência referenciaria um lead que ainda não
+  existe) tornaria a correção desproporcional ao risco real.
 
 ## CYC-008 — Runtime/idempotência
 
@@ -238,6 +260,6 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 | CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
 | CYC-005 Proposta versionada | Não | CRUD básico real; versionamento/tracking órfãos |
 | CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
-| CYC-007 Fechamento determinístico | Não | Sem violação ativa; gate de evidência não conectado |
+| CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
 | CYC-009 UI | Não | Rota real e no menu; somente leitura, sem E2E/a11y |

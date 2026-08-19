@@ -7,10 +7,13 @@ import {
 } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { fromPrismaActivityStatus, fromPrismaActivityType, fromPrismaLeadStatus, toPrismaLeadStatus, LEAD_CLOSING_STATUSES } from '../../../lib/enumMap.js';
+import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import type { CrmDealItemInput, CrmDocumentInput, CrmProductInput } from '../crm360.schema.js';
 import { recordStageTransition } from '../../commercial-intelligence/infra/stageHistory.js';
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
 import type { CrmCommercialDocument, CrmDealItem, CrmOverviewData, CrmPipeline, CrmProduct } from '../crm360.types.js';
+import { ensureManualDealClosureAllowed } from '../../crm/application/dealClosureGate.js';
+import { prismaDealClosureGate } from '../../crm/infra/PrismaDealClosureGate.js';
 
 type DefaultStage = {
     name: string;
@@ -225,11 +228,20 @@ export class PrismaCrm360Repository implements ICrm360Repository {
         };
     }
 
-    async updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date) {
+    async updateLeadStage(organizationId: string, leadId: string, stageId: string, expectedCloseDate?: Date, actorUserId?: string) {
         const stage = await prisma.crmPipelineStage.findFirstOrThrow({
             where: { id: stageId, pipeline: { organizationId } },
             include: { pipeline: true },
         });
+
+        // CYC-007 (onda 24): mover para uma etapa mapeada em "Negócios Ganhos" é o 3º caminho de
+        // escrita real (junto com LeadUseCases.updateLeadStatus/updateLead) que precisa do gate de
+        // fechamento determinístico — sem isto, o módulo CRM360 continuaria fechando negócios sem
+        // nenhuma evidência, mesmo depois do gate ser conectado nos outros dois caminhos.
+        if (stage.leadStatus === LeadStatus.Negocios_Ganhos) {
+            if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
+            await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId, actorUserId });
+        }
 
         const previousLead = await prisma.lead.findFirstOrThrow({ where: { id: leadId, organizationId } });
 

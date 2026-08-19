@@ -38,13 +38,14 @@ export class Crm360Controller {
 
     moveRecord = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const orgId = (req as AuthRequest).user.organizationId;
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
             const { stageId, expectedCloseDate } = req.body;
             const data = await this.crm360UseCases.updateLeadStage(
                 orgId,
                 req.params.id,
                 stageId,
-                expectedCloseDate ? new Date(expectedCloseDate) : undefined
+                expectedCloseDate ? new Date(expectedCloseDate) : undefined,
+                actorUserId
             );
             res.json({ success: true, data });
         } catch (error) {

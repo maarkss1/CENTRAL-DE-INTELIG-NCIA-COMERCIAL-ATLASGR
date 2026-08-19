@@ -6,6 +6,11 @@ import { fromPrismaLeadStatus } from '../../../lib/enumMap';
 import type { LeadFunnel } from '@prisma/client';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 import { AppError } from '../../../shared/middlewares/errorHandler';
+import { ensureManualDealClosureAllowed } from './dealClosureGate';
+import { prismaDealClosureGate } from '../infra/PrismaDealClosureGate';
+
+/** Mesmo rótulo usado em `LEAD_STATUS_TO_PRISMA`/`LEAD_CLOSING_STATUSES` (src/lib/enumMap.ts) — único status que exige o gate de fechamento determinístico (CYC-007). */
+const WON_STATUS_LABEL = 'Negócios Ganhos';
 
 /** Shape of the company relation when Lead is fetched with `include: { company: true }` */
 interface LeadCompanyRelation {
@@ -98,11 +103,24 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         return lead;
     }
 
-    async updateLead(organizationId: string, id: string, data: Partial<z.infer<typeof leadSchema>>) {
+    /**
+     * `actorUserId` é obrigatório quando `data.status` move o lead para "Negócios Ganhos" — sem
+     * ele não há como registrar quem confirmou o fechamento (CYC-007, ver `dealClosureGate.ts`).
+     * Opcional nos demais casos para não quebrar nenhum outro chamador existente.
+     */
+    async updateLead(organizationId: string, id: string, data: Partial<z.infer<typeof leadSchema>>, actorUserId?: string) {
+        if (data.status === WON_STATUS_LABEL) {
+            if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
+            await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
+        }
         return this.update(organizationId, id, data);
     }
 
-    async updateLeadStatus(organizationId: string, id: string, newStatus: string) {
+    async updateLeadStatus(organizationId: string, id: string, newStatus: string, actorUserId?: string) {
+        if (newStatus === WON_STATUS_LABEL) {
+            if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
+            await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
+        }
         return this.repository.updateStatus(organizationId, id, newStatus);
     }
 

@@ -72,15 +72,15 @@ export class LeadController {
 
     updateLead = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { organizationId: orgId } = (req as AuthRequest).user;
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
             const leadId = req.params.id;
             let lead;
             let statusMudou = false;
             if (req.body.status && Object.keys(req.body).length === 1) {
-                lead = await this.leadUseCases.updateLeadStatus(orgId, leadId, req.body.status);
+                lead = await this.leadUseCases.updateLeadStatus(orgId, leadId, req.body.status, actorUserId);
                 statusMudou = true;
             } else {
-                lead = await this.leadUseCases.updateLead(orgId, leadId, req.body);
+                lead = await this.leadUseCases.updateLead(orgId, leadId, req.body, actorUserId);
                 statusMudou = req.body.status != null;
             }
 
