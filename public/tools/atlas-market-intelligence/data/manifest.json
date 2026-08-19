@@ -4,7 +4,7 @@
   "methodologyVersion": "national-v1-draft",
   "decisionReady": false,
   "decisionBlockers": [
-    "RNTRC municipal Jul/2026 está publicado; frota oficial permanece NÃO DISPONÍVEL no recurso vigente. Pelo dicionário ANTT, a frota pública tem granularidade UF e qualquer uso municipal é somente PROXY_UF.",
+    "Frota de veículos (SENATRAN) tem ETL pronto e validado, mas ainda não foi publicada pelo workflow automatizado; snapshot municipal real aguarda a primeira execução de market-intelligence-senatran.yml.",
     "Fluxo MDF-e oficial ainda não foi transformado em agregado municipal/corredor reproduzível.",
     "Risco Sinesp ainda não foi consolidado nacionalmente com chave geográfica canônica.",
     "Concorrência permanece em PESQUISA PARCIAL; nenhum município possui CENSO COMPLETO no seed atual.",
@@ -15,9 +15,9 @@
       "id": "ibge",
       "label": "IBGE / geografia municipal",
       "status": "PARCIAL",
-      "source": "IBGE",
+      "source": "IBGE (Localidades) + IBGE BCIM (lim_municipio_a)",
       "geography": "Município / UF / Região",
-      "note": "Fonte oficial localizada; cadastro canônico com código IBGE, coordenadas e divisões territoriais ainda será gerado pelo pipeline."
+      "note": "ETL implementado (etl_municipios_ibge.py): cadastro com código IBGE/nome/UF/região do cadastro de localidades, cruzado por código IBGE (geocodigo) com o centroide geométrico oficial dos polígonos municipais do BCIM 2016 -- nunca por casamento de nome. Aguarda a primeira execução do workflow market-intelligence-municipios.yml para publicar municipios.json."
     },
     {
       "id": "rntrc",
@@ -32,16 +32,14 @@
     },
     {
       "id": "fleet",
-      "label": "ANTT / RNTRC veículos",
+      "label": "SENATRAN / Frota de veículos por município e tipo",
       "status": "NAO_DISPONIVEL",
-      "source": "ANTT / Portal de Dados Abertos",
-      "geography": "UF",
-      "note": "Recurso oficial vigente auditado, porém payload não validável (124 bytes observados). O recurso histórico Jul/2026, catalogado com 10.5 MiB, retornou HTTP 404 em 14/08/2026. Nenhum número de frota foi inferido ou publicado.",
-      "competence": "2026-08",
+      "source": "SENATRAN / Ministério dos Transportes",
+      "geography": "Município",
+      "note": "Fonte trocada de ANTT (RNTRC-Dados de Veículos, granularidade UF, recurso vigente inválido -- ver FONTES.md seção 2, mantida como registro histórico) para SENATRAN (planilha oficial 'Frota por município e tipo', granularidade municipal real). ETL implementado (etl_senatran_frota.py), validado com dado real (competência 2026-07). Aguarda a primeira execução do workflow market-intelligence-senatran.yml para publicar senatran_frota_municipios.json.",
       "downloadedAt": null,
-      "probedAt": "2026-08-14T03:34:01.165670+00:00",
       "sha256": null,
-      "municipalUse": "PROXY_UF"
+      "municipalUse": "OBSERVADO"
     },
     {
       "id": "cnpj",

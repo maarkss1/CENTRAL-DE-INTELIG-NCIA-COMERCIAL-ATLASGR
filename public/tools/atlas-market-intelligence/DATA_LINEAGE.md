@@ -56,7 +56,9 @@ municipios.json
 - município homônimo nunca é unido apenas pelo nome;
 - parser aceita tanto a hierarquia histórica `microrregiao -> mesorregiao -> UF` quanto `regiao-imediata -> regiao-intermediaria -> UF`;
 - o lookup é rejeitado se não cobrir pelo menos 5.500 municípios;
-- latitude/longitude devem vir de fonte documentada e não de inferência textual.
+- latitude/longitude devem vir de fonte documentada e não de inferência textual -- resolvido via
+  IBGE BCIM (camada `lim_municipio_a`, join por código IBGE `geocodigo`, centroide geométrico do
+  polígono municipal). Ver `FONTES.md` seção 5 e `etl_municipios_ibge.py`.
 
 ---
 
