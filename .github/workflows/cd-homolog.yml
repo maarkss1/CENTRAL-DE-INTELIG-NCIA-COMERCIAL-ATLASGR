@@ -1,20 +1,15 @@
 name: CD Homologation
 
+# LOCAL-FIRST: nenhum push em develop pode publicar imagem automaticamente.
+# Homologação fica disponível apenas sob ação humana explícita.
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-  # Fase Final 1 (Gate Único de Release, .agents/runs/final-fase-1.md): antes deste job, este
-  # workflow publicava imagem Docker de homologação + atualizava o Helm values.yaml sem rodar
-  # nenhum teste/lint/secret-scan — a validação inteira do gate de qualidade e de segredo estava
-  # ausente do caminho de homologação. Agora `build-and-push` depende de `gate`, que por sua vez
-  # depende de `secret-scan`.
   secret-scan:
     runs-on: ubuntu-latest
     steps:
@@ -69,7 +64,6 @@ jobs:
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
-      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
       PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
@@ -93,8 +87,6 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      # SEC-005 (Sprint 01/Onda 13): gate real advisory-por-advisory — ver comentário equivalente
-      # em ci.yml e scripts/security/check-audit-waivers.ts.
       - name: Audit for vulnerabilities (waiver-aware)
         run: npm run security:audit-waivers
 
@@ -181,14 +173,9 @@ jobs:
 
       - name: Update Helm values.yaml with new image tag
         run: |
-          # Install yq
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod a+x /usr/local/bin/yq
-          
-          # Update tag
           yq e '.image.tag = "${{ github.sha }}"' -i charts/prospector-atlas/values.yaml
-
-          # Commit and push
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           git add charts/prospector-atlas/values.yaml
