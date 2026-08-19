@@ -11,20 +11,55 @@ export interface ResolvedFeatureFlag {
     isOverridden: boolean;
 }
 
+function isTransactionAcquireTimeout(error: unknown): boolean {
+    return typeof error === 'object'
+        && error !== null
+        && 'code' in error
+        && (error as { code?: unknown }).code === 'P2028';
+}
+
+async function sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class FeatureFlagsService {
     /**
      * Garante, de forma idempotente, que toda chave declarada em FEATURE_FLAG_REGISTRY existe
      * como linha em FeatureFlag — chamado uma vez no boot do servidor (server.ts). Não apaga
      * chaves órfãs (removidas do registro em código mas ainda no banco): um flag "morto" só de
      * catálogo não tem efeito nenhum sem nenhum caller checando `isEnabled(key, ...)`.
+     *
+     * O Prisma usa transações curtas para aplicar o contexto RLS. Em produção, durante cold-start
+     * do Render/Supabase, a aquisição da transação pode excepcionalmente estourar o maxWait padrão
+     * e retornar P2028 antes de qualquer SQL do upsert executar. Esse erro específico é transitório
+     * e seguro de repetir porque o upsert é idempotente. Outros erros sobem imediatamente: não há
+     * retry para constraint, SQL inválido, RLS ou falhas de aplicação.
      */
     async syncRegistry(): Promise<void> {
+        const maxAttempts = 4;
+
         for (const flag of FEATURE_FLAG_REGISTRY) {
-            await prisma.featureFlag.upsert({
-                where: { key: flag.key },
-                update: { description: flag.description },
-                create: { key: flag.key, description: flag.description, enabled: flag.enabledByDefault },
-            });
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    await prisma.featureFlag.upsert({
+                        where: { key: flag.key },
+                        update: { description: flag.description },
+                        create: { key: flag.key, description: flag.description, enabled: flag.enabledByDefault },
+                    });
+                    break;
+                } catch (error) {
+                    if (!isTransactionAcquireTimeout(error) || attempt === maxAttempts) {
+                        throw error;
+                    }
+
+                    const delayMs = 250 * (2 ** (attempt - 1));
+                    logger.warn(
+                        { key: flag.key, attempt, maxAttempts, delayMs },
+                        '[FeatureFlags] P2028 transitório ao adquirir transação; repetindo sync',
+                    );
+                    await sleep(delayMs);
+                }
+            }
         }
         logger.info({ count: FEATURE_FLAG_REGISTRY.length }, '[FeatureFlags] Catálogo sincronizado');
     }
