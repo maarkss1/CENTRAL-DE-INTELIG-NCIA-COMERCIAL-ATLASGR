@@ -144,6 +144,7 @@ router.post('/qualify', async (req: Request, res: Response, next: NextFunction):
 });
 
 import { SDRQualificationAgent } from '../agents/sdrQualification.agent.js';
+import { loadAgentMemory } from '../agents/agentMemory.store.js';
 
 router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -173,19 +174,29 @@ router.post('/agents/sdr/qualify', async (req: Request, res: Response, next: Nex
 
 // A rota acima dispara o SDRQualificationAgent sem aguardar e devolve 202 imediatamente — sem esta
 // rota não havia nenhuma forma de buscar o resultado depois (o cliente ficava sem saber quando/se a
-// qualificação terminou). O agente persiste seu progresso em AgentMemory a cada rodada do grafo
-// (sdrQualification.agent.ts updateMemory), então "ainda não existe registro" é o sinal confiável de "pendente".
+// qualificação terminou). O agente persiste seu progresso em AgentMemory (sdrQualification.agent.ts
+// updateMemory/recordAgentFailure), então "ainda não existe registro" é o sinal de "pendente".
+// AI-003 (onda 31): 3 estados agora, não 2 — antes, "sem base legal LGPD" e "erro no grafo"
+// deixavam a sessão sem nenhuma linha gravada, e esta rota reportava `pending` para sempre,
+// indistinguível de uma execução ainda em andamento. `AgentMemory.status` torna isso explícito.
 router.get('/agents/sdr/status/:sessionId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { sessionId } = req.params;
         const authRequest = req as AuthRequest;
 
-        const memory = await prisma.agentMemory.findFirst({
-            where: { sessionId, organizationId: authRequest.user.organizationId, agentType: 'SDR' },
+        const memory = await loadAgentMemory({
+            sessionId,
+            agentType: 'SDR',
+            organizationId: authRequest.user.organizationId,
         });
 
         if (!memory) {
             res.status(202).json({ status: 'pending', sessionId });
+            return;
+        }
+
+        if (memory.status === 'Failed') {
+            res.json({ status: 'failed', sessionId, error: memory.errorMessage });
             return;
         }
 

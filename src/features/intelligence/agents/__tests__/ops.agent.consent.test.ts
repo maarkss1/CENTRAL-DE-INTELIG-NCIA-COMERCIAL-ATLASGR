@@ -21,9 +21,14 @@ vi.mock('../fallback.util.js', async () => {
     };
 });
 
+// AI-003 (onda 31): agentMemory.store.ts (usado por OpsAgent.updateMemory/recordAgentFailure) faz
+// upsert atômico quando organizationId está presente — os dois casos abaixo sempre rodam dentro de
+// requestContext.run({tenantId: 'org-sem-consentimento'}), então sempre passam por upsert, nunca
+// pelo fallback findFirst+create/update (só usado quando organizationId é null).
 vi.mock('../../../../lib/prisma.js', () => ({
     prisma: {
         agentMemory: {
+            upsert: vi.fn().mockResolvedValue({}),
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockResolvedValue({}),
             update: vi.fn().mockResolvedValue({}),

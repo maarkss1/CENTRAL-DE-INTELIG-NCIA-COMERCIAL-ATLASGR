@@ -7,11 +7,11 @@ import { copywriterTool } from '../tools/copywriterTool.js';
 import { summarizeLeadTool } from '../tools/summarizeLeadTool.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
+import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { rehydratePii, assertPiiExternalConsent } from '../services/guardrails.service.js';
 
@@ -163,8 +163,13 @@ export class SDRQualificationAgent {
         try {
             assertPiiExternalConsent(organizationId);
         } catch (error) {
+            const message = (error as Error).message;
             logger.warn({ err: error, leadId, organizationId }, 'SDR Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
-            return { success: false, error: (error as Error).message };
+            // AI-003: sem isto, nenhuma linha de AgentMemory era gravada aqui — GET /agents/sdr/status
+            // reportava "pending" para sempre em vez de "failed", indistinguível de uma execução
+            // ainda em andamento.
+            await recordAgentFailure({ sessionId: sid, agentType: 'SDR', organizationId, errorMessage: message });
+            return { success: false, error: message };
         }
 
         // instruction: nuance lapidada pelo Supervisor do enxame para esta rodada específica
@@ -191,6 +196,12 @@ export class SDRQualificationAgent {
             finalState = await app.invoke(inputs, config);
         } catch (error) {
             logger.error({ err: error, leadId, sessionId }, 'SDR Agent run failed');
+            await recordAgentFailure({
+                sessionId: sid,
+                agentType: 'SDR',
+                organizationId,
+                errorMessage: 'Falha na execução do agente (grafo LangGraph).',
+            });
             return { success: false, error: 'Agent execution failed' };
         }
 
@@ -206,7 +217,7 @@ export class SDRQualificationAgent {
             : text);
 
         // Persistindo no nosso banco relacional de memória a longo prazo (AgentMemory)
-        await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => {
+        const serializedMessages = messages.map((m: BaseMessage): SerializedMessage => {
             const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
             const content = typeof m.content === 'string' ? m.content : JSON.stringify(m.content);
             return {
@@ -214,7 +225,18 @@ export class SDRQualificationAgent {
                 content: rehydrate(content),
                 toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
             };
-        }));
+        });
+
+        try {
+            await this.updateMemory(sid, serializedMessages);
+        } catch (error) {
+            // AI-003: reportar sucesso aqui seria mentir — a qualificação rodou, mas o resultado
+            // nunca ficou disponível para quem está fazendo polling em
+            // GET /agents/sdr/status/:sessionId (o único jeito de consultar o resultado desta
+            // execução assíncrona).
+            logger.error({ err: error, leadId, sessionId: sid }, 'Failed to persist SDR agent memory after successful run');
+            return { success: false, error: 'Qualificação concluída, mas falha ao persistir o resultado.' };
+        }
 
         const lastMessage = messages[messages.length - 1];
         const rawDetailedContent = lastMessage?.content ? lastMessage.content.toString() : 'Análise concluída silenciosamente.';
@@ -233,31 +255,15 @@ export class SDRQualificationAgent {
         return lead?.contact?.name ?? null;
     }
 
+    // AI-003: delega para o upsert atômico compartilhado — não engole mais erro, o chamador
+    // (`run()`) decide o que fazer quando a persistência falha.
     private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
-        try {
-            const organizationId = getTenantId();
-            const existing = await prisma.agentMemory.findFirst({
-                where: { sessionId, organizationId }
-            });
-            if (existing) {
-                await prisma.agentMemory.update({
-                    where: { id: existing.id },
-                    data: {
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    }
-                });
-            } else {
-                await prisma.agentMemory.create({
-                    data: {
-                        sessionId,
-                        agentType: 'SDR',
-                        organizationId,
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    }
-                });
-            }
-        } catch (err) {
-            logger.error({ err, sessionId }, 'Failed to update agent memory');
-        }
+        await saveAgentMemory({
+            sessionId,
+            agentType: 'SDR',
+            organizationId: getTenantId(),
+            messages,
+            status: 'Completed',
+        });
     }
 }
