@@ -1,12 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
-// MI-007 (Sprint 04/Onda 16): o módulo Market Intelligence (/app/market-intelligence) dependia
-// só de tests/unit/market-intelligence/*.test.ts (lógica de domínio pura, sem DOM) e do
-// typecheck do CI (market-intelligence-ci.yml) -- zero teste tocava a rota de verdade. Uma
-// mudança futura no formato do manifest.json gerado pelos workflows Python (ex.: renomear um
-// campo) quebraria a UI silenciosamente sem nenhum teste automatizado pegando, nem o smoke test
-// mais básico de "a página carrega sem erro".
+// MI-007 (Sprint 04/Onda 16): este E2E toca a rota real do Market Intelligence e funciona
+// como contrato entre manifest, snapshots publicados e UI. A metodologia v1.1 libera o ranking
+// Core Evidence, mas continua fail-closed se uma camada obrigatória desaparecer em runtime.
 
 test.describe('Market Intelligence — módulo de território', () => {
   test('abre o módulo, navega para Saúde dos Dados e mostra o status real de cada dataset', async ({ page }) => {
@@ -19,21 +16,31 @@ test.describe('Market Intelligence — módulo de território', () => {
     await page.getByRole('button', { name: 'Saúde dos Dados' }).click();
     await expect(page.getByRole('heading', { name: /Competência, cobertura e confiança antes do score/i })).toBeVisible();
 
-    // Não fixamos nomes/contagens exatas de dataset (o manifest real é atualizado por pipeline
-    // automatizado, ver MI-001/MI-005) -- só que pelo menos um card de dataset renderizou com um
-    // dos 4 status possíveis do contrato (DatasetHealth['status']), provando que o fetch real do
-    // manifest.json chegou até a UI e foi parseado sem quebrar.
+    // Não fixamos nomes/contagens exatas de dataset: o manifest é atualizado pelos pipelines.
+    // Exigimos apenas que pelo menos um card real respeite o contrato DatasetHealth['status'].
     const statusBadge = page.getByText(/^(ATUALIZADO|PARCIAL|DESATUALIZADO|NAO DISPONIVEL)$/).first();
     await expect(statusBadge).toBeVisible();
   });
 
-  test('mostra board bloqueado por governança quando a decisão ainda não está pronta', async ({ page }) => {
-    // Estado real e honesto do manifest hoje (ver public/tools/atlas-market-intelligence/data/
-    // manifest.json, decisionReady: false) -- este teste também serve de sentinela: se algum dia
-    // o pipeline avançar o suficiente para decisionReady virar true, este teste vai falhar de
-    // forma óbvia e apontar exatamente para o board "pronto" precisar de um teste novo, em vez de
-    // continuar testando um estado que não existe mais silenciosamente.
-    await signUp(page, { email: uniqueTestEmail('mi-blocked') });
+  test('mostra ranking territorial Core Evidence quando os snapshots obrigatórios estão publicados', async ({ page }) => {
+    await signUp(page, { email: uniqueTestEmail('mi-ready') });
+    await page.goto('/app/market-intelligence');
+    await waitForAppReady(page);
+
+    await expect(page.getByRole('heading', { name: /Top 5 territórios calculados/i })).toBeVisible();
+    await expect(page.getByText(/^#1$/)).toBeVisible();
+    await expect(page.getByText(/Score/i).first()).toBeVisible();
+  });
+
+  test('volta a bloquear a decisão se o CIOT publicado desaparecer em runtime', async ({ page }) => {
+    await page.route('**/tools/atlas-market-intelligence/data/mdfe_origens_municipios.json', (route) =>
+      route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }),
+    );
+    await page.route('**/tools/atlas-market-intelligence/data/mdfe_destinos_municipios.json', (route) =>
+      route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }),
+    );
+
+    await signUp(page, { email: uniqueTestEmail('mi-fail-closed') });
     await page.goto('/app/market-intelligence');
     await waitForAppReady(page);
 

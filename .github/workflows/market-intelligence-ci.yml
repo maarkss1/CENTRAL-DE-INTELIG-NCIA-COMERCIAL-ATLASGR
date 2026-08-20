@@ -4,6 +4,27 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/features/market-intelligence/**'
+      - 'public/tools/atlas-market-intelligence/**'
+      - 'scripts/market-intelligence-core-evidence-smoke.ts'
+      - 'tests/unit/market-intelligence/**'
+      - 'tests/python/market_intelligence/**'
+      - 'tests/e2e/market-intelligence.spec.ts'
+      - 'tsconfig.market-intelligence.json'
+      - '.github/workflows/market-intelligence-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/features/market-intelligence/**'
+      - 'public/tools/atlas-market-intelligence/**'
+      - 'scripts/market-intelligence-core-evidence-smoke.ts'
+      - 'tests/unit/market-intelligence/**'
+      - 'tests/python/market_intelligence/**'
+      - 'tests/e2e/market-intelligence.spec.ts'
+      - 'tsconfig.market-intelligence.json'
+      - '.github/workflows/market-intelligence-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +66,20 @@ jobs:
 
       - name: Run Market Intelligence unit tests
         run: npx vitest run tests/unit/market-intelligence
+
+      - name: Verify and materialize Core Evidence against published snapshots
+        run: npx tsx scripts/market-intelligence-core-evidence-smoke.ts --write
+
+      - name: Verify materialized ranking is committed
+        run: git diff --exit-code -- public/tools/atlas-market-intelligence/data/territorios.json
+
+      - name: Upload materialized territory ranking
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: market-intelligence-territories
+          path: public/tools/atlas-market-intelligence/data/territorios.json
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Build application
         run: npm run build
