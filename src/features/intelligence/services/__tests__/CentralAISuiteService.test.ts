@@ -58,7 +58,7 @@ vi.mock('../../../../lib/ai/gateway.js', () => ({
                 directAnswer: 'O módulo suporta alimentação de 9V a 36V.',
                 technicalSpecifications: ['9-36V DC'],
                 confidenceScore: 98,
-                sourceReferences: ['Manual Técnico'],
+                citedSnippetIndexes: [1],
                 keyPainsIdentified: ['Sinistralidade alta'],
                 agreedPoints: ['Proposta até sexta'],
                 unresolvedObjections: [],
@@ -232,14 +232,28 @@ describe('CentralAISuiteService', () => {
         expect(result.matchScore).toBe(95);
     });
 
-    it('#15 KnowledgeCopilotService deve responder dúvidas técnicas', async () => {
+    it('#15 KnowledgeCopilotService deve responder dúvidas técnicas com citação real resolvida do hit', async () => {
         const result = await suite.knowledgeCopilot.answerTechnicalQuestion({
             question: 'Qual a voltagem do módulo Atlas?',
-            retrievedDocumentSnippets: ['Alimentação 9-36V DC'],
+            hits: [{
+                chunkId: 'chunk-1',
+                documentId: 'doc-1',
+                documentTitle: 'Manual Técnico Atlas',
+                content: 'Alimentação 9-36V DC',
+                chunkIndex: 0,
+                matchedBy: ['semantic'],
+                similarity: 0.9,
+                score: 0.5,
+            }],
         });
 
         expect(result.confidenceScore).toBe(98);
         expect(result.technicalSpecifications).toContain('9-36V DC');
+        // AI-010: a citação vem do metadado real do hit (índice 1 resolvido de volta), nunca de
+        // texto que o LLM tenha inventado.
+        expect(result.sourceReferences).toEqual([
+            { documentId: 'doc-1', chunkId: 'chunk-1', documentTitle: 'Manual Técnico Atlas', chunkIndex: 0, score: 0.5 },
+        ]);
     });
 
     it('#16 MeetingSynthesisService deve sintetizar reuniões', async () => {
