@@ -24,18 +24,35 @@ set_env_value() {
     fi
 }
 
-ensure_secret() {
+needs_secret() {
     local key="$1"
-    local bytes="$2"
     local current=""
 
     current=$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d= -f2- || true)
     case "$current" in
-        ""|replace-*|*troque*|*change-me*|*CHANGE_ME*)
-            set_env_value "$key" "$(openssl rand -hex "$bytes")"
-            echo "🔑 Segredo ${key} gerado em ${ENV_FILE}."
-            ;;
+        ""|replace-*|*troque*|*change-me*|*CHANGE_ME*) return 0 ;;
+        *) return 1 ;;
     esac
+}
+
+ensure_hex_secret() {
+    local key="$1"
+    local bytes="$2"
+
+    if needs_secret "$key"; then
+        set_env_value "$key" "$(openssl rand -hex "$bytes")"
+        echo "🔑 Segredo ${key} gerado em ${ENV_FILE}."
+    fi
+}
+
+ensure_base64_secret() {
+    local key="$1"
+    local bytes="$2"
+
+    if needs_secret "$key"; then
+        set_env_value "$key" "$(openssl rand -base64 "$bytes" | tr -d '\n')"
+        echo "🔑 Segredo ${key} gerado em ${ENV_FILE}."
+    fi
 }
 
 # 1. Configura regras de firewall no Linux (Oracle Linux / Ubuntu)
@@ -80,14 +97,15 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 chmod 600 "$ENV_FILE"
 
-ensure_secret "BETTER_AUTH_SECRET" 32
-ensure_secret "CREDENTIALS_ENCRYPTION_KEY" 32
-ensure_secret "BOOTSTRAP_DB_PASSWORD" 24
-ensure_secret "APP_DB_PASSWORD" 24
-ensure_secret "REDIS_PASSWORD" 24
-ensure_secret "INITIAL_ADMIN_PASSWORD" 24
+ensure_hex_secret "BETTER_AUTH_SECRET" 32
+# AES-256-GCM exige exatamente 32 bytes depois de decodificar Base64.
+ensure_base64_secret "CREDENTIALS_ENCRYPTION_KEY" 32
+ensure_hex_secret "BOOTSTRAP_DB_PASSWORD" 24
+ensure_hex_secret "APP_DB_PASSWORD" 24
+ensure_hex_secret "REDIS_PASSWORD" 24
+ensure_hex_secret "INITIAL_ADMIN_PASSWORD" 24
 
-# Garante que a aplicação de produção use os endpoints internos do Compose.
+# Garante que a aplicação de produção use o modo correto.
 set_env_value "NODE_ENV" "production"
 
 # Valida a interpolação antes de iniciar qualquer container. Os operadores :? no YAML
