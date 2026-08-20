@@ -5,9 +5,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 `SPRINT-07-IA-ENXAME-EVALUATION.md` contra o que existe implementado e conectado em produção.
 
 **Onda 30 (rodada "resolver todas as pendências")**: AI-011 (budget/circuit breaker) construído —
-ver seção "AI-011 — circuit breaker de orçamento mensal (onda 30)" abaixo. A tabela de "Resumo por
-item" e a tabela de "Achados documentados como pendência" foram atualizadas para refletir isso; as
-demais seções deste documento (AI-001..010) continuam descrevendo o estado da onda 20 original.
+ver seção "AI-011 — circuit breaker de orçamento mensal (onda 30)" abaixo.
+
+**Onda 31 (mesma rodada)**: AI-003 (persistência honesta de AgentMemory) construído — ver seção
+"AI-003 — persistência honesta de AgentMemory (onda 31)" abaixo.
+
+As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
+refletir as duas correções acima; as demais seções deste documento (AI-001, 002, 004-010) continuam
+descrevendo o estado da onda 20 original.
 
 ## Resumo por item
 
@@ -15,7 +20,7 @@ demais seções deste documento (AI-001..010) continuam descrevendo o estado da 
 |---|---|---|
 | AI-001 Nomes canônicos dos SDRs | Sim | `sdr-agent.ts`→`sdrOutboundDraft.agent.ts`, `sdr.agent.ts`→`sdrQualification.agent.ts` |
 | AI-002 Checkpointer persistente | Parcial | `thread_id` agora qualificado por tenant (colisão cross-tenant fechada); checkpointer continua em RAM (`MemorySaver`), sem recovery de restart |
-| AI-003 Persistência de memória honesta | Não | 4/5 caminhos de escrita em `AgentMemory` engolem erro e devolvem sucesso; sem unique constraint; polling trata "ausente" como "pendente para sempre" |
+| AI-003 Persistência de memória honesta | Sim (onda 31) | Upsert atômico único (`sessionId`, `agentType`, `organizationId`) com unique constraint real; nenhum caminho de escrita engole mais erro; `GET /agents/sdr/status/:sessionId` distingue pending/completed/failed |
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
 | AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
 | AI-006 Métricas de avaliação | Não | Só 3/9 dimensões capturadas (cost, latency, human override); as demais 6 não têm nada |
@@ -100,7 +105,6 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Item | Situação real | Por que não construído nesta sprint |
 |---|---|---|
 | AI-002 (checkpointer persistente) | `MemorySaver` continua em RAM; sem teste de restart/recovery | Adicionar `@langchain/langgraph-checkpoint-postgres` (dependência nova) + política de TTL é construção de feature nova, não correção pontual |
-| AI-003 (persistência de memória) | 4/5 escritas em `AgentMemory` engolem erro; sem unique constraint; `GET /agents/sdr/status/:sessionId` trata ausência como "pendente para sempre" | Corrigir de verdade exige migration (unique constraint) + redesenho do contrato de status da rota de polling — mais que uma correção pontual |
 | AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
 | AI-006 (métricas de avaliação) | Só cost/latency/human-override capturados; factualidade/aderência/tool-correctness/hallucination/PII-leakage-rate/fallback-rate não têm nada | Depende de AI-005 (dataset) para a maioria; construção de feature nova |
 | AI-007 (consentimento — BDR/Closer/CRM) | Agentes do enxame (scheduler 24/7 + missão manual) sem gate de consentimento nem minimização de PII | Blast radius maior (`base.agent.ts` compartilhado por 3 agentes); decisão de produto sobre se o enxame autônomo deve ter o mesmo gate ou uma política própria |
@@ -124,7 +128,6 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 |---|---|---|---|
 | `followUp.worker.ts` pode estar processando sempre 0 leads em produção (mesmo padrão de RLS sem contexto encontrado e corrigido no worker de cadência na onda 19) | 16 (runtime/workers) | Não investigado nesta rodada — outro worker, outra feature, merece verificação própria | Próxima rodada que tocar follow-up de WhatsApp, prioridade alta |
 | BDR/Closer/CRM do enxame enviam PII sem gate de consentimento nem minimização | 13 (enxame) + 01A (LGPD) | Blast radius maior + decisão de produto sobre política do enxame autônomo | Sprint dedicada a fechar AI-007 por completo |
-| `AgentMemory` pode duplicar registro sob concorrência; falha de escrita é invisível ao usuário | 07 (IA/automações) | Exige migration + redesenho de contrato de API | Quando AI-003 for priorizada |
 | Citação de fonte em `/knowledge/copilot` é inventada pelo LLM, não rastreável a um chunk real | 07 (IA) | Wiring de retrieval real + mudança de contrato de resposta | Quando AI-010 for priorizada |
 | Orçamento de IA é GLOBAL (soma de todas as organizações), não por tenant — uma organização de alto consumo pode bloquear IA para todas as outras | 13 (enxame) | `AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes do AI-011; orçamento por tenant exige coluna/tabela nova, fora do escopo da correção de onda 30 | Se algum tenant reclamar de bloqueio causado por outro tenant |
 
@@ -175,3 +178,67 @@ contata nenhum provedor se o orçamento já foi excedido),
 para `runWithTools()`/BDR), `tests/integration/ai-budget.test.ts` (6 casos, Postgres real — soma
 GLOBAL cross-tenant confirmada com 2 organizações reais, bypass de RLS confirmado contra a policy
 real da tabela, bloqueio/não-bloqueio pelo teto, cache).
+
+## AI-003 — persistência honesta de AgentMemory (onda 31)
+
+**Estado de entrada**: 5 caminhos de escrita em `AgentMemory` (`BaseAgent.updateMemory`,
+`SDRQualificationAgent.updateMemory`, `OpsAgent.updateMemory`, `LearningAgent.persistProfile`,
+`AgentService.saveMemory`), todos fazendo `findFirst` por `sessionId`+`organizationId` (sem
+`agentType`) seguido de `create`/`update` condicional — não atômico, uma corrida real (duas
+chamadas concorrentes podiam ambas ver "não existe" e ambas criar uma linha). 4 dos 5 engoliam
+qualquer erro num try/catch-log-e-segue; o quinto (`AgentService.saveMemory`, usado pelo worker
+BullMQ do SDR Outbound) fazia só `create()` sem try/catch, mas SEMPRE criava uma linha nova por
+turno (nenhuma constraint impedia isso, e `loadMemory()` só lia a mais recente — as anteriores só
+ocupavam espaço). Sem nenhuma unique constraint na tabela. `GET /agents/sdr/status/:sessionId`
+(único consumidor real do progresso de uma execução assíncrona) tinha um contrato binário —
+"existe linha" = completed, "não existe" = pending — então qualquer falha anterior à persistência
+(bloqueio de guardrail LGPD, erro no grafo LangGraph, a própria escrita falhando) deixava a sessão
+presa em `pending` para sempre, indistinguível de "ainda rodando".
+
+**Construído**:
+- Migration `20260820100000_agent_memory_status_and_unique` (escrita à mão, mesma limitação de
+  shadow database das ondas anteriores — aplicada e validada contra Postgres real): colapsa
+  duplicatas existentes (por `organizationId` não nulo — linhas legadas sem tenant ficam de fora,
+  mesmo tratamento que o resto do schema já dá a elas), adiciona `status`
+  (`AgentMemoryStatus`: `Completed`/`Failed`), `errorMessage` (truncado em 500 caracteres) e
+  `updatedAt`, e cria a unique constraint `(sessionId, agentType, organizationId)`.
+- `src/features/intelligence/agents/agentMemory.store.ts` (novo) — ponto único de escrita/leitura,
+  substituindo a lógica duplicada nos 5 arquivos. `saveAgentMemory()` faz `upsert` atômico
+  (`INSERT ... ON CONFLICT DO UPDATE`) quando `organizationId` está presente — que é sempre, em
+  operação normal — e cai para o padrão anterior (findFirst+create/update) só no caso residual sem
+  tenant (o Prisma nem aceita `null` na chave composta tipada; a constraint do Postgres também não
+  protegeria esse caso, já que NULL nunca colide com outro NULL num índice único). Nunca engole
+  erro — quem chama decide.
+- Todos os 5 caminhos de escrita migrados para `saveAgentMemory`. Onde antes uma falha era só
+  logada e a execução seguia como se tivesse funcionado, agora: (a) o resultado reportado ao
+  caller direto de `run()` vira `{success:false, error}` honesto em vez de `{success:true}` com a
+  memória nunca persistida; (b) `SDRQualificationAgent`/`OpsAgent` chamam o novo
+  `recordAgentFailure()` (grava `status:'Failed'`+motivo) nos dois pontos onde antes nenhuma linha
+  era gravada — bloqueio de consentimento LGPD e erro no grafo LangGraph.
+- `GET /agents/sdr/status/:sessionId`: 3 estados agora — `pending` (sem registro), `completed`
+  (`status:'Completed'`, devolve `messages`), `failed` (`status:'Failed'`, devolve `error`).
+  `docs/openapi.yaml` corrigido para descrever o formato real (não seguia `DataEnvelope`, e nunca
+  devolvia `404` como o contrato antigo documentava).
+- `AgentService.saveMemory` (usado pelo SDR Outbound via worker BullMQ) passou de "sempre cria uma
+  linha nova" para o mesmo upsert-em-lugar — fecha o crescimento ilimitado de linhas por sessão
+  (nenhuma delas era lida de volta, `loadMemory()` sempre pegava só a mais recente) sem mudar
+  nenhum comportamento observável.
+
+**Fora de escopo (documentado, não construído)**: orçamento/memória por tenant não é afetado por
+este item; linhas legadas com `organizationId` nulo continuam fora da proteção da unique constraint
+(nenhum caminho de escrita vivo hoje deveria gerar uma nova).
+
+Testes: `src/features/intelligence/agents/__tests__/agentMemory.store.test.ts` (12 casos, prisma
+mockado — upsert vs. fallback sem tenant, truncamento de erro, status padrão, propagação de erro,
+`recordAgentFailure` nunca lança), `ops.agent.consent.test.ts` (mock de prisma atualizado para
+incluir `upsert`), `tests/integration/agent-memory.test.ts` (9 casos, Postgres real — 10 escritas
+concorrentes para a mesma sessão nunca duplicam a linha, upsert sobrescreve estado anterior
+(failed→completed), truncamento real, os 3 estados da rota de status ponta a ponta via supertest,
+RLS cross-organização).
+
+## Gate final (onda 31)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
+- unit: **191/191 arquivos, 1483/1483 testes**
+- integration (Postgres+Redis reais): **43/43 arquivos, 218/218 testes**
+- build e build:worker — ambos limpos

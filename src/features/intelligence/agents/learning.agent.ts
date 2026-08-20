@@ -2,7 +2,7 @@ import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import { getAiModel } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
-import type { Prisma } from '@prisma/client';
+import { saveAgentMemory, loadAgentMemory } from './agentMemory.store.js';
 
 // AgentMemory não tem colunas dedicadas para "perfil de aprendizado", mas sessionId+agentType já
 // bastam pra guardar um registro por (tenant, ator) sem precisar de migração nova.
@@ -22,13 +22,10 @@ interface LearningProfilePayload {
  */
 export async function getLearningProfile(tenantId: string, actorId: string): Promise<string | null> {
     try {
-        const memory = await prisma.agentMemory.findFirst({
-            where: {
-                sessionId: learningProfileSessionId(tenantId, actorId),
-                agentType: 'LEARNING_PROFILE',
-                organizationId: tenantId,
-            },
-            orderBy: { createdAt: 'desc' },
+        const memory = await loadAgentMemory({
+            sessionId: learningProfileSessionId(tenantId, actorId),
+            agentType: 'LEARNING_PROFILE',
+            organizationId: tenantId,
         });
         const payload = memory?.messages as unknown as LearningProfilePayload | undefined;
         return payload?.guidelines?.trim() || null;
@@ -92,28 +89,19 @@ Gere um parágrafo denso e direto contendo as DIRETRIZES DE ESTILO APRENDIDAS. E
         }
     }
 
+    // AI-003: delega para o upsert atômico compartilhado — não engole mais erro localmente; quem
+    // chama (`reflectAndLearn`) já tem seu próprio try/catch que loga e devolve null em qualquer
+    // falha, então o comportamento observável não muda, só deixa de haver dois pontos de log
+    // silenciosos para o mesmo tipo de falha.
     private async persistProfile(tenantId: string, actorId: string, guidelines: string): Promise<void> {
         const sessionId = learningProfileSessionId(tenantId, actorId);
         const payload: LearningProfilePayload = { guidelines, updatedAt: new Date().toISOString() };
-        try {
-            const existing = await prisma.agentMemory.findFirst({ where: { sessionId, organizationId: tenantId } });
-            if (existing) {
-                await prisma.agentMemory.update({
-                    where: { id: existing.id },
-                    data: { messages: payload as unknown as Prisma.InputJsonValue },
-                });
-            } else {
-                await prisma.agentMemory.create({
-                    data: {
-                        sessionId,
-                        agentType: 'LEARNING_PROFILE',
-                        organizationId: tenantId,
-                        messages: payload as unknown as Prisma.InputJsonValue,
-                    },
-                });
-            }
-        } catch (error) {
-            logger.error({ err: error, tenantId, actorId }, 'Failed to persist learning profile');
-        }
+        await saveAgentMemory({
+            sessionId,
+            agentType: 'LEARNING_PROFILE',
+            organizationId: tenantId,
+            messages: payload,
+            status: 'Completed',
+        });
     }
 }

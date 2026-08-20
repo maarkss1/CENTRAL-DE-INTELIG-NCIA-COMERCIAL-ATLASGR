@@ -3399,9 +3399,35 @@ paths:
     get:
       tags: [Intelligence]
       summary: Status de uma execução em background do agente SDR de qualificação
+      description: >-
+        Não segue o DataEnvelope genérico (formato próprio). AI-003 (onda 31): 3 estados possíveis —
+        `pending` (nenhum registro ainda, execução em andamento ou não iniciada), `completed`
+        (concluída com sucesso, `messages` presente) e `failed` (bloqueio de guardrail LGPD ou erro
+        na execução do agente, `error` presente). Antes, `failed` não existia — qualquer falha
+        anterior à persistência do resultado deixava a sessão presa em `pending` para sempre.
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '200':
+          description: Execução concluída (com sucesso ou com falha) — ver `status` no corpo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, sessionId]
+                properties:
+                  status: { type: string, enum: [completed, failed] }
+                  sessionId: { type: string }
+                  messages: { description: 'Presente quando status=completed.' }
+                  error: { type: string, nullable: true, description: 'Presente quando status=failed.' }
+        '202':
+          description: Ainda não há registro para esta sessão (pendente ou nunca iniciada).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, sessionId]
+                properties:
+                  status: { type: string, enum: [pending] }
+                  sessionId: { type: string }
 
   /intelligence/report/latest:
     get:

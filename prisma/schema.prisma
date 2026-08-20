@@ -1330,20 +1330,44 @@ model DocumentChunk {
   @@index([documentId])
 }
 
+// AI-003 (onda 31): uma linha por (sessionId, agentType, organizationId) representando o estado
+// MAIS RECENTE dessa sessão — nunca um histórico de linhas por turno. `status`/`errorMessage`
+// tornam uma falha de execução (bloqueio de LGPD, erro no grafo, erro de persistência) um estado
+// explícito e consultável, não silêncio: antes, "nenhuma linha" significava indistintamente "ainda
+// rodando" e "falhou antes de gravar nada", e a única leitura que checava isso
+// (GET /agents/sdr/status/:sessionId) tratava os dois casos como "pending" para sempre.
 model AgentMemory {
-  id        String   @id @default(cuid())
-  sessionId String
-  agentType String
-  messages  Json
-  createdAt DateTime @default(now())
+  id           String            @id @default(cuid())
+  sessionId    String
+  agentType    String
+  messages     Json
+  status       AgentMemoryStatus @default(Completed)
+  // Preenchido só quando status = Failed; motivo sanitizado/truncado da falha (guardrail de LGPD,
+  // erro do grafo LangGraph, ou erro genuíno de escrita), nunca o stack trace inteiro.
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   // Nullable pelo mesmo motivo de KnowledgeChunk.organizationId: linhas legadas sem tenant
-  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos.
+  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos. Como
+  // organizationId nulo nunca colide num índice único do Postgres (NULL != NULL), essas linhas
+  // legadas ficam fora da proteção do @@unique abaixo — aceitável porque nenhum caminho de escrita
+  // ativo grava organizationId nulo hoje (todos resolvem o tenant via requestContext/parâmetro
+  // explícito antes de chamar upsertAgentMemory).
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([sessionId])
+  // Substitui o padrão anterior (findFirst por sessionId+organizationId, sem agentType, seguido de
+  // create/update condicional) por um upsert atômico real — o padrão antigo tinha uma janela de
+  // corrida real: duas chamadas concorrentes com o mesmo sessionId podiam ambas ver "não existe" e
+  // ambas criar uma linha, duplicando o registro (ver upsertAgentMemory em agentMemory.store.ts).
+  @@unique([sessionId, agentType, organizationId])
   @@index([organizationId])
+}
+
+enum AgentMemoryStatus {
+  Completed
+  Failed
 }
 
 model AILog {
