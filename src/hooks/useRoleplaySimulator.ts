@@ -34,7 +34,7 @@ export function useRoleplaySimulator(brandInfo: BrandInfo, selectedBrand: 'atlas
 
         // Pega objeções da marca selecionada na base de 100
         const brandObjs = BRAND_OBJECTIONS.filter(o => o.brand === selectedBrand);
-        const randomObj = brandObjs[Math.floor(Math.random() * brandObjs.length)];
+        const randomObj = brandObjs[Math.floor(Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) * brandObjs.length)];
         const objectionText = randomObj.objectionText.replace(/[.!?]+$/, '');
 
         let initialGreeting = '';

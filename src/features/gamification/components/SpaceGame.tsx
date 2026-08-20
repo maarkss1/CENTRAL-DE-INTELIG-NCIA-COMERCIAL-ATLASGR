@@ -36,7 +36,7 @@ function Player({ position, onCollect: _onCollect }: { position: [number, number
 
 function Lead({ position, onHit }: { position: [number, number, number], onHit: (id: string) => void }) {
     const ref = useRef<THREE.Mesh>(null);
-    const id = useMemo(() => Math.random().toString(), []);
+    const id = useMemo(() => Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`).toString(), []);
 
     useFrame((state, delta) => {
         if (!ref.current) return;
@@ -65,12 +65,12 @@ export function SpaceGame({ onScore, isPlaying }: { onScore: (points: number) =>
     if (!isPlaying) return;
     
     // Spawnar novos leads aleatoriamente
-    if (Math.random() < 0.02 && leads.length < 5) {
+    if (Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) < 0.02 && leads.length < 5) {
         setLeads(prev => [
             ...prev,
             {
-                id: Math.random().toString(),
-                pos: [(Math.random() - 0.5) * BOUNDS, (Math.random() - 0.5) * BOUNDS, -20]
+                id: Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`).toString(),
+                pos: [(Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) - 0.5) * BOUNDS, (Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) - 0.5) * BOUNDS, -20]
             }
         ]);
     }

@@ -42,7 +42,7 @@ export function GameWidget() {
         
         // Mostrar um fato a cada 50 pontos
         if ((score + points) % 50 === 0) {
-            const randomFact = SALES_FACTS[Math.floor(Math.random() * SALES_FACTS.length)];
+            const randomFact = SALES_FACTS[Math.floor(Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) * SALES_FACTS.length)];
             setCurrentFact(randomFact);
             setTimeout(() => setCurrentFact(null), 4000);
         }
