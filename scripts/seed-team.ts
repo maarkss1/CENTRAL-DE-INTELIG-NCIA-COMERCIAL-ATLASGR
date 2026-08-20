@@ -8,10 +8,30 @@ const ORG_NAME = 'AtlasGR';
 const DEFAULT_ADMIN_EMAIL = 'marcelo.nascimento@atlasgr.com.br';
 const DEFAULT_ADMIN_NAME = 'Marcelo Nascimento';
 const DEFAULT_ADMIN_ROLE: UserRole = 'ADMIN';
-const DEFAULT_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD || '01090109';
+const MIN_ADMIN_PASSWORD_LENGTH = 16;
+
+function getAdminPassword(): string {
+  const password = process.env.INITIAL_ADMIN_PASSWORD?.trim();
+
+  if (!password) {
+    throw new Error(
+      'INITIAL_ADMIN_PASSWORD é obrigatória para configurar o administrador. Defina-a apenas no ambiente seguro de execução.',
+    );
+  }
+
+  if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    throw new Error(
+      `INITIAL_ADMIN_PASSWORD deve ter pelo menos ${MIN_ADMIN_PASSWORD_LENGTH} caracteres.`,
+    );
+  }
+
+  return password;
+}
 
 async function main() {
   requestContext.enterWith({ bypassRls: true });
+
+  const adminPassword = getAdminPassword();
 
   const org = await prisma.organization.upsert({
     where: { name: ORG_NAME },
@@ -20,9 +40,9 @@ async function main() {
   });
   console.log(`Organização: ${org.name} (${org.id})`);
 
-  const passwordHash = await hashPassword(DEFAULT_PASSWORD);
+  const passwordHash = await hashPassword(adminPassword);
 
-  // 1. Cria ou atualiza o usuário único administrador
+  // 1. Cria ou atualiza o usuário único administrador.
   const user = await prisma.user.upsert({
     where: { email: DEFAULT_ADMIN_EMAIL },
     update: {
@@ -55,7 +75,7 @@ async function main() {
     });
     if (duplicates.length > 0) {
       await prisma.account.deleteMany({
-        where: { id: { in: duplicates.map((a) => a.id) } },
+        where: { id: { in: duplicates.map((account) => account.id) } },
       });
     }
   } else {
@@ -70,18 +90,18 @@ async function main() {
     });
   }
 
-  console.log(`OK  ${user.role.padEnd(10)} ${user.email} (Usuário principal configurado com sucesso)`);
+  console.log(`OK  ${user.role.padEnd(10)} ${user.email} (usuário principal configurado com sucesso)`);
 
-  // 2. Deleta todos os demais usuários
+  // 2. Deleta todos os demais usuários.
   const otherUsers = await prisma.user.findMany({
     where: { email: { not: DEFAULT_ADMIN_EMAIL } },
     select: { id: true, email: true },
   });
 
   if (otherUsers.length > 0) {
-    const otherUserIds = otherUsers.map((u) => u.id);
-    
-    // Remove sessões e contas associadas
+    const otherUserIds = otherUsers.map((candidate) => candidate.id);
+
+    // Remove sessões e contas associadas.
     await prisma.session.deleteMany({
       where: { userId: { in: otherUserIds } },
     });
@@ -93,16 +113,16 @@ async function main() {
       where: { id: { in: otherUserIds } },
     });
 
-    console.log(`Removidos ${deleted.count} outros usuários: ${otherUsers.map((u) => u.email).join(', ')}`);
+    console.log(`Removidos ${deleted.count} outros usuários: ${otherUsers.map((candidate) => candidate.email).join(', ')}`);
   } else {
     console.log('Nenhum outro usuário encontrado para deleção.');
   }
 
-  console.log(`\n========================================`);
+  console.log('\n========================================');
   console.log(`Usuário único ativo: ${DEFAULT_ADMIN_EMAIL}`);
   console.log(`Role: ${DEFAULT_ADMIN_ROLE}`);
-  console.log(`Senha configurada: ${DEFAULT_PASSWORD}`);
-  console.log(`========================================\n`);
+  console.log('Senha: configurada por INITIAL_ADMIN_PASSWORD (valor não exibido).');
+  console.log('========================================\n');
 }
 
 main()
@@ -112,5 +132,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-    process.exit(0);
   });
