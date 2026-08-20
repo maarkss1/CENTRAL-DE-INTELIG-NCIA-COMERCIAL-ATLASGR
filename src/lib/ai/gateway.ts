@@ -5,6 +5,7 @@ import { requestContext } from '../async-context.js';
 import { cacheConnection } from '../queue/redis.js';
 import { getLangfuseClient } from '../langfuse.js';
 import { recordAiUsageCost } from './metrics.js';
+import { assertAiBudgetNotExceeded } from './budget.js';
 
 /**
  * Envia um trace de observabilidade para o Langfuse (se LANGFUSE_PUBLIC_KEY/SECRET_KEY estiverem
@@ -423,6 +424,10 @@ export const getAiModel = (modelName: string = 'local-llama3', temperature: numb
 
     return {
         async invoke(messages: BaseMessage[]): Promise<AiInvokeResult> {
+            // AI-011: verificado antes de qualquer tentativa de rede — se o orçamento mensal já foi
+            // excedido, a chamada nem chega a ser tentada em nenhum provedor.
+            await assertAiBudgetNotExceeded();
+
             const requestMessages = toChatCompletionMessages(messages);
             const invokeStartedAt = Date.now();
             let response: ChatCompletionResponse | undefined;

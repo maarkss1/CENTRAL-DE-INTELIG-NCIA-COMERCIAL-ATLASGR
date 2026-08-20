@@ -33,15 +33,16 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
   AI_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
-  // Orçamento mensal de IA (USD), só para observabilidade (métrica `ai_usage_budget_usd_total` em
-  // src/lib/ai/metrics.ts, consumida pelo alerta AIBudgetOverrun em
-  // infrastructure/observability/alert.rules.yml). Não existia nenhum conceito de orçamento no
-  // código antes desta variável (ver handoff .agents/handoffs/onda-4/10-para-07-metricas-fila-
-  // orcamento-ia.md) — nenhum bloqueio de chamada de IA depende dela hoje, é só o valor de
-  // referência que o painel/alerta compara contra o custo estimado acumulado (AILog/
-  // ai_usage_cost_usd_total). Opcional e sem default: sem configurar, a métrica de orçamento
-  // simplesmente não é publicada em /metrics (evita um "0" fabricado que faria a divisão
-  // custo/orçamento do alerta virar +Inf a qualquer custo real, um falso positivo).
+  // Orçamento mensal de IA (USD). Alimenta duas coisas: a métrica passiva `ai_usage_budget_usd_total`
+  // (src/lib/ai/metrics.ts, consumida pelo alerta AIBudgetOverrun em
+  // infrastructure/observability/alert.rules.yml) E, desde AI-011 (onda 30), o circuit breaker real
+  // de orçamento (src/lib/ai/budget.ts): ao atingir este teto (soma de AILog.cost do mês corrente,
+  // em todas as organizações), toda nova chamada de IA passa a lançar `AiBudgetExceededError` em vez
+  // de contatar um provedor — decisão de produto (bloquear, não degradar nem só notificar) tomada
+  // explicitamente nesta rodada. Opcional e sem default: sem configurar, nem a métrica é publicada
+  // em /metrics (evita um "0" fabricado que faria a divisão custo/orçamento do alerta virar +Inf a
+  // qualquer custo real) nem o circuit breaker de orçamento bloqueia nada — mesmo comportamento
+  // "sem teto" de antes.
   AI_MONTHLY_BUDGET_USD: z.coerce.number().positive().optional(),
   // 20/15min por IP é apertado o bastante pra conter força bruta/credential stuffing, mas também
   // apertado demais pra uma suíte E2E que cria uma conta real por teste sequencialmente a partir

@@ -1,6 +1,7 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
+import { assertAiBudgetNotExceeded } from '../../../lib/ai/budget.js';
 import { prisma } from '../../../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
@@ -112,6 +113,12 @@ export abstract class BaseAgent {
         const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
 
         try {
+            // AI-011: runWithTools fala direto com LangChain/Groq (buildModelWithFallback), sem
+            // passar pelo gateway.ts — precisa da mesma checagem de orçamento que `run()` já ganha
+            // de graça via `getAiModel().invoke()`, senão BDR/Closer (os únicos dois agentes que
+            // usam este caminho) ficariam de fora do circuit breaker.
+            await assertAiBudgetNotExceeded();
+
             const learnedStyle = await this.loadLearnedStyle();
             const systemPrompt = this.buildSystemPrompt(learnedStyle);
 
