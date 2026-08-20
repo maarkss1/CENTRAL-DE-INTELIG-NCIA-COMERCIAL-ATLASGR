@@ -73,7 +73,9 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                     <div className="absolute -top-[30%] -right-[10%] w-[70%] h-[70%] rounded-full bg-brand/20 blur-[120px]" />
                     <div className="absolute -bottom-[30%] -left-[10%] w-[50%] h-[50%] rounded-full bg-brand/10 blur-[100px]" />
                     
-                    {/* Confetes (Simples) */}
+                    {/* Confetes — posição/cor/duração aleatórias são só a celebração visual de um
+                        estado real (isGoalHit); não representam nenhum dado de negócio, mesmo
+                        padrão já documentado em GameWidget.tsx/SpaceGame.tsx (gamification). */}
                     {isGoalHit && (
                         <div className="absolute inset-0">
                             {Array.from({ length: 50 }).map((_, i) => (

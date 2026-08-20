@@ -9,6 +9,7 @@ import { contactSchema } from '../../../lib/zod';
 import { companiesDB, contactsDB } from '../../../lib/db';
 import { clientLogger } from '../../../lib/clientLogger';
 import { toast } from '../../../lib/toast';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 
 interface ContactFormProps {
     contact?: Contact | null;
@@ -59,6 +60,22 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
             .then((res) => setCompanies(res.data))
             .catch((error) => clientLogger.error({ err: error }, 'Error fetching companies for contact form'));
     }, [contact, reset]);
+
+    // Torna o copiloto de IA global ciente de qual contato está sendo editado — mesmo padrão de
+    // CompanyDetail.tsx/LeadDetailDrawer.tsx. Contatos não têm uma tela de detalhe própria (só
+    // lista + este formulário), então este é o único momento em que um contato específico está
+    // "aberto" na tela.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (!contact) return;
+        setActiveRecord({
+            type: 'contact',
+            id: contact.id,
+            label: contact.name,
+            summary: [contact.role, contact.company?.tradeName || contact.company?.legalName].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(contact.id);
+    }, [contact, setActiveRecord, clearActiveRecord]);
 
     const onSubmit = async (data: ContactFormOutput) => {
         try {

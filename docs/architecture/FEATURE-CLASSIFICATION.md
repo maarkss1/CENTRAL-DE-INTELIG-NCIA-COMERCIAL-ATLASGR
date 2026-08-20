@@ -2,6 +2,16 @@
 
 > **Item de dívida técnica:** ARCH-001 (ver `docs/auditoria-divida-tecnica/03-MATRIZ-DIVIDA-TECNICA.md`).
 > **Data:** 2026-08-02.
+>
+> **⚠️ Desatualizado a partir de 2026-08-19.** A classificação por rota (não por pasta), incluindo
+> revisão dos achados abaixo, vive agora em `docs/audits/product-truth-wave-1.md` (Onda 1 —
+> "Verdade do produto") — trate aquele documento como fonte de verdade atual. Achados específicos
+> já corrigidos desde esta data: **Google** (linha "Misto"/BACK-005) deixou de ser mock — OAuth2
+> real com refresh token persistido (`google.service.ts`); **`reports`, `roleplay`, `settings`,
+> `team`** deixaram de ser placeholders de 25 linhas — cada um ganhou tela e camada de serviço
+> reais (`ReportsHub.tsx`, `RoleplayHub.tsx`, `team.service.ts`/`team.routes.ts`), embora os
+> arquivos antigos de placeholder (`src/features/reports/components/Reports.tsx` etc.) continuem
+> no repositório como código morto, sem rota apontando para eles.
 
 ## Critério usado
 
