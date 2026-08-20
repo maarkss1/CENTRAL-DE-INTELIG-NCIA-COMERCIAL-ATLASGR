@@ -2,7 +2,7 @@ import { getAiModel, logAiUsage, withRetry } from '../../../lib/ai/gateway.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
 import { prisma } from '../../../lib/prisma.js';
-import { redactSensitiveData, minimizePii, rehydratePii, hasPiiExternalConsent, type PiiToken } from './guardrails.service.js';
+import { redactAndTrackPiiLeak, minimizePii, rehydratePii, hasPiiExternalConsent, type PiiToken } from './guardrails.service.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logger } from '../../../lib/logger.js';
 
@@ -326,7 +326,7 @@ export class AIService {
             promptId: dbPrompt?.id,
         });
 
-        const redacted = redactSensitiveData(response.content).text;
+        const redacted = await redactAndTrackPiiLeak(response.content, 'ai.service');
         return piiTokens.length > 0 ? rehydratePii(redacted, piiTokens) : redacted;
     }
 

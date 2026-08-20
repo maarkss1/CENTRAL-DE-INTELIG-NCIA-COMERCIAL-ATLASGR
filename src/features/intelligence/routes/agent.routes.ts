@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
 import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
-import { redactSensitiveData } from '../services/guardrails.service.js';
+import { redactAndTrackPiiLeak } from '../services/guardrails.service.js';
 import { synthesizeSpeech } from '../services/voicebox.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
@@ -92,7 +92,7 @@ async function generateReply(request: ConversationRequest, mode: AssistantMode) 
     });
 
     return {
-        reply: redactSensitiveData(response.content).text.trim(),
+        reply: (await redactAndTrackPiiLeak(response.content, 'agent.chat')).trim(),
         model: response.response_metadata.model,
         mode,
     };
@@ -137,6 +137,7 @@ router.post('/tts', validateRequest(ttsRequestSchema), async (req: Request, res:
 import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
 import { LearningAgent } from '../agents/learning.agent.js';
 import { getSwarmSloSnapshot } from '../services/swarmScheduler.service.js';
+import { getEvaluationMetricsSnapshot } from '../services/evaluationMetrics.service.js';
 
 const swarmMissionSchema = z.object({
     mission: z.string().trim().min(1, 'A missão é obrigatória.').max(4_000),
@@ -204,6 +205,23 @@ router.get('/swarm/slo', async (req: Request, res: Response, next: NextFunction)
         }
         const { organizationId } = (req as AuthRequest).user;
         const snapshot = await getSwarmSloSnapshot(organizationId, parsed.data.days ?? 30);
+        res.json(snapshot);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// AI-006 (onda 35): harness real das 9 dimensões de avaliação do enxame — ver
+// evaluationMetrics.service.ts. Mesma validação de querystring do /swarm/slo acima.
+router.get('/evaluation-metrics', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const parsed = sloQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, error: parsed.error.flatten() });
+            return;
+        }
+        const { organizationId } = (req as AuthRequest).user;
+        const snapshot = await getEvaluationMetricsSnapshot(organizationId, parsed.data.days ?? 30);
         res.json(snapshot);
     } catch (err) {
         next(err);

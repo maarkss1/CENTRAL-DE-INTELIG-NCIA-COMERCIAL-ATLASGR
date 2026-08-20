@@ -3,7 +3,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: undefined };
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
-const { minimizePii, rehydratePii, redactSensitiveData, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
+const aiGuardrailEventCreate = vi.fn().mockResolvedValue({});
+vi.mock('../../../../lib/prisma.js', () => ({
+    prisma: { aIGuardrailEvent: { create: (...args: unknown[]) => aiGuardrailEventCreate(...args) } },
+}));
+
+const getTenantIdMock = vi.fn();
+vi.mock('../../../../lib/async-context.js', () => ({
+    getTenantId: () => getTenantIdMock(),
+}));
+
+vi.mock('../../../../lib/logger.js', () => ({
+    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+const { minimizePii, rehydratePii, redactSensitiveData, redactAndTrackPiiLeak, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
 
 describe('minimizePii / rehydratePii', () => {
     it('substitui o valor de PII pelo token antes de sair para o provedor de IA', () => {
@@ -81,6 +95,51 @@ describe('redactSensitiveData (comportamento existente, não deve regredir)', ()
         const { text, redacted } = redactSensitiveData('CPF do titular: 123.456.789-00');
         expect(redacted).toBe(true);
         expect(text).toBe('CPF do titular: [CPF OCULTADO]');
+    });
+});
+
+describe('redactAndTrackPiiLeak (AI-006, onda 35: sinal real de PII leakage rate)', () => {
+    afterEach(() => {
+        aiGuardrailEventCreate.mockClear();
+        getTenantIdMock.mockReset();
+    });
+
+    it('sem PII no texto, não grava nenhum evento de guardrail', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+
+        const result = await redactAndTrackPiiLeak('Texto qualquer sem dado sensível.', 'ai.service');
+
+        expect(result).toBe('Texto qualquer sem dado sensível.');
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+    });
+
+    it('com CPF no texto, mascara E grava o evento com o organizationId do contexto e a fonte informada', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'studio');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+        expect(aiGuardrailEventCreate).toHaveBeenCalledWith({
+            data: { type: 'pii_redacted', source: 'studio', organizationId: 'org-1' },
+        });
+    });
+
+    it('PII detectada fora de um contexto de tenant conhecido: mascara mas não grava (sem dono para atribuir)', async () => {
+        getTenantIdMock.mockReturnValue(null);
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'agent.chat');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+    });
+
+    it('a redação já aconteceu mesmo se a gravação do evento falhar (best-effort, não derruba a resposta)', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        aiGuardrailEventCreate.mockRejectedValueOnce(new Error('DB indisponível'));
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'commercial-intelligence');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
     });
 });
 
