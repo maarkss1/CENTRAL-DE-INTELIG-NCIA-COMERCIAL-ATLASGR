@@ -5,7 +5,8 @@ import { assertAiBudgetNotExceeded } from '../../../lib/ai/budget.js';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
-import { saveAgentMemory } from './agentMemory.store.js';
+import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
+import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 export interface SerializedMessage {
     role: string;
@@ -44,6 +45,21 @@ export abstract class BaseAgent {
     async run(inputData: string, sessionId?: string): Promise<AgentRunResult & Record<string, unknown>> {
         const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
         const agentContext = `${this.agentType.toLowerCase()}-agent`;
+
+        // AI-007 (parte 2, onda 33): mesmo gate fail-closed já em vigor para SDR/Ops/qualifyLead
+        // (guardrails.service.ts) — até esta correção, CRMAgent (que passa por este `run()`) enviava
+        // o texto livre da missão (que pode conter PII de um titular real, digitado por um operador
+        // humano ou originado do `mission` do enxame) a um provedor de IA externo sem nenhuma
+        // checagem de base legal.
+        const organizationId = getTenantId();
+        try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            const message = (error as Error).message;
+            logger.warn({ err: error, sessionId: sid, agentType: this.agentType, organizationId }, `Agente ${this.agentType} bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.`);
+            await recordAgentFailure({ sessionId: sid, agentType: this.agentType, organizationId, errorMessage: message });
+            return { error: message, sessionId: sid };
+        }
 
         const graph = new StateGraph(MessagesAnnotation)
             .addNode('process', async (state) => {
@@ -114,6 +130,20 @@ export abstract class BaseAgent {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     protected async runWithTools(inputData: string, tools: any[], sessionId?: string): Promise<AgentRunResult & Record<string, unknown>> {
         const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
+
+        // AI-007 (parte 2, onda 33): mesmo gate de `run()` acima — BDR e Closer (os dois agentes que
+        // usam este caminho) enviam texto livre de missão a Groq/OpenAI via `createReactAgent`, fora
+        // do gateway central, então precisam da própria checagem (mesmo motivo pelo qual
+        // `assertAiBudgetNotExceeded` abaixo já é chamado aqui separadamente, ver AI-011).
+        const organizationId = getTenantId();
+        try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            const message = (error as Error).message;
+            logger.warn({ err: error, sessionId: sid, agentType: this.agentType, organizationId }, `Agente ${this.agentType} bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.`);
+            await recordAgentFailure({ sessionId: sid, agentType: this.agentType, organizationId, errorMessage: message });
+            return { error: message, sessionId: sid };
+        }
 
         try {
             // AI-011: runWithTools fala direto com LangChain/Groq (buildModelWithFallback), sem

@@ -13,9 +13,13 @@ ver seção "AI-011 — circuit breaker de orçamento mensal (onda 30)" abaixo.
 **Onda 32 (mesma rodada)**: AI-002 (checkpointer persistente do LangGraph) construído — ver seção
 "AI-002 — checkpointer real de LangGraph (onda 32)" abaixo.
 
+**Onda 33 (mesma rodada)**: AI-007 fechado por completo (parte 2 — gate de consentimento LGPD no
+enxame BDR/Closer/CRM) — ver seção "AI-007 (parte 2) — gate de consentimento no enxame (onda 33)"
+abaixo.
+
 As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
-refletir as três correções acima; as demais seções deste documento (AI-001, 004-010) continuam
-descrevendo o estado da onda 20 original.
+refletir as quatro correções acima; as demais seções deste documento (AI-001, 004-006, 008-010)
+continuam descrevendo o estado da onda 20 original.
 
 ## Resumo por item
 
@@ -27,7 +31,7 @@ descrevendo o estado da onda 20 original.
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
 | AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
 | AI-006 Métricas de avaliação | Não | Só 3/9 dimensões capturadas (cost, latency, human override); as demais 6 não têm nada |
-| AI-007 Base legal/consentimento | Parcial | Gate adicionado ao fluxo padrão de qualificação (`AIService.qualifyLead`, maior volume); BDR/Closer/CRM do enxame continuam sem gate |
+| AI-007 Base legal/consentimento | Sim (fechado onda 33) | Gate fail-closed em TODO caminho que envia texto a um provedor de IA externo: `AIService.qualifyLead`, SDR/Ops (onda 20) e, desde a onda 33, `BaseAgent.run`/`runWithTools` (BDR/Closer/CRM) |
 | AI-008 Classificação de ferramentas | Sim | Já estava correto (onda 7); contagem desatualizada na doc corrigida |
 | AI-009 SLO por agente | Sim | Fonte de dados e UI já existiam (onda 7); rota HTTP nunca registrada — corrigido |
 | AI-010 RAG com proveniência | Não | Metadados reais existem (documentId/chunkId/score); citação final ao usuário é inventada pelo LLM, não vem do retrieval real |
@@ -68,10 +72,10 @@ checagem de base legal/consentimento, ao contrário de SDR Outbound/SDR Autônom
 tinham essa trava desde a onda 7.
 
 **Corrigido**: mesmo gate fail-closed (`hasPiiExternalConsent`) adicionado ao ponto de entrada.
-Teste: `ai.service.qualifyLead.test.ts` (3 casos). **Não corrigido**: os agentes BDR/Closer/CRM do
-enxame (disparados pelo scheduler 24/7 ou por missão manual no `SwarmDashboard.tsx`) continuam sem
-nenhum gate de consentimento nem minimização de PII — blast radius maior (`base.agent.ts` +
-3 arquivos de agente), tratado como pendência, não uma correção pontual segura.
+Teste: `ai.service.qualifyLead.test.ts` (3 casos). Nesta rodada da auditoria (onda 20), os agentes
+BDR/Closer/CRM do enxame (disparados pelo scheduler 24/7 ou por missão manual no
+`SwarmDashboard.tsx`) continuavam sem gate — fechado depois, onda 33, ver "AI-007 (parte 2) — gate
+de consentimento no enxame (onda 33)" mais abaixo.
 
 ### AI-009 — Rota de SLO nunca registrada
 
@@ -109,7 +113,6 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 |---|---|---|
 | AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
 | AI-006 (métricas de avaliação) | Só cost/latency/human-override capturados; factualidade/aderência/tool-correctness/hallucination/PII-leakage-rate/fallback-rate não têm nada | Depende de AI-005 (dataset) para a maioria; construção de feature nova |
-| AI-007 (consentimento — BDR/Closer/CRM) | Agentes do enxame (scheduler 24/7 + missão manual) sem gate de consentimento nem minimização de PII | Blast radius maior (`base.agent.ts` compartilhado por 3 agentes); decisão de produto sobre se o enxame autônomo deve ter o mesmo gate ou uma política própria |
 | AI-010 (RAG com proveniência) | Metadados reais existem no schema/query; `/knowledge/copilot` nunca chama a busca real — cita fontes que o LLM inventa a partir do texto do prompt | Wiring do endpoint ao `hybridSearch` real + mudança de contrato de resposta (citação vem de metadado, não de texto livre do LLM) — moderado, mas não pontual |
 
 ## Gate final
@@ -129,12 +132,12 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Risco | Dono | Motivo do aceite | Revisar em |
 |---|---|---|---|
 | `followUp.worker.ts` pode estar processando sempre 0 leads em produção (mesmo padrão de RLS sem contexto encontrado e corrigido no worker de cadência na onda 19) | 16 (runtime/workers) | Não investigado nesta rodada — outro worker, outra feature, merece verificação própria | Próxima rodada que tocar follow-up de WhatsApp, prioridade alta |
-| BDR/Closer/CRM do enxame enviam PII sem gate de consentimento nem minimização | 13 (enxame) + 01A (LGPD) | Blast radius maior + decisão de produto sobre política do enxame autônomo | Sprint dedicada a fechar AI-007 por completo |
 | Citação de fonte em `/knowledge/copilot` é inventada pelo LLM, não rastreável a um chunk real | 07 (IA) | Wiring de retrieval real + mudança de contrato de resposta | Quando AI-010 for priorizada |
 | Orçamento de IA é GLOBAL (soma de todas as organizações), não por tenant — uma organização de alto consumo pode bloquear IA para todas as outras | 13 (enxame) | `AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes do AI-011; orçamento por tenant exige coluna/tabela nova, fora do escopo da correção de onda 30 | Se algum tenant reclamar de bloqueio causado por outro tenant |
 | Tabelas do checkpointer LangGraph (`checkpoints`/`checkpoint_writes`/`checkpoint_blobs`) não têm RLS — isolamento de tenant é só o prefixo de `thread_id` | 01 (plataforma) + 07 (IA) | Pacote de terceiros fala SQL cru fora da extensão RLS-aware do Prisma; mesmo modelo de confiança já aceito para BullMQ/Redis neste repo | Se um dia houver acesso direto a essas tabelas por um papel/serviço não confiável |
 | Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
 | `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
+| BDR/Closer/CRM (onda 33) ganharam o gate binário de consentimento, mas não minimização de PII (troca de valor real por token reversível, como `minimizePii`/`rehydratePii` já fazem para SDR) — quando uma organização TEM consentimento registrado, o texto livre da missão ainda pode conter um nome/e-mail/telefone real sem pseudonimização antes de ir ao provedor externo | 07 (IA) + 01A (LGPD) | Diferente do SDR (que busca um Contact estruturado e sabe exatamente qual string é o nome do titular), BDR/Closer/CRM recebem texto livre sem nenhum campo estruturado — não há como identificar com segurança o que é PII no texto para tokenizar, sem um passo de NER/heurística próprio, feature nova | Se a organização com consentimento registrado operar rotineiramente com PII sensível (não só nome/cargo) no texto da missão |
 
 ## AI-011 — circuit breaker de orçamento mensal (onda 30)
 
@@ -298,4 +301,57 @@ grafo de verdade, e sem o mock tentaria abrir uma conexão Postgres real num tes
 - lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
 - unit: **192/192 arquivos, 1488/1488 testes**
 - integration (Postgres+Redis reais): **44/44 arquivos, 221/221 testes**
+- build e build:worker — ambos limpos
+
+## AI-007 (parte 2) — gate de consentimento no enxame (onda 33)
+
+**Estado de entrada**: `AIService.qualifyLead`/SDR/Ops já tinham o gate fail-closed
+`assertPiiExternalConsent` (`guardrails.service.ts`) desde a onda 7/20, mas os 3 agentes que
+estendem `BaseAgent` (`BDRAgent`, `CloserAgent`, `CRMAgent`) — acionados pelo scheduler autônomo
+24/7 (`swarmScheduler.service.ts` → `autonomyRoleRunner.service.ts`) e por missão manual no
+`SwarmDashboard.tsx` (`POST /swarm/mission`, roteada pelo supervisor do enxame) — enviavam texto
+livre de missão a Groq/OpenAI sem checagem alguma de base legal.
+
+**Decisão de design**: gate incondicional (não depende de `leadId` estar presente), diferente do
+Ops Agent (que só verifica quando um `leadId` real está em jogo, já que sem ele nunca busca um
+Contact estruturado). BDR/Closer/CRM recebem texto livre — digitado por um operador humano no
+dashboard, ou montado por `buildMission()` a partir de dados do Lead no scheduler — sem nenhum
+sinal estrutural confiável para decidir "este texto não tem PII de um titular real". Fail-closed
+incondicional é a escolha conservadora consistente com o resto do gate (`hasPiiExternalConsent`:
+"nenhuma organização passa até aparecer explicitamente na lista").
+
+**Construído**: gate adicionado em `base.agent.ts`, no ÚNICO lugar comum às 3 subclasses — não em
+cada agente individualmente, fechando o blast radius identificado na auditoria original (onda 20):
+- `BaseAgent.run()` (caminho usado por `CRMAgent`, StateGraph de turno único): checa
+  `assertPiiExternalConsent(organizationId)` antes de montar o grafo.
+- `BaseAgent.runWithTools()` (caminho usado por `BDRAgent`/`CloserAgent`, loop ReAct via
+  `createReactAgent`): mesma checagem, antes até do `assertAiBudgetNotExceeded()` do AI-011 (que já
+  existia neste método).
+- Em ambos, bloqueio grava a falha em `AgentMemory` (`recordAgentFailure`, status `Failed`) — mesmo
+  padrão de auditoria já usado por SDR/Ops desde o AI-003, mesmo BDR/Closer/CRM não tendo uma rota
+  HTTP de polling de status própria: o histórico de bloqueios fica consultável para evidência LGPD.
+
+**Fora de escopo (documentado como risco aceito, não omissão)**: minimização de PII (token
+reversível, como `minimizePii`/`rehydratePii` já fazem para o nome do contato no SDR) — quando uma
+organização TEM consentimento registrado, o texto livre da missão ainda não passa por nenhuma
+pseudonimização antes de sair. Diferente do SDR (Contact estruturado, sabe exatamente qual string é
+o nome do titular), BDR/Closer/CRM recebem texto sem campos estruturados — identificar com
+segurança o que é PII nesse texto exigiria um passo de NER/heurística próprio, feature nova fora do
+escopo desta correção pontual. Ver tabela de riscos acima.
+
+Testes: `src/features/intelligence/agents/__tests__/base.agent.consent.test.ts` (4 casos novos —
+BDR bloqueado via `runWithTools` sem montar modelo, CRM bloqueado via `run` sem montar modelo, sem
+`organizationId` no contexto também bloqueia, falha registrada em `AgentMemory`).
+`base.agent.budget.test.ts` (AI-011) ajustado: precisa rodar dentro de um `requestContext` com
+organização consentida, senão o novo gate de consentimento intercepta antes do circuit breaker de
+orçamento que aquele teste existe para provar.
+
+## Gate final (onda 33)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 32, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **193/193 arquivos, 1492/1492 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **44/44 arquivos, 221/221 testes** (`swarm-autonomous-mission-e2e.test.ts` exercita o `CRMAgent`
+  real, ponta a ponta, através do novo gate — já rodava com consentimento liberado para a
+  organização de teste)
 - build e build:worker — ambos limpos
