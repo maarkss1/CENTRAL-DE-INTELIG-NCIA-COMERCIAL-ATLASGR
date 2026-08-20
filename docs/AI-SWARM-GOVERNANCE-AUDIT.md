@@ -21,13 +21,18 @@ abaixo.
 citação real e rastreável no Copiloto Técnico (onda 34)" abaixo.
 
 **Onda 35 (mesma rodada)**: AI-006 (métricas de avaliação reais) construído — ver seção "AI-006 —
-harness real das 9 dimensões de avaliação (onda 35)" abaixo. AI-005 (Golden Dataset) continua não
-construído (feature nova completa, fora do escopo de uma correção pontual) — 3 das 9 dimensões
-(factualidade, aderência ao playbook, hallucination) permanecem explicitamente indisponíveis por
-dependerem dele.
+harness real das 9 dimensões de avaliação (onda 35)" abaixo.
+
+**Onda 36 (mesma rodada, priorizada explicitamente pelo usuário depois de AI-006, não antes)**:
+AI-005 (Golden Dataset real e versionado) construído — ver seção "AI-005 — Golden Dataset real e
+versionado (onda 36)" abaixo. O dataset em si existe e é validado (24 casos reais, 8 categorias),
+mas o harness de SCORING automático (LLM-judge, threshold, gate de CI que bloqueia regressão) ainda
+não foi construído — decisão de metodologia de avaliação é de produto, fora do escopo desta
+correção. Por isso as 3 dimensões de AI-006 que dependiam de AI-005 (factualidade, aderência ao
+playbook, hallucination) continuam explicitamente indisponíveis mesmo após esta onda.
 
 As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
-refletir as seis correções acima; as demais seções deste documento (AI-001, 004, 008-009) continuam
+refletir as sete correções acima; as demais seções deste documento (AI-001, 004, 008-009) continuam
 descrevendo o estado da onda 20 original.
 
 ## Resumo por item
@@ -38,7 +43,7 @@ descrevendo o estado da onda 20 original.
 | AI-002 Checkpointer persistente | Sim (onda 32) | `PostgresSaver` real (`@langchain/langgraph-checkpoint-postgres`) substitui `MemorySaver` nos 3 grafos com checkpointer; estado sobrevive a restart/deploy |
 | AI-003 Persistência de memória honesta | Sim (onda 31) | Upsert atômico único (`sessionId`, `agentType`, `organizationId`) com unique constraint real; nenhum caminho de escrita engole mais erro; `GET /agents/sdr/status/:sessionId` distingue pending/completed/failed |
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
-| AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
+| AI-005 Golden Dataset | Parcial (onda 36) | 24 casos reais/sanitizados/versionados nas 8 categorias (`golden-dataset.json`, validado por Zod), inclusive contra os schemas Zod REAIS das 9 ferramentas do enxame para `tool_use`; harness de scoring automático (LLM-judge/threshold/gate de CI) ainda não construído |
 | AI-006 Métricas de avaliação | Parcial (6/9 onda 35) | cost/latency/humanOverride (já existiam) + fallbackRate/toolCorrectness/piiLeakageRate (novos, dados reais de produção — 2 são proxy, documentado); factualidade/aderência/hallucination continuam explicitamente indisponíveis (bloqueadas por AI-005) |
 | AI-007 Base legal/consentimento | Sim (fechado onda 33) | Gate fail-closed em TODO caminho que envia texto a um provedor de IA externo: `AIService.qualifyLead`, SDR/Ops (onda 20) e, desde a onda 33, `BaseAgent.run`/`runWithTools` (BDR/Closer/CRM) |
 | AI-008 Classificação de ferramentas | Sim | Já estava correto (onda 7); contagem desatualizada na doc corrigida |
@@ -120,8 +125,8 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 
 | Item | Situação real | Por que não construído nesta sprint |
 |---|---|---|
-| AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
-| AI-006 (3 dimensões restantes: factualidade, aderência ao playbook, hallucination) | As outras 6 dimensões foram fechadas na onda 35 (`GET /api/agent/evaluation-metrics`); estas 3 continuam reportadas como `available: false` — nunca um número fabricado | Todas exigem uma resposta de referência para comparar contra o que a IA gerou; depende de AI-005 (Golden Dataset), que não existe |
+| AI-005 (harness de scoring automático) | O DATASET em si existe e é validado (onda 36) — falta o harness que o consome de verdade: rodar cada caso contra a capacidade real, comparar contra `expected`/`referenceAnswer`, aplicar threshold, bloquear regressão em CI | Decidir a metodologia de comparação (exact match? similaridade semântica? juiz por LLM? qual modelo de juiz?) é decisão de produto/metodologia que este dataset não tenta resolver sozinho |
+| AI-006 (3 dimensões restantes: factualidade, aderência ao playbook, hallucination) | As outras 6 dimensões foram fechadas na onda 35 (`GET /api/agent/evaluation-metrics`); estas 3 continuam reportadas como `available: false` — nunca um número fabricado | Mesmo com o dataset (AI-005) pronto, calculá-las exige o harness de scoring acima, que ainda não existe |
 
 ## Gate final
 - typecheck: `npx tsc --noEmit` — limpo, 0 erros
@@ -145,9 +150,9 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
 | `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
 | BDR/Closer/CRM (onda 33) ganharam o gate binário de consentimento, mas não minimização de PII (troca de valor real por token reversível, como `minimizePii`/`rehydratePii` já fazem para SDR) — quando uma organização TEM consentimento registrado, o texto livre da missão ainda pode conter um nome/e-mail/telefone real sem pseudonimização antes de ir ao provedor externo | 07 (IA) + 01A (LGPD) | Diferente do SDR (que busca um Contact estruturado e sabe exatamente qual string é o nome do titular), BDR/Closer/CRM recebem texto livre sem nenhum campo estruturado — não há como identificar com segurança o que é PII no texto para tokenizar, sem um passo de NER/heurística próprio, feature nova | Se a organização com consentimento registrado operar rotineiramente com PII sensível (não só nome/cargo) no texto da missão |
-| AI-010 (onda 34) fecha a proveniência das CITAÇÕES (`sourceReferences` só aponta para chunk real, nunca texto inventado), mas não verifica a FACTUALIDADE do resto da resposta (`directAnswer`/`technicalSpecifications`) contra o conteúdo citado — o LLM ainda pode escrever um dado técnico que não está em nenhum dos trechos fornecidos, mesmo citando corretamente o trecho de onde partiu | 07 (IA) | Verificar se cada afirmação da resposta está de fato sustentada pelo texto citado (grounding real, não só citação) é o mesmo problema de "factualidade"/"hallucination rate" que AI-006 já mapeia como métrica de avaliação — depende do harness de AI-005, agora fechado apenas nas 6/9 dimensões que não exigem dataset de referência | Quando AI-005 (Golden Dataset) for priorizado |
+| AI-010 (onda 34) fecha a proveniência das CITAÇÕES (`sourceReferences` só aponta para chunk real, nunca texto inventado), mas não verifica a FACTUALIDADE do resto da resposta (`directAnswer`/`technicalSpecifications`) contra o conteúdo citado — o LLM ainda pode escrever um dado técnico que não está em nenhum dos trechos fornecidos, mesmo citando corretamente o trecho de onde partiu | 07 (IA) | Verificar se cada afirmação da resposta está de fato sustentada pelo texto citado (grounding real, não só citação) é o mesmo problema de "factualidade"/"hallucination rate" que AI-006 já mapeia — o dataset de referência existe desde a onda 36 (AI-005), mas o harness de scoring que compararia a resposta contra ele ainda não foi construído | Quando o harness de scoring (AI-005/AI-006) for priorizado |
 | `fallbackRate` (AI-006, onda 35) só cobre o SDR Outbound — nenhum outro agente do enxame (BDR/Closer/CRM/Ops/SDR Qualification) grava `structuredOutputValid` no payload de `AIPendingAction`, então a dimensão fica cega ao resto do enxame | 07 (IA) | Ampliar essa gravação para os demais agentes é o mesmo trabalho que fechar o AI-004 original para eles — não fazia parte do escopo do AI-004 nem desta correção pontual do AI-006, que só consome o que já existe | Se o roadmap decidir estender o contrato `structuredOutputValid` a outros agentes |
-| `toolCorrectness` e `piiLeakageRate` (AI-006, onda 35) são PROXIES, não a dimensão real — `toolCorrectness` mede só ausência de erro operacional (`AIPendingAction.executionError`), não se a ação/ferramenta escolhida foi semanticamente correta; `piiLeakageRate` mede só o que `redactSensitiveData` já detecta (regex de CPF), não todo tipo de PII que poderia vazar | 07 (IA) | Corretude semântica real exige comparar contra uma ação esperada (AI-005); detecção de PII mais ampla que CPF é um detector novo, fora do escopo desta correção | Quando AI-005 existir (tool correctness) / se um tipo de PII fora do CPF vazar em produção (leakage detector) |
+| `toolCorrectness` e `piiLeakageRate` (AI-006, onda 35) são PROXIES, não a dimensão real — `toolCorrectness` mede só ausência de erro operacional (`AIPendingAction.executionError`), não se a ação/ferramenta escolhida foi semanticamente correta; `piiLeakageRate` mede só o que `redactSensitiveData` já detecta (regex de CPF), não todo tipo de PII que poderia vazar | 07 (IA) | Corretude semântica real agora TEM uma ação esperada para comparar (`golden-dataset.json`, categoria `tool_use`, onda 36), mas falta o harness que rode o cenário de verdade e compare — construir isso é o próximo passo, não coberto por esta correção; detecção de PII mais ampla que CPF é um detector novo à parte | Quando o harness de scoring existir (tool correctness) / se um tipo de PII fora do CPF vazar em produção (leakage detector) |
 
 ## AI-011 — circuit breaker de orçamento mensal (onda 30)
 
@@ -503,3 +508,86 @@ Testes:
 - `prisma migrate diff` contra a migration nova: zero diff para `AIGuardrailEvent` (ruído
   pré-existente em outras tabelas, já documentado em ondas anteriores, fora de escopo)
 - build e build:worker — ambos limpos
+
+## AI-005 — Golden Dataset real e versionado (onda 36)
+
+**Estado de entrada**: nenhum dataset existia. `npm run verify:ai` (`scripts/verify-ai-studio.ts`)
+é smoke test de conectividade (a chamada não lançou), sem comparação contra referência nenhuma. O
+roadmap original (`SPRINT-07-IA-ENXAME-EVALUATION.md`, fora do repo, só referenciado por este audit
+doc) pede um dataset sanitizado e versionado para 8 categorias: qualificação, cold email, objection
+handling, roleplay, next best action, summary, RAG, tool use — sem definir formato.
+
+**Decisão de design**: cada categoria foi ancorada no tipo REAL que a capacidade de produção
+correspondente já usa — não um formato genérico inventado (mapeamento completo pesquisado antes de
+escrever qualquer caso):
+
+| Categoria | Serviço/capacidade real |
+|---|---|
+| `lead_qualification` | `AIService.qualifyLead(leadId, companyInfo)` |
+| `cold_email` | `generateEmailDraft(context, goal)` (`src/lib/ai/features.ts` — pura, sem Lead real) |
+| `objection_handling` | `generateObjectionHandling(objection)` |
+| `roleplay` | `RoleplayAiService.simulateCustomerResponse(RoleplayTurnInput)` |
+| `next_best_action` | `NextBestActionService.determineNextAction(MeetingOrCallNote)` |
+| `summary` | `MeetingSynthesisService.synthesizeMeeting(MeetingTranscriptInput)` |
+| `rag` | `KnowledgeCopilotService.answerTechnicalQuestion({question, hits})` (AI-010) |
+| `tool_use` | as 9 ferramentas reais do enxame (`src/features/intelligence/tools/*.ts`) |
+
+Optou-se por **NÃO** construir junto o harness de scoring automático (comparar a resposta real da
+IA contra `expected`, aplicar threshold, bloquear regressão em CI — o que o roadmap eventualmente
+quer de `verify:ai`). Motivo: a metodologia de comparação (exact match para os campos estruturados?
+similaridade semântica para os textos livres? juiz por LLM — e qual modelo?) é uma decisão de
+produto que este dataset não deveria tentar resolver sozinho, e a maioria das 8 capacidades tem
+efeitos colaterais reais (DB, RAG, consentimento LGPD) que precisariam de stubs/harness próprio por
+capacidade — trabalho maior que uma correção pontual. Em vez disso, o dataset em si é
+estruturalmente validado com rigor real:
+1. Todo o arquivo valida contra `goldenDatasetFileSchema` (Zod, discriminated union por
+   `category`) — um caso malformado quebra alto e cedo.
+2. Cada campo `expected` usa os mesmos enums/tipos reais que os serviços de produção aceitam (ex.:
+   `actionType` de `next_best_action` é exatamente o union real de `NextBestActionResult`, não uma
+   cópia solta).
+3. **A prova mais forte**: cada caso `tool_use` é validado em runtime contra o schema Zod REAL da
+   ferramenta correspondente (importado de `src/features/intelligence/tools/*.ts`, o mesmo schema
+   que o LangGraph usa para validar uma chamada de ferramenta de verdade) — não uma reconstrução
+   solta do formato.
+
+**Construído**:
+- `src/features/intelligence/evaluation/goldenDataset.types.ts` — schema Zod completo, um
+  discriminated union por categoria.
+- `src/features/intelligence/evaluation/golden-dataset.json` — **24 casos reais e sanitizados** (3
+  por categoria × 8 categorias), domínio fictício mas grounded em AtlasGR/TotalTrac (transportadoras,
+  frotas, sinistro de carga, telemetria de temperatura), nenhum dado de cliente real.
+- `src/features/intelligence/evaluation/goldenDataset.service.ts` — `loadGoldenDataset()`
+  (memoizado), `getCasesByCategory()`, `getDatasetSummary()`, `validateToolUseCases()` (import
+  dinâmico dos módulos de ferramenta — só quem valida `tool_use` paga o custo de carregar
+  `prisma`/`getTenantId` que essas ferramentas trazem).
+- `GET /api/agent/golden-dataset/summary` (novo) — resumo do dataset + validação real dos casos
+  `tool_use`, mesmo padrão de `/swarm/slo`/`/evaluation-metrics`.
+- `tsconfig.json`: `resolveJsonModule: true` adicionado — o JSON é importado como módulo (não
+  `readFileSync`) de propósito: o `Dockerfile` de produção só empacota `dist/`, nunca `src/` (ver
+  estágio `runner`), então um caminho de arquivo relativo ao código-fonte quebraria em produção;
+  importar como módulo faz o esbuild inlinar o conteúdo dentro de `dist/server.cjs` no build — o
+  mesmo artefato que de fato roda. Confirmado por inspeção do bundle após `npm run build`.
+
+**Fora de escopo (documentado como risco aceito)**: o harness de scoring automático (comparação de
+verdade, threshold, gate de CI) — ver tabela de riscos acima. Sem ele, as 3 dimensões de AI-006
+ainda bloqueadas (factualidade, aderência ao playbook, hallucination) continuam `available: false`
+mesmo com o dataset pronto.
+
+Testes:
+- `src/features/intelligence/evaluation/__tests__/goldenDataset.service.test.ts` (novo, 11 casos)
+  — dataset real carrega/valida sem lançar; memoização; todas as 8 categorias cobertas por pelo
+  menos 1 caso; narrowing do discriminated union funciona; `countByCategory` soma exatamente
+  `totalCases`; **todos os 3 casos `tool_use` reais validam contra o schema real da ferramenta**;
+  `goldenDatasetFileSchema` rejeita arquivo sem versão, categoria inexistente e `expectedTool` fora
+  da lista real; o schema real de `update_lead_qualification` rejeita um status inventado e aceita
+  um status real (prova que a validação não é cosmética).
+- `tests/unit/features/intelligence/routes/agent.routes.golden-dataset.test.ts` (novo, 2 casos) —
+  rota devolve resumo + validação; falha de validação vira 500, nunca é engolida silenciosamente.
+
+## Gate final (onda 36)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 35, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **199/199 arquivos, 1530/1530 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **46/46 arquivos, 226/226 testes** (nenhuma migration nesta onda)
+- build e build:worker — ambos limpos; conteúdo do dataset confirmado inline em `dist/server.cjs`

@@ -138,6 +138,7 @@ import { SwarmOrchestrator } from '../agents/supervisor.agent.js';
 import { LearningAgent } from '../agents/learning.agent.js';
 import { getSwarmSloSnapshot } from '../services/swarmScheduler.service.js';
 import { getEvaluationMetricsSnapshot } from '../services/evaluationMetrics.service.js';
+import { getDatasetSummary, validateToolUseCases } from '../evaluation/goldenDataset.service.js';
 
 const swarmMissionSchema = z.object({
     mission: z.string().trim().min(1, 'A missão é obrigatória.').max(4_000),
@@ -223,6 +224,19 @@ router.get('/evaluation-metrics', async (req: Request, res: Response, next: Next
         const { organizationId } = (req as AuthRequest).user;
         const snapshot = await getEvaluationMetricsSnapshot(organizationId, parsed.data.days ?? 30);
         res.json(snapshot);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// AI-005 (onda 36): Golden Dataset real e versionado — ver goldenDataset.service.ts. Não é
+// escopado por tenant (o dataset é um fixture de QA compartilhado, não dado de produção de uma
+// organização) — só reaproveita a autenticação já aplicada em '/api/agent' pelo server.ts.
+router.get('/golden-dataset/summary', async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+        const summary = getDatasetSummary();
+        const toolUseValidation = await validateToolUseCases();
+        res.json({ summary, toolUseValidation });
     } catch (err) {
         next(err);
     }
