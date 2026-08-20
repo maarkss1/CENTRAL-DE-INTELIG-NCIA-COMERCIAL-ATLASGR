@@ -12,6 +12,7 @@ import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
 import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
+import { IntegrationStatusBadge } from './IntegrationStatusBadge';
 
 type IntegrationCapabilityStatus = 'connected' | 'read' | 'write' | 'stub' | 'error' | 'pending';
 
@@ -178,6 +179,12 @@ export function Integrations() {
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                         {status === 'connected' ? 'Conectado' : status === 'connecting' ? 'Conectando...' : 'Desconectado'}
                                     </span>
+                                    {status === 'connected' && (
+                                        <IntegrationStatusBadge
+                                            capability="write"
+                                            title="Envia e recebe mensagens de verdade pela sessão WhatsApp Web conectada"
+                                        />
+                                    )}
                                 </div>
                                 {status === 'connected' && (
                                     <button
@@ -245,12 +252,29 @@ export function Integrations() {
                                 </div>
                                 <p>Decisão da Onda 3: não afirmar escrita real no Google. Eventos abaixo vêm do Google Calendar; criar/remarcar/concluir atividades acontece só na Agenda local do Atlas.</p>
                             </IntegrationTruthBox>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     {googleConnected ? `Conectado (${googleEmail})` : 'Desconectado'}
                                 </span>
+                                {googleConnected && (
+                                    <IntegrationStatusBadge
+                                        capability="read"
+                                        title="Lê Gmail e eventos do Calendar de verdade (escopo somente leitura)"
+                                    />
+                                )}
                             </div>
+
+                            {googleConnected && (
+                                <div className="flex items-start gap-2 p-3 rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30">
+                                    <IntegrationStatusBadge capability="pending_scope" />
+                                    <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                                        Agendamento pela Cadência grava a confirmação no Atlas, mas ainda não cria o evento no Google
+                                        Calendar de verdade — isso exige pedir o escopo de escrita (<code className="font-mono">calendar.events</code>)
+                                        e reconectar toda a organização, decisão de produto ainda não tomada.
+                                    </p>
+                                </div>
+                            )}
 
                             {googleConnected ? (
                                 <>
@@ -292,7 +316,15 @@ export function Integrations() {
                     <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
                         <div className="flex items-start justify-between mb-8">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                                    {bitrixConnections.length > 0 && (
+                                        <>
+                                            <IntegrationStatusBadge capability="write" title="Todo lead novo é enviado automaticamente para o Bitrix24" />
+                                            <IntegrationStatusBadge capability="read" title="Importação do Bitrix24 para o Atlas é manual, portal por portal" />
+                                        </>
+                                    )}
+                                </div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
                                     Bitrix24 tem leitura/importação real, escrita real de leads e comentários, e webhook de entrada opcional para atualizar registros já importados.
                                 </p>
@@ -476,9 +508,14 @@ export function Integrations() {
                                     </p>
                                 </div>
                             </div>
-                            <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
+                                </span>
+                                {threecxConnections.length > 0 && (
+                                    <IntegrationStatusBadge capability="write" title="Click-to-call dispara chamada real no PABX conectado" />
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-6">

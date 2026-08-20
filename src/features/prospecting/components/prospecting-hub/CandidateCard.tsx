@@ -52,7 +52,10 @@ export function CandidateCard({
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="font-black text-lg text-ink group-hover:text-brand transition-colors">{candidate.tradeName}</h3>
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-atlas-yellow/20 text-atlas-yellow'}`}>
+                        {/* Tier de Fit é um sinal de negócio (score), não uma cor de marca — usa o
+                            token semântico bg-warning/text-warning (mesmo já usado 2 linhas abaixo
+                            pro badge de rating do Google), não atlas-yellow. */}
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-warning/15 text-warning'}`}>
                             <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
                         {enrichment?.company.googleRating && (
