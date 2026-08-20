@@ -1,4 +1,4 @@
-import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
+import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
 import { getLeadContextTool, searchLeadsTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { createFollowUpTaskTool, notifyTeamTool } from '../tools/opsTools.js';
@@ -10,6 +10,7 @@ import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
+import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
@@ -95,8 +96,8 @@ const workflow = new StateGraph(MessagesAnnotation)
     })
     .addEdge('tools', 'agent');
 
-const memory = new MemorySaver();
-const app = workflow.compile({ checkpointer: memory });
+// AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts).
+const app = workflow.compile({ checkpointer });
 
 export class OpsAgent {
     async run(instruction: string, sessionId?: string, leadId?: string) {
@@ -123,12 +124,15 @@ export class OpsAgent {
             : `Instrução: ${instruction}\n\nNenhum Lead ID foi informado para esta missão.`;
 
         const inputs = { messages: [new HumanMessage(humanContent)] };
-        // AI-002 (Sprint 07/onda-20): thread_id prefixado pelo tenant — o checkpointer (MemorySaver)
-        // deste grafo é singleton de módulo, compartilhado por todas as organizações do processo.
+        // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
+        // organizações do processo.
         const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
         let finalState;
 
         try {
+            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+            // primeira invocação real deste processo — memoizado.
+            await ensureCheckpointerReady();
             finalState = await app.invoke(inputs, config);
         } catch (error) {
             logger.error({ err: error, sessionId }, 'Ops Agent run failed');
