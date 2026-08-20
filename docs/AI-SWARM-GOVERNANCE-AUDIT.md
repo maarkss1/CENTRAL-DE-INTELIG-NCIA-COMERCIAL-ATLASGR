@@ -10,8 +10,11 @@ ver seção "AI-011 — circuit breaker de orçamento mensal (onda 30)" abaixo.
 **Onda 31 (mesma rodada)**: AI-003 (persistência honesta de AgentMemory) construído — ver seção
 "AI-003 — persistência honesta de AgentMemory (onda 31)" abaixo.
 
+**Onda 32 (mesma rodada)**: AI-002 (checkpointer persistente do LangGraph) construído — ver seção
+"AI-002 — checkpointer real de LangGraph (onda 32)" abaixo.
+
 As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
-refletir as duas correções acima; as demais seções deste documento (AI-001, 002, 004-010) continuam
+refletir as três correções acima; as demais seções deste documento (AI-001, 004-010) continuam
 descrevendo o estado da onda 20 original.
 
 ## Resumo por item
@@ -19,7 +22,7 @@ descrevendo o estado da onda 20 original.
 | Item | Corrigido nesta sprint | Estado real |
 |---|---|---|
 | AI-001 Nomes canônicos dos SDRs | Sim | `sdr-agent.ts`→`sdrOutboundDraft.agent.ts`, `sdr.agent.ts`→`sdrQualification.agent.ts` |
-| AI-002 Checkpointer persistente | Parcial | `thread_id` agora qualificado por tenant (colisão cross-tenant fechada); checkpointer continua em RAM (`MemorySaver`), sem recovery de restart |
+| AI-002 Checkpointer persistente | Sim (onda 32) | `PostgresSaver` real (`@langchain/langgraph-checkpoint-postgres`) substitui `MemorySaver` nos 3 grafos com checkpointer; estado sobrevive a restart/deploy |
 | AI-003 Persistência de memória honesta | Sim (onda 31) | Upsert atômico único (`sessionId`, `agentType`, `organizationId`) com unique constraint real; nenhum caminho de escrita engole mais erro; `GET /agents/sdr/status/:sessionId` distingue pending/completed/failed |
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
 | AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
@@ -104,7 +107,6 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 
 | Item | Situação real | Por que não construído nesta sprint |
 |---|---|---|
-| AI-002 (checkpointer persistente) | `MemorySaver` continua em RAM; sem teste de restart/recovery | Adicionar `@langchain/langgraph-checkpoint-postgres` (dependência nova) + política de TTL é construção de feature nova, não correção pontual |
 | AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
 | AI-006 (métricas de avaliação) | Só cost/latency/human-override capturados; factualidade/aderência/tool-correctness/hallucination/PII-leakage-rate/fallback-rate não têm nada | Depende de AI-005 (dataset) para a maioria; construção de feature nova |
 | AI-007 (consentimento — BDR/Closer/CRM) | Agentes do enxame (scheduler 24/7 + missão manual) sem gate de consentimento nem minimização de PII | Blast radius maior (`base.agent.ts` compartilhado por 3 agentes); decisão de produto sobre se o enxame autônomo deve ter o mesmo gate ou uma política própria |
@@ -130,6 +132,9 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | BDR/Closer/CRM do enxame enviam PII sem gate de consentimento nem minimização | 13 (enxame) + 01A (LGPD) | Blast radius maior + decisão de produto sobre política do enxame autônomo | Sprint dedicada a fechar AI-007 por completo |
 | Citação de fonte em `/knowledge/copilot` é inventada pelo LLM, não rastreável a um chunk real | 07 (IA) | Wiring de retrieval real + mudança de contrato de resposta | Quando AI-010 for priorizada |
 | Orçamento de IA é GLOBAL (soma de todas as organizações), não por tenant — uma organização de alto consumo pode bloquear IA para todas as outras | 13 (enxame) | `AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes do AI-011; orçamento por tenant exige coluna/tabela nova, fora do escopo da correção de onda 30 | Se algum tenant reclamar de bloqueio causado por outro tenant |
+| Tabelas do checkpointer LangGraph (`checkpoints`/`checkpoint_writes`/`checkpoint_blobs`) não têm RLS — isolamento de tenant é só o prefixo de `thread_id` | 01 (plataforma) + 07 (IA) | Pacote de terceiros fala SQL cru fora da extensão RLS-aware do Prisma; mesmo modelo de confiança já aceito para BullMQ/Redis neste repo | Se um dia houver acesso direto a essas tabelas por um papel/serviço não confiável |
+| Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
+| `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
 
 ## AI-011 — circuit breaker de orçamento mensal (onda 30)
 
@@ -241,4 +246,56 @@ RLS cross-organização).
 - lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
 - unit: **191/191 arquivos, 1483/1483 testes**
 - integration (Postgres+Redis reais): **43/43 arquivos, 218/218 testes**
+- build e build:worker — ambos limpos
+
+## AI-002 — checkpointer real de LangGraph (onda 32)
+
+**Estado de entrada**: `MemorySaver` (RAM) nos 3 grafos com checkpointer (`sdrQualification.agent.ts`,
+`ops.agent.ts`, `supervisor.agent.ts`) — cada um um singleton de módulo. Uma correção anterior
+(onda 20) já tinha prefixado `thread_id` por `${organizationId}:${sessionId}`, fechando a colisão
+de checkpoint entre organizações, mas não a perda de estado a cada restart/deploy do processo.
+
+**Construído**: `src/lib/ai/checkpointer.ts` (novo) — `PostgresSaver`
+(`@langchain/langgraph-checkpoint-postgres`, dependência nova) sobre um `pg.Pool` dedicado (não o
+pool interno, não exportado, de `prisma.ts` — vidas úteis diferentes, `PostgresSaver.end()` fecha
+seu próprio pool). `ensureCheckpointerReady()` chama `checkpointer.setup()` (migration própria do
+pacote, cria `checkpoints`/`checkpoint_writes`/`checkpoint_blobs`/`checkpoint_migrations` no schema
+`public`) de forma memoizada e preguiçosa — chamado dentro de cada `run()`/`executeMission()`, não
+no boot do processo, porque há dois processos de entrada distintos (`server.ts` e `worker.ts`) e
+inicialização preguiçosa evita depender de conectar isso às duas sequências de boot.
+
+Schema `public` (não um schema dedicado). **Achado real, pego pelo CI** (não pelo gate local, que
+inicialmente mascarou o problema por acidente de bootstrap manual — ver `.agents/runs/onda-32.md`):
+`PostgresSaver.setup()` roda `CREATE SCHEMA IF NOT EXISTS "public"` incondicionalmente, mesmo usando
+o schema padrão já existente, e o Postgres checa a permissão de `CREATE SCHEMA` (nível de BANCO) ANTES
+de checar se o schema já existe — ser dono do schema `public` (como `prospector_app` já era, para as
+migrations do Prisma funcionarem) NÃO é suficiente. `scripts/db/create-app-role.sql` corrigido com
+`GRANT CREATE ON DATABASE ... TO prospector_app`. **Ação pendente antes do primeiro deploy desta
+correção**: o mesmo GRANT precisa ser aplicado manualmente no Postgres de produção (Supabase) — o
+script de bootstrap não roda automaticamente contra produção. Tabelas do pacote não colidem com
+nenhum model do `schema.prisma` (nomes conferidos).
+
+**Sem RLS nas tabelas do checkpointer** — o pacote fala SQL cru direto no `pg.Pool`, nunca passa
+pela extensão RLS-aware do Prisma (`app.current_tenant_id`). Isolamento de tenant é só o prefixo de
+`thread_id`, já em vigor desde a onda 20. Mesmo modelo de confiança já aceito neste repo para
+BullMQ/Redis (`src/lib/queue/agent.worker.ts`: fila também não tem RLS-equivalente, depende de cada
+job carregar `tenantId` explícito no payload) — documentado como risco aceito, não uma omissão.
+
+**Sem política de TTL** — o pacote expõe `deleteThread(threadId)`, mas decidir a política de
+retenção (quanto tempo um checkpoint de missão pausada/concluída deveria continuar consultável) é
+decisão de produto própria, fora do escopo desta correção pontual.
+
+Testes: `tests/unit/lib/ai/checkpointer.test.ts` (5 casos, pg/PostgresSaver mockados — memoização de
+`setup()`, retry após falha, `closeCheckpointerPool`), `tests/integration/langgraph-checkpointer.test.ts`
+(3 casos, Postgres real — `setup()` idempotente; estado gravado por uma instância de `PostgresSaver`
+é lido de volta por uma instância independente com seu próprio `pg.Pool`, provando persistência real
+entre "processos" sem depender de matar o processo de teste; threads diferentes não colidem).
+`ops.agent.consent.test.ts` atualizado para mockar `checkpointer.js` (o caso "sem leadId" invoca o
+grafo de verdade, e sem o mock tentaria abrir uma conexão Postgres real num teste unitário).
+
+## Gate final (onda 32)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
+- unit: **192/192 arquivos, 1488/1488 testes**
+- integration (Postgres+Redis reais): **44/44 arquivos, 221/221 testes**
 - build e build:worker — ambos limpos

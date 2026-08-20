@@ -1,4 +1,4 @@
-import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
+import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
 import { prisma } from '../../../lib/prisma.js';
 import { getLeadContextTool, updateLeadQualificationTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
@@ -12,6 +12,7 @@ import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
+import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { rehydratePii, assertPiiExternalConsent } from '../services/guardrails.service.js';
 
@@ -148,9 +149,10 @@ const workflow = new StateGraph(MessagesAnnotation)
     })
     .addEdge("tools", "agent");
 
-// Adicionando LangMem via MemorySaver (Armazenamento na RAM para Sessões ativas)
-const memory = new MemorySaver();
-const app = workflow.compile({ checkpointer: memory });
+// AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts),
+// não mais MemorySaver em RAM. `ensureCheckpointerReady()` é chamado antes de `app.invoke()` em
+// `run()`, não aqui no boot do módulo (setup é assíncrono; compile() continua síncrono).
+const app = workflow.compile({ checkpointer });
 
 export class SDRQualificationAgent {
     async run(leadId: string, sessionId?: string, instruction?: string) {
@@ -183,15 +185,16 @@ export class SDRQualificationAgent {
             messages: [new HumanMessage(humanContent)]
         };
 
-        // AI-002 (Sprint 07/onda-20): o checkpointer (MemorySaver) deste grafo é um singleton de
-        // módulo compartilhado por TODAS as organizações do processo — sem prefixar o thread_id
-        // pelo tenant, um `sessionId` coincidente entre duas organizações reaproveitaria o
-        // checkpoint em RAM da outra. Persistência real (Postgres/Redis) continua pendente — ver
-        // docs do achado; isto fecha só a colisão entre tenants.
+        // thread_id prefixado pelo tenant (AI-002, onda 20): o checkpointer é compartilhado por
+        // TODAS as organizações do processo — sem isto, um `sessionId` coincidente entre duas
+        // organizações reaproveitaria o checkpoint de outra.
         const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
         let finalState;
 
         try {
+            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+            // primeira invocação real deste processo — memoizado, não recalcula depois da primeira vez.
+            await ensureCheckpointerReady();
             // Invoca o gráfico (state machine) com checkpointer ativado para manter histórico na thread.
             finalState = await app.invoke(inputs, config);
         } catch (error) {
