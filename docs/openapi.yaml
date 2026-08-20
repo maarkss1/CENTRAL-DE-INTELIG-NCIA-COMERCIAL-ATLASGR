@@ -2001,6 +2001,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /cadence/runs/{id}/pause:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Pausa manualmente uma execução de cadência ativa (CYC-009). Idempotente: pausar um run que
+        não está `active` devolve o run inalterado, nunca lança erro.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
+  /cadence/runs/{id}/resume:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Retoma manualmente uma execução de cadência pausada (CYC-009). Idempotente: retomar um run
+        que não está `paused` devolve o run inalterado, nunca lança erro. Nunca reabre um run já
+        `stopped` (opt-out/resposta/parada manual são definitivos por design).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
+  /cadence/runs/{id}/stop:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Para manualmente uma execução de cadência (CYC-009) — diferente de pausar, é definitivo
+        (`stopReason: manual-stop`), nunca retomável.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
   /cadence/leads/{leadId}/schedule-meeting:
     post:
       tags: [Cadence]

@@ -69,6 +69,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > nunca reverte um estado terminal já aplicado (proteção real contra webhook fora de ordem ou
 > reentregue). `CrmDocumentSignatureRequest` sai da lista de tabelas mortas confirmadas. CYC-009
 > permanece como estava na Onda 18 — ainda não revisitado.
+>
+> **Atualização — Onda 29**: CYC-009 (UI de cadência) conectado — ver seção CYC-009 abaixo. Único
+> gap real que restava: pausar/retomar/parar um run em andamento não tinha rota nenhuma
+> (`pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam prontos e testados no
+> domínio desde uma sprint anterior). `POST /api/cadence/runs/:id/pause|resume|stop` conectados,
+> com ações reais na UI (parar exige confirmação — é irreversível). Cobertura E2E
+> (`tests/e2e/cadence.spec.ts`) e de acessibilidade (`accessibility.spec.ts`) adicionadas — a tela
+> nunca tinha nenhuma das duas. Esta é a última entrega pendente do bloco CYC-001..009.
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -386,13 +394,35 @@ via WhatsApp mockado só no socket Baileys, opt-out, RLS cross-tenant, sequênci
 
 ## CYC-009 — UI de cadência
 
-**Estado (Onda 22): rota real, no menu principal, com criação de sequência e início de run —
-pausar/retomar/parar ainda não existem.** `/app/cadence` existe e está na Sidebar (não é
-deep-link escondido). Mostra os 5 estados de run do CYC-002 (`active/paused/stopped/completed/
-failed`, corrigido na onda-22 junto com o domínio — antes eram só 3). Os botões "Nova sequência" e
-"Iniciar cadência" (onda-22) cobrem criação — pausar/retomar/parar um run em andamento continuam
-sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem cobertura em
-`accessibility.spec.ts` — ver item CYC-009 na lista de pendências (#82) para o trabalho restante.
+**Estado (Onda 29): rota real, no menu principal, com CRUD completo de execução (criar sequência,
+iniciar, pausar, retomar, parar) — cobertura E2E e de acessibilidade real.** `/app/cadence` existe
+e está na Sidebar (não é deep-link escondido). Mostra os 5 estados de run do CYC-002
+(`active/paused/stopped/completed/failed`).
+
+- **`POST /api/cadence/runs/:id/pause|resume|stop`** (`cadence.routes.ts`) — o único gap real que
+  restava. `pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam prontos e
+  testados no domínio (`domain/cadence.ts`, `__tests__/cadence.test.ts`) desde uma sprint anterior,
+  só sem nenhuma rota chamando-os. Cada rota carrega o run pelo id dentro do tenant (RLS real,
+  404 se não encontrado/outra organização), aplica a transição (idempotente por construção do
+  próprio domínio) e persiste.
+- **`CadenceRunActions`** (`CadenceHub.tsx`) — botões reais na linha de cada execução: Pausar/Parar
+  quando `active`, Retomar/Parar quando `paused`, nenhuma ação num estado terminal. Parar é
+  irreversível (mesmo raciocínio de `stopCadenceManually` — "distinta de pausa: não tem retomada")
+  e exige confirmação (`window.confirm`, mesmo padrão já usado em `LeadDetailDrawer.tsx` para
+  excluir um lead).
+- Nota de escopo da tela ("Em breve nesta tela") corrigida: não afirma mais que
+  pausar/retomar/parar "ainda não existe" (passou a existir) nem que reply-tracking/agendamento/
+  proposta/assinatura "ainda não têm API própria" (todos ganharam API real nas ondas 26-28) —
+  agora documenta com precisão que essas entregas existem, só não têm seção dedicada nesta tela
+  ainda.
+- **`tests/e2e/cadence.spec.ts`** (novo) — fluxo completo pela UI real (sessão de cookies real via
+  signup, sem atalho de seed): cria sequência, inicia run para um lead real, pausa, retoma, para
+  com confirmação, e prova que cancelar a confirmação mantém o run ativo. Zero cobertura E2E
+  existia antes desta onda.
+- **`accessibility.spec.ts`** — nova entrada para `/app/cadence`, zero cobertura de acessibilidade
+  automática existia antes desta onda.
+
+Esta é a última entrega pendente do bloco CYC-001..CYC-009 desta rodada.
 
 ## Resumo por item
 
@@ -406,4 +436,4 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 | CYC-006 Assinatura eletrônica | Sim (Onda 28) | Solicitação + webhook de status reais; envio ao gov.br é stub de transporte |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
-| CYC-009 UI | Não | Rota real e no menu; somente leitura, sem E2E/a11y |
+| CYC-009 UI | Sim (Onda 29) | CRUD completo (criar/iniciar/pausar/retomar/parar); E2E + a11y reais |

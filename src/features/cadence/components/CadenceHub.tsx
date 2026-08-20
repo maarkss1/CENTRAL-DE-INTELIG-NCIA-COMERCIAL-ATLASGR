@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Play, Plus, RefreshCw, Repeat, ShieldOff, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Pause, Play, Plus, RefreshCw, Repeat, ShieldOff, Square, Trash2 } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge, type BadgeProps } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -212,7 +212,87 @@ function OptOutsSection() {
 
 // ── Cadence runs ─────────────────────────────────────────────────────────
 
-function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
+/** CYC-009 (onda 29) — as únicas duas ações reais possíveis num run não-terminal (`pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam no domínio, só sem rota nenhuma chamando-os). Parar é irreversível (mesmo raciocínio de `stopCadenceManually` — "distinta de pausa: não tem retomada") — por isso exige confirmação, mesmo padrão de `window.confirm` já usado em `LeadDetailDrawer.tsx` para excluir um lead. */
+function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: () => void }) {
+    const [pending, setPending] = useState<'pause' | 'resume' | 'stop' | null>(null);
+
+    const runAction = async (action: 'pause' | 'resume' | 'stop', fn: () => Promise<CadenceRunDTO>, successMessage: string) => {
+        setPending(action);
+        try {
+            await fn();
+            toast.success(successMessage);
+            onChanged();
+        } catch (err) {
+            toast.error((err as Error).message || 'Não foi possível concluir a ação.');
+        } finally {
+            setPending(null);
+        }
+    };
+
+    if (run.status === 'active') {
+        return (
+            <div className="flex items-center justify-end gap-1">
+                <button
+                    type="button"
+                    onClick={() => runAction('pause', () => cadenceApi.pauseRun(run.id), 'Cadência pausada.')}
+                    disabled={pending !== null}
+                    aria-label={`Pausar cadência do lead ${run.leadId}`}
+                    title="Pausar"
+                    className="p-1.5 text-ink-2 hover:text-brand hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                    <Pause className="w-3.5 h-3.5" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (!window.confirm('Parar esta cadência? Diferente de pausar, uma cadência parada não pode ser retomada.')) return;
+                        void runAction('stop', () => cadenceApi.stopRun(run.id), 'Cadência parada.');
+                    }}
+                    disabled={pending !== null}
+                    aria-label={`Parar cadência do lead ${run.leadId}`}
+                    title="Parar"
+                    className="p-1.5 text-ink-2 hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                    <Square className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        );
+    }
+
+    if (run.status === 'paused') {
+        return (
+            <div className="flex items-center justify-end gap-1">
+                <button
+                    type="button"
+                    onClick={() => runAction('resume', () => cadenceApi.resumeRun(run.id), 'Cadência retomada.')}
+                    disabled={pending !== null}
+                    aria-label={`Retomar cadência do lead ${run.leadId}`}
+                    title="Retomar"
+                    className="p-1.5 text-ink-2 hover:text-brand hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                    <Play className="w-3.5 h-3.5" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (!window.confirm('Parar esta cadência? Diferente de pausar, uma cadência parada não pode ser retomada.')) return;
+                        void runAction('stop', () => cadenceApi.stopRun(run.id), 'Cadência parada.');
+                    }}
+                    disabled={pending !== null}
+                    aria-label={`Parar cadência do lead ${run.leadId}`}
+                    title="Parar"
+                    className="p-1.5 text-ink-2 hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                    <Square className="w-3.5 h-3.5" />
+                </button>
+            </div>
+        );
+    }
+
+    return <span className="text-ink-2 text-right block">—</span>;
+}
+
+function CadenceRunRow({ run, onChanged }: { run: CadenceRunDTO; onChanged: () => void }) {
     const [expanded, setExpanded] = useState(false);
     const lastAttempt = run.attempts[run.attempts.length - 1] ?? null;
 
@@ -249,11 +329,14 @@ function CadenceRunRow({ run }: { run: CadenceRunDTO }) {
                         </span>
                     ) : 'Sem tentativa ainda'}
                 </td>
-                <td className="py-1.5 text-right text-ink-2 [font-variant-numeric:tabular-nums]">{formatDateTime(run.startedAt)}</td>
+                <td className="py-1.5 pr-3 text-ink-2 text-right [font-variant-numeric:tabular-nums]">{formatDateTime(run.startedAt)}</td>
+                <td className="py-1.5 text-right">
+                    <CadenceRunActions run={run} onChanged={onChanged} />
+                </td>
             </tr>
             {expanded && run.attempts.length > 0 && (
                 <tr className="border-b border-line last:border-0">
-                    <td colSpan={6} className="py-2 pl-8 pr-3 bg-surface-2">
+                    <td colSpan={7} className="py-2 pl-8 pr-3 bg-surface-2">
                         <table className="w-full text-[11px]">
                             <thead>
                                 <tr className="text-ink-2">
@@ -387,11 +470,12 @@ function CadenceRunsSection() {
                                 <th className="text-left font-semibold py-1.5 pr-3">Motivo de parada</th>
                                 <th className="text-center font-semibold py-1.5 pr-3">Toque atual</th>
                                 <th className="text-left font-semibold py-1.5 pr-3">Última tentativa</th>
-                                <th className="text-right font-semibold py-1.5">Iniciada em</th>
+                                <th className="text-right font-semibold py-1.5 pr-3">Iniciada em</th>
+                                <th className="text-right font-semibold py-1.5">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {data.map((run) => <CadenceRunRow key={run.id} run={run} />)}
+                            {data.map((run) => <CadenceRunRow key={run.id} run={run} onChanged={load} />)}
                         </tbody>
                     </table>
                 </div>
@@ -680,9 +764,10 @@ export function CadenceHub() {
                     <h2 className="text-xs font-bold uppercase tracking-wider text-ink-2 mb-1.5">Em breve nesta tela</h2>
                     <p className="text-xs text-ink-2 leading-relaxed">
                         Reply-tracking de e-mail, agendamento no Google Calendar e proposta/assinatura/fechamento
-                        (entregas 3–5 do ciclo de receita) ainda não têm API própria — quando existirem, entram
-                        aqui como novas seções. Pausar/retomar/parar um run em andamento também ainda não existe.
-                        Esta nota é só um aviso honesto do escopo atual, não um espaço reservado com dado de exemplo.
+                        (entregas 3–5 do ciclo de receita) já têm API real, mas ainda não têm seção própria nesta
+                        tela — hoje aparecem em outros pontos do CRM (ex.: ações de documento comercial). Quando
+                        ganharem uma visão dedicada de cadência, entram aqui. Esta nota é só um aviso honesto do
+                        escopo atual, não um espaço reservado com dado de exemplo.
                     </p>
                 </Card>
             </div>

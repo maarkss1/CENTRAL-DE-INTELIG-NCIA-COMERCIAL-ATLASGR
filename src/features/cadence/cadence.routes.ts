@@ -9,7 +9,7 @@ import { prisma } from '../../lib/prisma.js';
 import { prismaOptOutRepository } from './infra/PrismaOptOutRepository.js';
 import { prismaCadenceRunRepository } from './infra/PrismaCadenceRunRepository.js';
 import { parseCadenceSequenceDefinition } from './jobs/cadenceRun.worker.js';
-import { startCadenceRun, validateSequence, type CadenceRunStatus } from './domain/cadence.js';
+import { startCadenceRun, validateSequence, pauseCadenceRun, resumeCadenceRun, stopCadenceManually, type CadenceRunStatus } from './domain/cadence.js';
 import { scheduleVerifiedMeeting } from './application/scheduleMeeting.js';
 import { prismaMeetingConfirmationNotePort } from './infra/PrismaMeetingConfirmationNotePort.js';
 import { prismaCalendarSchedulerPort } from './infra/PrismaCalendarSchedulerPort.js';
@@ -173,6 +173,56 @@ router.post('/runs', writeRoles, validateRequest(startRunSchema), async (req: Re
         }
 
         res.status(201).json({ success: true, data: { ...run, sequenceName: sequence.name } });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * CYC-009 (onda 29) — pausar/retomar/parar um run em andamento, o único gap real que restava
+ * nesta tela (`domain/cadence.ts::pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já
+ * existiam prontos e testados desde uma sprint anterior, só sem nenhuma rota chamando-os). Cada
+ * ação é idempotente por construção do próprio domínio: pausar um run que não está `active`, ou
+ * retomar um que não está `paused`, devolve o run inalterado em vez de lançar — a rota só decide
+ * se o run existe, nunca reimplementa essa regra.
+ */
+async function loadOwnRun(organizationId: string, id: string) {
+    const run = await prismaCadenceRunRepository.findById(organizationId, id);
+    if (!run) throw new AppError('Execução de cadência não encontrada nesta organização.', 404);
+    return run;
+}
+
+router.post('/runs/:id/pause', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const run = await loadOwnRun(organizationId, req.params.id);
+        const updated = pauseCadenceRun(run, new Date());
+        await prismaCadenceRunRepository.save(updated);
+        res.json({ success: true, data: updated });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/runs/:id/resume', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const run = await loadOwnRun(organizationId, req.params.id);
+        const updated = resumeCadenceRun(run);
+        await prismaCadenceRunRepository.save(updated);
+        res.json({ success: true, data: updated });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/runs/:id/stop', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const run = await loadOwnRun(organizationId, req.params.id);
+        const updated = stopCadenceManually(run, new Date());
+        await prismaCadenceRunRepository.save(updated);
+        res.json({ success: true, data: updated });
     } catch (error) {
         next(error);
     }
