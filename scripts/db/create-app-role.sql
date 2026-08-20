@@ -59,3 +59,14 @@ $$;
 GRANT ALL PRIVILEGES ON SCHEMA public TO prospector_app;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO prospector_app;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO prospector_app;
+
+-- AI-002 (onda 32): ser DONO do schema public (acima) da CREATE dentro dele, mas NAO da CREATE
+-- SCHEMA — essa e uma permissao de nivel de BANCO, separada. `@langchain/langgraph-checkpoint-postgres`
+-- roda `CREATE SCHEMA IF NOT EXISTS "public"` incondicionalmente dentro de `PostgresSaver.setup()`
+-- (mesmo usando o schema padrao) — o Postgres checa a permissao de CREATE SCHEMA antes de checar se
+-- o schema ja existe, entao o IF NOT EXISTS nao evita a checagem. Sem este GRANT,
+-- prospector_app.setup() falha com "permission denied for database" mesmo owning o schema public
+-- (achado real: passava neste ambiente local so porque prospector_app tinha virado OWNER do banco
+-- de teste numa correcao anterior, sem relacao com este script; nao reproduz o que a CI de verdade
+-- provisiona).
+SELECT format('GRANT CREATE ON DATABASE %I TO prospector_app', current_database()) \gexec

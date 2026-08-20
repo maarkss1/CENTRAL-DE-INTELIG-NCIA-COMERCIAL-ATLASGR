@@ -26,7 +26,7 @@ function buildCounterGraph(saver: PostgresSaver) {
 }
 
 describe('AI-002: checkpointer de LangGraph persiste em Postgres real, não em RAM', () => {
-    let secondPool: Pool;
+    let secondPool: Pool | undefined;
     let secondSaver: PostgresSaver;
 
     beforeAll(async () => {
@@ -43,7 +43,10 @@ describe('AI-002: checkpointer de LangGraph persiste em Postgres real, não em R
     });
 
     afterAll(async () => {
-        await secondPool.end();
+        // Guarda contra secondPool nunca ter sido criado (beforeAll lançou antes de chegar lá) —
+        // sem isso, uma falha real em ensureCheckpointerReady() vira um TypeError confuso aqui,
+        // mascarando o erro real.
+        await secondPool?.end();
     });
 
     it('setup() é idempotente — chamar de novo não falha nem duplica tabelas', async () => {

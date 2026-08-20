@@ -83,7 +83,36 @@ fazer" já estava claro na auditoria; só o "como" precisou de julgamento):
 
 ## Correção durante a implementação
 
-Nenhuma no código de produção. Uma iteração no teste unitário novo
+**Real, pega pelo CI (não localmente)**: `scripts/db/create-app-role.sql` — `prospector_app` já era
+DONO do schema `public` (`ALTER SCHEMA public OWNER TO prospector_app`), mas isso NÃO inclui a
+permissão de `CREATE SCHEMA`, que é checada em nível de BANCO, não de schema. `PostgresSaver.setup()`
+roda `CREATE SCHEMA IF NOT EXISTS "public"` incondicionalmente (mesmo usando o schema padrão já
+existente) — e o Postgres checa a permissão de `CREATE SCHEMA` ANTES de checar se o schema já
+existe, então o `IF NOT EXISTS` não evita a checagem. Sem `GRANT CREATE ON DATABASE ... TO
+prospector_app`, `setup()` falhava com "permission denied for database" (código Postgres 42501).
+
+Passou no gate local porque, numa correção anterior desta mesma rodada (AI-003), eu tinha recriado o
+banco de teste local com `CREATE DATABASE prospectordb_test OWNER prospector_app` — um acidente de
+bootstrap manual que tornou `prospector_app` DONO DO BANCO ali, não só do schema `public`, mascarando
+completamente o problema real. O CI usa `scripts/db/bootstrap-app-role.sh` (que roda
+`create-app-role.sql` sem qualquer ownership de banco), e foi ele que pegou o erro de verdade.
+
+**Corrigido**: `GRANT CREATE ON DATABASE %I TO prospector_app` (via `\gexec`, mesmo padrão de
+interpolação dinâmica já usado no resto do arquivo) adicionado a `create-app-role.sql`. Revalidado
+localmente recriando o banco de teste do ZERO seguindo o MESMO fluxo do CI
+(`CREATE DATABASE ... OWNER prospector` — o superusuário de bootstrap, não `prospector_app` — seguido
+de `bash scripts/db/bootstrap-app-role.sh`), não o atalho anterior — os 3 testes de integração do
+checkpointer passaram contra esse banco corretamente provisionado. Isso também torna a frase "não
+pôde ser verificado contra o papel real de produção" (na seção de decisões acima) mais precisa: o
+mesmo `GRANT CREATE ON DATABASE` provavelmente também precisa ser aplicado manualmente no Supabase de
+produção antes do primeiro deploy desta correção — sinalizado no PR.
+
+Também um bug pequeno e não relacionado no teste de integração: `afterAll` chamava
+`secondPool.end()` sem checar se `secondPool` tinha sido criado — se `beforeAll` lançasse antes de
+chegar lá (exatamente o caso do CI), o teste falhava com um `TypeError` confuso mascarando o erro
+real de permissão. Corrigido com `secondPool?.end()`.
+
+Fora isso, uma iteração no teste unitário novo
 (`tests/unit/lib/ai/checkpointer.test.ts`): a primeira versão usava
 `vi.fn().mockImplementation(() => ({...}))` (arrow function) para simular `new Pool(...)`/
 `new PostgresSaver(...)`, que falha com "is not a constructor" (arrow functions não podem ser

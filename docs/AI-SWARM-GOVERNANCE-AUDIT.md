@@ -134,6 +134,7 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Orçamento de IA é GLOBAL (soma de todas as organizações), não por tenant — uma organização de alto consumo pode bloquear IA para todas as outras | 13 (enxame) | `AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes do AI-011; orçamento por tenant exige coluna/tabela nova, fora do escopo da correção de onda 30 | Se algum tenant reclamar de bloqueio causado por outro tenant |
 | Tabelas do checkpointer LangGraph (`checkpoints`/`checkpoint_writes`/`checkpoint_blobs`) não têm RLS — isolamento de tenant é só o prefixo de `thread_id` | 01 (plataforma) + 07 (IA) | Pacote de terceiros fala SQL cru fora da extensão RLS-aware do Prisma; mesmo modelo de confiança já aceito para BullMQ/Redis neste repo | Se um dia houver acesso direto a essas tabelas por um papel/serviço não confiável |
 | Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
+| `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
 
 ## AI-011 — circuit breaker de orçamento mensal (onda 30)
 
@@ -263,11 +264,16 @@ pacote, cria `checkpoints`/`checkpoint_writes`/`checkpoint_blobs`/`checkpoint_mi
 no boot do processo, porque há dois processos de entrada distintos (`server.ts` e `worker.ts`) e
 inicialização preguiçosa evita depender de conectar isso às duas sequências de boot.
 
-Schema `public` (não um schema dedicado): criar um schema novo exigiria `CREATE SCHEMA`, confirmado
-como possível no papel `prospector_app` neste ambiente de teste, mas não verificável contra o papel
-real de produção (Supabase) a partir daqui — usar o schema padrão, onde o papel já comprovadamente
-tem DDL (é assim que as migrations do Prisma funcionam), evita esse risco. Tabelas do pacote não
-colidem com nenhum model do `schema.prisma` (nomes conferidos).
+Schema `public` (não um schema dedicado). **Achado real, pego pelo CI** (não pelo gate local, que
+inicialmente mascarou o problema por acidente de bootstrap manual — ver `.agents/runs/onda-32.md`):
+`PostgresSaver.setup()` roda `CREATE SCHEMA IF NOT EXISTS "public"` incondicionalmente, mesmo usando
+o schema padrão já existente, e o Postgres checa a permissão de `CREATE SCHEMA` (nível de BANCO) ANTES
+de checar se o schema já existe — ser dono do schema `public` (como `prospector_app` já era, para as
+migrations do Prisma funcionarem) NÃO é suficiente. `scripts/db/create-app-role.sql` corrigido com
+`GRANT CREATE ON DATABASE ... TO prospector_app`. **Ação pendente antes do primeiro deploy desta
+correção**: o mesmo GRANT precisa ser aplicado manualmente no Postgres de produção (Supabase) — o
+script de bootstrap não roda automaticamente contra produção. Tabelas do pacote não colidem com
+nenhum model do `schema.prisma` (nomes conferidos).
 
 **Sem RLS nas tabelas do checkpointer** — o pacote fala SQL cru direto no `pg.Pool`, nunca passa
 pela extensão RLS-aware do Prisma (`app.current_tenant_id`). Isolamento de tenant é só o prefixo de
