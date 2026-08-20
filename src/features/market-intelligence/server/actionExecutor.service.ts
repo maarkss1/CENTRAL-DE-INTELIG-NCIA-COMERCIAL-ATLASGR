@@ -4,7 +4,7 @@ import { getUserId } from '../../../lib/async-context.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 
 export const actionExecutorService = {
-    async executeAction(recommendationId: string) {
+    async executeAction(recommendationId: string, expectedCompanyId?: string) {
         return withRlsContext(async (prisma) => {
             const recommendation = await prisma.accountRecommendation.findUnique({
                 where: { id: recommendationId },
@@ -12,6 +12,11 @@ export const actionExecutorService = {
             });
 
             if (!recommendation) throw new AppError('Recomendação não encontrada', 404);
+            // Confusão de rota: garante que a recomendação pertence à conta pedida na URL, não só
+            // ao tenant (RLS já restringe ao tenant, mas não à conta específica).
+            if (expectedCompanyId && recommendation.companyId !== expectedCompanyId) {
+                throw new AppError('Recomendação não encontrada', 404);
+            }
             if (recommendation.status === 'Executed') throw new AppError('Recomendação já executada', 400);
 
             const company = recommendation.company;

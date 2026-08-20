@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Phone, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Phone, ShieldCheck, AlertTriangle, Radar } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
@@ -15,6 +16,7 @@ interface CompanyDetailProps {
 }
 
 export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
+    const navigate = useNavigate();
     const [company, setCompany] = useState<Company | null>(null);
     const [loading, setLoading] = useState(true);
     const [enriching, setEnriching] = useState(false);
@@ -139,6 +141,13 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                             </div>
 
                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => navigate(`/app/market-intelligence/accounts/${company.id}`)}
+                                    className="flex items-center gap-2 bg-surface-2 border border-line text-ink px-5 py-2.5 rounded-2xl font-black text-sm hover:bg-surface transition-all cursor-pointer"
+                                >
+                                    <Radar className="w-4 h-4 text-blue-400" />
+                                    Account 360
+                                </button>
                                 <button
                                     onClick={handleEnrich}
                                     disabled={enriching}

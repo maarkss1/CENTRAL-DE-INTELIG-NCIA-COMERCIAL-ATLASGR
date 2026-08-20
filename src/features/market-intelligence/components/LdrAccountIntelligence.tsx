@@ -1,4 +1,5 @@
 import { FormEvent, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   Bot,
@@ -177,9 +178,17 @@ export function LdrAccountIntelligence() {
             <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">Empresa real → inteligência → próxima ação</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Primeiro corte funcional do LDR. Fit, proveniência e cadastro oficial entram como evidência; sinais, decisores e ações só aparecem quando houver fonte real e contexto do tenant.</p>
           </div>
-          <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-white/70">
-            <div className="flex items-center gap-2 font-black text-white"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Sem recomendação fabricada</div>
-            <p className="mt-1">Ausência de dado permanece como NÃO DISPONÍVEL.</p>
+          <div className="flex flex-col items-start gap-3 xl:items-end">
+            <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-white/70">
+              <div className="flex items-center gap-2 font-black text-white"><ShieldCheck className="h-4 w-4 text-emerald-300" /> Sem recomendação fabricada</div>
+              <p className="mt-1">Ausência de dado permanece como NÃO DISPONÍVEL.</p>
+            </div>
+            <Link
+              to="/app/market-intelligence/deck"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#FF5618] px-4 py-2 text-xs font-black text-white hover:brightness-110"
+            >
+              <Zap className="h-4 w-4" /> Abrir fila de aprovação
+            </Link>
           </div>
         </div>
       </header>
