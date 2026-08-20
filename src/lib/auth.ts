@@ -42,6 +42,7 @@ export const auth = betterAuth({
     // necessidade (nenhum fluxo de produção depende de um túnel de desenvolvimento).
     trustedOrigins: [
         ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+        ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL.replace(/\/$/, '')] : []),
         ...(process.env.NODE_ENV === "production" ? [] : ["https://atlasgr-dev-server.loca.lt"]),
     ],
     emailAndPassword: {
@@ -93,14 +94,21 @@ export const auth = betterAuth({
         updateAge: 60 * 60 * 24, // renova a sessão a cada 24h de uso
     },
     advanced: {
-        useSecureCookies: process.env.NODE_ENV === "production",
+        useSecureCookies: Boolean(
+            process.env.SECURE_COOKIES === "true" ||
+            (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith("https://"))
+        ),
         crossSubDomainCookies: {
-            enabled: process.env.NODE_ENV === "production",
+            enabled: Boolean(process.env.COOKIE_DOMAIN),
+            domain: process.env.COOKIE_DOMAIN,
         },
         defaultCookieAttributes: {
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            secure: Boolean(
+                process.env.SECURE_COOKIES === "true" ||
+                (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith("https://"))
+            ),
         },
     },
     user: {
