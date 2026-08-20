@@ -5,15 +5,10 @@ import { requestContext } from '../src/lib/async-context.js';
 import type { UserRole } from '@prisma/client';
 
 const ORG_NAME = 'AtlasGR';
-const DEFAULT_TEMP_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD || '00000000';
-
-const TEAM: Array<{ name: string; email: string; role: UserRole }> = [
-  { name: 'Marcelo Nascimento', email: 'marcelo.nascimento@atlasgr.com.br', role: 'ADMIN' },
-  { name: 'Joao Reis', email: 'joao.reis@atlasgr.com.br', role: 'GESTOR' },
-  { name: 'Murilo Marques', email: 'murilo.marques@atlasgr.com.br', role: 'GESTOR' },
-  { name: 'Comercial', email: 'comercial@atlasgr.com.br', role: 'CLOSER' },
-  { name: 'Kaue Oliveira', email: 'kaue.oliveira@totaltrac.com.br', role: 'SDR' },
-];
+const DEFAULT_ADMIN_EMAIL = 'marcelo.nascimento@atlasgr.com.br';
+const DEFAULT_ADMIN_NAME = 'Marcelo Nascimento';
+const DEFAULT_ADMIN_ROLE: UserRole = 'ADMIN';
+const DEFAULT_PASSWORD = process.env.INITIAL_ADMIN_PASSWORD || '01090109';
 
 async function main() {
   requestContext.enterWith({ bypassRls: true });
@@ -23,65 +18,96 @@ async function main() {
     update: {},
     create: { name: ORG_NAME },
   });
-  console.log(`Organization: ${org.name} (${org.id})`);
+  console.log(`Organização: ${org.name} (${org.id})`);
 
-  const passwordHash = await hashPassword(DEFAULT_TEMP_PASSWORD);
+  const passwordHash = await hashPassword(DEFAULT_PASSWORD);
 
-  for (const member of TEAM) {
-    const user = await prisma.user.upsert({
-      where: { email: member.email },
-      update: { name: member.name, role: member.role, organizationId: org.id },
-      create: {
-        name: member.name,
-        email: member.email,
-        role: member.role,
-        organizationId: org.id,
-        emailVerified: true,
-      },
+  // 1. Cria ou atualiza o usuário único administrador
+  const user = await prisma.user.upsert({
+    where: { email: DEFAULT_ADMIN_EMAIL },
+    update: {
+      name: DEFAULT_ADMIN_NAME,
+      role: DEFAULT_ADMIN_ROLE,
+      organizationId: org.id,
+      emailVerified: true,
+      mustChangePassword: false,
+    },
+    create: {
+      name: DEFAULT_ADMIN_NAME,
+      email: DEFAULT_ADMIN_EMAIL,
+      role: DEFAULT_ADMIN_ROLE,
+      organizationId: org.id,
+      emailVerified: true,
+      mustChangePassword: false,
+    },
+  });
+
+  const existingAccounts = await prisma.account.findMany({
+    where: { userId: user.id, providerId: 'credential' },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (existingAccounts.length > 0) {
+    const [primary, ...duplicates] = existingAccounts;
+    await prisma.account.update({
+      where: { id: primary.id },
+      data: { password: passwordHash },
     });
-
-    const existingAccounts = await prisma.account.findMany({
-      where: { userId: user.id, providerId: 'credential' },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (existingAccounts.length > 0) {
-      const [primary, ...duplicates] = existingAccounts;
-      await prisma.account.update({
-        where: { id: primary.id },
-        data: { password: passwordHash },
-      });
-      if (duplicates.length > 0) {
-        await prisma.account.deleteMany({
-          where: { id: { in: duplicates.map((a) => a.id) } },
-        });
-      }
-    } else {
-      await prisma.account.create({
-        data: {
-          id: randomUUID(),
-          userId: user.id,
-          accountId: user.id,
-          providerId: 'credential',
-          password: passwordHash,
-        },
+    if (duplicates.length > 0) {
+      await prisma.account.deleteMany({
+        where: { id: { in: duplicates.map((a) => a.id) } },
       });
     }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { mustChangePassword: false },
+  } else {
+    await prisma.account.create({
+      data: {
+        id: randomUUID(),
+        userId: user.id,
+        accountId: user.id,
+        providerId: 'credential',
+        password: passwordHash,
+      },
     });
-
-    console.log(`OK  ${member.role.padEnd(10)} ${member.email}`);
   }
 
-  console.log('\nSenha para todos os usuários do seed: ' + DEFAULT_TEMP_PASSWORD);
+  console.log(`OK  ${user.role.padEnd(10)} ${user.email} (Usuário principal configurado com sucesso)`);
+
+  // 2. Deleta todos os demais usuários
+  const otherUsers = await prisma.user.findMany({
+    where: { email: { not: DEFAULT_ADMIN_EMAIL } },
+    select: { id: true, email: true },
+  });
+
+  if (otherUsers.length > 0) {
+    const otherUserIds = otherUsers.map((u) => u.id);
+    
+    // Remove sessões e contas associadas
+    await prisma.session.deleteMany({
+      where: { userId: { in: otherUserIds } },
+    });
+    await prisma.account.deleteMany({
+      where: { userId: { in: otherUserIds } },
+    });
+
+    const deleted = await prisma.user.deleteMany({
+      where: { id: { in: otherUserIds } },
+    });
+
+    console.log(`Removidos ${deleted.count} outros usuários: ${otherUsers.map((u) => u.email).join(', ')}`);
+  } else {
+    console.log('Nenhum outro usuário encontrado para deleção.');
+  }
+
+  console.log(`\n========================================`);
+  console.log(`Usuário único ativo: ${DEFAULT_ADMIN_EMAIL}`);
+  console.log(`Role: ${DEFAULT_ADMIN_ROLE}`);
+  console.log(`Senha configurada: ${DEFAULT_PASSWORD}`);
+  console.log(`========================================\n`);
 }
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error('Erro ao configurar usuário único:', error);
     process.exit(1);
   })
   .finally(async () => {

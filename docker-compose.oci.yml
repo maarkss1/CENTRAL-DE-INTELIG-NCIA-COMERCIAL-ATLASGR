@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atlasgr_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/prospectordb
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-atlasgr_redis_prod_pass}@redis:6379
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/health/live', (r) => {if (r.statusCode !== 200) process.exit(1);})\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atlasgr_worker
+    restart: unless-stopped
+    command: ["npm", "run", "start:worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/prospectordb
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-atlasgr_redis_prod_pass}@redis:6379
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
+    image: atlasgr/postgres-intelligence:16
+    container_name: atlasgr_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: prospector
+      POSTGRES_PASSWORD: ${BOOTSTRAP_DB_PASSWORD:-prospector_bootstrap_pass}
+      POSTGRES_DB: prospectordb
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+    volumes:
+      - oci_pgdata:/var/lib/postgresql/data
+      - ./scripts/db/create-app-role.sql:/docker-entrypoint-initdb.d/create-app-role.sql.tpl:ro
+      - ./scripts/db/docker-init.sh:/docker-entrypoint-initdb.d/01-create-app-role.sh:ro
+      - ./scripts/db/02-enable-extensions.sql:/docker-entrypoint-initdb.d/02-enable-extensions.sql:ro
+      - ./scripts/db/03-create-langfuse-db.sql:/docker-entrypoint-initdb.d/03-create-langfuse-db.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prospector -d prospectordb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    container_name: atlasgr_redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-atlasgr_redis_prod_pass}", "--appendonly", "yes"]
+    volumes:
+      - oci_redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-atlasgr_redis_prod_pass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: atlasgr_caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile.oci:/etc/caddy/Caddyfile:ro
+      - oci_caddy_data:/data
+      - oci_caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  oci_pgdata:
+  oci_redisdata:
+  oci_caddy_data:
+  oci_caddy_config:
