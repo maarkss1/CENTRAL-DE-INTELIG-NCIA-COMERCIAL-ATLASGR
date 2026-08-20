@@ -17,8 +17,8 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/prospectordb
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-atlasgr_redis_prod_pass}@redis:6379
+      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}@postgres:5432/prospectordb
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
@@ -46,8 +46,8 @@ services:
       - .env.production
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:-prospector_app_pass}@postgres:5432/prospectordb
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-atlasgr_redis_prod_pass}@redis:6379
+      - DATABASE_URL=postgresql://prospector_app:${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}@postgres:5432/prospectordb
+      - REDIS_URL=redis://:${REDIS_PASSWORD:?REDIS_PASSWORD must be set}@redis:6379
     security_opt:
       - no-new-privileges:true
 
@@ -60,9 +60,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: prospector
-      POSTGRES_PASSWORD: ${BOOTSTRAP_DB_PASSWORD:-prospector_bootstrap_pass}
+      POSTGRES_PASSWORD: ${BOOTSTRAP_DB_PASSWORD:?BOOTSTRAP_DB_PASSWORD must be set}
       POSTGRES_DB: prospectordb
-      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-prospector_app_pass}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}
     volumes:
       - oci_pgdata:/var/lib/postgresql/data
       - ./scripts/db/create-app-role.sql:/docker-entrypoint-initdb.d/create-app-role.sql.tpl:ro
@@ -83,13 +83,13 @@ services:
     image: redis:7-alpine
     container_name: atlasgr_redis
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-atlasgr_redis_prod_pass}", "--appendonly", "yes"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "--appendonly", "yes"]
     volumes:
       - oci_redisdata:/data
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-atlasgr_redis_prod_pass}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
