@@ -1,4 +1,7 @@
 import { env } from '../../../config/env.js';
+import { prisma } from '../../../lib/prisma.js';
+import { getTenantId } from '../../../lib/async-context.js';
+import { logger } from '../../../lib/logger.js';
 
 const CPF_REGEX = /\d{3}\.\d{3}\.\d{3}-\d{2}/g;
 
@@ -13,6 +16,39 @@ export function redactSensitiveData(text: string): { text: string; redacted: boo
     }
     CPF_REGEX.lastIndex = 0;
     return { text: text.replace(CPF_REGEX, '[CPF OCULTADO]'), redacted: true };
+}
+
+/**
+ * AI-006 (onda 35): mesmo passo de `redactSensitiveData`, mas registra um `AIGuardrailEvent`
+ * (`type: 'pii_redacted'`) quando de fato houve algo para mascarar — o sinal real que alimenta a
+ * dimensão "PII leakage rate" do harness de avaliação (evaluationMetrics.service.ts). Os 4 pontos
+ * de chamada de produção deste guardrail (ai.service.ts, studio/shared.ts, agent.routes.ts,
+ * CommercialIntelligenceAiService.ts) devem usar esta função, não `redactSensitiveData` direto,
+ * para que o metrics não fique cego a vazamentos reais que o guardrail já está prevenindo.
+ *
+ * Best-effort de propósito: se a própria gravação do evento falhar, a redação em si (o que importa
+ * para o usuário) já aconteceu — perder só o sinal de telemetria não deveria derrubar a resposta.
+ */
+export async function redactAndTrackPiiLeak(text: string, source: string): Promise<string> {
+    const { text: redactedText, redacted } = redactSensitiveData(text);
+    if (!redacted) return redactedText;
+
+    const organizationId = getTenantId();
+    if (!organizationId) {
+        // Nenhum dos 4 pontos de chamada reais roda fora de uma requisição autenticada hoje — se
+        // isso mudar no futuro, o evento fica sem tenant para atribuir e é melhor não registrar
+        // (RLS exige organizationId não-nulo neste model) do que inventar um dono.
+        logger.warn({ source }, 'PII redigida fora de um contexto de tenant conhecido — evento de guardrail não registrado.');
+        return redactedText;
+    }
+
+    try {
+        await prisma.aIGuardrailEvent.create({ data: { type: 'pii_redacted', source, organizationId } });
+    } catch (err) {
+        logger.warn({ err, source, organizationId }, 'Falha ao registrar evento de guardrail de PII (a redação em si já aconteceu).');
+    }
+
+    return redactedText;
 }
 
 export interface PiiToken {

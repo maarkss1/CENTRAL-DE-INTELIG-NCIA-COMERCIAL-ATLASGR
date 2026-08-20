@@ -2,7 +2,7 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 
 import { getAiModel, logAiUsage } from '../../../../lib/ai/gateway.js';
-import { redactSensitiveData } from '../guardrails.service.js';
+import { redactAndTrackPiiLeak } from '../guardrails.service.js';
 
 export const SYSTEM_RULES = `Você é um copiloto B2B sênior. Produza material útil, específico e pronto para revisão humana.
 Regras obrigatórias:
@@ -54,7 +54,7 @@ export async function invokeText(
         usage: response.response_metadata.tokenUsage,
         latencyMs: Date.now() - startedAt,
     });
-    return redactSensitiveData(response.content).text.trim();
+    return (await redactAndTrackPiiLeak(response.content, 'studio')).trim();
 }
 
 export async function invokeStructured<T>(

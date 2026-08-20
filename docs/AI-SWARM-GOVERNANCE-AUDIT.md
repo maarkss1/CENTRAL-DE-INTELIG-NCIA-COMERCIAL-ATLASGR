@@ -20,9 +20,15 @@ abaixo.
 **Onda 34 (mesma rodada)**: AI-010 (RAG com proveniência real) construído — ver seção "AI-010 —
 citação real e rastreável no Copiloto Técnico (onda 34)" abaixo.
 
+**Onda 35 (mesma rodada)**: AI-006 (métricas de avaliação reais) construído — ver seção "AI-006 —
+harness real das 9 dimensões de avaliação (onda 35)" abaixo. AI-005 (Golden Dataset) continua não
+construído (feature nova completa, fora do escopo de uma correção pontual) — 3 das 9 dimensões
+(factualidade, aderência ao playbook, hallucination) permanecem explicitamente indisponíveis por
+dependerem dele.
+
 As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
-refletir as cinco correções acima; as demais seções deste documento (AI-001, 004-006, 008-009)
-continuam descrevendo o estado da onda 20 original.
+refletir as seis correções acima; as demais seções deste documento (AI-001, 004, 008-009) continuam
+descrevendo o estado da onda 20 original.
 
 ## Resumo por item
 
@@ -33,7 +39,7 @@ continuam descrevendo o estado da onda 20 original.
 | AI-003 Persistência de memória honesta | Sim (onda 31) | Upsert atômico único (`sessionId`, `agentType`, `organizationId`) com unique constraint real; nenhum caminho de escrita engole mais erro; `GET /agents/sdr/status/:sessionId` distingue pending/completed/failed |
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
 | AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
-| AI-006 Métricas de avaliação | Não | Só 3/9 dimensões capturadas (cost, latency, human override); as demais 6 não têm nada |
+| AI-006 Métricas de avaliação | Parcial (6/9 onda 35) | cost/latency/humanOverride (já existiam) + fallbackRate/toolCorrectness/piiLeakageRate (novos, dados reais de produção — 2 são proxy, documentado); factualidade/aderência/hallucination continuam explicitamente indisponíveis (bloqueadas por AI-005) |
 | AI-007 Base legal/consentimento | Sim (fechado onda 33) | Gate fail-closed em TODO caminho que envia texto a um provedor de IA externo: `AIService.qualifyLead`, SDR/Ops (onda 20) e, desde a onda 33, `BaseAgent.run`/`runWithTools` (BDR/Closer/CRM) |
 | AI-008 Classificação de ferramentas | Sim | Já estava correto (onda 7); contagem desatualizada na doc corrigida |
 | AI-009 SLO por agente | Sim | Fonte de dados e UI já existiam (onda 7); rota HTTP nunca registrada — corrigido |
@@ -115,7 +121,7 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Item | Situação real | Por que não construído nesta sprint |
 |---|---|---|
 | AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
-| AI-006 (métricas de avaliação) | Só cost/latency/human-override capturados; factualidade/aderência/tool-correctness/hallucination/PII-leakage-rate/fallback-rate não têm nada | Depende de AI-005 (dataset) para a maioria; construção de feature nova |
+| AI-006 (3 dimensões restantes: factualidade, aderência ao playbook, hallucination) | As outras 6 dimensões foram fechadas na onda 35 (`GET /api/agent/evaluation-metrics`); estas 3 continuam reportadas como `available: false` — nunca um número fabricado | Todas exigem uma resposta de referência para comparar contra o que a IA gerou; depende de AI-005 (Golden Dataset), que não existe |
 
 ## Gate final
 - typecheck: `npx tsc --noEmit` — limpo, 0 erros
@@ -139,7 +145,9 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
 | `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
 | BDR/Closer/CRM (onda 33) ganharam o gate binário de consentimento, mas não minimização de PII (troca de valor real por token reversível, como `minimizePii`/`rehydratePii` já fazem para SDR) — quando uma organização TEM consentimento registrado, o texto livre da missão ainda pode conter um nome/e-mail/telefone real sem pseudonimização antes de ir ao provedor externo | 07 (IA) + 01A (LGPD) | Diferente do SDR (que busca um Contact estruturado e sabe exatamente qual string é o nome do titular), BDR/Closer/CRM recebem texto livre sem nenhum campo estruturado — não há como identificar com segurança o que é PII no texto para tokenizar, sem um passo de NER/heurística próprio, feature nova | Se a organização com consentimento registrado operar rotineiramente com PII sensível (não só nome/cargo) no texto da missão |
-| AI-010 (onda 34) fecha a proveniência das CITAÇÕES (`sourceReferences` só aponta para chunk real, nunca texto inventado), mas não verifica a FACTUALIDADE do resto da resposta (`directAnswer`/`technicalSpecifications`) contra o conteúdo citado — o LLM ainda pode escrever um dado técnico que não está em nenhum dos trechos fornecidos, mesmo citando corretamente o trecho de onde partiu | 07 (IA) | Verificar se cada afirmação da resposta está de fato sustentada pelo texto citado (grounding real, não só citação) é o mesmo problema de "factualidade"/"hallucination rate" que AI-006 já mapeia como métrica de avaliação ainda não construída — depende do harness de AI-005/AI-006, não é uma correção pontual de wiring como esta | Quando AI-005/AI-006 (evaluation harness) forem priorizados |
+| AI-010 (onda 34) fecha a proveniência das CITAÇÕES (`sourceReferences` só aponta para chunk real, nunca texto inventado), mas não verifica a FACTUALIDADE do resto da resposta (`directAnswer`/`technicalSpecifications`) contra o conteúdo citado — o LLM ainda pode escrever um dado técnico que não está em nenhum dos trechos fornecidos, mesmo citando corretamente o trecho de onde partiu | 07 (IA) | Verificar se cada afirmação da resposta está de fato sustentada pelo texto citado (grounding real, não só citação) é o mesmo problema de "factualidade"/"hallucination rate" que AI-006 já mapeia como métrica de avaliação — depende do harness de AI-005, agora fechado apenas nas 6/9 dimensões que não exigem dataset de referência | Quando AI-005 (Golden Dataset) for priorizado |
+| `fallbackRate` (AI-006, onda 35) só cobre o SDR Outbound — nenhum outro agente do enxame (BDR/Closer/CRM/Ops/SDR Qualification) grava `structuredOutputValid` no payload de `AIPendingAction`, então a dimensão fica cega ao resto do enxame | 07 (IA) | Ampliar essa gravação para os demais agentes é o mesmo trabalho que fechar o AI-004 original para eles — não fazia parte do escopo do AI-004 nem desta correção pontual do AI-006, que só consome o que já existe | Se o roadmap decidir estender o contrato `structuredOutputValid` a outros agentes |
+| `toolCorrectness` e `piiLeakageRate` (AI-006, onda 35) são PROXIES, não a dimensão real — `toolCorrectness` mede só ausência de erro operacional (`AIPendingAction.executionError`), não se a ação/ferramenta escolhida foi semanticamente correta; `piiLeakageRate` mede só o que `redactSensitiveData` já detecta (regex de CPF), não todo tipo de PII que poderia vazar | 07 (IA) | Corretude semântica real exige comparar contra uma ação esperada (AI-005); detecção de PII mais ampla que CPF é um detector novo, fora do escopo desta correção | Quando AI-005 existir (tool correctness) / se um tipo de PII fora do CPF vazar em produção (leakage detector) |
 
 ## AI-011 — circuit breaker de orçamento mensal (onda 30)
 
@@ -419,4 +427,79 @@ Testes:
 - unit: `npx vitest run -c vitest.unit.config.ts` — **195/195 arquivos, 1503/1503 testes**
 - integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
   — **45/45 arquivos, 223/223 testes**
+- build e build:worker — ambos limpos
+
+## AI-006 — harness real das 9 dimensões de avaliação (onda 35)
+
+**Estado de entrada**: cost/latency (via `AILog`) e human override (via `AIPendingAction`, no
+painel de SLO do AI-009) já eram reais. As outras 6 — factualidade, aderência ao playbook, tool
+correctness, hallucination, PII leakage rate, fallback rate — não tinham NENHUM dado, nem proxy.
+`npm run verify:ai` (`scripts/verify-ai-studio.ts`) é um smoke test de conectividade (chama o
+Studio 2 vezes, confere que a chamada não lançou), sem comparação contra referência nenhuma.
+
+**Decisão de design**: sem esperar por AI-005 (Golden Dataset, ainda não construído — feature nova
+completa, fora do escopo desta correção pontual), separei as 6 dimensões restantes em 3 baldes,
+cada um com o tratamento certo, nunca fabricando número:
+1. **Reaproveitável de graça**: `getSwarmSloSnapshot` (AI-009) já calcula `errorRate` por papel —
+   vira `toolCorrectness` (proxy: 1 − errorRate) sem código novo de agregação, só reinterpretação
+   e agregação através dos papéis com ledger.
+2. **Real, mas cobertura parcial e documentada como tal**: `fallbackRate` já é gravado
+   (`AIPendingAction.payload.structuredOutputValid`, AI-004) — mas só pelo SDR Outbound, nenhum
+   outro agente do enxame emite esse dado. Reportar isso como "6/9 completo" seria desonesto — o
+   `note` do dimension explica a cobertura real.
+3. **Sinal novo, genuinamente ausente até agora**: `piiLeakageRate` — nada registrava quando
+   `redactSensitiveData` (guardrails.service.ts) de fato mascarava um CPF numa resposta de IA.
+   Construí `AIGuardrailEvent` (tabela nova, migration própria) e um wrapper
+   (`redactAndTrackPiiLeak`) que os 4 pontos de chamada de produção do guardrail agora usam.
+
+As 3 dimensões que genuinamente exigem uma resposta de referência para comparar (factualidade,
+aderência ao playbook, hallucination) são reportadas como `{available: false, reason: '...AI-005...'}`
+— nunca um número, nunca omitidas silenciosamente da resposta da API.
+
+**Construído**:
+- `prisma/schema.prisma` + migration `20260820110000_ai_guardrail_event`: model
+  `AIGuardrailEvent` (`type`, `source`, `organizationId` sempre não-nulo — os 4 pontos de chamada
+  já rodam atrás de `authenticateToken`+`requireTenant`, diferente de `AILog`, que também recebe
+  escrita de worker/script sem tenant). RLS simples (`FOR ALL USING (...)`, mesmo padrão de
+  `Automation`/`Notification`), sem o caso NULL que `AILog` precisa tratar.
+- `guardrails.service.ts`: `redactAndTrackPiiLeak(text, source)` — mesmo `redactSensitiveData`,
+  mas grava `AIGuardrailEvent` quando de fato houve redação; best-effort (falha ao gravar o evento
+  não derruba a resposta, que já foi redigida). Os 4 pontos de chamada reais
+  (`ai.service.ts`, `studio/shared.ts`, `agent.routes.ts`, `CommercialIntelligenceAiService.ts`)
+  migrados de `redactSensitiveData` direto para este wrapper.
+- `evaluationMetrics.service.ts` (novo): `getEvaluationMetricsSnapshot(organizationId, windowDays)`
+  — as 9 dimensões, reaproveitando `getSwarmSloSnapshot`/`emptyRate` (exportado de
+  `swarmScheduler.service.ts` para reuso) em vez de duplicar a agregação de `AIPendingAction`/`AILog`.
+- `GET /api/agent/evaluation-metrics` (novo, mesmo padrão de validação/organizationId de
+  `/swarm/slo`).
+
+**Fora de escopo (documentado como risco aceito)**: cobertura parcial de `fallbackRate` (só SDR
+Outbound); `toolCorrectness`/`piiLeakageRate` são proxies, não a dimensão real; nenhuma UI nova
+(dashboard) foi construída para este endpoint — só a API, mesma decisão de escopo do AI-011
+(backend-only). Ver tabela de riscos acima.
+
+Testes:
+- `src/features/intelligence/services/__tests__/guardrails.service.test.ts` (+4 casos) —
+  `redactAndTrackPiiLeak`: sem PII não grava nada; com PII grava com organizationId/source
+  corretos; fora de contexto de tenant não grava (mas ainda mascara); falha ao gravar não derruba
+  a resposta.
+- `src/features/intelligence/services/__tests__/evaluationMetrics.service.test.ts` (novo, 6 casos)
+  — base vazia nunca fabrica número; as 3 dimensões de AI-005 sempre indisponíveis com motivo;
+  agregação de humanOverride/toolCorrectness através dos papéis com ledger; fallbackRate só conta
+  registros com o campo presente; piiLeakageRate = eventos/total de chamadas; cost/latency reais.
+- `tests/unit/features/intelligence/routes/agent.routes.evaluation-metrics.test.ts` (novo, 4 casos)
+  — mesmo padrão de `agent.routes.slo.test.ts`: days default/querystring/400 fora de faixa/
+  organizationId sempre de `req.user`.
+- `tests/integration/evaluation-metrics.test.ts` (novo, 3 casos, Postgres real) —
+  `redactAndTrackPiiLeak` grava evento real; RLS real isola entre tenants (não só um WHERE de
+  aplicação); `getEvaluationMetricsSnapshot` end-to-end contra `AILog`/`AIGuardrailEvent` reais.
+
+## Gate final (onda 35)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 34, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **197/197 arquivos, 1517/1517 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **46/46 arquivos, 226/226 testes**
+- `prisma migrate diff` contra a migration nova: zero diff para `AIGuardrailEvent` (ruído
+  pré-existente em outras tabelas, já documentado em ondas anteriores, fora de escopo)
 - build e build:worker — ambos limpos

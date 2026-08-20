@@ -444,7 +444,8 @@ export interface SwarmSloSnapshot {
     cost: SwarmCostSnapshot;
 }
 
-function emptyRate(numerator: number, denominator: number, emptyReason: string): SloRate {
+/** Exportado para reuso por evaluationMetrics.service.ts (AI-006) — mesmo padrão de taxa honesta. */
+export function emptyRate(numerator: number, denominator: number, emptyReason: string): SloRate {
     if (denominator === 0) return { value: null, numerator, denominator, emptyReason };
     return { value: numerator / denominator, numerator, denominator };
 }

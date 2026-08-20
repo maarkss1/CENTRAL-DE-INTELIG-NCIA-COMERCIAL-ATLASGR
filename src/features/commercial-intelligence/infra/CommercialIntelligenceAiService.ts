@@ -1,6 +1,6 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import { getAiModel, withRetry, logAiUsage, cleanAndParseJson } from '../../../lib/ai/gateway.js';
-import { redactSensitiveData } from '../../intelligence/services/guardrails.service.js';
+import { redactAndTrackPiiLeak } from '../../intelligence/services/guardrails.service.js';
 import { prisma } from '../../../lib/prisma.js';
 import { notificationService } from '../../notifications/notification.service.js';
 import { CommercialIntelligenceUseCases } from '../application/CommercialIntelligenceUseCases.js';
@@ -270,6 +270,6 @@ export class CommercialIntelligenceAiService {
         const latencyMs = Date.now() - startTime;
         await logAiUsage({ model: response.response_metadata.model, usage: response.response_metadata.tokenUsage, latencyMs });
 
-        return redactSensitiveData(response.content).text.trim();
+        return (await redactAndTrackPiiLeak(response.content, 'commercial-intelligence')).trim();
     }
 }
