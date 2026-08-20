@@ -4,6 +4,7 @@ import {
     Activity, BookOpen, Layers, FileBarChart, Zap, ChevronRight, Database, BarChart3, CalendarDays, Bell, Cpu, Wallet, FileText,
     PhoneCall, Target, Shield, MessageSquare, UserCog, Plug, Settings as SettingsIcon, Download, LineChart, Gauge, Repeat, FileSignature, Headset
 } from 'lucide-react';
+import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,12 @@ interface SidebarProps {
     onCloseMobile?: () => void;
 }
 
+interface NavItem {
+    id: TabType;
+    label: string;
+    icon: ReactNode;
+}
+
 export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
     const { activeBrand, setActiveBrand } = useBrand();
     const { isAdmin, canAccessCommercialIntelligence } = useAuth();
@@ -30,58 +37,72 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         onCloseMobile?.();
     };
 
+    // Item único, sem seção — é a tela inicial de qualquer papel, não pertence a nenhuma jornada
+    // específica (prospecção/vendas/gestão).
+    const overviewTools: NavItem[] = [
+        { id: 'dashboard', label: 'Painel Central', icon: <Home size={20} /> },
+    ];
+
+    // Onda 4 — navegação reagrupada por jornada/persona (era 2 listas planas de 15 e 14 itens sem
+    // nenhum critério de agrupamento — "Core Modules" misturava prospecção, pipeline, agenda e
+    // configurações pessoais no mesmo nível; "Inteligência" misturava treinamento de IA com
+    // billing e automações de sistema). Critério usado, alinhado aos papéis descritos em
+    // `.claude/CLAUDE.md` (SDR, closers, gestão): cada grupo é "o que essa pessoa faz nesta tela",
+    // não "que tecnologia foi usada pra construir a tela".
+    const prospectingTools: NavItem[] = [
+        { id: 'prospect', label: 'Prospecção', icon: <Search size={20} /> },
+        { id: 'companies', label: 'Empresas', icon: <Building2 size={20} /> },
+        { id: 'contacts', label: 'Decisores', icon: <Users size={20} /> },
+        { id: 'cadence', label: 'Cadência', icon: <Repeat size={20} /> },
+    ];
+
+    const salesTools: NavItem[] = [
+        { id: 'crm', label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
+        { id: 'crm360', label: 'Cockpit CRM', icon: <Gauge size={20} /> },
+        { id: 'mesa-tratamento', label: 'Mesa de Tratamento', icon: <Headset size={20} /> },
+        { id: 'propostas', label: 'Propostas', icon: <FileSignature size={20} /> },
+        { id: 'activities', label: 'Agenda', icon: <Activity size={20} /> },
+        { id: 'calendar', label: 'Calendário', icon: <CalendarDays size={20} /> },
+    ];
+
+    // "Guia Bitrix24" e "Base de Conhecimento"/"Editor de Documentos" são conteúdo de apoio (guia,
+    // artigo, playbook), não configuração de integração — por isso ficam aqui, e não em Sistema.
+    const enablementTools: NavItem[] = [
+        { id: 'roleplay', label: 'Roleplay', icon: <PhoneCall size={20} /> },
+        { id: 'qualification_matrix', label: 'Matriz de Qualificação', icon: <Target size={20} /> },
+        { id: 'objections_matrix', label: 'Matriz de Objeções', icon: <Shield size={20} /> },
+        { id: 'chatbook', label: 'Chatbook', icon: <MessageSquare size={20} /> },
+        { id: 'intelligence', label: 'Hub de IA', icon: <Zap size={20} /> },
+        { id: 'topic_training', label: 'Academy', icon: <BookOpen size={20} /> },
+        { id: 'knowledge', label: 'Base de Conhecimento', icon: <Database size={20} /> },
+        { id: 'editor', label: 'Editor de Documentos', icon: <FileText size={20} /> },
+        { id: 'bitrix', label: 'Guia Bitrix24', icon: <Layers size={20} /> },
+    ];
+
+    // "Comercial Inteligente" continua com o próprio gate de papel (Gestor/Diretor/CEO — ver
+    // `canAccessCommercialIntelligence`) mesmo dentro deste grupo; a proteção real está no backend
+    // (requireRole) e na rota (RequireRole), esconder o item aqui é só conveniência de UX.
+    const insightsTools: NavItem[] = [
+        { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
+        { id: 'winloss', label: 'Win/Loss', icon: <Target size={20} /> },
+        { id: 'market-intelligence', label: 'Market Intelligence', icon: <LineChart size={20} /> },
+        { id: 'reports', label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
+        ...(canAccessCommercialIntelligence
+            ? [{ id: 'commercial_intelligence' as TabType, label: 'Comercial Inteligente', icon: <LineChart size={20} /> }]
+            : []),
+    ];
+
+    const systemTools: NavItem[] = [
+        { id: 'integrations', label: 'Integrações', icon: <Plug size={20} /> },
+        { id: 'automations', label: 'Automações', icon: <Cpu size={20} /> },
+        { id: 'usage', label: 'Consumo de IA', icon: <Wallet size={20} /> },
+        { id: 'notifications', label: 'Notificações', icon: <Bell size={20} /> },
+        { id: 'settings', label: 'Configurações', icon: <SettingsIcon size={20} /> },
+    ];
+
     // "Equipe" é administrativo de verdade (gestão de usuários da organização) — fica só aqui.
-    // "Configurações" (tema, marca ativa, dados do próprio perfil — ver Settings.tsx) não é
-    // administrativo: qualquer papel autenticado usa essas preferências pessoais, e a rota em
-    // App.tsx já é acessível por URL direta para todos. Antes, o item só aparecia pra admin,
-    // então não-admins só chegavam lá digitando a URL — inconsistência entre menu e rota
-    // corrigida movendo "Configurações" para fora do bloco admin-only, abaixo.
-    const adminTools = [
-        { id: 'team' as TabType, label: 'Equipe', icon: <UserCog size={20} /> },
-    ];
-
-    const coreTools = [
-        { id: 'dashboard' as TabType, label: 'Painel Central', icon: <Home size={20} /> },
-        { id: 'prospect' as TabType, label: 'Prospecção', icon: <Search size={20} /> },
-        { id: 'crm' as TabType, label: 'Pipeline CRM', icon: <LayoutTemplate size={20} /> },
-        { id: 'crm360' as TabType, label: 'Cockpit CRM', icon: <Gauge size={20} /> },
-        { id: 'mesa-tratamento' as TabType, label: 'Mesa de Tratamento', icon: <Headset size={20} /> },
-        { id: 'propostas' as TabType, label: 'Propostas', icon: <FileSignature size={20} /> },
-        { id: 'contacts' as TabType, label: 'Decisores', icon: <Users size={20} /> },
-        { id: 'companies' as TabType, label: 'Empresas', icon: <Building2 size={20} /> },
-        { id: 'activities' as TabType, label: 'Agenda', icon: <Activity size={20} /> },
-        { id: 'cadence' as TabType, label: 'Cadência', icon: <Repeat size={20} /> },
-        { id: 'analytics' as TabType, label: 'Analytics', icon: <BarChart3 size={20} /> },
-        { id: 'winloss' as TabType, label: 'Win/Loss', icon: <Target size={20} /> },
-        { id: 'calendar' as TabType, label: 'Calendário', icon: <CalendarDays size={20} /> },
-        { id: 'notifications' as TabType, label: 'Notificações', icon: <Bell size={20} /> },
-        { id: 'settings' as TabType, label: 'Configurações', icon: <SettingsIcon size={20} /> },
-    ];
-
-    // Comercial Inteligente — módulo executivo restrito (Gestor/Diretor/CEO, mapeados hoje para
-    // ADMIN/GESTOR — ver src/lib/auth/authorization.ts). Renderizado como seção própria (não
-    // dentro de "Administração", que é ADMIN-only) porque GESTOR também precisa enxergar este
-    // item. A proteção real está no backend (requireRole) e na rota (RequireRole) — esconder o
-    // item aqui é só uma conveniência de UX, nunca a única barreira.
-    const executiveTools = [
-        { id: 'commercial_intelligence' as TabType, label: 'Comercial Inteligente', icon: <LineChart size={20} /> },
-    ];
-
-    const aiTools = [
-        { id: 'roleplay' as TabType, label: 'Roleplay', icon: <PhoneCall size={20} /> },
-        { id: 'qualification_matrix' as TabType, label: 'Matriz de Qualificação', icon: <Target size={20} /> },
-        { id: 'objections_matrix' as TabType, label: 'Matriz de Objeções', icon: <Shield size={20} /> },
-        { id: 'chatbook' as TabType, label: 'Chatbook', icon: <MessageSquare size={20} /> },
-        { id: 'intelligence' as TabType, label: 'Hub de IA', icon: <Zap size={20} /> },
-        { id: 'market-intelligence' as TabType, label: 'Market Intelligence', icon: <LineChart size={20} /> },
-        { id: 'topic_training' as TabType, label: 'Academy', icon: <BookOpen size={20} /> },
-        { id: 'bitrix' as TabType, label: 'Guia Bitrix24', icon: <Layers size={20} /> },
-        { id: 'integrations' as TabType, label: 'Integrações', icon: <Plug size={20} /> },
-        { id: 'reports' as TabType, label: 'Relatórios IA', icon: <FileBarChart size={20} /> },
-        { id: 'knowledge' as TabType, label: 'Base de Conhecimento', icon: <Database size={20} /> },
-        { id: 'editor' as TabType, label: 'Editor de Documentos', icon: <FileText size={20} /> },
-        { id: 'automations' as TabType, label: 'Automações', icon: <Cpu size={20} /> },
-        { id: 'usage' as TabType, label: 'Consumo de IA', icon: <Wallet size={20} /> },
+    const adminTools: NavItem[] = [
+        { id: 'team', label: 'Equipe', icon: <UserCog size={20} /> },
     ];
 
     // Ferramenta estática (HTML/JS puro, sem passar pelo router da SPA) servida direto de
@@ -92,6 +113,36 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     const externalTools = [
         { label: 'Portal Comercial Bitrix24', href: '/tools/portal-comercial/index.html', icon: <Download size={20} /> },
     ];
+
+    function NavGroup({ title, items }: { title?: string; items: NavItem[] }) {
+        if (items.length === 0) return null;
+        return (
+            <div className="space-y-1">
+                {title && (
+                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
+                        {title}
+                    </p>
+                )}
+                {items.map(tool => {
+                    const isActive = activeTab === tool.id;
+                    return (
+                        <button
+                            key={tool.id}
+                            onClick={() => selectTab(tool.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
+                                isActive
+                                    ? 'bg-brand-active text-[#fff] shadow-md'
+                                    : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+                            }`}
+                        >
+                            <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
+                            <span>{tool.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    }
 
     return (
         <aside
@@ -135,86 +186,16 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
             </div>
 
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 custom-scrollbar">
+                <NavGroup items={overviewTools} />
+                <NavGroup title="Prospecção" items={prospectingTools} />
+                <NavGroup title="Vendas & Atendimento" items={salesTools} />
+                <NavGroup title="Inteligência & Capacitação" items={enablementTools} />
+                <NavGroup title="Análise & Gestão" items={insightsTools} />
+                <NavGroup title="Sistema" items={systemTools} />
 
-                {/* Core Navigation */}
+                {/* Ferramentas externas — páginas estáticas fora da SPA, mesma seção visual de
+                    Sistema (integração/operação), mas fora do NavGroup por navegar via <a> real. */}
                 <div className="space-y-1">
-                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-                        Core Modules
-                    </p>
-                    {coreTools.map(tool => {
-                        const isActive = activeTab === tool.id;
-                        return (
-                            <button
-                                key={tool.id}
-                                onClick={() => selectTab(tool.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
-                                    isActive
-                                        ? 'bg-brand-active text-[#fff] shadow-md'
-                                        : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
-                                }`}
-                            >
-                                <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
-                                <span>{tool.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Comercial Inteligente — só Gestor/Admin (ver executiveTools acima) */}
-                {canAccessCommercialIntelligence && (
-                    <div className="space-y-1">
-                        <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-                            Executivo
-                        </p>
-                        {executiveTools.map(tool => {
-                            const isActive = activeTab === tool.id;
-                            return (
-                                <button
-                                    key={tool.id}
-                                    onClick={() => selectTab(tool.id)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
-                                        isActive
-                                            ? 'bg-brand-active text-[#fff] shadow-md'
-                                            : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
-                                    }`}
-                                >
-                                    <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
-                                    <span>{tool.label}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-
-                {/* AI Tools */}
-                <div className="space-y-1">
-                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-                        Inteligência
-                    </p>
-                    {aiTools.map(tool => {
-                        const isActive = activeTab === tool.id;
-                        return (
-                            <button
-                                key={tool.id}
-                                onClick={() => selectTab(tool.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
-                                    isActive
-                                        ? 'bg-brand-active text-[#fff] shadow-md'
-                                        : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
-                                }`}
-                            >
-                                <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
-                                <span>{tool.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Ferramentas externas — páginas estáticas fora da SPA */}
-                <div className="space-y-1">
-                    <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-                        Ferramentas
-                    </p>
                     {externalTools.map(tool => (
                         <a
                             key={tool.href}
@@ -229,31 +210,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                     ))}
                 </div>
 
-                {/* Admin Tools — só pra quem tem papel administrativo */}
-                {isAdmin && (
-                    <div className="space-y-1">
-                        <p className="px-3 mb-2 text-[10px] font-black uppercase tracking-widest text-ink-2">
-                            Administração
-                        </p>
-                        {adminTools.map(tool => {
-                            const isActive = activeTab === tool.id;
-                            return (
-                                <button
-                                    key={tool.id}
-                                    onClick={() => selectTab(tool.id)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left transition-all ${
-                                        isActive
-                                            ? 'bg-brand-active text-[#fff] shadow-md'
-                                            : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
-                                    }`}
-                                >
-                                    <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}>{tool.icon}</span>
-                                    <span>{tool.label}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
+                {isAdmin && <NavGroup title="Administração" items={adminTools} />}
             </div>
         </aside>
     );
