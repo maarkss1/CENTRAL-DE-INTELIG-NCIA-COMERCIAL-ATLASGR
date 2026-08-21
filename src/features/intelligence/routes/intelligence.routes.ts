@@ -43,8 +43,11 @@ import { redactAndTrackPiiLeak } from '../services/guardrails.service.js';
 import { listAssistantHistory, appendAssistantTurn } from '../services/assistant-history.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
+import { aiSuiteRouter } from './ai-suite.routes.js';
 
 const router = Router();
+
+router.use('/suite', aiSuiteRouter);
 
 router.post('/studio', validateRequest(studioGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
