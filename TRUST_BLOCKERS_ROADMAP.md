@@ -48,8 +48,8 @@ desatualizado.
 
 | # | Item | Status | Evidência | Nota |
 |---|---|---|---|---|
-| P1-4 | Implementar IA contextual ao registro aberto | 🟡 PARCIAL | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` (commit `d35576c`) injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook. `setActiveRecord` chamado em `CompanyDetail.tsx` e `LeadDetailDrawer.tsx:68`. | `ContactDetail.tsx` e `commercial-intelligence/components/DealDrillDownDrawer.tsx` **não** chamam `setActiveRecord` — funciona para empresa e lead, não para contato nem para o drill-down de negócio. |
-| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🔴 PENDENTE | `src/components/layout/Sidebar.tsx:70-85` — grupo único "Inteligência" lista 14 itens lado a lado sem hierarquia (Roleplay, Matriz de Qualificação, Matriz de Objeções, Chatbook, Hub de IA, Market Intelligence, Academy, Guia Bitrix24, Integrações, Relatórios IA, Base de Conhecimento, Editor, Automações, Consumo de IA). | Nenhuma consolidação ocorreu; ver também P3-15 (mesma raiz: sidebar organizada por inventário técnico, não por jornada). |
+| P1-4 | Implementar IA contextual ao registro aberto | ✅ RESOLVIDO | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook. `setActiveRecord` chamado em `CompanyDetail.tsx` (empresa), `LeadDetailDrawer.tsx:68` (lead), `ContactForm.tsx:73` (contato — `ContactDetail.tsx` é stub morto, nunca importado; a tela real de contato é o formulário) e `commercial-intelligence/components/DealDrillDownDrawer.tsx` (negócio, ao abrir o composer de risco de uma linha específica — o drawer normalmente lista vários negócios filtrados, então "um negócio aberto" só existe nesse momento). | Os 4 tipos de registro (`company\|contact\|lead\|deal`) já registram/limpam o registro ativo corretamente. |
+| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🟡 PARCIAL | `src/components/layout/Sidebar.tsx:46-67` já agrupa por jornada ("IA & Capacitação" com 8 itens), não mais o grupo único de 14 itens descrito antes — a duplicação de navegação já não reflete o código. A duplicação real de IA conversacional estava no backend: `agent.routes.ts` tinha 4 endpoints órfãos (`/chat`, `/groq`, `/roleplay`, `/qualification`) com prompt/sistema próprio, inatingíveis por qualquer UI viva (só o hook morto `useAiPlaybookGenerator.ts` os chamava) — ambos removidos. `ChatbookHub.tsx` (página `/app/chatbook`) e `FloatingChatbook.tsx` (drawer global) continuam sendo duas entradas, mas já compartilhavam a mesma fonte de estado (`useAssistantChat`); agora isso está documentado em comentário nos dois arquivos em vez de parecer implementações concorrentes. | Fonte única do backend conversacional confirmada: só `POST /api/intelligence/studio/stream` (via `useAssistantChat`). Falta ainda validar se P3-15 (mesma raiz, reorganização de sidebar) pode ser fechado — a evidência do Sidebar sugere que sim, mas não foi auditado a fundo nesta rodada. |
 | P1-6 | Fechar ou rotular stubs de calendário/Google | 🟡 PARCIAL | `google.service.ts` tem OAuth real (`OAuth2Client`, HMAC state, chamadas reais a `googleapis.com/calendar/v3`), escopo `calendar.readonly` — não é mock, ao contrário do que `docs/architecture/FEATURE-CLASSIFICATION.md:34` (02/08, desatualizado) ainda descreve. Commit `e91ee7a` rotula escrita de agendamento como "stub de transporte" no código/commit. `Calendar.tsx` do app (`/app/calendar`) é 100% local, sem ligação ao Google. | Rotulagem existe em código/commit, **não na UI**: `Integrations.tsx:191` diz "Gmail e Calendar integrados" sem qualificar como somente-leitura; a tela `/app/calendar` não avisa que não sincroniza com o Google. Decisão de produto pendente: implementar escrita real ou renomear para "agenda local" (ver Onda 3). |
 | P1-7 | Manter matriz viva de maturidade por rota | 🟡 PARCIAL | Existem 3 mapas: `PRODUCT_VISUAL_TRUTH_MAP.md` (marketing, 17/08), `.agents/completion/02-mapa-plataforma.md` §7 (dev/ops, 15/08), `docs/architecture/FEATURE-CLASSIFICATION.md` (02/08). Nenhum tem histórico de atualização contínua e já divergem entre si (ex.: FEATURE-CLASSIFICATION.md ainda chama Google de "inteiramente mockado", contradito pelo código — ver P1-6). | Não é uma matriz única e viva; são fotografias pontuais desatualizadas em ~2 semanas. **Este arquivo (`TRUST_BLOCKERS_ROADMAP.md`) é o candidato a matriz única** — ver seção final sobre como mantê-lo atualizado, e consolidar/depreciar os outros três quando possível. |
 
@@ -86,9 +86,9 @@ desatualizado.
 - **Resultado esperado ("nenhuma tela parece mostrar dado real quando não mostra")**: alcançado nos pontos auditados nesta rodada (P0-1/2/3); manter via revisão de toda tela nova antes de merge.
 
 ### Onda 2 — "IA útil no fluxo"
-- Passar contexto de rota/registro para Chatbook/copiloto — 🟡 feito para empresa e lead, falta contato e drill-down de negócio (P1-4).
-- Definir fonte única de IA conversacional / remover superfícies duplicadas — 🔴 não iniciado (P1-5).
-- **Resultado esperado ("IA responde sobre a empresa, contato, lead ou negócio aberto")**: parcialmente alcançado — contato e negócio ainda não passam contexto.
+- Passar contexto de rota/registro para Chatbook/copiloto — ✅ feito para empresa, lead, contato e drill-down de negócio (P1-4).
+- Definir fonte única de IA conversacional / remover superfícies duplicadas — 🟡 backend consolidado (rotas órfãs de `agent.routes.ts` e hook morto removidos); Chatbook (página) e FloatingChatbook (drawer) documentados como o mesmo copiloto, não duplicados; navegação por persona (P3-15) ainda não auditada a fundo (P1-5).
+- **Resultado esperado ("IA responde sobre a empresa, contato, lead ou negócio aberto")**: alcançado — os 4 tipos de registro passam contexto ao copiloto.
 
 ### Onda 3 — "Integrações honestas"
 - Calendário: decidir entre escrita real no Google ou renomear para agenda local — 🔴 decisão de produto ainda pendente; hoje é leitura real + escrita local não rotulada na UI (P1-6).
@@ -112,11 +112,11 @@ Com P0 já resolvido, os itens de maior impacto de confiança/valor ainda aberto
    integração Google é somente-leitura. É o gap mais simples de fechar com maior redução de risco
    de confiança — hoje o usuário pode achar que agendar ali sincroniza com o Google e não
    sincroniza.
-2. **P1-4** — completar `setActiveRecord` em `ContactDetail.tsx` e `DealDrillDownDrawer.tsx` para
-   fechar a paridade de contexto de IA entre os 4 tipos de registro.
+2. ~~**P1-4** — completar `setActiveRecord` em `ContactDetail.tsx` e `DealDrillDownDrawer.tsx` para
+   fechar a paridade de contexto de IA entre os 4 tipos de registro.~~ ✅ Resolvido — ver P1-4.
 3. **P1-7** — decidir qual dos três mapas de maturidade é a fonte única (proposta: este arquivo) e
    apontar os outros dois para ele em vez de manter conteúdo divergente.
-4. **P1-5 / P3-15** — mesma causa raiz (sidebar por inventário técnico); resolver junto reduz
+4. **P1-5 / P3-15** — auditar se a reorganização de sidebar já existente fecha P3-15; resolver junto reduz
    retrabalho.
 
 ---

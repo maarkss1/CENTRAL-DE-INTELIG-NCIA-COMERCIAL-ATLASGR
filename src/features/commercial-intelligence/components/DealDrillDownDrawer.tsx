@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { toast } from '../../../lib/toast';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import {
     commercialIntelligenceApi, formatCurrency,
     type CommercialFilter, type DealDrillDownRow, type ForecastTier,
@@ -46,6 +47,7 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
     const [draftText, setDraftText] = useState('');
     const [drafting, setDrafting] = useState(false);
     const [sending, setSending] = useState(false);
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
 
     const defaultTemplate = (row: DealDrillDownRow) => `⚠️ Risco identificado pelo Comercial Inteligente (AtlasGR Prospector): ${row.riskFactors.join(', ')}.`;
 
@@ -86,8 +88,30 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
         }
     };
 
+    // Torna o copiloto de IA global ciente do negócio focado. O drawer normalmente lista vários
+    // negócios filtrados ao mesmo tempo — "um negócio aberto" só existe de fato quando o usuário
+    // abre o composer de risco de uma linha específica.
     useEffect(() => {
-        if (!query) return;
+        if (!composerFor) return;
+        const row = rows.find((r) => r.id === composerFor);
+        if (!row) return;
+        setActiveRecord({
+            type: 'deal',
+            id: row.id,
+            label: row.title || row.companyName || 'Negócio',
+            summary: [row.stageName, row.tier ? TIER_LABEL[row.tier] : undefined].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(row.id);
+    }, [composerFor, rows, setActiveRecord, clearActiveRecord]);
+
+    useEffect(() => {
+        if (!query) {
+            // Fecha o composer ao fechar o drawer inteiro — evita reabrir com estado de uma linha
+            // antiga e mantém o registro ativo do copiloto coerente com o que está mesmo na tela.
+            setComposerFor(null);
+            setDraftText('');
+            return;
+        }
         let cancelled = false;
         setLoading(true);
         setError(null);
