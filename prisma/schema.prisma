@@ -400,14 +400,14 @@ model MarketIntelligenceMunicipalityMapping {
 }
 
 model EnrichmentLog {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   source    String // BrasilAPI-CNPJ | BrasilAPI-CEP | AI-Estimate | Domain-Heuristic | GDELT-News | Email-Verification | Lookalike-PgVector
   field     String // o que foi enriquecido (ex: "dados-cadastrais", "endereco", "contatos-sugeridos")
   status    String // success | not_found | failed
   rawData   Json?
-  
+
   dataOrigin       String? // "confirmado" | "inferido"
   appliedToCompany Boolean?
 
@@ -417,20 +417,20 @@ model EnrichmentLog {
 }
 
 model Contact {
-  id           String        @id @default(cuid())
-  name         String
-  role         String?
-  department   String?
-  phone        String?
-  whatsapp     String?
-  email        String?
-  linkedin     String?
-  birthDate    DateTime?
-  observations String?
-  status       ContactStatus @default(Ativo)
-  source       String? // ex: "Apollo", "Hunter"
-  seniority    String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
-  emailStatus  String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
+  id                  String        @id @default(cuid())
+  name                String
+  role                String?
+  department          String?
+  phone               String?
+  whatsapp            String?
+  email               String?
+  linkedin            String?
+  birthDate           DateTime?
+  observations        String?
+  status              ContactStatus @default(Ativo)
+  source              String? // ex: "Apollo", "Hunter"
+  seniority           String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
+  emailStatus         String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
   aiProcessingConsent Boolean? // Consentimento LGPD explícito/titular para processamento de IA externa
 
   customFields        Json?
@@ -731,6 +731,7 @@ model Organization {
   economicRelationships         EconomicRelationship[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
+  threeCXCallEvents             ThreeCXCallEvent[]
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -2441,4 +2442,19 @@ model DealClosureEvent {
 
   @@index([leadId])
   @@index([organizationId])
+}
+
+model ThreeCXCallEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectionId   String? // ThreeCXConnection.id resolvida pelo extension, quando possível
+  extension      String?
+  callId         String? // id do 3CX, para idempotência de reentrega
+  eventType      String
+  rawPayload     Json // payload cru
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, callId, eventType])
+  @@index([organizationId, createdAt])
 }

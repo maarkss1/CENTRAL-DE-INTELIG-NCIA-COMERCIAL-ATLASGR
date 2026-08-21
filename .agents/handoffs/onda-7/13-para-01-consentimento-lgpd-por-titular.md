@@ -1,8 +1,11 @@
 - De: Agente 13 (Enxame Autônomo e Governança de Agentes)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
+
+## Resolução
+Campo `aiProcessingConsent` adicionado ao model `Contact` via schema e migration. Quando houver o controle via tela/frontend, a base de dados já suportará a granularidade por titular.
 
 ## Problema
 
