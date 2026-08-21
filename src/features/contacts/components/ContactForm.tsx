@@ -5,6 +5,10 @@ import { z } from 'zod';
 import { Contact, Company } from '../../../types';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
+import { Input } from '../../../components/ui/Input';
+import { Label } from '../../../components/ui/Label';
+import { Select } from '../../../components/ui/Select';
+import { Textarea } from '../../../components/ui/Textarea';
 import { contactSchema } from '../../../lib/zod';
 import { companiesDB, contactsDB } from '../../../lib/db';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -17,12 +21,10 @@ interface ContactFormProps {
     onSave: () => void;
 }
 
-const inputClass = "w-full px-4 py-2 bg-surface-2 border border-line rounded-xl text-sm text-ink placeholder-ink-2 focus:ring-2 focus:ring-brand/40 focus:border-brand outline-none transition-colors";
-const labelClass = "text-sm font-medium text-ink-2";
 const errorClass = "text-xs text-danger mt-1";
 
 // contactSchema.companyId é só `z.string()` (o backend recebe o id já resolvido por outros
-// fluxos, ex. promoção de candidato) — aqui o campo vem de um <select>, então precisa da
+// fluxos, ex. promoção de candidato) - aqui o campo vem de um <select>, então precisa da
 // mesma obrigatoriedade que o formulário sempre teve via `required` do HTML.
 const contactFormSchema = contactSchema.extend({
     companyId: z.string().min(1, 'Selecione uma empresa'),
@@ -61,7 +63,7 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
             .catch((error) => clientLogger.error({ err: error }, 'Error fetching companies for contact form'));
     }, [contact, reset]);
 
-    // Torna o copiloto de IA global ciente de qual contato está sendo editado — mesmo padrão de
+    // Torna o copiloto de IA global ciente de qual contato está sendo editado - mesmo padrão de
     // CompanyDetail.tsx/LeadDetailDrawer.tsx. Contatos não têm uma tela de detalhe própria (só
     // lista + este formulário), então este é o único momento em que um contato específico está
     // "aberto" na tela.
@@ -72,7 +74,7 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
             type: 'contact',
             id: contact.id,
             label: contact.name,
-            summary: [contact.role, contact.company?.tradeName || contact.company?.legalName].filter(Boolean).join(' — ') || undefined,
+            summary: [contact.role, contact.company?.tradeName || contact.company?.legalName].filter(Boolean).join(' - ') || undefined,
         });
         return () => clearActiveRecord(contact.id);
     }, [contact, setActiveRecord, clearActiveRecord]);
@@ -114,43 +116,43 @@ export function ContactForm({ contact, onClose, onSave }: ContactFormProps) {
             <form id="contact-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <label htmlFor="contact-name" className={labelClass}>Nome *</label>
-                        <input id="contact-name" type="text" {...register('name')} className={inputClass} />
+                        <Label htmlFor="contact-name">Nome *</Label>
+                        <Input id="contact-name" type="text" {...register('name')} />
                         {errors.name && <p className={errorClass}>{errors.name.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="contact-companyId" className={labelClass}>Empresa *</label>
-                        <select id="contact-companyId" {...register('companyId')} className={inputClass}>
+                        <Label htmlFor="contact-companyId">Empresa *</Label>
+                        <Select id="contact-companyId" {...register('companyId')}>
                             <option value="" disabled>Selecione uma empresa</option>
                             {companies.map(company => (
                                 <option key={company.id} value={company.id}>{company.tradeName || company.legalName}</option>
                             ))}
-                        </select>
+                        </Select>
                         {errors.companyId && <p className={errorClass}>{errors.companyId.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="contact-role" className={labelClass}>Cargo</label>
-                        <input id="contact-role" type="text" {...register('role')} className={inputClass} />
+                        <Label htmlFor="contact-role">Cargo</Label>
+                        <Input id="contact-role" type="text" {...register('role')} />
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="contact-email" className={labelClass}>E-mail</label>
+                        <Label htmlFor="contact-email">E-mail</Label>
                         {/* type="text" (não "email") de propósito: o input nativo bloquearia o submit
                         antes até do handler do react-hook-form rodar, escondendo nossa própria
                         mensagem de erro atrás do popover de validação nativo do navegador. */}
-                        <input id="contact-email" type="text" inputMode="email" {...register('email')} className={inputClass} />
+                        <Input id="contact-email" type="text" inputMode="email" {...register('email')} />
                         {errors.email && <p className={errorClass}>{errors.email.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="contact-phone" className={labelClass}>Telefone</label>
-                        <input id="contact-phone" type="text" {...register('phone')} className={inputClass} />
+                        <Label htmlFor="contact-phone">Telefone</Label>
+                        <Input id="contact-phone" type="text" {...register('phone')} />
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="contact-whatsapp" className={labelClass}>WhatsApp</label>
-                        <input id="contact-whatsapp" type="text" {...register('whatsapp')} className={inputClass} />
+                        <Label htmlFor="contact-whatsapp">WhatsApp</Label>
+                        <Input id="contact-whatsapp" type="text" {...register('whatsapp')} />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                        <label htmlFor="contact-observations" className={labelClass}>Observações</label>
-                        <textarea id="contact-observations" rows={3} {...register('observations')} className={`${inputClass} resize-none`} />
+                        <Label htmlFor="contact-observations">Observações</Label>
+                        <Textarea id="contact-observations" rows={3} {...register('observations')} className="resize-none" />
                     </div>
                 </div>
             </form>
