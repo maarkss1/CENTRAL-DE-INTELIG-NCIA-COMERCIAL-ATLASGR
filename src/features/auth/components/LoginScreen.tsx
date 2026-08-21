@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, AlertCircle, ArrowRight, Sun, Moon, Mail } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowRight, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand, BRAND_CONFIGS } from '../../../contexts/BrandContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -17,8 +17,8 @@ export function LoginScreen() {
   const [name, setName] = useState('');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
-  const { activeBrand, setActiveBrand, brandInfo } = useBrand();
-  const { theme, toggleTheme } = useTheme();
+  const { setActiveBrand } = useBrand();
+  const { theme } = useTheme();
   
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,73 +82,50 @@ export function LoginScreen() {
     setError('');
   };
 
+  // Reflete a marca em tempo real conforme o domínio digitado, em vez de deixar o botão herdar
+  // a última marca salva de uma sessão anterior (--brand só era atualizado no submit).
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setActiveBrand(getBrandFromEmail(value));
+  };
+
   return (
     <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
-      {/* Duas marcas convivem nesta tela (toggle + ambas as logos) antes de o login confirmar qual
-          é a real — mesma justificativa da WelcomeScreen (Piloto 001, CLAUDE.md §7.7): metade
-          laranja (AtlasGR) / metade azul (Total Trac) com peso visual igual, tokens estáticos em
-          vez de --brand reativo. Substitui o indigo-500 genérico anterior (violava a regra #3 —
-          gradiente azul/roxo de "IA genérica" — apesar de já estar no código antes desta mudança). */}
+      {/* Duas marcas convivem nesta tela (ambas as logos sempre visíveis) antes de o login
+          confirmar qual é a real — mesma justificativa da WelcomeScreen (Piloto 001, CLAUDE.md
+          §7.7): metade laranja (AtlasGR) / metade azul (Total Trac) com peso visual igual, tokens
+          estáticos em vez de --brand reativo. Split linear substitui o indigo-500 genérico
+          anterior (violava a regra #3 — gradiente azul/roxo de "IA genérica"). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-atlas-orange/30 via-transparent via-50% to-totaltrack-blue/30"
+      />
       <motion.div
         aria-hidden="true"
         animate={{ scale: [1, 1.08, 1], rotate: [0, 90, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-        className="absolute left-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-atlas-orange/12 blur-[130px] pointer-events-none"
+        className="absolute left-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-atlas-orange/25 blur-[120px] pointer-events-none"
       />
       <motion.div
         aria-hidden="true"
         animate={{ scale: [1, 1.1, 1], rotate: [0, -90, 0] }}
         transition={{ duration: 27, repeat: Infinity, ease: 'linear' }}
-        className="absolute right-[-18%] top-1/2 h-[560px] w-[440px] -translate-y-1/2 rounded-full bg-totaltrack-blue/12 blur-[130px] pointer-events-none"
+        className="absolute right-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-totaltrack-blue/25 blur-[120px] pointer-events-none"
       />
-
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="fixed top-5 right-5 z-20 flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-surface text-ink-2 shadow-sm transition-colors hover:bg-surface-2 cursor-pointer"
-        aria-label="Alternar tema"
-        title={`Mudar para modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
-      >
-        {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-      </button>
 
       <div className="w-full max-w-md relative z-10">
 
         {/* Card de Autenticação */}
         <div className="glass-panel p-8 sm:p-10 rounded-[2.5rem] border border-line bg-surface/95 shadow-2xl relative">
           <div className="flex flex-col items-center mb-6">
-            <div className="flex items-center gap-1 mb-6 bg-surface-2 border border-line rounded-full p-1">
-              {(Object.keys(BRAND_CONFIGS) as Array<keyof typeof BRAND_CONFIGS>).map((brand) => (
-                <button
-                  key={brand}
-                  type="button"
-                  onClick={() => setActiveBrand(brand)}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                    activeBrand === brand
-                      ? 'bg-surface text-ink shadow'
-                      : 'text-ink-2 hover:text-ink'
-                  }`}
-                >
-                  {brand === 'atlasgr' ? (
-                    <>
-                      <Logo variant="symbol" className="h-3.5 w-3.5 shrink-0" />
-                      {BRAND_CONFIGS[brand].name}
-                    </>
-                  ) : (
-                    <>
-                      <TotalTrackLogo variant="symbol" className="h-5 w-5 shrink-0" />
-                      {BRAND_CONFIGS[brand].name}
-                    </>
-                  )}
-                </button>
-              ))}
+            {/* As duas marcas convivem com peso visual igual até o login confirmar qual é a real
+                (e-mail define a marca em handleAuth) — mesmo padrão já usado em WelcomeScreen. */}
+            <div className="flex items-center gap-5 mb-3">
+              <Logo variant={theme === 'dark' ? 'white' : 'default'} className="h-8 w-auto" />
+              <div className="h-8 w-px bg-line" aria-hidden="true" />
+              <TotalTrackLogo className="h-8 w-auto" />
             </div>
-            {activeBrand === 'atlasgr' ? (
-              <img src="/atlas-logo.svg" alt="AtlasGR" className="h-10 w-auto object-contain" />
-            ) : (
-              <TotalTrackLogo className="h-10 w-auto" />
-            )}
-            <p className="text-ink-2 text-xs mt-3 font-medium text-center">{brandInfo.slogan}</p>
+            <p className="text-ink-2 text-xs font-medium text-center">{BRAND_CONFIGS.atlasgr.slogan}</p>
           </div>
 
           {isForgotPassword ? (
@@ -193,7 +170,7 @@ export function LoginScreen() {
                       id="login-forgot-email"
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => handleEmailChange(e.target.value)}
                       className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                       placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                       required
@@ -256,7 +233,7 @@ export function LoginScreen() {
                     id="login-email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => handleEmailChange(e.target.value)}
                     className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
                     placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                     required

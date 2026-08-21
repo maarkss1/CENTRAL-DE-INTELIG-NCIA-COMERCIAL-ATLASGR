@@ -13,7 +13,7 @@ import { z } from 'zod';
  */
 export const discoverCriteriaSchema = z.object({
     icp: z.string().trim().max(1000).optional(),
-    persona: z.string().trim().max(1000).optional(),
+    decisorCargos: z.array(z.string().trim().max(200)).max(20).optional(),
     segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
     localizacao: z.string().trim().max(200).default(''),
     quantidade: z.number().int().min(1).max(500).default(10),
@@ -22,6 +22,9 @@ export const discoverCriteriaSchema = z.object({
     porte: z.string().trim().max(50).optional(),
     faturamentoMin: z.number().nonnegative().optional(),
     faturamentoMax: z.number().nonnegative().optional(),
+    faturamentoMensalMin: z.number().nonnegative().optional(),
+    faturamentoMensalMax: z.number().nonnegative().optional(),
+    volume: z.string().trim().max(200).optional(),
     palavrasChave: z.string().trim().max(300).optional(),
     nomeEmpresa: z.string().trim().max(200).optional(),
     anoFundacaoMin: z.number().int().min(1800).max(2100).optional(),

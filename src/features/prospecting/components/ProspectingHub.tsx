@@ -4,7 +4,7 @@ import { Database, Landmark, Sparkles, Camera, Wrench } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
-import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS } from '../../../shared/constants/icp-options';
+import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, ATLAS_PERSONA_OPTIONS, TOTALTRAC_PERSONA_OPTIONS } from '../../../shared/constants/icp-options';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { GamificationWidget } from '../../../components/ui/GamificationWidget';
@@ -57,6 +57,7 @@ export function ProspectingHub() {
     const [tab, setTab] = useState<HubTab>('cnpj');
 
     const activeSegments = activeBrand === 'totaltrac' ? TOTALTRAC_SEGMENTO_OPTIONS : SEGMENTO_OPTIONS;
+    const activePersonaOptions = activeBrand === 'totaltrac' ? TOTALTRAC_PERSONA_OPTIONS : ATLAS_PERSONA_OPTIONS;
 
     // --- CNPJ real lookup ---
     const [cnpjInput, setCnpjInput] = useState('');
@@ -491,6 +492,7 @@ export function ProspectingHub() {
                             criteria={criteria}
                             setCriteria={setCriteria}
                             activeSegments={activeSegments}
+                            activePersonaOptions={activePersonaOptions}
                             cities={cities}
                             showAdvanced={showAdvanced}
                             setShowAdvanced={setShowAdvanced}

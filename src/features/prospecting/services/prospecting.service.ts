@@ -14,10 +14,10 @@ import { ExclusionSet } from '../utils/exclusionSet.js';
 import { searchCompanyNews } from './news.service.js';
 
 export interface ProspectCriteria {
-    /** Perfil de Cliente Ideal (texto livre) */
+    /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
     icp?: string;
-    /** Persona do decisor (texto livre) */
-    persona?: string;
+    /** Cargos-alvo do decisor (ex: "Diretor de Logística", "CEO") — um por linha, adicionados dinamicamente na UI. */
+    decisorCargos?: string[];
     segmento: string;
     localizacao: string;
     quantidade: number;
@@ -30,6 +30,11 @@ export interface ProspectCriteria {
     /** Faturamento anual estimado em USD — dado da Apollo é normalizado em USD. Opcional. */
     faturamentoMin?: number;
     faturamentoMax?: number;
+    /** Faturamento mensal estimado em USD — convertido para faixa anual (×12) antes de ir pra Apollo, que só reconhece faturamento anual. Opcional. */
+    faturamentoMensalMin?: number;
+    faturamentoMensalMax?: number;
+    /** Volume de operação/carga (texto livre — ex: "50 cargas/mês", "frota de 30+ veículos"). Sem taxonomia fixa na Apollo; entra como palavra-chave adicional na busca. Opcional. */
+    volume?: string;
     /** Palavras-chave adicionais (além do segmento), separadas por vírgula. Opcional. */
     palavrasChave?: string;
     /** Nome da empresa/local para Google Maps, Apollo e fallback OpenStreetMap. Opcional. */
@@ -113,9 +118,10 @@ function buildPlacesQuery(criteria: ProspectCriteria): string {
     const location = buildLocationLabel(criteria)?.trim();
     const keywords = criteria.palavrasChave?.trim();
     const icp = criteria.icp?.trim();
+    const volume = criteria.volume?.trim();
 
-    // Combina os termos relevantes (exclui persona da busca geográfica, pois foca em serviços/empresas)
-    const terms = [companyOrPlace, segment, icp, keywords].filter(Boolean);
+    // Combina os termos relevantes (exclui persona/decisorCargos da busca geográfica, pois foca em serviços/empresas)
+    const terms = [companyOrPlace, segment, icp, keywords, volume].filter(Boolean);
     const term = terms.length > 0 ? terms.join(' ') : 'Empresa';
     
     return [term, location ? `em ${location}` : null]

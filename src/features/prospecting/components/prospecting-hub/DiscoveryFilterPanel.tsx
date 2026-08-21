@@ -1,14 +1,19 @@
-import { Search, Loader2, Cpu, Database, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Search, Loader2, Cpu, Database, SlidersHorizontal, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import type { ProspectCriteria } from '../../services/prospecting.service';
 import { PORTE_OPTIONS, TECNOLOGIA_OPTIONS } from '../../../../shared/constants/icp-options';
+import { fadeIn } from '../../../../lib/motion';
+
+type PersonaOption = { label: string; nivel: string; titles: string; seniorities: readonly string[] };
 
 export function DiscoveryFilterPanel({
-    criteria, setCriteria, activeSegments, cities, showAdvanced, setShowAdvanced,
+    criteria, setCriteria, activeSegments, activePersonaOptions, cities, showAdvanced, setShowAdvanced,
     isSearching, discoverError, onDiscover,
 }: {
     criteria: ProspectCriteria;
     setCriteria: (criteria: ProspectCriteria) => void;
     activeSegments: readonly string[];
+    activePersonaOptions: readonly PersonaOption[];
     cities: string[];
     showAdvanced: boolean;
     setShowAdvanced: (updater: (v: boolean) => boolean) => void;
@@ -16,6 +21,28 @@ export function DiscoveryFilterPanel({
     discoverError: string | null;
     onDiscover: () => void;
 }) {
+    const cargos = criteria.decisorCargos ?? [];
+
+    const addCargoRow = () => setCriteria({ ...criteria, decisorCargos: [...cargos, ''] });
+
+    const updateCargoRow = (index: number, value: string) => {
+        const next = [...cargos];
+        next[index] = value;
+        setCriteria({ ...criteria, decisorCargos: next });
+    };
+
+    const removeCargoRow = (index: number) => {
+        setCriteria({ ...criteria, decisorCargos: cargos.filter((_, i) => i !== index) });
+    };
+
+    const addPersonaSuggestion = (persona: PersonaOption) => {
+        const titles = persona.titles.split(',').map((t) => t.trim()).filter(Boolean);
+        const existing = new Set(cargos.map((c) => c.trim().toLowerCase()).filter(Boolean));
+        const additions = titles.filter((t) => !existing.has(t.toLowerCase()));
+        if (additions.length === 0) return;
+        setCriteria({ ...criteria, decisorCargos: [...cargos, ...additions] });
+    };
+
     return (
         <div className="xl:col-span-4 bg-surface p-6 sm:p-8 rounded-2xl border border-line shadow-sm relative overflow-hidden flex flex-col h-full max-h-[800px]">
             <div className="absolute top-0 right-0 w-40 h-40 bg-brand opacity-5 transform rotate-45 translate-x-20 -translate-y-20" />
@@ -28,82 +55,221 @@ export function DiscoveryFilterPanel({
             <p className="text-xs text-ink-2 mb-3 relative z-10">Busca real via Google Maps, OpenStreetMap e Apollo quando as integrações estão habilitadas.</p>
 
             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
-                <div>
-                    <label htmlFor="discovery-icp" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">ICP (Perfil de Cliente Ideal)</label>
-                    <textarea
-                        id="discovery-icp"
-                        placeholder="Ex: Transportadoras de médio porte com frota própria que sofrem com roubo de carga..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2 resize-none"
-                        rows={2}
-                        value={criteria.icp || ''}
-                        onChange={(e) => setCriteria({ ...criteria, icp: e.target.value })}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="discovery-persona" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Persona do Decisor</label>
-                    <textarea
-                        id="discovery-persona"
-                        placeholder="Ex: Diretor de Logística, Gerente de Frota, CEO..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2 resize-none"
-                        rows={2}
-                        value={criteria.persona || ''}
-                        onChange={(e) => setCriteria({ ...criteria, persona: e.target.value })}
-                    />
-                </div>
-                <div>
-                    <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento Genérico</label>
-                    <input
-                        id="discovery-segmento"
-                        type="text"
-                        placeholder="Ex: Transportadora / Frotista, Logística..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                        value={criteria.segmento || ''}
-                        onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
-                    />
-                </div>
+                <div className="space-y-3 p-3 rounded-xl border border-line bg-surface-2/50">
+                    <span className="block text-[10px] tracking-wider font-bold uppercase text-ink-2">ICP (Perfil de Cliente Ideal)</span>
 
-                <div className="grid grid-cols-2 gap-2">
                     <div>
-                        <label htmlFor="discovery-estado" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado</label>
+                        <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento</label>
                         <input
-                            id="discovery-estado"
+                            id="discovery-segmento"
                             type="text"
-                            placeholder="Ex: São Paulo, SP, Sul..."
-                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                            value={criteria.estado || ''}
-                            onChange={(e) => {
-                                const estado = e.target.value;
-                                setCriteria({
-                                    ...criteria,
-                                    estado,
-                                    localizacao: criteria.cidade ? `${criteria.cidade}, ${estado}` : estado || criteria.localizacao
-                                });
-                            }}
+                            list="segmento-suggestions"
+                            placeholder="Ex: Transportadora / Frotista, Logística..."
+                            className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                            value={criteria.segmento || ''}
+                            onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
+                        />
+                        <datalist id="segmento-suggestions">
+                            {activeSegments.map((seg) => <option key={seg} value={seg} />)}
+                        </datalist>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label htmlFor="discovery-porte" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Tamanho (nº funcionários)</label>
+                            <select
+                                id="discovery-porte"
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                                value={criteria.porte || ''}
+                                onChange={(e) => setCriteria({ ...criteria, porte: e.target.value || undefined })}
+                            >
+                                {PORTE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="discovery-volume" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Volume</label>
+                            <input
+                                id="discovery-volume"
+                                type="text"
+                                placeholder="Ex: 50 cargas/mês"
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                value={criteria.volume || ''}
+                                onChange={(e) => setCriteria({ ...criteria, volume: e.target.value || undefined })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label htmlFor="discovery-estado" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado</label>
+                            <input
+                                id="discovery-estado"
+                                type="text"
+                                placeholder="Ex: São Paulo, SP, Sul..."
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                value={criteria.estado || ''}
+                                onChange={(e) => {
+                                    const estado = e.target.value;
+                                    setCriteria({
+                                        ...criteria,
+                                        estado,
+                                        localizacao: criteria.cidade ? `${criteria.cidade}, ${estado}` : estado || criteria.localizacao
+                                    });
+                                }}
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="discovery-cidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
+                            <input
+                                id="discovery-cidade"
+                                type="text"
+                                list="cidade-suggestions"
+                                placeholder="Ex: Campinas, Santos..."
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                value={criteria.cidade || ''}
+                                onChange={(e) => {
+                                    const cidade = e.target.value;
+                                    setCriteria({
+                                        ...criteria,
+                                        cidade,
+                                        localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
+                                    });
+                                }}
+                            />
+                            {cities.length > 0 && (
+                                <datalist id="cidade-suggestions">
+                                    {cities.map((city) => <option key={city} value={city} />)}
+                                </datalist>
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="discovery-palavra-chave" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavra-chave</label>
+                        <input
+                            id="discovery-palavra-chave"
+                            type="text"
+                            placeholder="Ex: refrigerated, cargo, fleet"
+                            value={criteria.palavrasChave || ''}
+                            onChange={(e) => setCriteria({ ...criteria, palavrasChave: e.target.value || undefined })}
+                            className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                        />
+                        <p className="text-[10px] text-ink-2 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="discovery-faturamento-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Faturamento Anual Estimado (USD)</label>
+                        <div className="flex gap-2">
+                            <input
+                                id="discovery-faturamento-min"
+                                type="number"
+                                placeholder="Mínimo"
+                                value={criteria.faturamentoMin ?? ''}
+                                onChange={(e) => setCriteria({ ...criteria, faturamentoMin: e.target.value ? Number(e.target.value) : undefined })}
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Máximo"
+                                value={criteria.faturamentoMax ?? ''}
+                                onChange={(e) => setCriteria({ ...criteria, faturamentoMax: e.target.value ? Number(e.target.value) : undefined })}
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="discovery-faturamento-mensal-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Faturamento Mensal Estimado (USD)</label>
+                        <div className="flex gap-2">
+                            <input
+                                id="discovery-faturamento-mensal-min"
+                                type="number"
+                                placeholder="Mínimo"
+                                value={criteria.faturamentoMensalMin ?? ''}
+                                onChange={(e) => setCriteria({ ...criteria, faturamentoMensalMin: e.target.value ? Number(e.target.value) : undefined })}
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Máximo"
+                                value={criteria.faturamentoMensalMax ?? ''}
+                                onChange={(e) => setCriteria({ ...criteria, faturamentoMensalMax: e.target.value ? Number(e.target.value) : undefined })}
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                            />
+                        </div>
+                        <p className="text-[10px] text-ink-2 mt-1">Convertido para faixa anual (×12) — a Apollo só reconhece faturamento anual.</p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="discovery-icp-detalhe" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Detalhes adicionais (opcional)</label>
+                        <textarea
+                            id="discovery-icp-detalhe"
+                            placeholder="Ex: sofrem com roubo de carga, frota própria..."
+                            className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2 resize-none"
+                            rows={2}
+                            value={criteria.icp || ''}
+                            onChange={(e) => setCriteria({ ...criteria, icp: e.target.value })}
                         />
                     </div>
-                    <div>
-                        <label htmlFor="discovery-cidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
-                        <input
-                            id="discovery-cidade"
-                            type="text"
-                            list="cidade-suggestions"
-                            placeholder="Ex: Campinas, Santos..."
-                            className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                            value={criteria.cidade || ''}
-                            onChange={(e) => {
-                                const cidade = e.target.value;
-                                setCriteria({
-                                    ...criteria,
-                                    cidade,
-                                    localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
-                                });
-                            }}
-                        />
-                        {cities.length > 0 && (
-                            <datalist id="cidade-suggestions">
-                                {cities.map((city) => <option key={city} value={city} />)}
-                            </datalist>
-                        )}
+                </div>
+
+                <div>
+                    <span className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Persona do Decisor</span>
+
+                    {activePersonaOptions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                            {activePersonaOptions.map((persona) => (
+                                <button
+                                    key={persona.label}
+                                    type="button"
+                                    title={persona.nivel}
+                                    onClick={() => addPersonaSuggestion(persona)}
+                                    className="px-2 py-1 rounded-md text-[11px] font-medium border border-line bg-surface text-ink-2 hover:border-brand/40 hover:text-brand transition-colors"
+                                >
+                                    + {persona.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <AnimatePresence initial={false}>
+                            {cargos.map((cargo, index) => (
+                                <motion.div
+                                    key={index}
+                                    variants={fadeIn}
+                                    initial="hidden"
+                                    animate="show"
+                                    exit="hidden"
+                                    className="flex gap-2"
+                                >
+                                    <input
+                                        aria-label={`Cargo do decisor ${index + 1}`}
+                                        type="text"
+                                        placeholder="Ex: Diretor de Logística"
+                                        value={cargo}
+                                        onChange={(e) => updateCargoRow(index, e.target.value)}
+                                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => removeCargoRow(index)}
+                                        aria-label={`Remover cargo ${index + 1}`}
+                                        className="shrink-0 w-11 flex items-center justify-center rounded-xl border border-line text-ink-2 hover:border-danger/50 hover:text-danger transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+
+                        <button
+                            type="button"
+                            onClick={addCargoRow}
+                            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-dashed border-line text-xs font-bold text-ink-2 hover:border-brand/40 hover:text-brand transition-colors"
+                        >
+                            <Plus size={14} /> Adicionar cargo
+                        </button>
                     </div>
                 </div>
 
@@ -133,8 +299,8 @@ export function DiscoveryFilterPanel({
                         max={500}
                         placeholder="Ex: 10, 25, 50..."
                         className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                        value={criteria.quantidade ?? 10}
-                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) || 10 })}
+                        value={criteria.quantidade ?? 100}
+                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) || 100 })}
                     />
                 </div>
 
@@ -148,50 +314,6 @@ export function DiscoveryFilterPanel({
 
                 {showAdvanced && (
                     <div className="space-y-4 pt-1">
-                        <div>
-                            <label htmlFor="discovery-porte" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Porte (nº de funcionários)</label>
-                            <select
-                                id="discovery-porte"
-                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
-                                value={criteria.porte || ''}
-                                onChange={(e) => setCriteria({ ...criteria, porte: e.target.value || undefined })}
-                            >
-                                {PORTE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="discovery-faturamento-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Faturamento Anual Estimado (USD)</label>
-                            <div className="flex gap-2">
-                                <input
-                                    id="discovery-faturamento-min"
-                                    type="number"
-                                    placeholder="Mínimo"
-                                    value={criteria.faturamentoMin ?? ''}
-                                    onChange={(e) => setCriteria({ ...criteria, faturamentoMin: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
-                                />
-                                <input
-                                    type="number"
-                                    placeholder="Máximo"
-                                    value={criteria.faturamentoMax ?? ''}
-                                    onChange={(e) => setCriteria({ ...criteria, faturamentoMax: e.target.value ? Number(e.target.value) : undefined })}
-                                    className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
-                                />
-                            </div>
-                            <p className="text-[10px] text-ink-2 mt-1">Dado da Apollo é normalizado em dólar, independente do mercado.</p>
-                        </div>
-                        <div>
-                            <label htmlFor="discovery-palavras-chave" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Palavras-chave adicionais</label>
-                            <input
-                                id="discovery-palavras-chave"
-                                type="text"
-                                placeholder="Ex: refrigerated, cargo, fleet"
-                                value={criteria.palavrasChave || ''}
-                                onChange={(e) => setCriteria({ ...criteria, palavrasChave: e.target.value || undefined })}
-                                className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
-                            />
-                            <p className="text-[10px] text-ink-2 mt-1">Separadas por vírgula — somam ao segmento na busca da Apollo.</p>
-                        </div>
                         <div>
                             <label htmlFor="discovery-ano-min" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Ano de Fundação (Mín e Máx)</label>
                             <div className="flex gap-2">
