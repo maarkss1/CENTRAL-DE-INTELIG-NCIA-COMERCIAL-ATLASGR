@@ -52,8 +52,8 @@ export function CandidateCard({
         setIsLoadingIcebreaker(true);
         try {
             const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName: candidate.tradeName });
-            if (res.data?.icebreaker) {
-                setIcebreakerText(res.data.icebreaker);
+            if (res?.icebreaker) {
+                setIcebreakerText(res.icebreaker);
             } else {
                 setIcebreakerText('Nenhuma notícia/fato recente encontrado via busca web.');
             }
