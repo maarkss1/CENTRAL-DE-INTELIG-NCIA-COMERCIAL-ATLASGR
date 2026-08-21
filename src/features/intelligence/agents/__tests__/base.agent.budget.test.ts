@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: '*' };
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
+vi.mock('../../../../lib/ai/budget.js', () => ({
+    assertAiBudgetNotExceeded: vi.fn()
+}));
 
 /**
  * AI-011: `BaseAgent.runWithTools` (base.agent.ts) fala direto com LangChain/Groq via
@@ -21,10 +24,9 @@ describe('BaseAgent.runWithTools — AI-011 (orçamento mensal de IA)', () => {
     });
 
     it('bloqueia antes de montar qualquer modelo de IA quando o orçamento mensal foi excedido', async () => {
-        const budgetModule = await import('../../../../lib/ai/budget.js');
+        const { assertAiBudgetNotExceeded } = await import('../../../../lib/ai/budget.js');
         const fallbackUtil = await import('../fallback.util.js');
-        vi.spyOn(budgetModule, 'assertAiBudgetNotExceeded')
-            .mockRejectedValueOnce(new Error('Orçamento mensal de IA excedido (teste)'));
+        vi.mocked(assertAiBudgetNotExceeded).mockRejectedValueOnce(new Error('Orçamento mensal de IA excedido (teste)'));
         const buildSpy = vi.spyOn(fallbackUtil, 'buildModelWithFallback');
 
         const { requestContext } = await import('../../../../lib/async-context.js');

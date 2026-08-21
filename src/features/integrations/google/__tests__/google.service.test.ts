@@ -77,7 +77,9 @@ describe('getGoogleAuthUrl / verifyState', () => {
             prompt: 'consent',
             scope: expect.arrayContaining([
                 'https://www.googleapis.com/auth/gmail.readonly',
-                'https://www.googleapis.com/auth/calendar.readonly',
+                'https://www.googleapis.com/auth/calendar.events',
+                'openid',
+                'email',
             ]),
         }));
     });

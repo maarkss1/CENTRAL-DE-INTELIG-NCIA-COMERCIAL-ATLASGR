@@ -14,6 +14,10 @@ vi.mock('../../../../../src/lib/logger.js', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('../../../../../src/features/integrations/google/google.service.js', () => ({
+    createCalendarEvent: vi.fn().mockResolvedValue('real-google-event-id'),
+}));
+
 const { prismaCalendarSchedulerPort } = await import('../../../../../src/features/cadence/infra/PrismaCalendarSchedulerPort');
 
 const draft = {
@@ -36,7 +40,7 @@ describe('prismaCalendarSchedulerPort', () => {
     it('devolve um googleEventId sintético (stub de transporte — nenhuma chamada real ao Google)', async () => {
         const result = await prismaCalendarSchedulerPort.createEvent(draft);
 
-        expect(result.googleEventId).toMatch(/^stub-google-event-/);
+        expect(result.googleEventId).toBe('real-google-event-id');
     });
 
     it('grava o CadenceCalendarEvent com os campos do draft mapeados para o enum do banco', async () => {
@@ -51,7 +55,7 @@ describe('prismaCalendarSchedulerPort', () => {
                 scheduledStart: draft.start,
                 scheduledEnd: draft.end,
                 ownerUserId: 'user-1',
-                googleEventId: expect.stringMatching(/^stub-google-event-/),
+                googleEventId: 'real-google-event-id',
             }),
         });
     });

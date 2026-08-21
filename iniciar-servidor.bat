@@ -13,7 +13,7 @@ docker info >nul 2>&1
 if not errorlevel 1 goto docker_ready
 
 echo Docker nao esta rodando. Iniciando Docker Desktop...
-start "" "C:\Users\Mah\AppData\Local\Programs\DockerDesktop\Docker Desktop.exe"
+start "" "C:\Users\%USERNAME%\AppData\Local\Programs\DockerDesktop\Docker Desktop.exe"
 echo Aguardando o Docker ficar pronto - pode levar 1 a 2 minutos...
 
 :wait_docker

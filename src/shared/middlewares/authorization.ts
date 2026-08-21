@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from './authenticateToken.js';
 import { logger } from '../../lib/logger.js';
-import { prisma } from '../../lib/prisma.js';
-
+import { getTenantPrisma } from '../../lib/tenant-prisma.js';
 // Nota de RBAC: este arquivo já teve `requirePermission`/`requireAnyPermission`, baseados num
 // sistema de permissões (SUPER_ADMIN/TENANT_OWNER/.../GUEST) que nunca esteve conectado a nenhuma
 // rota e divergia do papel realmente gravado no banco (User.role, ADMIN/GESTOR/CLOSER/SDR/
@@ -18,7 +17,7 @@ export const requireTenant = (req: Request, res: Response, next: NextFunction): 
         return;
     }
     try {
-        authReq.db = prisma;
+        authReq.db = getTenantPrisma(authReq.user.organizationId);
         next();
     } catch (err) {
         logger.error({ err }, 'Failed to set db instance');

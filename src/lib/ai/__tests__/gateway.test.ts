@@ -50,6 +50,7 @@ describe('AI gateway', () => {
         process.env.LITELLM_URL = 'http://litellm.test/v1/';
         process.env.LITELLM_KEY = 'test-litellm-key';
         delete process.env.GROQ_API_KEY;
+        delete process.env.OLLAMA_BASE_URL;
         await __resetCircuitBreakerForTests();
     });
 
