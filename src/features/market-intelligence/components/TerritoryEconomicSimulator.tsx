@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Calculator, CheckCircle2, CircleDollarSign, MapPinned, ShieldCheck } from 'lucide-react';
+import {
+    AlertTriangle,
+    Calculator,
+    CheckCircle2,
+    CircleDollarSign,
+    Database,
+    Loader2,
+    MapPinned,
+    ShieldCheck,
+} from 'lucide-react';
+import { commercialIntelligenceApi } from '../../commercial-intelligence/commercialIntelligence.api';
 import type { TerritoryRecord } from '../domain/MarketIntelligence';
+import {
+    calibrateSellerEconomicsFromHistory,
+    currentBrasiliaMonth,
+    type CrmEconomicCalibration,
+} from '../domain/crmEconomicCalibration';
 import {
     DEFAULT_RAMP,
     type CommercialScenario,
@@ -64,8 +79,16 @@ const RECOMMENDATION_LABEL: Record<EconomicRecommendation, string> = {
     NAO_RECOMENDADO: 'NÃO RECOMENDADO',
 };
 
+const CALIBRATION_TONE: Record<CrmEconomicCalibration['quality'], string> = {
+    INSUFICIENTE: 'border-amber-200 bg-amber-50 text-amber-800',
+    BAIXA: 'border-amber-200 bg-amber-50 text-amber-800',
+    MEDIA: 'border-sky-200 bg-sky-50 text-sky-800',
+    ALTA: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+};
+
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const integer = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 
 function nullableNumber(value: string): number | null {
     if (value.trim() === '') return null;
@@ -79,6 +102,10 @@ function recommendationTone(recommendation: EconomicRecommendation): string {
     return 'border-amber-300 bg-amber-50 text-amber-800';
 }
 
+function rounded(value: number | null): number | null {
+    return value === null ? null : Math.round(value * 100) / 100;
+}
+
 export function TerritoryEconomicSimulator({ territories }: Props) {
     const [selectedTerritoryId, setSelectedTerritoryId] = useState(territories[0]?.id ?? '');
     const [costs, setCosts] = useState<SellerCostAssumptions>(EMPTY_COSTS);
@@ -87,6 +114,10 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
     const [serviceableSharePct, setServiceableSharePct] = useState(0);
     const [policy, setPolicy] = useState<EconomicDecisionPolicy>(EMPTY_POLICY);
     const [scenario, setScenario] = useState<CommercialScenario>('BASE');
+    const [crmCalibration, setCrmCalibration] = useState<CrmEconomicCalibration | null>(null);
+    const [calibrationLoading, setCalibrationLoading] = useState(true);
+    const [calibrationError, setCalibrationError] = useState<string | null>(null);
+    const [calibrationApplied, setCalibrationApplied] = useState(false);
 
     useEffect(() => {
         if (!territories.length) return;
@@ -94,6 +125,26 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
             setSelectedTerritoryId(territories[0].id);
         }
     }, [selectedTerritoryId, territories]);
+
+    useEffect(() => {
+        let alive = true;
+        setCalibrationLoading(true);
+        commercialIntelligenceApi.trends({ month: currentBrasiliaMonth() })
+            .then((report) => {
+                if (!alive) return;
+                setCrmCalibration(calibrateSellerEconomicsFromHistory(report.points));
+                setCalibrationError(null);
+            })
+            .catch((cause: unknown) => {
+                if (!alive) return;
+                setCrmCalibration(null);
+                setCalibrationError(cause instanceof Error ? cause.message : 'Falha ao ler o histórico do Comercial Inteligente.');
+            })
+            .finally(() => {
+                if (alive) setCalibrationLoading(false);
+            });
+        return () => { alive = false; };
+    }, []);
 
     const selectedTerritory = territories.find((territory) => territory.id === selectedTerritoryId) ?? territories[0];
     const model = useMemo<SellerModelAssumptions>(() => ({
@@ -153,6 +204,18 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
     };
     const updateRevenue = (key: keyof Omit<RevenueAssumptions, 'samAccounts'>, value: string) => {
         setRevenue((current) => ({ ...current, [key]: Math.max(0, Number(value) || 0) }));
+        if (key === 'averageMrrTicket' || key === 'winRatePct' || key === 'salesCycleDays') setCalibrationApplied(false);
+    };
+    const applyCrmCalibration = () => {
+        if (!crmCalibration?.eligible) return;
+        const calibrated = crmCalibration.recommended;
+        setRevenue((current) => ({
+            ...current,
+            averageMrrTicket: rounded(calibrated.averageMrrTicket) ?? current.averageMrrTicket,
+            winRatePct: rounded(calibrated.winRatePct) ?? current.winRatePct,
+            salesCycleDays: rounded(calibrated.salesCycleDays) ?? current.salesCycleDays,
+        }));
+        setCalibrationApplied(true);
     };
 
     const issues = assessment.blockers.length ? assessment.blockers : assessment.failedPolicyRules;
@@ -162,9 +225,9 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Unit Economics territorial · v1.2</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Unit Economics territorial · v1.3</p>
                         <h2 id="territory-economics-title" className="mt-1 text-2xl font-black tracking-tight text-[#333333]">O território paga a contratação?</h2>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">O mapa define o TAM ICP observado. Você informa o quanto é realmente atendível, custos, funil e a política de investimento. A plataforma não inventa SAM, ticket, margem nem limite de payback.</p>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">O mapa define o TAM ICP observado. O CRM pode calibrar ticket ganho, Win Rate e Sales Cycle com histórico real. SAM, margem, custos, capacidade e política financeira continuam explícitos.</p>
                     </div>
                     <label className="min-w-[280px] text-xs font-bold text-slate-600">
                         Território analisado
@@ -182,6 +245,44 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><Calculator className="h-4 w-4 text-[#FF5618]" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">SAM derivado</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.samAccounts === null ? 'PENDENTE' : integer.format(assessment.samAccounts)}</p><p className="text-xs text-slate-500">TAM × % atendível</p></article>
                     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><CircleDollarSign className="h-4 w-4 text-[#FF5618]" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">SOM máximo</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.economics.maximumCaptureContracts ?? 'PENDENTE'}</p><p className="text-xs text-slate-500">SAM × penetração</p></article>
                 </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Calibração CRM">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex gap-3">
+                        <div className="rounded-2xl bg-slate-100 p-2.5 text-[#FF5618]"><Database className="h-5 w-5" aria-hidden="true" /></div>
+                        <div>
+                            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Calibração CRM · 6 meses</p>
+                            <h3 className="mt-1 text-lg font-black text-[#333333]">Use o histórico real antes de digitar premissas comerciais</h3>
+                            <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">Fonte canônica: Comercial Inteligente / negócios fechados. A aplicação é manual e rastreável. Margem, churn, conversão reunião→oportunidade, produtividade e penetração não são preenchidos por esta calibração.</p>
+                        </div>
+                    </div>
+                    {calibrationLoading ? (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />Lendo CRM...</span>
+                    ) : crmCalibration ? (
+                        <span className={`rounded-full border px-3 py-2 text-xs font-black ${CALIBRATION_TONE[crmCalibration.quality]}`}>CONFIANÇA {crmCalibration.quality}</span>
+                    ) : null}
+                </div>
+
+                {calibrationError && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">CRM indisponível para calibração: {calibrationError}. O simulador continua utilizável com premissas manuais.</div>}
+                {crmCalibration && (
+                    <div className="mt-5 space-y-4">
+                        <div className="grid gap-3 md:grid-cols-4">
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Amostra</p><p className="mt-1 text-xl font-black">{integer.format(crmCalibration.totalClosedSample)}</p><p className="text-xs text-slate-500">negócios fechados · {crmCalibration.monthsWithClosedSample} meses</p></article>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Ticket ganho calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.averageMrrTicket === null ? 'N/A' : money.format(crmCalibration.recommended.averageMrrTicket)}</p><p className="text-xs text-slate-500">mediana dos tickets médios mensais</p></article>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Win Rate calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.winRatePct === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.winRatePct)}%`}</p><p className="text-xs text-slate-500">ponderado por fechamentos</p></article>
+                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Sales Cycle calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.salesCycleDays === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.salesCycleDays)} dias`}</p><p className="text-xs text-slate-500">ponderado por fechamentos</p></article>
+                        </div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-xs text-slate-500">
+                                Período: <strong>{crmCalibration.fromPeriod ?? 'N/A'} → {crmCalibration.toPeriod ?? 'N/A'}</strong>
+                                {calibrationApplied && <span className="ml-2 font-black text-emerald-700">✓ aplicado ao cenário atual</span>}
+                            </div>
+                            <button type="button" aria-label="Aplicar dados do CRM" disabled={!crmCalibration.eligible} onClick={applyCrmCalibration} className="rounded-xl bg-[#333333] px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40">Aplicar dados do CRM</button>
+                        </div>
+                        {!crmCalibration.eligible && crmCalibration.blockers.length > 0 && <ul className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">{crmCalibration.blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}</ul>}
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[1.35fr_.85fr]">
