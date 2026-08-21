@@ -8,8 +8,8 @@
   "pipelineVersion": "market-intelligence-company-seed-v1",
   "sourcePipelineVersion": "market-intelligence-companies-v2",
   "sourceDatasetHash": "0ca6f0104ef847a9dbd84afe3dda29bc0e6bf9843ddc5b8e6acd08e18f5aac82",
-  "seedHash": "71d2db7d2c039f2e1cc3f782452b297732283a402b67d173c9d03c5415fbfe93",
-  "generatedAt": "2026-08-19T01:38:59.158122+00:00",
+  "seedHash": "a4b004eb87571e15eae7825b662003de1f92399457a14697dfe2363c075c9dee",
+  "generatedAt": "2026-08-19T18:14:47.157669+00:00",
   "filters": {
     "uf": "SP",
     "municipioIbge": "3543402",
@@ -20,82 +20,82 @@
   "parts": [
     {
       "path": "part-0001.ndjson.gz",
-      "sha256": "7096afb37ea9aed159d170cbc2a4b11870b04d17e414ad5ca2c0bf189f316c18",
+      "sha256": "7b68a2cb4acebae0693be1124014cacb0461fd1be6ef99e239a7289721218895",
       "records": 25000
     },
     {
       "path": "part-0002.ndjson.gz",
-      "sha256": "36d476723ef487b8c7db3dbcca416506d521f59a301e372a1de5d194511b5e02",
+      "sha256": "ef9eb9dcf3f3860b7f117fadd9f36ffabc8f5cfacbedab35c123d3e95a834e7c",
       "records": 25000
     },
     {
       "path": "part-0003.ndjson.gz",
-      "sha256": "d27f2c3cf1751830a668c0560ab8528410d5e447ee585c7379f3a364c984b276",
+      "sha256": "be738f9201d9cadb083547d847ed68a9ee5a623bf02f4b9422546abe2088bb62",
       "records": 25000
     },
     {
       "path": "part-0004.ndjson.gz",
-      "sha256": "688c50efa1c3ce0d5db34861bb998b6b85ffa1a45575ff97788d103c343e061d",
+      "sha256": "167c44090c4acf40e59f6f34264912165eb4589870c7037c3d6d87e47d1a7f58",
       "records": 25000
     },
     {
       "path": "part-0005.ndjson.gz",
-      "sha256": "3f50511cd152f26d9e7a2bec658f848c4b2bdfb5ba23fc7ce20fc7c05e81cc5d",
+      "sha256": "7f3785219b15ee727a14ec90579297d62e05c2112b5263c582096ebf972ebfc3",
       "records": 25000
     },
     {
       "path": "part-0006.ndjson.gz",
-      "sha256": "634af879f55c4e77b7ab7a08d15c2759af40eee6a7aaf8cad97fd550e6b18d52",
+      "sha256": "c3a60b4be15cdb7aaa0bbbdc71a49bab47d8416fbb8e8fcc91d5c98d092a9a45",
       "records": 25000
     },
     {
       "path": "part-0007.ndjson.gz",
-      "sha256": "4b7f2cde3ddfc61584763e046c8b809b9d06733d615ac4f0434acb89add1f08b",
+      "sha256": "4c7b3772a4a399dcae531efbf25efc372529a40f216c55e6124f92c99d908a16",
       "records": 25000
     },
     {
       "path": "part-0008.ndjson.gz",
-      "sha256": "29f3b988faa7805498599dc7c956b246142d2ccbe292fd8960defd65951b8619",
+      "sha256": "4d06d6bdbfcf5d51f6b9424b341175a7d6cfe6a525c2a617bd3ef4f0b418a369",
       "records": 25000
     },
     {
       "path": "part-0009.ndjson.gz",
-      "sha256": "9c04cdf1f37e4a8f130753d8a496f9fc82a9701d4b48ca70077d1be1fdb482a3",
+      "sha256": "62c45e6a31b10b2064dfb3652d4b07bb69880b68f0ddf8c5afaefcc107c5ff9d",
       "records": 25000
     },
     {
       "path": "part-0010.ndjson.gz",
-      "sha256": "56952acb7ad749f43becdaab28d625ba9769747c0a30791df95cd6cfde42cb3f",
+      "sha256": "11a0d5a90167a31ecefd60bbfab7e84223ef7ce0551d4658d57b45dd10ed469f",
       "records": 25000
     },
     {
       "path": "part-0011.ndjson.gz",
-      "sha256": "58e876539194ac09beadfa06207a283471d05a9d0c7069037e01a066c96c471b",
+      "sha256": "dea308d7c84aac26976c80db383eb3181313c4e642d278b2185696e570b6f1f8",
       "records": 25000
     },
     {
       "path": "part-0012.ndjson.gz",
-      "sha256": "edd2252608ebbe3890789caf21169d769bab484aa673a72567c48521cc3e93e6",
+      "sha256": "fd053e3ba184578c8d5a699161ee01338fdfc301aadafd0314fedd0c7444456e",
       "records": 25000
     },
     {
       "path": "part-0013.ndjson.gz",
-      "sha256": "8f909e477550f6000b1b48d234d75b835899728bcae6107239d94b498f3fa9f6",
+      "sha256": "783104af99c57e0c8ac539666443287ced11e653347d94a390e802e98bf5276c",
       "records": 25000
     },
     {
       "path": "part-0014.ndjson.gz",
-      "sha256": "94675bfb480b9493b479dc39d052c427238650e0b964c38e3a30aca22b74450d",
+      "sha256": "637f3ec5eb5b194978f5b3abc2ca43fbe46587feea465b3e8ab6865b165de2c7",
       "records": 25000
     },
     {
       "path": "part-0015.ndjson.gz",
-      "sha256": "7fb3d643c4714d06aaa0af02d593fe1a8afacdc99dd22bac4ac5dcb4427927f3",
+      "sha256": "cc5d094503a4650bb180dcbe54d881033e58de8b2dd99beefb7b65849cfdfd9a",
       "records": 25000
     },
     {
       "path": "part-0016.ndjson.gz",
-      "sha256": "bbcbf4691c4aab50a24bc9e5214a41f124d08a41c9e9b4eed4a031740278a322",
+      "sha256": "37d522c5fd54e2cc3481ed9ce79619736a4a9c305d3bc3a7c6845ca0b17b8bc6",
       "records": 6212
     }
   ],
