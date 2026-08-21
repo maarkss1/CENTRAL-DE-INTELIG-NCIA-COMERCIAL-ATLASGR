@@ -13,7 +13,7 @@ vi.mock('@/lib/auth.js', () => ({
 
 vi.mock('@/config/access-policy.js', () => ({ isAuthorizedLoginEmail: () => true }));
 
-vi.mock('../../../../lib/tenant-prisma.js', () => ({
+vi.mock('@/lib/tenant-prisma.js', () => ({
     getTenantPrisma: (organizationId: string) => getTenantPrismaMock(organizationId),
 }));
 

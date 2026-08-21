@@ -1,13 +1,15 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const preload = resolve(process.cwd(), 'scripts/runtime-db-preload.mjs');
+const preloadUrl = pathToFileURL(preload).toString();
 
 function runWithDatabaseUrl(databaseUrl: string): string {
   return execFileSync(
     process.execPath,
-    ['--import', preload, '-e', 'process.stdout.write(process.env.DATABASE_URL ?? "")'],
+    ['--import', preloadUrl, '-e', 'process.stdout.write(process.env.DATABASE_URL ?? "")'],
     {
       encoding: 'utf8',
       env: { ...process.env, DATABASE_URL: databaseUrl },
