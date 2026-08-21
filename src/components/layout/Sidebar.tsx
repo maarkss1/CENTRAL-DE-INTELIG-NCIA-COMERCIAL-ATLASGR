@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,7 +19,7 @@ interface NavGroupDefinition {
 
 export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: SidebarProps) {
     const { activeBrand, setActiveBrand } = useBrand();
-    const { isAdmin, canAccessCommercialIntelligence } = useAuth();
+    const { currentUser, isAdmin, canAccessCommercialIntelligence, logout } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
     const navigate = useNavigate();
 
@@ -68,6 +68,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     const renderNavItem = (tab: TabType) => {
         const meta = TAB_META[tab];
+        if (!meta) return null;
         const Icon = meta.icon;
         const isActive = activeTab === tab;
         return (
@@ -134,6 +135,32 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                     </section>
                 ))}
             </nav>
+
+            <div className="p-3 border-t border-line space-y-2">
+                {currentUser && (
+                    <div className="px-3 py-2 rounded-xl bg-surface-2/60">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-xs font-bold text-white shadow-sm">
+                                {currentUser.name?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-ink truncate leading-tight">{currentUser.name}</p>
+                                <p className="text-[10px] text-ink-2 truncate leading-tight font-medium">{currentUser.roleTitle || currentUser.role}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition-all cursor-pointer"
+                    title="Encerrar sessão e sair da conta"
+                >
+                    <LogOut size={20} className="shrink-0 opacity-80" />
+                    <span>Sair da Conta</span>
+                </button>
+            </div>
         </aside>
     );
 }
