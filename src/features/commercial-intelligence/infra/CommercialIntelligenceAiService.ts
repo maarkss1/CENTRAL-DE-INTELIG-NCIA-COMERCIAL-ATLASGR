@@ -1,7 +1,8 @@
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import { getAiModel, withRetry, logAiUsage, cleanAndParseJson } from '../../../lib/ai/gateway.js';
-import { redactSensitiveData } from '../../intelligence/services/guardrails.service.js';
+import { redactAndTrackPiiLeak } from '../../intelligence/services/guardrails.service.js';
 import { prisma } from '../../../lib/prisma.js';
+import { logger } from '../../../lib/logger.js';
 import { notificationService } from '../../notifications/notification.service.js';
 import { CommercialIntelligenceUseCases } from '../application/CommercialIntelligenceUseCases.js';
 import { buildForecastRange, computeTrendMomentum } from '../application/predictiveForecast.js';
@@ -264,12 +265,15 @@ export class CommercialIntelligenceAiService {
                 new HumanMessage(userPrompt),
             ]));
         } catch (error) {
-            const detail = error instanceof Error ? error.message : String(error);
-            throw new Error(`${errorPrefix} ${detail}`);
+            // O detalhe técnico (ex.: "Nenhum motor de IA configurado. Defina GROQ_API_KEY...")
+            // é útil para operação/debug, mas nunca deve chegar ao usuário final via toast — só
+            // vai pro log estruturado. O cliente recebe apenas a mensagem de negócio (errorPrefix).
+            logger.error({ err: error, toolKey }, 'CommercialIntelligenceAiService: falha ao invocar modelo de IA');
+            throw new Error(errorPrefix);
         }
         const latencyMs = Date.now() - startTime;
         await logAiUsage({ model: response.response_metadata.model, usage: response.response_metadata.tokenUsage, latencyMs });
 
-        return redactSensitiveData(response.content).text.trim();
+        return (await redactAndTrackPiiLeak(response.content, 'commercial-intelligence')).trim();
     }
 }

@@ -3,7 +3,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const mockEnv: Record<string, unknown> = { AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: undefined };
 vi.mock('../../../../config/env.js', () => ({ env: mockEnv }));
 
-const { minimizePii, rehydratePii, redactSensitiveData, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
+const aiGuardrailEventCreate = vi.fn().mockResolvedValue({});
+vi.mock('../../../../lib/prisma.js', () => ({
+    prisma: { aIGuardrailEvent: { create: (...args: unknown[]) => aiGuardrailEventCreate(...args) } },
+}));
+
+const getTenantIdMock = vi.fn();
+vi.mock('../../../../lib/async-context.js', () => ({
+    getTenantId: () => getTenantIdMock(),
+}));
+
+vi.mock('../../../../lib/logger.js', () => ({
+    logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+const { minimizePii, rehydratePii, redactSensitiveData, redactAndTrackPiiLeak, createStreamingRedactor, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
 
 describe('minimizePii / rehydratePii', () => {
     it('substitui o valor de PII pelo token antes de sair para o provedor de IA', () => {
@@ -81,6 +95,107 @@ describe('redactSensitiveData (comportamento existente, não deve regredir)', ()
         const { text, redacted } = redactSensitiveData('CPF do titular: 123.456.789-00');
         expect(redacted).toBe(true);
         expect(text).toBe('CPF do titular: [CPF OCULTADO]');
+    });
+});
+
+describe('redactAndTrackPiiLeak (AI-006, onda 35: sinal real de PII leakage rate)', () => {
+    afterEach(() => {
+        aiGuardrailEventCreate.mockClear();
+        getTenantIdMock.mockReset();
+    });
+
+    it('sem PII no texto, não grava nenhum evento de guardrail', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+
+        const result = await redactAndTrackPiiLeak('Texto qualquer sem dado sensível.', 'ai.service');
+
+        expect(result).toBe('Texto qualquer sem dado sensível.');
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+    });
+
+    it('com CPF no texto, mascara E grava o evento com o organizationId do contexto e a fonte informada', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'studio');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+        expect(aiGuardrailEventCreate).toHaveBeenCalledWith({
+            data: { type: 'pii_redacted', source: 'studio', organizationId: 'org-1' },
+        });
+    });
+
+    it('PII detectada fora de um contexto de tenant conhecido: mascara mas não grava (sem dono para atribuir)', async () => {
+        getTenantIdMock.mockReturnValue(null);
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'agent.chat');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+    });
+
+    it('a redação já aconteceu mesmo se a gravação do evento falhar (best-effort, não derruba a resposta)', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        aiGuardrailEventCreate.mockRejectedValueOnce(new Error('DB indisponível'));
+
+        const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'commercial-intelligence');
+
+        expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+    });
+});
+
+describe('createStreamingRedactor (Fase 2: guardrail de PII sob streaming, sem esperar a resposta inteira)', () => {
+    afterEach(() => {
+        aiGuardrailEventCreate.mockClear();
+        getTenantIdMock.mockReset();
+    });
+
+    it('mascara um CPF mesmo quando seus dígitos chegam espalhados um chunk por vez', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        const full = 'O CPF informado foi 123.456.789-00, obrigado.';
+
+        let released = '';
+        for (const char of full) {
+            released += redactor.push(char);
+        }
+        released += await redactor.flush();
+
+        expect(released).toBe('O CPF informado foi [CPF OCULTADO], obrigado.');
+        // Em nenhum momento intermediário um trecho liberado pode conter o CPF em texto puro —
+        // testado acima via concatenação, mas reforça a garantia central do buffer.
+        expect(released).not.toContain('123.456.789-00');
+    });
+
+    it('libera texto sem PII imediatamente conforme os chunks chegam, sem esperar o flush', () => {
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        let released = '';
+        for (const char of 'Texto totalmente comum, sem nenhum dado sensível aqui dentro.') {
+            released += redactor.push(char);
+        }
+        // Só os últimos 14 caracteres (tamanho do padrão de CPF) ficam retidos até o flush.
+        expect(released).toBe('Texto totalmente comum, sem nenhum dado sensíve');
+    });
+
+    it('flush() libera e mascara o que sobrou retido no buffer ao final do stream', async () => {
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        let released = redactor.push('sem PII: 123.456.789-00');
+        released += await redactor.flush();
+        expect(released).toBe('sem PII: [CPF OCULTADO]');
+    });
+
+    it('grava o evento de guardrail (best-effort) só quando algo foi de fato mascarado no stream', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        const redactor = createStreamingRedactor('roleplay-stream');
+        redactor.push('nenhuma pii aqui');
+        await redactor.flush();
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+
+        const redactorWithPii = createStreamingRedactor('roleplay-stream');
+        redactorWithPii.push('CPF: 123.456.789-00');
+        await redactorWithPii.flush();
+        expect(aiGuardrailEventCreate).toHaveBeenCalledWith({
+            data: { type: 'pii_redacted', source: 'roleplay-stream', organizationId: 'org-1' },
+        });
     });
 });
 

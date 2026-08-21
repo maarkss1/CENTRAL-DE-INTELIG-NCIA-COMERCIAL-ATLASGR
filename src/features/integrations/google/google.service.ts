@@ -19,7 +19,7 @@ export class GoogleNotConnectedError extends Error {}
 
 const SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/calendar.readonly',
+    'https://www.googleapis.com/auth/calendar.events',
     'openid',
     'email',
 ];
@@ -240,4 +240,54 @@ export async function getUpcomingCalendarEvents(organizationId: string, maxResul
         start: item.start?.dateTime || item.start?.date || null,
         end: item.end?.dateTime || item.end?.date || null,
     }));
+}
+
+export interface CreateCalendarEventInput {
+    summary: string;
+    start: Date;
+    end: Date;
+    attendees?: string[];
+}
+
+/** Cria um evento no calendário primário e retorna o ID do evento criado no Google. */
+export async function createCalendarEvent(organizationId: string, input: CreateCalendarEventInput): Promise<string> {
+    let accessToken = await getValidAccessToken(organizationId);
+
+    const eventPayload = {
+        summary: input.summary,
+        start: { dateTime: input.start.toISOString() },
+        end: { dateTime: input.end.toISOString() },
+        attendees: input.attendees ? input.attendees.map(email => ({ email })) : undefined,
+    };
+
+    let response = await fetchWithTimeout('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventPayload),
+    }, 15_000);
+
+    if (response.status === 401) {
+        logger.warn({ organizationId }, 'Google Calendar retornou 401 ao criar evento — forçando renovação de token');
+        accessToken = await getValidAccessToken(organizationId, true);
+        response = await fetchWithTimeout('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(eventPayload),
+        }, 15_000);
+    }
+
+    if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        logger.error({ status: response.status, body, organizationId }, 'Falha ao criar evento no Google Calendar.');
+        throw new AppError(`Falha ao criar evento no Google Calendar (HTTP ${response.status}).`, 502);
+    }
+
+    const data = (await response.json()) as { id: string };
+    return data.id;
 }

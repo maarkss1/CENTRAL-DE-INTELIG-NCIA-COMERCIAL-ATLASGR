@@ -1,4 +1,4 @@
-import { StateGraph, Annotation, MemorySaver } from '@langchain/langgraph';
+import { StateGraph, Annotation } from '@langchain/langgraph';
 import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
@@ -10,6 +10,7 @@ import { OpsAgent } from './ops.agent.js';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 
 // Lazy + memoizado: monta o cliente só no primeiro uso real, nunca na carga do módulo —
 // process.env.GROQ_API_KEY lido numa const de topo de arquivo ficava congelado como vazio se este
@@ -534,19 +535,22 @@ const workflow = new StateGraph(SwarmState)
     .addEdge('ops', 'supervisor')
     .addEdge('finish', '__end__');
 
-const memory = new MemorySaver();
-const swarmApp = workflow.compile({ checkpointer: memory });
+// AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts).
+const swarmApp = workflow.compile({ checkpointer });
 
 export class SwarmOrchestrator {
     async executeMission(mission: string, sessionId?: string, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
-        // AI-002 (Sprint 07/onda-20): thread_id prefixado pelo tenant. `sessionId` chega cru do
-        // corpo da requisição HTTP (POST /swarm/mission) — sem o prefixo, duas organizações que
-        // (coincidentemente ou não) mandassem o mesmo sessionId reaproveitariam o checkpoint em
-        // RAM uma da outra, já que o MemorySaver deste grafo é um singleton de módulo.
+        // thread_id prefixado pelo tenant (AI-002, onda 20). `sessionId` chega cru do corpo da
+        // requisição HTTP (POST /swarm/mission) — sem o prefixo, duas organizações que
+        // (coincidentemente ou não) mandassem o mesmo sessionId reaproveitariam o checkpoint uma
+        // da outra, já que o checkpointer deste grafo é compartilhado por todo o processo.
         const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
+            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+            // primeira invocação real deste processo — memoizado.
+            await ensureCheckpointerReady();
             const finalState = await swarmApp.invoke({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
             return finalState.messages as BaseMessage[];
         } catch (error) {
@@ -557,10 +561,11 @@ export class SwarmOrchestrator {
 
     async executeMissionStream(mission: string, sessionId: string, onChunk: (event: SwarmEvent) => void, leadId?: string) {
         const sid = sessionId || `swarm-mission-${Date.now()}`;
-        // AI-002 (Sprint 07/onda-20): mesmo motivo do prefixo em executeMission acima.
+        // Mesmo motivo do prefixo em executeMission acima.
         const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
+            await ensureCheckpointerReady();
             const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
 
             for await (const chunk of stream) {

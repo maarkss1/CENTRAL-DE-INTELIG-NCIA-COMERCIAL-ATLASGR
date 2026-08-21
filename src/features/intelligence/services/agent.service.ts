@@ -1,9 +1,8 @@
-import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
-import type { Prisma } from '@prisma/client';
+import { saveAgentMemory, loadAgentMemory } from '../agents/agentMemory.store.js';
 
 export interface AgentMessage {
     role: 'system' | 'user' | 'assistant';
@@ -25,23 +24,29 @@ export abstract class AgentService {
     }
 
     protected async loadMemory(): Promise<AgentMessage[]> {
-        const memory = await prisma.agentMemory.findFirst({
-            where: { sessionId: this.sessionId, agentType: this.agentType, organizationId: this.resolveOrganizationId() },
-            orderBy: { createdAt: 'desc' }
+        const memory = await loadAgentMemory({
+            sessionId: this.sessionId,
+            agentType: this.agentType,
+            organizationId: this.resolveOrganizationId(),
         });
 
         if (!memory) return [];
         return memory.messages as unknown as AgentMessage[];
     }
 
+    // AI-003 (onda 31): antes, cada turno criava uma linha NOVA (create puro, nunca update) — a
+    // sessão inteira ficava com uma linha por turno, todas com o histórico acumulado até aquele
+    // ponto (redundante: loadMemory() só lê a mais recente, então as anteriores só ocupavam espaço
+    // pra sempre) e sem nenhuma constraint que impedisse duas chamadas concorrentes de criarem duas
+    // linhas simultaneamente. Upsert em cima de (sessionId, agentType, organizationId) resolve os
+    // dois problemas: uma linha por sessão, sempre a mais recente, atualizada atomicamente.
     protected async saveMemory(messages: AgentMessage[]): Promise<void> {
-        await prisma.agentMemory.create({
-            data: {
-                sessionId: this.sessionId,
-                agentType: this.agentType,
-                organizationId: this.resolveOrganizationId(),
-                messages: messages as unknown as Prisma.InputJsonValue,
-            }
+        await saveAgentMemory({
+            sessionId: this.sessionId,
+            agentType: this.agentType,
+            organizationId: this.resolveOrganizationId(),
+            messages,
+            status: 'Completed',
         });
     }
 

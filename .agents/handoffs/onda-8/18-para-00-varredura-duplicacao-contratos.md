@@ -65,3 +65,25 @@ conforme o item) para a Fase Final 1 (Gate Único de Release) ou onda de manuten
 subsequente, quando o dono de cada arquivo estiver ativo na fase. Não vira P0/P1 desta fase por não
 ter nenhum sintoma ativo hoje — registrado para não se perder, não para pressionar prioridade além
 do que os fatos sustentam.
+
+## Resolução dos itens triviais (2026-08-21)
+
+Itens 1-4 confirmados idênticos campo a campo (mesma origem `ActivityType`/`ActivityStatus` via
+`src/lib/zod.ts` nos dois lados de cada par) e unificados por import, sem mudança de comportamento
+(`npx tsc --noEmit` limpo):
+- **Item 4** (`ActivityType`/`ActivityStatus` em `calendar.api.ts`): trocado por
+  `import type { ActivityType, ActivityStatus } from '../../lib/zod'`.
+- **Item 3** (`NotificationKind`): extraído para
+  `src/shared/contracts/notification.contract.ts`; `notification.service.ts` e
+  `notifications.api.ts` agora importam de lá.
+- **Item 2** (`IngestResult`): extraído para `src/shared/contracts/ingestion.contract.ts`;
+  `ingestion.service.ts` e `knowledge.api.ts` agora importam de lá.
+- **Item 1** (`ActivityListFilters`): confirmado que `activity.service.ts` (legado) ainda tem
+  chamadores vivos (`aiPendingAction.service.ts`, `opsTools.ts` — agentes de IA), então não é
+  código morto; `activity.service.ts` agora importa o tipo de `domain/Activity.ts` em vez de
+  redeclarar.
+
+Itens 5 e 6 continuam como o relatório original descreveu: item 5 (`Automation`/
+`AutomationTrigger`) precisa de confirmação do dono do domínio de automações (07) antes de
+unificar — divergência de forma real, não cópia acidental. Item 6 (entidades núcleo do CRM)
+continua fora de escopo pontual — decisão de arquitetura maior para uma onda própria.

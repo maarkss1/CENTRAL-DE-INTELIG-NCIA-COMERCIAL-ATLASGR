@@ -49,7 +49,10 @@ export function MainLayout({ children }: MainLayoutProps) {
 
             {/* BACKGROUND: superfície neutra e quente, com um brilho sutil da marca ativa */}
             <div className="absolute inset-0 flex z-0 overflow-hidden pointer-events-none bg-bg">
-                <div className={`absolute -top-32 -right-32 w-[560px] h-[560px] rounded-full blur-[120px] opacity-40 ${isAtlas ? 'bg-atlas-orange/20' : 'bg-totaltrack-blue/20'}`} />
+                {/* bg-brand/bg-brand-2 (não bg-atlas-orange/bg-totaltrack-blue estáticos) — reagem a
+                    document.documentElement.style.setProperty em BrandContext.tsx sem precisar
+                    tocar este componente se a paleta de alguma marca mudar. */}
+                <div className={`absolute -top-32 -right-32 w-[560px] h-[560px] rounded-full blur-[120px] opacity-40 ${isAtlas ? 'bg-brand/20' : 'bg-brand-2/20'}`} />
                 <div className={`absolute bottom-0 left-0 w-[420px] h-[420px] rounded-full blur-[110px] opacity-30 ${isAtlas ? 'bg-atlas-yellow/10' : 'bg-sky-300/10'}`} />
             </div>
 

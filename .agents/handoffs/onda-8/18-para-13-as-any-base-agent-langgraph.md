@@ -1,8 +1,11 @@
 - De: 18
 - Para: 13
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
+
+## Resolução
+`as any[]` substituído por `as BaseMessage[]` (tipo já importado no topo do arquivo desde a linha 2 — `import { BaseMessage, ... } from '@langchain/core/messages'`). O eslint-disable foi removido. O comentário original de trade-off foi atualizado para documentar explicitamente o cast consciente vs mascaramento acidental.
 
 ## Problema
 `src/features/intelligence/agents/base.agent.ts:133` faz

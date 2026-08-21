@@ -461,3 +461,39 @@ limitacoes
 ```
 
 A tela **Saúde dos Dados** lê esses metadados. A tela de evidências deve apontar do indicador até a fonte correspondente.
+
+---
+
+## 11. Orquestração de Atualização (Market Data Refresh)
+
+**Componente:** `.github/workflows/market-data-refresh.yml`
+**Periodicidade:** Mensal (agendado) e manual via `workflow_dispatch`.
+
+A arquitetura de ingestão geoespacial e *Market Intelligence* é gerenciada pelo orquestrador central `market-data-refresh.yml`.
+
+### Estratégia de Refresh
+
+1. **Gatilhos (Triggers):**
+   - Agendamento cronológico (`schedule`) executado de forma recorrente (mensal) para buscar novos *snapshots* nas fontes oficiais.
+   - Disparo manual (`workflow_dispatch`), permitindo atualizar um dataset específico (por exemplo: `ibge`, `rntrc`, `senatran`, `receita`, `mdfe`, `mjsp`, `competition`) ou todos (`all`).
+
+2. **Fluxo Atômico de Processamento:**
+   - **Descoberta:** O orquestrador dispara assincronamente (usando CLI do `gh`) os workflows de datasets individuais configurados no repositório.
+   - Cada workflow de dataset (como `market-intelligence-rntrc.yml` ou `market-intelligence-cnpj.yml`) é responsável por realizar a descoberta das competências disponíveis, o download de sua fonte oficial e o cruzamento com a dimensão canônica (IBGE).
+   - **Prevenção de Monólitos:** Processos como o CNPJ são executados em *stream* ou de forma particionada. Apenas dados refinados são agregados e comitados.
+   - **Idempotência e Proteção:** Caso não haja mudanças relevantes, ou se o *checksum* do mês atual bater com o anterior, commits redundantes são ignorados. O workflow também verifica a saúde do match (ex: % de rejeição por municípios inválidos).
+
+3. **Publicação via Pull Request:**
+   - Como a branch `main` é protegida, cada workflow individual finaliza seu processo criando um *Pull Request* atômico contendo as atualizações de `.metadata.json`, `manifest.json` e agregados municipais/corredores afetados, permitindo uma revisão segura e rastreabilidade total (proveniência) dos dados.
+
+### Status dos Datasets
+
+O catálogo `manifest.json` centraliza o estado dos recursos e proveniência (downloadedAt, sha256).
+
+- **IBGE/BCIM (Geografia):** Workflow `market-intelligence-municipios.yml` (Nível: Município/UF/Região)
+- **ANTT (RNTRC):** Workflow `market-intelligence-rntrc.yml` (Nível: Município)
+- **SENATRAN (Frota):** Workflow `market-intelligence-senatran.yml` (Nível: Município)
+- **Receita Federal (CNPJ/ICP):** Workflow `market-intelligence-cnpj.yml` (Nível: Município / ICP)
+- **ANTT (CIOT / MDF-e):** Workflow `market-intelligence-mdfe.yml` (Nível: Origem/Destino/Corredores)
+- **MJSP (Sinesp VDE):** Workflow `market-intelligence-sinesp.yml` (Nível: PROXY_UF)
+- **Concorrência:** Sem orquestração automática vigente; base parcialmente validada manualmente.

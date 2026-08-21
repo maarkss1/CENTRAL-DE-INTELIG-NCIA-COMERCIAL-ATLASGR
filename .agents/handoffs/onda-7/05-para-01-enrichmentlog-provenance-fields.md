@@ -2,8 +2,11 @@
 - Para: Agente 01 (Plataforma, Segurança e Dados) / 01A — schema é propriedade exclusiva do 01,
   não editado aqui
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
+
+## Resolução
+Campos opcionais `dataOrigin` (String) e `appliedToCompany` (Boolean) adicionados no model `EnrichmentLog` (migration criada e aplicada). O schema já está pronto para o Agente 05 preencher esses campos nos call sites em `enrichment.service.ts`.
 
 ## Problema
 

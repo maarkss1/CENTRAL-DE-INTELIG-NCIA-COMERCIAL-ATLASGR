@@ -1,4 +1,7 @@
 import { api } from '../../lib/api';
+import type { IngestResult } from '../../shared/contracts/ingestion.contract';
+
+export type { IngestResult };
 
 export interface KnowledgeDocumentSummary {
     id: string;
@@ -25,13 +28,6 @@ export interface KnowledgeSearchResponse {
     hits: KnowledgeSearchHit[];
     semanticAvailable: boolean;
     query: string;
-}
-
-export interface IngestResult {
-    id: string;
-    title: string;
-    chunkCount: number;
-    embeddingFailures: number;
 }
 
 /** Extensões aceitas pelo backend (ver `extractText` em knowledge.routes.ts). */

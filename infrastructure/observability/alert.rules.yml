@@ -34,12 +34,19 @@
 #   - `ai_usage_cost_usd_total`/`ai_usage_budget_usd_total` (Agente 07, `src/lib/ai/metrics.ts`,
 #     chamada de dentro de `src/lib/ai/gateway.ts`).
 # Essas 3 regras foram promovidas para grupos "ativos-hoje" abaixo (ver histórico de handoffs para
-# o "antes"). Seguem pendentes: a métrica HTTP por status code (grupo http-5xx — auto-
-# instrumentação OTel confirmada emitindo métricas de runtime/GC mas NÃO a métrica de duração
-# HTTP com a versão instalada de `@opentelemetry/instrumentation-http` (`^0.220.0`, inalterada
-# desde a Onda 5 — conferido via `package-lock.json` nesta rodada) — ver
-# `.agents/handoffs/onda-4/10-para-01-metricas-http-otel.md`) e o Job de migração Kubernetes
-# (não aplicável ao caminho de deploy real — ver nota acima).
+# o "antes"). Segue pendente apenas o Job de migração Kubernetes (não aplicável ao caminho de
+# deploy real — ver nota acima).
+#
+# ATUALIZAÇÃO (2026-08-21): a métrica HTTP por status code (grupo http-5xx) também foi promovida.
+# A auto-instrumentação OTel nunca emitiu `http.server.duration` com a versão instalada de
+# `@opentelemetry/instrumentation-http` (confirmado em 3 rodadas — Onda 5, Onda 8, e novamente
+# nesta) — em vez de continuar esperando uma atualização de dependência, `http_server_duration_
+# milliseconds` (mesmo nome já usado abaixo) passou a ser medida manualmente via
+# `src/shared/middlewares/httpMetrics.ts` (Histogram prom-client, montado em `server.ts` antes de
+# qualquer rota, só quando `EXPOSE_METRICS=true`) — mesmo padrão de todas as outras métricas custom
+# deste projeto (`src/lib/ai/metrics.ts`, `src/lib/queue/metrics.ts`), sem depender do pipeline
+# OTLP → otel-collector para esta série específica. Ver
+# `.agents/handoffs/onda-4/10-para-01-metricas-http-otel.md` para o histórico completo.
 
 groups:
   - name: prospector-atlas.process-health.ativos-hoje
@@ -165,20 +172,11 @@ groups:
             silenciosamente"). Ver runbook → "Sync Bitrix falhando".
           contract_metric_source: "src/features/integrations/bitrix/service/metrics.ts (real desde Onda 5)"
 
-  - name: prospector-atlas.http-5xx.pendente-instrumentacao
+  - name: prospector-atlas.http-5xx.ativos-hoje
     rules:
-      # AINDA PENDENTE (reconfirmado Onda 8): http_server_duration_milliseconds_* continua sem
-      # aparecer em /metrics. src/lib/tracing.ts ganhou o metricReader OTel na Onda 5 (Agente 01) —
-      # métricas de runtime/GC do Node (nodejs_eventloop_*, v8js_*) foram validadas chegando de
-      # verdade via OTLP → otel-collector → Prometheus, mas a métrica HTTP por status code
-      # especificamente NÃO aparece com a versão instalada de
-      # @opentelemetry/instrumentation-http (`^0.220.0`, conferido inalterada em package-lock.json
-      # nesta rodada — ninguém atualizou a dependência nem adicionou instrumentação manual entre
-      # as Ondas 5 e 8). Ver handoff .agents/handoffs/onda-4/10-para-01-metricas-http-otel.md
-      # (status `em-andamento`, com 3 caminhos propostos para quem pegar em seguida: atualizar a
-      # dependência, configurar getNodeAutoInstrumentations() explicitamente, ou medir via
-      # middleware Express + Histogram manual). Continua fora do meu escopo (não edito
-      # src/lib/tracing.ts sem handoff/aprovação — arquivo do Agente 01).
+      # RESOLVIDO (2026-08-21): http_server_duration_milliseconds_* agora é produzida por
+      # src/shared/middlewares/httpMetrics.ts (prom-client Histogram, montado em server.ts quando
+      # EXPOSE_METRICS=true), não pela auto-instrumentação OTel — ver nota no topo do arquivo.
       - alert: HighErrorRate5xx
         expr: >-
           sum(rate(http_server_duration_milliseconds_count{http_status_code=~"5.."}[5m]))
@@ -188,7 +186,7 @@ groups:
           severity: critical
         annotations:
           summary: "Taxa de erro 5xx acima de 5% nos últimos 5min"
-          contract_metric_source: "instrumentação pendente — Agente 01 (src/lib/tracing.ts: métrica HTTP do OTel ainda não emitida)"
+          contract_metric_source: "src/shared/middlewares/httpMetrics.ts (real desde 2026-08-21)"
 
   - name: prospector-atlas.orcamento-ia.ativos-hoje
     rules:

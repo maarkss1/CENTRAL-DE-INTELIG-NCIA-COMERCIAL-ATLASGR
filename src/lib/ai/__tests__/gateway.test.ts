@@ -30,6 +30,7 @@ import {
     getAiModel,
     toChatCompletionMessages,
 } from '../gateway';
+import * as budgetModule from '../budget.js';
 
 const originalEnv = {
     GROQ_API_KEY: process.env.GROQ_API_KEY,
@@ -49,6 +50,7 @@ describe('AI gateway', () => {
         process.env.LITELLM_URL = 'http://litellm.test/v1/';
         process.env.LITELLM_KEY = 'test-litellm-key';
         delete process.env.GROQ_API_KEY;
+        delete process.env.OLLAMA_BASE_URL;
         await __resetCircuitBreakerForTests();
     });
 
@@ -134,6 +136,18 @@ describe('AI gateway', () => {
         expect(litellmUrl).toBe('http://litellm.test/v1/chat/completions');
         const litellmBody = JSON.parse(String(litellmInit.body));
         expect(litellmBody.messages[0]).toEqual({ role: 'system', content: 'Regra' });
+    });
+
+    it('AI-011: não contata nenhum provedor se o orçamento mensal de IA já foi excedido', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(budgetModule, 'assertAiBudgetNotExceeded')
+            .mockRejectedValueOnce(new Error('Orçamento mensal de IA excedido (teste)'));
+
+        await expect(getAiModel('local-llama3-fast', 0, 'unit:budget').invoke([new HumanMessage('Pedido')]))
+            .rejects.toThrow('Orçamento mensal de IA excedido (teste)');
+
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('rejeita respostas vazias do provedor', async () => {

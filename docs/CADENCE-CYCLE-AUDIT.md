@@ -32,6 +32,51 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > visualização real e avança `Enviado → Visualizado` na primeira abertura do link. CYC-003, CYC-004,
 > CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs
 > separados).
+>
+> **Atualização — Onda 26**: CYC-003 (reply tracking de e-mail) conectado — ver seção CYC-003
+> abaixo. Decisão de produto confirmada com o usuário: construir a arquitetura completa (webhook de
+> entrada real, idempotência, filtro de auto-resposta/bounce, classificação de intenção,
+> `ConversationSignal`/timeline reais) com um **stub de transporte** — nenhum provedor real de
+> inbound-parse de e-mail (SendGrid/Postmark/Mailgun) está plugado ainda, porque este projeto não
+> tem hoje uma caixa de e-mail dedicada por organização (`SMTP_*` é uma conta compartilhada). O
+> endpoint (`POST /api/webhooks/email/webhook`) aceita o payload que um provedor real entregaria
+> depois de resolver `organizationId` — plugar o provedor real depois é só apontar o webhook dele
+> para cá. `EmailMessage` sai da lista de tabelas mortas. `hasLeadReplied` (o sinal real que
+> `advanceCadenceRun` usa para parar a cadência) passou a enxergar réplica de e-mail além de
+> WhatsApp. CYC-004, CYC-006 e CYC-009 permanecem como estavam na Onda 18 — ainda não revisitados
+> (seguem em PRs separados).
+>
+> **Atualização — Onda 27**: CYC-004 (agendamento Google) conectado — ver seção CYC-004 abaixo. Dos
+> 3 tipos de evidência que `scheduling.ts` aceita, só `manual-verified` (vendedor confirma
+> manualmente após contato ao vivo) tem um caminho de escrita real agora — os outros dois (réplica
+> de calendário por e-mail, clique em link de agendamento self-service) exigem um transporte que
+> ainda não existe neste produto, mesmo raciocínio de CYC-003/CYC-006. `POST
+> /api/cadence/leads/:leadId/schedule-meeting` cria uma `Note` real de evidência (mesmo padrão de
+> `dealClosureGate.ts` — confirmação manual "ainda exige nota, não é confiança geral") e um
+> `CadenceCalendarEvent` real. **Decisão de produto confirmada com o usuário**: a criação do evento
+> no Google Calendar em si é um **stub de transporte** — a integração OAuth real já existe e
+> funciona para leitura (`google.service.ts::getUpcomingCalendarEvents`), mas o escopo hoje
+> conectado é só `calendar.readonly`; escrever eventos exigiria pedir `calendar.events` e forçar
+> reconsentimento de toda organização já conectada, uma mudança de produto real fora do escopo
+> desta rodada. `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas. CYC-006 e CYC-009
+> permanecem como estavam na Onda 18 — ainda não revisitados (seguem em PRs separados).
+>
+> **Atualização — Onda 28**: CYC-006 (assinatura eletrônica) conectado — ver seção CYC-006 abaixo.
+> `POST /api/crm/documents/:id/request-signature` cria uma solicitação real (provedor `'govbr'`,
+> stub de transporte — mesma categoria de CYC-003/CYC-004: nenhuma credencial de integrador gov.br
+> configurada) e `POST /api/webhooks/signature/webhook` aplica atualizações de status reais vindas
+> do provedor, com um guardrail novo (`isValidSignatureTransition`, domínio puro testado) que
+> nunca reverte um estado terminal já aplicado (proteção real contra webhook fora de ordem ou
+> reentregue). `CrmDocumentSignatureRequest` sai da lista de tabelas mortas confirmadas. CYC-009
+> permanece como estava na Onda 18 — ainda não revisitado.
+>
+> **Atualização — Onda 29**: CYC-009 (UI de cadência) conectado — ver seção CYC-009 abaixo. Único
+> gap real que restava: pausar/retomar/parar um run em andamento não tinha rota nenhuma
+> (`pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam prontos e testados no
+> domínio desde uma sprint anterior). `POST /api/cadence/runs/:id/pause|resume|stop` conectados,
+> com ações reais na UI (parar exige confirmação — é irreversível). Cobertura E2E
+> (`tests/e2e/cadence.spec.ts`) e de acessibilidade (`accessibility.spec.ts`) adicionadas — a tela
+> nunca tinha nenhuma das duas. Esta é a última entrega pendente do bloco CYC-001..009.
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -46,8 +91,9 @@ Concretamente, os seguintes módulos existem como domínio testado mas **sem nen
 produção**:
 - `src/features/cadence/application/cadenceService.ts` (`advanceCadenceRun`) — ninguém o chama
   fora de testes; não há worker BullMQ, fila ou cron para cadência.
-- `src/features/cadence/domain/replyTracking.ts` — porta pronta para reply tracking de e-mail;
-  sem transporte de e-mail de entrada (IMAP/webhook) para alimentá-la.
+- ~~`src/features/cadence/domain/replyTracking.ts` — porta pronta para reply tracking de e-mail;
+  sem transporte de e-mail de entrada (IMAP/webhook) para alimentá-la.~~ Conectado na Onda 26 (ver
+  CYC-003) com um stub de transporte real (`emailReply.webhook.ts`).
 - `src/features/cadence/domain/scheduling.ts` — guardrails anti-inferência-de-IA para agendamento
   bem desenhados e testados; sem `CalendarSchedulerPort` real (não existe criação de evento no
   Google Calendar em lugar nenhum do código, só leitura via OAuth).
@@ -55,11 +101,13 @@ produção**:
   `CrmCommercialDocumentVersion` nunca é lido/escrito.
 - `src/features/cadence/domain/dealClosure.ts` (evento verificável de fechamento) — bem desenhado
   contra "texto de IA nunca fecha negócio"; nunca chamado por `LeadUseCases.updateLeadStatus`.
-- `CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
-  qualquer provedor (gov.br foi a decisão de produto documentada, mas nada foi implementado).
-- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): `EmailMessage`,
-  `CadenceCalendarEvent`, `CrmCommercialDocumentVersion`, `CrmDocumentSignatureRequest`,
-  `DealClosureEvent`.
+- ~~`CrmDocumentSignatureRequest` (assinatura eletrônica) — só schema; zero linha de integração com
+  qualquer provedor.~~ Conectado na Onda 28 (ver CYC-006) com um stub de transporte real (provedor
+  `'govbr'`, envio da solicitação é stub, webhook de status de entrada é real).
+- Tabelas mortas confirmadas (schema existe, zero leitura/escrita em código): nenhuma restante
+  desta lista original. `EmailMessage` saiu na Onda 26 (CYC-003); `CrmCommercialDocumentVersion`
+  saiu na Onda 25 (CYC-005); `DealClosureEvent` saiu na Onda 24 (CYC-007); `CadenceCalendarEvent`
+  saiu na Onda 27 (CYC-004); `CrmDocumentSignatureRequest` saiu na Onda 28 (CYC-006).
 
 O que **está** ativo em produção hoje, cobrindo parcialmente o mesmo território, é um sistema
 legado paralelo que não conhece nada do módulo novo: `src/features/crm/jobs/followUp.worker.ts`
@@ -122,21 +170,75 @@ conectado desde a onda-19/onda-22.**
 
 ## CYC-003 — Reply tracking de e-mail
 
-**Estado: inexistente em produção.** Só a "porta" de domínio (`replyTracking.ts`) e o schema
-(`EmailMessage`) existem, ambos órfãos — sem IMAP/webhook de entrada, sem persistência, sem
-`ConversationSignal` de canal `email` gravado. O padrão de referência (WhatsApp) está implementado
-e conectado ponta a ponta, exceto o passo "encerra/pausa cadência", que não está ligado à máquina
-de estados formal para nenhum canal — hoje só reage a opt-out explícito.
+**Estado: conectado com um stub de transporte real (Onda 26).** A "porta" de domínio
+(`replyTracking.ts`, `isGenuineLeadReply`/`handleEmailReply`) agora tem um caller de produção real:
+
+- `POST /api/webhooks/email/webhook` (`src/features/integrations/email/emailReply.webhook.ts`) —
+  transporte de ENTRADA. Fail-closed (503 sem `EMAIL_INBOUND_WEBHOOK_SECRET`), assinatura HMAC
+  sobre o corpo cru (mesmo esquema de `birthVoice.webhook.ts`), idempotente por
+  `providerMessageId` (`@@unique([organizationId, providerMessageId])` em `EmailMessage`). É um
+  **stub** de propósito (decisão de produto: "construir com stub, plugar depois"): nenhum provedor
+  real de inbound-parse (SendGrid/Postmark/Mailgun) está plugado — o endpoint aceita diretamente o
+  payload que esse provedor entregaria depois de resolver `organizationId`, já que o projeto não
+  tem hoje uma caixa de e-mail dedicada por tenant (`SMTP_*` é uma conta compartilhada). Tudo a
+  partir da assinatura — idempotência, filtro de auto-resposta/bounce, classificação, persistência
+  — é real, não simulado.
+- Auto-resposta/bounce (`isGenuineLeadReply` — assunto tipo "Out of Office"/"Undeliverable", header
+  `Auto-Submitted` diferente de `no`) nunca vira `EmailMessage` nem `ConversationSignal` — o próprio
+  módulo de domínio documenta que isso não pode virar sinal, e o webhook aplica o filtro antes de
+  qualquer escrita.
+- Réplica genuína: resolve o lead em aberto por dica direta (`leadId`, quando o provedor já
+  souber) ou pelo e-mail do contato dentro da própria organização (mesmo raciocínio de
+  `findContactByPhone` do WhatsApp, mas por e-mail — sempre dentro de
+  `requestContext.run({ tenantId })`, nunca cross-tenant). Persiste `EmailMessage` (`direction:
+  'inbound'`) mesmo quando nenhum lead corresponde (auditoria, `leadId` nulo). Quando há lead,
+  classifica a intenção via `emailIntentClassifier` (implementação real de `IntentClassifierPort`,
+  mesmo padrão de extração de `conversation-intelligence.service.ts` do WhatsApp) e grava
+  `ConversationSignal` com `channel: 'email'` via `prismaConversationSignalPort`, mais um evento de
+  timeline.
+- `hasLeadReplied` (`src/features/cadence/infra/hasLeadReplied.ts`) — o sinal real que
+  `advanceCadenceRun` usa para parar a cadência com o motivo `lead-reply` — passou a checar
+  `EmailMessage.direction === 'inbound'` além de `WhatsAppMessage`. Antes desta rodada, uma cadência
+  com toques de e-mail que só recebia resposta por e-mail nunca parava sozinha por esta checagem;
+  agora para, com a mesma garantia (auto-resposta/bounce nunca conta como réplica).
+- `EmailMessage` sai da lista de tabelas mortas confirmadas deste documento.
+- Gap que permanece fora de escopo desta rodada: como resolver `organizationId` a partir de uma
+  caixa de e-mail real (sem stub) — depende de decisão de produto sobre inbox por tenant vs. tag de
+  endereço de resposta, e do provedor de inbound-parse escolhido. O padrão de referência (WhatsApp)
+  segue implementado e conectado ponta a ponta.
 
 ## CYC-004 — Agendamento Google
 
-**Estado: inexistente em produção.** A integração Google real é hoje só OAuth + leitura
-(`getUpcomingCalendarEvents`). Não há criação de evento, não há freebusy, não há
-`CalendarSchedulerPort` real. O domínio `scheduling.ts` tem guardrails muito bem desenhados e
-testados contra confirmação inferida por LLM (`FORBIDDEN_EVIDENCE_MARKERS`,
-`isVerifiableConfirmation`) — o requisito "LLM inferindo não é confirmação" é respeitado por
-construção, mas nunca é exercitado em produção porque a funcionalidade que ele guardaria não
-existe. `CadenceCalendarEvent` é tabela morta.
+**Estado (Onda 27): confirmação verificável conectada para o caminho `manual-verified`; criação de
+evento no Google Calendar é um stub de transporte.**
+
+- `POST /api/cadence/leads/:leadId/schedule-meeting` (`cadence.routes.ts`) — vendedor confirma
+  manualmente um horário depois de contato ao vivo com o lead. Segue o único portão de decisão do
+  domínio (`isVerifiableConfirmation`): rejeita com 422 qualquer horário no passado ou com fim
+  antes do início, sem criar nenhum registro. Quando válido, cria uma `Note` real no lead
+  (`scheduleMeeting.ts::scheduleVerifiedMeeting` → `PrismaMeetingConfirmationNotePort`) — a mesma
+  garantia de `dealClosureGate.ts`: nenhuma "confirmação" fica registrada sem uma evidência
+  auditável e visível no histórico do lead — e só então grava o `CadenceCalendarEvent`
+  (`PrismaCalendarSchedulerPort`), vinculando o `CadenceRun` ativo do lead quando existe.
+- Dos 3 tipos de evidência aceitos pelo domínio (`lead-calendar-reply`, `lead-scheduling-link-click`,
+  `manual-verified`), só o último tem transporte real agora — os outros dois dependem de réplica de
+  calendário por e-mail (sem parser dedicado) e de uma página de agendamento self-service (não
+  existe), nenhum dos dois construído nesta rodada.
+- **Decisão de produto confirmada com o usuário**: a chamada real ao Google Calendar
+  (`PrismaCalendarSchedulerPort.createEvent`) é um **stub de transporte**, mesma categoria de
+  CYC-003/CYC-006. A integração OAuth já é real e funciona para leitura
+  (`google.service.ts::getUpcomingCalendarEvents`, `getValidAccessToken` + `fetchWithTimeout`), mas
+  o escopo hoje conectado é só `calendar.readonly` — pedir `calendar.events` forçaria
+  reconsentimento de toda organização já conectada ao Google, decisão de produto real fora do
+  escopo desta rodada. O stub devolve um `googleEventId` sintético (`stub-google-event-<uuid>`,
+  logado como tal) e grava o `CadenceCalendarEvent` normalmente: o Google é sincronização
+  best-effort, nunca a fonte de verdade do agendamento comercial (ver comentário do campo
+  `googleEventId` no schema, escrito numa sprint anterior a esta onda). Quando o escopo for
+  ampliado, a implementação real segue exatamente o padrão de `getUpcomingCalendarEvents`.
+- `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas deste documento.
+- Fora de escopo desta rodada (documentado, não corrigido): freebusy antes de propor um horário,
+  cancelamento/reagendamento de um `CadenceCalendarEvent` já criado, e os 2 outros tipos de
+  evidência (`lead-calendar-reply`/`lead-scheduling-link-click`).
 
 ## CYC-005 — Proposta versionada
 
@@ -166,11 +268,42 @@ rota pública nova.**
 
 ## CYC-006 — Assinatura eletrônica
 
-**Estado: inexistente em código.** Só o model `CrmDocumentSignatureRequest` + decisão de produto
-documentada (provedor gov.br, escolhido por ser oficial e gratuito) em comentário de schema e
-handoff. `provider` foi modelado como texto livre de propósito, para não travar em um enum —
-decisão saudável para quando a integração for construída, mas hoje não há nenhuma linha de
-integração real com nenhum provedor.
+**Estado (Onda 28): solicitação e atualização de status reais conectadas; envio ao provedor gov.br
+é um stub de transporte.**
+
+- **Domínio novo** (`src/features/cadence/domain/signature.ts`) — `isValidSignatureTransition`,
+  guardrail que decide se uma transição de status vinda de um webhook é aceitável dado o estado
+  atual: nunca permite sair de um estado terminal (`signed`/`declined`/`expired`/`cancelled`),
+  nunca pula etapa que o fluxo real de assinatura não anuncia (ex.: `created → signed` direto).
+  Protege contra o risco real de qualquer webhook externo — entrega fora de ordem ou reentregue.
+- **`POST /api/crm/documents/:id/request-signature`** (`crm360.routes.ts`, via
+  `Crm360UseCases`/`PrismaCrm360Repository`, mesmo padrão de `createDocument`/
+  `updateDocumentContent`) — cria a solicitação real (`CrmDocumentSignatureRequest`, status
+  `Created`), resolve `signerEmail`/`signerName` do `Contact` vinculado ao documento quando não
+  informados no corpo, e chama o provedor (stub) para obter um `providerRequestId` (status passa
+  para `Sent`).
+- **`POST /api/webhooks/signature/webhook`** (`signatureStatus.webhook.ts`, mesmo esquema de
+  `emailReply.webhook.ts`: HMAC fail-closed via `SIGNATURE_INBOUND_WEBHOOK_SECRET`, corpo cru) —
+  aplica a atualização de status real vinda do provedor via `applySignatureStatusUpdate`, que
+  resolve a solicitação por `provider`+`providerRequestId` (lookup com bypass de RLS controlado,
+  mesmo modelo de confiança de `recordDocumentView`/`publicToken` — o id é opaco e não
+  adivinhável) e só aplica quando `isValidSignatureTransition` aprova; caso contrário devolve 200
+  com `outcome: ignored`, nunca 5xx (reentregar não mudaria o resultado).
+- **Decisão de produto confirmada com o usuário**: o envio real da solicitação ao gov.br
+  (`GovBrSignatureProviderPort.ts`) é um **stub de transporte**, mesma categoria de CYC-003/CYC-004
+  — nenhuma credencial de integrador gov.br está configurada neste projeto. O stub devolve um
+  `providerRequestId` sintético (`stub-govbr-request-<uuid>`, logado como tal); tudo em volta —
+  criação da solicitação, guardrail de transição, webhook de status de entrada, persistência real
+  — não é simulado: plugar o provedor real depois é só trocar a função de envio por uma chamada
+  HTTP real à API do gov.br.
+- `provider` continua texto livre no schema (decisão de produto pré-existente, não alterada) —
+  `'govbr'` é o único valor usado nesta rodada.
+- `CrmDocumentSignatureRequest` sai da lista de tabelas mortas confirmadas.
+- Fora de escopo desta rodada (documentado, não corrigido): conectar `signature_completed` ao gate
+  de fechamento determinístico (`dealClosureGate.ts`, CYC-007) — o tipo já é aceito pelo domínio
+  `dealClosure.ts`, mas fechar automaticamente um negócio ao receber `signed` é uma decisão de
+  produto própria (mesmo peso da decisão já tomada no CYC-007 de não bloquear o fechamento manual
+  por falta de evidência), fora do escopo desta rodada.
 
 ## CYC-007 — Fechamento determinístico
 
@@ -261,13 +394,35 @@ via WhatsApp mockado só no socket Baileys, opt-out, RLS cross-tenant, sequênci
 
 ## CYC-009 — UI de cadência
 
-**Estado (Onda 22): rota real, no menu principal, com criação de sequência e início de run —
-pausar/retomar/parar ainda não existem.** `/app/cadence` existe e está na Sidebar (não é
-deep-link escondido). Mostra os 5 estados de run do CYC-002 (`active/paused/stopped/completed/
-failed`, corrigido na onda-22 junto com o domínio — antes eram só 3). Os botões "Nova sequência" e
-"Iniciar cadência" (onda-22) cobrem criação — pausar/retomar/parar um run em andamento continuam
-sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem cobertura em
-`accessibility.spec.ts` — ver item CYC-009 na lista de pendências (#82) para o trabalho restante.
+**Estado (Onda 29): rota real, no menu principal, com CRUD completo de execução (criar sequência,
+iniciar, pausar, retomar, parar) — cobertura E2E e de acessibilidade real.** `/app/cadence` existe
+e está na Sidebar (não é deep-link escondido). Mostra os 5 estados de run do CYC-002
+(`active/paused/stopped/completed/failed`).
+
+- **`POST /api/cadence/runs/:id/pause|resume|stop`** (`cadence.routes.ts`) — o único gap real que
+  restava. `pauseCadenceRun`/`resumeCadenceRun`/`stopCadenceManually` já existiam prontos e
+  testados no domínio (`domain/cadence.ts`, `__tests__/cadence.test.ts`) desde uma sprint anterior,
+  só sem nenhuma rota chamando-os. Cada rota carrega o run pelo id dentro do tenant (RLS real,
+  404 se não encontrado/outra organização), aplica a transição (idempotente por construção do
+  próprio domínio) e persiste.
+- **`CadenceRunActions`** (`CadenceHub.tsx`) — botões reais na linha de cada execução: Pausar/Parar
+  quando `active`, Retomar/Parar quando `paused`, nenhuma ação num estado terminal. Parar é
+  irreversível (mesmo raciocínio de `stopCadenceManually` — "distinta de pausa: não tem retomada")
+  e exige confirmação (`window.confirm`, mesmo padrão já usado em `LeadDetailDrawer.tsx` para
+  excluir um lead).
+- Nota de escopo da tela ("Em breve nesta tela") corrigida: não afirma mais que
+  pausar/retomar/parar "ainda não existe" (passou a existir) nem que reply-tracking/agendamento/
+  proposta/assinatura "ainda não têm API própria" (todos ganharam API real nas ondas 26-28) —
+  agora documenta com precisão que essas entregas existem, só não têm seção dedicada nesta tela
+  ainda.
+- **`tests/e2e/cadence.spec.ts`** (novo) — fluxo completo pela UI real (sessão de cookies real via
+  signup, sem atalho de seed): cria sequência, inicia run para um lead real, pausa, retoma, para
+  com confirmação, e prova que cancelar a confirmação mantém o run ativo. Zero cobertura E2E
+  existia antes desta onda.
+- **`accessibility.spec.ts`** — nova entrada para `/app/cadence`, zero cobertura de acessibilidade
+  automática existia antes desta onda.
+
+Esta é a última entrega pendente do bloco CYC-001..CYC-009 desta rodada.
 
 ## Resumo por item
 
@@ -275,10 +430,14 @@ sem UI, a própria tela avisa isso ao usuário. Sem teste E2E (Playwright) e sem
 |---|---|---|
 | CYC-001 Opt-out | Sim — gap de enforcement no WhatsApp manual | Maioria implementada e enforced; unificação parcial |
 | CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
-| CYC-003 Reply tracking e-mail | Não | Só domínio/schema órfãos |
-| CYC-004 Agendamento Google | Não | Só OAuth+leitura; sem criação de evento |
+| CYC-003 Reply tracking e-mail | Sim (Onda 26) | Webhook real (stub de transporte) conectado; `hasLeadReplied` cobre e-mail |
+| CYC-004 Agendamento Google | Sim (Onda 27) | `manual-verified` conectado (Note + CadenceCalendarEvent reais); criação no Google é stub de transporte |
 | CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
-| CYC-006 Assinatura eletrônica | Não | Só schema + decisão de produto documentada |
+| CYC-006 Assinatura eletrônica | Sim (Onda 28) | Solicitação + webhook de status reais; envio ao gov.br é stub de transporte |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
-| CYC-009 UI | Não | Rota real e no menu; somente leitura, sem E2E/a11y |
+| CYC-009 UI | Sim (Onda 29) | CRUD completo (criar/iniciar/pausar/retomar/parar); E2E + a11y reais |
+
+## Reconciliação final CYC — 2026-08-20
+
+A lista antiga que ainda citava **CYC-002/003/004/005/006/007/009** como pendentes foi reconciliada contra a main. Esses itens já estavam implementados e encerrados nas ondas 22 e 24–29; nenhuma reimplementação foi feita nesta rodada para evitar duplicação/regressão. O bloco CYC-001..009 permanece concluído.

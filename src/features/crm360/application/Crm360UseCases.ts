@@ -1,5 +1,5 @@
 import type { ICrm360Repository } from '../domain/ICrm360Repository.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentSignatureRequestInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 
 export class Crm360UseCases {
     constructor(private crm360Repository: ICrm360Repository) {}
@@ -67,5 +67,9 @@ export class Crm360UseCases {
     /** Rota pública — sem organizationId conhecido a priori, ver `PrismaCrm360Repository.recordDocumentView`. */
     async recordDocumentView(publicToken: string) {
         return this.crm360Repository.recordDocumentView(publicToken);
+    }
+
+    async requestDocumentSignature(organizationId: string, documentId: string, actorUserId: string | undefined, input: CrmDocumentSignatureRequestInput) {
+        return this.crm360Repository.requestDocumentSignature(organizationId, documentId, actorUserId, input);
     }
 }

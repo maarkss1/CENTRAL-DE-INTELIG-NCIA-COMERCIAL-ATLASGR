@@ -149,7 +149,18 @@ export const prisma = basePrisma.$extends({
         // atualização real de `viewCount`/`firstViewedAt`/`lastViewedAt`/`status` roda dentro de
         // `requestContext.run({ tenantId: doc.organizationId })` com RLS normal, igual ao lookup de
         // BitrixConnection.
-        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument'];
+        // AILog entrou nesta allowlist por um motivo DIFERENTE de todos os anteriores: não é uma
+        // descoberta de bootstrap (achar o tenant e depois voltar a operar escopado) — é uma leitura
+        // agregada genuinamente cross-tenant, permanente, usada pelo circuit breaker de orçamento
+        // mensal de IA (AI-011, `src/lib/ai/budget.ts`), que precisa saber o custo acumulado de IA
+        // da PLATAFORMA inteira no mês corrente antes de cada chamada, não de uma organização por
+        // vez. Seguro porque a única operação que usa este bypass é `prisma.aILog.aggregate({ _sum:
+        // { cost: true } })` — devolve um único número somado, nunca uma linha, nunca um
+        // organizationId específico; nenhuma API expõe esse bypass a um tenant (é lido só dentro do
+        // próprio gateway de IA, uma decisão interna de bloquear ou não a chamada). Continua sem
+        // bypass a leitura por-organização já existente (`usageService.summary`/`GET /api/usage`,
+        // escopada normalmente por `requestContext.run({ tenantId })`).
+        const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument', 'CrmDocumentSignatureRequest', 'AILog'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
         const tenantModels = [
@@ -179,6 +190,15 @@ export const prisma = basePrisma.$extends({
           if (operation === 'upsert') {
              if (a.create) {
                 a.create = { ...(a.create as Record<string, unknown>), organizationId: tenantId };
+             }
+             // Evita que o usuário mude o organizationId no update de um upsert
+             if (a.update && typeof a.update === 'object' && 'organizationId' in a.update) {
+                delete (a.update as Record<string, unknown>).organizationId;
+             }
+          }
+          if (operation === 'update' || operation === 'updateMany') {
+             if (a.data && typeof a.data === 'object' && 'organizationId' in a.data) {
+                delete (a.data as Record<string, unknown>).organizationId;
              }
           }
         }

@@ -6,8 +6,8 @@ import { api } from '../../lib/api';
  * (não os tipos de domínio do backend, `src/features/cadence/domain/cadence.ts`/`optOut.ts` — sobre
  * o arame, datas chegam como string ISO, não `Date`).
  *
- * Criar sequência e iniciar run para um lead adicionados nesta rodada. Pausar/retomar/parar um run
- * em andamento ainda não existe (ver CYC-009) — quando existir, os métodos entram aqui.
+ * Criar sequência e iniciar run para um lead adicionados numa rodada anterior. Pausar/retomar/parar
+ * um run em andamento (CYC-009, onda 29) adicionados nesta.
  */
 
 export type CadenceRunStatus = 'active' | 'paused' | 'stopped' | 'completed' | 'failed';
@@ -109,4 +109,7 @@ export const cadenceApi = {
         api.post<CadenceSequenceDTO>('/api/cadence/sequences', input),
     startRun: (input: { leadId: string; sequenceId: string }) =>
         api.post<StartCadenceRunResponse>('/api/cadence/runs', input),
+    pauseRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/pause`, {}),
+    resumeRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/resume`, {}),
+    stopRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/stop`, {}),
 };

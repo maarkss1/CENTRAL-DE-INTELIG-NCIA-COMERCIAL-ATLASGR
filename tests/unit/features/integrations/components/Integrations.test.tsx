@@ -60,13 +60,13 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         render(<Integrations />);
 
         await user.click(screen.getByText('Bitrix24'));
-        expect(await screen.findByText(/Todo lead novo do Atlas vai automaticamente/)).toBeInTheDocument();
+        expect(await screen.findByText(/Bitrix24 tem leitura\/importação real/)).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Gmail e Calendar integrados.')).toBeInTheDocument();
+        expect(await screen.findByText('Gmail e Calendar em modo leitura; a Agenda do produto continua local.')).toBeInTheDocument();
 
         await user.click(screen.getByText('PABX 3CX')).catch(() => {});
-        expect(await screen.findByText(/Click-to-Call, gravação de chamadas/)).toBeInTheDocument();
+        expect(await screen.findByText(/Cadastro de PABX 3CX e teste de comunicação/)).toBeInTheDocument();
     });
 
     it('mostra estado desconectado quando os endpoints de status falham (sem tela em branco)', async () => {
@@ -83,6 +83,42 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         // cai pro estado padrão "desconectado" de cada hook.
         expect(screen.getByText('Integrações')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
+    });
+
+    it('declara maturidade real por integração, sem prometer escrita Google ou 3CX 24h sem prova', async () => {
+        const user = userEvent.setup();
+        server.use(
+            http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com' } })),
+            http.get('/api/google/calendar/upcoming', () => HttpResponse.json({ success: true, data: [] })),
+            http.get('/api/bitrix/connections', () => HttpResponse.json({
+                success: true,
+                data: [{
+                    id: 'bitrix-1',
+                    label: 'AtlasGR',
+                    portalDomain: 'atlas.bitrix24.com.br',
+                    webhookReceiverUrl: 'https://app.example.com/api/bitrix/webhook/bitrix-1',
+                    hasWebhookSecret: true,
+                    inboundEventsEnabled: true,
+                }],
+            })),
+            http.get('/api/integrations/3cx/connections', () => HttpResponse.json({ success: true, data: [{ id: '3cx-1', label: '3CX Comercial', pbxUrl: 'https://pbx.example.com', extension: '101', autoDialEnabled: true }] })),
+        );
+
+        render(<Integrations />);
+
+        expect(await screen.findByText('não é API oficial Meta')).toBeInTheDocument();
+
+        await user.click(screen.getByText('Google Workspace'));
+        expect(await screen.findByText('Google escrita pendente')).toBeInTheDocument();
+        expect(screen.getByText(/criar\/remarcar\/concluir atividades acontece só na Agenda local do Atlas/i)).toBeInTheDocument();
+
+        await user.click(screen.getByText('Bitrix24'));
+        expect(await screen.findByText('webhook entrada opcional')).toBeInTheDocument();
+        expect(screen.getByText(/Não é espelho bidirecional completo/i)).toBeInTheDocument();
+
+        await user.click(screen.getByText('PABX 3CX'));
+        expect(await screen.findByText('gravações dependem de webhook')).toBeInTheDocument();
+        expect(screen.getByText(/não prova, sozinha, gravação de chamadas ou prospecção 24h/i)).toBeInTheDocument();
     });
 
     it('VISUALIZADOR vê o status mas não consegue conectar (achado do inventário de navegação da Onda 1)', async () => {

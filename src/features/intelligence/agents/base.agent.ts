@@ -1,11 +1,12 @@
 import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
 import { BaseMessage, SystemMessage, HumanMessage, AIMessage } from '@langchain/core/messages';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { prisma } from '../../../lib/prisma.js';
-import type { Prisma } from '@prisma/client';
+import { assertAiBudgetNotExceeded } from '../../../lib/ai/budget.js';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId, getUserId } from '../../../lib/async-context.js';
 import { getLearningProfile } from './learning.agent.js';
+import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
+import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 export interface SerializedMessage {
     role: string;
@@ -45,6 +46,21 @@ export abstract class BaseAgent {
         const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
         const agentContext = `${this.agentType.toLowerCase()}-agent`;
 
+        // AI-007 (parte 2, onda 33): mesmo gate fail-closed já em vigor para SDR/Ops/qualifyLead
+        // (guardrails.service.ts) — até esta correção, CRMAgent (que passa por este `run()`) enviava
+        // o texto livre da missão (que pode conter PII de um titular real, digitado por um operador
+        // humano ou originado do `mission` do enxame) a um provedor de IA externo sem nenhuma
+        // checagem de base legal.
+        const organizationId = getTenantId();
+        try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            const message = (error as Error).message;
+            logger.warn({ err: error, sessionId: sid, agentType: this.agentType, organizationId }, `Agente ${this.agentType} bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.`);
+            await recordAgentFailure({ sessionId: sid, agentType: this.agentType, organizationId, errorMessage: message });
+            return { error: message, sessionId: sid };
+        }
+
         const graph = new StateGraph(MessagesAnnotation)
             .addNode('process', async (state) => {
                 const model = getAiModel(this.modelName, this.temperature, agentContext);
@@ -80,25 +96,29 @@ export abstract class BaseAgent {
                 { messages: [new HumanMessage(this.buildHumanMessage(inputData))] },
                 config
             );
+
+            const messages = finalState.messages as BaseMessage[];
+            const lastMessage = messages[messages.length - 1];
+
+            // AI-003: updateMemory agora propaga erro em vez de engolir — precisa estar dentro
+            // deste try/catch (antes ficava depois, fora dele) para uma falha de persistência virar
+            // `{error}` honesto igual a uma falha do grafo, não uma exceção não tratada.
+            await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => ({
+                role: m.type,
+                content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+            })));
+
+            return {
+                output: lastMessage.content as string,
+                sessionId: sid,
+            };
         } catch (error) {
             logger.error({ err: error, sessionId: sid, agentType: this.agentType }, 'Agent run failed');
-            // Nunca fabricar uma resposta falsa: quem chama precisa saber que a IA não respondeu.
+            // Nunca fabricar uma resposta falsa: quem chama precisa saber que a IA não respondeu (ou
+            // que a resposta não pôde ser persistida).
             const message = error instanceof Error ? error.message : `Falha desconhecida no Agente ${this.agentType}.`;
             return { error: message, sessionId: sid };
         }
-
-        const messages = finalState.messages as BaseMessage[];
-        const lastMessage = messages[messages.length - 1];
-
-        await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => ({
-            role: m.type,
-            content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        })));
-
-        return {
-            output: lastMessage.content as string,
-            sessionId: sid,
-        };
     }
 
     /**
@@ -111,7 +131,27 @@ export abstract class BaseAgent {
     protected async runWithTools(inputData: string, tools: any[], sessionId?: string): Promise<AgentRunResult & Record<string, unknown>> {
         const sid = sessionId || `session-${this.agentType.toLowerCase()}-${Date.now()}`;
 
+        // AI-007 (parte 2, onda 33): mesmo gate de `run()` acima — BDR e Closer (os dois agentes que
+        // usam este caminho) enviam texto livre de missão a Groq/OpenAI via `createReactAgent`, fora
+        // do gateway central, então precisam da própria checagem (mesmo motivo pelo qual
+        // `assertAiBudgetNotExceeded` abaixo já é chamado aqui separadamente, ver AI-011).
+        const organizationId = getTenantId();
         try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            const message = (error as Error).message;
+            logger.warn({ err: error, sessionId: sid, agentType: this.agentType, organizationId }, `Agente ${this.agentType} bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.`);
+            await recordAgentFailure({ sessionId: sid, agentType: this.agentType, organizationId, errorMessage: message });
+            return { error: message, sessionId: sid };
+        }
+
+        try {
+            // AI-011: runWithTools fala direto com LangChain/Groq (buildModelWithFallback), sem
+            // passar pelo gateway.ts — precisa da mesma checagem de orçamento que `run()` já ganha
+            // de graça via `getAiModel().invoke()`, senão BDR/Closer (os únicos dois agentes que
+            // usam este caminho) ficariam de fora do circuit breaker.
+            await assertAiBudgetNotExceeded();
+
             const learnedStyle = await this.loadLearnedStyle();
             const systemPrompt = this.buildSystemPrompt(learnedStyle);
 
@@ -129,8 +169,10 @@ export abstract class BaseAgent {
                 ],
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const messages = result.messages as any[];
+            // LangGraph retorna BaseMessage[] mas o tipo inferido de createReactAgent().invoke()
+            // é genérico — o cast abaixo é explícito e consciente, não mascaramento acidental.
+            // BaseMessage é o contrato público de @langchain/core/messages para este padrão ReAct.
+            const messages = result.messages as BaseMessage[];
             const lastMessage = messages[messages.length - 1];
 
             await this.updateMemory(sid, messages.map((m): SerializedMessage => ({
@@ -153,27 +195,18 @@ export abstract class BaseAgent {
         return getLearningProfile(tenantId, userId);
     }
 
+    // AI-003 (onda 31): delega para o upsert atômico compartilhado (agentMemory.store.ts) em vez do
+    // findFirst-então-create/update duplicado que existia aqui — essa dupla operação não era atômica
+    // e tinha uma janela de corrida real sob concorrência. Não engole mais erro: quem chama
+    // (`run()`/`runWithTools()`) já tem seu próprio try/catch que converte uma falha aqui em
+    // `{error: message}` honesto, em vez de reportar sucesso com a memória nunca persistida.
     protected async updateMemory(sessionId: string, messages: SerializedMessage[]): Promise<void> {
-        try {
-            const organizationId = getTenantId();
-            const existing = await prisma.agentMemory.findFirst({ where: { sessionId, organizationId } });
-            if (existing) {
-                await prisma.agentMemory.update({
-                    where: { id: existing.id },
-                    data: { messages: messages as unknown as Prisma.InputJsonValue },
-                });
-            } else {
-                await prisma.agentMemory.create({
-                    data: {
-                        sessionId,
-                        agentType: this.agentType,
-                        organizationId,
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    },
-                });
-            }
-        } catch (err) {
-            logger.error({ err, sessionId, agentType: this.agentType }, 'Failed to update agent memory');
-        }
+        await saveAgentMemory({
+            sessionId,
+            agentType: this.agentType,
+            organizationId: getTenantId(),
+            messages,
+            status: 'Completed',
+        });
     }
 }

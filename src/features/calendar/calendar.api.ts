@@ -1,7 +1,7 @@
 import { api } from '../../lib/api';
+import type { ActivityType, ActivityStatus } from '../../lib/zod';
 
-export type ActivityType = 'Ligação' | 'WhatsApp' | 'E-mail' | 'Reunião' | 'Follow-up' | 'Visita' | 'Tarefa';
-export type ActivityStatus = 'Pendente' | 'Em andamento' | 'Concluída' | 'Cancelada';
+export type { ActivityType, ActivityStatus };
 
 export interface CalendarActivity {
     id: string;

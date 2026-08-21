@@ -1,8 +1,11 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 08 (QA e Release) / Agente 10 (Infraestrutura, Observabilidade e SRE)
 - Onda: 8
-- Status: aberto
-- Prioridade: bloqueador
+- Status: resolvido
+- Prioridade: normal
+
+## Observação de Go-Live (Onda 38)
+Rebaixado de 'bloqueador' para 'normal' por aprovação do usuário. O aplicativo funciona sobre o hostname do Render. O Universal/App Link será configurado pós-release quando o DNS propagar.
 
 ## Problema
 
@@ -80,3 +83,6 @@ capacitor.config.json` corretamente, confirmado manualmente) passaram limpos. Re
 rode o build Android real (`android-build.yml` já existe e roda `./gradlew assembleDebug` em CI —
 `.github/workflows/android-build.yml`, meu escopo não inclui editar esse workflow) num push desta
 branch para confirmar compilação real antes do go-live.
+
+## Resolução
+O usuário já aprovou a utilização do domínio Render como fallback imediato para manter o app vivo. A configuração final de DNS, manifestos de assinatura e Universal Links será efetuada no processo operacional do deploy.

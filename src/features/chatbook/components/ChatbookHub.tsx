@@ -1,114 +1,21 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Bot, Database, Globe, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
-import { api } from '../../../lib/api';
-import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../constants/brandMatrices';
-
-interface Message {
-    id: string;
-    sender: 'user' | 'bot';
-    text: string;
-    timestamp: string;
-}
+import { useAssistantChat } from '../../../hooks/useAssistantChat';
 
 export function ChatbookHub() {
     const { activeBrand, brandInfo } = useBrand();
-    const [searchMode, setSearchMode] = useState<'internal' | 'web_search'>('web_search');
-    const [inputQuery, setInputQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
+    const selectedBrand = activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr';
+    const {
+        messages, inputQuery, setInputQuery, isSearching, searchMode, setSearchMode, handleSendMessage,
+    } = useAssistantChat(activeBrand, brandInfo, selectedBrand);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const [messages, setMessages] = useState<Message[]>([{
-        id: '1',
-        sender: 'bot',
-        text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
-        timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    }]);
-
-    useEffect(() => {
-        setMessages([{
-            id: `${activeBrand}-${Date.now()}`,
-            sender: 'bot',
-            text: `Olá! Sou o copiloto comercial da ${brandInfo.name}. Uso o motor Groq e a matriz interna da marca. Também posso responder com conhecimento geral, mas não tenho navegação web nem consulta de CNPJ em tempo real.`,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        }]);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeBrand]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!inputQuery.trim() || isSearching) return;
-
-        const userText = inputQuery;
-        setInputQuery('');
-
-        setMessages((prev) => [...prev, {
-            id: Date.now().toString(),
-            sender: 'user',
-            text: userText,
-            timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-        }]);
-        setIsSearching(true);
-
-        const queryLower = userText.toLowerCase();
-        const matchedObjection = BRAND_OBJECTIONS.find((o) =>
-            o.brand === activeBrand && (
-                queryLower.includes(o.segment.toLowerCase()) ||
-                queryLower.includes(o.persona.toLowerCase()) ||
-                queryLower.includes('objeção') ||
-                queryLower.includes('caro') ||
-                queryLower.includes('concorrente')
-            )
-        );
-        const matchedQual = BRAND_QUALIFICATIONS.find((q) =>
-            q.brand === activeBrand && (
-                queryLower.includes(q.framework.toLowerCase()) ||
-                queryLower.includes('qualificar') ||
-                queryLower.includes('pergunta') ||
-                queryLower.includes(q.segment.toLowerCase())
-            )
-        );
-        const localContext = searchMode === 'internal'
-            ? [
-                matchedObjection ? `MATRIZ DE OBJEÇÃO:\n${JSON.stringify(matchedObjection, null, 2)}` : '',
-                matchedQual ? `MATRIZ DE QUALIFICAÇÃO:\n${JSON.stringify(matchedQual, null, 2)}` : '',
-            ].filter(Boolean).join('\n\n')
-            : '';
-
-        try {
-            const response = await api.post<{ result: { answer: string } }>('/api/intelligence/studio', {
-                kind: 'assistant',
-                brand: { name: brandInfo.name, description: brandInfo.description },
-                inputs: {
-                    question: userText,
-                    mode: searchMode === 'internal' ? 'internal' : 'general',
-                    localContext,
-                },
-            }, { timeoutMs: 90_000 });
-
-            setMessages((prev) => [...prev, {
-                id: (Date.now() + 1).toString(),
-                sender: 'bot',
-                text: response.result.answer,
-                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            }]);
-        } catch (error) {
-            const reason = error instanceof Error ? error.message : 'Falha inesperada';
-            setMessages((prev) => [...prev, {
-                id: (Date.now() + 1).toString(),
-                sender: 'bot',
-                text: `Não consegui consultar o motor de IA agora. ${reason}`,
-                timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            }]);
-        } finally {
-            setIsSearching(false);
-        }
-    };
 
     return (
         <div className="flex-1 overflow-y-auto bg-transparent p-4 md:p-8 flex flex-col items-center relative overflow-hidden transition-colors duration-1000">
@@ -139,15 +46,15 @@ export function ChatbookHub() {
 
                 <div className="bg-surface/80 rounded-[2rem] border border-line shadow-[0_20px_40px_rgba(0,0,0,0.03)] flex-1 flex flex-col overflow-hidden min-h-[500px]">
                     <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between text-xs">
-                        <span className="text-ink-2 font-medium">Fonte de contexto:</span>
+                        <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
                         <div className="flex items-center gap-1.5 bg-surface p-1 rounded-xl border border-line">
                             <button
-                                onClick={() => setSearchMode('web_search')}
+                                onClick={() => setSearchMode('general')}
                                 className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                                    searchMode === 'web_search' ? 'bg-indigo-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                                    searchMode === 'general' ? 'bg-indigo-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink'
                                 }`}
                             >
-                                <Globe className="w-3.5 h-3.5" /> IA geral
+                                <Globe className="w-3.5 h-3.5" /> IA conversacional
                             </button>
                             <button
                                 onClick={() => setSearchMode('internal')}
@@ -193,7 +100,7 @@ export function ChatbookHub() {
                     <form onSubmit={handleSendMessage} className="p-4 border-t border-line bg-surface flex items-center gap-2">
                         <input
                             type="text"
-                            placeholder={searchMode === 'web_search' ? 'Pergunte à IA geral (sem dados da web em tempo real)...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
+                            placeholder={searchMode === 'general' ? 'Pergunte sobre a rota ou registro aberto...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
                             value={inputQuery}
                             onChange={(e) => setInputQuery(e.target.value)}
                             className="flex-1 px-4 py-3 rounded-xl bg-surface-2 text-ink text-sm border border-line focus:outline-none focus:ring-1 focus:ring-brand"

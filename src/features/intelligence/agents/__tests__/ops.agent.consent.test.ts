@@ -21,15 +21,33 @@ vi.mock('../fallback.util.js', async () => {
     };
 });
 
+// AI-003 (onda 31): agentMemory.store.ts (usado por OpsAgent.updateMemory/recordAgentFailure) faz
+// upsert atômico quando organizationId está presente — os dois casos abaixo sempre rodam dentro de
+// requestContext.run({tenantId: 'org-sem-consentimento'}), então sempre passam por upsert, nunca
+// pelo fallback findFirst+create/update (só usado quando organizationId é null).
 vi.mock('../../../../lib/prisma.js', () => ({
     prisma: {
         agentMemory: {
+            upsert: vi.fn().mockResolvedValue({}),
             findFirst: vi.fn().mockResolvedValue(null),
             create: vi.fn().mockResolvedValue({}),
             update: vi.fn().mockResolvedValue({}),
         },
     },
 }));
+
+// AI-002 (onda 32): ops.agent.ts agora compila o grafo com o checkpointer real de Postgres
+// (src/lib/ai/checkpointer.ts) — o segundo caso abaixo ("não bloqueia sem leadId") chega a invocar
+// o grafo de verdade, e sem este mock tentaria abrir uma conexão Postgres real neste teste
+// unitário. Um MemorySaver real (mesma classe do LangGraph, satisfaz a mesma interface de
+// checkpointer) mantém o comportamento observável idêntico ao de antes desta correção.
+vi.mock('../../../../lib/ai/checkpointer.js', async () => {
+    const { MemorySaver } = await import('@langchain/langgraph');
+    return {
+        checkpointer: new MemorySaver(),
+        ensureCheckpointerReady: vi.fn().mockResolvedValue(undefined),
+    };
+});
 
 const { requestContext } = await import('../../../../lib/async-context');
 const { OpsAgent } = await import('../ops.agent');

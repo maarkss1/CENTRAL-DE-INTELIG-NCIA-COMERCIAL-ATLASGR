@@ -9,6 +9,7 @@ import {
     accountParamsSchema,
     decisionMakerQuerySchema,
     evidenceQuerySchema,
+    recommendationParamsSchema,
     recommendationQuerySchema,
     relationshipQuerySchema,
     signalQuerySchema,
@@ -17,6 +18,7 @@ import {
     AccountIntelligenceService,
     type AccountIntelligenceServiceContract,
 } from './accountIntelligence.service.js';
+import { actionExecutorService } from './actionExecutor.service.js';
 
 export interface AccountIntelligenceRouterDependencies {
     serviceFactory?: (req: AuthRequest) => AccountIntelligenceServiceContract;
@@ -103,6 +105,16 @@ export function createAccountIntelligenceRouter(
         const data = await serviceFactory(req as AuthRequest).listEvidence(id, query);
         res.json({ success: true, data });
     }));
+
+    router.post(
+        '/accounts/:id/recommendations/:recommendationId/execute',
+        requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']),
+        asyncHandler(async (req, res) => {
+            const { id, recommendationId } = parse(recommendationParamsSchema, req.params);
+            const data = await actionExecutorService.executeAction(recommendationId, id);
+            res.json({ success: true, data });
+        }),
+    );
 
     return router;
 }

@@ -47,17 +47,19 @@ export function Settings() {
                         >
                             <User size={16} /> Perfil e Aparência
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('users')}
-                            className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
-                                activeTab === 'users'
-                                    ? 'border-brand text-brand'
-                                    : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
-                            }`}
-                        >
-                            <Users size={16} /> Usuários
-                        </button>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('users')}
+                                className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
+                                    activeTab === 'users'
+                                        ? 'border-brand text-brand'
+                                        : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                                }`}
+                            >
+                                <Users size={16} /> Usuários
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => setActiveTab('integrations')}
@@ -176,7 +178,7 @@ export function Settings() {
                     </div>
                 )}
                 
-                {activeTab === 'users' && (
+                {activeTab === 'users' && isAdmin && (
                     <div className="relative h-full flex flex-col">
                         <Team />
                     </div>

@@ -1,7 +1,7 @@
 - De: Agente 12 (Voz e Telefonia)
 - Para: Agente 17 (Cadência e Ciclo de Receita)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -58,3 +58,6 @@ o opt-out de voz DENTRO do mesmo evento (não dispara "tentamos contato" se a me
 em opt-out) e o `optOutWhatsApp` já existente (não dispara se o lead já tinha pedido para sair do
 WhatsApp antes). O que falta é a unificação cross-canal em si, que é justamente o escopo desta
 coordenação.
+
+## Resolução
+O model \OptOutRecord\ já foi criado no banco pelo Agente 01A na Onda 10 com a abstração unificada. A lógica que fará as pontes entre os domínios (WhatsApp/Voz/E-mail) para unificar o Opt-out deve ser implementada no escopo do Agente 17.

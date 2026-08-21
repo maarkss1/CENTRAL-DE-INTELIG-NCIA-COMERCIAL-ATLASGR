@@ -1,7 +1,7 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 02 (Produto e UX)
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -73,3 +73,6 @@ tratamento de download. Documentado aqui em vez de implementado às pressas com 
 JS↔nativo improvisada, que eu não teria como validar num dispositivo real nesta sessão (sem SDK
 Android/Xcode disponíveis) — risco de "parecer que funciona" sem funcionar de fato, o que o prompt
 do Agente 09 proíbe explicitamente.
+
+## Resolução
+(Coordenador): O comportamento está documentado e avaliado. Devido à regra de 'Freeze de escopo' em vigor na Sprint 00, a inclusão de três plugins novos no app (Filesystem e Share) se enquadra como Feature Nova/Paridade e não será feita no release RC1. Fica marcado como resolvido (postponed para Sprint pós-13).

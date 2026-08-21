@@ -180,3 +180,108 @@ describe('GET /api/cadence/sequences (Postgres real)', () => {
         expect(res.body.data.map((s: { name: string }) => s.name).sort()).toEqual(['Seq A', 'Seq B']);
     });
 });
+
+/**
+ * CYC-009 (onda 29) — as rotas em si são novas, mas `pauseCadenceRun`/`resumeCadenceRun`/
+ * `stopCadenceManually` (domínio) já eram testados unitariamente (`src/features/cadence/
+ * __tests__/cadence.test.ts`) desde uma sprint anterior. O que faltava provar contra Postgres real
+ * era a rota: carrega o run certo (RLS por organização), aplica a transição e persiste.
+ */
+async function startRun(): Promise<{ id: string }> {
+    const lead = await seedLead(ORG);
+    const seqRes = await request(buildApp()).post('/api/cadence/sequences').send({ name: 'Sequência de teste', touches: VALID_TOUCHES });
+    const runRes = await request(buildApp()).post('/api/cadence/runs').send({ leadId: lead.id, sequenceId: seqRes.body.data.id });
+    expect(runRes.status).toBe(201);
+    return { id: runRes.body.data.id };
+}
+
+describe('POST /api/cadence/runs/:id/pause|resume|stop (Postgres real)', () => {
+    it('pausa um run ativo — status muda para paused e pausedAt é gravado', async () => {
+        const run = await startRun();
+
+        const res = await request(buildApp()).post(`/api/cadence/runs/${run.id}/pause`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.status).toBe('paused');
+        expect(res.body.data.pausedAt).not.toBeNull();
+
+        const row = await asOrg(ORG, () => prisma.cadenceRun.findUniqueOrThrow({ where: { id: run.id } }));
+        expect(row.status).toBe('Paused');
+    });
+
+    it('retoma um run pausado — status volta para active e pausedAt é limpo', async () => {
+        const run = await startRun();
+        await request(buildApp()).post(`/api/cadence/runs/${run.id}/pause`);
+
+        const res = await request(buildApp()).post(`/api/cadence/runs/${run.id}/resume`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.status).toBe('active');
+        expect(res.body.data.pausedAt).toBeNull();
+
+        const row = await asOrg(ORG, () => prisma.cadenceRun.findUniqueOrThrow({ where: { id: run.id } }));
+        expect(row.status).toBe('Active');
+    });
+
+    it('para um run ativo — status muda para stopped com motivo manual-stop, nunca retomável', async () => {
+        const run = await startRun();
+
+        const res = await request(buildApp()).post(`/api/cadence/runs/${run.id}/stop`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.status).toBe('stopped');
+        expect(res.body.data.stopReason).toBe('manual-stop');
+
+        const resumeAttempt = await request(buildApp()).post(`/api/cadence/runs/${run.id}/resume`);
+        expect(resumeAttempt.body.data.status).toBe('stopped'); // idempotente — resumeCadenceRun só sai de paused
+
+        const row = await asOrg(ORG, () => prisma.cadenceRun.findUniqueOrThrow({ where: { id: run.id } }));
+        expect(row.status).toBe('Stopped');
+        expect(row.stopReason).toBe('ManualStop');
+    });
+
+    it('resume num run que não está pausado é idempotente — devolve o run inalterado, sem erro', async () => {
+        const run = await startRun();
+
+        const res = await request(buildApp()).post(`/api/cadence/runs/${run.id}/resume`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data.status).toBe('active');
+    });
+
+    it('404 quando o run não existe nesta organização', async () => {
+        const res = await request(buildApp()).post('/api/cadence/runs/run-inexistente/pause');
+        expect(res.status).toBe(404);
+    });
+
+    it('RLS: não é possível pausar um run de outra organização', async () => {
+        const otherOrg = `${ORG}-other`;
+        await withRlsBypass(() => prisma.organization.create({ data: { id: otherOrg, name: 'Outra org' } }));
+        try {
+            const leadOther = await seedLead(otherOrg);
+            const seqOtherRes = await request(buildApp('GESTOR', otherOrg)).post('/api/cadence/sequences').send({ name: 'Sequência outra org', touches: VALID_TOUCHES });
+            const runOtherRes = await request(buildApp('GESTOR', otherOrg)).post('/api/cadence/runs').send({ leadId: leadOther.id, sequenceId: seqOtherRes.body.data.id });
+            expect(runOtherRes.status).toBe(201);
+
+            const res = await request(buildApp()).post(`/api/cadence/runs/${runOtherRes.body.data.id}/pause`);
+            expect(res.status).toBe(404);
+        } finally {
+            await withRlsBypass(async () => {
+                await prisma.cadenceTouchAttempt.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.cadenceRun.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.cadenceSequence.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.lead.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.contact.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.company.deleteMany({ where: { organizationId: otherOrg } });
+                await prisma.organization.deleteMany({ where: { id: otherOrg } });
+            });
+        }
+    });
+
+    it('VISUALIZADOR não pode pausar/retomar/parar (requireRole)', async () => {
+        const run = await startRun();
+
+        const pauseRes = await request(buildApp('VISUALIZADOR')).post(`/api/cadence/runs/${run.id}/pause`);
+        expect(pauseRes.status).toBe(403);
+    });
+});

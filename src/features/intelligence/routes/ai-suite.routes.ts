@@ -1,7 +1,16 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { aiSuite } from '../services/CentralAISuiteService.js';
+import { searchService } from '../../knowledge/search.service.js';
+import { validateRequest } from '../../../shared/middlewares/validateRequest.js';
+import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 
 export const aiSuiteRouter = Router();
+
+const knowledgeCopilotSchema = z.object({
+    question: z.string().trim().min(3, 'Descreva a dúvida técnica com pelo menos 3 caracteres').max(2000),
+    userRole: z.string().trim().max(100).optional(),
+});
 
 // Endpoint de Inventário dos 20 recursos de IA
 aiSuiteRouter.get('/inventory', (_req: Request, res: Response) => {
@@ -101,9 +110,17 @@ aiSuiteRouter.post('/lead-router/match', async (req: Request, res: Response, nex
 });
 
 // #15 Knowledge Copilot
-aiSuiteRouter.post('/knowledge/copilot', async (req: Request, res: Response, next: NextFunction) => {
+// AI-010: retrieval real acontece aqui, no servidor, contra a base de conhecimento do tenant
+// autenticado — o cliente não fornece mais os trechos (`retrievedDocumentSnippets`), só a
+// pergunta. Sem isso, um cliente podia enviar qualquer texto como "documento" e a IA citava como
+// se fosse uma fonte real da base de conhecimento.
+aiSuiteRouter.post('/knowledge/copilot', validateRequest(knowledgeCopilotSchema), async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const result = await aiSuite.knowledgeCopilot.answerTechnicalQuestion(req.body);
+        const { organizationId } = (req as AuthRequest).user;
+        const { question, userRole } = req.body as z.infer<typeof knowledgeCopilotSchema>;
+
+        const { hits } = await searchService.hybridSearch(organizationId, question);
+        const result = await aiSuite.knowledgeCopilot.answerTechnicalQuestion({ question, userRole, hits });
         res.json({ success: true, data: result });
     } catch (err) {
         next(err);

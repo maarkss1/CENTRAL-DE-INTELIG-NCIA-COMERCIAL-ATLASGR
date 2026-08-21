@@ -1,7 +1,7 @@
 - De: Agente 12 (Voz e Telefonia)
 - Para: Agente 07 (IA e Automações)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto (risco real de discagem fora de hora/repetida, mas exige decisão de produto —
   não é bloqueador binário como as travas de env, que continuam íntegras no caminho da campanha)
 
@@ -99,3 +99,6 @@ EXECUÇÃO (não só no agendamento) e a organização não está mais autorizad
 `'outside-window'`/`'not-configured'` hoje; um `'not-authorized'` cai no `null` (sem rótulo
 especial, mas não quebra nada). Um `else if (haltedBy === 'not-authorized') return 'organização não
 autorizada';` fecha a UI — não editei porque o arquivo é seu.
+
+## Resolução
+Adicionada trava isWithinCallWindow(new Date(), callWindowFromEnv()) no motor de automação e label 'not-authorized' no ColdCallStatusCard.tsx. oicebox.service.ts foi mantido para fins de compatibilidade/retrocompatibilidade.

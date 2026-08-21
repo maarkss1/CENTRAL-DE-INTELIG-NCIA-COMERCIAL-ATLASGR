@@ -1,4 +1,5 @@
 import { api } from '../../lib/api';
+import { brazilMonthKey } from '../../shared/time/brazilCalendar';
 
 export type ForecastTier = 'Commit' | 'BestCase' | 'Pipeline' | 'Upside';
 
@@ -258,12 +259,7 @@ export const commercialIntelligenceApi = {
     trends: (filter: CommercialFilter) => api.get<HistoricalTrendsReport>(`${BASE}/trends?${qs(filter)}`),
     getGoal: (month: string) => api.get<CommercialGoalDTO | null>(`${BASE}/goals?month=${month}`),
     setGoal: (period: string, amount: number, currency = 'BRL') => api.put<CommercialGoalDTO>(`${BASE}/goals`, { period, amount, currency }),
-    // Ação de escrita no Bitrix24 — vive na rota do módulo de integração (não duplica a lógica de
-    // sincronização aqui), mas fica exposta neste client porque quem a dispara é a UI do Comercial
-    // Inteligente (drill-down de negócio em risco).
     notifyBitrix: (leadId: string, comment: string) => api.post<{ entityType: 'lead' | 'deal'; bitrixRecordId: string }>(`/api/bitrix/leads/${leadId}/comment`, { comment }),
-    // Chamadas de IA (custo/latência reais) — POST de propósito, nunca disparadas automaticamente
-    // ao carregar a tela, sempre por ação explícita da pessoa.
     aiExecutiveSummary: (filter: CommercialFilter) => api.post<ExecutiveSummaryResult>(`${BASE}/ai/executive-summary`, filter),
     aiBitrixNote: (leadId: string) => api.post<BitrixNoteDraftResult>(`${BASE}/ai/bitrix-note`, { leadId }),
     aiMentorPlaybook: (filter: CommercialFilter) => api.post<MentorPlaybookResult>(`${BASE}/ai/mentor-playbook`, filter),
@@ -314,44 +310,13 @@ export function formatMultiple(value: number | null | undefined): string {
     return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}x`;
 }
 
-/**
- * Previsor — Faixa de Cenário. Espelha `application/predictiveForecast.ts` (backend), não importa
- * dele: mesmo padrão já usado neste arquivo de duplicar tipos/lógica pura em vez de cruzar a
- * fronteira frontend/backend (`application/`/`domain/` nunca são importados por um componente).
- * Nenhum cálculo novo — só recompõe campos que `ExecutiveOverview` já traz calculados.
- */
-export function buildForecastRange(overview: ExecutiveOverview): ForecastRange {
-    const goalAmount = overview.goal?.amount ?? null;
-    const currency = overview.goal?.currency ?? 'BRL';
-    const gap = (amount: number) => (goalAmount == null ? null : Math.max(0, Math.round((goalAmount - amount) * 100) / 100));
-    const conservativeAmount = overview.closedAmount + overview.commitAmount;
-    // Fechado + Pipeline Total (todo negócio aberto, valor cheio) — precisa ser sempre >= Provável.
-    // Ver `application/predictiveForecast.ts` para o bug real que motivou esta fórmula (Otimista
-    // ficando MENOR que Provável ao somar só os tiers Commit/BestCase/Upside).
-    const optimisticAmount = overview.closedAmount + overview.pipelineTotal;
-    return {
-        conservative: { label: 'Conservador', amount: conservativeAmount, gapToGoal: gap(conservativeAmount) },
-        likely: { label: 'Provável', amount: overview.forecastAmount, gapToGoal: gap(overview.forecastAmount) },
-        optimistic: { label: 'Otimista', amount: optimisticAmount, gapToGoal: gap(optimisticAmount) },
-        currency,
-    };
-}
-
-export const TREND_MOMENTUM_THRESHOLD_PP = 3;
-
-export function computeTrendMomentum(trends: HistoricalTrendsReport): TrendMomentum | null {
-    const withSample = trends.points.filter((p) => p.closedSampleSize > 0 && p.winRate != null);
-    if (withSample.length < 2) return null;
-    const latest = withSample[withSample.length - 1];
-    const previous = withSample.slice(0, -1);
-    const previousAverageWinRate = previous.reduce((sum, p) => sum + (p.winRate as number), 0) / previous.length;
-    const latestWinRate = latest.winRate as number;
-    const delta = Math.round((latestWinRate - previousAverageWinRate) * 100) / 100;
-    const direction: TrendDirection = delta >= TREND_MOMENTUM_THRESHOLD_PP ? 'melhorando' : delta <= -TREND_MOMENTUM_THRESHOLD_PP ? 'piorando' : 'estavel';
-    return { direction, latestWinRate, previousAverageWinRate: Math.round(previousAverageWinRate * 100) / 100, deltaPercentagePoints: delta };
-}
+/** DATA-007: implementação única e pura, compartilhada por backend e frontend. */
+export {
+    buildForecastRange,
+    computeTrendMomentum,
+    TREND_MOMENTUM_THRESHOLD_PP,
+} from './application/predictiveForecast';
 
 export function currentMonth(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return brazilMonthKey(new Date());
 }

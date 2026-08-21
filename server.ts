@@ -34,6 +34,8 @@ import { contactRoutes } from './src/features/contacts/routes/contact.routes.js'
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { crm360PublicRoutes } from './src/features/crm360/routes/crm360Public.routes.js';
+import { emailReplyWebhookRoutes } from './src/features/integrations/email/emailReply.webhook.js';
+import { signatureStatusWebhookRoutes } from './src/features/integrations/signature/signatureStatus.webhook.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
 import { mesaTratamentoRoutes } from './src/features/mesa-tratamento/routes/mesaTratamento.routes.js';
 import { prospectingRoutes } from './src/features/prospecting/routes/prospecting.routes.js';
@@ -57,6 +59,7 @@ import { automationRoutes } from './src/features/automations/routes/automation.r
 import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { cadenceRoutes } from './src/features/cadence/cadence.routes.js';
 import { marketIntelligenceRoutes } from './src/features/market-intelligence/server/marketIntelligence.routes.js';
+import { accountIntelligenceRoutes } from './src/features/market-intelligence/server/accountIntelligence.routes.js';
 import { sseService } from './src/features/notifications/sse.service.js';
 import { errorHandler } from './src/shared/middlewares/errorHandler.js';
 import { logger } from './src/lib/logger.js';
@@ -66,6 +69,7 @@ import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
 import { createSearchWorker } from './src/lib/queue/search.queue.js';
 import { initMeiliIndexes } from './src/lib/search/index.js';
 import { observabilityMiddleware } from './src/shared/middlewares/observability.js';
+import { httpMetricsMiddleware } from './src/shared/middlewares/httpMetrics.js';
 import client from 'prom-client';
 import { setupDI } from './src/shared/di/setup.js';
 import { ExpressAdapter } from '@bull-board/express';
@@ -173,6 +177,16 @@ async function startServer() {
     // Compressão gzip/brotli — reduz tamanho de resposta até 70%
     app.use(compression());
 
+    // Métrica http_server_duration_milliseconds (prom-client), consumida pelo alerta
+    // HighErrorRate5xx em infrastructure/observability/alert.rules.yml. Ver
+    // .agents/handoffs/onda-4/10-para-01-metricas-http-otel.md — a auto-instrumentação OTel não
+    // emite esta métrica com a versão instalada de instrumentation-http, então ela é medida aqui
+    // manualmente. Montada antes de qualquer rota (inclusive webhooks) para cobrir toda requisição,
+    // só quando EXPOSE_METRICS está ligado (mesmo opt-in do endpoint /metrics abaixo).
+    if (env.EXPOSE_METRICS) {
+        app.use(httpMetricsMiddleware);
+    }
+
     // Rate Limiting — API_RATE_LIMIT_MAX req/15min por IP nas rotas /api
     const apiLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
@@ -240,7 +254,7 @@ async function startServer() {
         store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
-        message: { success: false, error: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
+        message: { success: false, message: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
     });
     app.use('/api/auth', authLimiter);
 
@@ -272,6 +286,11 @@ async function startServer() {
     // lead cross-tenant sem RLS, nenhuma idempotência e req.body undefined (montado antes do
     // express.json() global sem parser próprio) — ver o comentário no topo daquele arquivo.
     app.use('/api/webhooks/voice-result', voiceResultWebhookRoutes);
+    // Webhook de e-mail de ENTRADA (CYC-003, onda 26) — stub de transporte: nenhum provedor real de
+    // inbound-parse plugado ainda, ver comentário no topo de emailReply.webhook.ts. Mesmo padrão de
+    // montagem pré-express.json() dos webhooks acima (assinatura HMAC sobre o corpo cru).
+    app.use('/api/webhooks/email', emailReplyWebhookRoutes);
+    app.use('/api/webhooks/signature', signatureStatusWebhookRoutes);
     // Webhook de ENTRADA do Bitrix24 ("исходящий вебхук"): autenticidade provada por um segredo
     // por conexão (auth.application_token) comparado dentro da própria rota, não por header HMAC
     // — é o modelo de autenticação real que o Bitrix24 usa pra esse tipo de webhook (ver
@@ -446,6 +465,9 @@ async function startServer() {
     app.use('/api/agent', requireTenant, agentRoutes);
     app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
     app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
+    // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
+    // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
+    app.use('/api/market-intelligence', authenticateToken, requireTenant, accountIntelligenceRoutes);
 
     // Qualquer /api/* que não bateu em nenhuma rota acima deve 404 aqui, e nunca
     // cair no fallback do Vite/SPA abaixo: em dev, `vite.middlewares` reprocessa

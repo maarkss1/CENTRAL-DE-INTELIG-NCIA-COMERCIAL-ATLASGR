@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAccountIntelligence,
   normalizeIcpReasons,
-} from '../../../src/features/market-intelligence/server/accountIntelligence.service';
+} from '../../../src/features/market-intelligence/server/catalogAccountIntelligence.service';
 
 function companyFixture(overrides: Record<string, unknown> = {}) {
   return {

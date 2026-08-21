@@ -33,15 +33,16 @@ const envSchema = z.object({
   ALLOW_DEV_AUTH_BYPASS: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(600),
   AI_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
-  // Orçamento mensal de IA (USD), só para observabilidade (métrica `ai_usage_budget_usd_total` em
-  // src/lib/ai/metrics.ts, consumida pelo alerta AIBudgetOverrun em
-  // infrastructure/observability/alert.rules.yml). Não existia nenhum conceito de orçamento no
-  // código antes desta variável (ver handoff .agents/handoffs/onda-4/10-para-07-metricas-fila-
-  // orcamento-ia.md) — nenhum bloqueio de chamada de IA depende dela hoje, é só o valor de
-  // referência que o painel/alerta compara contra o custo estimado acumulado (AILog/
-  // ai_usage_cost_usd_total). Opcional e sem default: sem configurar, a métrica de orçamento
-  // simplesmente não é publicada em /metrics (evita um "0" fabricado que faria a divisão
-  // custo/orçamento do alerta virar +Inf a qualquer custo real, um falso positivo).
+  // Orçamento mensal de IA (USD). Alimenta duas coisas: a métrica passiva `ai_usage_budget_usd_total`
+  // (src/lib/ai/metrics.ts, consumida pelo alerta AIBudgetOverrun em
+  // infrastructure/observability/alert.rules.yml) E, desde AI-011 (onda 30), o circuit breaker real
+  // de orçamento (src/lib/ai/budget.ts): ao atingir este teto (soma de AILog.cost do mês corrente,
+  // em todas as organizações), toda nova chamada de IA passa a lançar `AiBudgetExceededError` em vez
+  // de contatar um provedor — decisão de produto (bloquear, não degradar nem só notificar) tomada
+  // explicitamente nesta rodada. Opcional e sem default: sem configurar, nem a métrica é publicada
+  // em /metrics (evita um "0" fabricado que faria a divisão custo/orçamento do alerta virar +Inf a
+  // qualquer custo real) nem o circuit breaker de orçamento bloqueia nada — mesmo comportamento
+  // "sem teto" de antes.
   AI_MONTHLY_BUDGET_USD: z.coerce.number().positive().optional(),
   // 20/15min por IP é apertado o bastante pra conter força bruta/credential stuffing, mas também
   // apertado demais pra uma suíte E2E que cria uma conta real por teste sequencialmente a partir
@@ -141,6 +142,19 @@ const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   /** Endereço "De" usado no envio — cai para SMTP_USER quando ausente. */
   SMTP_FROM: z.string().optional(),
+
+  // Segredo do webhook /api/webhooks/email/inbound (CYC-003, onda 26) — transporte de e-mail de
+  // ENTRADA, hoje um stub (nenhum provedor real de inbound-parse plugado, ver
+  // emailReply.webhook.ts). Mesmo esquema fail-closed de BIRTH_VOICES_WEBHOOK_SECRET: sem ele o
+  // webhook responde 503, nunca cai para um valor default versionado.
+  EMAIL_INBOUND_WEBHOOK_SECRET: z.string().optional(),
+
+  // Segredo do webhook /api/webhooks/signature/webhook (CYC-006, onda 28) — atualização de status
+  // de assinatura eletrônica vinda do provedor. O ENVIO da solicitação é um stub (nenhuma
+  // credencial de integrador gov.br configurada, ver GovBrSignatureProviderPort.ts), mas este
+  // webhook de ENTRADA já é real: fail-closed sem o segredo, mesmo esquema de
+  // EMAIL_INBOUND_WEBHOOK_SECRET.
+  SIGNATURE_INBOUND_WEBHOOK_SECRET: z.string().optional(),
 
   // ── Retenção de histórico de extrações Bitrix (BitrixExtractionRun) ─────
   // Onda 6, Agente 01A: o schema não precisa esperar a decisão humana de prazo pra existir, só o

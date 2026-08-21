@@ -10,6 +10,6 @@ echo.
 echo NAO FECHE esta janela enquanto quiser o servidor ligado.
 echo Para desligar, feche esta janela ou use "Parar-Servidor-AtlasGR.bat".
 echo.
-cd /d "C:\Users\Mah\Documents\GitHub\PROSPECTOR-ATLASGR"
+cd /d "%~dp0"
 call npm run dev
 pause

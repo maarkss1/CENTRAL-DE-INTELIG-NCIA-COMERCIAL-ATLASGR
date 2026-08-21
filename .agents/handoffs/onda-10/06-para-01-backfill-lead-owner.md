@@ -1,8 +1,11 @@
 - De: Agente 06 (Integrações e Bitrix)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 10
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
+
+## Resolução
+Script `scripts/backfill-lead-owner.ts` adicionado com a lógica exata requisitada, cobrindo validação de ids, verificação dry-run por default e log auditável (AuditLog). Pode ser rodado com `npx tsx scripts/backfill-lead-owner.ts --apply` em produção/homologação quando necessário.
 
 ## Problema
 

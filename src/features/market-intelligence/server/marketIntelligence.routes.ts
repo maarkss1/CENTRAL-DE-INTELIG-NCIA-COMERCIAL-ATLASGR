@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import { actionExecutorService } from './actionExecutor.service.js';
-import { accountIntelligenceService } from './accountIntelligence.service.js';
 import { marketIntelligenceService } from './marketIntelligence.service.js';
 import {
     companyCnpjParamsSchema,
@@ -43,62 +41,11 @@ router.get('/sources', async (_req, res, next) => {
     } catch (error) { next(error); }
 });
 
-router.get('/accounts/:id/intelligence', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getIntelligence(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.post('/accounts/:id/refresh', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.refreshIntelligence(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.get('/accounts/:id/signals', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getSignals(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.get('/accounts/:id/decision-makers', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getDecisionMakers(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.get('/accounts/:id/relationships', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getRelationships(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.get('/accounts/:id/recommendations', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getRecommendations(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.get('/accounts/:id/evidence', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await accountIntelligenceService.getEvidence(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-router.post('/accounts/recommendations/:id/execute', async (req, res, next) => {
-    try {
-        res.json({ success: true, data: await actionExecutorService.executeAction(req.params.id) });
-    } catch (error) { next(error); }
-});
-
-
-router.post('/accounts/:id/chat', async (req, res, next) => {
-    try {
-        const { message } = req.body;
-        if (!message) throw new Error('Message is required');
-        res.json({ success: true, data: await accountIntelligenceService.chatWithAccount(req.params.id, message) });
-    } catch (error) { next(error); }
-});
+// As rotas /accounts/... (inteligência de conta) vivem em accountIntelligence.routes.ts, montado
+// separadamente em server.ts — ver hotfix de reconciliação do schema duplicado de Account
+// Intelligence (dois PRs concorrentes deste módulo tinham sido mesclados de forma inconsistente:
+// este router chegou a ter uma segunda cópia dessas rotas apontando para um schema Prisma nunca
+// migrado; removida aqui em favor da implementação real, com organizationId/RLS e migration
+// aplicada).
 
 export const marketIntelligenceRoutes = router;
-

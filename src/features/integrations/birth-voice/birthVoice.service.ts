@@ -55,6 +55,15 @@ interface LeadCompanyish {
     phones?: string[] | null;
 }
 
+import { z } from 'zod';
+
+const birthVoiceResponseSchema = z.object({
+    call_id: z.string().optional(),
+    sessionId: z.string().optional(),
+    callSid: z.string().optional(),
+    status: z.string().optional()
+}).catchall(z.unknown());
+
 /**
  * Pede ao Birth Voices Hub que ligue para o decisor deste lead.
  *
@@ -154,11 +163,18 @@ export async function callLead(organizationId: string, leadId: string, agentType
         throw new Error(`Provedor de Voz recusou a chamada (HTTP ${response.status}): ${detail.slice(0, 200)}`);
     }
 
-    const rawData = (await response.json()) as any;
+    const rawData = await response.json();
+    const parsed = birthVoiceResponseSchema.safeParse(rawData);
+    if (!parsed.success) {
+        logger.error({ leadId, error: parsed.error, rawData }, 'Resposta inesperada do provedor de Voz');
+        throw new Error('Provedor de Voz retornou payload inválido');
+    }
+    
+    const data = parsed.data;
     const result: OutboundCallResult = {
-        sessionId: rawData.call_id || rawData.sessionId || `sess-${lead.id}`,
-        callSid: rawData.call_id || rawData.callSid || `CA_${lead.id}`,
-        status: rawData.status || 'queued',
+        sessionId: data.call_id || data.sessionId || `sess-${lead.id}`,
+        callSid: data.call_id || data.callSid || `CA_${lead.id}`,
+        status: data.status || 'queued',
     };
 
     logger.info({ leadId, sessionId: result.sessionId, callSid: result.callSid }, 'Ligação de SDR enfileirada com sucesso');

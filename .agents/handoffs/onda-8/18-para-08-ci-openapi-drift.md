@@ -1,8 +1,11 @@
 - De: 18
 - Para: 08
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
+
+## Resolução
+Script `verify:openapi-drift` adicionado ao `package.json` e ao pipeline de CI (`.github/workflows/ci.yml`) após o Type Check.
 
 ## Problema
 `docs/openapi.yaml` não tinha nenhuma verificação automatizada que comparasse o documento com as

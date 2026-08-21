@@ -4,21 +4,52 @@ Sprint 07 / Onda 20. Auditoria real (5 investigações paralelas independentes, 
 código-fonte diretamente) do estado atual de cada entrega do roadmap
 `SPRINT-07-IA-ENXAME-EVALUATION.md` contra o que existe implementado e conectado em produção.
 
+**Onda 30 (rodada "resolver todas as pendências")**: AI-011 (budget/circuit breaker) construído —
+ver seção "AI-011 — circuit breaker de orçamento mensal (onda 30)" abaixo.
+
+**Onda 31 (mesma rodada)**: AI-003 (persistência honesta de AgentMemory) construído — ver seção
+"AI-003 — persistência honesta de AgentMemory (onda 31)" abaixo.
+
+**Onda 32 (mesma rodada)**: AI-002 (checkpointer persistente do LangGraph) construído — ver seção
+"AI-002 — checkpointer real de LangGraph (onda 32)" abaixo.
+
+**Onda 33 (mesma rodada)**: AI-007 fechado por completo (parte 2 — gate de consentimento LGPD no
+enxame BDR/Closer/CRM) — ver seção "AI-007 (parte 2) — gate de consentimento no enxame (onda 33)"
+abaixo.
+
+**Onda 34 (mesma rodada)**: AI-010 (RAG com proveniência real) construído — ver seção "AI-010 —
+citação real e rastreável no Copiloto Técnico (onda 34)" abaixo.
+
+**Onda 35 (mesma rodada)**: AI-006 (métricas de avaliação reais) construído — ver seção "AI-006 —
+harness real das 9 dimensões de avaliação (onda 35)" abaixo.
+
+**Onda 36 (mesma rodada, priorizada explicitamente pelo usuário depois de AI-006, não antes)**:
+AI-005 (Golden Dataset real e versionado) construído — ver seção "AI-005 — Golden Dataset real e
+versionado (onda 36)" abaixo. O dataset em si existe e é validado (24 casos reais, 8 categorias),
+mas o harness de SCORING automático (LLM-judge, threshold, gate de CI que bloqueia regressão) ainda
+não foi construído — decisão de metodologia de avaliação é de produto, fora do escopo desta
+correção. Por isso as 3 dimensões de AI-006 que dependiam de AI-005 (factualidade, aderência ao
+playbook, hallucination) continuam explicitamente indisponíveis mesmo após esta onda.
+
+As tabelas de "Resumo por item" e "Achados documentados como pendência" foram atualizadas para
+refletir as sete correções acima; as demais seções deste documento (AI-001, 004, 008-009) continuam
+descrevendo o estado da onda 20 original.
+
 ## Resumo por item
 
 | Item | Corrigido nesta sprint | Estado real |
 |---|---|---|
 | AI-001 Nomes canônicos dos SDRs | Sim | `sdr-agent.ts`→`sdrOutboundDraft.agent.ts`, `sdr.agent.ts`→`sdrQualification.agent.ts` |
-| AI-002 Checkpointer persistente | Parcial | `thread_id` agora qualificado por tenant (colisão cross-tenant fechada); checkpointer continua em RAM (`MemorySaver`), sem recovery de restart |
-| AI-003 Persistência de memória honesta | Não | 4/5 caminhos de escrita em `AgentMemory` engolem erro e devolvem sucesso; sem unique constraint; polling trata "ausente" como "pendente para sempre" |
+| AI-002 Checkpointer persistente | Sim (onda 32) | `PostgresSaver` real (`@langchain/langgraph-checkpoint-postgres`) substitui `MemorySaver` nos 3 grafos com checkpointer; estado sobrevive a restart/deploy |
+| AI-003 Persistência de memória honesta | Sim (onda 31) | Upsert atômico único (`sessionId`, `agentType`, `organizationId`) com unique constraint real; nenhum caminho de escrita engole mais erro; `GET /agents/sdr/status/:sessionId` distingue pending/completed/failed |
 | AI-004 Structured output obrigatório | Sim | Fallback textual (nunca validado por Zod) não pode mais autoExecute |
-| AI-005 Golden Dataset | Não | Não existe; `verify:ai` é smoke test de conectividade, não evaluation harness |
-| AI-006 Métricas de avaliação | Não | Só 3/9 dimensões capturadas (cost, latency, human override); as demais 6 não têm nada |
-| AI-007 Base legal/consentimento | Parcial | Gate adicionado ao fluxo padrão de qualificação (`AIService.qualifyLead`, maior volume); BDR/Closer/CRM do enxame continuam sem gate |
+| AI-005 Golden Dataset | Parcial (onda 36) | 24 casos reais/sanitizados/versionados nas 8 categorias (`golden-dataset.json`, validado por Zod), inclusive contra os schemas Zod REAIS das 9 ferramentas do enxame para `tool_use`; harness de scoring automático (LLM-judge/threshold/gate de CI) ainda não construído |
+| AI-006 Métricas de avaliação | Parcial (6/9 onda 35) | cost/latency/humanOverride (já existiam) + fallbackRate/toolCorrectness/piiLeakageRate (novos, dados reais de produção — 2 são proxy, documentado); factualidade/aderência/hallucination continuam explicitamente indisponíveis (bloqueadas por AI-005) |
+| AI-007 Base legal/consentimento | Sim (fechado onda 33) | Gate fail-closed em TODO caminho que envia texto a um provedor de IA externo: `AIService.qualifyLead`, SDR/Ops (onda 20) e, desde a onda 33, `BaseAgent.run`/`runWithTools` (BDR/Closer/CRM) |
 | AI-008 Classificação de ferramentas | Sim | Já estava correto (onda 7); contagem desatualizada na doc corrigida |
 | AI-009 SLO por agente | Sim | Fonte de dados e UI já existiam (onda 7); rota HTTP nunca registrada — corrigido |
-| AI-010 RAG com proveniência | Não | Metadados reais existem (documentId/chunkId/score); citação final ao usuário é inventada pelo LLM, não vem do retrieval real |
-| AI-011 Budget/circuit breaker | Não | Só teto de iterações (MAX_STEPS=5) e circuit breaker por provedor; nenhum corte por custo acumulado |
+| AI-010 RAG com proveniência | Sim (fechado onda 34) | `/knowledge/copilot` chama `hybridSearch` real no servidor; citação final é resolvida de metadado real (documentId/chunkId/score) do hit correspondente, nunca texto livre do LLM |
+| AI-011 Budget/circuit breaker | Sim (onda 30) | `AI_MONTHLY_BUDGET_USD` agora bloqueia novas chamadas de IA de verdade ao ser atingido (soma global de `AILog.cost` do mês, cacheada); ver seção própria abaixo |
 
 ## Achados corrigidos nesta rodada
 
@@ -55,10 +86,10 @@ checagem de base legal/consentimento, ao contrário de SDR Outbound/SDR Autônom
 tinham essa trava desde a onda 7.
 
 **Corrigido**: mesmo gate fail-closed (`hasPiiExternalConsent`) adicionado ao ponto de entrada.
-Teste: `ai.service.qualifyLead.test.ts` (3 casos). **Não corrigido**: os agentes BDR/Closer/CRM do
-enxame (disparados pelo scheduler 24/7 ou por missão manual no `SwarmDashboard.tsx`) continuam sem
-nenhum gate de consentimento nem minimização de PII — blast radius maior (`base.agent.ts` +
-3 arquivos de agente), tratado como pendência, não uma correção pontual segura.
+Teste: `ai.service.qualifyLead.test.ts` (3 casos). Nesta rodada da auditoria (onda 20), os agentes
+BDR/Closer/CRM do enxame (disparados pelo scheduler 24/7 ou por missão manual no
+`SwarmDashboard.tsx`) continuavam sem gate — fechado depois, onda 33, ver "AI-007 (parte 2) — gate
+de consentimento no enxame (onda 33)" mais abaixo.
 
 ### AI-009 — Rota de SLO nunca registrada
 
@@ -94,13 +125,8 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 
 | Item | Situação real | Por que não construído nesta sprint |
 |---|---|---|
-| AI-002 (checkpointer persistente) | `MemorySaver` continua em RAM; sem teste de restart/recovery | Adicionar `@langchain/langgraph-checkpoint-postgres` (dependência nova) + política de TTL é construção de feature nova, não correção pontual |
-| AI-003 (persistência de memória) | 4/5 escritas em `AgentMemory` engolem erro; sem unique constraint; `GET /agents/sdr/status/:sessionId` trata ausência como "pendente para sempre" | Corrigir de verdade exige migration (unique constraint) + redesenho do contrato de status da rota de polling — mais que uma correção pontual |
-| AI-005 (Golden Dataset) | Não existe nenhum dataset sanitizado/versionado para os 8 casos de uso pedidos | Construção de feature nova completa (curadoria de dataset + harness de avaliação) |
-| AI-006 (métricas de avaliação) | Só cost/latency/human-override capturados; factualidade/aderência/tool-correctness/hallucination/PII-leakage-rate/fallback-rate não têm nada | Depende de AI-005 (dataset) para a maioria; construção de feature nova |
-| AI-007 (consentimento — BDR/Closer/CRM) | Agentes do enxame (scheduler 24/7 + missão manual) sem gate de consentimento nem minimização de PII | Blast radius maior (`base.agent.ts` compartilhado por 3 agentes); decisão de produto sobre se o enxame autônomo deve ter o mesmo gate ou uma política própria |
-| AI-010 (RAG com proveniência) | Metadados reais existem no schema/query; `/knowledge/copilot` nunca chama a busca real — cita fontes que o LLM inventa a partir do texto do prompt | Wiring do endpoint ao `hybridSearch` real + mudança de contrato de resposta (citação vem de metadado, não de texto livre do LLM) — moderado, mas não pontual |
-| AI-011 (budget/circuit breaker) | Sem corte automático por custo acumulado; `AI_MONTHLY_BUDGET_USD` só alimenta um alerta Prometheus passivo, nem declarado em `render.yaml` | Decisão de produto: o que "cortar" significa (rejeitar chamada? degradar para modelo menor? só notificar?) — não é algo para uma correção inventar sozinha |
+| AI-005 (harness de scoring automático) | O DATASET em si existe e é validado (onda 36) — falta o harness que o consome de verdade: rodar cada caso contra a capacidade real, comparar contra `expected`/`referenceAnswer`, aplicar threshold, bloquear regressão em CI | Decidir a metodologia de comparação (exact match? similaridade semântica? juiz por LLM? qual modelo de juiz?) é decisão de produto/metodologia que este dataset não tenta resolver sozinho |
+| AI-006 (3 dimensões restantes: factualidade, aderência ao playbook, hallucination) | As outras 6 dimensões foram fechadas na onda 35 (`GET /api/agent/evaluation-metrics`); estas 3 continuam reportadas como `available: false` — nunca um número fabricado | Mesmo com o dataset (AI-005) pronto, calculá-las exige o harness de scoring acima, que ainda não existe |
 
 ## Gate final
 - typecheck: `npx tsc --noEmit` — limpo, 0 erros
@@ -119,7 +145,460 @@ reais) — corrigida, com a tabela de classificação completa adicionada.
 | Risco | Dono | Motivo do aceite | Revisar em |
 |---|---|---|---|
 | `followUp.worker.ts` pode estar processando sempre 0 leads em produção (mesmo padrão de RLS sem contexto encontrado e corrigido no worker de cadência na onda 19) | 16 (runtime/workers) | Não investigado nesta rodada — outro worker, outra feature, merece verificação própria | Próxima rodada que tocar follow-up de WhatsApp, prioridade alta |
-| BDR/Closer/CRM do enxame enviam PII sem gate de consentimento nem minimização | 13 (enxame) + 01A (LGPD) | Blast radius maior + decisão de produto sobre política do enxame autônomo | Sprint dedicada a fechar AI-007 por completo |
-| `AgentMemory` pode duplicar registro sob concorrência; falha de escrita é invisível ao usuário | 07 (IA/automações) | Exige migration + redesenho de contrato de API | Quando AI-003 for priorizada |
-| Citação de fonte em `/knowledge/copilot` é inventada pelo LLM, não rastreável a um chunk real | 07 (IA) | Wiring de retrieval real + mudança de contrato de resposta | Quando AI-010 for priorizada |
-| Sem teto de custo real por tenant/rota — só alerta passivo, possivelmente nem configurado em produção | 13 (enxame) | Decisão de produto sobre o que "cortar" significa | Quando AI-011 for priorizada |
+| Orçamento de IA é GLOBAL (soma de todas as organizações), não por tenant — uma organização de alto consumo pode bloquear IA para todas as outras | 13 (enxame) | `AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes do AI-011; orçamento por tenant exige coluna/tabela nova, fora do escopo da correção de onda 30 | Se algum tenant reclamar de bloqueio causado por outro tenant |
+| Tabelas do checkpointer LangGraph (`checkpoints`/`checkpoint_writes`/`checkpoint_blobs`) não têm RLS — isolamento de tenant é só o prefixo de `thread_id` | 01 (plataforma) + 07 (IA) | Pacote de terceiros fala SQL cru fora da extensão RLS-aware do Prisma; mesmo modelo de confiança já aceito para BullMQ/Redis neste repo | Se um dia houver acesso direto a essas tabelas por um papel/serviço não confiável |
+| Checkpoints se acumulam indefinidamente — sem política de TTL/limpeza | 07 (IA) | `deleteThread()` existe no pacote, mas decidir a política de retenção e construir o job agendado é feature própria | Quando o volume de linhas em `checkpoints` justificar priorizar |
+| `GRANT CREATE ON DATABASE ... TO prospector_app` (necessário para `PostgresSaver.setup()`, ver `scripts/db/create-app-role.sql`) precisa ser aplicado manualmente no Postgres de produção (Supabase) antes do primeiro deploy desta correção — o script de bootstrap não roda automaticamente contra produção | 16 (SRE/deploy) | Achado real do CI desta rodada (onda 32); sem esse GRANT em produção, a primeira chamada de IA que passar por um dos 3 grafos com checkpointer falha | Antes do deploy do PR de AI-002, confirmar o GRANT foi aplicado |
+| BDR/Closer/CRM (onda 33) ganharam o gate binário de consentimento, mas não minimização de PII (troca de valor real por token reversível, como `minimizePii`/`rehydratePii` já fazem para SDR) — quando uma organização TEM consentimento registrado, o texto livre da missão ainda pode conter um nome/e-mail/telefone real sem pseudonimização antes de ir ao provedor externo | 07 (IA) + 01A (LGPD) | Diferente do SDR (que busca um Contact estruturado e sabe exatamente qual string é o nome do titular), BDR/Closer/CRM recebem texto livre sem nenhum campo estruturado — não há como identificar com segurança o que é PII no texto para tokenizar, sem um passo de NER/heurística próprio, feature nova | Se a organização com consentimento registrado operar rotineiramente com PII sensível (não só nome/cargo) no texto da missão |
+| AI-010 (onda 34) fecha a proveniência das CITAÇÕES (`sourceReferences` só aponta para chunk real, nunca texto inventado), mas não verifica a FACTUALIDADE do resto da resposta (`directAnswer`/`technicalSpecifications`) contra o conteúdo citado — o LLM ainda pode escrever um dado técnico que não está em nenhum dos trechos fornecidos, mesmo citando corretamente o trecho de onde partiu | 07 (IA) | Verificar se cada afirmação da resposta está de fato sustentada pelo texto citado (grounding real, não só citação) é o mesmo problema de "factualidade"/"hallucination rate" que AI-006 já mapeia — o dataset de referência existe desde a onda 36 (AI-005), mas o harness de scoring que compararia a resposta contra ele ainda não foi construído | Quando o harness de scoring (AI-005/AI-006) for priorizado |
+| `fallbackRate` (AI-006, onda 35) só cobre o SDR Outbound — nenhum outro agente do enxame (BDR/Closer/CRM/Ops/SDR Qualification) grava `structuredOutputValid` no payload de `AIPendingAction`, então a dimensão fica cega ao resto do enxame | 07 (IA) | Ampliar essa gravação para os demais agentes é o mesmo trabalho que fechar o AI-004 original para eles — não fazia parte do escopo do AI-004 nem desta correção pontual do AI-006, que só consome o que já existe | Se o roadmap decidir estender o contrato `structuredOutputValid` a outros agentes |
+| `toolCorrectness` e `piiLeakageRate` (AI-006, onda 35) são PROXIES, não a dimensão real — `toolCorrectness` mede só ausência de erro operacional (`AIPendingAction.executionError`), não se a ação/ferramenta escolhida foi semanticamente correta; `piiLeakageRate` mede só o que `redactSensitiveData` já detecta (regex de CPF), não todo tipo de PII que poderia vazar | 07 (IA) | Corretude semântica real agora TEM uma ação esperada para comparar (`golden-dataset.json`, categoria `tool_use`, onda 36), mas falta o harness que rode o cenário de verdade e compare — construir isso é o próximo passo, não coberto por esta correção; detecção de PII mais ampla que CPF é um detector novo à parte | Quando o harness de scoring existir (tool correctness) / se um tipo de PII fora do CPF vazar em produção (leakage detector) |
+
+## AI-011 — circuit breaker de orçamento mensal (onda 30)
+
+**Decisão de produto** (tomada explicitamente antes da implementação, resolvendo a pergunta em
+aberto que travava este item desde a onda 20 — "o que 'cortar' significa"): exceder
+`AI_MONTHLY_BUDGET_USD` **bloqueia** novas chamadas de IA (não degrada para outro modelo, não é só
+notificação passiva).
+
+**Construído**: `src/lib/ai/budget.ts` — `assertAiBudgetNotExceeded()`, chamada em
+`getAiModel().invoke()` (`gateway.ts`, cobre os ~34 call sites que já passam pelo gateway central) e
+em `BaseAgent.runWithTools()` (`base.agent.ts`, o único caminho que fala direto com
+LangChain/Groq via `buildModelWithFallback`, usado por BDR/Closer). Sem `AI_MONTHLY_BUDGET_USD`
+configurada, é sempre um no-op — mesmo comportamento "sem teto" de antes.
+
+O custo do mês é a soma real de `AILog.cost` (mesma fonte de `usageService.summary`/
+`GET /api/usage`) em **todas as organizações** — orçamento é global, não por tenant, porque
+`AI_MONTHLY_BUDGET_USD` já era um único valor escalar antes desta correção (diferente de outros
+pares flag+allowlist-por-organização do repo, como `SWARM_SCHEDULER_ORGANIZATIONS`); orçamento por
+tenant exigiria uma coluna/tabela nova, fora do escopo. Essa soma cross-tenant precisa de bypass de
+RLS — `AILog` entrou em `BYPASS_RLS_ALLOWED_MODELS` (`src/lib/prisma.ts`) só para esta ÚNICA query
+agregada (`_sum: { cost: true }`, nunca uma linha, nunca um `organizationId` específico devolvido a
+ninguém). Cacheado por 60s (Redis, com fallback em memória local se o Redis cair) para não pagar um
+`aggregate` no Postgres a cada chamada de IA.
+
+Falha ao CALCULAR o custo (Postgres indisponível) é tratada como "custo desconhecido", nunca como
+"orçamento excedido" — decisão deliberada: um Postgres fora do ar não deveria derrubar toda a
+superfície de IA do produto, um raio de impacto maior que o problema que este circuit breaker existe
+para prevenir.
+
+Observabilidade: `ai_budget_blocked_total` (novo Counter Prometheus, `src/lib/ai/metrics.ts`)
+incrementado a cada bloqueio real — antes só existia o gauge estático `ai_usage_budget_usd_total`
+(valor de referência, nunca soube se algo de fato foi bloqueado).
+
+**Fora de escopo (documentado, não construído)**: orçamento por organização (ver risco acima);
+gating de `generateEmbedding()` — os embeddings usam o provedor local por padrão (sem custo, nunca
+registrado em `AILog`/`estimateCostUsd`) e o caminho remoto (`EMBEDDINGS_PROVIDER=gateway`) já não
+tinha nenhum registro de custo antes desta correção, então não há dado real para o circuit breaker
+usar ali sem construir contabilização nova.
+
+Testes: `tests/unit/lib/ai/budget.test.ts` (10 casos — sem teto configurado nunca bloqueia; abaixo/
+no/acima do teto; custo nulo tratado como zero; cache evita recomputar; reset de cache força novo
+cálculo; Postgres indisponível não bloqueia; Redis indisponível cai para cálculo direto; roda com
+bypass de RLS), `src/lib/ai/__tests__/gateway.test.ts` (1 caso novo — `getAiModel().invoke()` não
+contata nenhum provedor se o orçamento já foi excedido),
+`src/features/intelligence/agents/__tests__/base.agent.budget.test.ts` (1 caso novo — mesma garantia
+para `runWithTools()`/BDR), `tests/integration/ai-budget.test.ts` (6 casos, Postgres real — soma
+GLOBAL cross-tenant confirmada com 2 organizações reais, bypass de RLS confirmado contra a policy
+real da tabela, bloqueio/não-bloqueio pelo teto, cache).
+
+## AI-003 — persistência honesta de AgentMemory (onda 31)
+
+**Estado de entrada**: 5 caminhos de escrita em `AgentMemory` (`BaseAgent.updateMemory`,
+`SDRQualificationAgent.updateMemory`, `OpsAgent.updateMemory`, `LearningAgent.persistProfile`,
+`AgentService.saveMemory`), todos fazendo `findFirst` por `sessionId`+`organizationId` (sem
+`agentType`) seguido de `create`/`update` condicional — não atômico, uma corrida real (duas
+chamadas concorrentes podiam ambas ver "não existe" e ambas criar uma linha). 4 dos 5 engoliam
+qualquer erro num try/catch-log-e-segue; o quinto (`AgentService.saveMemory`, usado pelo worker
+BullMQ do SDR Outbound) fazia só `create()` sem try/catch, mas SEMPRE criava uma linha nova por
+turno (nenhuma constraint impedia isso, e `loadMemory()` só lia a mais recente — as anteriores só
+ocupavam espaço). Sem nenhuma unique constraint na tabela. `GET /agents/sdr/status/:sessionId`
+(único consumidor real do progresso de uma execução assíncrona) tinha um contrato binário —
+"existe linha" = completed, "não existe" = pending — então qualquer falha anterior à persistência
+(bloqueio de guardrail LGPD, erro no grafo LangGraph, a própria escrita falhando) deixava a sessão
+presa em `pending` para sempre, indistinguível de "ainda rodando".
+
+**Construído**:
+- Migration `20260820100000_agent_memory_status_and_unique` (escrita à mão, mesma limitação de
+  shadow database das ondas anteriores — aplicada e validada contra Postgres real): colapsa
+  duplicatas existentes (por `organizationId` não nulo — linhas legadas sem tenant ficam de fora,
+  mesmo tratamento que o resto do schema já dá a elas), adiciona `status`
+  (`AgentMemoryStatus`: `Completed`/`Failed`), `errorMessage` (truncado em 500 caracteres) e
+  `updatedAt`, e cria a unique constraint `(sessionId, agentType, organizationId)`.
+- `src/features/intelligence/agents/agentMemory.store.ts` (novo) — ponto único de escrita/leitura,
+  substituindo a lógica duplicada nos 5 arquivos. `saveAgentMemory()` faz `upsert` atômico
+  (`INSERT ... ON CONFLICT DO UPDATE`) quando `organizationId` está presente — que é sempre, em
+  operação normal — e cai para o padrão anterior (findFirst+create/update) só no caso residual sem
+  tenant (o Prisma nem aceita `null` na chave composta tipada; a constraint do Postgres também não
+  protegeria esse caso, já que NULL nunca colide com outro NULL num índice único). Nunca engole
+  erro — quem chama decide.
+- Todos os 5 caminhos de escrita migrados para `saveAgentMemory`. Onde antes uma falha era só
+  logada e a execução seguia como se tivesse funcionado, agora: (a) o resultado reportado ao
+  caller direto de `run()` vira `{success:false, error}` honesto em vez de `{success:true}` com a
+  memória nunca persistida; (b) `SDRQualificationAgent`/`OpsAgent` chamam o novo
+  `recordAgentFailure()` (grava `status:'Failed'`+motivo) nos dois pontos onde antes nenhuma linha
+  era gravada — bloqueio de consentimento LGPD e erro no grafo LangGraph.
+- `GET /agents/sdr/status/:sessionId`: 3 estados agora — `pending` (sem registro), `completed`
+  (`status:'Completed'`, devolve `messages`), `failed` (`status:'Failed'`, devolve `error`).
+  `docs/openapi.yaml` corrigido para descrever o formato real (não seguia `DataEnvelope`, e nunca
+  devolvia `404` como o contrato antigo documentava).
+- `AgentService.saveMemory` (usado pelo SDR Outbound via worker BullMQ) passou de "sempre cria uma
+  linha nova" para o mesmo upsert-em-lugar — fecha o crescimento ilimitado de linhas por sessão
+  (nenhuma delas era lida de volta, `loadMemory()` sempre pegava só a mais recente) sem mudar
+  nenhum comportamento observável.
+
+**Fora de escopo (documentado, não construído)**: orçamento/memória por tenant não é afetado por
+este item; linhas legadas com `organizationId` nulo continuam fora da proteção da unique constraint
+(nenhum caminho de escrita vivo hoje deveria gerar uma nova).
+
+Testes: `src/features/intelligence/agents/__tests__/agentMemory.store.test.ts` (12 casos, prisma
+mockado — upsert vs. fallback sem tenant, truncamento de erro, status padrão, propagação de erro,
+`recordAgentFailure` nunca lança), `ops.agent.consent.test.ts` (mock de prisma atualizado para
+incluir `upsert`), `tests/integration/agent-memory.test.ts` (9 casos, Postgres real — 10 escritas
+concorrentes para a mesma sessão nunca duplicam a linha, upsert sobrescreve estado anterior
+(failed→completed), truncamento real, os 3 estados da rota de status ponta a ponta via supertest,
+RLS cross-organização).
+
+## Gate final (onda 31)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
+- unit: **191/191 arquivos, 1483/1483 testes**
+- integration (Postgres+Redis reais): **43/43 arquivos, 218/218 testes**
+- build e build:worker — ambos limpos
+
+## AI-002 — checkpointer real de LangGraph (onda 32)
+
+**Estado de entrada**: `MemorySaver` (RAM) nos 3 grafos com checkpointer (`sdrQualification.agent.ts`,
+`ops.agent.ts`, `supervisor.agent.ts`) — cada um um singleton de módulo. Uma correção anterior
+(onda 20) já tinha prefixado `thread_id` por `${organizationId}:${sessionId}`, fechando a colisão
+de checkpoint entre organizações, mas não a perda de estado a cada restart/deploy do processo.
+
+**Construído**: `src/lib/ai/checkpointer.ts` (novo) — `PostgresSaver`
+(`@langchain/langgraph-checkpoint-postgres`, dependência nova) sobre um `pg.Pool` dedicado (não o
+pool interno, não exportado, de `prisma.ts` — vidas úteis diferentes, `PostgresSaver.end()` fecha
+seu próprio pool). `ensureCheckpointerReady()` chama `checkpointer.setup()` (migration própria do
+pacote, cria `checkpoints`/`checkpoint_writes`/`checkpoint_blobs`/`checkpoint_migrations` no schema
+`public`) de forma memoizada e preguiçosa — chamado dentro de cada `run()`/`executeMission()`, não
+no boot do processo, porque há dois processos de entrada distintos (`server.ts` e `worker.ts`) e
+inicialização preguiçosa evita depender de conectar isso às duas sequências de boot.
+
+Schema `public` (não um schema dedicado). **Achado real, pego pelo CI** (não pelo gate local, que
+inicialmente mascarou o problema por acidente de bootstrap manual — ver `.agents/runs/onda-32.md`):
+`PostgresSaver.setup()` roda `CREATE SCHEMA IF NOT EXISTS "public"` incondicionalmente, mesmo usando
+o schema padrão já existente, e o Postgres checa a permissão de `CREATE SCHEMA` (nível de BANCO) ANTES
+de checar se o schema já existe — ser dono do schema `public` (como `prospector_app` já era, para as
+migrations do Prisma funcionarem) NÃO é suficiente. `scripts/db/create-app-role.sql` corrigido com
+`GRANT CREATE ON DATABASE ... TO prospector_app`. **Ação pendente antes do primeiro deploy desta
+correção**: o mesmo GRANT precisa ser aplicado manualmente no Postgres de produção (Supabase) — o
+script de bootstrap não roda automaticamente contra produção. Tabelas do pacote não colidem com
+nenhum model do `schema.prisma` (nomes conferidos).
+
+**Sem RLS nas tabelas do checkpointer** — o pacote fala SQL cru direto no `pg.Pool`, nunca passa
+pela extensão RLS-aware do Prisma (`app.current_tenant_id`). Isolamento de tenant é só o prefixo de
+`thread_id`, já em vigor desde a onda 20. Mesmo modelo de confiança já aceito neste repo para
+BullMQ/Redis (`src/lib/queue/agent.worker.ts`: fila também não tem RLS-equivalente, depende de cada
+job carregar `tenantId` explícito no payload) — documentado como risco aceito, não uma omissão.
+
+**Sem política de TTL** — o pacote expõe `deleteThread(threadId)`, mas decidir a política de
+retenção (quanto tempo um checkpoint de missão pausada/concluída deveria continuar consultável) é
+decisão de produto própria, fora do escopo desta correção pontual.
+
+Testes: `tests/unit/lib/ai/checkpointer.test.ts` (5 casos, pg/PostgresSaver mockados — memoização de
+`setup()`, retry após falha, `closeCheckpointerPool`), `tests/integration/langgraph-checkpointer.test.ts`
+(3 casos, Postgres real — `setup()` idempotente; estado gravado por uma instância de `PostgresSaver`
+é lido de volta por uma instância independente com seu próprio `pg.Pool`, provando persistência real
+entre "processos" sem depender de matar o processo de teste; threads diferentes não colidem).
+`ops.agent.consent.test.ts` atualizado para mockar `checkpointer.js` (o caso "sem leadId" invoca o
+grafo de verdade, e sem o mock tentaria abrir uma conexão Postgres real num teste unitário).
+
+## Gate final (onda 32)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (baseline herdado, nenhum novo)
+- unit: **192/192 arquivos, 1488/1488 testes**
+- integration (Postgres+Redis reais): **44/44 arquivos, 221/221 testes**
+- build e build:worker — ambos limpos
+
+## AI-007 (parte 2) — gate de consentimento no enxame (onda 33)
+
+**Estado de entrada**: `AIService.qualifyLead`/SDR/Ops já tinham o gate fail-closed
+`assertPiiExternalConsent` (`guardrails.service.ts`) desde a onda 7/20, mas os 3 agentes que
+estendem `BaseAgent` (`BDRAgent`, `CloserAgent`, `CRMAgent`) — acionados pelo scheduler autônomo
+24/7 (`swarmScheduler.service.ts` → `autonomyRoleRunner.service.ts`) e por missão manual no
+`SwarmDashboard.tsx` (`POST /swarm/mission`, roteada pelo supervisor do enxame) — enviavam texto
+livre de missão a Groq/OpenAI sem checagem alguma de base legal.
+
+**Decisão de design**: gate incondicional (não depende de `leadId` estar presente), diferente do
+Ops Agent (que só verifica quando um `leadId` real está em jogo, já que sem ele nunca busca um
+Contact estruturado). BDR/Closer/CRM recebem texto livre — digitado por um operador humano no
+dashboard, ou montado por `buildMission()` a partir de dados do Lead no scheduler — sem nenhum
+sinal estrutural confiável para decidir "este texto não tem PII de um titular real". Fail-closed
+incondicional é a escolha conservadora consistente com o resto do gate (`hasPiiExternalConsent`:
+"nenhuma organização passa até aparecer explicitamente na lista").
+
+**Construído**: gate adicionado em `base.agent.ts`, no ÚNICO lugar comum às 3 subclasses — não em
+cada agente individualmente, fechando o blast radius identificado na auditoria original (onda 20):
+- `BaseAgent.run()` (caminho usado por `CRMAgent`, StateGraph de turno único): checa
+  `assertPiiExternalConsent(organizationId)` antes de montar o grafo.
+- `BaseAgent.runWithTools()` (caminho usado por `BDRAgent`/`CloserAgent`, loop ReAct via
+  `createReactAgent`): mesma checagem, antes até do `assertAiBudgetNotExceeded()` do AI-011 (que já
+  existia neste método).
+- Em ambos, bloqueio grava a falha em `AgentMemory` (`recordAgentFailure`, status `Failed`) — mesmo
+  padrão de auditoria já usado por SDR/Ops desde o AI-003, mesmo BDR/Closer/CRM não tendo uma rota
+  HTTP de polling de status própria: o histórico de bloqueios fica consultável para evidência LGPD.
+
+**Fora de escopo (documentado como risco aceito, não omissão)**: minimização de PII (token
+reversível, como `minimizePii`/`rehydratePii` já fazem para o nome do contato no SDR) — quando uma
+organização TEM consentimento registrado, o texto livre da missão ainda não passa por nenhuma
+pseudonimização antes de sair. Diferente do SDR (Contact estruturado, sabe exatamente qual string é
+o nome do titular), BDR/Closer/CRM recebem texto sem campos estruturados — identificar com
+segurança o que é PII nesse texto exigiria um passo de NER/heurística próprio, feature nova fora do
+escopo desta correção pontual. Ver tabela de riscos acima.
+
+Testes: `src/features/intelligence/agents/__tests__/base.agent.consent.test.ts` (4 casos novos —
+BDR bloqueado via `runWithTools` sem montar modelo, CRM bloqueado via `run` sem montar modelo, sem
+`organizationId` no contexto também bloqueia, falha registrada em `AgentMemory`).
+`base.agent.budget.test.ts` (AI-011) ajustado: precisa rodar dentro de um `requestContext` com
+organização consentida, senão o novo gate de consentimento intercepta antes do circuit breaker de
+orçamento que aquele teste existe para provar.
+
+## Gate final (onda 33)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 32, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **193/193 arquivos, 1492/1492 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **44/44 arquivos, 221/221 testes** (`swarm-autonomous-mission-e2e.test.ts` exercita o `CRMAgent`
+  real, ponta a ponta, através do novo gate — já rodava com consentimento liberado para a
+  organização de teste)
+- build e build:worker — ambos limpos
+
+## AI-010 — citação real e rastreável no Copiloto Técnico (onda 34)
+
+**Estado de entrada**: `POST /api/intelligence/suite/knowledge/copilot` (`ai-suite.routes.ts`)
+confiava em `retrievedDocumentSnippets: string[]` enviado pelo CLIENTE — qualquer texto virava
+"documento" para o prompt, e o LLM escrevia livremente `sourceReferences: string[]` (ex.: `"Manual
+do Módulo Atlas v2.4"`) sem nenhuma relação verificável com um `Document`/`DocumentChunk` real. O
+retrieval real (`searchService.hybridSearch`, pgvector + full-text + RRF, já usado por
+`POST /api/knowledge/search` e por `VectorSearchService`/`vectorStore` do enxame de IA) nunca era
+chamado por este endpoint — cada `SearchHit` já carregava `documentId`/`chunkId`/`documentTitle`/
+`score` reais, mas nada os conectava à resposta final do copiloto.
+
+**Construído**:
+- `ai-suite.routes.ts`: `/knowledge/copilot` ganhou validação Zod (`{question, userRole?}` — o
+  cliente não fornece mais snippets) e passou a chamar `searchService.hybridSearch(organizationId,
+  question)` no servidor, com `organizationId` vindo sempre de `req.user` (nunca do body).
+- `knowledge-copilot.service.ts`: `CopilotQueryInput.hits: SearchHit[]` substitui
+  `retrievedDocumentSnippets`. O prompt lista os trechos NUMERADOS (`[1] ...`, `[2] ...`); o LLM é
+  instruído a nunca escrever o nome de uma fonte, só o ÍNDICE do trecho em `citedSnippetIndexes:
+  number[]` (contrato bruto interno, `RawCopilotResponse`). `resolveCitations` resolve cada índice
+  de volta para o `SearchHit` real correspondente — um índice fora de faixa, não-inteiro, ou
+  duplicado é descartado silenciosamente (alucinação de citação, não erro fatal). O contrato
+  público `CopilotAnswerOutput.sourceReferences` mudou de `string[]` para `CopilotCitation[]`
+  (`documentId`/`chunkId`/`documentTitle`/`chunkIndex`/`score`) — a citação final é sempre um
+  subconjunto verificável dos hits reais, nunca texto livre do LLM.
+- Sem hits (nada encontrado na base), o prompt diz isso explicitamente ("Nenhum documento da base
+  de conhecimento foi encontrado para esta pergunta"), mesmo padrão de honestidade já usado no
+  fallback de erro do serviço.
+- `AISuiteHub.tsx` (playground interno de QA): `samplePayload` do capability #15 atualizado —
+  não envia mais `retrievedDocumentSnippets` fabricado.
+
+**Fora de escopo (documentado como risco aceito)**: proveniência da CITAÇÃO está resolvida, mas o
+resto da resposta (`directAnswer`/`technicalSpecifications`) continua sendo texto livre do LLM sem
+verificação de que cada afirmação está de fato sustentada pelo(s) trecho(s) citado(s) — grounding
+real de factualidade é o mesmo problema que AI-006 já mapeia como métrica de avaliação ainda não
+construída (depende do harness de AI-005/AI-006). Ver tabela de riscos acima.
+
+Testes:
+- `src/features/knowledge/services/__tests__/knowledge-copilot.service.test.ts` (novo, 8 casos) —
+  resolução de índice válido, índice fora de faixa descartado, índices não-inteiros/negativos
+  descartados, deduplicação, `citedSnippetIndexes` ausente/inválido não quebra, honestidade sem
+  hits, múltiplos hits citam só o índice referenciado, fallback de erro sem citação inventada.
+- `tests/unit/features/intelligence/routes/ai-suite.knowledge-copilot.routes.test.ts` (novo, 3
+  casos) — `hybridSearch` chamado com a organização do usuário autenticado (nunca de
+  querystring/body), `retrievedDocumentSnippets` do contrato antigo é ignorado silenciosamente,
+  pergunta curta demais devolve 400 sem chamar busca nem LLM.
+- `tests/integration/knowledge-copilot-citation.test.ts` (novo, 2 casos, Postgres/pgvector reais)
+  — a prova mais forte: ingere um documento real, roda `hybridSearch` de verdade, e confirma que a
+  citação devolvida aponta para o `documentId`/`chunkId` exatos do documento realmente ingerido
+  (um índice alucinado adicional pelo LLM-stub é descartado); busca de outro tenant nunca traz o
+  documento do tenant A como hit, e por isso nunca vira citação (isolamento de tenant também na
+  citação, não só na busca).
+- `CentralAISuiteService.test.ts` (existente) atualizado: mock do LLM devolve
+  `citedSnippetIndexes: [1]` (era `sourceReferences: ['Manual Técnico']`); caso #15 passa um `hits`
+  real e confirma a citação resolvida.
+
+## Gate final (onda 34)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 33, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **195/195 arquivos, 1503/1503 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **45/45 arquivos, 223/223 testes**
+- build e build:worker — ambos limpos
+
+## AI-006 — harness real das 9 dimensões de avaliação (onda 35)
+
+**Estado de entrada**: cost/latency (via `AILog`) e human override (via `AIPendingAction`, no
+painel de SLO do AI-009) já eram reais. As outras 6 — factualidade, aderência ao playbook, tool
+correctness, hallucination, PII leakage rate, fallback rate — não tinham NENHUM dado, nem proxy.
+`npm run verify:ai` (`scripts/verify-ai-studio.ts`) é um smoke test de conectividade (chama o
+Studio 2 vezes, confere que a chamada não lançou), sem comparação contra referência nenhuma.
+
+**Decisão de design**: sem esperar por AI-005 (Golden Dataset, ainda não construído — feature nova
+completa, fora do escopo desta correção pontual), separei as 6 dimensões restantes em 3 baldes,
+cada um com o tratamento certo, nunca fabricando número:
+1. **Reaproveitável de graça**: `getSwarmSloSnapshot` (AI-009) já calcula `errorRate` por papel —
+   vira `toolCorrectness` (proxy: 1 − errorRate) sem código novo de agregação, só reinterpretação
+   e agregação através dos papéis com ledger.
+2. **Real, mas cobertura parcial e documentada como tal**: `fallbackRate` já é gravado
+   (`AIPendingAction.payload.structuredOutputValid`, AI-004) — mas só pelo SDR Outbound, nenhum
+   outro agente do enxame emite esse dado. Reportar isso como "6/9 completo" seria desonesto — o
+   `note` do dimension explica a cobertura real.
+3. **Sinal novo, genuinamente ausente até agora**: `piiLeakageRate` — nada registrava quando
+   `redactSensitiveData` (guardrails.service.ts) de fato mascarava um CPF numa resposta de IA.
+   Construí `AIGuardrailEvent` (tabela nova, migration própria) e um wrapper
+   (`redactAndTrackPiiLeak`) que os 4 pontos de chamada de produção do guardrail agora usam.
+
+As 3 dimensões que genuinamente exigem uma resposta de referência para comparar (factualidade,
+aderência ao playbook, hallucination) são reportadas como `{available: false, reason: '...AI-005...'}`
+— nunca um número, nunca omitidas silenciosamente da resposta da API.
+
+**Construído**:
+- `prisma/schema.prisma` + migration `20260820110000_ai_guardrail_event`: model
+  `AIGuardrailEvent` (`type`, `source`, `organizationId` sempre não-nulo — os 4 pontos de chamada
+  já rodam atrás de `authenticateToken`+`requireTenant`, diferente de `AILog`, que também recebe
+  escrita de worker/script sem tenant). RLS simples (`FOR ALL USING (...)`, mesmo padrão de
+  `Automation`/`Notification`), sem o caso NULL que `AILog` precisa tratar.
+- `guardrails.service.ts`: `redactAndTrackPiiLeak(text, source)` — mesmo `redactSensitiveData`,
+  mas grava `AIGuardrailEvent` quando de fato houve redação; best-effort (falha ao gravar o evento
+  não derruba a resposta, que já foi redigida). Os 4 pontos de chamada reais
+  (`ai.service.ts`, `studio/shared.ts`, `agent.routes.ts`, `CommercialIntelligenceAiService.ts`)
+  migrados de `redactSensitiveData` direto para este wrapper.
+- `evaluationMetrics.service.ts` (novo): `getEvaluationMetricsSnapshot(organizationId, windowDays)`
+  — as 9 dimensões, reaproveitando `getSwarmSloSnapshot`/`emptyRate` (exportado de
+  `swarmScheduler.service.ts` para reuso) em vez de duplicar a agregação de `AIPendingAction`/`AILog`.
+- `GET /api/agent/evaluation-metrics` (novo, mesmo padrão de validação/organizationId de
+  `/swarm/slo`).
+
+**Fora de escopo (documentado como risco aceito)**: cobertura parcial de `fallbackRate` (só SDR
+Outbound); `toolCorrectness`/`piiLeakageRate` são proxies, não a dimensão real; nenhuma UI nova
+(dashboard) foi construída para este endpoint — só a API, mesma decisão de escopo do AI-011
+(backend-only). Ver tabela de riscos acima.
+
+Testes:
+- `src/features/intelligence/services/__tests__/guardrails.service.test.ts` (+4 casos) —
+  `redactAndTrackPiiLeak`: sem PII não grava nada; com PII grava com organizationId/source
+  corretos; fora de contexto de tenant não grava (mas ainda mascara); falha ao gravar não derruba
+  a resposta.
+- `src/features/intelligence/services/__tests__/evaluationMetrics.service.test.ts` (novo, 6 casos)
+  — base vazia nunca fabrica número; as 3 dimensões de AI-005 sempre indisponíveis com motivo;
+  agregação de humanOverride/toolCorrectness através dos papéis com ledger; fallbackRate só conta
+  registros com o campo presente; piiLeakageRate = eventos/total de chamadas; cost/latency reais.
+- `tests/unit/features/intelligence/routes/agent.routes.evaluation-metrics.test.ts` (novo, 4 casos)
+  — mesmo padrão de `agent.routes.slo.test.ts`: days default/querystring/400 fora de faixa/
+  organizationId sempre de `req.user`.
+- `tests/integration/evaluation-metrics.test.ts` (novo, 3 casos, Postgres real) —
+  `redactAndTrackPiiLeak` grava evento real; RLS real isola entre tenants (não só um WHERE de
+  aplicação); `getEvaluationMetricsSnapshot` end-to-end contra `AILog`/`AIGuardrailEvent` reais.
+
+## Gate final (onda 35)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 34, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **197/197 arquivos, 1517/1517 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **46/46 arquivos, 226/226 testes**
+- `prisma migrate diff` contra a migration nova: zero diff para `AIGuardrailEvent` (ruído
+  pré-existente em outras tabelas, já documentado em ondas anteriores, fora de escopo)
+- build e build:worker — ambos limpos
+
+## AI-005 — Golden Dataset real e versionado (onda 36)
+
+**Estado de entrada**: nenhum dataset existia. `npm run verify:ai` (`scripts/verify-ai-studio.ts`)
+é smoke test de conectividade (a chamada não lançou), sem comparação contra referência nenhuma. O
+roadmap original (`SPRINT-07-IA-ENXAME-EVALUATION.md`, fora do repo, só referenciado por este audit
+doc) pede um dataset sanitizado e versionado para 8 categorias: qualificação, cold email, objection
+handling, roleplay, next best action, summary, RAG, tool use — sem definir formato.
+
+**Decisão de design**: cada categoria foi ancorada no tipo REAL que a capacidade de produção
+correspondente já usa — não um formato genérico inventado (mapeamento completo pesquisado antes de
+escrever qualquer caso):
+
+| Categoria | Serviço/capacidade real |
+|---|---|
+| `lead_qualification` | `AIService.qualifyLead(leadId, companyInfo)` |
+| `cold_email` | `generateEmailDraft(context, goal)` (`src/lib/ai/features.ts` — pura, sem Lead real) |
+| `objection_handling` | `generateObjectionHandling(objection)` |
+| `roleplay` | `RoleplayAiService.simulateCustomerResponse(RoleplayTurnInput)` |
+| `next_best_action` | `NextBestActionService.determineNextAction(MeetingOrCallNote)` |
+| `summary` | `MeetingSynthesisService.synthesizeMeeting(MeetingTranscriptInput)` |
+| `rag` | `KnowledgeCopilotService.answerTechnicalQuestion({question, hits})` (AI-010) |
+| `tool_use` | as 9 ferramentas reais do enxame (`src/features/intelligence/tools/*.ts`) |
+
+Optou-se por **NÃO** construir junto o harness de scoring automático (comparar a resposta real da
+IA contra `expected`, aplicar threshold, bloquear regressão em CI — o que o roadmap eventualmente
+quer de `verify:ai`). Motivo: a metodologia de comparação (exact match para os campos estruturados?
+similaridade semântica para os textos livres? juiz por LLM — e qual modelo?) é uma decisão de
+produto que este dataset não deveria tentar resolver sozinho, e a maioria das 8 capacidades tem
+efeitos colaterais reais (DB, RAG, consentimento LGPD) que precisariam de stubs/harness próprio por
+capacidade — trabalho maior que uma correção pontual. Em vez disso, o dataset em si é
+estruturalmente validado com rigor real:
+1. Todo o arquivo valida contra `goldenDatasetFileSchema` (Zod, discriminated union por
+   `category`) — um caso malformado quebra alto e cedo.
+2. Cada campo `expected` usa os mesmos enums/tipos reais que os serviços de produção aceitam (ex.:
+   `actionType` de `next_best_action` é exatamente o union real de `NextBestActionResult`, não uma
+   cópia solta).
+3. **A prova mais forte**: cada caso `tool_use` é validado em runtime contra o schema Zod REAL da
+   ferramenta correspondente (importado de `src/features/intelligence/tools/*.ts`, o mesmo schema
+   que o LangGraph usa para validar uma chamada de ferramenta de verdade) — não uma reconstrução
+   solta do formato.
+
+**Construído**:
+- `src/features/intelligence/evaluation/goldenDataset.types.ts` — schema Zod completo, um
+  discriminated union por categoria.
+- `src/features/intelligence/evaluation/golden-dataset.json` — **24 casos reais e sanitizados** (3
+  por categoria × 8 categorias), domínio fictício mas grounded em AtlasGR/TotalTrac (transportadoras,
+  frotas, sinistro de carga, telemetria de temperatura), nenhum dado de cliente real.
+- `src/features/intelligence/evaluation/goldenDataset.service.ts` — `loadGoldenDataset()`
+  (memoizado), `getCasesByCategory()`, `getDatasetSummary()`, `validateToolUseCases()` (import
+  dinâmico dos módulos de ferramenta — só quem valida `tool_use` paga o custo de carregar
+  `prisma`/`getTenantId` que essas ferramentas trazem).
+- `GET /api/agent/golden-dataset/summary` (novo) — resumo do dataset + validação real dos casos
+  `tool_use`, mesmo padrão de `/swarm/slo`/`/evaluation-metrics`.
+- `tsconfig.json`: `resolveJsonModule: true` adicionado — o JSON é importado como módulo (não
+  `readFileSync`) de propósito: o `Dockerfile` de produção só empacota `dist/`, nunca `src/` (ver
+  estágio `runner`), então um caminho de arquivo relativo ao código-fonte quebraria em produção;
+  importar como módulo faz o esbuild inlinar o conteúdo dentro de `dist/server.cjs` no build — o
+  mesmo artefato que de fato roda. Confirmado por inspeção do bundle após `npm run build`.
+
+**Fora de escopo (documentado como risco aceito)**: o harness de scoring automático (comparação de
+verdade, threshold, gate de CI) — ver tabela de riscos acima. Sem ele, as 3 dimensões de AI-006
+ainda bloqueadas (factualidade, aderência ao playbook, hallucination) continuam `available: false`
+mesmo com o dataset pronto.
+
+Testes:
+- `src/features/intelligence/evaluation/__tests__/goldenDataset.service.test.ts` (novo, 11 casos)
+  — dataset real carrega/valida sem lançar; memoização; todas as 8 categorias cobertas por pelo
+  menos 1 caso; narrowing do discriminated union funciona; `countByCategory` soma exatamente
+  `totalCases`; **todos os 3 casos `tool_use` reais validam contra o schema real da ferramenta**;
+  `goldenDatasetFileSchema` rejeita arquivo sem versão, categoria inexistente e `expectedTool` fora
+  da lista real; o schema real de `update_lead_qualification` rejeita um status inventado e aceita
+  um status real (prova que a validação não é cosmética).
+- `tests/unit/features/intelligence/routes/agent.routes.golden-dataset.test.ts` (novo, 2 casos) —
+  rota devolve resumo + validação; falha de validação vira 500, nunca é engolida silenciosamente.
+
+## Gate final (onda 36)
+- typecheck: `npx tsc --noEmit` — limpo
+- lint: `npm run lint` — 0 erros, 89 warnings (mesmo baseline da onda 35, nenhum novo)
+- unit: `npx vitest run -c vitest.unit.config.ts` — **199/199 arquivos, 1530/1530 testes**
+- integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
+  — **46/46 arquivos, 226/226 testes** (nenhuma migration nesta onda)
+- build e build:worker — ambos limpos; conteúdo do dataset confirmado inline em `dist/server.cjs`
+
+## Fechamento do harness de scoring — 2026-08-20
+
+O débito explicitamente deixado fora do AI-005 foi implementado:
+
+1. scorer determinístico por cada uma das 8 categorias, com thresholds por caso, categoria e dataset;
+2. LLM judge opcional via gateway real, medindo semântica, factualidade, aderência ao playbook e risco de alucinação;
+3. runner live que executa as capacidades reais usadas pelo Golden Dataset;
+4. CLI `npm run eval:golden` com exit code 1 em regressão;
+5. gate determinístico sempre presente na suíte unitária protegida; quando GROQ/OpenAI está configurado no CI, a mesma job também roda as 24 capacidades reais + LLM judge;
+6. correção do caso `lead_qualification-003`, cuja faixa anterior contradizia o threshold real de QUALIFIED (>=70).

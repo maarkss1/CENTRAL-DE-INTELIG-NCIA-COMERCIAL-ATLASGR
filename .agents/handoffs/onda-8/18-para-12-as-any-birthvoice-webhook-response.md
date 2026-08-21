@@ -1,8 +1,11 @@
 - De: 18
 - Para: 12
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
+
+## Resolução
+Validado o schema da resposta usando Zod (`birthVoiceResponseSchema`). Agora se a API externa renomear ou remover campos retornará um payload inválido ao invés de prosseguir com undefined.
 
 ## Problema
 `src/features/integrations/birth-voice/birthVoice.service.ts:146` faz

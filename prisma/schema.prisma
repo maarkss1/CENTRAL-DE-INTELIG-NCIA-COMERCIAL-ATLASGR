@@ -254,25 +254,18 @@ model Company {
   sourceEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipSource")
   targetEconomicRelationships EconomicRelationship[]        @relation("EconomicRelationshipTarget")
   organizationId              String?
-  organization                Organization?                  @relation(fields: [organizationId], references: [id])
-  deletedAt           DateTime?
-  deletedBy           String?
-  deleteReason        String?
+  organization                Organization?                 @relation(fields: [organizationId], references: [id])
+  deletedAt                   DateTime?
+  deletedBy                   String?
+  deleteReason                String?
 
-  accountIntelligenceSnapshots AccountIntelligenceSnapshot[]
-  accountSignals               AccountSignal[]
-  decisionMakers               DecisionMaker[]
-  sourceEconomicRelationships  EconomicRelationship[]        @relation("SourceRelationship")
-  targetEconomicRelationships  EconomicRelationship[]        @relation("TargetRelationship")
-  accountScores                AccountScore[]
-  accountRecommendations       AccountRecommendation[]
-
-  @@index([organizationId])
-  @@index([cnpj])
-  @@index([legalName])
   // Permite FKs compostas nas tabelas de Account Intelligence: uma linha tenant-scoped nunca
   // pode apontar para uma Company de outra organizacao, mesmo sob bypass administrativo.
   @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([cnpj])
+  @@index([legalName])
+  @@index([tradeName])
 }
 
 /// Snapshot rastreável e global. Só o importador com bypass de RLS pode gravar/publicar.
@@ -408,43 +401,48 @@ model MarketIntelligenceMunicipalityMapping {
 }
 
 model EnrichmentLog {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   source    String // BrasilAPI-CNPJ | BrasilAPI-CEP | AI-Estimate | Domain-Heuristic | GDELT-News | Email-Verification | Lookalike-PgVector
   field     String // o que foi enriquecido (ex: "dados-cadastrais", "endereco", "contatos-sugeridos")
   status    String // success | not_found | failed
   rawData   Json?
+
+  dataOrigin       String? // "confirmado" | "inferido"
+  appliedToCompany Boolean?
+
   createdAt DateTime @default(now())
 
   @@index([companyId, createdAt])
 }
 
 model Contact {
-  id           String        @id @default(cuid())
-  name         String
-  role         String?
-  department   String?
-  phone        String?
-  whatsapp     String?
-  email        String?
-  linkedin     String?
-  birthDate    DateTime?
-  observations String?
-  status       ContactStatus @default(Ativo)
-  source       String? // ex: "Apollo", "Hunter"
-  seniority    String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
-  emailStatus  String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
+  id                  String        @id @default(cuid())
+  name                String
+  role                String?
+  department          String?
+  phone               String?
+  whatsapp            String?
+  email               String?
+  linkedin            String?
+  birthDate           DateTime?
+  observations        String?
+  status              ContactStatus @default(Ativo)
+  source              String? // ex: "Apollo", "Hunter"
+  seniority           String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
+  emailStatus         String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
+  aiProcessingConsent Boolean? // Consentimento LGPD explícito/titular para processamento de IA externa
 
   customFields        Json?
   commercialDocuments CrmCommercialDocument[]
 
-  companyId        String
-  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leads            Lead[]
-  whatsAppMessages WhatsAppMessage[]
-  organizationId   String?
-  organization     Organization?     @relation(fields: [organizationId], references: [id])
+  companyId             String
+  company               Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leads                 Lead[]
+  whatsAppMessages      WhatsAppMessage[]
+  organizationId        String?
+  organization          Organization?     @relation(fields: [organizationId], references: [id])
   decisionMakerProfiles DecisionMaker[]
 
   createdAt    DateTime  @default(now())
@@ -453,11 +451,15 @@ model Contact {
   deletedBy    String?
   deleteReason String?
 
-  @@index([organizationId])
-  @@index([email])
   // DecisionMaker referencia este trio para garantir no banco que contato, conta e tenant sao os
   // mesmos. Os campos pessoais continuam apenas em Contact; o LDR nao cria uma copia global.
   @@unique([id, companyId, organizationId])
+  @@index([organizationId])
+  @@index([email])
+  @@index([name])
+  @@index([role])
+  @@index([phone])
+  @@index([whatsapp])
 }
 
 model Lead {
@@ -670,6 +672,7 @@ model User {
   image              String?
   sessions           Session[]
   accounts           Account[]
+  assistantMessages  AssistantMessage[]
 
   @@index([organizationId])
   @@map("user")
@@ -688,7 +691,9 @@ model Organization {
   notifications                 Notification[]
   automations                   Automation[]
   aiLogs                        AILog[]
+  aiGuardrailEvents             AIGuardrailEvent[]
   reports                       Report[]
+  assistantMessages             AssistantMessage[]
   aiPendingActions              AIPendingAction[]
   knowledgeChunks               KnowledgeChunk[]
   prompts                       Prompt[]
@@ -733,6 +738,7 @@ model Organization {
   economicRelationships         EconomicRelationship[]
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
+  threeCXCallEvents             ThreeCXCallEvent[]
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -841,11 +847,11 @@ model AccountIntelligenceSnapshot {
 /// Sinal comercial deduplicavel por conta. Reobservacoes atualizam lastSeenAt/occurrenceCount em
 /// vez de gerar varias acoes para o mesmo evento. A taxonomia e versionada separadamente do tipo.
 model AccountSignal {
-  id             String       @id @default(cuid())
+  id             String                       @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
-  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  company        Company                      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   snapshotId     String?
   snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
@@ -878,27 +884,27 @@ model AccountSignal {
 /// permanecem exclusivamente em Contact: esta tabela so guarda classificacao, fonte e confianca.
 /// A FK composta prova que Contact, Company e organizationId pertencem ao mesmo tenant.
 model DecisionMaker {
-  id             String       @id @default(cuid())
+  id             String                       @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
-  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  company        Company                      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   contactId      String
-  contact        Contact      @relation(fields: [contactId, companyId, organizationId], references: [id, companyId, organizationId], onDelete: Cascade)
+  contact        Contact                      @relation(fields: [contactId, companyId, organizationId], references: [id, companyId, organizationId], onDelete: Cascade)
   snapshotId     String?
   snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
-  buyingRole      String
-  department      String?
-  seniority       String?
+  buyingRole       String
+  department       String?
+  seniority        String?
   roleEvidenceType IntelligenceEvidenceType
   source           String
   sourceUrl        String?
   verifiedAt       DateTime?
   confidence       Float
-  status           DecisionMakerStatus     @default(Unverified)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
+  status           DecisionMakerStatus      @default(Unverified)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@unique([organizationId, companyId, contactId])
   @@index([organizationId, companyId, status])
@@ -910,27 +916,27 @@ model DecisionMaker {
 /// score, decisor, relacionamento ou recomendacao sem armazenar payload bruto de fornecedor.
 /// `evidenceType` torna FATO/INFERENCIA/RECOMENDACAO uma propriedade consultavel, nao um rotulo UI.
 model IntelligenceEvidence {
-  id             String       @id @default(cuid())
+  id             String                       @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
-  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  company        Company                      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   snapshotId     String?
   snapshot       AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
-  subjectType String
-  subjectId   String?
-  factKey     String
-  value       Json?
-  valueHash   String?
-  reference   String?
-  source      String
-  sourceUrl   String?
-  collectedAt DateTime                 @default(now())
-  confidence  Float?
+  subjectType  String
+  subjectId    String?
+  factKey      String
+  value        Json?
+  valueHash    String?
+  reference    String?
+  source       String
+  sourceUrl    String?
+  collectedAt  DateTime                 @default(now())
+  confidence   Float?
   evidenceType IntelligenceEvidenceType
-  dedupeKey   String
-  createdAt   DateTime                 @default(now())
+  dedupeKey    String
+  createdAt    DateTime                 @default(now())
 
   @@unique([organizationId, companyId, dedupeKey])
   @@index([organizationId, companyId, collectedAt(sort: Desc)])
@@ -942,11 +948,11 @@ model IntelligenceEvidence {
 /// Historico append-only de score. O hash de entrada + versao torna repeticoes idempotentes;
 /// `calculation` preserva pesos/contribuicoes e os reasons positivos/negativos explicam o total.
 model AccountScore {
-  id             String       @id @default(cuid())
+  id             String                      @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
-  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  company        Company                     @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   snapshotId     String
   snapshot       AccountIntelligenceSnapshot @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
@@ -975,15 +981,15 @@ model AccountScore {
 /// Next Best Action auditavel: guarda a versao/entrada que a gerou, revisao humana, execucao e
 /// referencia externa. O rationale permanece historico, mesmo quando a recomendacao e superada.
 model AccountRecommendation {
-  id             String       @id @default(cuid())
+  id             String                      @id @default(cuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   companyId      String
-  company        Company      @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  company        Company                     @relation(fields: [companyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   snapshotId     String
   snapshot       AccountIntelligenceSnapshot @relation(fields: [snapshotId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
   accountScoreId String?
-  accountScore   AccountScore? @relation(fields: [accountScoreId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
+  accountScore   AccountScore?               @relation(fields: [accountScoreId, organizationId, companyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
   actionType            String
   title                 String
@@ -1016,13 +1022,13 @@ model AccountRecommendation {
 /// Relacao economica entre duas Companies reais do mesmo tenant. `Verified` e `Inferred` sao
 /// estados distintos; uma inferencia nunca vira automaticamente uma relacao verificada.
 model EconomicRelationship {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id              String                       @id @default(cuid())
+  organizationId  String
+  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sourceCompanyId String
-  sourceCompany   Company      @relation("EconomicRelationshipSource", fields: [sourceCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  sourceCompany   Company                      @relation("EconomicRelationshipSource", fields: [sourceCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   targetCompanyId String
-  targetCompany   Company      @relation("EconomicRelationshipTarget", fields: [targetCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  targetCompany   Company                      @relation("EconomicRelationshipTarget", fields: [targetCompanyId, organizationId], references: [id, organizationId], onDelete: Cascade)
   snapshotId      String?
   snapshot        AccountIntelligenceSnapshot? @relation(fields: [snapshotId, organizationId, sourceCompanyId], references: [id, organizationId, companyId], onDelete: Restrict)
 
@@ -1032,12 +1038,12 @@ model EconomicRelationship {
   sourceUrl    String?
   confidence   Float
   dedupeKey    String
-  detectedAt   DateTime @default(now())
+  detectedAt   DateTime                   @default(now())
   verifiedAt   DateTime?
   validFrom    DateTime?
   validTo      DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
 
   @@unique([organizationId, dedupeKey])
   @@index([organizationId, sourceCompanyId, status])
@@ -1338,20 +1344,44 @@ model DocumentChunk {
   @@index([documentId])
 }
 
+// AI-003 (onda 31): uma linha por (sessionId, agentType, organizationId) representando o estado
+// MAIS RECENTE dessa sessão — nunca um histórico de linhas por turno. `status`/`errorMessage`
+// tornam uma falha de execução (bloqueio de LGPD, erro no grafo, erro de persistência) um estado
+// explícito e consultável, não silêncio: antes, "nenhuma linha" significava indistintamente "ainda
+// rodando" e "falhou antes de gravar nada", e a única leitura que checava isso
+// (GET /agents/sdr/status/:sessionId) tratava os dois casos como "pending" para sempre.
 model AgentMemory {
-  id        String   @id @default(cuid())
-  sessionId String
-  agentType String
-  messages  Json
-  createdAt DateTime @default(now())
+  id           String            @id @default(cuid())
+  sessionId    String
+  agentType    String
+  messages     Json
+  status       AgentMemoryStatus @default(Completed)
+  // Preenchido só quando status = Failed; motivo sanitizado/truncado da falha (guardrail de LGPD,
+  // erro do grafo LangGraph, ou erro genuíno de escrita), nunca o stack trace inteiro.
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   // Nullable pelo mesmo motivo de KnowledgeChunk.organizationId: linhas legadas sem tenant
-  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos.
+  // conhecido ficam órfãs e invisíveis sob RLS, em vez de serem apagadas ou expostas a todos. Como
+  // organizationId nulo nunca colide num índice único do Postgres (NULL != NULL), essas linhas
+  // legadas ficam fora da proteção do @@unique abaixo — aceitável porque nenhum caminho de escrita
+  // ativo grava organizationId nulo hoje (todos resolvem o tenant via requestContext/parâmetro
+  // explícito antes de chamar upsertAgentMemory).
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([sessionId])
+  // Substitui o padrão anterior (findFirst por sessionId+organizationId, sem agentType, seguido de
+  // create/update condicional) por um upsert atômico real — o padrão antigo tinha uma janela de
+  // corrida real: duas chamadas concorrentes com o mesmo sessionId podiam ambas ver "não existe" e
+  // ambas criar uma linha, duplicando o registro (ver upsertAgentMemory em agentMemory.store.ts).
+  @@unique([sessionId, agentType, organizationId])
   @@index([organizationId])
+}
+
+enum AgentMemoryStatus {
+  Completed
+  Failed
 }
 
 model AILog {
@@ -1370,6 +1400,31 @@ model AILog {
   @@index([organizationId, createdAt])
 }
 
+/// AI-006 (onda 35): sinal real de vazamento de PII detectado/mascarado pelo guardrail de saída
+/// (`redactSensitiveData`, guardrails.service.ts) antes de uma resposta de IA chegar ao usuário —
+/// alimenta a dimensão "PII leakage rate" do harness de avaliação (evaluationMetrics.service.ts).
+/// Diferente de `AILog`, sempre escrito de dentro de uma requisição autenticada (os 4 pontos de
+/// chamada de `redactSensitiveData` em produção são rotas atrás de `authenticateToken` +
+/// `requireTenant`), então `organizationId` é sempre conhecido — sem o caso nulo que `AILog`
+/// precisa tratar para chamadas de worker/script sem tenant.
+model AIGuardrailEvent {
+  id     String @id @default(cuid())
+  /// Hoje só existe um valor real: 'pii_redacted'. String (não enum) de propósito — o conjunto de
+  /// tipos de evento de guardrail ainda pode crescer (ex.: um futuro detector de prompt injection),
+  /// e adicionar um valor a um enum do Postgres exige sua própria migration; um novo `type` aqui
+  /// não exige.
+  type   String
+  /// Qual ponto de chamada registrou o evento (`ai.service`, `studio`, `agent.chat`,
+  /// `commercial-intelligence`) — para localizar o fluxo real sem abrir os logs de aplicação.
+  source String
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, type, createdAt])
+}
+
 /// Relatório executivo gerado por IA em ReportsHub (POST /api/intelligence/report) a partir das
 /// métricas ao vivo da plataforma. Antes desta correção (PC-008) o relatório só existia em estado
 /// local do React — sumia ao navegar ou recarregar. `metrics` guarda o snapshot usado para gerar o
@@ -1384,6 +1439,25 @@ model Report {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
+}
+
+/// Histórico de conversa do Chatbook (aba "Assistente IA") — antes vivia só em useState no
+/// frontend e sumia ao recarregar; sem persistência, cada pergunta também era respondida sem
+/// nenhuma memória do que já tinha sido dito na mesma conversa. Escopado por usuário (é uma
+/// conversa pessoal, não um documento de equipe como Report) e por marca (AtlasGR/Total Trac têm
+/// contexto comercial distinto).
+model AssistantMessage {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand          String
+  role           String // 'user' | 'assistant'
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, userId, brand, createdAt])
 }
 
 /// Severidade da notificação — define o ícone e a cor de status na interface.
@@ -2105,6 +2179,8 @@ enum CadenceRunStatus {
   Active
   Paused
   Stopped
+  Completed
+  Failed
 }
 
 enum CadenceStopReason {
@@ -2112,6 +2188,7 @@ enum CadenceStopReason {
   LeadReply
   Completed
   ManualStop
+  PolicyGuardrail
 }
 
 enum CadenceTouchResult {
@@ -2197,6 +2274,7 @@ model CadenceTouchAttempt {
   cadenceRun   CadenceRun @relation(fields: [cadenceRunId], references: [id], onDelete: Cascade)
 
   touchOrder        Int
+  attemptNumber     Int                @default(1)
   channel           CadenceChannel
   attemptedAt       DateTime           @default(now())
   result            CadenceTouchResult
@@ -2392,119 +2470,17 @@ model DealClosureEvent {
   @@index([organizationId])
 }
 
-// --- FASE 1: LDR Account Intelligence ---
+model ThreeCXCallEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connectionId   String? // ThreeCXConnection.id resolvida pelo extension, quando possível
+  extension      String?
+  callId         String? // id do 3CX, para idempotência de reentrega
+  eventType      String
+  rawPayload     Json // payload cru
+  createdAt      DateTime     @default(now())
 
-model AccountIntelligenceSnapshot {
-  id              String    @id @default(cuid())
-  companyId       String
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  version         Int
-  summary         String?   @db.Text
-  structuredFacts Json?
-  sourceStatus    String?
-  generatedAt     DateTime  @default(now())
-  expiresAt       DateTime?
-
-  @@index([companyId])
-}
-
-model AccountSignal {
-  id          String    @id @default(cuid())
-  companyId   String
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  type        String
-  title       String
-  description String?   @db.Text
-  source      String
-  sourceUrl   String?
-  confidence  Float?
-  status      String    @default("active")
-  dedupeKey   String?
-  detectedAt  DateTime  @default(now())
-  effectiveAt DateTime?
-
-  @@index([companyId, type])
-  @@index([companyId, detectedAt])
-}
-
-model DecisionMaker {
-  id         String    @id @default(cuid())
-  companyId  String
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name       String
-  role       String?
-  department String?
-  seniority  String?
-  buyingRole String?
-  phone      String?
-  email      String?
-  source     String?
-  confidence Float?
-  verifiedAt DateTime?
-  createdAt  DateTime  @default(now())
-
-  @@index([companyId])
-}
-
-model EconomicRelationship {
-  id              String   @id @default(cuid())
-  sourceCompanyId String
-  sourceCompany   Company  @relation("SourceRelationship", fields: [sourceCompanyId], references: [id], onDelete: Cascade)
-  targetCompanyId String
-  targetCompany   Company  @relation("TargetRelationship", fields: [targetCompanyId], references: [id], onDelete: Cascade)
-  relationType    String
-  evidence        String?  @db.Text
-  confidence      Float?
-  createdAt       DateTime @default(now())
-
-  @@index([sourceCompanyId])
-  @@index([targetCompanyId])
-}
-
-model IntelligenceEvidence {
-  id           String   @id @default(cuid())
-  entityType   String
-  entityId     String
-  factKey      String
-  value        String?  @db.Text
-  source       String
-  sourceUrl    String?
-  confidence   Float?
-  evidenceType String?
-  collectedAt  DateTime @default(now())
-
-  @@index([entityType, entityId])
-}
-
-model AccountScore {
-  id           String   @id @default(cuid())
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  total        Int
-  fit          Int?
-  timing       Int?
-  intent       Int?
-  relationship Int?
-  reasons      Json?
-  scoreVersion String?
-  calculatedAt DateTime @default(now())
-
-  @@index([companyId])
-}
-
-model AccountRecommendation {
-  id             String    @id @default(cuid())
-  companyId      String
-  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  actionType     String
-  title          String
-  rationale      String?   @db.Text
-  priority       String?
-  expectedImpact String?
-  status         String    @default("pending")
-  externalRef    String?
-  generatedAt    DateTime  @default(now())
-  executedAt     DateTime?
-
-  @@index([companyId, status])
+  @@unique([organizationId, callId, eventType])
+  @@index([organizationId, createdAt])
 }

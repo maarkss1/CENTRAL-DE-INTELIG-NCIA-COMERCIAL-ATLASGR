@@ -131,15 +131,15 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
               <div className="flex-1 flex flex-col min-h-0 bg-surface">
                 {/* Mode Selector */}
                 <div className="p-3 border-b border-line bg-surface-2 flex items-center justify-between text-xs">
-                  <span className="text-ink-2 font-medium">Fonte de contexto:</span>
+                  <span className="text-ink-2 font-medium">Fonte única do copiloto:</span>
                   <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-xl border border-line">
                     <button
-                      onClick={() => setSearchMode('web_search')}
+                      onClick={() => setSearchMode('general')}
                       className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                        searchMode === 'web_search' ? 'bg-indigo-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink'
+                        searchMode === 'general' ? 'bg-indigo-600 text-white shadow-sm' : 'text-ink-2 hover:text-ink'
                       }`}
                     >
-                      <Globe className="w-3.5 h-3.5" /> IA geral (sem web)
+                      <Globe className="w-3.5 h-3.5" /> IA conversacional
                     </button>
                     <button
                       onClick={() => setSearchMode('internal')}
@@ -193,7 +193,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                 <form onSubmit={handleSendMessage} className="p-4 border-t border-line bg-surface flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder={searchMode === 'web_search' ? 'Pergunte à IA geral (sem dados da web em tempo real)...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
+                    placeholder={searchMode === 'general' ? 'Pergunte sobre a rota ou registro aberto...' : `Consulte a matriz comercial da ${brandInfo.name}...`}
                     value={inputQuery}
                     onChange={(e) => setInputQuery(e.target.value)}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-brand"

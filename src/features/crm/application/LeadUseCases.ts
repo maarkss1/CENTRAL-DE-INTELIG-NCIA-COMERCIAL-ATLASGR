@@ -1,3 +1,4 @@
+import { logger } from '../../../lib/logger.js';
 import { Lead, LeadRepository } from '../domain/Lead';
 import { z } from 'zod';
 import { leadSchema } from '../../../lib/zod';
@@ -96,7 +97,7 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
                 }
             } catch (err) {
                 // Log and swallow so the creation succeeds even if assignment fails
-                console.error('Failed to assign lead via Round-Robin', err);
+                logger.error({ err }, 'Failed to assign lead via Round-Robin');
             }
         }
 

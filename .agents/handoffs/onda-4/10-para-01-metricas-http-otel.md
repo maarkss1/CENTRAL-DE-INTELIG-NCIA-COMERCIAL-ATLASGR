@@ -1,7 +1,7 @@
 - De: 10
 - Para: 01
 - Onda: 4
-- Status: em-andamento
+- Status: resolvido
 - Prioridade: normal
 ## Problema
 Minha missão pede alerta para "erro 5xx acima de limiar" (`.agents/prompts/10-infraestrutura-sre.md`).
@@ -98,3 +98,18 @@ duração HTTP manualmente via um middleware Express + `Histogram` do próprio `
 mas pode ser necessário se a auto-instrumentação desta versão realmente não suportar). Isso está
 fora do meu escopo desta rodada de remediação pontual (só o wiring do `metricReader` foi pedido),
 por isso não decidi por nenhuma das três opções.
+
+## Resolução final (2026-08-21)
+
+Aplicada a opção (c), mas via `prom-client` em vez de `@opentelemetry/api` puro — reusa o mesmo
+registro/endpoint `/metrics` já usado por toda outra métrica custom deste projeto
+(`src/lib/ai/metrics.ts`, `src/lib/queue/metrics.ts`), sem depender de um segundo pipeline de
+exportação (OTLP → otel-collector) só para esta série. Novo módulo
+`src/shared/middlewares/httpMetrics.ts` define o Histogram `http_server_duration_milliseconds`
+(mesmo nome que `alert.rules.yml` já esperava, labels `method`/`route`/`http_status_code`, `route`
+usando `req.route.path` para não explodir cardinalidade com ids/UUIDs) e é montado em `server.ts`
+antes de qualquer rota (inclusive webhooks), só quando `EXPOSE_METRICS=true`. `alert.rules.yml` →
+grupo `prospector-atlas.http-5xx` promovido de `pendente-instrumentacao` para `ativos-hoje`.
+`npx tsc --noEmit` limpo com esta mudança. Não decidi entre (a)/(b) porque (c) já resolve o
+alerta sem depender de uma versão futura de `instrumentation-http` — se o pacote vier a suportar a
+métrica nativamente, a duplicidade pode ser removida então.

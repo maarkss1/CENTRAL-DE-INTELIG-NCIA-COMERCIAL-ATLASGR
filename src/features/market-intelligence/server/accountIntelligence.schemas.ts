@@ -9,6 +9,11 @@ export const accountParamsSchema = z.object({
     id: z.string().trim().min(1).max(128),
 });
 
+export const recommendationParamsSchema = z.object({
+    id: z.string().trim().min(1).max(128),
+    recommendationId: z.string().trim().min(1).max(128),
+});
+
 export const paginationSchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(20),

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Sun, Moon, Menu } from 'lucide-react';
+import { Search, Bell, Sun, Moon, Menu, LogOut } from 'lucide-react';
 import { TabType, TAB_META } from './tabMeta';
 import { useLiveClock } from '../../hooks/useLiveClock';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,7 +16,7 @@ interface AppTopbarProps {
 
 export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
     const now = useLiveClock();
-    const { currentUser } = useAuth();
+    const { currentUser, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const meta = TAB_META[activeTab] ?? TAB_META.dashboard;
@@ -110,10 +110,20 @@ export function AppTopbar({ activeTab, onOpenMobileNav }: AppTopbarProps) {
 
                 <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-2 text-sm font-bold text-white shadow-card"
-                    title={currentUser?.name || 'Usuário'}
+                    title={`${currentUser?.name || 'Usuário'} (${currentUser?.roleTitle || currentUser?.role || ''})`}
                 >
                     {userInitial}
                 </div>
+
+                <button
+                    type="button"
+                    onClick={logout}
+                    className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 transition-colors hover:bg-rose-500/10 hover:text-rose-500"
+                    aria-label="Sair da conta"
+                    title="Sair da conta"
+                >
+                    <LogOut className="h-5 w-5" />
+                </button>
             </div>
         </header>
     );

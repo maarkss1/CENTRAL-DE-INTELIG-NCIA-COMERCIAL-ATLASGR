@@ -171,15 +171,19 @@ export async function listBitrixDeals(
         filter['<DATE_CREATE'] = `${filters.year + 1}-01-01`;
     }
 
-    const [data, imported] = await Promise.all([
+    const [data] = await Promise.all([
         callBitrix<{ result: BitrixDealRaw[]; next?: number; total: number }>(webhookUrl, 'crm.deal.list', {
             filter,
             select: ['ID', 'TITLE', 'CATEGORY_ID', 'STAGE_ID', 'ASSIGNED_BY_ID', 'DATE_CREATE', 'OPPORTUNITY', 'CONTACT_ID', 'COMPANY_ID', ...DEAL_UF_CRM_CODES],
             order: { DATE_CREATE: 'DESC' },
             start,
         }),
-        prisma.lead.findMany({ where: { organizationId, bitrixDealId: { not: null } }, select: { bitrixDealId: true } }),
     ]);
+
+    const bitrixIds = data.result.map((r) => r.ID);
+    const imported = bitrixIds.length > 0
+        ? await prisma.lead.findMany({ where: { organizationId, bitrixDealId: { in: bitrixIds } }, select: { bitrixDealId: true } })
+        : [];
 
     // Nomes de etapa dependem do pipeline (STAGE_ID é prefixado por "C<pipeline>:") — resolve só
     // os pipelines que realmente apareceram nesta página, em vez de carregar todos de antemão.

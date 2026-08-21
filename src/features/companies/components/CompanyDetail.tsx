@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Phone, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Building2, MapPin, Users, FileText, Activity, Star, Sparkles, Loader2, Wrench, Tag, Globe, Linkedin, Phone, ShieldCheck, AlertTriangle, Radar } from 'lucide-react';
 import { Company } from '../../../types';
 import { api } from '../../../lib/api';
 import { TechToolLogo, TechToolInfo } from '../../../components/ui/TechToolLogo';
@@ -15,6 +16,7 @@ interface CompanyDetailProps {
 }
 
 export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
+    const navigate = useNavigate();
     const [company, setCompany] = useState<Company | null>(null);
     const [loading, setLoading] = useState(true);
     const [enriching, setEnriching] = useState(false);
@@ -90,10 +92,8 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
         );
     }
 
-    // Ferramentas ou tecnologias detectadas (fallback para demonstrar logos visuais se vazio)
-    const technologiesList = (company.technologies && company.technologies.length > 0)
-        ? company.technologies
-        : ['React', 'AWS', 'Salesforce', 'HubSpot', 'Docker', 'Google Analytics', 'Shopify', 'PostgreSQL'];
+    const technologiesList = company.technologies ?? [];
+    const hasDetectedTechnologies = technologiesList.length > 0;
 
     return (
         <div className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
@@ -141,6 +141,13 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                             </div>
 
                             <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => navigate(`/app/market-intelligence/accounts/${company.id}`)}
+                                    className="flex items-center gap-2 bg-surface-2 border border-line text-ink px-5 py-2.5 rounded-2xl font-black text-sm hover:bg-surface transition-all cursor-pointer"
+                                >
+                                    <Radar className="w-4 h-4 text-blue-400" />
+                                    Account 360
+                                </button>
                                 <button
                                     onClick={handleEnrich}
                                     disabled={enriching}
@@ -206,22 +213,37 @@ export function CompanyDetail({ companyId, onBack }: CompanyDetailProps) {
                                 <p className="text-xs text-ink-2">Ecossistema de softwares e firmographics detectados no prospect</p>
                             </div>
                         </div>
-                        <span className="text-xs bg-surface-2 px-3 py-1 rounded-full text-ink/70 dark:text-ink-2 border border-line font-mono">
-                            {technologiesList.length} Ferramentas
+                        <span className={`text-xs px-3 py-1 rounded-full border font-mono ${hasDetectedTechnologies
+                            ? 'bg-surface-2 text-ink/70 dark:text-ink-2 border-line'
+                            : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                        }`}>
+                            {hasDetectedTechnologies ? `${technologiesList.length} Ferramentas` : 'Sem detecção real'}
                         </span>
                     </div>
 
-                    {/* RENDERING BRAND LOGOS FOR ALL TOOLS */}
                     <div className="bg-surface-2 p-6 rounded-2xl border border-line flex flex-wrap gap-3 items-center">
-                        {technologiesList.map((tech, i) => (
-                            <TechToolLogo
-                                key={i}
-                                techName={tech}
-                                showCategory={true}
-                                size="lg"
-                                onClick={(info) => setActiveToolPopover(info)}
-                            />
-                        ))}
+                        {hasDetectedTechnologies ? (
+                            technologiesList.map((tech, i) => (
+                                <TechToolLogo
+                                    key={i}
+                                    techName={tech}
+                                    showCategory={true}
+                                    size="lg"
+                                    onClick={(info) => setActiveToolPopover(info)}
+                                />
+                            ))
+                        ) : (
+                            <div className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-100 flex items-start gap-3">
+                                <AlertTriangle className="w-5 h-5 text-amber-300 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-sm font-black">Tecnologias ainda não detectadas para esta empresa.</p>
+                                    <p className="text-xs leading-relaxed text-amber-100/80">
+                                        Este painel só exibe ferramentas confirmadas pelo cadastro ou por enriquecimento.
+                                        Nenhum logo demonstrativo foi usado para evitar confundir exemplo visual com dado real.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -5,25 +5,17 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-bold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-100",
   {
     variants: {
       variant: {
-        // Nota: as sombras rgba(255,86,24,...) abaixo continuam fixas na tonalidade da AtlasGR —
-        // parametrizar a opacidade delas por --brand exigiria um token RGB triplo separado
-        // (color-mix não compõe com rgba() arbitrário do Tailwind); ver DESIGN_QA_CENTRAL_ATLASGR.md.
-        // Gradiente usa brand-active/brand-2-active (não brand/brand-2 puros): texto branco sobre
-        // --brand-2 puro dá só ~2.9:1 (AtlasGR) / ~3.6:1 (TotalTrac) — mesma classe de bug do
-        // DQA-19, achada nesta rodada (Onda 8) neste componente (o Button mais reutilizado do
-        // app), não coberta pelo --color-brand-active original. hover:brightness-110 foi removido
-        // (não hover:bg-*) porque clarear ainda mais o extremo já escurecido derrubava o contraste
-        // de volta pra ~4.1:1 no hover — o feedback de interação já existe via shadow e
-        // active:scale-[0.97] (classe base), sem precisar reintroduzir o brilho.
-        default: "bg-gradient-to-r from-brand-active to-brand-2-active text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_8px_20px_-6px_rgba(255,86,24,0.55)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_26px_-6px_rgba(255,86,24,0.7)]",
-        destructive: "bg-red-500 text-white shadow-sm hover:bg-red-500/90",
-        outline: "border border-line bg-surface shadow-sm hover:bg-surface-2 hover:text-ink",
-        secondary: "bg-surface-2 text-ink shadow-sm hover:bg-surface-2/70",
-        ghost: "hover:bg-surface-2 hover:text-ink",
+        // Redesign simplificado: Fundo sólido, sem borda agressiva.
+        // Usa bg-brand direto. Para contraste WCAG (se necessário), usar color-mix.
+        default: "bg-brand text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(255,86,24,0.2)]",
+        destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
+        outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
+        secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",
+        ghost: "hover:bg-gray-100 hover:text-ink",
         link: "text-brand underline-offset-4 hover:underline",
       },
       size: {

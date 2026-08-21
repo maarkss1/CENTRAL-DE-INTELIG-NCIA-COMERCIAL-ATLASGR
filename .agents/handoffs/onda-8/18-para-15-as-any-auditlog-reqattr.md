@@ -1,8 +1,11 @@
 - De: 18
 - Para: 15
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
+
+## Resolução
+Substituído `(req as any)` por `(req as AuthRequest)` com a devida importação de `../../shared/middlewares/authenticateToken.js`. Isso retorna a checagem de tipo estática.
 
 ## Problema
 `src/lib/security/auditLog.middleware.ts` lê `req.user` via `(req as any)` em vez do tipo

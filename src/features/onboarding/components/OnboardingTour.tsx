@@ -110,7 +110,7 @@ export function OnboardingTour() {
         <div className="relative mb-6">
           <AtlasOrb size={180} />
           {/* Pulsing indicator behind the orb */}
-          <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isAtlas ? 'bg-atlas-orange' : 'bg-totaltrack-blue'}`} />
+          <div className={`absolute inset-0 rounded-full animate-ping opacity-20 ${isAtlas ? 'bg-brand' : 'bg-brand-2'}`} />
         </div>
 
         <motion.div
@@ -124,7 +124,7 @@ export function OnboardingTour() {
           }`}
         >
           {/* Subtle glow inside tooltip */}
-          <div className={`absolute top-0 inset-x-0 h-1 ${isAtlas ? 'bg-gradient-to-r from-atlas-orange/0 via-atlas-orange to-atlas-orange/0' : 'bg-gradient-to-r from-totaltrack-blue/0 via-totaltrack-blue to-totaltrack-blue/0'}`} />
+          <div className={`absolute top-0 inset-x-0 h-1 ${isAtlas ? 'bg-gradient-to-r from-brand/0 via-brand to-brand/0' : 'bg-gradient-to-r from-brand-2/0 via-brand-2 to-brand-2/0'}`} />
 
           <p className="text-base font-semibold leading-relaxed mb-6">
             {step.message}
@@ -141,7 +141,7 @@ export function OnboardingTour() {
             </button>
             <Button
               onClick={handleNext}
-              className={`${isAtlas ? 'bg-atlas-orange hover:bg-orange-600' : 'bg-totaltrack-blue hover:bg-sky-600'} text-white shadow-lg`}
+              className={`${isAtlas ? 'bg-brand hover:bg-orange-600' : 'bg-brand-2 hover:bg-sky-600'} text-white shadow-lg`}
             >
               {currentStep === steps.length - 1 ? 'Começar' : 'Avançar'} <ChevronRight size={16} className="ml-1" />
             </Button>
