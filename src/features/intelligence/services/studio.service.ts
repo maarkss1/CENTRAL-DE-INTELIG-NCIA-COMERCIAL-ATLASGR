@@ -18,7 +18,7 @@ import { generateAssistant } from './studio/generators/assistant.js';
 import { generateRoleplay } from './studio/generators/roleplay.js';
 import { generateSuperagent } from './studio/generators/superagent.js';
 
-export { studioGenerationSchema, type StudioGenerationRequest } from './studio/schema.js';
+export { studioGenerationSchema, assistantRequestSchema, type StudioGenerationRequest } from './studio/schema.js';
 
 export class StudioService {
     async generate(request: StudioGenerationRequest): Promise<unknown> {

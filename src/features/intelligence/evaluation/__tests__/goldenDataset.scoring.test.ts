@@ -16,9 +16,8 @@ function idealOutput(goldenCase: any): unknown {
             return goldenCase.expected.referenceAnswer;
         case 'roleplay':
             return {
-                currentLeadInterest: (goldenCase.expected.minInterest + goldenCase.expected.maxInterest) / 2,
-                isDealClosed: goldenCase.expected.dealClosed,
-                isDealLost: goldenCase.expected.dealLost,
+                clarity: (goldenCase.expected.minClarity + goldenCase.expected.maxClarity) / 2,
+                objectionHandling: (goldenCase.expected.minObjectionHandling + goldenCase.expected.maxObjectionHandling) / 2,
             };
         case 'next_best_action':
             return {

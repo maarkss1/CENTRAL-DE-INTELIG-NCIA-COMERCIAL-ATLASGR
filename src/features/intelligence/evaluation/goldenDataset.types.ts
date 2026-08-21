@@ -81,30 +81,24 @@ const objectionHandlingCaseSchema = z.object({
     }),
 });
 
-/** `RoleplayPersona` — src/features/roleplay/services/roleplay-ai.service.ts */
-const roleplayPersonaSchema = z.object({
-    name: z.string().min(1),
-    role: z.string().min(1),
-    companyProfile: z.string().min(1),
-    difficulty: z.enum(['Fácil', 'Médio', 'Difícil', 'Extremo']),
-    mainObjection: z.string().min(1),
-    personality: z.string().min(1),
-});
-
-/** `RoleplayAiService.simulateCustomerResponse(input: RoleplayTurnInput)` */
+/** `generateRoleplay(request: Extract<StudioGenerationRequest,{kind:'roleplay'}>)` — src/features/intelligence/services/studio/generators/roleplay.ts (motor real usado pela tela /roleplay) */
 const roleplayCaseSchema = z.object({
     ...baseCaseFields,
     category: z.literal('roleplay'),
     input: z.object({
-        persona: roleplayPersonaSchema,
-        history: z.array(z.object({ sender: z.enum(['user', 'persona']), text: z.string() })),
-        userMessage: z.string().min(1),
+        brand: z.object({ name: z.string().min(1), description: z.string().min(1) }),
+        inputs: z.object({
+            persona: z.enum(['skeptical_cfo', 'strict_buyer', 'tech_director']),
+            message: z.string().min(1),
+            transcript: z.array(z.object({ sender: z.enum(['sdr', 'buyer']), text: z.string() })),
+            playbookContext: z.string().optional(),
+        }),
     }),
     expected: z.object({
-        minInterest: z.number().min(0).max(100),
-        maxInterest: z.number().min(0).max(100),
-        dealClosed: z.boolean(),
-        dealLost: z.boolean(),
+        minClarity: z.number().min(0).max(100),
+        maxClarity: z.number().min(0).max(100),
+        minObjectionHandling: z.number().min(0).max(100),
+        maxObjectionHandling: z.number().min(0).max(100),
     }),
 });
 

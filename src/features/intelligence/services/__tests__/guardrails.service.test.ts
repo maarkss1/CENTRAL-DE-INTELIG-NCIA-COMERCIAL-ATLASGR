@@ -17,7 +17,7 @@ vi.mock('../../../../lib/logger.js', () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-const { minimizePii, rehydratePii, redactSensitiveData, redactAndTrackPiiLeak, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
+const { minimizePii, rehydratePii, redactSensitiveData, redactAndTrackPiiLeak, createStreamingRedactor, hasPiiExternalConsent, assertPiiExternalConsent, PiiConsentRequiredError } = await import('../guardrails.service');
 
 describe('minimizePii / rehydratePii', () => {
     it('substitui o valor de PII pelo token antes de sair para o provedor de IA', () => {
@@ -140,6 +140,62 @@ describe('redactAndTrackPiiLeak (AI-006, onda 35: sinal real de PII leakage rate
         const result = await redactAndTrackPiiLeak('CPF do titular: 123.456.789-00', 'commercial-intelligence');
 
         expect(result).toBe('CPF do titular: [CPF OCULTADO]');
+    });
+});
+
+describe('createStreamingRedactor (Fase 2: guardrail de PII sob streaming, sem esperar a resposta inteira)', () => {
+    afterEach(() => {
+        aiGuardrailEventCreate.mockClear();
+        getTenantIdMock.mockReset();
+    });
+
+    it('mascara um CPF mesmo quando seus dígitos chegam espalhados um chunk por vez', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        const full = 'O CPF informado foi 123.456.789-00, obrigado.';
+
+        let released = '';
+        for (const char of full) {
+            released += redactor.push(char);
+        }
+        released += await redactor.flush();
+
+        expect(released).toBe('O CPF informado foi [CPF OCULTADO], obrigado.');
+        // Em nenhum momento intermediário um trecho liberado pode conter o CPF em texto puro —
+        // testado acima via concatenação, mas reforça a garantia central do buffer.
+        expect(released).not.toContain('123.456.789-00');
+    });
+
+    it('libera texto sem PII imediatamente conforme os chunks chegam, sem esperar o flush', () => {
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        let released = '';
+        for (const char of 'Texto totalmente comum, sem nenhum dado sensível aqui dentro.') {
+            released += redactor.push(char);
+        }
+        // Só os últimos 14 caracteres (tamanho do padrão de CPF) ficam retidos até o flush.
+        expect(released).toBe('Texto totalmente comum, sem nenhum dado sensíve');
+    });
+
+    it('flush() libera e mascara o que sobrou retido no buffer ao final do stream', async () => {
+        const redactor = createStreamingRedactor('studio:assistant-stream');
+        let released = redactor.push('sem PII: 123.456.789-00');
+        released += await redactor.flush();
+        expect(released).toBe('sem PII: [CPF OCULTADO]');
+    });
+
+    it('grava o evento de guardrail (best-effort) só quando algo foi de fato mascarado no stream', async () => {
+        getTenantIdMock.mockReturnValue('org-1');
+        const redactor = createStreamingRedactor('roleplay-stream');
+        redactor.push('nenhuma pii aqui');
+        await redactor.flush();
+        expect(aiGuardrailEventCreate).not.toHaveBeenCalled();
+
+        const redactorWithPii = createStreamingRedactor('roleplay-stream');
+        redactorWithPii.push('CPF: 123.456.789-00');
+        await redactorWithPii.flush();
+        expect(aiGuardrailEventCreate).toHaveBeenCalledWith({
+            data: { type: 'pii_redacted', source: 'roleplay-stream', organizationId: 'org-1' },
+        });
     });
 });
 

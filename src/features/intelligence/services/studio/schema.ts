@@ -6,6 +6,27 @@ export const brandSchema = z.object({
     description: z.string().trim().min(1).max(500),
 });
 
+export const assistantRequestSchema = z.object({
+    kind: z.literal('assistant'),
+    brand: brandSchema,
+    // Chave estável da marca (distinta de brand.name/description, que são só texto de exibição) —
+    // usada para persistir o histórico da conversa (AssistantMessage) escopado por marca. Opcional
+    // para não quebrar contrato de quem já chama /studio com kind:"assistant" sem esse campo —
+    // só /studio/stream exige em runtime, porque só ele persiste histórico.
+    brandKey: z.enum(['atlasgr', 'totaltrac']).optional(),
+    inputs: z.object({
+        question: z.string().trim().min(2).max(2_000),
+        mode: z.enum(['internal', 'general']),
+        localContext: z.string().trim().max(8_000).optional(),
+        // Últimos turnos da mesma conversa (ver AssistantMessage) — sem isso o modelo respondia
+        // cada pergunta como se fosse a primeira, sem memória do que já foi dito antes.
+        history: z.array(z.object({
+            sender: z.enum(['user', 'assistant']),
+            text: z.string().trim().min(1).max(4_000),
+        })).max(20).optional(),
+    }),
+});
+
 export const studioGenerationSchema = z.discriminatedUnion('kind', [
     z.object({
         kind: z.literal('email'),
@@ -108,15 +129,7 @@ export const studioGenerationSchema = z.discriminatedUnion('kind', [
             goal: z.string().trim().min(5).max(1_000),
         }),
     }),
-    z.object({
-        kind: z.literal('assistant'),
-        brand: brandSchema,
-        inputs: z.object({
-            question: z.string().trim().min(2).max(2_000),
-            mode: z.enum(['internal', 'general']),
-            localContext: z.string().trim().max(8_000).optional(),
-        }),
-    }),
+    assistantRequestSchema,
     z.object({
         kind: z.literal('roleplay'),
         brand: brandSchema,

@@ -29,17 +29,14 @@ export function redactSensitiveData(text: string): { text: string; redacted: boo
  * Best-effort de propósito: se a própria gravação do evento falhar, a redação em si (o que importa
  * para o usuário) já aconteceu — perder só o sinal de telemetria não deveria derrubar a resposta.
  */
-export async function redactAndTrackPiiLeak(text: string, source: string): Promise<string> {
-    const { text: redactedText, redacted } = redactSensitiveData(text);
-    if (!redacted) return redactedText;
-
+async function trackPiiRedactionEvent(source: string): Promise<void> {
     const organizationId = getTenantId();
     if (!organizationId) {
-        // Nenhum dos 4 pontos de chamada reais roda fora de uma requisição autenticada hoje — se
-        // isso mudar no futuro, o evento fica sem tenant para atribuir e é melhor não registrar
-        // (RLS exige organizationId não-nulo neste model) do que inventar um dono.
+        // Nenhum ponto de chamada real roda fora de uma requisição autenticada hoje — se isso
+        // mudar no futuro, o evento fica sem tenant para atribuir e é melhor não registrar (RLS
+        // exige organizationId não-nulo neste model) do que inventar um dono.
         logger.warn({ source }, 'PII redigida fora de um contexto de tenant conhecido — evento de guardrail não registrado.');
-        return redactedText;
+        return;
     }
 
     try {
@@ -47,8 +44,61 @@ export async function redactAndTrackPiiLeak(text: string, source: string): Promi
     } catch (err) {
         logger.warn({ err, source, organizationId }, 'Falha ao registrar evento de guardrail de PII (a redação em si já aconteceu).');
     }
+}
 
+export async function redactAndTrackPiiLeak(text: string, source: string): Promise<string> {
+    const { text: redactedText, redacted } = redactSensitiveData(text);
+    if (!redacted) return redactedText;
+    await trackPiiRedactionEvent(source);
     return redactedText;
+}
+
+/** Tamanho fixo do padrão mascarado por `redactSensitiveData` ("000.000.000-00"). */
+const CPF_PATTERN_LENGTH = '000.000.000-00'.length;
+
+/**
+ * Versão streaming-safe do guardrail acima: `redactAndTrackPiiLeak` só é seguro sobre uma
+ * resposta já completa — aplicado direto sobre chunks avulsos de um stream, um CPF cujos dígitos
+ * caem em chunks diferentes do provedor passaria batido.
+ *
+ * `push()` roda `redactSensitiveData` sobre o BUFFER INTEIRO acumulado a cada chamada (nunca só
+ * sobre o pedaço recém-liberado isoladamente — uma primeira versão desta função tinha exatamente
+ * esse bug: testava cada fatia liberada sozinha, então um CPF cujos dígitos saíam um de cada vez,
+ * em chamadas separadas, nunca aparecia inteiro em nenhum teste individual e passava batido).
+ * Só então libera, já redigido, tudo exceto os últimos `CPF_PATTERN_LENGTH` caracteres do buffer
+ * (nunca libera essa cauda) — suficiente para que qualquer ocorrência do padrão ainda incompleta
+ * (no máximo `CPF_PATTERN_LENGTH - 1` caracteres digitados até agora, senão já seria um padrão
+ * completo e teria sido redigida acima) sempre esteja inteira dentro da região retida, até o
+ * próximo chunk completá-la ou empurrá-la pra fora da cauda. `flush()` libera (e redige) o que
+ * sobrou ao final do stream.
+ */
+export function createStreamingRedactor(source: string) {
+    let buffer = '';
+    let redactedAny = false;
+
+    function push(chunk: string): string {
+        buffer += chunk;
+        const { text: redactedBuffer, redacted } = redactSensitiveData(buffer);
+        if (redacted) {
+            redactedAny = true;
+            buffer = redactedBuffer;
+        }
+        if (buffer.length <= CPF_PATTERN_LENGTH) return '';
+        const safeLength = buffer.length - CPF_PATTERN_LENGTH;
+        const release = buffer.slice(0, safeLength);
+        buffer = buffer.slice(safeLength);
+        return release;
+    }
+
+    async function flush(): Promise<string> {
+        const { text, redacted } = redactSensitiveData(buffer);
+        if (redacted) redactedAny = true;
+        buffer = '';
+        if (redactedAny) await trackPiiRedactionEvent(source);
+        return text;
+    }
+
+    return { push, flush };
 }
 
 export interface PiiToken {

@@ -2,13 +2,12 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { cleanAndParseJson, getAiModel } from '../../../lib/ai/gateway.js';
 import { generateEmailDraft, generateObjectionHandling } from '../../../lib/ai/features.js';
 import { compileLeadGraph } from '../graphs/leadQualification.js';
-import { RoleplayAiService } from '../../roleplay/services/roleplay-ai.service.js';
+import { generateRoleplay } from '../services/studio/generators/roleplay.js';
 import { NextBestActionService } from '../../activities/services/next-best-action.service.js';
 import { MeetingSynthesisService } from '../../chatbook/services/meeting-synthesis.service.js';
 import { KnowledgeCopilotService } from '../../knowledge/services/knowledge-copilot.service.js';
 import { GOLDEN_TOOL_NAMES, type GoldenCase } from './goldenDataset.types.js';
 
-const roleplay = new RoleplayAiService();
 const nextBestAction = new NextBestActionService();
 const meeting = new MeetingSynthesisService();
 const knowledge = new KnowledgeCopilotService();
@@ -27,7 +26,7 @@ export async function runGoldenCaseAgainstProduction(goldenCase: GoldenCase): Pr
         case 'objection_handling':
             return generateObjectionHandling(goldenCase.input.objection);
         case 'roleplay':
-            return roleplay.simulateCustomerResponse(goldenCase.input);
+            return generateRoleplay({ kind: 'roleplay', brand: goldenCase.input.brand, inputs: goldenCase.input.inputs });
         case 'next_best_action':
             return nextBestAction.determineNextAction(goldenCase.input);
         case 'summary':

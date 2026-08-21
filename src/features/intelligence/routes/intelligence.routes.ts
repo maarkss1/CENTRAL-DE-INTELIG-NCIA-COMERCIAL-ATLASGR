@@ -36,14 +36,15 @@ import { validateRequest } from '../../../shared/middlewares/validateRequest.js'
 import { listPendingActions, approvePendingAction, discardPendingAction } from '../services/pending-actions.service.js';
 import { listAiSettings, saveAiSettings } from '../services/ai-settings.service.js';
 import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
-import { studioGenerationSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
+import { studioGenerationSchema, assistantRequestSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
+import { SYSTEM_RULES, streamText } from '../services/studio/shared.js';
+import { generateAssistantStream } from '../services/studio/generators/assistant.js';
+import { redactAndTrackPiiLeak } from '../services/guardrails.service.js';
+import { listAssistantHistory, appendAssistantTurn } from '../services/assistant-history.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
-import { aiSuiteRouter } from './ai-suite.routes.js';
 
 const router = Router();
-
-router.use('/suite', aiSuiteRouter);
 
 router.post('/studio', validateRequest(studioGenerationSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -52,6 +53,57 @@ router.post('/studio', validateRequest(studioGenerationSchema), async (req: Requ
     } catch (error) {
         logger.error({ err: error }, 'Error generating AI studio artifact');
         next(error);
+    }
+});
+
+// Histórico de conversa do Chatbook (AssistantMessage) — GET carrega ao montar/trocar de marca,
+// POST /studio/stream grava os dois turnos (usuário + assistente) ao final de cada resposta.
+router.get('/chatbook/history', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId, id: userId } = (req as AuthRequest).user;
+        const brand = String(req.query.brand || '');
+        if (brand !== 'atlasgr' && brand !== 'totaltrac') {
+            res.status(400).json({ success: false, error: 'brand deve ser "atlasgr" ou "totaltrac".' });
+            return;
+        }
+        const messages = await listAssistantHistory(organizationId, userId, brand);
+        res.json({ success: true, data: messages });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Streaming (SSE) do Chatbook — só o kind "assistant" do Studio, o único cuja saída é texto livre
+// sem schema JSON (ver Fase 2 do plano: roleplay/training continuam via /studio, sem streaming).
+router.post('/studio/stream', validateRequest(assistantRequestSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const request = req.body as z.infer<typeof assistantRequestSchema>;
+    const { organizationId, id: userId } = (req as AuthRequest).user;
+    if (!request.brandKey) {
+        res.status(400).json({ success: false, error: 'brandKey é obrigatório para /studio/stream.' });
+        return;
+    }
+    try {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders?.();
+
+        const result = await generateAssistantStream(request, (chunk) => {
+            res.write(`event: delta\ndata: ${JSON.stringify({ delta: chunk })}\n\n`);
+        });
+
+        await appendAssistantTurn(organizationId, userId, request.brandKey, request.inputs.question, result.answer);
+
+        res.write(`event: end\ndata: ${JSON.stringify({ capability: result.capability })}\n\n`);
+        res.end();
+    } catch (error) {
+        logger.error({ err: error }, 'Error streaming AI studio assistant');
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(`event: error\ndata: ${JSON.stringify((error as Error).message)}\n\n`);
+            res.end();
+        }
     }
 });
 
@@ -337,6 +389,21 @@ const reportSchema = z.object({
     brandId: z.enum(['atlasgr', 'totaltrac']).default('atlasgr'),
 });
 
+function reportBrandContext(brandId: 'atlasgr' | 'totaltrac'): string {
+    return brandId === 'totaltrac'
+        ? 'TotalTrac (tecnologia para telemetria, videotelemetria, jornada e proteção de frotas)'
+        : 'AtlasGR (inteligência comercial e gestão de risco logístico)';
+}
+
+function reportPrompt(brandContext: string): string {
+    return `Você é um analista de operações comerciais da ${brandContext}.
+Escreva um relatório executivo curto em Markdown interpretando os dados fornecidos para a liderança comercial:
+1. Um resumo de 2-3 frases do estado atual.
+2. Os 2 pontos mais fortes e os 2 pontos mais fracos, cada um em uma linha.
+3. 3 recomendações de ação concretas e priorizadas para a próxima semana.
+Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que não estão no JSON.`;
+}
+
 // PC-008: o relatório era devolvido ao frontend e nunca persistido — sumia ao navegar/recarregar
 // a tela (ReportsHub mantinha só em estado local). Persiste aqui e expõe GET /report/latest
 // abaixo para a tela carregar o último relatório gerado da organização ao montar.
@@ -357,16 +424,10 @@ router.post('/report', validateRequest(reportSchema), async (req: Request, res: 
     try {
         const organizationId = (req as AuthRequest).user.organizationId;
         const { metrics, brandId } = req.body as z.infer<typeof reportSchema>;
-        const brandContext = brandId === 'totaltrac'
-            ? 'TotalTrac (tecnologia para telemetria, videotelemetria, jornada e proteção de frotas)'
-            : 'AtlasGR (inteligência comercial e gestão de risco logístico)';
 
-        const systemPrompt = `Você é um analista de operações comerciais da ${brandContext}.
-Escreva um relatório executivo curto em Markdown interpretando os dados fornecidos para a liderança comercial:
-1. Um resumo de 2-3 frases do estado atual.
-2. Os 2 pontos mais fortes e os 2 pontos mais fracos, cada um em uma linha.
-3. 3 recomendações de ação concretas e priorizadas para a próxima semana.
-Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que não estão no JSON.`;
+        const systemPrompt = `${SYSTEM_RULES}
+
+${reportPrompt(reportBrandContext(brandId))}`;
         const userPrompt = `Números atuais da plataforma (CRM, prospecção e pipeline):\n${JSON.stringify(metrics, null, 2)}`;
 
         const model = getAiModel('local-llama3-fast', 0.4, 'report_interpretation');
@@ -383,11 +444,13 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
             latencyMs,
         });
 
+        const content = await redactAndTrackPiiLeak(String(response.content), 'report');
+
         const saved = await prisma.report.create({
             data: {
                 organizationId,
                 brandId,
-                content: String(response.content),
+                content,
                 metrics: metrics as Prisma.InputJsonValue,
             },
         });
@@ -396,6 +459,43 @@ Baseie-se SOMENTE nos números fornecidos acima — nunca invente métricas que 
     } catch (error) {
         logger.error({ err: error }, 'Error generating report interpretation');
         next(error);
+    }
+});
+
+router.post('/report/stream', validateRequest(reportSchema), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const organizationId = (req as AuthRequest).user.organizationId;
+    const { metrics, brandId } = req.body as z.infer<typeof reportSchema>;
+    const prompt = `${SYSTEM_RULES}
+
+${reportPrompt(reportBrandContext(brandId))}
+
+Números atuais da plataforma (CRM, prospecção e pipeline):
+${JSON.stringify(metrics, null, 2)}`;
+
+    try {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders?.();
+
+        const content = await streamText(prompt, 'report_interpretation', 0.4, 'local-llama3-fast', (chunk) => {
+            res.write(`event: delta\ndata: ${JSON.stringify({ delta: chunk })}\n\n`);
+        });
+
+        const saved = await prisma.report.create({
+            data: { organizationId, brandId, content, metrics: metrics as Prisma.InputJsonValue },
+        });
+
+        res.write(`event: end\ndata: ${JSON.stringify({ reportId: saved.id, createdAt: saved.createdAt })}\n\n`);
+        res.end();
+    } catch (error) {
+        logger.error({ err: error }, 'Error streaming report interpretation');
+        if (!res.headersSent) {
+            next(error);
+        } else {
+            res.write(`event: error\ndata: ${JSON.stringify((error as Error).message)}\n\n`);
+            res.end();
+        }
     }
 });
 

@@ -145,17 +145,18 @@ function deterministicScore(
         }
 
         case 'roleplay': {
-            const interest = Number(obj.currentLeadInterest ?? obj.interest);
-            const interestOk = Number.isFinite(interest)
-                && interest >= goldenCase.expected.minInterest
-                && interest <= goldenCase.expected.maxInterest;
-            const closedOk = Boolean(obj.isDealClosed ?? obj.dealClosed) === goldenCase.expected.dealClosed;
-            const lostOk = Boolean(obj.isDealLost ?? obj.dealLost) === goldenCase.expected.dealLost;
-            if (!interestOk) reasons.push('interesse fora da faixa aceita');
-            if (!closedOk) reasons.push('estado de fechamento divergente');
-            if (!lostOk) reasons.push('estado de perda divergente');
+            const clarity = Number(obj.clarity);
+            const objectionHandling = Number(obj.objectionHandling);
+            const clarityOk = Number.isFinite(clarity)
+                && clarity >= goldenCase.expected.minClarity
+                && clarity <= goldenCase.expected.maxClarity;
+            const objectionHandlingOk = Number.isFinite(objectionHandling)
+                && objectionHandling >= goldenCase.expected.minObjectionHandling
+                && objectionHandling <= goldenCase.expected.maxObjectionHandling;
+            if (!clarityOk) reasons.push('clarity fora da faixa aceita');
+            if (!objectionHandlingOk) reasons.push('objectionHandling fora da faixa aceita');
             return {
-                score: Number(interestOk) * 0.5 + Number(closedOk) * 0.25 + Number(lostOk) * 0.25,
+                score: Number(clarityOk) * 0.5 + Number(objectionHandlingOk) * 0.5,
                 reasons,
             };
         }

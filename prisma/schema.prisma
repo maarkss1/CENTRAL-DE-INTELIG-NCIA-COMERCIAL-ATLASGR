@@ -672,6 +672,7 @@ model User {
   image              String?
   sessions           Session[]
   accounts           Account[]
+  assistantMessages  AssistantMessage[]
 
   @@index([organizationId])
   @@map("user")
@@ -692,6 +693,7 @@ model Organization {
   aiLogs                        AILog[]
   aiGuardrailEvents             AIGuardrailEvent[]
   reports                       Report[]
+  assistantMessages             AssistantMessage[]
   aiPendingActions              AIPendingAction[]
   knowledgeChunks               KnowledgeChunk[]
   prompts                       Prompt[]
@@ -1437,6 +1439,25 @@ model Report {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
+}
+
+/// Histórico de conversa do Chatbook (aba "Assistente IA") — antes vivia só em useState no
+/// frontend e sumia ao recarregar; sem persistência, cada pergunta também era respondida sem
+/// nenhuma memória do que já tinha sido dito na mesma conversa. Escopado por usuário (é uma
+/// conversa pessoal, não um documento de equipe como Report) e por marca (AtlasGR/Total Trac têm
+/// contexto comercial distinto).
+model AssistantMessage {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand          String
+  role           String // 'user' | 'assistant'
+  content        String       @db.Text
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, userId, brand, createdAt])
 }
 
 /// Severidade da notificação — define o ícone e a cor de status na interface.
