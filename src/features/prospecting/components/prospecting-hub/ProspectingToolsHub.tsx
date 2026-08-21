@@ -94,7 +94,7 @@ export function ProspectingToolsHub() {
     }
 
     const activeMeta = TOOL_TABS.find((t) => t.id === activeTool)!;
-    const configured = status?.[activeMeta.statusKey]?.configured ?? true;
+    const configured = status?.[activeMeta.statusKey]?.configured ?? false;
 
     return (
         <div className="space-y-6">
