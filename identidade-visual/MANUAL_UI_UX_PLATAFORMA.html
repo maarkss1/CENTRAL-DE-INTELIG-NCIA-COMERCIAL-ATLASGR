@@ -1,13 +1,15 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR" class="dark scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS - The Ultimate Brandbook</title>
+    <title>NEXUS OS — Manual de Identidade Visual & UI/UX Futurista</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;800&family=Montserrat:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,400;1,700&family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700;900&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
@@ -15,20 +17,24 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        cyber: ['Rajdhani', 'sans-serif'],
+                        cyber: ['Orbitron', 'Rajdhani', 'sans-serif'],
+                        tech: ['Rajdhani', 'sans-serif'],
                         body: ['Montserrat', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     },
                     colors: {
                         atlas: {
-                            glow: '#FF5618',
-                            core: '#FF8008',
+                            orange: '#FF5618',
+                            hover: '#FF6B10',
+                            gold: '#FFC500',
+                            dark: '#141110',
                         },
                         totaltrac: {
-                            glow: '#008FCE',
-                            core: '#93DBF2',
-                        },
-                        space: '#05050A',
-                        glass: 'rgba(20, 20, 30, 0.65)'
+                            blue: '#008FCE',
+                            navy: '#2D3B78',
+                            sky: '#93DBF2',
+                            deep: '#0B1120',
+                        }
                     }
                 }
             }
@@ -37,432 +43,1041 @@
 
     <style>
         :root {
-            --neon-color: #FF5618;
-            --neon-secondary: #FFC500;
-            --bg-dark: #05050A;
-            --grid-color: rgba(255, 86, 24, 0.08);
-            --font-display: 'Rajdhani', sans-serif;
-            --glass-bg: rgba(20, 20, 30, 0.65);
+            --brand-primary: #FF5618;
+            --brand-secondary: #FFC500;
+            --brand-accent: #FF8008;
+            --brand-deep: #120A07;
+            --brand-font-display: 'Montserrat', 'Rajdhani', sans-serif;
+            --brand-font-body: 'Montserrat', sans-serif;
+            --neon-glow: rgba(255, 86, 24, 0.4);
+            --neon-glow-strong: rgba(255, 86, 24, 0.85);
+            --border-glow: rgba(255, 86, 24, 0.35);
+            --grid-line: rgba(255, 86, 24, 0.07);
+            --card-glass: rgba(18, 12, 10, 0.75);
+            --brand-symbol: '▲';
+            --brand-name: 'ATLAS LOGISTICS INTELLIGENCE';
         }
 
         [data-theme="totaltrac"] {
-            --neon-color: #008FCE;
-            --neon-secondary: #93DBF2;
-            --grid-color: rgba(0, 143, 206, 0.08);
+            --brand-primary: #008FCE;
+            --brand-secondary: #93DBF2;
+            --brand-accent: #2D3B78;
+            --brand-deep: #070D18;
+            --brand-font-display: 'Inter', 'Rajdhani', sans-serif;
+            --brand-font-body: 'Inter', sans-serif;
+            --neon-glow: rgba(0, 143, 206, 0.4);
+            --neon-glow-strong: rgba(0, 143, 206, 0.85);
+            --border-glow: rgba(0, 143, 206, 0.35);
+            --grid-line: rgba(0, 143, 206, 0.07);
+            --card-glass: rgba(8, 14, 26, 0.75);
+            --brand-symbol: '◎';
+            --brand-name: 'TOTALTRAC FLEET TELEMETRY';
         }
 
         body {
-            background-color: var(--bg-dark);
+            background-color: #050508;
             color: #E2E8F0;
-            font-family: 'Montserrat', sans-serif;
+            font-family: var(--brand-font-body);
             overflow-x: hidden;
-            transition: background-color 0.5s ease;
+            transition: background-color 0.5s ease, color 0.5s ease;
         }
 
-        /* Animated Grid Background */
+        /* 3D Cyber Matrix Background */
         .cyber-grid {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             background-image: 
-                linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-                linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-            background-size: 50px 50px;
+                linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+            background-size: 40px 40px;
             z-index: -2;
-            transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
-            animation: gridMove 20s linear infinite;
+            transform: perspective(600px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+            animation: gridScan 25s linear infinite;
         }
 
-        @keyframes gridMove {
+        @keyframes gridScan {
             0% { background-position: 0 0; }
             100% { background-position: 0 1000px; }
         }
 
-        /* Ambient Glow */
-        .ambient-glow {
+        /* Radial Neon Aura */
+        .ambient-aurora {
             position: fixed;
-            top: -20%; left: 50%;
-            width: 80vw; height: 80vh;
-            background: radial-gradient(circle, var(--neon-color) 0%, transparent 60%);
-            opacity: 0.15;
+            top: -25%; left: 50%;
+            width: 100vw; height: 80vh;
+            background: radial-gradient(circle, var(--neon-glow) 0%, transparent 65%);
             transform: translateX(-50%);
             z-index: -1;
-            filter: blur(100px);
-            transition: background 0.5s ease;
+            filter: blur(140px);
+            pointer-events: none;
+            transition: background 0.6s ease;
         }
 
-        /* Typography */
-        h1, h2, h3, .cyber-text {
-            font-family: var(--font-display);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .neon-text {
-            color: #FFF;
-            text-shadow: 0 0 10px var(--neon-color), 0 0 20px var(--neon-color), 0 0 40px var(--neon-color);
-        }
-
-        .neon-border {
-            border: 1px solid var(--neon-color);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5), 0 0 15px var(--neon-color), inset 0 0 15px var(--neon-color);
-        }
-
-        /* Cyberpunk Cards */
-        .cyber-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(16px);
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-left: 1px solid rgba(255,255,255,0.05);
-            border-bottom: 1px solid var(--neon-color);
-            border-right: 1px solid var(--neon-color);
+        /* Cyber Glass Cards */
+        .glass-panel {
+            background: var(--card-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 1px 1px rgba(255, 255, 255, 0.05);
             border-radius: 16px;
-            padding: 2rem;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+        .glass-panel:hover {
+            border-color: var(--brand-primary);
+            box-shadow: 0 16px 48px -8px var(--neon-glow), inset 0 0 15px var(--border-glow);
+            transform: translateY(-3px);
+        }
+
+        /* Holographic Scanline */
+        .scanline-box {
             position: relative;
             overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
-        .cyber-card::before {
-            content: '';
+        .scanline-box::before {
+            content: " ";
+            display: block;
             position: absolute;
-            top: 0; left: -100%;
-            width: 50%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-            transform: skewX(-20deg);
-            transition: 0.5s;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 20;
+            background-size: 100% 3px, 6px 100%;
+            pointer-events: none;
+            opacity: 0.6;
         }
 
-        .cyber-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8), 0 0 30px var(--neon-color);
+        /* Neon Text Glow */
+        .glow-text {
+            color: #FFFFFF;
+            text-shadow: 0 0 12px var(--neon-glow-strong), 0 0 35px var(--neon-glow);
         }
 
-        .cyber-card:hover::before {
-            left: 200%;
-            transition: 0.7s;
-        }
-
-        /* Futuristic Button */
-        .cyber-btn {
-            background: linear-gradient(45deg, transparent 5%, var(--neon-color) 5%);
-            color: #FFF;
-            font-family: var(--font-display);
-            font-size: 1.2rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            padding: 15px 40px;
-            border: none;
+        /* Futuristic Angular Buttons */
+        .btn-cyber {
+            font-family: 'Orbitron', 'Rajdhani', sans-serif;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 800;
+            padding: 14px 28px;
             position: relative;
+            background: var(--brand-primary);
+            color: #FFFFFF;
+            border-radius: 8px;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            transition: all 0.25s ease;
+            box-shadow: 0 0 20px var(--neon-glow);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            outline: none;
-            transition: all 0.3s ease;
-            box-shadow: 0px 0px 0px transparent;
         }
-
-        .cyber-btn::after {
-            content: 'SYS.REQ';
-            position: absolute;
-            top: -15px; right: -10px;
-            background: #000;
-            color: var(--neon-color);
-            font-size: 0.6rem;
-            padding: 2px 5px;
-            border: 1px solid var(--neon-color);
+        .btn-cyber:hover {
+            transform: scale(1.04) translateY(-2px);
+            box-shadow: 0 0 35px var(--neon-glow-strong), 0 0 10px #FFFFFF;
+            background: #FFFFFF;
+            color: #000000;
         }
-
-        .cyber-btn:hover {
-            background: linear-gradient(45deg, transparent 5%, #FFF 5%);
-            color: #000;
-            box-shadow: 0 0 30px var(--neon-color);
-            transform: scale(1.05);
-        }
-
-        /* Glitch Effect */
-        .glitch {
+        .btn-cyber-outline {
+            font-family: 'Orbitron', 'Rajdhani', sans-serif;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            font-weight: 700;
+            padding: 13px 26px;
             position: relative;
+            background: transparent;
+            color: var(--brand-primary);
+            border: 1px solid var(--brand-primary);
+            border-radius: 8px;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+            transition: all 0.25s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
         }
-        .glitch::before, .glitch::after {
-            content: attr(data-text);
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: var(--bg-dark);
-        }
-        .glitch::before {
-            left: 2px;
-            text-shadow: -2px 0 red;
-            clip: rect(24px, 550px, 90px, 0);
-            animation: glitch-anim 3s infinite linear alternate-reverse;
-        }
-        .glitch::after {
-            left: -2px;
-            text-shadow: -2px 0 blue;
-            clip: rect(85px, 550px, 140px, 0);
-            animation: glitch-anim 2.5s infinite linear alternate-reverse;
+        .btn-cyber-outline:hover {
+            background: var(--brand-primary);
+            color: #FFFFFF;
+            box-shadow: 0 0 25px var(--neon-glow);
         }
 
-        @keyframes glitch-anim {
-            0% { clip: rect(10px, 9999px, 44px, 0); }
-            20% { clip: rect(80px, 9999px, 94px, 0); }
-            40% { clip: rect(30px, 9999px, 12px, 0); }
-            60% { clip: rect(98px, 9999px, 80px, 0); }
-            80% { clip: rect(20px, 9999px, 50px, 0); }
-            100% { clip: rect(60px, 9999px, 10px, 0); }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050508;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-glow);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--brand-primary);
         }
 
-        .color-orb {
-            width: 60px; height: 60px;
-            border-radius: 50%;
-            box-shadow: 0 0 20px currentColor, inset 0 0 20px rgba(255,255,255,0.5);
-            animation: pulse-orb 2s infinite alternate;
+        /* Glitch Keyframes */
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
         }
-
-        @keyframes pulse-orb {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            100% { transform: scale(1.05); opacity: 1; }
+        .glitch-hover:hover {
+            animation: glitch 0.2s ease infinite;
         }
-
-        /* UI Image Mockup */
-        .hologram-img {
-            width: 100%;
-            border-radius: 12px;
-            border: 2px solid var(--neon-color);
-            box-shadow: 0 0 40px var(--neon-color);
-            filter: contrast(1.1) saturate(1.2);
-            position: relative;
-            z-index: 10;
-        }
-
     </style>
 </head>
-<body class="pb-32">
+<body class="selection:bg-orange-500 selection:text-white">
 
-    <!-- Background Elements -->
     <div class="cyber-grid"></div>
-    <div class="ambient-glow"></div>
+    <div class="ambient-aurora"></div>
 
-    <!-- HUD Overlay -->
-    <div class="fixed top-4 left-4 text-xs font-cyber text-gray-500 tracking-widest z-50 mix-blend-difference pointer-events-none">
-        SYS.VER 9.0.4 <br>
-        [UPLINK: ESTABLISHED]
-    </div>
-    <div class="fixed bottom-4 right-4 text-xs font-cyber text-gray-500 tracking-widest z-50 mix-blend-difference pointer-events-none text-right">
-        MEMORY: ALLOCATED <br>
-        SEC.LEVEL: MAXIMUM
-    </div>
-
-    <!-- Theme Switcher Panel -->
-    <div class="fixed top-6 right-6 z-50">
-        <div class="cyber-card !p-4 flex items-center gap-6 border-t-0 border-l-0 !rounded-br-2xl !rounded-tl-2xl">
-            <div>
-                <p class="text-xs text-gray-400 font-cyber tracking-widest mb-1">OVERRIDE PROTOCOL</p>
-                <h2 id="brand-name" class="text-2xl neon-text m-0 leading-none">ATLAS.OS</h2>
+    <!-- HUD Top Bar -->
+    <header class="sticky top-0 z-50 bg-[#05050A]/85 backdrop-blur-xl border-b border-white/10 px-6 py-4 shadow-2xl">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xl text-black shadow-lg transition-all duration-300" style="background-color: var(--brand-primary);">
+                    <span id="brand-logo-icon">▲</span>
+                </div>
+                <div>
+                    <h1 class="font-cyber font-black tracking-wider text-xl text-white flex items-center gap-2">
+                        <span id="brand-title-text">ATLASGR</span>
+                        <span class="text-[10px] uppercase font-mono px-2 py-0.5 rounded border border-white/20 bg-white/5 text-gray-400">DESIGN SYSTEM v4.0</span>
+                    </h1>
+                    <p class="text-[11px] font-mono text-gray-400 tracking-widest" id="brand-subtitle-text">CENTRAL DE INTELIGÊNCIA LOGÍSTICA</p>
+                </div>
             </div>
-            <div class="flex gap-2">
-                <button onclick="playClick(); setTheme('atlasgr')" class="px-4 py-2 bg-black/50 border border-[#FF5618] text-[#FF5618] font-cyber hover:bg-[#FF5618] hover:text-white transition-all text-sm tracking-wider">INIT: ATLAS</button>
-                <button onclick="playClick(); setTheme('totaltrac')" class="px-4 py-2 bg-black/50 border border-[#008FCE] text-[#008FCE] font-cyber hover:bg-[#008FCE] hover:text-white transition-all text-sm tracking-wider">INIT: TOTALTRAC</button>
+
+            <!-- Dual-Brand Switcher & Audio Controls -->
+            <div class="flex items-center gap-3">
+                <div class="bg-black/60 p-1 rounded-xl border border-white/15 flex items-center gap-1 shadow-inner">
+                    <button onclick="switchBrand('atlasgr')" id="btn-mode-atlas" class="px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-[#FF5618] text-white shadow-[0_0_15px_rgba(255,86,24,0.6)]">
+                        <span>▲</span> MODO ATLASGR
+                    </button>
+                    <button onclick="switchBrand('totaltrac')" id="btn-mode-totaltrac" class="px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 text-gray-400 hover:text-white">
+                        <span>◎</span> MODO TOTALTRAC
+                    </button>
+                </div>
+                <button onclick="toggleAudioEngine()" id="btn-audio" class="p-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-gray-300 transition-all text-xs flex items-center gap-2 font-mono" title="Ligar/Desligar Áudio UI">
+                    <span id="audio-indicator" class="w-2 h-2 rounded-full bg-green-400 animate-ping"></span>
+                    <span id="audio-label">ÁUDIO ATIVO</span>
+                </button>
             </div>
         </div>
-    </div>
+    </header>
 
-    <div class="max-w-7xl mx-auto px-6 mt-32 space-y-32 relative z-10">
+    <!-- Floating Table of Contents -->
+    <nav class="hidden 2xl:block fixed left-6 top-32 z-40 w-64 glass-panel p-4 font-mono text-xs text-gray-400 space-y-2">
+        <div class="text-white font-cyber font-bold tracking-widest text-sm mb-3 pb-2 border-b border-white/10 flex items-center justify-between">
+            <span>ÍNDICE DO MANUAL</span>
+            <span class="text-[10px] text-gray-500">11 SEÇÕES</span>
+        </div>
+        <a href="#hero" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">00. Visão Holográfica</a>
+        <a href="#dna" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">01. DNA & Conceitos</a>
+        <a href="#logos" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">02. Logos, Grids & Proteção</a>
+        <a href="#colors" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">03. Paleta Cromática Total</a>
+        <a href="#typography" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">04. Tipografia & Hierarquia</a>
+        <a href="#icons" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">05. Iconografia & Geometria</a>
+        <a href="#photos" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">06. Fotografia & Duotones</a>
+        <a href="#patterns" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">07. Grafismos & Texturas</a>
+        <a href="#components" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">08. Componentes & UI Kit</a>
+        <a href="#audio" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">09. Feedback Sonoro (Audio UI)</a>
+        <a href="#donts" class="block py-1 hover:text-white hover:translate-x-1 transition-transform">10. Usos Incorretos & Regras</a>
+    </nav>
 
-        <!-- Hero Section -->
-        <section class="text-center space-y-6 relative">
-            <div class="inline-block px-4 py-1 border border-white/20 rounded-full text-xs tracking-widest uppercase mb-4 bg-white/5 backdrop-blur-sm">
-                <span class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></span>
-                Identidade Visual Nível 5 Ativada
+    <main class="max-w-7xl mx-auto px-6 py-12 space-y-28 relative z-10">
+
+        <!-- 00. HERO MOCKUP MASTERPIECE -->
+        <section id="hero" class="text-center space-y-8 relative pt-6">
+            <div class="inline-flex items-center gap-3 px-5 py-2 rounded-full border border-white/15 bg-white/5 backdrop-blur-md shadow-2xl">
+                <span class="w-2.5 h-2.5 rounded-full animate-pulse" style="background-color: var(--brand-primary);"></span>
+                <span class="font-mono text-xs uppercase tracking-widest text-gray-300 font-bold">Manual de Identidade Visual & UI/UX de Próxima Geração</span>
             </div>
-            <h1 class="text-6xl md:text-8xl font-black glitch neon-text" data-text="A INTERFACE PERFEITA.">A INTERFACE PERFEITA.</h1>
-            <p class="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto font-light">
-                Bem-vindo ao <b>NEXUS</b>. A união simbiótica entre a engenharia robótica da AtlasGR e o fluxo de dados em dobra espacial da TotalTrac. 
-                Sinta a interface. Respire a interface.
+
+            <h1 class="text-5xl md:text-8xl font-cyber font-black tracking-tight glow-text leading-none">
+                A INTERFACE TOTAL.
+            </h1>
+            <p class="text-lg md:text-2xl text-gray-300 max-w-4xl mx-auto font-light leading-relaxed">
+                A convergência perfeita entre a potência logística da <b class="text-[#FF5618]">AtlasGR</b> e a precisão em telemetria da <b class="text-[#008FCE]">TotalTrac</b>. Uma experiência multi-tenant imersiva, viva e cirurgicamente padronizada.
             </p>
-            
-            <div class="mt-20 relative group perspective">
-                <!-- Imagem Mockup -->
-                <div class="relative z-10 p-2 rounded-2xl bg-gradient-to-br from-white/10 to-transparent backdrop-blur-sm border border-white/10">
-                    <img src="mockup_dashboard.jpg" alt="Holographic Dashboard Mockup" class="hologram-img transform transition-transform duration-700 group-hover:scale-[1.02]" />
-                    
-                    <!-- Scanline Overlay -->
-                    <div class="absolute inset-0 z-20 pointer-events-none rounded-xl overflow-hidden">
-                        <div class="w-full h-2 bg-white/20 blur-[2px] absolute top-0 animate-[scan_3s_linear_infinite]"></div>
-                    </div>
-                </div>
-                <!-- Back glow -->
-                <div class="absolute -inset-4 bg-gradient-to-r from-transparent via-[var(--neon-color)] to-transparent opacity-30 blur-2xl group-hover:opacity-60 transition-opacity duration-500 z-0"></div>
-            </div>
-        </section>
 
-        <!-- Dynamic Brand DNA -->
-        <section class="grid lg:grid-cols-2 gap-10">
-            <div class="cyber-card flex flex-col justify-between">
-                <div>
-                    <h2 class="text-4xl neon-text mb-6">NÚCLEO ESTRUTURAL</h2>
-                    <p class="text-gray-300 text-lg leading-relaxed font-light">
-                        A plataforma opera sob um motor de interface de estado fluido. Os raios de curvatura, as físicas de sombra de vidro temperado e as equações de espaçamento são absolutas e indivisíveis.
-                    </p>
-                </div>
-                <div class="mt-8 grid grid-cols-2 gap-4 border-t border-white/10 pt-8">
-                    <div>
-                        <div class="text-4xl text-white font-cyber">12<span class="text-sm text-gray-500">px</span></div>
-                        <div class="text-xs text-gray-400 uppercase tracking-widest mt-1">Raio do Chassi (Cards)</div>
+            <!-- Holographic Master Dashboard -->
+            <div class="relative group mt-12 scanline-box rounded-2xl p-2 bg-gradient-to-b from-white/15 to-white/0 border border-white/15 shadow-[0_20px_80px_-20px_rgba(0,0,0,0.8)]">
+                <img src="mockup_dashboard.jpg" alt="Master Dashboard Hologram" class="w-full rounded-xl object-cover shadow-2xl transform transition-transform duration-700 group-hover:scale-[1.01]" />
+                
+                <div class="absolute bottom-6 left-6 right-6 p-6 rounded-xl bg-black/75 backdrop-blur-xl border border-white/10 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-3 h-3 rounded-full animate-ping" style="background-color: var(--brand-primary);"></div>
+                        <div class="text-left">
+                            <h4 class="font-cyber font-bold text-white text-sm">DESIGN SYSTEM MULTI-TENANT ATIVO</h4>
+                            <p class="font-mono text-xs text-gray-400">Renderização em 60fps • 100% WCAG AA Conforme • Respostas de Som Sintetizadas</p>
+                        </div>
                     </div>
-                    <div>
-                        <div class="text-4xl text-white font-cyber">8<span class="text-sm text-gray-500">px</span></div>
-                        <div class="text-xs text-gray-400 uppercase tracking-widest mt-1">Raio de Ação (Botões)</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Paleta renderizada dinamicamente -->
-            <div class="cyber-card">
-                <h2 class="text-2xl tracking-widest text-white mb-8 border-b border-white/10 pb-4">ESPECTRO DE LUZ ATIVO</h2>
-                <div id="palette-container" class="grid grid-cols-2 gap-8">
-                    <!-- JS injects here -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Cyber Components & Audio UI -->
-        <section class="cyber-card !p-12 relative overflow-hidden">
-            <div class="absolute -right-20 -bottom-20 opacity-5">
-                <svg width="400" height="400" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke="white" stroke-width="1" fill="none"/><circle cx="50" cy="50" r="30" stroke="white" stroke-width="0.5" fill="none" stroke-dasharray="2 4"/><path d="M50 0 v100 M0 50 h100" stroke="white" stroke-width="0.5"/></svg>
-            </div>
-            
-            <div class="relative z-10 flex flex-col lg:flex-row gap-16 items-center">
-                <div class="flex-1 space-y-6">
-                    <h2 class="text-5xl neon-text glitch" data-text="INTERAÇÃO TÁTIL">INTERAÇÃO TÁTIL</h2>
-                    <p class="text-xl text-gray-300 font-light">
-                        Esqueça botões passivos. A plataforma exige respostas nervosas. Os elementos interativos emitem feedback de choque visual (glow) e resposta auditiva (Áudio UI) em tempo real.
-                    </p>
-                    <ul class="space-y-4 mt-8 font-cyber tracking-wider text-gray-400">
-                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-[var(--neon-color)] shadow-[0_0_10px_var(--neon-color)]"></span> SUCESSO: Duplo bipe de alta frequência.</li>
-                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_red]"></span> FALHA: Baixa frequência de bloqueio.</li>
-                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]"></span> AVISO: Ressonância cristalina.</li>
-                    </ul>
-                </div>
-
-                <div class="flex-1 w-full bg-black/40 p-10 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-8 shadow-inner">
-                    <div class="text-center w-full">
-                        <label class="block text-xs tracking-widest text-gray-500 mb-2 text-left">DIRETRIZ DE INPUT</label>
-                        <input type="text" value="SYS.OVERRIDE_TRUE" class="w-full bg-white/5 border border-white/20 rounded-lg p-4 text-white font-cyber text-lg outline-none focus:border-[var(--neon-color)] focus:shadow-[0_0_15px_var(--neon-color)] transition-all" readonly>
-                    </div>
-                    
-                    <button class="cyber-btn w-full" onclick="playClick(); simulateLoad(this)">
-                        INICIAR SEQUÊNCIA
+                    <button onclick="playCyberSound('warp'); switchBrand(currentBrand === 'atlasgr' ? 'totaltrac' : 'atlasgr')" class="btn-cyber text-xs py-3 px-6">
+                        TRANSMUTAR TEMA AGORA
                     </button>
                 </div>
             </div>
         </section>
 
-    </div>
+        <!-- 01. DNA & CONCEITOS ESTRATÉGICOS -->
+        <section id="dna" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 01</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">DNA & PILARES ESTRATÉGICOS</h2>
+            </div>
 
-    <!-- Sistema de Áudio Embutido Base64 (Sons sintetizados muito curtos para não pesar) -->
-    <audio id="sfx-click" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAD//w==" preload="auto"></audio>
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Atlas DNA Card -->
+                <div class="glass-panel p-8 space-y-6 relative overflow-hidden border-t-4 border-[#FF5618]">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-cyber font-bold text-[#FF5618] flex items-center gap-2">
+                            <span>▲</span> ATLASGR • SEGURANÇA & LOGÍSTICA
+                        </h3>
+                        <span class="font-mono text-xs px-2.5 py-1 rounded bg-[#FF5618]/20 text-[#FF5618] border border-[#FF5618]/40">17 ANOS DE MERCADO</span>
+                    </div>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Pioneira no gerenciamento de riscos para transportadoras e frotas rodoviárias pesadas. Conecta inteligência artificial preditiva, segurança e gestão patrimonial de ponta a ponta.
+                    </p>
+                    <div class="space-y-3 font-mono text-xs border-t border-white/10 pt-4">
+                        <div><b class="text-[#FF5618]">PROPÓSITO:</b> Conectar pessoas e tecnologia gerando valores com segurança e inovação.</div>
+                        <div><b class="text-[#FF5618]">VALORES:</b> Perseverança, Transparência, Simplicidade, Atitude de Dono e Inovação.</div>
+                        <div><b class="text-[#FF5618]">CONCEITOS CHAVE:</b> Inovador, Tecnológico, Seguro, Formas geométricas de 60º.</div>
+                    </div>
+                </div>
 
-    <script>
-        // Simulador de SFX simples usando Web Audio API para um som sci-fi futurista
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playClick() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-            
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.1);
-        }
+                <!-- TotalTrac DNA Card -->
+                <div class="glass-panel p-8 space-y-6 relative overflow-hidden border-t-4 border-[#008FCE]">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-cyber font-bold text-[#008FCE] flex items-center gap-2">
+                            <span>◎</span> TOTALTRAC • TELEMETRIA & VÍDEO
+                        </h3>
+                        <span class="font-mono text-xs px-2.5 py-1 rounded bg-[#008FCE]/20 text-[#008FCE] border border-[#008FCE]/40">15 ANOS DE MERCADO</span>
+                    </div>
+                    <p class="text-gray-300 text-sm leading-relaxed">
+                        Soluções de rastreamento customizado em tempo real, telemetria analítica avançada e monitoramento por vídeo para eficiência máxima de frotas rodoviárias e urbanas.
+                    </p>
+                    <div class="space-y-3 font-mono text-xs border-t border-white/10 pt-4">
+                        <div><b class="text-[#008FCE]">SLOGAN:</b> Conectar para cuidar.</div>
+                        <div><b class="text-[#008FCE]">VALORES:</b> Agilidade, Segurança, Eficiência, Excelência, Inovação e Custo-Benefício.</div>
+                        <div><b class="text-[#008FCE]">CONCEITOS CHAVE:</b> Ondas de sinal, Localização pontual, Telemetria viva, Radar.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        function simulateLoad(btn) {
-            const originalText = btn.innerText;
-            btn.innerText = "PROCESSANDO...";
-            btn.style.background = "#FFF";
-            btn.style.color = "#000";
-            
-            // Som de sucesso
-            setTimeout(() => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(1600, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.3);
+        <!-- 02. LOGOS, GRIDS & ÁREA DE PROTEÇÃO -->
+        <section id="logos" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 02</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">LOGOS, GRIDS DE CONSTRUÇÃO & ÁREA DE PROTEÇÃO</h2>
+            </div>
 
-                btn.innerText = "SISTEMA ONLINE";
-                btn.style.background = "var(--neon-color)";
-                btn.style.color = "#FFF";
-                btn.style.boxShadow = "0 0 40px var(--neon-color)";
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Construção Geométrica -->
+                <div class="glass-panel p-6 space-y-4">
+                    <h4 class="font-cyber font-bold text-white text-lg flex items-center gap-2">
+                        <span class="text-[#FF5618]">01.</span> CONSTRUÇÃO DO SÍMBOLO
+                    </h4>
+                    <div class="h-44 bg-black/60 rounded-xl border border-white/10 flex items-center justify-center p-4 relative font-mono text-xs">
+                        <div class="border border-dashed border-white/30 p-6 rounded-lg text-center">
+                            <span class="text-4xl font-black block mb-2" style="color: var(--brand-primary);">▲ 60º</span>
+                            <span class="text-gray-400">Kerning Ótico & Ângulo 60º</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 leading-relaxed font-mono">
+                        A geometria do símbolo Atlas é construída sobre paralelogramos inclinados simetricamente a 60 graus. O símbolo TotalTrac é construído sobre círculos concêntricos de sinal wi-fi convergindo em um pin GPS.
+                    </p>
+                </div>
+
+                <!-- Área de Proteção -->
+                <div class="glass-panel p-6 space-y-4">
+                    <h4 class="font-cyber font-bold text-white text-lg flex items-center gap-2">
+                        <span class="text-[#FF5618]">02.</span> ÁREA DE PROTEÇÃO (X)
+                    </h4>
+                    <div class="h-44 bg-black/60 rounded-xl border border-white/10 flex items-center justify-center p-4 relative font-mono text-xs">
+                        <div class="relative border-2 border-dashed border-[#FF5618]/50 p-6 rounded">
+                            <span class="absolute top-1 left-2 text-[10px] text-gray-500">X = Altura do Símbolo</span>
+                            <span class="font-cyber font-bold text-lg text-white">LOGO PRINCIPAL</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 leading-relaxed font-mono">
+                        A distância mínima de respiro em todos os lados equivale à altura total do símbolo (fator X). Nenhum elemento gráfico, tipografia ou corte pode invadir este perímetro.
+                    </p>
+                </div>
+
+                <!-- Redução Mínima -->
+                <div class="glass-panel p-6 space-y-4">
+                    <h4 class="font-cyber font-bold text-white text-lg flex items-center gap-2">
+                        <span class="text-[#FF5618]">03.</span> LIMITES DE REDUÇÃO
+                    </h4>
+                    <div class="h-44 bg-black/60 rounded-xl border border-white/10 flex flex-col items-center justify-center gap-3 p-4 font-mono text-xs">
+                        <div class="flex items-center gap-4 w-full justify-between border-b border-white/10 pb-2">
+                            <span>Símbolo Digital:</span>
+                            <b class="text-[#FF5618]">14 px (0.5 cm)</b>
+                        </div>
+                        <div class="flex items-center gap-4 w-full justify-between border-b border-white/10 pb-2">
+                            <span>Logo Completo:</span>
+                            <b class="text-[#FF5618]">56 px (2.0 cm)</b>
+                        </div>
+                        <div class="flex items-center gap-4 w-full justify-between">
+                            <span>Com Tagline:</span>
+                            <b class="text-[#FF5618]">114 px (4.0 cm)</b>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 leading-relaxed font-mono">
+                        Abaixo dessas reduções, a legibilidade é danificada. Em ícones de apps ou favicons, utiliza-se estritamente o símbolo isolado em tamanhos de 40px, 60px ou 80px.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 03. PALETA CROMÁTICA TOTAL -->
+        <section id="colors" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 03</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">ESPECIFICAÇÕES CROMÁTICAS EXATAS</h2>
+            </div>
+
+            <!-- Paleta AtlasGR -->
+            <div class="glass-panel p-8 space-y-6 border-l-8 border-[#FF5618]">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-cyber font-bold text-white flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-[#FF5618]"></span> PALETA OFICIAL ATLASGR
+                    </h3>
+                    <span class="font-mono text-xs text-gray-400">SISTEMA CROMÁTICO PRIMÁRIO & APOIO</span>
+                </div>
                 
-                setTimeout(() => {
-                    btn.innerText = originalText;
-                    btn.style = "";
-                }, 2000);
-            }, 800);
-        }
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 font-mono text-xs">
+                    <!-- Cor 1 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#FF5618] shadow-[0_0_15px_rgba(255,86,24,0.5)]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Laranja Atlas</div>
+                            <div class="text-[#FF5618] font-bold">#FF5618</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 255, 86, 24<br>CMYK: 0, 84, 100, 0<br>Pantone: 172 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 2 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#FF6B10]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Laranja Apoio</div>
+                            <div class="text-[#FF6B10] font-bold">#FF6B10</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 255, 107, 16<br>CMYK: 0, 75, 100, 0<br>Pantone: 2018 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 3 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#FF8008]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Laranja Médio</div>
+                            <div class="text-[#FF8008] font-bold">#FF8008</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 255, 128, 8<br>CMYK: 0, 6, 100, 0<br>Pantone: 151 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 4 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#FFC500]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Amarelo Alerta</div>
+                            <div class="text-[#FFC500] font-bold">#FFC500</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 255, 197, 0<br>CMYK: 0, 26, 100, 0<br>Pantone: 109 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 5 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#333333]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Grafite Dark</div>
+                            <div class="text-gray-300 font-bold">#333333</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 51, 51, 51<br>CMYK: 73, 67, 65, 80<br>Pantone: 447 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 6 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#FFFFFF]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Branco Puro</div>
+                            <div class="text-gray-300 font-bold">#FFFFFF</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 255, 255, 255<br>CMYK: 0, 0, 0, 0<br>Pantone: 000 C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        const palettes = {
-            atlasgr: `
-                <div class="flex items-center gap-4">
-                    <div class="color-orb text-[#FF5618]" style="background-color: #FF5618"></div>
-                    <div><p class="font-cyber text-xl text-white">#FF5618</p><p class="text-xs text-gray-500 tracking-widest">NÚCLEO LARANJA</p></div>
+            <!-- Paleta TotalTrac -->
+            <div class="glass-panel p-8 space-y-6 border-l-8 border-[#008FCE]">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-cyber font-bold text-white flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-[#008FCE]"></span> PALETA OFICIAL TOTALTRAC
+                    </h3>
+                    <span class="font-mono text-xs text-gray-400">SISTEMA CROMÁTICO TELEMETRIA</span>
                 </div>
-                <div class="flex items-center gap-4">
-                    <div class="color-orb text-[#FFC500]" style="background-color: #FFC500"></div>
-                    <div><p class="font-cyber text-xl text-white">#FFC500</p><p class="text-xs text-gray-500 tracking-widest">ENERGIA AMARELA</p></div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 font-mono text-xs">
+                    <!-- Cor 1 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#008FCE] shadow-[0_0_15px_rgba(0,143,206,0.5)]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Azul Médio</div>
+                            <div class="text-[#008FCE] font-bold">#008FCE</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 0, 143, 206<br>CMYK: 80, 30, 0, 0<br>Pantone: Medium Blue C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 2 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#374898]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Azul Primário</div>
+                            <div class="text-[#374898] font-bold">#374898</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 55, 72, 152<br>CMYK: 90, 75, 0, 0<br>Pantone: 2747 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 3 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#2D3B78]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Azul Navy</div>
+                            <div class="text-[#2D3B78] font-bold">#2D3B78</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 45, 59, 120<br>CMYK: 95, 85, 20, 5<br>Pantone: 2372 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 4 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#93DBF2]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Azul Claro</div>
+                            <div class="text-[#93DBF2] font-bold">#93DBF2</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 147, 219, 242<br>CMYK: 45, 0, 5, 0<br>Pantone: 2975 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 5 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#1E2F37]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Azul Noturno</div>
+                            <div class="text-gray-300 font-bold">#1E2F37</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 30, 47, 55<br>CMYK: 85, 65, 55, 60<br>Pantone: 433 C</div>
+                        </div>
+                    </div>
+                    <!-- Cor 6 -->
+                    <div class="bg-black/50 p-4 rounded-xl border border-white/10 space-y-3">
+                        <div class="h-16 rounded-lg bg-[#0F9D64]"></div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Verde Telemetria</div>
+                            <div class="text-green-400 font-bold">#0F9D64</div>
+                            <div class="text-gray-400 text-[10px] mt-1">RGB: 15, 157, 100<br>CMYK: 85, 10, 80, 0<br>Status: OK / Ativo</div>
+                        </div>
+                    </div>
                 </div>
-            `,
-            totaltrac: `
-                <div class="flex items-center gap-4">
-                    <div class="color-orb text-[#008FCE]" style="background-color: #008FCE"></div>
-                    <div><p class="font-cyber text-xl text-white">#008FCE</p><p class="text-xs text-gray-500 tracking-widest">NÚCLEO AZUL</p></div>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="color-orb text-[#93DBF2]" style="background-color: #93DBF2"></div>
-                    <div><p class="font-cyber text-xl text-white">#93DBF2</p><p class="text-xs text-gray-500 tracking-widest">PLASMA CLARO</p></div>
-                </div>
-            `
-        };
+            </div>
+        </section>
 
-        function setTheme(theme) {
-            if(theme === 'totaltrac') {
-                document.documentElement.setAttribute('data-theme', 'totaltrac');
-                document.getElementById('brand-name').innerText = 'TOTALTRAC.OS';
-                document.getElementById('palette-container').innerHTML = palettes.totaltrac;
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-                document.getElementById('brand-name').innerText = 'ATLAS.OS';
-                document.getElementById('palette-container').innerHTML = palettes.atlasgr;
+        <!-- 04. TIPOGRAFIA & HIERARQUIA -->
+        <section id="typography" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 04</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">TIPOGRAFIA & HIERARQUIA DIGITAL</h2>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Tipografia Atlas -->
+                <div class="glass-panel p-8 space-y-6">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                        <div>
+                            <h3 class="font-cyber font-bold text-xl text-[#FF5618]">FAMÍLIA MONT / MONTSERRAT</h3>
+                            <p class="font-mono text-xs text-gray-400">FONTE OFICIAL ATLASGR</p>
+                        </div>
+                        <span class="font-mono text-xs px-3 py-1 bg-white/10 rounded">TÍTULOS & BODY</span>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">DISPLAY (48px / Weight 900)</span>
+                            <div class="font-black text-4xl text-white tracking-tight">LOGÍSTICA PREVENTIVA</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">H1 - TÍTULO DE PÁGINA (32px / Weight 800)</span>
+                            <div class="font-bold text-2xl text-white">Central de Risco e Prevenção</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">H2 - SEÇÃO (24px / Weight 700)</span>
+                            <div class="font-semibold text-xl text-gray-200">Monitoramento de Sinistros Ativos</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">CORPO DE TEXTO (16px / Regular / Line-height 1.6)</span>
+                            <p class="text-sm text-gray-400">
+                                A tipografia Montserrat garante legibilidade perfeita em painéis com alto volume de informações e dados logísticos em tempo real, sem cansar a visão do operador.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tipografia TotalTrac -->
+                <div class="glass-panel p-8 space-y-6">
+                    <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                        <div>
+                            <h3 class="font-cyber font-bold text-xl text-[#008FCE]">FAMÍLIA FIVO SANS / INTER</h3>
+                            <p class="font-mono text-xs text-gray-400">FONTE OFICIAL TOTALTRAC</p>
+                        </div>
+                        <span class="font-mono text-xs px-3 py-1 bg-white/10 rounded">TELEMETRIA & UI</span>
+                    </div>
+                    <div class="space-y-4 font-['Inter',sans-serif]">
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">DISPLAY (48px / Heavy)</span>
+                            <div class="font-black text-4xl text-white tracking-tight">CONECTAR PARA CUIDAR</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">H1 - TÍTULO DE PÁGINA (32px / Bold)</span>
+                            <div class="font-bold text-2xl text-white">Painel Geral de Telemetria de Frota</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">H2 - SEÇÃO (24px / Medium)</span>
+                            <div class="font-medium text-xl text-gray-200">Sensores de Temperatura & Frenagem</div>
+                        </div>
+                        <div>
+                            <span class="font-mono text-xs text-gray-500">CORPO DE TEXTO (16px / Regular)</span>
+                            <p class="text-sm text-gray-400">
+                                A Fivo Sans traz uma personalidade geométrica industrial, transmitindo a precisão matemática e tecnológica exigida por ferramentas de rastreamento via satélite.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 05. ICONOGRAFIA & GEOMETRIA -->
+        <section id="icons" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 05</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">SISTEMA DE ICONOGRAFIA & LINGUAGEM VISUAL</h2>
+            </div>
+
+            <div class="glass-panel p-8 space-y-8">
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="bg-black/50 p-6 rounded-xl border border-white/10 space-y-3">
+                        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/20 flex items-center justify-center text-2xl text-white" style="color: var(--brand-primary);">
+                            ⬡
+                        </div>
+                        <h4 class="font-cyber font-bold text-white">STROKE & GEOMETRIA</h4>
+                        <p class="font-mono text-xs text-gray-400">
+                            Espessura padrão de <b>2px</b> (stroke uniforme). Vértices chanfrados ou angulados em 60º na Atlas e anéis circulares concêntricos na TotalTrac.
+                        </p>
+                    </div>
+
+                    <div class="bg-black/50 p-6 rounded-xl border border-white/10 space-y-3">
+                        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/20 flex items-center justify-center text-2xl text-white shadow-[0_0_15px_var(--neon-glow)]" style="color: var(--brand-primary);">
+                            ✦
+                        </div>
+                        <h4 class="font-cyber font-bold text-white">NEON GLOW ATIVO</h4>
+                        <p class="font-mono text-xs text-gray-400">
+                            Ícones em estado ativo recebem filtro <code>drop-shadow(0 0 8px var(--neon-glow))</code> e transição de escala 1.05 no hover.
+                        </p>
+                    </div>
+
+                    <div class="bg-black/50 p-6 rounded-xl border border-white/10 space-y-3">
+                        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/20 flex items-center justify-center text-2xl text-white" style="color: var(--brand-primary);">
+                            ▣
+                        </div>
+                        <h4 class="font-cyber font-bold text-white">GRID DE REDUÇÃO</h4>
+                        <p class="font-mono text-xs text-gray-400">
+                            Ícones otimizados estritamente em caixas de <b>16x16px</b>, <b>24x24px</b> (padrão de navegação) e <b>40x40px</b> (widgets de destaque).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Showcase de Ícones UI em Tempo Real -->
+                <div class="border-t border-white/10 pt-6">
+                    <span class="font-mono text-xs text-gray-400 block mb-4 uppercase">GRID DE ÍCONES DA CENTRAL DE INTELIGÊNCIA:</span>
+                    <div class="flex flex-wrap gap-4 font-mono text-xs">
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">🛰️</span> Telemetria
+                        </div>
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">🛡️</span> Gestão de Risco
+                        </div>
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">🚚</span> Frotas em Trânsito
+                        </div>
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">📹</span> Vídeo-Telemetria
+                        </div>
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">⚡</span> Ações Automáticas
+                        </div>
+                        <div class="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-[#FF5618] transition-all flex items-center gap-3 cursor-pointer">
+                            <span class="text-xl">📈</span> Inteligência de Contas
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 06. FOTOGRAFIA & TRATAMENTO DE IMAGENS -->
+        <section id="photos" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 06</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">FOTOGRAFIA, MÁSCARAS & DUOTONES</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="glass-panel p-6 space-y-4">
+                    <h4 class="font-cyber font-bold text-white text-lg">TRATAMENTO ATLAS (WARM INDUSTRIAL)</h4>
+                    <div class="h-64 rounded-xl overflow-hidden relative bg-gradient-to-tr from-[#FF5618]/40 to-black/80 flex items-center justify-center p-6 border border-[#FF5618]/30">
+                        <div class="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-60" style="background-image: url('mockup_dashboard.jpg');"></div>
+                        <div class="relative z-10 text-center font-mono">
+                            <span class="text-2xl font-black text-white block">DUOTONE LARANJA + GRAFITE</span>
+                            <span class="text-xs text-gray-300">Filtro de alto contraste para homens e máquinas de carga</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 font-mono">
+                        Fotos de motoristas, armazéns e caminhões utilizam sobreposição em degradê quente (Laranja #FF5618 para Preto 80%) preservando a nitidez e o aspecto humano.
+                    </p>
+                </div>
+
+                <div class="glass-panel p-6 space-y-4">
+                    <h4 class="font-cyber font-bold text-white text-lg">TRATAMENTO TOTALTRAC (TECH SATELLITE)</h4>
+                    <div class="h-64 rounded-xl overflow-hidden relative bg-gradient-to-tr from-[#008FCE]/40 to-black/80 flex items-center justify-center p-6 border border-[#008FCE]/30">
+                        <div class="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-60" style="background-image: url('mockup_dashboard.jpg');"></div>
+                        <div class="relative z-10 text-center font-mono">
+                            <span class="text-2xl font-black text-white block">DUOTONE CYAN + DEEP NAVY</span>
+                            <span class="text-xs text-gray-300">Filtro frio e cibernético para satélites e telas de mapa</span>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 font-mono">
+                        Fotos de centrais de comando, mapas e trajetos recebem gradação fria em tons de azul (#008FCE / #2D3B78), transmitindo estabilidade e alta tecnologia.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 07. GRAFISMOS & TEXTURAS -->
+        <section id="patterns" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 07</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">GRAFISMOS, TEXTURAS & PADRONAGENS</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Grafismo 60 Graus Atlas -->
+                <div class="glass-panel p-8 space-y-4 relative overflow-hidden">
+                    <h3 class="font-cyber font-bold text-xl text-[#FF5618]">PADRÃO GEOMÉTRICO 60º (ATLAS)</h3>
+                    <div class="h-36 rounded-xl border border-white/15 p-4 flex items-center justify-center bg-[#FF5618]/10" style="background-image: repeating-linear-gradient(60deg, rgba(255,86,24,0.15) 0, rgba(255,86,24,0.15) 20px, transparent 20px, transparent 40px);">
+                        <span class="font-cyber font-black text-2xl text-white drop-shadow-md">LINHAS DE FORÇA LOGÍSTICA</span>
+                    </div>
+                    <p class="font-mono text-xs text-gray-400">
+                        Inspirado nas faixas de sinalização rodoviária e na aerodinâmica de caminhões. Pode ser aplicado como textura sutil em cabeçalhos de relatórios, cartões de visita e frotas.
+                    </p>
+                </div>
+
+                <!-- Ondas de Sinal TotalTrac -->
+                <div class="glass-panel p-8 space-y-4 relative overflow-hidden">
+                    <h3 class="font-cyber font-bold text-xl text-[#008FCE]">PADRÃO ONDAS DE RADAR (TOTALTRAC)</h3>
+                    <div class="h-36 rounded-xl border border-white/15 p-4 flex items-center justify-center bg-[#008FCE]/10" style="background-image: radial-gradient(circle at 0% 50%, transparent 20px, rgba(0,143,206,0.2) 21px, transparent 22px, transparent 40px, rgba(0,143,206,0.2) 41px, transparent 42px);">
+                        <span class="font-cyber font-black text-2xl text-white drop-shadow-md">PROPAGAÇÃO DE SINAL</span>
+                    </div>
+                    <p class="font-mono text-xs text-gray-400">
+                        Ondas circulares concêntricas que remetem à comunicação constante entre o rastreador instalado e os satélites de posicionamento orbital.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 08. COMPONENTES & UI KIT INTERATIVO -->
+        <section id="components" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 08</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">COMPONENTES & UI KIT INTERATIVO</h2>
+            </div>
+
+            <!-- Botões Interativos -->
+            <div class="glass-panel p-8 space-y-6">
+                <h3 class="text-xl font-cyber font-bold text-white">1. BOTÕES & MICROINTERAÇÕES</h3>
+                <div class="flex flex-wrap gap-6 items-center">
+                    <button onclick="playCyberSound('click')" class="btn-cyber">
+                        Ação Primária
+                    </button>
+                    <button onclick="playCyberSound('click')" class="btn-cyber-outline">
+                        Ação Secundária
+                    </button>
+                    <button onclick="playCyberSound('success')" class="px-6 py-3 rounded-lg font-cyber font-bold bg-green-500/20 text-green-400 border border-green-500/40 hover:bg-green-500 hover:text-black transition-all">
+                        Sucesso / Confirmar
+                    </button>
+                    <button onclick="playCyberSound('error')" class="px-6 py-3 rounded-lg font-cyber font-bold bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white transition-all">
+                        Bloquear / Excluir
+                    </button>
+                    <button disabled class="px-6 py-3 rounded-lg font-cyber font-bold bg-white/5 text-gray-600 border border-white/5 cursor-not-allowed">
+                        Desativado
+                    </button>
+                </div>
+            </div>
+
+            <!-- Cards e Formulários -->
+            <div class="grid lg:grid-cols-2 gap-8">
+                <!-- Formulário Futurista -->
+                <div class="glass-panel p-8 space-y-6">
+                    <h3 class="text-xl font-cyber font-bold text-white">2. ENTRADA DE DADOS & FORMULÁRIOS</h3>
+                    <div class="space-y-4 font-mono text-xs">
+                        <div class="space-y-1">
+                            <label class="text-gray-400 uppercase font-bold">Identificação da Frota / Placa</label>
+                            <input type="text" value="BRA-2E19 (Scania R450)" class="w-full bg-black/60 border border-white/20 rounded-lg p-3 text-white outline-none focus:border-[var(--brand-primary)] focus:shadow-[0_0_15px_var(--neon-glow)] transition-all font-mono" />
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-gray-400 uppercase font-bold">Nível de Risco Operacional</label>
+                            <select class="w-full bg-black/60 border border-white/20 rounded-lg p-3 text-white outline-none focus:border-[var(--brand-primary)] transition-all font-mono">
+                                <option>GRAU 01 - Monitoramento Padrão</option>
+                                <option>GRAU 02 - Escolta Eletrônica Ativa</option>
+                                <option>GRAU 03 - Risco Máximo (Bloqueio Automático)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-3 pt-2">
+                            <input type="checkbox" checked class="w-4 h-4 rounded accent-orange-500">
+                            <span class="text-gray-300">Disparar alerta em tempo real para o Supervisor de IA</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Dados Holográfica -->
+                <div class="glass-panel p-8 space-y-6">
+                    <h3 class="text-xl font-cyber font-bold text-white">3. TABELAS & DATA GRIDS</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left font-mono text-xs">
+                            <thead class="bg-white/5 border-b border-white/10 text-gray-400">
+                                <tr>
+                                    <th class="p-3">VEÍCULO</th>
+                                    <th class="p-3">ORIGEM/DESTINO</th>
+                                    <th class="p-3">STATUS</th>
+                                    <th class="p-3">TELEMETRIA</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5">
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="p-3 font-bold text-white">CAM-8801</td>
+                                    <td class="p-3 text-gray-400">SP ➔ Santos</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/40">ROTA OK</span></td>
+                                    <td class="p-3 text-[#FF5618]">84 km/h</td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="p-3 font-bold text-white">CAM-4022</td>
+                                    <td class="p-3 text-gray-400">Curitiba ➔ RJ</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40">ALERTA PARADA</span></td>
+                                    <td class="p-3 text-yellow-400">0 km/h</td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="p-3 font-bold text-white">CAM-1190</td>
+                                    <td class="p-3 text-gray-400">Goiânia ➔ BSB</td>
+                                    <td class="p-3"><span class="px-2 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/40">ROTA OK</span></td>
+                                    <td class="p-3 text-[#008FCE]">78 km/h</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 09. FEEDBACK SONORO (AUDIO UI) -->
+        <section id="audio" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 09</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">FEEDBACK AUDITIVO & SINTETIZADOR DE ÁUDIO UI</h2>
+            </div>
+
+            <div class="glass-panel p-8 space-y-6">
+                <p class="text-gray-300 text-sm leading-relaxed font-mono">
+                    A plataforma integra microinterações táteis sonoras geradas via <b>Web Audio API</b> em tempo real. Sons cristalinos e futuristas sem latência para reforçar o estado cognitivo das ações do operador.
+                </p>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-xs">
+                    <button onclick="playCyberSound('click')" class="p-4 rounded-xl bg-black/60 border border-white/15 hover:border-[var(--brand-primary)] text-center space-y-2 transition-all">
+                        <div class="text-2xl">⚡</div>
+                        <div class="font-bold text-white">CLIQUE NEURAL</div>
+                        <div class="text-gray-500 text-[10px]">Frequência: 800Hz ➔ 100Hz</div>
+                    </button>
+
+                    <button onclick="playCyberSound('success')" class="p-4 rounded-xl bg-black/60 border border-white/15 hover:border-green-500 text-center space-y-2 transition-all">
+                        <div class="text-2xl">✨</div>
+                        <div class="font-bold text-green-400">CHIME DE SUCESSO</div>
+                        <div class="text-gray-500 text-[10px]">Frequência: 1200Hz ➔ 1800Hz</div>
+                    </button>
+
+                    <button onclick="playCyberSound('error')" class="p-4 rounded-xl bg-black/60 border border-white/15 hover:border-red-500 text-center space-y-2 transition-all">
+                        <div class="text-2xl">🛑</div>
+                        <div class="font-bold text-red-400">BLOQUEIO / ERRO</div>
+                        <div class="text-gray-500 text-[10px]">Frequência: 180Hz ➔ 60Hz</div>
+                    </button>
+
+                    <button onclick="playCyberSound('warp')" class="p-4 rounded-xl bg-black/60 border border-white/15 hover:border-[#008FCE] text-center space-y-2 transition-all">
+                        <div class="text-2xl">🌌</div>
+                        <div class="font-bold text-[#008FCE]">SALTO DE TEMA (WARP)</div>
+                        <div class="text-gray-500 text-[10px]">Frequência Modulada</div>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 10. USOS INCORRETOS & BRAND SAFETY -->
+        <section id="donts" class="space-y-10">
+            <div class="border-l-4 pl-4" style="border-color: var(--brand-primary);">
+                <span class="font-mono text-xs text-gray-400 tracking-widest uppercase">SEÇÃO 10</span>
+                <h2 class="text-3xl md:text-4xl font-cyber font-bold text-white">USOS INCORRETOS & BRAND SAFETY</h2>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-xs">
+                <div class="p-6 rounded-xl bg-red-950/20 border border-red-500/30 text-center space-y-2">
+                    <div class="text-3xl text-red-500">❌</div>
+                    <div class="font-bold text-red-300">NÃO DISTORCER</div>
+                    <p class="text-[11px] text-gray-400">Nunca achatar ou esticar proporções X/Y do logo.</p>
+                </div>
+                <div class="p-6 rounded-xl bg-red-950/20 border border-red-500/30 text-center space-y-2">
+                    <div class="text-3xl text-red-500">❌</div>
+                    <div class="font-bold text-red-300">SEM GRADIENTES LIVRES</div>
+                    <p class="text-[11px] text-gray-400">Não aplicar gradientes fora do padrão oficial nos logos.</p>
+                </div>
+                <div class="p-6 rounded-xl bg-red-950/20 border border-red-500/30 text-center space-y-2">
+                    <div class="text-3xl text-red-500">❌</div>
+                    <div class="font-bold text-red-300">NÃO ROTACIONAR</div>
+                    <p class="text-[11px] text-gray-400">O ângulo dos símbolos é fixo (60º Atlas / 0º TotalTrac).</p>
+                </div>
+                <div class="p-6 rounded-xl bg-red-950/20 border border-red-500/30 text-center space-y-2">
+                    <div class="text-3xl text-red-500">❌</div>
+                    <div class="font-bold text-red-300">CONTRASTE MÍNIMO</div>
+                    <p class="text-[11px] text-gray-400">Nunca aplicar versão positiva sobre fundos escuros.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/10 bg-black/90 py-12 px-6 text-center font-mono text-xs text-gray-500">
+        <div class="max-w-7xl mx-auto space-y-4">
+            <div class="font-cyber font-black tracking-widest text-white text-lg flex items-center justify-center gap-2">
+                <span>NEXUS PROTOCOL</span> • <span>ATLASGR & TOTALTRAC</span>
+            </div>
+            <p>Manual Oficial de Identidade Visual e UI/UX • Engenharia e Design de Nível 5</p>
+            <p class="text-[10px] text-gray-600">CENTRAL DE INTELIGÊNCIA COMERCIAL • DIRETRIZES DE GOVERNANÇA ATIVAS</p>
+        </div>
+    </footer>
+
+    <!-- Web Audio Synthesizer Engine -->
+    <script>
+        let audioEngineEnabled = true;
+        let audioCtx = null;
+        let currentBrand = 'atlasgr';
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
             }
         }
 
-        // Init
-        setTheme('atlasgr');
-    </script>
-
-    <style>
-        @keyframes scan {
-            0% { top: 0%; }
-            100% { top: 100%; }
+        function toggleAudioEngine() {
+            audioEngineEnabled = !audioEngineEnabled;
+            const indicator = document.getElementById('audio-indicator');
+            const label = document.getElementById('audio-label');
+            if (audioEngineEnabled) {
+                indicator.className = "w-2 h-2 rounded-full bg-green-400 animate-ping";
+                label.innerText = "ÁUDIO ATIVO";
+                playCyberSound('click');
+            } else {
+                indicator.className = "w-2 h-2 rounded-full bg-gray-500";
+                label.innerText = "ÁUDIO MUDO";
+            }
         }
-    </style>
+
+        function playCyberSound(type) {
+            if (!audioEngineEnabled) return;
+            initAudio();
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, now);
+                osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'success') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.exponentialRampToValueAtTime(2000, now + 0.15);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'error') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.setValueAtTime(70, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'warp') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(1800, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+        }
+
+        function switchBrand(brand) {
+            currentBrand = brand;
+            playCyberSound('warp');
+            const root = document.documentElement;
+            const logoIcon = document.getElementById('brand-logo-icon');
+            const titleText = document.getElementById('brand-title-text');
+            const subtitleText = document.getElementById('brand-subtitle-text');
+            const btnAtlas = document.getElementById('btn-mode-atlas');
+            const btnTotaltrac = document.getElementById('btn-mode-totaltrac');
+
+            if (brand === 'totaltrac') {
+                root.setAttribute('data-theme', 'totaltrac');
+                logoIcon.innerText = '◎';
+                titleText.innerText = 'TOTALTRAC';
+                subtitleText.innerText = 'SISTEMA DE TELEMETRIA & FROTAS';
+                
+                btnTotaltrac.className = "px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-[#008FCE] text-white shadow-[0_0_15px_rgba(0,143,206,0.6)]";
+                btnAtlas.className = "px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 text-gray-400 hover:text-white";
+            } else {
+                root.removeAttribute('data-theme');
+                logoIcon.innerText = '▲';
+                titleText.innerText = 'ATLASGR';
+                subtitleText.innerText = 'CENTRAL DE INTELIGÊNCIA LOGÍSTICA';
+                
+                btnAtlas.className = "px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 bg-[#FF5618] text-white shadow-[0_0_15px_rgba(255,86,24,0.6)]";
+                btnTotaltrac.className = "px-4 py-2 rounded-lg font-cyber text-xs font-bold transition-all duration-300 flex items-center gap-2 text-gray-400 hover:text-white";
+            }
+        }
+    </script>
 </body>
 </html>

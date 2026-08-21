@@ -46,9 +46,6 @@
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
     "verify:openapi-drift": "tsx scripts/verify-openapi-drift.ts",
     "eval:golden": "tsx scripts/evaluate-golden-dataset-live.ts",
-    "verify:prod": "tsx scripts/verify-prod.ts",
-    "docs": "typedoc",
-    "reset:passwords": "tsx scripts/reset-passwords.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1112.0",

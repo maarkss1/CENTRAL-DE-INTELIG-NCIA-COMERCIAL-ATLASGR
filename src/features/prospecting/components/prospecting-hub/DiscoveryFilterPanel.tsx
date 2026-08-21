@@ -1,6 +1,6 @@
 import { Search, Loader2, Cpu, Database, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ProspectCriteria } from '../../services/prospecting.service';
-import { ESTADO_OPTIONS, PORTE_OPTIONS, TECNOLOGIA_OPTIONS } from '../../../../shared/constants/icp-options';
+import { PORTE_OPTIONS, TECNOLOGIA_OPTIONS } from '../../../../shared/constants/icp-options';
 
 export function DiscoveryFilterPanel({
     criteria, setCriteria, activeSegments, cities, showAdvanced, setShowAdvanced,

@@ -1,8 +1,11 @@
 - De: 02
 - Para: 04
 - Onda: 11
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
+
+## Resolução
+Imports não usados (`ESTADO_OPTIONS`, `QUANTIDADE_OPTIONS`) removidos dos dois arquivos onde estavam declarados sem uso: `ProspectingHub.tsx` e `DiscoveryFilterPanel.tsx`. Typecheck passou limpo após as remoções.
 ## Problema
 Erros de TypeScript na feature de `commercial-intelligence`:
 1. `ExecutiveOverview` não está batendo com o tipo retornado (falta `coverageProtection`, `previousPeriod`, `forecastConfidence`).

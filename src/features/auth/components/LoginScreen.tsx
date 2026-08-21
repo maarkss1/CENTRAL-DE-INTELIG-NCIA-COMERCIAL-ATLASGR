@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowRight, Sun, Moon, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -22,14 +22,6 @@ export function LoginScreen() {
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
   const { theme, toggleTheme } = useTheme();
   
-  const { data: sessionData, refetch: refetchSession } = authClient.useSession();
-
-  useEffect(() => {
-    if (sessionData?.user) {
-      navigate('/app');
-    }
-  }, [sessionData?.user, navigate]);
-
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -55,8 +47,7 @@ export function LoginScreen() {
       return;
     }
 
-    await refetchSession();
-    // A navegação real para /app acontecerá via useEffect quando sessionData.user estiver populado.
+    window.location.href = '/app';
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {

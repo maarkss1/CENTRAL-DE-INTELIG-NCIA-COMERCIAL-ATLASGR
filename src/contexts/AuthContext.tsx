@@ -102,8 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     : null;
 
   const logout = async () => {
-    await authClient.signOut();
-    window.location.href = '/app';
+    try {
+      await authClient.signOut();
+    } catch (err) {
+      console.error('Erro ao encerrar sessão:', err);
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   const isAdmin = currentUser ? hasRequiredRole(currentUser.role, ['ADMIN']) : false;

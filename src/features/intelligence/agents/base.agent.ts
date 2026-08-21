@@ -169,8 +169,10 @@ export abstract class BaseAgent {
                 ],
             });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const messages = result.messages as any[];
+            // LangGraph retorna BaseMessage[] mas o tipo inferido de createReactAgent().invoke()
+            // é genérico — o cast abaixo é explícito e consciente, não mascaramento acidental.
+            // BaseMessage é o contrato público de @langchain/core/messages para este padrão ReAct.
+            const messages = result.messages as BaseMessage[];
             const lastMessage = messages[messages.length - 1];
 
             await this.updateMemory(sid, messages.map((m): SerializedMessage => ({

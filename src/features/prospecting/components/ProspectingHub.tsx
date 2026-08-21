@@ -4,7 +4,7 @@ import { Database, Landmark, Sparkles, Camera, Wrench } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
-import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, QUANTIDADE_OPTIONS, ESTADO_OPTIONS } from '../../../shared/constants/icp-options';
+import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS } from '../../../shared/constants/icp-options';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { GamificationWidget } from '../../../components/ui/GamificationWidget';
