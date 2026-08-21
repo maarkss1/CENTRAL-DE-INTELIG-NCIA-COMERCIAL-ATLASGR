@@ -1,8 +1,11 @@
 - De: 18
 - Para: 08
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
+
+## Resolução
+Decisão do Coordenador (00): opção 2 — script `docs` (`typedoc`) removido de `package.json`. A documentação viva da plataforma já é coberta por `docs/openapi.yaml` + `verify:openapi-drift` no CI. Manter um script com dependência ausente viola a regra AGENTS.md "Scripts ausentes".
 
 ## Problema
 `npm run docs` (`typedoc`) está listado em `package.json` → `scripts`, e é o script "específico do

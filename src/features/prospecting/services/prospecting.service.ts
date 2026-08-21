@@ -11,6 +11,7 @@ import { toPrismaLeadStatus, fromPrismaLeadStatus, fromPrismaCompanyStatus } fro
 import { getProspectingProviderMode } from '../../../config/prospecting-integrations.js';
 import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
 import { ExclusionSet } from '../utils/exclusionSet.js';
+import { searchCompanyNews } from './news.service.js';
 
 export interface ProspectCriteria {
     /** Perfil de Cliente Ideal (texto livre) */
@@ -86,6 +87,9 @@ export interface ProspectCandidate {
     apolloContacts?: DecisionMaker[];
     /** Decisores encontrados via Apollo People Search (+ Hunter.io como fallback de e-mail) já na descoberta. */
     decisionMakers?: DecisionMaker[];
+    /** Quebra-gelo / fato relevante / notícia recente da empresa obtida via busca na internet para abordagem inicial */
+    icebreakerHook?: string | null;
+    webInsights?: Array<{ title: string; url: string; domain: string }>;
 }
 
 export interface DiscoverResult {
@@ -263,6 +267,16 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
         absorb(await discoverViaNominatim(criteria, remainingAfterPlaces, exclusions));
     }
 
+    // Busca pública na internet por fatos relevantes/notícias para quebra-gelo inicial
+    try {
+        await Promise.race([
+            enrichCandidatesWithWebInsights(allCandidates),
+            new Promise<void>((resolve) => setTimeout(resolve, 3500)),
+        ]);
+    } catch {
+        // Non-blocking best-effort
+    }
+
     return {
         candidates: allCandidates,
         sources: [
@@ -274,6 +288,23 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
         apolloError: providerMode === 'hybrid' ? apolloError : undefined,
         providerMode,
     };
+}
+
+export async function enrichCandidatesWithWebInsights(candidates: ProspectCandidate[]): Promise<void> {
+    const top = candidates.slice(0, 10);
+    await Promise.allSettled(
+        top.map(async (candidate) => {
+            try {
+                const mentions = await searchCompanyNews(candidate.tradeName);
+                if (mentions && mentions.length > 0) {
+                    candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
+                    candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
+                }
+            } catch (err) {
+                logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+            }
+        })
+    );
 }
 
 export interface RejectCandidateInput {
