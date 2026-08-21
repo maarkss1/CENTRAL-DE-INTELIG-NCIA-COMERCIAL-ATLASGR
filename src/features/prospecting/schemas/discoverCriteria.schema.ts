@@ -12,6 +12,8 @@ import { z } from 'zod';
  * qualquer um dos dois modos de busca.
  */
 export const discoverCriteriaSchema = z.object({
+    icp: z.string().trim().max(1000).optional(),
+    persona: z.string().trim().max(1000).optional(),
     segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
     localizacao: z.string().trim().max(200).default(''),
     quantidade: z.number().int().min(1).max(500).default(10),
@@ -29,4 +31,5 @@ export const discoverCriteriaSchema = z.object({
     localizacaoExcluir: z.string().trim().max(500).optional(),
     apenasCapitalAberto: z.boolean().optional(),
     pagina: z.number().int().min(1).max(20).optional(),
+    excludeNames: z.array(z.string()).optional(),
 });

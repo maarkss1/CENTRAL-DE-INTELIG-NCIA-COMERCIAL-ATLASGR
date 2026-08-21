@@ -129,6 +129,9 @@ export async function fetchApolloCandidates(
         ? criteria.palavrasChave.split(',').map((k) => k.trim()).filter(Boolean)
         : [];
 
+    if (criteria.icp) extraKeywords.push(criteria.icp.trim());
+    if (criteria.persona) extraKeywords.push(criteria.persona.trim());
+
     const needsFoundedYearFilter = criteria.anoFundacaoMin != null || criteria.anoFundacaoMax != null;
     const needsIcpAffinityRanking = isTransportOperatorSegment(criteria.segmento);
     // Ano de fundação e a exclusão de empresas já conhecidas não são filtráveis pela API — pedimos
@@ -136,7 +139,7 @@ export async function fetchApolloCandidates(
     // afinidade ICP também pede um pool maior: sem isso não haveria o que reordenar antes de cortar.
     const requestSize = Math.min(
         needsFoundedYearFilter || needsIcpAffinityRanking || exclusions.size > 0 ? Math.max(count * 4, 50) : count,
-        100
+        500
     );
 
     const mappedKeyword = mapSegmentToKeyword(criteria.segmento);

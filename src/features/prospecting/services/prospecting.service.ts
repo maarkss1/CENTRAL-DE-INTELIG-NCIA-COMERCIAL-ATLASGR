@@ -13,6 +13,10 @@ import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
 import { ExclusionSet } from '../utils/exclusionSet.js';
 
 export interface ProspectCriteria {
+    /** Perfil de Cliente Ideal (texto livre) */
+    icp?: string;
+    /** Persona do decisor (texto livre) */
+    persona?: string;
     segmento: string;
     localizacao: string;
     quantidade: number;
@@ -44,6 +48,8 @@ export interface ProspectCriteria {
     /** Página do ranking da Apollo (1-based, padrão 1). Usada pelo botão "Buscar mais resultados"
      * do frontend para trazer a próxima fatia do mesmo ranking em vez de repetir sempre o topo. */
     pagina?: number;
+    /** Nomes a serem excluidos da busca para evitar duplicidade no append. */
+    excludeNames?: string[];
 }
 
 export type { DecisionMakerCriteria };
@@ -102,9 +108,11 @@ function buildPlacesQuery(criteria: ProspectCriteria): string {
     const segment = criteria.segmento?.trim();
     const location = buildLocationLabel(criteria)?.trim();
     const keywords = criteria.palavrasChave?.trim();
+    const icp = criteria.icp?.trim();
 
-    // Se o usuário digitou uma busca direta por nome ou palavra-chave (ex: "Supermercado", "Academia"), usaremos isso diretamente
-    const term = companyOrPlace || segment || keywords || 'Empresa';
+    // Combina os termos relevantes (exclui persona da busca geográfica, pois foca em serviços/empresas)
+    const terms = [companyOrPlace, segment, icp, keywords].filter(Boolean);
+    const term = terms.length > 0 ? terms.join(' ') : 'Empresa';
     
     return [term, location ? `em ${location}` : null]
         .filter(Boolean)
@@ -203,10 +211,16 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
  * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
 export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(100, criteria.quantidade || 10));
+    const total = Math.max(1, Math.min(500, criteria.quantidade || 10));
     const allCandidates: ProspectCandidate[] = [];
     const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
     const providerMode = getProspectingProviderMode();
+
+    if (criteria.excludeNames && criteria.excludeNames.length > 0) {
+        for (const name of criteria.excludeNames) {
+            exclusions.add(name);
+        }
+    }
 
     function absorb(found: ProspectCandidate[]) {
         for (const candidate of found) {

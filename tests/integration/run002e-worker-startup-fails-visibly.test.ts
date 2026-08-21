@@ -21,6 +21,7 @@ function runWorkerProcess(env: NodeJS.ProcessEnv): Promise<{ code: number | null
     const child = spawn('npx', ['tsx', 'worker.ts'], {
       cwd: REPO_ROOT,
       env,
+      shell: process.platform === 'win32',
     });
 
     let stdout = '';

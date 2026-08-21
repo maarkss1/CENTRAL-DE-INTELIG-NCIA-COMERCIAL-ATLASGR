@@ -29,19 +29,37 @@ export function DiscoveryFilterPanel({
 
             <div className="space-y-4 relative z-10 flex-1 overflow-y-auto pr-2">
                 <div>
-                    <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento (ICP)</label>
+                    <label htmlFor="discovery-icp" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">ICP (Perfil de Cliente Ideal)</label>
+                    <textarea
+                        id="discovery-icp"
+                        placeholder="Ex: Transportadoras de médio porte com frota própria que sofrem com roubo de carga..."
+                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2 resize-none"
+                        rows={2}
+                        value={criteria.icp || ''}
+                        onChange={(e) => setCriteria({ ...criteria, icp: e.target.value })}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="discovery-persona" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Persona do Decisor</label>
+                    <textarea
+                        id="discovery-persona"
+                        placeholder="Ex: Diretor de Logística, Gerente de Frota, CEO..."
+                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2 resize-none"
+                        rows={2}
+                        value={criteria.persona || ''}
+                        onChange={(e) => setCriteria({ ...criteria, persona: e.target.value })}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento Genérico</label>
                     <input
                         id="discovery-segmento"
                         type="text"
-                        list="segmento-suggestions"
                         placeholder="Ex: Transportadora / Frotista, Logística..."
                         className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                         value={criteria.segmento || ''}
                         onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
                     />
-                    <datalist id="segmento-suggestions">
-                        {activeSegments.map((opt) => <option key={opt} value={opt} />)}
-                    </datalist>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -50,7 +68,6 @@ export function DiscoveryFilterPanel({
                         <input
                             id="discovery-estado"
                             type="text"
-                            list="estado-suggestions"
                             placeholder="Ex: São Paulo, SP, Sul..."
                             className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
                             value={criteria.estado || ''}
@@ -63,9 +80,6 @@ export function DiscoveryFilterPanel({
                                 });
                             }}
                         />
-                        <datalist id="estado-suggestions">
-                            {ESTADO_OPTIONS.map((uf) => <option key={uf} value={uf} />)}
-                        </datalist>
                     </div>
                     <div>
                         <label htmlFor="discovery-cidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>

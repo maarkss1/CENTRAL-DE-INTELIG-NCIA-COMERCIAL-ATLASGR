@@ -79,7 +79,7 @@ describe('POST /api/cadence/leads/:leadId/schedule-meeting (Postgres real)', () 
 
         expect(res.status).toBe(201);
         expect(res.body.data.scheduled).toBe(true);
-        expect(res.body.data.googleEventId).toMatch(/^stub-google-event-/);
+        expect(res.body.data.googleEventId).toMatch(/^fallback-event-/);
         expect(res.body.data.noteId).toBeTruthy();
 
         const event = await asOrg(ORG, () => prisma.cadenceCalendarEvent.findFirstOrThrow({ where: { leadId: lead.id } }));

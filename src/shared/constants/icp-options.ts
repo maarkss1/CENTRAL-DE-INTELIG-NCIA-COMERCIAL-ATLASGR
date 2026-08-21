@@ -35,7 +35,7 @@ export const LOCALIZACAO_OPTIONS = [
     'Brasil (todas as regiões)',
 ];
 
-export const QUANTIDADE_OPTIONS = [10, 25, 50, 100];
+export const QUANTIDADE_OPTIONS = [10, 25, 50, 100, 200, 500];
 
 // Estados do Brasil — usados para refinar a busca (Google Places + Apollo) além da região ampla do playbook.
 export const ESTADO_OPTIONS = [

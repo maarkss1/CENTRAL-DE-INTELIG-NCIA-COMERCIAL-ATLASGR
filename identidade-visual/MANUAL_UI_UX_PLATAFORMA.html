@@ -1,206 +1,468 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual de UI/UX - Plataforma AtlasGR</title>
-    <!-- Tailwind via CDN para renderização rápida deste manual -->
+    <title>NEXUS - The Ultimate Brandbook</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Carregando Montserrat (corpo) -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        cyber: ['Rajdhani', 'sans-serif'],
+                        body: ['Montserrat', 'sans-serif'],
+                    },
                     colors: {
                         atlas: {
-                            primary: '#FF5618',
-                            hover: '#FF6B10',
-                            yellow: '#FFC500',
-                            dark: '#333333',
-                            gray: '#666666',
-                            light: '#F8F9FA'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Montserrat', 'sans-serif'],
-                        heading: ['Mont', 'Montserrat', 'sans-serif']
-                    },
-                    boxShadow: {
-                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-                        'primary-hover': '0 4px 12px rgba(255, 86, 24, 0.2)'
+                            glow: '#FF5618',
+                            core: '#FF8008',
+                        },
+                        totaltrac: {
+                            glow: '#008FCE',
+                            core: '#93DBF2',
+                        },
+                        space: '#05050A',
+                        glass: 'rgba(20, 20, 30, 0.65)'
                     }
                 }
             }
         }
     </script>
+
     <style>
-        body { font-family: 'Montserrat', sans-serif; background-color: #F8F9FA; color: #333333; }
-        h1, h2, h3, h4 { font-family: 'Mont', 'Montserrat', sans-serif; font-weight: 700; }
-        
-        .color-swatch { width: 100%; height: 80px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #E5E7EB; }
-        
-        /* Botões */
-        .btn { padding: 10px 20px; border-radius: 8px; font-weight: 600; transition: all 0.2s ease-in-out; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
-        .btn-primary { background-color: #FF5618; color: white; border: none; }
-        .btn-primary:hover { background-color: #FF6B10; transform: scale(1.02); box-shadow: 0 4px 12px rgba(255, 86, 24, 0.2); }
-        .btn-secondary { background-color: transparent; color: #333333; border: 1px solid #D1D5DB; }
-        .btn-secondary:hover { background-color: #F3F4F6; border-color: #9CA3AF; }
-        .btn-disabled { background-color: #E5E7EB; color: #9CA3AF; cursor: not-allowed; border: none; }
-        
-        /* Cards */
-        .card-demo { background-color: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: box-shadow 0.2s; }
-        .card-demo:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        :root {
+            --neon-color: #FF5618;
+            --neon-secondary: #FFC500;
+            --bg-dark: #05050A;
+            --grid-color: rgba(255, 86, 24, 0.08);
+            --font-display: 'Rajdhani', sans-serif;
+            --glass-bg: rgba(20, 20, 30, 0.65);
+        }
+
+        [data-theme="totaltrac"] {
+            --neon-color: #008FCE;
+            --neon-secondary: #93DBF2;
+            --grid-color: rgba(0, 143, 206, 0.08);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #E2E8F0;
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        /* Animated Grid Background */
+        .cyber-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-image: 
+                linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -2;
+            transform: perspective(500px) rotateX(60deg) translateY(-100px) translateZ(-200px);
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 1000px; }
+        }
+
+        /* Ambient Glow */
+        .ambient-glow {
+            position: fixed;
+            top: -20%; left: 50%;
+            width: 80vw; height: 80vh;
+            background: radial-gradient(circle, var(--neon-color) 0%, transparent 60%);
+            opacity: 0.15;
+            transform: translateX(-50%);
+            z-index: -1;
+            filter: blur(100px);
+            transition: background 0.5s ease;
+        }
+
+        /* Typography */
+        h1, h2, h3, .cyber-text {
+            font-family: var(--font-display);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .neon-text {
+            color: #FFF;
+            text-shadow: 0 0 10px var(--neon-color), 0 0 20px var(--neon-color), 0 0 40px var(--neon-color);
+        }
+
+        .neon-border {
+            border: 1px solid var(--neon-color);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5), 0 0 15px var(--neon-color), inset 0 0 15px var(--neon-color);
+        }
+
+        /* Cyberpunk Cards */
+        .cyber-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--neon-color);
+            border-right: 1px solid var(--neon-color);
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .cyber-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: skewX(-20deg);
+            transition: 0.5s;
+        }
+
+        .cyber-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.8), 0 0 30px var(--neon-color);
+        }
+
+        .cyber-card:hover::before {
+            left: 200%;
+            transition: 0.7s;
+        }
+
+        /* Futuristic Button */
+        .cyber-btn {
+            background: linear-gradient(45deg, transparent 5%, var(--neon-color) 5%);
+            color: #FFF;
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            padding: 15px 40px;
+            border: none;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s ease;
+            box-shadow: 0px 0px 0px transparent;
+        }
+
+        .cyber-btn::after {
+            content: 'SYS.REQ';
+            position: absolute;
+            top: -15px; right: -10px;
+            background: #000;
+            color: var(--neon-color);
+            font-size: 0.6rem;
+            padding: 2px 5px;
+            border: 1px solid var(--neon-color);
+        }
+
+        .cyber-btn:hover {
+            background: linear-gradient(45deg, transparent 5%, #FFF 5%);
+            color: #000;
+            box-shadow: 0 0 30px var(--neon-color);
+            transform: scale(1.05);
+        }
+
+        /* Glitch Effect */
+        .glitch {
+            position: relative;
+        }
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+        }
+        .glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 red;
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+        .glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 blue;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim 2.5s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip: rect(10px, 9999px, 44px, 0); }
+            20% { clip: rect(80px, 9999px, 94px, 0); }
+            40% { clip: rect(30px, 9999px, 12px, 0); }
+            60% { clip: rect(98px, 9999px, 80px, 0); }
+            80% { clip: rect(20px, 9999px, 50px, 0); }
+            100% { clip: rect(60px, 9999px, 10px, 0); }
+        }
+
+        .color-orb {
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            box-shadow: 0 0 20px currentColor, inset 0 0 20px rgba(255,255,255,0.5);
+            animation: pulse-orb 2s infinite alternate;
+        }
+
+        @keyframes pulse-orb {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            100% { transform: scale(1.05); opacity: 1; }
+        }
+
+        /* UI Image Mockup */
+        .hologram-img {
+            width: 100%;
+            border-radius: 12px;
+            border: 2px solid var(--neon-color);
+            box-shadow: 0 0 40px var(--neon-color);
+            filter: contrast(1.1) saturate(1.2);
+            position: relative;
+            z-index: 10;
+        }
+
     </style>
 </head>
-<body class="antialiased p-8 lg:p-16">
+<body class="pb-32">
 
-    <div class="max-w-5xl mx-auto space-y-16">
-        
-        <!-- Header -->
-        <header class="border-b pb-8 border-gray-200">
-            <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 bg-atlas-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">A</div>
-                <h1 class="text-4xl text-atlas-dark tracking-tight">Manual de UI/UX</h1>
+    <!-- Background Elements -->
+    <div class="cyber-grid"></div>
+    <div class="ambient-glow"></div>
+
+    <!-- HUD Overlay -->
+    <div class="fixed top-4 left-4 text-xs font-cyber text-gray-500 tracking-widest z-50 mix-blend-difference pointer-events-none">
+        SYS.VER 9.0.4 <br>
+        [UPLINK: ESTABLISHED]
+    </div>
+    <div class="fixed bottom-4 right-4 text-xs font-cyber text-gray-500 tracking-widest z-50 mix-blend-difference pointer-events-none text-right">
+        MEMORY: ALLOCATED <br>
+        SEC.LEVEL: MAXIMUM
+    </div>
+
+    <!-- Theme Switcher Panel -->
+    <div class="fixed top-6 right-6 z-50">
+        <div class="cyber-card !p-4 flex items-center gap-6 border-t-0 border-l-0 !rounded-br-2xl !rounded-tl-2xl">
+            <div>
+                <p class="text-xs text-gray-400 font-cyber tracking-widest mb-1">OVERRIDE PROTOCOL</p>
+                <h2 id="brand-name" class="text-2xl neon-text m-0 leading-none">ATLAS.OS</h2>
             </div>
-            <p class="text-atlas-gray text-lg">Guia visual de interações, cores e componentes para a Plataforma AtlasGR.</p>
-        </header>
-
-        <!-- Cores -->
-        <section>
-            <h2 class="text-2xl mb-6 border-l-4 border-atlas-primary pl-3">1. Cores Institucionais</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <div>
-                    <div class="color-swatch bg-atlas-primary border-none"></div>
-                    <p class="font-bold">Laranja Atlas</p>
-                    <p class="text-sm text-gray-500">#FF5618 (Primária)</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-atlas-hover border-none"></div>
-                    <p class="font-bold">Laranja Apoio</p>
-                    <p class="text-sm text-gray-500">#FF6B10 (Hover)</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-atlas-dark border-none"></div>
-                    <p class="font-bold">Grafite</p>
-                    <p class="text-sm text-gray-500">#333333 (Texto/Dark)</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-atlas-light"></div>
-                    <p class="font-bold">Cinza Fundo</p>
-                    <p class="text-sm text-gray-500">#F8F9FA (Background)</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-green-500 border-none"></div>
-                    <p class="font-bold">Sucesso</p>
-                    <p class="text-sm text-gray-500">#10B981</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-atlas-yellow border-none"></div>
-                    <p class="font-bold">Aviso</p>
-                    <p class="text-sm text-gray-500">#FFC500</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-red-500 border-none"></div>
-                    <p class="font-bold">Erro</p>
-                    <p class="text-sm text-gray-500">#EF4444</p>
-                </div>
-                <div>
-                    <div class="color-swatch bg-white"></div>
-                    <p class="font-bold">Branco Puro</p>
-                    <p class="text-sm text-gray-500">#FFFFFF (Cards)</p>
-                </div>
+            <div class="flex gap-2">
+                <button onclick="playClick(); setTheme('atlasgr')" class="px-4 py-2 bg-black/50 border border-[#FF5618] text-[#FF5618] font-cyber hover:bg-[#FF5618] hover:text-white transition-all text-sm tracking-wider">INIT: ATLAS</button>
+                <button onclick="playClick(); setTheme('totaltrac')" class="px-4 py-2 bg-black/50 border border-[#008FCE] text-[#008FCE] font-cyber hover:bg-[#008FCE] hover:text-white transition-all text-sm tracking-wider">INIT: TOTALTRAC</button>
             </div>
-        </section>
+        </div>
+    </div>
 
-        <!-- Tipografia -->
-        <section>
-            <h2 class="text-2xl mb-6 border-l-4 border-atlas-primary pl-3">2. Tipografia</h2>
-            <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm space-y-6">
-                <div>
-                    <p class="text-sm text-atlas-gray mb-1">Título de Página (H1) - 32px</p>
-                    <h1 class="text-3xl">A rápida raposa marrom pula.</h1>
-                </div>
-                <div>
-                    <p class="text-sm text-atlas-gray mb-1">Título de Sessão (H2) - 24px</p>
-                    <h2 class="text-2xl">A rápida raposa marrom pula.</h2>
-                </div>
-                <div>
-                    <p class="text-sm text-atlas-gray mb-1">Subtítulo (H3) - 18px</p>
-                    <h3 class="text-lg">A rápida raposa marrom pula.</h3>
-                </div>
-                <div>
-                    <p class="text-sm text-atlas-gray mb-1">Corpo de Texto - 16px (Montserrat)</p>
-                    <p class="text-base text-atlas-dark">Este é um exemplo de parágrafo. A tipografia foi escolhida para proporcionar a melhor legibilidade possível em telas digitais, garantindo que os usuários possam consumir grandes volumes de dados no CRM sem cansar a vista.</p>
-                </div>
+    <div class="max-w-7xl mx-auto px-6 mt-32 space-y-32 relative z-10">
+
+        <!-- Hero Section -->
+        <section class="text-center space-y-6 relative">
+            <div class="inline-block px-4 py-1 border border-white/20 rounded-full text-xs tracking-widest uppercase mb-4 bg-white/5 backdrop-blur-sm">
+                <span class="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse mr-2"></span>
+                Identidade Visual Nível 5 Ativada
             </div>
-        </section>
-
-        <!-- Botões e Interações -->
-        <section>
-            <h2 class="text-2xl mb-6 border-l-4 border-atlas-primary pl-3">3. Componentes Base (Botões)</h2>
-            <div class="flex flex-wrap gap-6 items-center bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-                <div class="flex flex-col gap-2">
-                    <span class="text-sm text-gray-500">Primário (Raio 8px)</span>
-                    <button class="btn btn-primary">Salvar Alterações</button>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <span class="text-sm text-gray-500">Secundário</span>
-                    <button class="btn btn-secondary">Cancelar</button>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <span class="text-sm text-gray-500">Desativado</span>
-                    <button class="btn btn-disabled" disabled>Não Permitido</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Cards -->
-        <section>
-            <h2 class="text-2xl mb-6 border-l-4 border-atlas-primary pl-3">4. Superfícies e Cards</h2>
-            <div class="grid md:grid-cols-2 gap-8">
-                
-                <div class="card-demo">
-                    <h3 class="text-xl mb-2">Card Padrão (Raio 12px)</h3>
-                    <p class="text-atlas-gray mb-6">Utilizado para agrupar informações relacionadas. O espaçamento interno (padding) de 24px garante respiro. Passe o mouse para ver o hover da sombra.</p>
-                    <div class="flex justify-end">
-                        <button class="btn btn-secondary text-sm">Visualizar Detalhes</button>
+            <h1 class="text-6xl md:text-8xl font-black glitch neon-text" data-text="A INTERFACE PERFEITA.">A INTERFACE PERFEITA.</h1>
+            <p class="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto font-light">
+                Bem-vindo ao <b>NEXUS</b>. A união simbiótica entre a engenharia robótica da AtlasGR e o fluxo de dados em dobra espacial da TotalTrac. 
+                Sinta a interface. Respire a interface.
+            </p>
+            
+            <div class="mt-20 relative group perspective">
+                <!-- Imagem Mockup -->
+                <div class="relative z-10 p-2 rounded-2xl bg-gradient-to-br from-white/10 to-transparent backdrop-blur-sm border border-white/10">
+                    <img src="mockup_dashboard.jpg" alt="Holographic Dashboard Mockup" class="hologram-img transform transition-transform duration-700 group-hover:scale-[1.02]" />
+                    
+                    <!-- Scanline Overlay -->
+                    <div class="absolute inset-0 z-20 pointer-events-none rounded-xl overflow-hidden">
+                        <div class="w-full h-2 bg-white/20 blur-[2px] absolute top-0 animate-[scan_3s_linear_infinite]"></div>
                     </div>
                 </div>
-
-                <div class="card-demo">
-                    <h3 class="text-xl mb-4">Inputs e Formulários</h3>
-                    <div class="space-y-4">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-sm font-semibold text-atlas-dark">Nome completo</label>
-                            <input type="text" placeholder="Digite seu nome" class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:border-atlas-primary focus:ring-1 focus:ring-atlas-primary transition-all">
-                        </div>
-                        <button class="btn btn-primary w-full mt-2">Continuar</button>
-                    </div>
-                </div>
-
+                <!-- Back glow -->
+                <div class="absolute -inset-4 bg-gradient-to-r from-transparent via-[var(--neon-color)] to-transparent opacity-30 blur-2xl group-hover:opacity-60 transition-opacity duration-500 z-0"></div>
             </div>
         </section>
 
-        <!-- Audio UX -->
-        <section>
-            <h2 class="text-2xl mb-6 border-l-4 border-atlas-primary pl-3">5. Microinterações e Áudio UI</h2>
-            <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm">
-                <p class="text-atlas-dark mb-4">
-                    A plataforma utiliza feedbacks sonoros curtos e não intrusivos (volume máximo 20%) para orientar o usuário:
-                </p>
-                <ul class="list-disc pl-5 space-y-2 text-atlas-gray">
-                    <li><strong class="text-atlas-dark">Sucesso:</strong> Pop duplo rápido, levemente agudo (Salvar, concluir).</li>
-                    <li><strong class="text-atlas-dark">Erro/Aviso:</strong> Tom grave e curto, sugerindo barreira (Falha, exclusão).</li>
-                    <li><strong class="text-atlas-dark">Notificação:</strong> Som cristalino de "sino", sutil (Novos leads).</li>
-                </ul>
+        <!-- Dynamic Brand DNA -->
+        <section class="grid lg:grid-cols-2 gap-10">
+            <div class="cyber-card flex flex-col justify-between">
+                <div>
+                    <h2 class="text-4xl neon-text mb-6">NÚCLEO ESTRUTURAL</h2>
+                    <p class="text-gray-300 text-lg leading-relaxed font-light">
+                        A plataforma opera sob um motor de interface de estado fluido. Os raios de curvatura, as físicas de sombra de vidro temperado e as equações de espaçamento são absolutas e indivisíveis.
+                    </p>
+                </div>
+                <div class="mt-8 grid grid-cols-2 gap-4 border-t border-white/10 pt-8">
+                    <div>
+                        <div class="text-4xl text-white font-cyber">12<span class="text-sm text-gray-500">px</span></div>
+                        <div class="text-xs text-gray-400 uppercase tracking-widest mt-1">Raio do Chassi (Cards)</div>
+                    </div>
+                    <div>
+                        <div class="text-4xl text-white font-cyber">8<span class="text-sm text-gray-500">px</span></div>
+                        <div class="text-xs text-gray-400 uppercase tracking-widest mt-1">Raio de Ação (Botões)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paleta renderizada dinamicamente -->
+            <div class="cyber-card">
+                <h2 class="text-2xl tracking-widest text-white mb-8 border-b border-white/10 pb-4">ESPECTRO DE LUZ ATIVO</h2>
+                <div id="palette-container" class="grid grid-cols-2 gap-8">
+                    <!-- JS injects here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Cyber Components & Audio UI -->
+        <section class="cyber-card !p-12 relative overflow-hidden">
+            <div class="absolute -right-20 -bottom-20 opacity-5">
+                <svg width="400" height="400" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke="white" stroke-width="1" fill="none"/><circle cx="50" cy="50" r="30" stroke="white" stroke-width="0.5" fill="none" stroke-dasharray="2 4"/><path d="M50 0 v100 M0 50 h100" stroke="white" stroke-width="0.5"/></svg>
+            </div>
+            
+            <div class="relative z-10 flex flex-col lg:flex-row gap-16 items-center">
+                <div class="flex-1 space-y-6">
+                    <h2 class="text-5xl neon-text glitch" data-text="INTERAÇÃO TÁTIL">INTERAÇÃO TÁTIL</h2>
+                    <p class="text-xl text-gray-300 font-light">
+                        Esqueça botões passivos. A plataforma exige respostas nervosas. Os elementos interativos emitem feedback de choque visual (glow) e resposta auditiva (Áudio UI) em tempo real.
+                    </p>
+                    <ul class="space-y-4 mt-8 font-cyber tracking-wider text-gray-400">
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-[var(--neon-color)] shadow-[0_0_10px_var(--neon-color)]"></span> SUCESSO: Duplo bipe de alta frequência.</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_red]"></span> FALHA: Baixa frequência de bloqueio.</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]"></span> AVISO: Ressonância cristalina.</li>
+                    </ul>
+                </div>
+
+                <div class="flex-1 w-full bg-black/40 p-10 rounded-2xl border border-white/10 flex flex-col items-center justify-center gap-8 shadow-inner">
+                    <div class="text-center w-full">
+                        <label class="block text-xs tracking-widest text-gray-500 mb-2 text-left">DIRETRIZ DE INPUT</label>
+                        <input type="text" value="SYS.OVERRIDE_TRUE" class="w-full bg-white/5 border border-white/20 rounded-lg p-4 text-white font-cyber text-lg outline-none focus:border-[var(--neon-color)] focus:shadow-[0_0_15px_var(--neon-color)] transition-all" readonly>
+                    </div>
+                    
+                    <button class="cyber-btn w-full" onclick="playClick(); simulateLoad(this)">
+                        INICIAR SEQUÊNCIA
+                    </button>
+                </div>
             </div>
         </section>
 
     </div>
 
+    <!-- Sistema de Áudio Embutido Base64 (Sons sintetizados muito curtos para não pesar) -->
+    <audio id="sfx-click" src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAD//w==" preload="auto"></audio>
+
+    <script>
+        // Simulador de SFX simples usando Web Audio API para um som sci-fi futurista
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playClick() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function simulateLoad(btn) {
+            const originalText = btn.innerText;
+            btn.innerText = "PROCESSANDO...";
+            btn.style.background = "#FFF";
+            btn.style.color = "#000";
+            
+            // Som de sucesso
+            setTimeout(() => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(1600, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+
+                btn.innerText = "SISTEMA ONLINE";
+                btn.style.background = "var(--neon-color)";
+                btn.style.color = "#FFF";
+                btn.style.boxShadow = "0 0 40px var(--neon-color)";
+                
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style = "";
+                }, 2000);
+            }, 800);
+        }
+
+        const palettes = {
+            atlasgr: `
+                <div class="flex items-center gap-4">
+                    <div class="color-orb text-[#FF5618]" style="background-color: #FF5618"></div>
+                    <div><p class="font-cyber text-xl text-white">#FF5618</p><p class="text-xs text-gray-500 tracking-widest">NÚCLEO LARANJA</p></div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="color-orb text-[#FFC500]" style="background-color: #FFC500"></div>
+                    <div><p class="font-cyber text-xl text-white">#FFC500</p><p class="text-xs text-gray-500 tracking-widest">ENERGIA AMARELA</p></div>
+                </div>
+            `,
+            totaltrac: `
+                <div class="flex items-center gap-4">
+                    <div class="color-orb text-[#008FCE]" style="background-color: #008FCE"></div>
+                    <div><p class="font-cyber text-xl text-white">#008FCE</p><p class="text-xs text-gray-500 tracking-widest">NÚCLEO AZUL</p></div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="color-orb text-[#93DBF2]" style="background-color: #93DBF2"></div>
+                    <div><p class="font-cyber text-xl text-white">#93DBF2</p><p class="text-xs text-gray-500 tracking-widest">PLASMA CLARO</p></div>
+                </div>
+            `
+        };
+
+        function setTheme(theme) {
+            if(theme === 'totaltrac') {
+                document.documentElement.setAttribute('data-theme', 'totaltrac');
+                document.getElementById('brand-name').innerText = 'TOTALTRAC.OS';
+                document.getElementById('palette-container').innerHTML = palettes.totaltrac;
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                document.getElementById('brand-name').innerText = 'ATLAS.OS';
+                document.getElementById('palette-container').innerHTML = palettes.atlasgr;
+            }
+        }
+
+        // Init
+        setTheme('atlasgr');
+    </script>
+
+    <style>
+        @keyframes scan {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+    </style>
 </body>
 </html>

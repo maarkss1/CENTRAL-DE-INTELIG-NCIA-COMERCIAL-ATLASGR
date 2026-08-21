@@ -66,10 +66,10 @@ export function ProspectingHub() {
 
     // --- discovery via open data, with optional Apollo enrichment ---
     const [criteria, setCriteria] = useState<ProspectCriteria>({
-        segmento: activeSegments[0],
-        localizacao: ESTADO_OPTIONS[24], // Default SP
-        estado: ESTADO_OPTIONS[24], // Default SP
-        quantidade: QUANTIDADE_OPTIONS[0],
+        segmento: '',
+        localizacao: '',
+        estado: '',
+        quantidade: 100,
     });
 
     useEffect(() => {
@@ -347,7 +347,8 @@ export function ProspectingHub() {
             // decisores) + heurísticas de CNPJ — o timeout padrão de 15s (pensado pra CRUD simples)
             // matava a requisição no cliente antes do backend terminar, mesmo quando cada chamada
             // individual (inclusive o Apollo) respondia rápido isoladamente.
-            const result = await api.post<DiscoverResult>('/api/prospecting/discover', { ...criteria, pagina: page }, { timeoutMs: 45_000 });
+            const excludeNames = append ? candidates.map(c => c.tradeName) : undefined;
+            const result = await api.post<DiscoverResult>('/api/prospecting/discover', { ...criteria, pagina: page, excludeNames }, { timeoutMs: 45_000 });
             if (append) {
                 // Defesa extra além da exclusão do backend: garante que a mesma empresa não apareça
                 // duas vezes na lista mesmo se a Apollo devolver alguma sobreposição entre páginas.
