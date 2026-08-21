@@ -164,14 +164,14 @@ describe('GET /api/google/callback', () => {
 });
 
 describe('GET /api/google/status', () => {
-    it('devolve o shape { connected, email } do serviço', async () => {
-        getGoogleStatusMock.mockResolvedValue({ connected: true, email: 'comercial@atlasgr.com.br' });
+    it('devolve o shape { connected, email, hasCalendarWriteScope } do serviço', async () => {
+        getGoogleStatusMock.mockResolvedValue({ connected: true, email: 'comercial@atlasgr.com.br', hasCalendarWriteScope: true });
         const app = buildApp();
 
         const res = await request(app).get('/api/google/status');
 
         expect(res.status).toBe(200);
-        expect(res.body).toEqual({ success: true, data: { connected: true, email: 'comercial@atlasgr.com.br' } });
+        expect(res.body).toEqual({ success: true, data: { connected: true, email: 'comercial@atlasgr.com.br', hasCalendarWriteScope: true } });
         expect(getGoogleStatusMock).toHaveBeenCalledWith('org-1');
     });
 });

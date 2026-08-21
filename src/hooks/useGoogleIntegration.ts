@@ -14,6 +14,12 @@ export function useGoogleIntegration() {
     const [googleEmail, setGoogleEmail] = useState<string | null>(null);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+    // Conexões feitas antes do escopo `calendar.events` (Onda 27/QA) ficaram só com
+    // `calendar.readonly` — o Google não amplia escopo de um token já emitido, então a escrita real
+    // via Cadência falharia (403) silenciosamente até a organização reconectar. Sem este sinal, a
+    // tela de Integrações afirmaria escrita real pra uma conexão que na prática ainda não tem o
+    // escopo (ver Onda 3 — "Integrações honestas").
+    const [hasCalendarWriteScope, setHasCalendarWriteScope] = useState(false);
 
     const fetchGoogleStatus = async () => {
         try {
@@ -22,6 +28,7 @@ export function useGoogleIntegration() {
             if (data.success) {
                 setGoogleConnected(data.data.connected);
                 setGoogleEmail(data.data.email);
+                setHasCalendarWriteScope(!!data.data.hasCalendarWriteScope);
                 if (data.data.connected) {
                     const eventsRes = await fetch('/api/google/calendar/upcoming');
                     const eventsData = await eventsRes.json();
@@ -79,11 +86,12 @@ export function useGoogleIntegration() {
             setGoogleConnected(false);
             setGoogleEmail(null);
             setUpcomingEvents([]);
+            setHasCalendarWriteScope(false);
         } catch (error) {
             clientLogger.error({ err: error }, 'Failed to disconnect Google');
         }
         setGoogleLoading(false);
     };
 
-    return { googleConnected, googleEmail, googleLoading, upcomingEvents, handleGoogleConnect, handleGoogleDisconnect };
+    return { googleConnected, googleEmail, googleLoading, upcomingEvents, hasCalendarWriteScope, handleGoogleConnect, handleGoogleDisconnect };
 }

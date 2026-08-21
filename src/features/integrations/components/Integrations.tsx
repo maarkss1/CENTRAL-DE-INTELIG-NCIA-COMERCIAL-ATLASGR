@@ -56,7 +56,7 @@ export function Integrations() {
     const { qrCode, status, loading, handleConnect, handleDisconnect } = useWhatsAppIntegration();
 
     const {
-        googleConnected, googleEmail, googleLoading, upcomingEvents,
+        googleConnected, googleEmail, googleLoading, upcomingEvents, hasCalendarWriteScope,
         handleGoogleConnect, handleGoogleDisconnect,
     } = useGoogleIntegration();
 
@@ -236,7 +236,7 @@ export function Integrations() {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Workspace</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail e Calendar em modo leitura; a Agenda do produto continua local.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail em modo leitura; Calendar tem leitura e escrita real (via Cadência); a Agenda do produto continua local.</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center">
                                 <span className="text-2xl">📧</span>
@@ -247,10 +247,10 @@ export function Integrations() {
                                 <div className="flex flex-wrap gap-2">
                                     <CapabilityBadge status={googleConnected ? 'connected' : 'error'}>{googleConnected ? 'conectado' : 'desconectado'}</CapabilityBadge>
                                     <CapabilityBadge status={googleConnected ? 'read' : 'pending'}>Calendar leitura</CapabilityBadge>
+                                    <CapabilityBadge status={hasCalendarWriteScope ? 'write' : 'pending'}>Calendar escrita via Cadência</CapabilityBadge>
                                     <CapabilityBadge status="stub">Agenda local</CapabilityBadge>
-                                    <CapabilityBadge status="pending">Google escrita pendente</CapabilityBadge>
                                 </div>
-                                <p>Decisão da Onda 3: não afirmar escrita real no Google. Eventos abaixo vêm do Google Calendar; criar/remarcar/concluir atividades acontece só na Agenda local do Atlas.</p>
+                                <p>Eventos abaixo vêm do Google Calendar de verdade. A Agenda do Atlas continua local e não sincroniza com o Google. Só a Cadência cria eventos reais no Google Calendar, e só quando o vendedor confirma manualmente uma reunião (ver aviso abaixo) — não existe sincronização geral de compromissos.</p>
                             </IntegrationTruthBox>
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
@@ -260,18 +260,40 @@ export function Integrations() {
                                 {googleConnected && (
                                     <IntegrationStatusBadge
                                         capability="read"
-                                        title="Lê Gmail e eventos do Calendar de verdade (escopo somente leitura)"
+                                        title="Lê Gmail e eventos do Calendar de verdade"
+                                    />
+                                )}
+                                {googleConnected && (
+                                    <IntegrationStatusBadge
+                                        capability={hasCalendarWriteScope ? 'write' : 'pending_scope'}
+                                        title={hasCalendarWriteScope
+                                            ? 'Cria eventos reais no Google Calendar quando a Cadência confirma uma reunião'
+                                            : 'Conexão feita antes do escopo de escrita — reconecte para habilitar a criação real de eventos'}
                                     />
                                 )}
                             </div>
 
-                            {googleConnected && (
+                            {googleConnected && !hasCalendarWriteScope && (
                                 <div className="flex items-start gap-2 p-3 rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30">
                                     <IntegrationStatusBadge capability="pending_scope" />
                                     <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                                        Agendamento pela Cadência grava a confirmação no Atlas, mas ainda não cria o evento no Google
-                                        Calendar de verdade — isso exige pedir o escopo de escrita (<code className="font-mono">calendar.events</code>)
-                                        e reconectar toda a organização, decisão de produto ainda não tomada.
+                                        Esta conexão foi feita antes do escopo de escrita (<code className="font-mono">calendar.events</code>)
+                                        existir, então ainda tem só <code className="font-mono">calendar.readonly</code>. Agendamento pela
+                                        Cadência vai continuar gravando a confirmação no Atlas normalmente, mas a criação do evento no
+                                        Google Calendar vai falhar em silêncio até você desconectar e reconectar a conta abaixo.
+                                    </p>
+                                </div>
+                            )}
+
+                            {googleConnected && hasCalendarWriteScope && (
+                                <div className="flex items-start gap-2 p-3 rounded-lg border border-dashed border-sky-300 bg-sky-50 dark:bg-sky-500/10 dark:border-sky-500/30">
+                                    <IntegrationStatusBadge capability="pending_scope" />
+                                    <p className="text-xs text-sky-800 dark:text-sky-200 leading-relaxed">
+                                        Agendamento pela Cadência cria o evento de verdade no Google Calendar sempre que o vendedor
+                                        confirma manualmente uma reunião. Os outros dois gatilhos automáticos do domínio — réplica de
+                                        calendário por e-mail e clique em link de agendamento self-service — ainda não têm transporte
+                                        implementado (pendente de escopo de produto), então só a confirmação manual dispara escrita real
+                                        hoje.
                                     </p>
                                 </div>
                             )}

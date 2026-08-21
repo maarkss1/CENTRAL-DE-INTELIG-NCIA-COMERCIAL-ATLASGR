@@ -77,6 +77,16 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > com ações reais na UI (parar exige confirmação — é irreversível). Cobertura E2E
 > (`tests/e2e/cadence.spec.ts`) e de acessibilidade (`accessibility.spec.ts`) adicionadas — a tela
 > nunca tinha nenhuma das duas. Esta é a última entrega pendente do bloco CYC-001..009.
+>
+> **Atualização — Onda 3 "Integrações honestas"**: CYC-004 deixou de ser stub de transporte. O
+> commit `608ab09` (`fix(qa): resolve P3 debts...`) mudou o escopo OAuth de `calendar.readonly`
+> para `calendar.events` e ligou `PrismaCalendarSchedulerPort.createEvent` à chamada real
+> (`google.service.ts::createCalendarEvent`, `POST
+> https://www.googleapis.com/calendar/v3/calendars/primary/events`) — a reconexão de escopo que a
+> nota da Onda 27 descrevia como decisão de produto pendente já aconteceu. Ver seção CYC-004
+> abaixo para o estado atual; esta rodada só atualizou a documentação e a tela de Integrações
+> (`Integrations.tsx`) para pararem de descrever a escrita como pendente — não houve mudança de
+> comportamento de integração nesta rodada.
 
 ## Achado estrutural que atravessa quase toda a sprint
 
@@ -94,9 +104,11 @@ produção**:
 - ~~`src/features/cadence/domain/replyTracking.ts` — porta pronta para reply tracking de e-mail;
   sem transporte de e-mail de entrada (IMAP/webhook) para alimentá-la.~~ Conectado na Onda 26 (ver
   CYC-003) com um stub de transporte real (`emailReply.webhook.ts`).
-- `src/features/cadence/domain/scheduling.ts` — guardrails anti-inferência-de-IA para agendamento
+- ~~`src/features/cadence/domain/scheduling.ts` — guardrails anti-inferência-de-IA para agendamento
   bem desenhados e testados; sem `CalendarSchedulerPort` real (não existe criação de evento no
-  Google Calendar em lugar nenhum do código, só leitura via OAuth).
+  Google Calendar em lugar nenhum do código, só leitura via OAuth).~~ Conectado na Onda 27 (ver
+  CYC-004) — inicialmente com stub de transporte, escrita real ligada desde o commit `608ab09`
+  (ver nota "Onda 3" acima).
 - `src/features/cadence/domain/proposal.ts` (versionamento de proposta) — funções puras testadas;
   `CrmCommercialDocumentVersion` nunca é lido/escrito.
 - `src/features/cadence/domain/dealClosure.ts` (evento verificável de fechamento) — bem desenhado
@@ -209,8 +221,9 @@ conectado desde a onda-19/onda-22.**
 
 ## CYC-004 — Agendamento Google
 
-**Estado (Onda 27): confirmação verificável conectada para o caminho `manual-verified`; criação de
-evento no Google Calendar é um stub de transporte.**
+**Estado (Onda 27, escrita real ligada em `608ab09`/QA e confirmada na Onda 3 "Integrações
+honestas"): confirmação verificável conectada para o caminho `manual-verified`; criação de evento
+no Google Calendar é uma chamada real à API, não mais um stub.**
 
 - `POST /api/cadence/leads/:leadId/schedule-meeting` (`cadence.routes.ts`) — vendedor confirma
   manualmente um horário depois de contato ao vivo com o lead. Segue o único portão de decisão do
@@ -223,20 +236,19 @@ evento no Google Calendar é um stub de transporte.**
 - Dos 3 tipos de evidência aceitos pelo domínio (`lead-calendar-reply`, `lead-scheduling-link-click`,
   `manual-verified`), só o último tem transporte real agora — os outros dois dependem de réplica de
   calendário por e-mail (sem parser dedicado) e de uma página de agendamento self-service (não
-  existe), nenhum dos dois construído nesta rodada.
-- **Decisão de produto confirmada com o usuário**: a chamada real ao Google Calendar
-  (`PrismaCalendarSchedulerPort.createEvent`) é um **stub de transporte**, mesma categoria de
-  CYC-003/CYC-006. A integração OAuth já é real e funciona para leitura
-  (`google.service.ts::getUpcomingCalendarEvents`, `getValidAccessToken` + `fetchWithTimeout`), mas
-  o escopo hoje conectado é só `calendar.readonly` — pedir `calendar.events` forçaria
-  reconsentimento de toda organização já conectada ao Google, decisão de produto real fora do
-  escopo desta rodada. O stub devolve um `googleEventId` sintético (`stub-google-event-<uuid>`,
-  logado como tal) e grava o `CadenceCalendarEvent` normalmente: o Google é sincronização
-  best-effort, nunca a fonte de verdade do agendamento comercial (ver comentário do campo
-  `googleEventId` no schema, escrito numa sprint anterior a esta onda). Quando o escopo for
-  ampliado, a implementação real segue exatamente o padrão de `getUpcomingCalendarEvents`.
+  existe), nenhum dos dois construído ainda.
+- **Escrita real ligada**: o escopo OAuth foi ampliado de `calendar.readonly` para `calendar.events`
+  (`google.service.ts` — toda organização reconectada desde então recebe o escopo de escrita; uma
+  organização que conectou antes da mudança e nunca reconectou pode não ter o escopo novo, e a
+  chamada volta 403 do Google nesse caso). `PrismaCalendarSchedulerPort.createEvent` chama
+  `google.service.ts::createCalendarEvent` (`POST
+  https://www.googleapis.com/calendar/v3/calendars/primary/events`) de verdade. Continua best-effort
+  e não-bloqueante por design: se a chamada ao Google falhar (rede, 403 de escopo antigo, token
+  revogado), o erro é logado e o fluxo segue gravando `CadenceCalendarEvent` com um
+  `fallback-event-<uuid>` local — o Google nunca foi, e continua não sendo, a fonte de verdade do
+  agendamento comercial (ver comentário do campo `googleEventId` no schema).
 - `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas deste documento.
-- Fora de escopo desta rodada (documentado, não corrigido): freebusy antes de propor um horário,
+- Fora de escopo (documentado, não corrigido): freebusy antes de propor um horário,
   cancelamento/reagendamento de um `CadenceCalendarEvent` já criado, e os 2 outros tipos de
   evidência (`lead-calendar-reply`/`lead-scheduling-link-click`).
 
