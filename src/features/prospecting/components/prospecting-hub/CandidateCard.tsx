@@ -13,6 +13,7 @@ import {
 } from '../../../../shared/utils/contact-links';
 import { DecisionMakerSearch } from './DecisionMakerSearch';
 import { WhatsAppChatPanel } from '../../../integrations/whatsapp/components/WhatsAppChatPanel';
+import { api } from '../../../../lib/api';
 
 interface PromoteResult {
     lead: { id: string };
@@ -44,6 +45,24 @@ export function CandidateCard({
     const isEstimate = !promotedResult?.fit;
     const enrichment = promotedResult?.enrichment;
     const [chatTarget, setChatTarget] = useState<{ phone: string; name: string } | null>(null);
+    const [icebreakerText, setIcebreakerText] = useState<string | null>(candidate.icebreakerHook ?? null);
+    const [isLoadingIcebreaker, setIsLoadingIcebreaker] = useState(false);
+
+    const handleFetchIcebreaker = async () => {
+        setIsLoadingIcebreaker(true);
+        try {
+            const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName: candidate.tradeName });
+            if (res.data?.icebreaker) {
+                setIcebreakerText(res.data.icebreaker);
+            } else {
+                setIcebreakerText('Nenhuma notícia/fato recente encontrado via busca web.');
+            }
+        } catch {
+            setIcebreakerText('Falha ao buscar fatos recentes na internet.');
+        } finally {
+            setIsLoadingIcebreaker(false);
+        }
+    };
 
     return (
         <div className="bg-surface p-6 rounded-2xl border border-line hover:border-brand/40 transition-all shadow-sm group">
@@ -133,6 +152,38 @@ export function CandidateCard({
 
                     {!enrichment && candidate.rationale && (
                         <p className="text-xs text-ink-2 italic mb-2">&quot;{candidate.rationale}&quot;</p>
+                    )}
+
+                    {(icebreakerText || (candidate.webInsights && candidate.webInsights.length > 0)) ? (
+                        <div className="my-3 p-3 bg-brand/10 border border-brand/20 rounded-xl">
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-brand mb-1 flex items-center gap-1">
+                                <Sparkles size={12} /> ❄️ Quebra-Gelo / Notícia Recente (Busca Web)
+                            </p>
+                            {icebreakerText && (
+                                <p className="text-xs text-ink font-medium leading-relaxed mb-1">{icebreakerText}</p>
+                            )}
+                            {candidate.webInsights && candidate.webInsights.length > 0 && (
+                                <div className="mt-1 flex flex-col gap-1">
+                                    {candidate.webInsights.slice(0, 3).map((news, idx) => (
+                                        <a key={idx} href={news.url} target="_blank" rel="noreferrer" className="text-[11px] text-sky-500 hover:underline flex items-center gap-1 truncate">
+                                            <Globe size={11} /> {news.title} <span className="text-[9px] text-ink-2">({news.domain})</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="my-2">
+                            <button
+                                type="button"
+                                onClick={handleFetchIcebreaker}
+                                disabled={isLoadingIcebreaker}
+                                className="text-[11px] font-semibold text-brand hover:underline flex items-center gap-1 bg-brand/5 border border-brand/20 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                            >
+                                {isLoadingIcebreaker ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                                {isLoadingIcebreaker ? 'Buscando fatos recentes na internet...' : '🔍 Buscar Notícias / Quebra-Gelo Web'}
+                            </button>
+                        </div>
                     )}
 
                     {!enrichment && candidate.decisionMakers && candidate.decisionMakers.length > 0 && (
