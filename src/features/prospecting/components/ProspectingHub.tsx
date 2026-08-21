@@ -70,7 +70,7 @@ export function ProspectingHub() {
         segmento: '',
         localizacao: '',
         estado: '',
-        quantidade: 100,
+        quantidade: 20,
     });
 
     useEffect(() => {

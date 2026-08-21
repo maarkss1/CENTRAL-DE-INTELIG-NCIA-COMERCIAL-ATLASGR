@@ -4,6 +4,7 @@ import { logger } from '../../lib/logger.js';
 import { generateEmbedding } from '../../lib/ai/gateway.js';
 import { chunkText } from './chunking.js';
 import { hasVectorSupport } from './vector-support.js';
+import type { IngestResult } from '../../shared/contracts/ingestion.contract.js';
 
 /** Quantos embeddings pedimos em paralelo ao provedor. Acima disso o LiteLLM começa a dar 429. */
 const EMBEDDING_CONCURRENCY = 4;
@@ -20,13 +21,7 @@ export interface IngestOptions {
     createdBy?: string;
 }
 
-export interface IngestResult {
-    id: string;
-    title: string;
-    chunkCount: number;
-    /** Trechos que ficaram sem vetor porque o provedor de embeddings falhou. */
-    embeddingFailures: number;
-}
+export type { IngestResult };
 
 /**
  * Executa `worker` sobre `items` com paralelismo limitado, preservando a ordem do resultado.

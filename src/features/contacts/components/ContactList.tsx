@@ -37,6 +37,7 @@ function SkeletonRow() {
 }
 
 export function ContactList() {
+  const [inputValue, setInputValue] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -52,11 +53,22 @@ export function ContactList() {
   useEffect(() => {
     const intent = location.state as PaletteIntent | null;
     if (intent?.type === 'prefill-search') {
+      setInputValue(intent.value);
       setSearchTerm(intent.value);
       navigate(location.pathname, { replace: true, state: null });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Espera o usuário parar de digitar antes de disparar a busca no servidor — evita uma
+  // requisição por tecla (mesmo padrão de debounce já usado em CommandPalette.tsx:82-108).
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearchTerm(inputValue);
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [inputValue]);
 
   const { contacts, meta, loading, error, refetch, deleteContact } = useContacts({
     page,
@@ -119,8 +131,8 @@ export function ContactList() {
               <Search className="w-4 h-4 text-ink-2 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Buscar por nome, cargo, e-mail..."
                 className="bg-surface/90 backdrop-blur-xl border border-line rounded-2xl pl-10 pr-4 py-2.5 text-xs text-ink font-semibold focus:ring-2 focus:ring-brand focus:outline-none shadow-md w-56"
               />

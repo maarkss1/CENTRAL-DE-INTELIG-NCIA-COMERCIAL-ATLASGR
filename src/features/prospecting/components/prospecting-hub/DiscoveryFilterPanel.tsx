@@ -296,12 +296,13 @@ export function DiscoveryFilterPanel({
                         id="discovery-quantidade"
                         type="number"
                         min={1}
-                        max={500}
-                        placeholder="Ex: 10, 25, 50..."
+                        max={20}
+                        placeholder="Ex: 10, 15, 20..."
                         className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                        value={criteria.quantidade ?? 100}
-                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) || 100 })}
+                        value={criteria.quantidade ?? 20}
+                        onChange={(e) => setCriteria({ ...criteria, quantidade: Math.min(20, Number(e.target.value) || 20) })}
                     />
+                    <p className="text-[10px] text-ink-2 mt-1">Máximo 20 — priorizamos qualidade (CNPJ, decisores e notícias em todos os leads) em vez de volume.</p>
                 </div>
 
                 <button

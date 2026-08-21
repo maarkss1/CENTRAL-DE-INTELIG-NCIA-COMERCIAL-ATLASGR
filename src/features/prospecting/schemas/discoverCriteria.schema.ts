@@ -16,7 +16,9 @@ export const discoverCriteriaSchema = z.object({
     decisorCargos: z.array(z.string().trim().max(200)).max(20).optional(),
     segmento: z.string().trim().min(1, 'Informe um segmento (pode ser qualquer texto)').max(200),
     localizacao: z.string().trim().max(200).default(''),
-    quantidade: z.number().int().min(1).max(500).default(10),
+    // Teto de 20 — prioriza qualidade (CNPJ, decisores, notícias enriquecidos em todos os leads da
+    // busca) em vez de volume. Espelha MAX_LEADS_PER_SEARCH em prospecting.service.ts.
+    quantidade: z.number().int().min(1).max(20).default(20),
     estado: z.string().trim().max(100).optional(),
     cidade: z.string().trim().max(100).optional(),
     porte: z.string().trim().max(50).optional(),

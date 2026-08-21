@@ -1,9 +1,9 @@
 import { logger } from '../../../lib/logger';
 import { prisma, withRlsContext } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
+import { isValidCnpj, sanitizeCnpj, discoverCnpjByName } from './cnpj.util';
 import { enrichCompany } from './enrichment.service';
-import { fetchApolloCandidates, searchDecisionMakersAdvanced } from './apollo.service';
+import { fetchApolloCandidates, searchDecisionMakersAdvanced, enrichOrganizationWithContacts } from './apollo.service';
 import type { DecisionMakerCriteria } from './apollo.service';
 import { searchGooglePlacesCandidates } from './places.service';
 import { searchNominatimCandidates } from './nominatim.service';
@@ -12,6 +12,8 @@ import { getProspectingProviderMode } from '../../../config/prospecting-integrat
 import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
 import { ExclusionSet } from '../utils/exclusionSet.js';
 import { searchCompanyNews } from './news.service.js';
+import { findCompanyDomain } from '../utils/domain.js';
+import { validContactEmails } from '../../../shared/utils/contact-links';
 
 export interface ProspectCriteria {
     /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
@@ -159,6 +161,7 @@ export async function discoverViaGooglePlaces(
                 ? `Encontrado via Google Places — nota ${p.rating} (${p.userRatingCount || 0} avaliações)`
                 : 'Encontrado via Google Places',
             website: p.website || null,
+            phone: p.phone || null,
         }));
 }
 
@@ -220,8 +223,12 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
  * Google Places (precisão geográfica real), em vez de só entrar como fallback se a Apollo não
  * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
+// Teto de leads por busca — priorizamos qualidade (enriquecimento completo: CNPJ, decisores,
+// notícias) em vez de volume. Ver MAX_LEADS_PER_SEARCH espelhado em discoverCriteria.schema.ts.
+const MAX_LEADS_PER_SEARCH = 20;
+
 export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(500, criteria.quantidade || 10));
+    const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
     const allCandidates: ProspectCandidate[] = [];
     const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
     const providerMode = getProspectingProviderMode();
@@ -284,11 +291,14 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
 
     const finalCandidates = allCandidates.slice(0, total);
 
-    // Enriquecimento ultrarrápido com fatos relevantes da internet para quebra-gelo inicial
+    // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
+    // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
+    // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
+    // decisores só vinham para os candidatos originados da Apollo).
     try {
         await Promise.race([
-            enrichCandidatesWithWebInsights(finalCandidates),
-            new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+            enrichCandidatesWithQualityData(finalCandidates),
+            new Promise<void>((resolve) => setTimeout(resolve, 9000)),
         ]);
     } catch {
         // Non-blocking best-effort
@@ -307,19 +317,60 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
     };
 }
 
-export async function enrichCandidatesWithWebInsights(candidates: ProspectCandidate[]): Promise<void> {
-    const top = candidates.slice(0, 10);
+/**
+ * Enriquecimento de qualidade rodado automaticamente ao final de toda busca (candidatos já
+ * limitados a MAX_LEADS_PER_SEARCH): CNPJ (busca reversa por nome), decisores com LinkedIn/
+ * e-mail/telefone (para candidatos que ainda não vieram com decisor pré-buscado da Apollo — ex:
+ * Google Places/OpenStreetMap) e notícia/quebra-gelo recente. As três tarefas de um candidato
+ * rodam em paralelo entre si, e todos os candidatos rodam em paralelo entre eles — o tempo total
+ * fica limitado pelo orçamento em `discoverCandidates` (Promise.race), não pela soma dos custos.
+ */
+export async function enrichCandidatesWithQualityData(candidates: ProspectCandidate[]): Promise<void> {
     await Promise.allSettled(
-        top.map(async (candidate) => {
-            try {
-                const mentions = await searchCompanyNews(candidate.tradeName);
-                if (mentions && mentions.length > 0) {
-                    candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
-                    candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
-                }
-            } catch (err) {
-                logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
-            }
+        candidates.map(async (candidate) => {
+            await Promise.allSettled([
+                (async () => {
+                    if (candidate.cnpjGuess) return;
+                    try {
+                        const cnpj = await discoverCnpjByName(candidate.tradeName);
+                        if (cnpj) candidate.cnpjGuess = cnpj;
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                    }
+                })(),
+                (async () => {
+                    if (candidate.decisionMakers) return; // já veio pré-buscado (Apollo) ou já tentamos antes
+                    const domain = findCompanyDomain(candidate.website, candidate.rationale);
+                    if (!domain) return;
+                    try {
+                        const { contacts, source } = await enrichOrganizationWithContacts(domain, 3);
+                        candidate.decisionMakers = contacts.map((c) => ({
+                            name: c.name,
+                            title: c.title,
+                            email: c.email,
+                            emailSource: c.email ? (source === 'hunter' ? 'hunter' : 'apollo') : undefined,
+                            phone: c.phone || null,
+                            linkedinUrl: c.linkedin_url,
+                        }));
+                        if (candidate.decisionMakers.length > 0) {
+                            candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
+                        }
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                    }
+                })(),
+                (async () => {
+                    try {
+                        const mentions = await searchCompanyNews(candidate.tradeName);
+                        if (mentions && mentions.length > 0) {
+                            candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
+                            candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
+                        }
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                    }
+                })(),
+            ]);
         })
     );
 }

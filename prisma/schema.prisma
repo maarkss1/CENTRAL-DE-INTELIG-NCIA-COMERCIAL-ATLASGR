@@ -265,6 +265,7 @@ model Company {
   @@index([organizationId])
   @@index([cnpj])
   @@index([legalName])
+  @@index([tradeName])
 }
 
 /// Snapshot rastreável e global. Só o importador com bypass de RLS pode gravar/publicar.
@@ -455,6 +456,10 @@ model Contact {
   @@unique([id, companyId, organizationId])
   @@index([organizationId])
   @@index([email])
+  @@index([name])
+  @@index([role])
+  @@index([phone])
+  @@index([whatsapp])
 }
 
 model Lead {

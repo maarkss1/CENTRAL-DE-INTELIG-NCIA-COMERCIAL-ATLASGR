@@ -1,6 +1,7 @@
 import { api } from '../../lib/api';
+import type { NotificationKind } from '../../shared/contracts/notification.contract';
 
-export type NotificationKind = 'Info' | 'Sucesso' | 'Alerta' | 'Erro';
+export type { NotificationKind };
 
 export interface NotificationItem {
     id: string;

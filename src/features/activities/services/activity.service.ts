@@ -12,6 +12,7 @@ import {
 } from '../../../lib/enumMap';
 import { automationEngine } from '../../automations/automation.engine';
 import { assertRealOwner } from '../domain/ownerGuard';
+import type { ActivityListFilters } from '../domain/Activity';
 
 function serializeActivity<
     T extends {
@@ -38,11 +39,7 @@ function serializeActivity<
     };
 }
 
-export interface ActivityListFilters {
-    leadId?: string;
-    status?: ActivityStatus;
-    type?: ActivityType;
-}
+export type { ActivityListFilters };
 
 export class ActivityService {
     async findAll(

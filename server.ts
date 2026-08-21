@@ -69,6 +69,7 @@ import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
 import { createSearchWorker } from './src/lib/queue/search.queue.js';
 import { initMeiliIndexes } from './src/lib/search/index.js';
 import { observabilityMiddleware } from './src/shared/middlewares/observability.js';
+import { httpMetricsMiddleware } from './src/shared/middlewares/httpMetrics.js';
 import client from 'prom-client';
 import { setupDI } from './src/shared/di/setup.js';
 import { ExpressAdapter } from '@bull-board/express';
@@ -175,6 +176,16 @@ async function startServer() {
 
     // Compressão gzip/brotli — reduz tamanho de resposta até 70%
     app.use(compression());
+
+    // Métrica http_server_duration_milliseconds (prom-client), consumida pelo alerta
+    // HighErrorRate5xx em infrastructure/observability/alert.rules.yml. Ver
+    // .agents/handoffs/onda-4/10-para-01-metricas-http-otel.md — a auto-instrumentação OTel não
+    // emite esta métrica com a versão instalada de instrumentation-http, então ela é medida aqui
+    // manualmente. Montada antes de qualquer rota (inclusive webhooks) para cobrir toda requisição,
+    // só quando EXPOSE_METRICS está ligado (mesmo opt-in do endpoint /metrics abaixo).
+    if (env.EXPOSE_METRICS) {
+        app.use(httpMetricsMiddleware);
+    }
 
     // Rate Limiting — API_RATE_LIMIT_MAX req/15min por IP nas rotas /api
     const apiLimiter = rateLimit({

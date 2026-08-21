@@ -16,7 +16,9 @@ import type { PaletteIntent } from '../../../lib/paletteIntent';
 import { toast } from '../../../lib/toast';
 
 export function CompanyList() {
+    const [inputValue, setInputValue] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -25,13 +27,22 @@ export function CompanyList() {
     useEffect(() => {
         const intent = location.state as PaletteIntent | null;
         if (intent?.type === 'prefill-search') {
+            setInputValue(intent.value);
             setSearchTerm(intent.value);
             navigate(location.pathname, { replace: true, state: null });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const [page, setPage] = useState(1);
+    // Espera o usuário parar de digitar antes de disparar a busca no servidor — evita uma
+    // requisição por tecla (mesmo padrão de debounce já usado em CommandPalette.tsx:82-108).
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setSearchTerm(inputValue);
+            setPage(1);
+        }, 300);
+        return () => window.clearTimeout(timer);
+    }, [inputValue]);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
@@ -225,14 +236,14 @@ export function CompanyList() {
                         <input
                             type="text"
                             placeholder="🔎 Buscar por nome, CNPJ, ferramenta (ex: AWS, React, SAP), cidade..."
-                            value={searchTerm}
-                            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
                             className="w-full pl-11 pr-4 py-2.5 bg-surface-2 border border-line text-ink placeholder-ink-2 rounded-xl focus:ring-2 focus:ring-brand/30 focus:border-brand transition-all outline-none text-sm"
                         />
                     </div>
-                    {searchTerm && (
+                    {inputValue && (
                         <button
-                            onClick={() => setSearchTerm('')}
+                            onClick={() => { setInputValue(''); setSearchTerm(''); setPage(1); }}
                             className="text-xs text-ink/70 dark:text-ink-2 hover:text-ink px-3 py-1.5 bg-surface-2 rounded-xl transition-colors shrink-0"
                         >
                             Limpar busca

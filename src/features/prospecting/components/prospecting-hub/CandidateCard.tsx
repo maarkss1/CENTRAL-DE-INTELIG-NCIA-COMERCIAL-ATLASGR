@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
     TrendingUp, Building2, Users, MapPin, Calendar, DollarSign, Wrench, Mail,
-    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck, ThumbsDown,
+    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck, ThumbsDown, IdCard,
 } from 'lucide-react';
 import type { FitScoreResult } from '../../services/enrichment.service';
 import type { ProspectCandidate } from '../../services/prospecting.service';
@@ -88,6 +88,9 @@ export function CandidateCard({
                         <span className="flex items-center gap-1.5"><Building2 size={14} className="text-ink-2" /> {candidate.segment}</span>
                         <span className="flex items-center gap-1.5"><Users size={14} className="text-ink-2" /> {candidate.size}</span>
                         <span className="flex items-center gap-1.5"><MapPin size={14} className="text-ink-2" /> {candidate.location}</span>
+                        {candidate.cnpjGuess && (
+                            <span className="flex items-center gap-1.5"><IdCard size={14} className="text-ink-2" /> {candidate.cnpjGuess}</span>
+                        )}
                         {candidate.foundedYear && (
                             <span className="flex items-center gap-1.5"><Calendar size={14} className="text-ink-2" /> Fundada em {candidate.foundedYear}</span>
                         )}
