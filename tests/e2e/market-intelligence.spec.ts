@@ -32,6 +32,19 @@ test.describe('Market Intelligence — módulo de território', () => {
     await expect(page.getByText(/Score/i).first()).toBeVisible();
   });
 
+  test('liga unit economics aos territorios reais sem inventar premissas', async ({ page }) => {
+    await signUp(page, { email: uniqueTestEmail('mi-economics') });
+    await page.goto('/app/market-intelligence');
+    await waitForAppReady(page);
+
+    await page.getByRole('button', { name: /Economia territorial/i }).click();
+    await expect(page.getByRole('heading', { name: /O território paga a contratação/i })).toBeVisible();
+    await expect(page.getByLabel('Território analisado')).toBeVisible();
+    await expect(page.getByText('PREMISSAS PENDENTES').first()).toBeVisible();
+    await expect(page.getByText('TAM ICP observado', { exact: true })).toBeVisible();
+    await expect(page.getByText('SAM derivado', { exact: true })).toBeVisible();
+  });
+
   test('volta a bloquear a decisão se o CIOT publicado desaparecer em runtime', async ({ page }) => {
     await page.route('**/tools/atlas-market-intelligence/data/mdfe_origens_municipios.json', (route) =>
       route.fulfill({ status: 404, contentType: 'application/json', body: '{}' }),

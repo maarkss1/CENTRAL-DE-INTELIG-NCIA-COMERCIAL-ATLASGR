@@ -35,6 +35,8 @@ export interface SellerModelAssumptions {
     costs: SellerCostAssumptions;
     revenue: RevenueAssumptions;
     ramp: RampPoint[];
+    /** Investimento único antes da operação: recrutamento, onboarding, equipamentos etc. */
+    upfrontInvestment?: number;
 }
 
 export interface ScenarioFactors {
@@ -62,6 +64,7 @@ export interface MonthlySellerForecast {
 
 export interface SellerEconomicSummary {
     scenario: CommercialScenario;
+    upfrontInvestment: number;
     monthlyFixedCost: number;
     contributionPerContract: number | null;
     breakEvenContracts: number | null;
@@ -133,10 +136,11 @@ function applyScenario(model: SellerModelAssumptions, scenario: CommercialScenar
     const meetingsToOpportunity = Math.min(1, pct(revenue.meetingToQualifiedOpportunityPct));
     const opportunitiesAtFullProductivity = nonNegative(revenue.fullProductivityQualifiedOpportunitiesPerMonth) * factor.opportunityProductivity;
     const fixedCost = sumCosts(model.costs) * factor.cost;
+    const upfrontInvestment = nonNegative(model.upfrontInvestment ?? 0);
     const variableCommission = Math.min(1, pct(revenue.variableCommissionPctOfNewMrr));
     const salesCycleMonths = Math.max(0, Math.ceil(nonNegative(revenue.salesCycleDays) / 30));
     const maxCaptureContracts = revenue.samAccounts === null ? null : Math.floor(Math.max(0, revenue.samAccounts) * penetration);
-    return { ticket, winRate, margin, churn, meetingsToOpportunity, opportunitiesAtFullProductivity, fixedCost, variableCommission, salesCycleMonths, maxCaptureContracts };
+    return { ticket, winRate, margin, churn, meetingsToOpportunity, opportunitiesAtFullProductivity, fixedCost, upfrontInvestment, variableCommission, salesCycleMonths, maxCaptureContracts };
 }
 
 export function calculateSellerEconomicScenario(
@@ -155,7 +159,7 @@ export function calculateSellerEconomicScenario(
     const forecast: MonthlySellerForecast[] = [];
     const opportunityCohorts = new Map<number, number>();
     let activeContracts = 0;
-    let cumulativeNetContribution = 0;
+    let cumulativeNetContribution = -p.upfrontInvestment;
     let capturedContracts = 0;
     let paybackMonth: number | null = null;
 
@@ -197,7 +201,7 @@ export function calculateSellerEconomicScenario(
 
     const roiAt = (month: number): number | null => {
         const window = forecast.filter((row) => row.month <= month);
-        const cost = window.reduce((sum, row) => sum + row.fixedCost + row.variableCommission, 0);
+        const cost = p.upfrontInvestment + window.reduce((sum, row) => sum + row.fixedCost + row.variableCommission, 0);
         const contribution = window.reduce((sum, row) => sum + row.grossContribution, 0);
         const ratio = safeDivide(contribution - cost, cost);
         return ratio === null ? null : ratio * 100;
@@ -205,6 +209,7 @@ export function calculateSellerEconomicScenario(
 
     return {
         scenario,
+        upfrontInvestment: p.upfrontInvestment,
         monthlyFixedCost: p.fixedCost,
         contributionPerContract,
         breakEvenContracts,
