@@ -243,7 +243,7 @@ async function startServer() {
         store: env.NODE_ENV === 'production' && queuesEnabled ? new RedisStore({
             sendCommand: sendRateLimitCommand,
         }) : undefined,
-        message: { success: false, error: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
+        message: { success: false, message: 'Muitas tentativas de autenticação. Tente novamente em 15 minutos.' }
     });
     app.use('/api/auth', authLimiter);
 
