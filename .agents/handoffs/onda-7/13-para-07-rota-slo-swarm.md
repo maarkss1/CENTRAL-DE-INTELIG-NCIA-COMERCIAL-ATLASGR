@@ -1,7 +1,7 @@
 - De: Agente 13 (Enxame Autônomo e Governança de Agentes)
 - Para: Agente 07 (IA e Automações)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -67,3 +67,6 @@ Não é necessário handoff para o Agente 02 (rota de página/menu): a aba "SLO 
 implementada como uma segunda visão *dentro* do `SwarmDashboard.tsx` já existente (aba "Enxame
 Autônomo" do Hub de IA) — não criei rota nem entrada de menu nova, evitando escopo fora do pedido
 original da constituição de design (`CLAUDE.md` §13).
+
+## Resolução
+A rota já foi implementada por um agente anterior em \src/features/intelligence/routes/agent.routes.ts\.
