@@ -55,7 +55,7 @@ export function AIEmailGenerator({
   contactName = 'Decisor de Compras',
   sector = 'Tecnologia',
   role = 'Diretor Comercial',
-  technologies = ['React', 'AWS', 'Salesforce'],
+  technologies = [],
   companySize = '50-200 Colaboradores (Mid-Market)',
   phone,
 }: AIEmailGeneratorProps) {
@@ -193,7 +193,7 @@ export function AIEmailGenerator({
               Pronto para gerar {channel === 'email' ? 'cold mail' : channel === 'call' ? 'roteiro de ligação' : 'mensagem'} de altíssima conversão
             </p>
             <p className="text-xs text-ink-2 max-w-md mx-auto">
-              O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>, os dados do segmento <strong className="text-indigo-300">{sector}</strong> e as ferramentas detectadas (<strong className="text-indigo-300">{technologies.join(', ')}</strong>).
+              O motor de IA cruzará a persona <strong className="text-indigo-300">{role}</strong>, os dados do segmento <strong className="text-indigo-300">{sector}</strong>{technologies.length > 0 ? <span> e as ferramentas detectadas (<strong className="text-indigo-300">{technologies.join(', ')}</strong>)</span> : ''}.
             </p>
           </div>
           <Button onClick={generate} disabled={generating} className="w-full sm:w-auto shadow-lg shadow-brand/20 cursor-pointer">

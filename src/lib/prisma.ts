@@ -191,6 +191,15 @@ export const prisma = basePrisma.$extends({
              if (a.create) {
                 a.create = { ...(a.create as Record<string, unknown>), organizationId: tenantId };
              }
+             // Evita que o usuário mude o organizationId no update de um upsert
+             if (a.update && typeof a.update === 'object' && 'organizationId' in a.update) {
+                delete (a.update as Record<string, unknown>).organizationId;
+             }
+          }
+          if (operation === 'update' || operation === 'updateMany') {
+             if (a.data && typeof a.data === 'object' && 'organizationId' in a.data) {
+                delete (a.data as Record<string, unknown>).organizationId;
+             }
           }
         }
 

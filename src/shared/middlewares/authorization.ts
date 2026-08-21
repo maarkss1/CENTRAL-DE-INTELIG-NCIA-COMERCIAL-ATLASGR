@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from './authenticateToken.js';
 import { logger } from '../../lib/logger.js';
-import { getTenantPrisma } from '../../lib/tenant-prisma.js';
+import { prisma } from '../../lib/prisma.js';
 
 // Nota de RBAC: este arquivo já teve `requirePermission`/`requireAnyPermission`, baseados num
 // sistema de permissões (SUPER_ADMIN/TENANT_OWNER/.../GUEST) que nunca esteve conectado a nenhuma
 // rota e divergia do papel realmente gravado no banco (User.role, ADMIN/GESTOR/CLOSER/SDR/
-// VISUALIZADOR). Removidos na unificação de RBAC — usar `requireRole` (`./requireRole.js`), que é
+// VISUALIZADOR). Removidos na unificação de RBAC - usar `requireRole` (`./requireRole.js`), que é
 // o middleware de autorização por papel efetivamente usado em todas as rotas, com fonte canônica
 // em `src/lib/auth/authorization.ts`.
 
@@ -18,10 +18,10 @@ export const requireTenant = (req: Request, res: Response, next: NextFunction): 
         return;
     }
     try {
-        authReq.db = getTenantPrisma(authReq.user.organizationId);
+        authReq.db = prisma;
         next();
     } catch (err) {
-        logger.error({ err }, 'Failed to initialize Tenant Prisma');
+        logger.error({ err }, 'Failed to set db instance');
         res.status(500).json({ success: false, error: 'Internal Server Error.' });
     }
 };

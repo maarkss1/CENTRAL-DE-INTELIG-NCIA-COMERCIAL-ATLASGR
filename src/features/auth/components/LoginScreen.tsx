@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowRight, Sun, Moon, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -21,13 +21,14 @@ export function LoginScreen() {
   const navigate = useNavigate();
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
   const { theme, toggleTheme } = useTheme();
-  // refetch da mesma store reativa que ProtectedRoute/AuthContext leem (authClient.useSession()).
-  // sign-up/sign-in dispara um refetch em segundo plano (via $sessionSignal do better-auth), mas
-  // ele é assíncrono e não termina a tempo do navigate('/app') abaixo — ProtectedRoute então
-  // renderiza /app com o estado ANTIGO da store (usuário nulo) e manda de volta pro /login antes
-  // da sessão nova chegar. Aguardar este refetch garante que currentUser já está populado no
-  // primeiro render de ProtectedRoute em /app.
-  const { refetch: refetchSession } = authClient.useSession();
+  
+  const { data: sessionData, refetch: refetchSession } = authClient.useSession();
+
+  useEffect(() => {
+    if (sessionData?.user) {
+      navigate('/app');
+    }
+  }, [sessionData?.user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +56,7 @@ export function LoginScreen() {
     }
 
     await refetchSession();
-    navigate('/app');
+    // A navegação real para /app acontecerá via useEffect quando sessionData.user estiver populado.
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {

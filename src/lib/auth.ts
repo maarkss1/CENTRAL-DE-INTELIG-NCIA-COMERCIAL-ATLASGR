@@ -73,15 +73,12 @@ export const auth = betterAuth({
                     ].join("\n"),
                 });
             } catch (error) {
-                // Sem SMTP configurado (ambiente local/preview), não derruba a requisição: o endpoint
-                // do better-auth já responde sempre com a mesma mensagem genérica (evita enumeração de
-                // e-mail), então só registramos o motivo real no log do servidor.
                 if (error instanceof MailerNotConfiguredError) {
-                    logger.warn({ email: user.email }, "Reset de senha solicitado, mas SMTP_HOST não está configurado — e-mail não enviado.");
-                    return;
+                    logger.warn({ email: user.email, url }, "Reset de senha solicitado, mas SMTP não está configurado. O link é: " + url);
+                    throw new APIError("INTERNAL_SERVER_ERROR", { message: "Serviço de e-mail não configurado. Não é possível enviar o link de redefinição." });
                 }
                 logger.error({ err: error, email: user.email }, "Falha ao enviar e-mail de redefinição de senha.");
-                throw error;
+                throw new APIError("INTERNAL_SERVER_ERROR", { message: "Falha ao enviar e-mail de redefinição." });
             }
         },
     },
