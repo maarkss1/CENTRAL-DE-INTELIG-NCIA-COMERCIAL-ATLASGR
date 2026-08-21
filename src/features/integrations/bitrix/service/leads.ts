@@ -92,7 +92,7 @@ export async function listBitrixLeads(
     if (filters.assignedById) filter.ASSIGNED_BY_ID = filters.assignedById;
     if (filters.customFieldCode && filters.customFieldValue?.trim()) filter[filters.customFieldCode] = filters.customFieldValue.trim();
 
-    const [data, labels, imported] = await Promise.all([
+    const [data, labels] = await Promise.all([
         callBitrix<{ result: BitrixLeadRaw[]; next?: number; total: number }>(webhookUrl, 'crm.lead.list', {
             filter,
             // UF_CRM_* incluídos aqui (não só em crm.lead.get) para que a importação em massa via
@@ -103,9 +103,12 @@ export async function listBitrixLeads(
             start,
         }),
         getStatusLabels(webhookUrl),
-        prisma.lead.findMany({ where: { organizationId, bitrixLeadId: { not: null } }, select: { bitrixLeadId: true } }),
     ]);
 
+    const bitrixIds = data.result.map((r) => r.ID);
+    const imported = bitrixIds.length > 0
+        ? await prisma.lead.findMany({ where: { organizationId, bitrixLeadId: { in: bitrixIds } }, select: { bitrixLeadId: true } })
+        : [];
     const importedIds = new Set(imported.map((l) => l.bitrixLeadId));
 
     const leads: BitrixLeadSummary[] = data.result.map((raw) => ({
