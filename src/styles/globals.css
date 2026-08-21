@@ -259,9 +259,31 @@
   --color-ok: var(--ok);
   --color-soft: var(--soft);
   --shadow-card: var(--shadow-card-value);
+  /* Sombra/glow reativos à marca ativa (color-mix com var(--brand), mesmo idioma já usado no
+     keyframe pulse-glow abaixo) — substitui rgba(255,86,24,...) hardcoded que existia em
+     Button "default", Card "accent" e .border-glow-orange: antes ficavam laranja (cor da AtlasGR)
+     mesmo com a Total Trac ativa, porque não liam nenhum token de marca. */
+  --shadow-brand-sm: 0 4px 12px color-mix(in srgb, var(--brand) 20%, transparent);
+  --shadow-glow-brand: 0 0 15px -3px color-mix(in srgb, var(--brand) 20%, transparent);
+  --shadow-glow-brand-strong: 0 0 15px -3px color-mix(in srgb, var(--brand) 40%, transparent);
 
   --radius-card: 0.75rem;
   --radius-card-lg: 1rem;
+
+  /* Escala de tipografia responsiva (H1-H6), única fonte de verdade — antes só H1-H3 existiam,
+     hardcoded direto no seletor de elemento em @layer base (débito documentado em
+     DESIGN_QA_CENTRAL_ATLASGR.md, "Typography 68"). H1-H3 mantêm exatamente os mesmos valores
+     clamp() de antes (nenhuma mudança visual); H4-H6 são novos, seguindo a mesma progressão —
+     antes ficavam sem tamanho definido (herdavam o default do navegador, fora da escala da marca).
+     Expostos aqui (namespace --text-* do Tailwind 4) para também gerarem utilitários
+     text-h1..text-h6, reutilizáveis por qualquer elemento (não só <h1>-<h6>) que precise da mesma
+     escala responsiva sem redefinir o clamp() na mão. */
+  --text-h1: clamp(2rem, 5vw, 3.5rem);
+  --text-h2: clamp(1.5rem, 4vw, 2.5rem);
+  --text-h3: clamp(1.25rem, 3vw, 2rem);
+  --text-h4: clamp(1.125rem, 1.5vw + 0.75rem, 1.5rem);
+  --text-h5: clamp(1rem, 1vw + 0.75rem, 1.25rem);
+  --text-h6: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
 
   --animate-toast-in: toast-in 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-float: float 6s ease-in-out infinite;
@@ -321,9 +343,12 @@
     color: var(--ink);
   }
   
-  h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; font-weight: 700; }
-  h2 { font-size: clamp(1.5rem, 4vw, 2.5rem); line-height: 1.2; font-weight: 700; }
-  h3 { font-size: clamp(1.25rem, 3vw, 2rem); line-height: 1.3; font-weight: 600; }
+  h1 { font-size: var(--text-h1); line-height: 1.1; font-weight: 700; }
+  h2 { font-size: var(--text-h2); line-height: 1.2; font-weight: 700; }
+  h3 { font-size: var(--text-h3); line-height: 1.3; font-weight: 600; }
+  h4 { font-size: var(--text-h4); line-height: 1.35; font-weight: 600; }
+  h5 { font-size: var(--text-h5); line-height: 1.4; font-weight: 600; }
+  h6 { font-size: var(--text-h6); line-height: 1.4; font-weight: 600; }
 
   button, a, [role="button"] {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -382,8 +407,10 @@
     text-shadow: 0 0 14px currentColor;
   }
 
+  /* Reage à marca ativa via --shadow-glow-brand-strong (ver @theme) — antes hardcoded pra laranja
+     da AtlasGR independente da marca selecionada. */
   .border-glow-orange {
-    box-shadow: 0 0 15px -3px rgba(255, 86, 24, 0.4);
+    box-shadow: var(--shadow-glow-brand-strong);
   }
 
   /* Custom Rounded Scrollbar */

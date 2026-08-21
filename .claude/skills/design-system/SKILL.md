@@ -21,8 +21,9 @@ Antes de adicionar um token novo, procure primeiro se ele já existe:
 | Marca (dinâmico, reage à troca AtlasGR↔Total Trac) | `--brand`, `--brand-2`, `--color-brand-active` (versão escurecida p/ contraste AA de texto branco) |
 | Semântico | `--warn`, `--ok`, `--color-success/warning/danger/info` |
 | Radius | `--radius-card` (1.25rem), `--radius-card-lg` (1.75rem) |
-| Sombra | `--shadow-card` |
+| Sombra | `--shadow-card` (elevação neutra, reage a tema); `--shadow-brand-sm`/`--shadow-glow-brand`/`--shadow-glow-brand-strong` (glow reativo à marca via `color-mix(var(--brand))` — usar em vez de `rgba(255,86,24,...)` cru) |
 | Fonte | `--font-brand-sans` (Montserrat AtlasGR / Fivo Sans Total Trac via `[data-brand]`) |
+| Tipografia | `--text-h1`..`--text-h6` (escala responsiva `clamp()`, gera utilitários `text-h1`..`text-h6`; já aplicada por padrão em `<h1>`-`<h6>` via `@layer base`) |
 
 ## A duplicação de tokens de marca é intencional — não "consolide" sem entender por quê
 

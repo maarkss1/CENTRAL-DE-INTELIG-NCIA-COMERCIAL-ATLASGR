@@ -11,7 +11,7 @@ const cardVariants = cva(
         default: "bg-surface border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
         stat: "bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
         outline: "border border-gray-200 bg-transparent",
-        accent: "bg-surface border border-brand/30 shadow-[0_0_15px_-3px_rgba(255,86,24,0.2)]",
+        accent: "bg-surface border border-brand/30 shadow-glow-brand",
       },
       padding: {
         default: "p-6",

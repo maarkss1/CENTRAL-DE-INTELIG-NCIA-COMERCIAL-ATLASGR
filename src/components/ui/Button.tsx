@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         // Redesign simplificado: Fundo sólido, sem borda agressiva.
         // Usa bg-brand direto. Para contraste WCAG (se necessário), usar color-mix.
-        default: "bg-brand text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(255,86,24,0.2)]",
+        default: "bg-brand text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-brand-sm",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
         outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
         secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",

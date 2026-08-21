@@ -368,3 +368,64 @@ entrada nova.
   (só `--color-info` existe) — provavelmente renderiza sem cor de fundo no estado ativo. Pré-
   existente, não introduzido por este piloto; o botão novo "Ferramentas" usou `bg-info` (classe
   real) para não repetir o mesmo problema.
+
+## Onda P3 — Layout/design system (tipografia responsiva, sombra/gradiente por marca, QA mobile, sidebar)
+
+- **Objetivo**: 4 itens do backlog de design system — tokenizar tipografia responsiva, parametrizar
+  sombras/gradientes por marca, QA visual mobile das rotas principais, reorganizar a Sidebar por
+  jornada.
+- **Item 4 (Sidebar por jornada) já estava feito**: `Sidebar.tsx` já agrupa por
+  Visão Geral/Captar/Qualificar/Relacionar/Fechar/Analisar/IA & Capacitação/Administração desde o
+  commit `2fe5233` ("reagrupa navegação da Sidebar por jornada/persona"), com comentário explícito
+  no próprio arquivo. Nenhuma mudança feita — só verificado em navegador real (mobile, off-canvas,
+  grupos corretos, sem overflow) para confirmar que continua correto depois dos outros 3 itens.
+- **Tipografia**: H1-H3 já eram responsivos (`clamp()`) mas hardcoded direto no seletor de elemento
+  em `@layer base` (débito documentado em `DESIGN_QA_CENTRAL_ATLASGR.md`, "Typography 68") — sem
+  token reutilizável, e H4-H6 não tinham tamanho definido (herdavam o default do navegador).
+  Tokenizados em `--text-h1`..`--text-h6` (namespace `--text-*` do Tailwind 4, mesmos valores de
+  clamp() de antes pra H1-H3 — zero mudança visual — e H4-H6 novos seguindo a mesma progressão).
+  Gera também utilitários `text-h1`..`text-h6` reutilizáveis fora de tags de heading. Não tocado:
+  os ~570 usos de `text-[...]` arbitrário espalhados pelo código — trocar cada um por um token da
+  escala seria um redesenho não pedido (CLAUDE.md §13), fora do escopo de "tokenizar a fonte da
+  verdade".
+- **Sombra/glow por marca — bug real encontrado em primitivos do design system**: `Button.tsx`
+  (variante `default`, o botão primário usado em toda a aplicação) e `Card.tsx` (variante `accent`)
+  tinham `shadow-[...rgba(255,86,24,...)]` hardcoded — a sombra de hover/glow ficava sempre laranja
+  (cor da AtlasGR) mesmo com a Total Trac ativa, apesar do fundo/borda já reagirem corretamente à
+  marca. Confirmado visualmente (navegador real, os dois brands). Corrigido com 3 tokens novos
+  reativos à marca (`--shadow-brand-sm`, `--shadow-glow-brand`, `--shadow-glow-brand-strong`,
+  `color-mix(in srgb, var(--brand) N%, transparent)` — mesmo idioma já usado no keyframe
+  `pulse-glow`), que geram utilitários `shadow-brand-sm`/`shadow-glow-brand`/
+  `shadow-glow-brand-strong`. `.border-glow-orange` (utilitário morto em `globals.css`, 0 usos no
+  código, mas com o mesmo problema) migrado pro mesmo token. **Não tocado de propósito**:
+  `useBrandAccent.ts.glow` — parece o mesmo bug (`rgba(255,86,24,...)` vs `rgba(0,143,206,...)`
+  por marca), mas é curadoria intencional: a Total Trac usa ali a cor de acento (`--brand-2`,
+  #008FCE) em vez da primária (`--brand`, #374898 navy) porque o navy fica escuro demais como
+  glow. Trocar cegamente por `var(--brand)` teria mudado visualmente o glow da Total Trac (regressão
+  real, não fix) — documentado com comentário no próprio hook em vez de "corrigido".
+- **QA mobile das rotas principais — suíte oficial não pôde rodar (sem sessão de usuário via
+  fixture), mas infraestrutura real foi provisionada nesta sessão**: diferente do Pilot 001 (sem
+  Postgres/Redis), Docker não estava disponível aqui (`docker.sock` inexistente, sem daemon), mas
+  `postgresql-16`/`redis-server` já vinham instalados no ambiente — `postgresql-16-pgvector`
+  instalado via `apt-get` (mesmo pacote do Pilot 003), cluster local iniciado, `prospectordb_test`
+  criado e `prisma migrate deploy` rodado de verdade contra Postgres real (não simulado). Servidor
+  Express real (`start:e2e`) subiu com sessão de usuário real via signup pelo formulário (mesmo
+  caminho de `tests/e2e/helpers.ts::signUp`), não atalho de API. QA real via Playwright/Chromium em
+  viewport 390×844 (iPhone-ish): 7 rotas principais (dashboard, CRM, empresas, decisores,
+  prospecção, analytics, configurações) × 2 marcas × 2 temas = 28 combinações, nenhuma com overflow
+  horizontal; screenshots confirmam botão primário e Sidebar corretos nas duas marcas, tipografia
+  H1 responsiva sem quebra em mobile, e o menu off-canvas da Sidebar (item 4) renderizando os grupos
+  de jornada corretamente em mobile. Erros de console (`ERR_CONNECTION_RESET`) presentes em toda
+  navegação são o `EventSource` de `/api/notifications/stream` sendo interrompido a cada troca de
+  rota (já documentado em `tests/e2e/helpers.ts` como comportamento esperado, não novo) — não
+  relacionado a esta mudança, não investigado further. Script de investigação (`.tmp-mobile-qa*.mjs`)
+  descartado ao final, nunca promovido a teste oficial (protocolo de `visual-qa/SKILL.md`).
+  `.env.test`/banco/Redis de teste criados só para esta sessão, removidos ao final.
+- **Verificação**: `npm run lint` (0 erros, 99 warnings pré-existentes sem relação com os arquivos
+  tocados), `npx tsc -b --noEmit` (0 erros), `npx vite build` (limpo — confirmado no CSS gerado que
+  `--text-h1`..`--text-h6` e `--shadow-brand-sm`/`--shadow-glow-brand`/`--shadow-glow-brand-strong`
+  compilam com o fallback `@supports (color: color-mix(...))` do Tailwind 4), QA visual real descrita
+  acima. Suíte `tests/e2e/*.spec.ts` oficial não rodada nesta sessão (fora do escopo desta rodada,
+  não um bloqueio novo).
+- **Aprendizado incorporado**: `design-system/SKILL.md` ganhou os tokens novos na tabela de "tokens
+  existentes" (sombra por marca + tipografia), pra próxima sessão não redescobrir nem duplicar.
