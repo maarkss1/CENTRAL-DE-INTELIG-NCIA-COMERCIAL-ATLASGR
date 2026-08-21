@@ -14,6 +14,7 @@ function formatWindow(status: ColdCallStatus): string {
 function haltedLabel(haltedBy: string | null): string | null {
     if (haltedBy === 'outside-window') return 'fora da janela de discagem';
     if (haltedBy === 'not-configured') return 'SDR de voz não configurado';
+    if (haltedBy === 'not-authorized') return 'organização não autorizada';
     return null;
 }
 

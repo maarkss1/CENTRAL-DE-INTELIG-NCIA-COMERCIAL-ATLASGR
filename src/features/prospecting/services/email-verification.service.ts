@@ -53,15 +53,14 @@ export async function checkEmailDeliverability(email: string): Promise<EmailDeli
             hasDmarc = dmarc.some((row) => row.join('').includes('v=DMARC1'));
         } catch { /* ignore */ }
 
-        const result: EmailDeliverabilityResult = {
+        if (primaryMx) {
+            logger.debug({ domain, primaryMx, hasSpf, hasDmarc }, 'MX server verified');
+        }
+
+        return {
             email: trimmed,
             status: 'verified',
         };
-        if (hasSpf) result.hasSpf = true;
-        if (hasDmarc) result.hasDmarc = true;
-        if (primaryMx) result.mxExchange = primaryMx;
-
-        return result;
     } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code === 'ENOTFOUND' || code === 'ENODATA') {
