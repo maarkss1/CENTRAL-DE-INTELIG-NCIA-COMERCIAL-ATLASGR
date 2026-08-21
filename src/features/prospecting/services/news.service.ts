@@ -22,14 +22,55 @@ interface GdeltDocResponse {
 }
 
 /**
- * Busca menções recentes da empresa na imprensa via GDELT (índice global de notícias, gratuito,
+ * Busca notícias e fatos relevantes usando SearXNG (metabuscador open-source auto-hospedável).
+ */
+export async function searchSearXNG(query: string, maxRecords = 5): Promise<NewsMention[]> {
+    const searxngUrl = process.env.SEARXNG_URL || 'http://127.0.0.1:8080';
+    try {
+        const params = new URLSearchParams({
+            q: query,
+            format: 'json',
+            language: 'pt-BR',
+        });
+        const res = await fetchWithTimeout(
+            `${searxngUrl}/search?${params.toString()}`,
+            { headers: { Accept: 'application/json' } },
+            4_000
+        );
+        if (!res.ok) return [];
+        const data = (await res.json()) as { results?: Array<{ title?: string; url?: string; content?: string }> };
+        return (data.results || [])
+            .slice(0, maxRecords)
+            .filter((r): r is { title: string; url: string } => Boolean(r.title && r.url))
+            .map((r) => {
+                let domain = 'searxng';
+                try { domain = new URL(r.url).hostname; } catch { /* ignore */ }
+                return {
+                    title: r.title,
+                    url: r.url,
+                    domain,
+                    seenAt: new Date().toISOString(),
+                };
+            });
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Busca menções recentes da empresa na imprensa via SearXNG ou GDELT (índice global de notícias, gratuito,
  * sem chave, atualizado a cada 15min). `sourcelang:por` restringe a fontes em português — o
- * público-alvo é o mercado brasileiro. Nomes muito curtos são ignorados: a API já faz busca por
- * frase exata (entre aspas), mas nomes de 1-4 letras ainda geram ruído demais para servir de sinal.
+ * público-alvo é o mercado brasileiro.
  */
 export async function searchCompanyNews(companyName: string): Promise<NewsMention[]> {
     const name = (companyName || '').trim();
     if (name.length < 5) return [];
+
+    // Tenta primeiro a instância de metabusca SearXNG (se configurada / disponível)
+    if (process.env.SEARXNG_URL) {
+        const searxResults = await searchSearXNG(`"${name}" notícias transporte logística`, 5);
+        if (searxResults.length > 0) return searxResults;
+    }
 
     const params = new URLSearchParams({
         query: `"${name}" sourcelang:por`,

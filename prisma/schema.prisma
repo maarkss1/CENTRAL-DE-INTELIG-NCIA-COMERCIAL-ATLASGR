@@ -407,6 +407,10 @@ model EnrichmentLog {
   field     String // o que foi enriquecido (ex: "dados-cadastrais", "endereco", "contatos-sugeridos")
   status    String // success | not_found | failed
   rawData   Json?
+  
+  dataOrigin       String? // "confirmado" | "inferido"
+  appliedToCompany Boolean?
+
   createdAt DateTime @default(now())
 
   @@index([companyId, createdAt])
@@ -427,6 +431,7 @@ model Contact {
   source       String? // ex: "Apollo", "Hunter"
   seniority    String? // ex: "c_suite", "vp", "director", "manager" — vindo da Apollo/Hunter
   emailStatus  String? // ex: "verified", "guessed" — confiabilidade do e-mail encontrado
+  aiProcessingConsent Boolean? // Consentimento LGPD explícito/titular para processamento de IA externa
 
   customFields        Json?
   commercialDocuments CrmCommercialDocument[]
