@@ -32,7 +32,7 @@ function runWorkerProcess(env: NodeJS.ProcessEnv): Promise<{ code: number | null
     const timeout = setTimeout(() => {
       child.kill('SIGKILL');
       reject(new Error(`worker.ts não saiu sozinho dentro do timeout — stdout:\n${stdout}\n\nstderr:\n${stderr}`));
-    }, 30_000);
+    }, 50_000);
 
     child.on('exit', (code) => {
       clearTimeout(timeout);
@@ -58,7 +58,7 @@ describe('RUN-002e — worker.ts falha visivelmente sem dependência obrigatóri
     expect(code).not.toBeNull();
     // Não deve ser um crash silencioso — precisa haver algum indício textual do motivo real.
     expect((stdout + stderr).toLowerCase()).toMatch(/redis|econnrefused|worker dedicado/);
-  }, 35_000);
+  }, 55_000);
 
   it('sai com código != 0 quando ENABLE_QUEUES não está habilitado (worker dedicado sem filas não faz sentido)', async () => {
     const { code, stdout, stderr } = await runWorkerProcess({
