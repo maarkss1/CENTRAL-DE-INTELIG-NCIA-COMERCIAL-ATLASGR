@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowRight, Sun, Moon, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useBrand, BRAND_CONFIGS } from '../../../contexts/BrandContext';
@@ -18,7 +17,6 @@ export function LoginScreen() {
   const [name, setName] = useState('');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
-  const navigate = useNavigate();
   const { activeBrand, setActiveBrand, brandInfo } = useBrand();
   const { theme, toggleTheme } = useTheme();
   
