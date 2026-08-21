@@ -148,10 +148,7 @@ ensure_base64_secret "CREDENTIALS_ENCRYPTION_KEY" 32
 ensure_hex_secret "BOOTSTRAP_DB_PASSWORD" 24
 ensure_hex_secret "APP_DB_PASSWORD" 24
 ensure_hex_secret "REDIS_PASSWORD" 24
-if needs_secret "INITIAL_ADMIN_PASSWORD"; then
-    set_env_value "INITIAL_ADMIN_PASSWORD" "01090109"
-    echo "🔑 Senha padrão inicial definida para o administrador único em ${ENV_FILE}."
-fi
+ensure_hex_secret "INITIAL_ADMIN_PASSWORD" 24
 
 # Garante que a aplicação de produção use o modo correto.
 set_env_value "NODE_ENV" "production"
@@ -183,6 +180,6 @@ docker exec -i atlasgr_app npx tsx scripts/seed-team.ts
 echo "========================================================"
 echo "✅ Deploy no Oracle Cloud concluído com sucesso!"
 echo "Acesse seu domínio ou IP público com HTTPS automático."
-echo "Login: marcelo.nascimento@atlasgr.com.br"
-echo "Senha padrão: 01090109"
+echo "A credencial inicial do administrador está somente em ${ENV_FILE}."
+echo "Nenhum segredo é exibido neste log."
 echo "========================================================"

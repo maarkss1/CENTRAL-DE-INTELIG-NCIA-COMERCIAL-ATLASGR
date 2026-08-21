@@ -7,10 +7,11 @@ import { z } from 'zod';
  * produção (não um formato genérico inventado) — ver `docs/AI-SWARM-GOVERNANCE-AUDIT.md`, seção
  * "AI-005 — Golden Dataset real e versionado (onda 36)", para a tabela categoria → serviço real.
  *
- * Deliberadamente NÃO inclui um harness de scoring automático (LLM-judge, threshold, gate de CI):
- * decidir a metodologia de avaliação (comparação exata? similaridade semântica? juiz por LLM?) é
- * decisão de produto que este dataset não tenta resolver sozinho — ver nota de escopo no audit doc.
- * O que este arquivo garante é que cada caso é ESTRUTURALMENTE válido: os campos `expected` usam os
+ * O scoring automático vive em `goldenDataset.scoring.ts`: checks determinísticos por categoria,
+ * thresholds por caso/categoria/geral e um SemanticJudge opcional para factualidade, aderência ao
+ * playbook e risco de alucinação. O gate determinístico roda sempre no CI; o live runner usa as
+ * capacidades reais e pode acoplar o LLM judge quando um provedor de IA está configurado.
+ * Este arquivo continua garantindo que cada caso é ESTRUTURALMENTE válido: os campos `expected` usam os
  * mesmos enums/tipos reais que os serviços de produção aceitam, verificado em runtime por
  * `goldenDataset.service.ts` (inclusive contra os schemas Zod reais das 9 ferramentas do enxame,
  * para a categoria `tool_use`).

@@ -3612,6 +3612,13 @@ components:
         - Nova Oportunidade
         - Proposta Enviada
         - Call/Visita Agendada
+        - Piloto VTECH
+        - Piloto Atlas Profile
+        - Piloto Atlas Profile - Concluído
+        - Piloto Atlas Profile - Cancelado
+        - Piloto Logística
+        - Piloto Logístico - Concluído
+        - Piloto Logístico - Cancelado
         - Negócios Perdidos
         - Negócios Ganhos
     ActivityType:
@@ -3779,6 +3786,15 @@ components:
         owner: { type: string, nullable: true }
         companyId: { type: string, nullable: true }
         contactId: { type: string, nullable: true }
+        funnel: { type: string, enum: [Lead, Negocio] }
+        title: { type: string, maxLength: 180, nullable: true }
+        amount: { type: number, minimum: 0, nullable: true }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        probability: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        expectedCloseAt: { type: string, nullable: true }
+        pipelineId: { type: string, nullable: true }
+        pipelineStageId: { type: string, nullable: true }
+        customFields: { type: object, nullable: true, additionalProperties: true }
         pic:
           type: string
           nullable: true

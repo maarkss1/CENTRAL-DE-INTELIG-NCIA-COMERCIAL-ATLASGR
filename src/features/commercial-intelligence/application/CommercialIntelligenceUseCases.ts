@@ -38,6 +38,7 @@ import { checkEligibility, isDealOpen, agingInStageDays, STAGE_AGING_CRITICAL_DA
 import { classifyLossReason } from './lossTaxonomy';
 import { buildExecutiveExport, type ExecutiveExportPayload } from './executiveExport';
 import { shiftMonth, monthLabelPt, countBusinessDays } from './executiveCalendar';
+import { brazilMonthKey, brazilMonthRange } from '../../../shared/time/brazilCalendar.js';
 import {
     DATA_READINESS_OPEN_FIELD_WEIGHTS,
     DATA_READINESS_LOSS_FIELD_WEIGHT,
@@ -92,15 +93,11 @@ function roundMoney(value: number): number {
 }
 
 function monthRange(period: string): { start: Date; end: Date; daysInMonth: number } {
-    const [year, month] = period.split('-').map(Number);
-    const start = new Date(Date.UTC(year, month - 1, 1));
-    const end = new Date(Date.UTC(year, month, 1));
-    const daysInMonth = Math.round((end.getTime() - start.getTime()) / DAY_MS);
-    return { start, end, daysInMonth };
+    return brazilMonthRange(period);
 }
 
 export function currentPeriod(now = new Date()): string {
-    return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    return brazilMonthKey(now);
 }
 
 type StageHistoryRow = { leadId: string; stageId: string | null; stageName: string; enteredAt: Date; exitedAt: Date | null };

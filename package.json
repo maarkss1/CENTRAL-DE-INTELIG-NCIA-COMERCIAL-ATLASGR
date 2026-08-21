@@ -44,6 +44,7 @@
     "setup:db:check": "tsx scripts/setup-vector-db.ts --check",
     "verify:integrations": "tsx scripts/verify-integrations.ts",
     "verify:ai": "tsx scripts/verify-ai-studio.ts",
+    "eval:golden": "tsx scripts/evaluate-golden-dataset-live.ts",
     "verify:prod": "tsx scripts/verify-prod.ts",
     "docs": "typedoc",
     "reset:passwords": "tsx scripts/reset-passwords.ts"

@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-20.1",
+  "version": "2026-08-20.2",
   "generatedAt": "2026-08-20T00:00:00.000Z",
   "cases": [
     {
@@ -33,7 +33,7 @@
         "leadId": "golden-lead-003",
         "companyInfo": "Distribuidora de eletrônicos, frota de 12 veículos, sofreu 3 roubos de carga nos últimos 12 meses, mencionou restrição orçamentária para este trimestre."
       },
-      "expected": { "status": "QUALIFIED", "minScore": 55, "maxScore": 90 }
+      "expected": { "status": "QUALIFIED", "minScore": 70, "maxScore": 90 }
     },
     {
       "id": "cold_email-001",

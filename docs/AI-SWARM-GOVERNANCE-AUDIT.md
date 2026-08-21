@@ -591,3 +591,14 @@ Testes:
 - integration (Postgres+Redis reais): `npx dotenv-cli -e .env.test -- npx vitest run -c vitest.integration.config.ts`
   — **46/46 arquivos, 226/226 testes** (nenhuma migration nesta onda)
 - build e build:worker — ambos limpos; conteúdo do dataset confirmado inline em `dist/server.cjs`
+
+## Fechamento do harness de scoring — 2026-08-20
+
+O débito explicitamente deixado fora do AI-005 foi implementado:
+
+1. scorer determinístico por cada uma das 8 categorias, com thresholds por caso, categoria e dataset;
+2. LLM judge opcional via gateway real, medindo semântica, factualidade, aderência ao playbook e risco de alucinação;
+3. runner live que executa as capacidades reais usadas pelo Golden Dataset;
+4. CLI `npm run eval:golden` com exit code 1 em regressão;
+5. gate determinístico sempre presente na suíte unitária protegida; quando GROQ/OpenAI está configurado no CI, a mesma job também roda as 24 capacidades reais + LLM judge;
+6. correção do caso `lead_qualification-003`, cuja faixa anterior contradizia o threshold real de QUALIFIED (>=70).

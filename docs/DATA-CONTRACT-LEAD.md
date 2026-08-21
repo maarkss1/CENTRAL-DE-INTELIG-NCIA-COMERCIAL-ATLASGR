@@ -119,3 +119,9 @@ Estas quatro áreas ficam registradas como pendência real para uma sprint futur
 analytics — não foram tratadas aqui por exigirem mudança em cálculo de métricas já em produção
 (risco que pede teste de regressão dedicado, não uma correção no meio de uma sprint ampla) ou
 mudança de contrato em cascata pela UI.
+
+## Fechamento DATA-006/007/008 — 2026-08-20
+
+- **DATA-006 — fechado:** fronteiras mensais e mês corrente agora usam um calendário canônico de Brasília em backend, Analytics legado, Comercial Inteligente, frontend e extrações Bitrix. O caso crítico 31/08 23:30 BRT (01/09 UTC) tem regressão automatizada.
+- **DATA-007 — fechado:** a segunda implementação client-side de `buildForecastRange` / `computeTrendMomentum` foi removida; frontend e backend reutilizam o mesmo módulo puro.
+- **DATA-008 — fechado:** `LeadStatus` e `LeadInput` no OpenAPI espelham `LEAD_STATUS` / `leadSchema`; um contract test compara enum e conjunto de campos em toda execução unitária do CI.

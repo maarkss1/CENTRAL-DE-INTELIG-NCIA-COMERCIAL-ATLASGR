@@ -437,3 +437,7 @@ Esta é a última entrega pendente do bloco CYC-001..CYC-009 desta rodada.
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |
 | CYC-008 Runtime/idempotência | Sim (Sprint 07/onda-19) — construído e testado | Worker/scheduler real + trava de concorrência + dispatchers reais; ocioso até existir rota/UI para criar sequência/iniciar run |
 | CYC-009 UI | Sim (Onda 29) | CRUD completo (criar/iniciar/pausar/retomar/parar); E2E + a11y reais |
+
+## Reconciliação final CYC — 2026-08-20
+
+A lista antiga que ainda citava **CYC-002/003/004/005/006/007/009** como pendentes foi reconciliada contra a main. Esses itens já estavam implementados e encerrados nas ondas 22 e 24–29; nenhuma reimplementação foi feita nesta rodada para evitar duplicação/regressão. O bloco CYC-001..009 permanece concluído.

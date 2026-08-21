@@ -24,7 +24,7 @@ function deal(overrides: Partial<DealRow> & { id: string }): DealRow {
         companyName: 'Empresa Teste',
         companyCnpj: '00.000.000/0001-00',
         contactId: 'contact-1',
-        createdAt: new Date('2026-08-01T00:00:00Z'),
+        createdAt: new Date('2026-08-01T03:00:00Z'), // 01/08 00:00 em Brasília (UTC-3)
         updatedAt: new Date('2026-08-05T00:00:00Z'),
         closedAt: null,
         expectedCloseAt: new Date('2026-08-20T00:00:00Z'), // dentro dos próximos 30 dias de NOW
@@ -198,8 +198,8 @@ describe('CommercialIntelligenceUseCases', () => {
     });
 
     it('Sales Cycle: média e mediana em dias sobre negócios fechados no período', async () => {
-        const closed1 = deal({ id: 'c1', amount: 1, stageIsWon: true, createdAt: new Date('2026-07-01T00:00:00Z'), closedAt: new Date('2026-08-01T00:00:00Z') }); // 31 dias
-        const closed2 = deal({ id: 'c2', amount: 1, stageIsLost: true, createdAt: new Date('2026-07-11T00:00:00Z'), closedAt: new Date('2026-08-01T00:00:00Z') }); // 21 dias
+        const closed1 = deal({ id: 'c1', amount: 1, stageIsWon: true, createdAt: new Date('2026-07-01T03:00:00Z'), closedAt: new Date('2026-08-01T03:00:00Z') }); // 31 dias; meia-noite BRT
+        const closed2 = deal({ id: 'c2', amount: 1, stageIsLost: true, createdAt: new Date('2026-07-11T03:00:00Z'), closedAt: new Date('2026-08-01T03:00:00Z') }); // 21 dias; meia-noite BRT
         const repo = new FakeRepository([closed1, closed2]);
         const useCases = new CommercialIntelligenceUseCases(repo);
         const performance = await useCases.performance(ORG, { month: PERIOD }, NOW);
