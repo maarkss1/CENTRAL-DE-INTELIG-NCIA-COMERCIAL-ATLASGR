@@ -1,7 +1,7 @@
 - De: Coordenador (00)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -31,3 +31,6 @@ As rotas de `activities` e `contacts` foram migradas para o padrão DI nesta ond
 
 ## Contexto adicional
 Esta onda focou nas rotas de activities e contacts. crm360 e billing ficaram para a próxima iteração por serem mais complexos (537 linhas no crm360.service) e exigirem análise cuidadosa de impacto.
+
+## Resolução
+(Coordenador): O esforço de refatoração de 537 linhas do CRM 360 e dos agentes é muito alto e desrespeita a estabilidade requisitada no Freeze de Escopo do Go-Live. Como não afeta as funcionalidades da plataforma, decidi manter os acessos diretos do prisma nos módulos legados. Postponed.

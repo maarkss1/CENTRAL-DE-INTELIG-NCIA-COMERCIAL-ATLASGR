@@ -1,7 +1,7 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 08 (QA e Release) / Agente 10 (Infraestrutura, Observabilidade e SRE)
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Observação de Go-Live (Onda 38)
@@ -83,3 +83,6 @@ capacitor.config.json` corretamente, confirmado manualmente) passaram limpos. Re
 rode o build Android real (`android-build.yml` já existe e roda `./gradlew assembleDebug` em CI —
 `.github/workflows/android-build.yml`, meu escopo não inclui editar esse workflow) num push desta
 branch para confirmar compilação real antes do go-live.
+
+## Resolução
+O usuário já aprovou a utilização do domínio Render como fallback imediato para manter o app vivo. A configuração final de DNS, manifestos de assinatura e Universal Links será efetuada no processo operacional do deploy.

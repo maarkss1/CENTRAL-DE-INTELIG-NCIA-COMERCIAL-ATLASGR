@@ -1,7 +1,7 @@
 - De: 18
 - Para: 04
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -51,3 +51,6 @@ Ver também a varredura mais ampla de duplicação (não limitada a este módulo
 instâncias menores do mesmo padrão espalhadas por outros domínios (activities, knowledge,
 notifications, automations, calendar, entidades de CRM) para que o Coordenador decida prioridade
 de tratamento entre ondas.
+
+## Resolução
+(Coordenador): Essa unificação já foi tentada por mim na Sprint 00, resultando numa quebra do tipo de contrato com a API frontend devido a acoplamento forte. O revert foi feito em prol da estabilidade do Go-Live. Handoff rejeitado, resolvido.
