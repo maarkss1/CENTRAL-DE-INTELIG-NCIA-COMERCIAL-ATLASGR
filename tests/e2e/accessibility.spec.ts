@@ -63,4 +63,13 @@ test.describe('Acessibilidade automática (axe-core)', () => {
     await waitForAppReady(page);
     await assertNoBlockingViolations(page, testInfo);
   });
+
+  test('Cadência não tem violações críticas/sérias', async ({ page }, testInfo) => {
+    // CYC-009 (onda 29): tela ganhou ações de escrita reais (pausar/retomar/parar) nesta rodada,
+    // nunca coberta por este arquivo até agora.
+    await signUp(page, { email: uniqueTestEmail('a11y-cadence') });
+    await page.goto('/app/cadence');
+    await waitForAppReady(page);
+    await assertNoBlockingViolations(page, testInfo);
+  });
 });

@@ -33,6 +33,22 @@ export function recordAiUsageCost(provider: string, tenant: string | null | unde
     aiUsageCostUsdTotal.inc({ provider: provider || 'unknown', tenant: tenant || 'unattributed' }, costUsd);
 }
 
+/**
+ * AI-011: contador de quantas chamadas de IA foram efetivamente bloqueadas pelo circuit breaker de
+ * orçamento (src/lib/ai/budget.ts) por terem batido no teto de `AI_MONTHLY_BUDGET_USD`. Ao
+ * contrário do gauge de orçamento abaixo (só um valor de referência estático), este é o sinal real
+ * de que o bloqueio está acontecendo em produção — sem ele, um teto configurado bloqueando chamadas
+ * silenciosamente não teria nenhuma métrica própria para alertar sobre isso.
+ */
+export const aiBudgetBlockedTotal = new client.Counter({
+    name: 'ai_budget_blocked_total',
+    help: 'Chamadas de IA bloqueadas pelo circuit breaker de orçamento mensal (AI-011) por excederem AI_MONTHLY_BUDGET_USD.',
+});
+
+export function recordAiBudgetBlocked(): void {
+    aiBudgetBlockedTotal.inc();
+}
+
 // Gauge de orçamento só é registrado (e, portanto, só aparece em /metrics) quando
 // AI_MONTHLY_BUDGET_USD está configurada. Sem valor configurado, a série simplesmente não existe
 // — não fabricamos um "0" que faria `ai_usage_cost_usd_total / ai_usage_budget_usd_total` virar
@@ -40,7 +56,7 @@ export function recordAiUsageCost(provider: string, tenant: string | null | unde
 if (env.AI_MONTHLY_BUDGET_USD !== undefined) {
     const aiUsageBudgetUsdTotal = new client.Gauge({
         name: 'ai_usage_budget_usd_total',
-        help: 'Orçamento mensal de IA configurado (USD) via AI_MONTHLY_BUDGET_USD — valor de referência estático, não um limite que bloqueia chamadas.',
+        help: 'Orçamento mensal de IA configurado (USD) via AI_MONTHLY_BUDGET_USD (AI-011: excedê-lo bloqueia novas chamadas de IA, ver src/lib/ai/budget.ts). Este gauge é só o valor de referência para o alerta AIBudgetOverrun, não o próprio bloqueio.',
     });
     aiUsageBudgetUsdTotal.set(env.AI_MONTHLY_BUDGET_USD);
 }

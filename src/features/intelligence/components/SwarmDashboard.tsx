@@ -619,7 +619,7 @@ export function SwarmDashboard() {
                             if (e.key === 'Enter' && !isExecuting && mission.trim()) runSimulation();
                         }}
                         placeholder="O que você deseja que o Swarm faça? (Clique aqui para digitar)"
-                        className={`w-full bg-surface-2 border border-line rounded-2xl pl-6 pr-20 py-5 text-ink text-[16px] font-medium focus:outline-none focus:ring-1 focus:bg-surface transition-all placeholder:text-ink-2 shadow-inner relative z-50 pointer-events-auto ${accent.isAtlas ? 'focus:border-atlas-orange focus:ring-atlas-orange/50' : 'focus:border-totaltrack-blue focus:ring-totaltrack-blue/50'}`}
+                        className={`w-full bg-surface-2 border border-line rounded-2xl pl-6 pr-20 py-5 text-ink text-[16px] font-medium focus:outline-none focus:ring-1 focus:bg-surface transition-all placeholder:text-ink-2 shadow-inner relative z-50 pointer-events-auto ${accent.isAtlas ? 'focus:border-brand focus:ring-brand/50' : 'focus:border-brand-2 focus:ring-brand-2/50'}`}
                         disabled={isExecuting}
                     />
                     {isExecuting ? (

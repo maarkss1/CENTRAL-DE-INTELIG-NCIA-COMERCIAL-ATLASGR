@@ -42,6 +42,7 @@ export const auth = betterAuth({
     // necessidade (nenhum fluxo de produção depende de um túnel de desenvolvimento).
     trustedOrigins: [
         ...parseAllowedOrigins(process.env.ALLOWED_ORIGINS),
+        ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL.replace(/\/$/, '')] : []),
         ...(process.env.NODE_ENV === "production" ? [] : ["https://atlasgr-dev-server.loca.lt"]),
     ],
     emailAndPassword: {
@@ -72,15 +73,12 @@ export const auth = betterAuth({
                     ].join("\n"),
                 });
             } catch (error) {
-                // Sem SMTP configurado (ambiente local/preview), não derruba a requisição: o endpoint
-                // do better-auth já responde sempre com a mesma mensagem genérica (evita enumeração de
-                // e-mail), então só registramos o motivo real no log do servidor.
                 if (error instanceof MailerNotConfiguredError) {
-                    logger.warn({ email: user.email }, "Reset de senha solicitado, mas SMTP_HOST não está configurado — e-mail não enviado.");
-                    return;
+                    logger.warn({ email: user.email, url }, "Reset de senha solicitado, mas SMTP não está configurado. O link é: " + url);
+                    throw new APIError("INTERNAL_SERVER_ERROR", { message: "Serviço de e-mail não configurado. Não é possível enviar o link de redefinição." });
                 }
                 logger.error({ err: error, email: user.email }, "Falha ao enviar e-mail de redefinição de senha.");
-                throw error;
+                throw new APIError("INTERNAL_SERVER_ERROR", { message: "Falha ao enviar e-mail de redefinição." });
             }
         },
     },
@@ -93,14 +91,21 @@ export const auth = betterAuth({
         updateAge: 60 * 60 * 24, // renova a sessão a cada 24h de uso
     },
     advanced: {
-        useSecureCookies: process.env.NODE_ENV === "production",
+        useSecureCookies: Boolean(
+            process.env.SECURE_COOKIES === "true" ||
+            (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith("https://"))
+        ),
         crossSubDomainCookies: {
-            enabled: process.env.NODE_ENV === "production",
+            enabled: Boolean(process.env.COOKIE_DOMAIN),
+            domain: process.env.COOKIE_DOMAIN,
         },
         defaultCookieAttributes: {
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            secure: Boolean(
+                process.env.SECURE_COOKIES === "true" ||
+                (process.env.BETTER_AUTH_URL && process.env.BETTER_AUTH_URL.startsWith("https://"))
+            ),
         },
     },
     user: {

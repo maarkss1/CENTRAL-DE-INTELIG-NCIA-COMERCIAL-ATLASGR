@@ -1,16 +1,16 @@
-import { StateGraph, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
-import { prisma } from '../../../lib/prisma.js';
+import { StateGraph, MessagesAnnotation } from '@langchain/langgraph';
 import { getLeadContextTool, searchLeadsTool } from '../tools/crmTools.js';
 import { searchPlaybookTool } from '../tools/playbookTool.js';
 import { createFollowUpTaskTool, notifyTeamTool } from '../tools/opsTools.js';
 import { BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
-import type { Prisma } from '@prisma/client';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
+import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
+import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
 
 // O Agente de Operações é o "braço executor" do enxame: não só analisa, ele age nas demais
 // ferramentas do sistema (CRM, agenda, notificações), sempre em cima de dados reais buscados
@@ -96,8 +96,8 @@ const workflow = new StateGraph(MessagesAnnotation)
     })
     .addEdge('tools', 'agent');
 
-const memory = new MemorySaver();
-const app = workflow.compile({ checkpointer: memory });
+// AI-002 (onda 32): checkpointer real (Postgres, compartilhado — src/lib/ai/checkpointer.ts).
+const app = workflow.compile({ checkpointer });
 
 export class OpsAgent {
     async run(instruction: string, sessionId?: string, leadId?: string) {
@@ -112,8 +112,10 @@ export class OpsAgent {
             try {
                 assertPiiExternalConsent(organizationId);
             } catch (error) {
+                const message = (error as Error).message;
                 logger.warn({ err: error, leadId, organizationId }, 'Ops Agent bloqueado: sem base legal LGPD registrada para enviar dado pessoal a provedor de IA externo.');
-                return { success: false, error: (error as Error).message };
+                await recordAgentFailure({ sessionId: sid, agentType: 'OPS', organizationId, errorMessage: message });
+                return { success: false, error: message };
             }
         }
 
@@ -122,28 +124,43 @@ export class OpsAgent {
             : `Instrução: ${instruction}\n\nNenhum Lead ID foi informado para esta missão.`;
 
         const inputs = { messages: [new HumanMessage(humanContent)] };
-        // AI-002 (Sprint 07/onda-20): thread_id prefixado pelo tenant — o checkpointer (MemorySaver)
-        // deste grafo é singleton de módulo, compartilhado por todas as organizações do processo.
+        // thread_id prefixado pelo tenant — o checkpointer é compartilhado por todas as
+        // organizações do processo.
         const config = { configurable: { thread_id: `${organizationId}:${sid}` } };
         let finalState;
 
         try {
+            // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
+            // primeira invocação real deste processo — memoizado.
+            await ensureCheckpointerReady();
             finalState = await app.invoke(inputs, config);
         } catch (error) {
             logger.error({ err: error, sessionId }, 'Ops Agent run failed');
+            await recordAgentFailure({
+                sessionId: sid,
+                agentType: 'OPS',
+                organizationId,
+                errorMessage: 'Falha na execução do agente (grafo LangGraph).',
+            });
             return { success: false, error: 'Agent execution failed' };
         }
 
         const messages = finalState.messages as BaseMessage[];
-
-        await this.updateMemory(sid, messages.map((m: BaseMessage): SerializedMessage => {
+        const serializedMessages = messages.map((m: BaseMessage): SerializedMessage => {
             const toolCalls = (m as BaseMessage & { tool_calls?: unknown[] }).tool_calls;
             return {
                 role: m.type,
                 content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
                 toolCalls: toolCalls ? JSON.stringify(toolCalls) : undefined,
             };
-        }));
+        });
+
+        try {
+            await this.updateMemory(sid, serializedMessages);
+        } catch (error) {
+            logger.error({ err: error, sessionId: sid }, 'Failed to persist Ops agent memory after successful run');
+            return { success: false, error: 'Ação concluída, mas falha ao persistir o resultado.' };
+        }
 
         const lastMessage = messages[messages.length - 1];
         const output = lastMessage?.content ? lastMessage.content.toString() : 'Ação concluída silenciosamente.';
@@ -151,31 +168,14 @@ export class OpsAgent {
         return { success: true, sessionId: sid, output };
     }
 
+    // AI-003: delega para o upsert atômico compartilhado — não engole mais erro.
     private async updateMemory(sessionId: string, messages: SerializedMessage[]) {
-        try {
-            const organizationId = getTenantId();
-            const existing = await prisma.agentMemory.findFirst({
-                where: { sessionId, organizationId },
-            });
-            if (existing) {
-                await prisma.agentMemory.update({
-                    where: { id: existing.id },
-                    data: {
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    },
-                });
-            } else {
-                await prisma.agentMemory.create({
-                    data: {
-                        sessionId,
-                        agentType: 'OPS',
-                        organizationId,
-                        messages: messages as unknown as Prisma.InputJsonValue,
-                    },
-                });
-            }
-        } catch (err) {
-            logger.error({ err, sessionId }, 'Failed to update agent memory');
-        }
+        await saveAgentMemory({
+            sessionId,
+            agentType: 'OPS',
+            organizationId: getTenantId(),
+            messages,
+            status: 'Completed',
+        });
     }
 }

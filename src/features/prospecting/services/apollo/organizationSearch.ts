@@ -129,11 +129,22 @@ export async function fetchApolloCandidates(
         ? criteria.palavrasChave.split(',').map((k) => k.trim()).filter(Boolean)
         : [];
 
+    if (criteria.icp) extraKeywords.push(criteria.icp.trim());
+    if (criteria.volume) extraKeywords.push(criteria.volume.trim());
+    if (criteria.decisorCargos?.length) {
+        for (const cargo of criteria.decisorCargos) {
+            const trimmed = cargo.trim();
+            if (trimmed) extraKeywords.push(trimmed);
+        }
+    }
+
     const needsFoundedYearFilter = criteria.anoFundacaoMin != null || criteria.anoFundacaoMax != null;
     const needsIcpAffinityRanking = isTransportOperatorSegment(criteria.segmento);
     // Ano de fundação e a exclusão de empresas já conhecidas não são filtráveis pela API — pedimos
     // mais candidatos do que o necessário para sobrar o suficiente depois do pós-filtro local. A
     // afinidade ICP também pede um pool maior: sem isso não haveria o que reordenar antes de cortar.
+    // Apollo rejeita per_page acima de 100 com 422 "Per page not supported" — visto na prática com
+    // count=100 (padrão da UI) + needsIcpAffinityRanking, que pedia 400 e quebrava a busca inteira.
     const requestSize = Math.min(
         needsFoundedYearFilter || needsIcpAffinityRanking || exclusions.size > 0 ? Math.max(count * 4, 50) : count,
         100
@@ -165,10 +176,16 @@ export async function fetchApolloCandidates(
     if (criteria.porte) {
         body.organization_num_employees_ranges = [criteria.porte];
     }
-    if (criteria.faturamentoMin != null || criteria.faturamentoMax != null) {
+    // A Apollo só reconhece faturamento ANUAL — o campo mensal da UI é convertido (×12) e combinado
+    // com o anual por interseção (mais restritivo dos dois vence), nunca ignorado silenciosamente.
+    const annualFromMonthlyMin = criteria.faturamentoMensalMin != null ? criteria.faturamentoMensalMin * 12 : undefined;
+    const annualFromMonthlyMax = criteria.faturamentoMensalMax != null ? criteria.faturamentoMensalMax * 12 : undefined;
+    const effectiveRevenueMin = [criteria.faturamentoMin, annualFromMonthlyMin].filter((v): v is number => v != null);
+    const effectiveRevenueMax = [criteria.faturamentoMax, annualFromMonthlyMax].filter((v): v is number => v != null);
+    if (effectiveRevenueMin.length > 0 || effectiveRevenueMax.length > 0) {
         body.revenue_range = {
-            ...(criteria.faturamentoMin != null ? { min: criteria.faturamentoMin } : {}),
-            ...(criteria.faturamentoMax != null ? { max: criteria.faturamentoMax } : {}),
+            ...(effectiveRevenueMin.length > 0 ? { min: Math.max(...effectiveRevenueMin) } : {}),
+            ...(effectiveRevenueMax.length > 0 ? { max: Math.min(...effectiveRevenueMax) } : {}),
         };
     }
     if (criteria.tecnologias) {

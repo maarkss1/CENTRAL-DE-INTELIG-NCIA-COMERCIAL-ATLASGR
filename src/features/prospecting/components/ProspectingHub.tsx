@@ -4,7 +4,7 @@ import { Database, Landmark, Sparkles, Camera, Wrench } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
-import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, QUANTIDADE_OPTIONS, ESTADO_OPTIONS } from '../../../shared/constants/icp-options';
+import { SEGMENTO_OPTIONS, TOTALTRAC_SEGMENTO_OPTIONS, ATLAS_PERSONA_OPTIONS, TOTALTRAC_PERSONA_OPTIONS } from '../../../shared/constants/icp-options';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { GamificationWidget } from '../../../components/ui/GamificationWidget';
@@ -57,6 +57,7 @@ export function ProspectingHub() {
     const [tab, setTab] = useState<HubTab>('cnpj');
 
     const activeSegments = activeBrand === 'totaltrac' ? TOTALTRAC_SEGMENTO_OPTIONS : SEGMENTO_OPTIONS;
+    const activePersonaOptions = activeBrand === 'totaltrac' ? TOTALTRAC_PERSONA_OPTIONS : ATLAS_PERSONA_OPTIONS;
 
     // --- CNPJ real lookup ---
     const [cnpjInput, setCnpjInput] = useState('');
@@ -66,10 +67,10 @@ export function ProspectingHub() {
 
     // --- discovery via open data, with optional Apollo enrichment ---
     const [criteria, setCriteria] = useState<ProspectCriteria>({
-        segmento: activeSegments[0],
-        localizacao: ESTADO_OPTIONS[24], // Default SP
-        estado: ESTADO_OPTIONS[24], // Default SP
-        quantidade: QUANTIDADE_OPTIONS[0],
+        segmento: '',
+        localizacao: '',
+        estado: '',
+        quantidade: 20,
     });
 
     useEffect(() => {
@@ -347,7 +348,8 @@ export function ProspectingHub() {
             // decisores) + heurísticas de CNPJ — o timeout padrão de 15s (pensado pra CRUD simples)
             // matava a requisição no cliente antes do backend terminar, mesmo quando cada chamada
             // individual (inclusive o Apollo) respondia rápido isoladamente.
-            const result = await api.post<DiscoverResult>('/api/prospecting/discover', { ...criteria, pagina: page }, { timeoutMs: 45_000 });
+            const excludeNames = append ? candidates.map(c => c.tradeName) : undefined;
+            const result = await api.post<DiscoverResult>('/api/prospecting/discover', { ...criteria, pagina: page, excludeNames }, { timeoutMs: 45_000 });
             if (append) {
                 // Defesa extra além da exclusão do backend: garante que a mesma empresa não apareça
                 // duas vezes na lista mesmo se a Apollo devolver alguma sobreposição entre páginas.
@@ -490,6 +492,7 @@ export function ProspectingHub() {
                             criteria={criteria}
                             setCriteria={setCriteria}
                             activeSegments={activeSegments}
+                            activePersonaOptions={activePersonaOptions}
                             cities={cities}
                             showAdvanced={showAdvanced}
                             setShowAdvanced={setShowAdvanced}

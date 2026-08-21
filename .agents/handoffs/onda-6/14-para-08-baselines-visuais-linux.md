@@ -1,7 +1,7 @@
 - De: Agente 14 (Ambiente de Execução e Test Harness)
 - Para: Agente 08 (QA e Release)
 - Onda: 6
-- Status: em-andamento (código pronto; depende de execução humana real no GitHub Actions)
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -78,3 +78,19 @@ Depois desse passo manual, `npm run test:e2e` no job `build-and-test` volta a co
 `visual.spec.ts` normalmente em todo push/PR — sem exigir mudança adicional no `ci.yml`.
 `docs/deploy/RELEASE_CHECKLIST.md` (novo, seção 3) documenta a verificação manual a fazer
 enquanto a baseline não existir.
+
+## Resolução final (2026-08-21)
+
+Passo manual executado: `gh workflow run ci.yml --ref main` disparou o `workflow_dispatch`
+(run `32521483569`), job `visual-baselines` concluído com sucesso, artifact
+`visual-snapshots-linux` baixado e os 5 PNGs `*-chromium-linux.png` extraídos para
+`tests/e2e/visual.spec.ts-snapshots/` ao lado das `*-chromium-win32.png` existentes.
+`describe.skip` removido de `tests/e2e/visual.spec.ts`. Commit `33dbb851`.
+
+Nota à parte, fora do escopo deste handoff: o disparo do workflow também rodou o job
+`secret-scan` (Gitleaks) do mesmo `ci.yml`, que reportou 47 leaks no histórico do repositório
+(público). Os dois achados de credencial real (chave Gemini em `test-gemini.ts` e
+`test-gemini-quota.ts`, commits de 2026-07-17) foram confirmados pelo usuário como já
+inválidos/rotacionados. Os demais 4 achados (`phase-12-manifest.json`) são falso-positivo —
+hashes SHA-256 de conteúdo de arquivo, não segredo. Nenhuma ação de remediação de histórico
+(reescrita/força) foi tomada — não fazia parte do escopo autorizado nesta rodada.

@@ -125,3 +125,16 @@ export const crmDocumentUpdateSchema = z.object({
 });
 
 export type CrmDocumentUpdateInput = z.infer<typeof crmDocumentUpdateSchema>;
+
+/**
+ * CYC-006 (onda 28) — solicita assinatura eletrônica de um documento já existente. Ambos os
+ * campos são opcionais porque, na maioria dos casos, o documento já tem um `Contact` vinculado
+ * (`signerEmail`/`signerName` do próprio contato) — só é obrigatório informar quando o documento
+ * não tem contato vinculado com e-mail.
+ */
+export const crmDocumentSignatureRequestSchema = z.object({
+    signerEmail: z.string().trim().email('signerEmail deve ser um e-mail válido.').optional(),
+    signerName: z.string().trim().min(1).max(200).optional(),
+});
+
+export type CrmDocumentSignatureRequestInput = z.infer<typeof crmDocumentSignatureRequestSchema>;

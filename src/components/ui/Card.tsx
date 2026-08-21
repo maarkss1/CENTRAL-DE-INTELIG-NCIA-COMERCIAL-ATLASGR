@@ -8,10 +8,10 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-surface backdrop-blur-xl border border-line shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
-        stat: "bg-gradient-to-br from-white/[0.06] to-white/[0.01] backdrop-blur-xl border border-line shadow-[0_8px_32px_0_rgba(0,0,0,0.4)]",
-        outline: "border border-line bg-transparent",
-        accent: "bg-surface backdrop-blur-xl border border-brand/30 shadow-[0_0_30px_-10px_rgba(255,86,24,0.4)]",
+        default: "bg-surface border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
+        stat: "bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)] transition-shadow hover:shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)]",
+        outline: "border border-gray-200 bg-transparent",
+        accent: "bg-surface border border-brand/30 shadow-[0_0_15px_-3px_rgba(255,86,24,0.2)]",
       },
       padding: {
         default: "p-6",

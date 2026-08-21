@@ -22,6 +22,17 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { ContactForm } from '@/features/contacts/components/ContactForm';
+import { ActiveRecordProvider } from '@/contexts/ActiveRecordContext';
+
+// ContactForm agora registra o contato em edição no ActiveRecordContext (copiloto de IA global) —
+// mesmo padrão de CompanyDetail/LeadDetailDrawer. Sem o Provider aqui, useActiveRecord() lança.
+function renderContactForm(props: React.ComponentProps<typeof ContactForm>) {
+    return render(
+        <ActiveRecordProvider>
+            <ContactForm {...props} />
+        </ActiveRecordProvider>,
+    );
+}
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -37,7 +48,7 @@ afterEach(() => cleanup());
 describe('ContactForm', () => {
     it('shows required-field errors instead of submitting when Nome/Empresa are empty', async () => {
         const user = userEvent.setup();
-        render(<ContactForm onClose={vi.fn()} onSave={vi.fn()} />);
+        renderContactForm({ onClose: vi.fn(), onSave: vi.fn() });
 
         await waitFor(() => expect(listMock).toHaveBeenCalled());
         await user.click(screen.getByRole('button', { name: /criar contato/i }));
@@ -51,7 +62,7 @@ describe('ContactForm', () => {
 
     it('shows an e-mail inválido error and blocks submit', async () => {
         const user = userEvent.setup();
-        render(<ContactForm onClose={vi.fn()} onSave={vi.fn()} />);
+        renderContactForm({ onClose: vi.fn(), onSave: vi.fn() });
 
         await waitFor(() => expect(listMock).toHaveBeenCalled());
         await user.type(screen.getByLabelText(/nome \*/i), 'Fulano de Tal');
@@ -66,7 +77,7 @@ describe('ContactForm', () => {
     it('submits via contactsDB.create with valid data', async () => {
         const user = userEvent.setup();
         const onSave = vi.fn();
-        render(<ContactForm onClose={vi.fn()} onSave={onSave} />);
+        renderContactForm({ onClose: vi.fn(), onSave });
 
         await waitFor(() => expect(listMock).toHaveBeenCalled());
         await user.type(screen.getByLabelText(/nome \*/i), 'Fulano de Tal');

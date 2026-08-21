@@ -6,7 +6,7 @@ import {
   listMarketIntelligenceCompanies,
   parseCompanyCatalogQuery,
 } from './marketIntelligenceCompany.service.js';
-import { getAccountIntelligence } from './accountIntelligence.service.js';
+import { getAccountIntelligence } from './catalogAccountIntelligence.service.js';
 
 const router = Router();
 

@@ -179,4 +179,14 @@ export class Crm360Controller {
             next(error);
         }
     };
+
+    requestDocumentSignature = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
+            const data = await this.crm360UseCases.requestDocumentSignature(orgId, req.params.id, actorUserId, req.body);
+            res.status(201).json({ success: true, data });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

@@ -42,9 +42,16 @@ describe('CompanyForm', () => {
         const user = userEvent.setup();
         render(<CompanyForm onClose={vi.fn()} onSave={vi.fn()} />);
 
-        await user.type(screen.getByLabelText(/razão social/i), 'Acme Transportes Ltda');
-        await user.type(screen.getByLabelText(/nome fantasia/i), 'Acme');
-        await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11.111.111/1111-11');
+        const rs = screen.getByLabelText(/razão social/i);
+        const nf = screen.getByLabelText(/nome fantasia/i);
+        const cnpj = screen.getByPlaceholderText('00.000.000/0000-00');
+
+        await user.clear(rs);
+        await user.type(rs, 'Acme Transportes Ltda');
+        await user.clear(nf);
+        await user.type(nf, 'Acme');
+        await user.clear(cnpj);
+        await user.type(cnpj, '11.111.111/1111-11');
         await user.click(screen.getByRole('button', { name: /criar empresa/i }));
 
         expect(await screen.findByText(/cnpj inválido/i)).toBeInTheDocument();
@@ -56,10 +63,16 @@ describe('CompanyForm', () => {
         const onSave = vi.fn();
         render(<CompanyForm onClose={vi.fn()} onSave={onSave} />);
 
-        await user.type(screen.getByLabelText(/razão social/i), 'Acme Transportes Ltda');
-        await user.type(screen.getByLabelText(/nome fantasia/i), 'Acme');
-        // CNPJ válido (dígitos verificadores corretos) usado só como fixture de teste.
-        await user.type(screen.getByPlaceholderText('00.000.000/0000-00'), '11.222.333/0001-81');
+        const rs = screen.getByLabelText(/razão social/i);
+        const nf = screen.getByLabelText(/nome fantasia/i);
+        const cnpj = screen.getByPlaceholderText('00.000.000/0000-00');
+
+        await user.clear(rs);
+        await user.type(rs, 'Acme Transportes Ltda');
+        await user.clear(nf);
+        await user.type(nf, 'Acme');
+        await user.clear(cnpj);
+        await user.type(cnpj, '11.222.333/0001-81');
         await user.click(screen.getByRole('button', { name: /criar empresa/i }));
 
         await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));

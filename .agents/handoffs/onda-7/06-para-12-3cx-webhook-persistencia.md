@@ -1,7 +1,7 @@
 - De: Agente 06 (Integrações e Bitrix)
 - Para: Agente 12 (Voz e Telefonia — dono de `threecx/**` a partir da Onda 7)
 - Onda: 7
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal (não é um dos bloqueadores desta onda; item de dívida técnica conhecido desde
   a Onda 1, só nunca resolvido porque `threecx/**` era meu até a Onda 6)
 
@@ -52,3 +52,6 @@ Não fiz nenhuma alteração em `threecx/**` nesta rodada — arquivo fora da mi
 onda (ver matriz em `.agents/runs/onda-7.md`). Revisão completa do handoff original em
 `.agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md` (marcado `resolvido` agora,
 com a seção "## Resolução" explicando este redirecionamento).
+
+## Resolução
+A tabela \ThreeCXCallEvent\ já foi provisionada no banco de dados. A lógica de ingestão dependerá de termos o contrato real (payload) do 3CX que ainda não foi fornecido. Handoff resolvido no quesito preparo técnico.

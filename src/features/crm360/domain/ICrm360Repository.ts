@@ -7,7 +7,7 @@ import type {
     CrmCommercialDocumentVersionDTO,
     CrmPublicDocumentView
 } from '../crm360.types.js';
-import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
+import type { CrmDealItemInput, CrmDocumentInput, CrmDocumentSignatureRequestInput, CrmDocumentUpdateInput, CrmProductInput } from '../crm360.schema.js';
 
 export interface ICrm360Repository {
     getOverviewData(organizationId: string): Promise<CrmOverviewData>;
@@ -34,4 +34,7 @@ export interface ICrm360Repository {
     updateDocumentStatus(organizationId: string, documentId: string, status: string): Promise<CrmCommercialDocument>;
     /** Rota pública (sem tenant conhecido a priori) — resolve o documento pelo `publicToken` opaco e registra a visualização. `null` quando o token não existe ou o documento foi excluído. */
     recordDocumentView(publicToken: string): Promise<CrmPublicDocumentView | null>;
+
+    /** CYC-006 (onda 28): solicita assinatura eletrônica real (provedor `'govbr'`, stub de transporte — ver `GovBrSignatureProviderPort.ts`). */
+    requestDocumentSignature(organizationId: string, documentId: string, actorUserId: string | undefined, input: CrmDocumentSignatureRequestInput): Promise<{ id: string; providerRequestId: string }>;
 }

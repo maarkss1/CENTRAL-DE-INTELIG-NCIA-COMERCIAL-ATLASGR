@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../../components/ui/Button';
 import { analyticsDB } from '../../../lib/db';
 import { api } from '../../../lib/api';
+import { readSseStream, sseRequestInit } from '../../../lib/sse';
 import { useBrand } from '../../../contexts/BrandContext';
 import { GlowChart } from '../../analytics/components/GlowChart';
 import { analyticsApi, type MonthlyPoint } from '../../analytics/analytics.api';
@@ -67,16 +68,32 @@ export function ReportsHub() {
     if (!metrics) return;
     setGenerating(true);
     setError(null);
+    setReport('');
+    setReportSavedAt(null);
+
     try {
-      const { result, createdAt } = await api.post<{ result: string; reportId: string; createdAt: string }>(
-        '/api/intelligence/report',
-        { metrics, brandId: activeBrand },
-        { timeoutMs: 90_000 },
-      );
-      setReport(result);
-      setReportSavedAt(createdAt);
+      const response = await fetch('/api/intelligence/report/stream', sseRequestInit({ metrics, brandId: activeBrand }));
+
+      let sawDelta = false;
+      let streamError: string | null = null;
+      await readSseStream(response, (evt) => {
+        if (evt.event === 'delta') {
+          sawDelta = true;
+          const { delta } = JSON.parse(evt.data) as { delta: string };
+          setReport((prev) => (prev ?? '') + delta);
+        } else if (evt.event === 'end') {
+          const { createdAt } = JSON.parse(evt.data) as { createdAt: string };
+          setReportSavedAt(createdAt);
+        } else if (evt.event === 'error') {
+          streamError = JSON.parse(evt.data) as string;
+        }
+      });
+
+      if (streamError) throw new Error(streamError);
+      if (!sawDelta) throw new Error('O motor de IA não retornou nenhuma resposta.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao gerar o relatório.');
+      setReport(null);
     } finally {
       setGenerating(false);
     }
@@ -136,18 +153,22 @@ export function ReportsHub() {
 
         {/* Relatório Gerado */}
         <div className="rounded-card border border-brand/15 bg-surface-2 p-5 min-h-[160px]">
-          {generating ? (
-            <div className="flex items-center justify-center gap-2 text-ink-2 text-sm py-10">
-              <Loader2 size={18} className="animate-spin" /> A IA está lendo os dados e escrevendo o relatório…
-            </div>
-          ) : report ? (
+          {report ? (
             <div>
-              {reportSavedAt && (
+              {reportSavedAt ? (
                 <p className="text-[11px] text-ink-2 mb-3">
                   Gerado em {new Date(reportSavedAt).toLocaleString('pt-BR')} — salvo, continua disponível ao recarregar a página.
                 </p>
+              ) : generating && (
+                <p className="text-[11px] text-ink-2 mb-3 flex items-center gap-1.5">
+                  <Loader2 size={12} className="animate-spin" /> Escrevendo…
+                </p>
               )}
               {renderReportMarkdown(report)}
+            </div>
+          ) : generating ? (
+            <div className="flex items-center justify-center gap-2 text-ink-2 text-sm py-10">
+              <Loader2 size={18} className="animate-spin" /> A IA está lendo os dados e escrevendo o relatório…
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-10">

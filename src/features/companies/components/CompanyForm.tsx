@@ -5,6 +5,10 @@ import { z } from 'zod';
 import { Company } from '../../../types';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
+import { Input } from '../../../components/ui/Input';
+import { Label } from '../../../components/ui/Label';
+import { Select } from '../../../components/ui/Select';
+import { Textarea } from '../../../components/ui/Textarea';
 import { companySchema, COMPANY_STATUS } from '../../../lib/zod';
 import { companiesDB } from '../../../lib/db';
 import { clientLogger } from '../../../lib/clientLogger';
@@ -16,8 +20,6 @@ interface CompanyFormProps {
     onSave: () => void;
 }
 
-const inputClass = "w-full px-4 py-2 bg-surface-2 border border-line rounded-xl text-sm text-ink placeholder-ink-2 focus:ring-2 focus:ring-brand/40 focus:border-brand outline-none transition-colors";
-const labelClass = "text-sm font-medium text-ink-2";
 const errorClass = "text-xs text-danger mt-1";
 
 // Validação do dígito verificador oficial do CNPJ (mesma regra usada em
@@ -123,31 +125,31 @@ export function CompanyForm({ company, onClose, onSave }: CompanyFormProps) {
             <form id="company-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <label htmlFor="company-legalName" className={labelClass}>Razão Social *</label>
-                        <input id="company-legalName" type="text" {...register('legalName')} className={inputClass} />
+                        <Label htmlFor="company-legalName">Razão Social *</Label>
+                        <Input id="company-legalName" type="text" {...register('legalName')} />
                         {errors.legalName && <p className={errorClass}>{errors.legalName.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="company-tradeName" className={labelClass}>Nome Fantasia *</label>
-                        <input id="company-tradeName" type="text" {...register('tradeName')} className={inputClass} />
+                        <Label htmlFor="company-tradeName">Nome Fantasia *</Label>
+                        <Input id="company-tradeName" type="text" {...register('tradeName')} />
                         {errors.tradeName && <p className={errorClass}>{errors.tradeName.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="company-cnpj" className={labelClass}>CNPJ</label>
-                        <input id="company-cnpj" type="text" placeholder="00.000.000/0000-00" {...register('cnpj')} className={inputClass} />
+                        <Label htmlFor="company-cnpj">CNPJ</Label>
+                        <Input id="company-cnpj" type="text" placeholder="00.000.000/0000-00" {...register('cnpj')} />
                         {errors.cnpj && <p className={errorClass}>{errors.cnpj.message}</p>}
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="company-segment" className={labelClass}>Segmento</label>
-                        <input id="company-segment" type="text" {...register('segment')} className={inputClass} />
+                        <Label htmlFor="company-segment">Segmento</Label>
+                        <Input id="company-segment" type="text" {...register('segment')} />
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="company-city" className={labelClass}>Cidade</label>
-                        <input id="company-city" type="text" {...register('city')} className={inputClass} />
+                        <Label htmlFor="company-city">Cidade</Label>
+                        <Input id="company-city" type="text" {...register('city')} />
                     </div>
                     <div className="space-y-2">
-                        <label htmlFor="company-state" className={labelClass}>Estado (UF)</label>
-                        <input
+                        <Label htmlFor="company-state">Estado (UF)</Label>
+                        <Input
                             id="company-state"
                             type="text"
                             maxLength={2}
@@ -156,20 +158,19 @@ export function CompanyForm({ company, onClose, onSave }: CompanyFormProps) {
                                 e.target.value = e.target.value.toUpperCase();
                                 onStateChange(e);
                             }}
-                            className={inputClass}
                         />
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                        <label htmlFor="company-status" className={labelClass}>Status</label>
-                        <select id="company-status" {...register('status')} className={inputClass}>
+                        <Label htmlFor="company-status">Status</Label>
+                        <Select id="company-status" {...register('status')}>
                             {COMPANY_STATUS.map((status) => (
                                 <option key={status} value={status}>{status}</option>
                             ))}
-                        </select>
+                        </Select>
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                        <label htmlFor="company-observations" className={labelClass}>Observações</label>
-                        <textarea id="company-observations" rows={3} {...register('observations')} className={`${inputClass} resize-none`} />
+                        <Label htmlFor="company-observations">Observações</Label>
+                        <Textarea id="company-observations" rows={3} {...register('observations')} className="resize-none" />
                     </div>
                 </div>
             </form>

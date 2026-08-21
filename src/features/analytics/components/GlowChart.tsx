@@ -16,14 +16,16 @@ export function GlowChart({ data }: GlowChartProps) {
   const { isAtlas } = useBrandAccent();
   const { theme } = useTheme();
 
-  const strokeColor = isAtlas ? '#FF5618' : '#008FCE';
-  const fillColor = isAtlas ? '#FF5618' : '#008FCE';
+  // var(--brand)/var(--brand-2) em vez de hex fixo — o SVG do Recharts aceita CSS var() como
+  // stroke/fill, então isto segue a mesma paleta de BrandContext.tsx sem duplicar o hex aqui.
+  const strokeColor = isAtlas ? 'var(--brand)' : 'var(--brand-2)';
+  const fillColor = strokeColor;
   const chartData = data.map((point) => ({ ...point, name: formatMonthLabel(point.month) }));
 
   return (
     <div className="w-full h-72 bg-white/[0.02] border border-line rounded-2xl p-6 relative group overflow-hidden shadow-2xl">
       {/* Background Glow Effect */}
-      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[80px] opacity-20 transition-all duration-1000 ${isAtlas ? 'bg-atlas-orange' : 'bg-totaltrack-blue'} group-hover:opacity-40`} />
+      <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[80px] opacity-20 transition-all duration-1000 ${isAtlas ? 'bg-brand' : 'bg-brand-2'} group-hover:opacity-40`} />
 
       <div className="relative z-10 w-full h-full">
         <div className="mb-4">

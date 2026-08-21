@@ -251,11 +251,9 @@ const CAPABILITIES: AICapability[] = [
         description: 'Responde a dúvidas sobre homologações de hardware, travas, sensores 1-wire e regras de PGR.',
         modelDefault: 'deepseek-r1:8b',
         samplePayload: {
+            // AI-010: a busca na base de conhecimento do tenant roda no servidor
+            // (searchService.hybridSearch) — o cliente só envia a pergunta.
             question: 'Qual módulo e sensor de temperatura é indicado para carreta frigorífica de 2 compartimentos?',
-            retrievedDocumentSnippets: [
-                'Manual Técnico Atlas 2026: O módulo M400 suporta até 4 sondas de temperatura 1-Wire DS18B20 em barramento único com calibração digital de -55°C a +125°C.',
-                'Regra PGR Alimentos: Exige telemetria contínua com envio de pacote a cada 60 segundos e alarme sonoro em caso de desvio térmico superior a 2°C.',
-            ],
         },
     },
     {

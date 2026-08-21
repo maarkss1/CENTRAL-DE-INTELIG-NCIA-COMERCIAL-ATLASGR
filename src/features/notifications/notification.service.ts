@@ -1,7 +1,8 @@
 import { prisma } from '../../lib/prisma.js';
 import { logger } from '../../lib/logger.js';
+import type { NotificationKind } from '../../shared/contracts/notification.contract.js';
 
-export type NotificationKind = 'Info' | 'Sucesso' | 'Alerta' | 'Erro';
+export type { NotificationKind };
 
 export interface CreateNotificationInput {
     organizationId: string;

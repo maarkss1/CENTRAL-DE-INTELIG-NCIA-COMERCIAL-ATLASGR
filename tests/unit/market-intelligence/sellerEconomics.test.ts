@@ -30,6 +30,7 @@ describe('seller economics', () => {
     it('calcula break-even, oportunidades e reunioes sem inventar conversoes', () => {
         const result = calculateSellerEconomicScenario(model, 'BASE');
         expect(result.monthlyFixedCost).toBe(16000);
+        expect(result.upfrontInvestment).toBe(0);
         expect(result.contributionPerContract).toBe(1500);
         expect(result.breakEvenContracts).toBe(11);
         expect(result.qualifiedOpportunitiesForBreakEven).toBe(44);
@@ -67,5 +68,17 @@ describe('seller economics', () => {
         expect(result.breakEvenContracts).toBeNull();
         expect(result.qualifiedOpportunitiesForBreakEven).toBeNull();
         expect(result.pipelineMrrForBreakEven).toBeNull();
+    });
+
+    it('inclui investimento inicial no payback, acumulado e ROI', () => {
+        const withoutUpfront = calculateSellerEconomicScenario(model, 'BASE');
+        const withUpfront = calculateSellerEconomicScenario({ ...model, upfrontInvestment: 50000 }, 'BASE');
+        expect(withUpfront.upfrontInvestment).toBe(50000);
+        expect(withUpfront.forecast[0].cumulativeNetContribution)
+            .toBe(withoutUpfront.forecast[0].cumulativeNetContribution - 50000);
+        expect(withUpfront.roi12Pct ?? 0).toBeLessThan(withoutUpfront.roi12Pct ?? 0);
+        if (withoutUpfront.paybackMonth !== null && withUpfront.paybackMonth !== null) {
+            expect(withUpfront.paybackMonth).toBeGreaterThanOrEqual(withoutUpfront.paybackMonth);
+        }
     });
 });

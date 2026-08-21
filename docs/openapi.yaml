@@ -2001,6 +2001,94 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /cadence/runs/{id}/pause:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Pausa manualmente uma execução de cadência ativa (CYC-009). Idempotente: pausar um run que
+        não está `active` devolve o run inalterado, nunca lança erro.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
+  /cadence/runs/{id}/resume:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Retoma manualmente uma execução de cadência pausada (CYC-009). Idempotente: retomar um run
+        que não está `paused` devolve o run inalterado, nunca lança erro. Nunca reabre um run já
+        `stopped` (opt-out/resposta/parada manual são definitivos por design).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
+  /cadence/runs/{id}/stop:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Para manualmente uma execução de cadência (CYC-009) — diferente de pausar, é definitivo
+        (`stopReason: manual-stop`), nunca retomável.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Execução não encontrada nesta organização
+
+  /cadence/leads/{leadId}/schedule-meeting:
+    post:
+      tags: [Cadence]
+      summary: >-
+        Confirma manualmente um horário de reunião com o lead (CYC-004) — só aceita confirmação
+        verificável (`evidenceType: manual-verified`, nunca inferência de IA sobre o texto de uma
+        mensagem). Cria uma Note de evidência real e um `CadenceCalendarEvent`. A criação do evento
+        real no Google Calendar é um stub de transporte nesta rodada (nenhum provedor externo
+        chamado ainda) — o `googleEventId` devolvido é sintético.
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [proposedStart, proposedEnd]
+              properties:
+                proposedStart: { type: string, format: date-time }
+                proposedEnd: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Reunião confirmada e agendada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Lead não encontrado nesta organização
+        '422':
+          description: Confirmação não verificável (horário no passado, ou fim antes do início)
+
   # ───────────────────────────── WhatsApp ─────────────────────────────
   /whatsapp/messages:
     get:
@@ -2451,6 +2539,35 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DataEnvelope' }
+
+  /crm/documents/{id}/request-signature:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [CRM 360]
+      summary: >-
+        Solicita assinatura eletrônica real de um documento (CYC-006, onda 28) — provedor
+        `'govbr'`, stub de transporte (ver `GovBrSignatureProviderPort.ts`). `signerEmail`/
+        `signerName` são opcionais: caem no e-mail/nome do Contact vinculado ao documento quando
+        ausentes.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signerEmail: { type: string, format: email }
+                signerName: { type: string }
+      responses:
+        '201':
+          description: Solicitação criada e enviada ao provedor (stub)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '404':
+          description: Documento não encontrado nesta organização
+        '422':
+          description: Documento sem e-mail de assinante (nem contato vinculado, nem signerEmail no body)
 
   /public/proposals/{token}/view:
     parameters:
@@ -3130,6 +3247,80 @@ paths:
         '503':
           description: ATLASGR_WEBHOOK_SECRET não configurado (fail-closed)
 
+  /webhooks/email/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de e-mail de ENTRADA (CYC-003, onda 26) — stub de transporte: aceita diretamente o
+        payload que um provedor real de inbound-parse (SendGrid/Postmark/Mailgun) entregaria depois
+        de resolver `organizationId`, já que este projeto não tem hoje uma caixa de e-mail dedicada
+        por tenant (ver `src/features/integrations/email/emailReply.webhook.ts`). Corpo cru
+        (`express.raw`, não depende do `express.json()` global), assinatura HMAC em
+        `x-email-inbound-signature` comparada em tempo constante contra
+        `EMAIL_INBOUND_WEBHOOK_SECRET`, idempotente por `providerMessageId`. Auto-respostas/bounce
+        (`isGenuineLeadReply`) nunca viram `EmailMessage`/`ConversationSignal`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organizationId, providerMessageId, fromEmail]
+              properties:
+                organizationId: { type: string }
+                leadId: { type: string, description: 'Dica direta de lead — resolvido por e-mail do contato quando ausente.' }
+                providerMessageId: { type: string }
+                inReplyTo: { type: string, nullable: true }
+                fromEmail: { type: string }
+                toEmail: { type: string }
+                subject: { type: string, nullable: true }
+                body: { type: string }
+                autoSubmittedHeader: { type: string, nullable: true }
+                receivedAt: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Processado (outcome ignored-auto-reply | duplicate | lead-not-found | recorded)
+        '400':
+          description: Corpo inválido ou campos obrigatórios ausentes
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: EMAIL_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
+
+  /webhooks/signature/webhook:
+    post:
+      tags: [Webhooks]
+      summary: >-
+        Webhook de status de assinatura eletrônica de ENTRADA (CYC-006, onda 28). O ENVIO da
+        solicitação é um stub (nenhuma credencial de integrador gov.br configurada, ver
+        `src/features/cadence/infra/GovBrSignatureProviderPort.ts`), mas este webhook de entrada já
+        é real. Corpo cru (`express.raw`), assinatura HMAC em `x-signature-webhook-signature`
+        comparada em tempo constante contra `SIGNATURE_INBOUND_WEBHOOK_SECRET`. Idempotente/seguro
+        contra reentrega e entrega fora de ordem: `isValidSignatureTransition` rejeita qualquer
+        transição que não seja permitida pelo fluxo real de assinatura, nunca reverte um estado
+        terminal (`signed`/`declined`/`expired`/`cancelled`) já aplicado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, providerRequestId, status]
+              properties:
+                provider: { type: string, example: govbr }
+                providerRequestId: { type: string }
+                status: { type: string, enum: [created, sent, viewed, signed, declined, expired, cancelled] }
+                evidenceRef: { type: string, nullable: true, description: 'URL/id do certificado de assinatura devolvido pelo provedor.' }
+      responses:
+        '200':
+          description: Processado (outcome applied | ignored, com reason not-found | invalid-transition quando ignored)
+        '400':
+          description: Corpo inválido, ou status ausente/fora do vocabulário aceito
+        '401':
+          description: Assinatura HMAC inválida
+        '503':
+          description: SIGNATURE_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
+
   /integrations/bitrix:
     post:
       tags: [Webhooks]
@@ -3208,9 +3399,35 @@ paths:
     get:
       tags: [Intelligence]
       summary: Status de uma execução em background do agente SDR de qualificação
+      description: >-
+        Não segue o DataEnvelope genérico (formato próprio). AI-003 (onda 31): 3 estados possíveis —
+        `pending` (nenhum registro ainda, execução em andamento ou não iniciada), `completed`
+        (concluída com sucesso, `messages` presente) e `failed` (bloqueio de guardrail LGPD ou erro
+        na execução do agente, `error` presente). Antes, `failed` não existia — qualquer falha
+        anterior à persistência do resultado deixava a sessão presa em `pending` para sempre.
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '200':
+          description: Execução concluída (com sucesso ou com falha) — ver `status` no corpo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, sessionId]
+                properties:
+                  status: { type: string, enum: [completed, failed] }
+                  sessionId: { type: string }
+                  messages: { description: 'Presente quando status=completed.' }
+                  error: { type: string, nullable: true, description: 'Presente quando status=failed.' }
+        '202':
+          description: Ainda não há registro para esta sessão (pendente ou nunca iniciada).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, sessionId]
+                properties:
+                  status: { type: string, enum: [pending] }
+                  sessionId: { type: string }
 
   /intelligence/report/latest:
     get:
@@ -3395,6 +3612,13 @@ components:
         - Nova Oportunidade
         - Proposta Enviada
         - Call/Visita Agendada
+        - Piloto VTECH
+        - Piloto Atlas Profile
+        - Piloto Atlas Profile - Concluído
+        - Piloto Atlas Profile - Cancelado
+        - Piloto Logística
+        - Piloto Logístico - Concluído
+        - Piloto Logístico - Cancelado
         - Negócios Perdidos
         - Negócios Ganhos
     ActivityType:
@@ -3562,6 +3786,15 @@ components:
         owner: { type: string, nullable: true }
         companyId: { type: string, nullable: true }
         contactId: { type: string, nullable: true }
+        funnel: { type: string, enum: [Lead, Negocio] }
+        title: { type: string, maxLength: 180, nullable: true }
+        amount: { type: number, minimum: 0, nullable: true }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        probability: { type: integer, minimum: 0, maximum: 100, nullable: true }
+        expectedCloseAt: { type: string, nullable: true }
+        pipelineId: { type: string, nullable: true }
+        pipelineStageId: { type: string, nullable: true }
+        customFields: { type: object, nullable: true, additionalProperties: true }
         pic:
           type: string
           nullable: true

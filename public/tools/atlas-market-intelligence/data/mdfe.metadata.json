@@ -3,7 +3,7 @@
   "sourceKind": "CIOT (proxy documentado para fluxo origem-destino; NAO e MDF-e literal -- ver FONTES.md)",
   "sourceUrl": "https://dados.antt.gov.br/dataset/ciot",
   "competence": "2026-07",
-  "processedAt": "2026-08-19T19:38:32.965480+00:00",
+  "processedAt": "2026-08-19T19:39:52.626851+00:00",
   "inputFile": "07_2026_ciots.csv",
   "inputBytes": 35767697,
   "inputSha256": "3235f08369611c9233ef438376b7354047d1030204621d971aae8fee31e0fdb4",

@@ -17,7 +17,10 @@ vi.mock('../../../../../src/lib/ai/gateway.js', () => ({
     logAiUsage: vi.fn(),
 }));
 vi.mock('../../../../../src/features/intelligence/services/guardrails.service.js', () => ({
-    redactSensitiveData: vi.fn((text: string) => ({ text, redacted: false })),
+    redactAndTrackPiiLeak: vi.fn(async (text: string) => text),
+}));
+vi.mock('../../../../../src/features/intelligence/services/evaluationMetrics.service.js', () => ({
+    getEvaluationMetricsSnapshot: vi.fn(),
 }));
 vi.mock('../../../../../src/features/intelligence/services/voicebox.service.js', () => ({
     synthesizeSpeech: vi.fn(),

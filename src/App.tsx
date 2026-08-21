@@ -51,7 +51,7 @@ const SelectionScreen = lazy(() => import('./features/auth/components/SelectionS
 const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
 const Account360 = lazy(() => import('./features/market-intelligence/components/Account360').then(m => ({ default: m.Account360 })));
 const LeadApprovalDeck = lazy(() => import('./features/market-intelligence/components/LeadApprovalDeck').then(m => ({ default: m.LeadApprovalDeck })));
-import { Propostas } from './pages/Propostas';
+const Propostas = lazy(() => import('./pages/Propostas').then(m => ({ default: m.Propostas })));
 
 function PageFallback() {
   return (

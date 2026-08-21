@@ -74,6 +74,27 @@ export async function embedLocal(text: string, kind: EmbeddingKind = 'passage'):
         return [...cached];
     }
 
+    // Suporte ao TEI (Text Embeddings Inference - open-source engine de altíssima performance)
+    if (process.env.TEI_BASE_URL) {
+        try {
+            const teiUrl = process.env.TEI_BASE_URL.replace(/\/+$/, '');
+            const res = await fetch(`${teiUrl}/embed`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ inputs: `${kind}: ${normalizado}` }),
+            });
+            if (res.ok) {
+                const data = (await res.json()) as number[][];
+                if (data && data[0] && data[0].length === EMBEDDING_DIMENSIONS) {
+                    embeddingCache.set(cacheKey, data[0]);
+                    return data[0];
+                }
+            }
+        } catch {
+            // Fallback transparente para o pipeline transformers local
+        }
+    }
+
     const extrator = await obterExtrator();
     const saida = await extrator(`${kind}: ${normalizado}`, { pooling: 'mean', normalize: true });
     const vetor = Array.from(saida.data as ArrayLike<number>);

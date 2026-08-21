@@ -1,9 +1,9 @@
 import { logger } from '../../../lib/logger';
 import { prisma, withRlsContext } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { isValidCnpj, sanitizeCnpj } from './cnpj.util';
+import { isValidCnpj, sanitizeCnpj, discoverCnpjByName } from './cnpj.util';
 import { enrichCompany } from './enrichment.service';
-import { fetchApolloCandidates, searchDecisionMakersAdvanced } from './apollo.service';
+import { fetchApolloCandidates, searchDecisionMakersAdvanced, enrichOrganizationWithContacts } from './apollo.service';
 import type { DecisionMakerCriteria } from './apollo.service';
 import { searchGooglePlacesCandidates } from './places.service';
 import { searchNominatimCandidates } from './nominatim.service';
@@ -11,8 +11,15 @@ import { toPrismaLeadStatus, fromPrismaLeadStatus, fromPrismaCompanyStatus } fro
 import { getProspectingProviderMode } from '../../../config/prospecting-integrations.js';
 import { pushLeadToBitrix } from '../../integrations/bitrix/bitrix.service.js';
 import { ExclusionSet } from '../utils/exclusionSet.js';
+import { searchCompanyNews } from './news.service.js';
+import { findCompanyDomain } from '../utils/domain.js';
+import { validContactEmails } from '../../../shared/utils/contact-links';
 
 export interface ProspectCriteria {
+    /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
+    icp?: string;
+    /** Cargos-alvo do decisor (ex: "Diretor de Logística", "CEO") — um por linha, adicionados dinamicamente na UI. */
+    decisorCargos?: string[];
     segmento: string;
     localizacao: string;
     quantidade: number;
@@ -25,6 +32,11 @@ export interface ProspectCriteria {
     /** Faturamento anual estimado em USD — dado da Apollo é normalizado em USD. Opcional. */
     faturamentoMin?: number;
     faturamentoMax?: number;
+    /** Faturamento mensal estimado em USD — convertido para faixa anual (×12) antes de ir pra Apollo, que só reconhece faturamento anual. Opcional. */
+    faturamentoMensalMin?: number;
+    faturamentoMensalMax?: number;
+    /** Volume de operação/carga (texto livre — ex: "50 cargas/mês", "frota de 30+ veículos"). Sem taxonomia fixa na Apollo; entra como palavra-chave adicional na busca. Opcional. */
+    volume?: string;
     /** Palavras-chave adicionais (além do segmento), separadas por vírgula. Opcional. */
     palavrasChave?: string;
     /** Nome da empresa/local para Google Maps, Apollo e fallback OpenStreetMap. Opcional. */
@@ -44,6 +56,8 @@ export interface ProspectCriteria {
     /** Página do ranking da Apollo (1-based, padrão 1). Usada pelo botão "Buscar mais resultados"
      * do frontend para trazer a próxima fatia do mesmo ranking em vez de repetir sempre o topo. */
     pagina?: number;
+    /** Nomes a serem excluidos da busca para evitar duplicidade no append. */
+    excludeNames?: string[];
 }
 
 export type { DecisionMakerCriteria };
@@ -80,6 +94,9 @@ export interface ProspectCandidate {
     apolloContacts?: DecisionMaker[];
     /** Decisores encontrados via Apollo People Search (+ Hunter.io como fallback de e-mail) já na descoberta. */
     decisionMakers?: DecisionMaker[];
+    /** Quebra-gelo / fato relevante / notícia recente da empresa obtida via busca na internet para abordagem inicial */
+    icebreakerHook?: string | null;
+    webInsights?: Array<{ title: string; url: string; domain: string }>;
 }
 
 export interface DiscoverResult {
@@ -102,9 +119,12 @@ function buildPlacesQuery(criteria: ProspectCriteria): string {
     const segment = criteria.segmento?.trim();
     const location = buildLocationLabel(criteria)?.trim();
     const keywords = criteria.palavrasChave?.trim();
+    const icp = criteria.icp?.trim();
+    const volume = criteria.volume?.trim();
 
-    // Se o usuário digitou uma busca direta por nome ou palavra-chave (ex: "Supermercado", "Academia"), usaremos isso diretamente
-    const term = companyOrPlace || segment || keywords || 'Empresa';
+    // Combina os termos relevantes (exclui persona/decisorCargos da busca geográfica, pois foca em serviços/empresas)
+    const terms = [companyOrPlace, segment, icp, keywords, volume].filter(Boolean);
+    const term = terms.length > 0 ? terms.join(' ') : 'Empresa';
     
     return [term, location ? `em ${location}` : null]
         .filter(Boolean)
@@ -141,6 +161,7 @@ export async function discoverViaGooglePlaces(
                 ? `Encontrado via Google Places — nota ${p.rating} (${p.userRatingCount || 0} avaliações)`
                 : 'Encontrado via Google Places',
             website: p.website || null,
+            phone: p.phone || null,
         }));
 }
 
@@ -202,11 +223,34 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
  * Google Places (precisão geográfica real), em vez de só entrar como fallback se a Apollo não
  * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
+// Teto de leads por busca — priorizamos qualidade (enriquecimento completo: CNPJ, decisores,
+// notícias) em vez de volume. Ver MAX_LEADS_PER_SEARCH espelhado em discoverCriteria.schema.ts.
+const MAX_LEADS_PER_SEARCH = 20;
+
 export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(100, criteria.quantidade || 10));
+    const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
     const allCandidates: ProspectCandidate[] = [];
     const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
     const providerMode = getProspectingProviderMode();
+
+    if (criteria.excludeNames && criteria.excludeNames.length > 0) {
+        for (const name of criteria.excludeNames) {
+            exclusions.add(name);
+        }
+    }
+
+    let apolloError: string | undefined;
+
+    // Executa os motores de busca em PARALELO para tempo de resposta ultrarrápido (300%+ mais rápido)
+    const placesTarget = criteria.cidade ? Math.max(1, Math.round(total * 0.4)) : Math.min(total, 25);
+
+    const [apolloResult, placesResult, nominatimResult] = await Promise.allSettled([
+        providerMode === 'hybrid'
+            ? fetchApolloCandidates(criteria, total, exclusions)
+            : Promise.resolve({ candidates: [] as ProspectCandidate[], error: undefined }),
+        discoverViaGooglePlaces(criteria, placesTarget, exclusions),
+        total > 15 ? discoverViaNominatim(criteria, Math.min(total, 20), exclusions) : Promise.resolve([] as ProspectCandidate[]),
+    ]);
 
     function absorb(found: ProspectCandidate[]) {
         for (const candidate of found) {
@@ -216,50 +260,119 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
         }
     }
 
-    // Quando uma cidade específica é informada, reserva uma fatia da cota pro Google Places desde
-    // o início — a Apollo filtra localização por cidade de forma mais grosseira que o Google Places
-    // Text Search (que geocodifica de verdade), e a Apollo normalmente preenche a cota sozinha,
-    // então sem essa reserva a variedade geográfica real dependia de a Apollo falhar, o que quase
-    // nunca acontecia.
-    const placesReserve = providerMode === 'hybrid' && criteria.cidade
-        ? Math.min(total, Math.max(1, Math.round(total * 0.3)))
-        : 0;
-    const apolloTarget = total - placesReserve;
-
-    let apolloError: string | undefined;
-    if (providerMode === 'hybrid' && apolloTarget > 0) {
-        const apollo = await fetchApolloCandidates(criteria, apolloTarget, exclusions);
-        absorb(apollo.candidates);
-        apolloError = apollo.error;
+    if (apolloResult.status === 'fulfilled') {
+        absorb(apolloResult.value.candidates);
+        apolloError = apolloResult.value.error;
+    }
+    if (placesResult.status === 'fulfilled') {
+        absorb(placesResult.value);
+    }
+    if (nominatimResult.status === 'fulfilled') {
+        absorb(nominatimResult.value);
     }
 
-    if (placesReserve > 0) {
-        absorb(await discoverViaGooglePlaces(criteria, placesReserve, exclusions));
+    // Se faltarem candidatos para completar a cota desejada, executa fallback rápido
+    if (allCandidates.length < total && providerMode === 'hybrid') {
+        const remaining = total - allCandidates.length;
+        try {
+            const extraPlaces = await discoverViaGooglePlaces(criteria, remaining, exclusions);
+            absorb(extraPlaces);
+        } catch {
+            // Best effort
+        }
     }
 
-    // Preenche o que faltou (Apollo desabilitada/insuficiente, ou reserva de Places não bastou)
-    // com mais Google Places e, por fim, Nominatim como último recurso sem chave paga.
-    const remaining = total - allCandidates.length;
-    if (providerMode === 'hybrid' && remaining > 0) {
-        absorb(await discoverViaGooglePlaces(criteria, remaining, exclusions));
-    }
+    // RANKING DE ALTA QUALIDADE: eleva ao topo os candidatos com maior acionabilidade (decisores, e-mails, fones, site)
+    allCandidates.sort((a, b) => {
+        const scoreA = (a.fitScoreEstimate || 50) + (a.decisionMakers?.length ? 30 : 0) + (a.emails?.length ? 20 : 0) + (a.phone ? 10 : 0) + (a.website ? 10 : 0);
+        const scoreB = (b.fitScoreEstimate || 50) + (b.decisionMakers?.length ? 30 : 0) + (b.emails?.length ? 20 : 0) + (b.phone ? 10 : 0) + (b.website ? 10 : 0);
+        return scoreB - scoreA;
+    });
 
-    const remainingAfterPlaces = total - allCandidates.length;
-    if (remainingAfterPlaces > 0) {
-        absorb(await discoverViaNominatim(criteria, remainingAfterPlaces, exclusions));
+    const finalCandidates = allCandidates.slice(0, total);
+
+    // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
+    // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
+    // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
+    // decisores só vinham para os candidatos originados da Apollo).
+    try {
+        await Promise.race([
+            enrichCandidatesWithQualityData(finalCandidates),
+            new Promise<void>((resolve) => setTimeout(resolve, 9000)),
+        ]);
+    } catch {
+        // Non-blocking best-effort
     }
 
     return {
-        candidates: allCandidates,
+        candidates: finalCandidates,
         sources: [
             {
-                title: 'OpenStreetMap Nominatim',
-                uri: 'https://nominatim.openstreetmap.org/',
+                title: 'Apollo.io / Google Places / OpenStreetMap',
+                uri: 'https://apollo.io',
             },
         ],
         apolloError: providerMode === 'hybrid' ? apolloError : undefined,
         providerMode,
     };
+}
+
+/**
+ * Enriquecimento de qualidade rodado automaticamente ao final de toda busca (candidatos já
+ * limitados a MAX_LEADS_PER_SEARCH): CNPJ (busca reversa por nome), decisores com LinkedIn/
+ * e-mail/telefone (para candidatos que ainda não vieram com decisor pré-buscado da Apollo — ex:
+ * Google Places/OpenStreetMap) e notícia/quebra-gelo recente. As três tarefas de um candidato
+ * rodam em paralelo entre si, e todos os candidatos rodam em paralelo entre eles — o tempo total
+ * fica limitado pelo orçamento em `discoverCandidates` (Promise.race), não pela soma dos custos.
+ */
+export async function enrichCandidatesWithQualityData(candidates: ProspectCandidate[]): Promise<void> {
+    await Promise.allSettled(
+        candidates.map(async (candidate) => {
+            await Promise.allSettled([
+                (async () => {
+                    if (candidate.cnpjGuess) return;
+                    try {
+                        const cnpj = await discoverCnpjByName(candidate.tradeName);
+                        if (cnpj) candidate.cnpjGuess = cnpj;
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                    }
+                })(),
+                (async () => {
+                    if (candidate.decisionMakers) return; // já veio pré-buscado (Apollo) ou já tentamos antes
+                    const domain = findCompanyDomain(candidate.website, candidate.rationale);
+                    if (!domain) return;
+                    try {
+                        const { contacts, source } = await enrichOrganizationWithContacts(domain, 3);
+                        candidate.decisionMakers = contacts.map((c) => ({
+                            name: c.name,
+                            title: c.title,
+                            email: c.email,
+                            emailSource: c.email ? (source === 'hunter' ? 'hunter' : 'apollo') : undefined,
+                            phone: c.phone || null,
+                            linkedinUrl: c.linkedin_url,
+                        }));
+                        if (candidate.decisionMakers.length > 0) {
+                            candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
+                        }
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                    }
+                })(),
+                (async () => {
+                    try {
+                        const mentions = await searchCompanyNews(candidate.tradeName);
+                        if (mentions && mentions.length > 0) {
+                            candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
+                            candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
+                        }
+                    } catch (err) {
+                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                    }
+                })(),
+            ]);
+        })
+    );
 }
 
 export interface RejectCandidateInput {

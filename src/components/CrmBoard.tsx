@@ -89,7 +89,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                     fetchLeads();
                 }
             } catch (err) {
-                console.error('Erro ao processar evento SSE', err);
+                clientLogger.error({ err }, 'Erro ao processar evento SSE');
             }
         };
         return () => {

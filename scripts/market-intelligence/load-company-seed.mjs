@@ -46,7 +46,8 @@ async function validateFiles(seedDir, manifest) {
   let expected = 0;
   for (const part of manifest.parts) {
     const path = resolve(seedDir, String(part.path || ''));
-    if (!path.startsWith(resolve(seedDir) + '/')) throw new Error(`Parte fora do seed: ${part.path}`);
+    const sep = process.platform === 'win32' ? '\\' : '/';
+    if (!path.startsWith(resolve(seedDir) + sep)) throw new Error(`Parte fora do seed: ${part.path}`);
     if (!existsSync(path)) throw new Error(`Parte ausente: ${part.path}`);
     const actualHash = await sha256File(path);
     if (actualHash !== part.sha256) throw new Error(`SHA-256 divergente: ${part.path}`);

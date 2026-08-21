@@ -1,0 +1,537 @@
+{
+  "version": "2026-08-20.2",
+  "generatedAt": "2026-08-20T00:00:00.000Z",
+  "cases": [
+    {
+      "id": "lead_qualification-001",
+      "category": "lead_qualification",
+      "description": "Lead com fit forte (frota grande, dor confirmada, sem solução avançada) deve qualificar.",
+      "tags": [
+        "fit-alto"
+      ],
+      "input": {
+        "leadId": "golden-lead-001",
+        "companyInfo": "Transportadora de cargas secas, frota de 40 caminhões, atua em SP/MG, faturamento anual estimado R$18M, já usa rastreador básico sem telemetria avançada nem gestão de risco de sinistro."
+      },
+      "expected": {
+        "status": "QUALIFIED",
+        "minScore": 70,
+        "maxScore": 100
+      }
+    },
+    {
+      "id": "lead_qualification-002",
+      "category": "lead_qualification",
+      "description": "Microempresa com frota mínima e sem sinal de dor real deve desqualificar.",
+      "tags": [
+        "fit-baixo"
+      ],
+      "input": {
+        "leadId": "golden-lead-002",
+        "companyInfo": "Transportadora local com 2 veículos leves, atende só o próprio município, nunca reportou sinistro nem mencionou interesse em tecnologia."
+      },
+      "expected": {
+        "status": "UNQUALIFIED",
+        "minScore": 0,
+        "maxScore": 40
+      }
+    },
+    {
+      "id": "lead_qualification-003",
+      "category": "lead_qualification",
+      "description": "Frota média com dor real (roubo de carga recorrente) mas orçamento apertado — ainda qualifica pela dor.",
+      "tags": [
+        "fit-medio",
+        "dor-confirmada"
+      ],
+      "input": {
+        "leadId": "golden-lead-003",
+        "companyInfo": "Distribuidora de eletrônicos, frota de 12 veículos, sofreu 3 roubos de carga nos últimos 12 meses, mencionou restrição orçamentária para este trimestre."
+      },
+      "expected": {
+        "status": "QUALIFIED",
+        "minScore": 70,
+        "maxScore": 90
+      }
+    },
+    {
+      "id": "cold_email-001",
+      "category": "cold_email",
+      "description": "Primeiro contato para transportadora com histórico recente de roubo de carga.",
+      "tags": [
+        "primeiro-contato",
+        "risco-carga"
+      ],
+      "input": {
+        "context": "Transportadora Vale Verde, frota de 25 caminhões, sofreu 2 roubos de carga nos últimos 6 meses.",
+        "goal": "Agendar uma call de 15 minutos sobre gestão de risco de carga."
+      },
+      "expected": {
+        "mustMentionKeywords": [
+          "risco",
+          "carga"
+        ],
+        "referenceAnswer": "Assunto: 2 ocorrências em 6 meses — dá para evitar a terceira?\n\nOlá, vi que a Vale Verde opera uma frota de 25 caminhões e passou por 2 casos de roubo de carga recentemente. Ajudamos transportadoras do mesmo porte a reduzir sinistros com gestão de risco de carga ponta a ponta. Faz sentido uma call de 15 minutos essa semana para eu mostrar como isso funcionaria na operação de vocês?"
+      }
+    },
+    {
+      "id": "cold_email-002",
+      "category": "cold_email",
+      "description": "Despertar interesse em monitoramento de temperatura para carga refrigerada.",
+      "tags": [
+        "primeiro-contato",
+        "temperatura"
+      ],
+      "input": {
+        "context": "Distribuidora regional de alimentos refrigerados, 15 veículos, sem telemetria de temperatura em tempo real.",
+        "goal": "Despertar interesse em monitoramento de temperatura em tempo real."
+      },
+      "expected": {
+        "mustMentionKeywords": [
+          "temperatura",
+          "monitoramento"
+        ],
+        "referenceAnswer": "Assunto: Sabe a temperatura da sua carga agora, neste minuto?\n\nOlá, para uma operação de 15 veículos com carga refrigerada, um desvio de temperatura não detectado a tempo pode significar perda total do lote. Temos um monitoramento de temperatura em tempo real com alerta automático de desvio. Vale 15 minutos para eu mostrar como isso reduziria perdas na sua distribuição?"
+      }
+    },
+    {
+      "id": "cold_email-003",
+      "category": "cold_email",
+      "description": "Oferecer diagnóstico gratuito para frota com paradas não planejadas.",
+      "tags": [
+        "diagnostico-gratuito"
+      ],
+      "input": {
+        "context": "Frota de bitrens graneleiros, rota BR-163, alto índice de paradas não planejadas.",
+        "goal": "Oferecer diagnóstico gratuito de eficiência operacional."
+      },
+      "expected": {
+        "mustMentionKeywords": [
+          "diagnóstico",
+          "eficiência"
+        ],
+        "referenceAnswer": "Assunto: Diagnóstico gratuito da sua rota na BR-163\n\nOlá, transportadoras de bitrens graneleiros na BR-163 costumam perder produtividade real com paradas não planejadas. Oferecemos um diagnóstico gratuito de eficiência operacional da sua frota — sem compromisso. Posso te mostrar o que encontramos numa call rápida esta semana?"
+      }
+    },
+    {
+      "id": "objection_handling-001",
+      "category": "objection_handling",
+      "description": "Objeção clássica de 'já temos um fornecedor'.",
+      "tags": [
+        "ja-tem-fornecedor"
+      ],
+      "input": {
+        "objection": "Já temos um sistema de rastreamento, não vejo motivo para trocar."
+      },
+      "expected": {
+        "mustAddressStrategies": [
+          "Reframe",
+          "Pivot",
+          "Case Study"
+        ],
+        "referenceAnswer": "Reframe: a pergunta não é trocar de rastreador, é se o atual já cobre gestão de risco de carga, não só localização. Pivot: podemos rodar em paralelo por 30 dias sem trocar nada, só para comparar cobertura de risco. Case Study: a Translog mantinha o rastreador atual e reduziu sinistro em 40% só adicionando a camada de gestão de risco por cima."
+      }
+    },
+    {
+      "id": "objection_handling-002",
+      "category": "objection_handling",
+      "description": "Objeção de orçamento fechado no trimestre.",
+      "tags": [
+        "orcamento"
+      ],
+      "input": {
+        "objection": "O orçamento deste trimestre já está fechado, não temos verba agora."
+      },
+      "expected": {
+        "mustAddressStrategies": [
+          "Reframe",
+          "Pivot",
+          "Case Study"
+        ],
+        "referenceAnswer": "Reframe: o custo do sinistro que ainda pode acontecer este trimestre normalmente supera o investimento. Pivot: podemos estruturar o início para o próximo ciclo orçamentário e já deixar o diagnóstico pronto agora. Case Study: a Gama Log aprovou fora de ciclo orçamentário mostrando o ROI projetado em 90 dias ao CFO."
+      }
+    },
+    {
+      "id": "objection_handling-003",
+      "category": "objection_handling",
+      "description": "Objeção de precisar validar com a diretoria.",
+      "tags": [
+        "decisor-ausente"
+      ],
+      "input": {
+        "objection": "Preciso validar com a diretoria antes de qualquer decisão."
+      },
+      "expected": {
+        "mustAddressStrategies": [
+          "Reframe",
+          "Pivot",
+          "Case Study"
+        ],
+        "referenceAnswer": "Reframe: faz total sentido — posso preparar um resumo executivo de uma página para facilitar essa validação. Pivot: que tal eu participar de 10 minutos da conversa com a diretoria para responder perguntas técnicas direto? Case Study: na Frota Sul, o gestor operacional levou exatamente esse resumo e a aprovação saiu em uma semana."
+      }
+    },
+    {
+      "id": "roleplay-001",
+      "category": "roleplay",
+      "description": "Primeiro turno com CFO cético focado em custo (dificuldade Difícil).",
+      "tags": [
+        "cfo",
+        "objecao-custo"
+      ],
+      "input": {
+        "brand": {
+          "name": "AtlasGR",
+          "description": "AtlasGR (inteligência comercial e gestão de risco logístico)"
+        },
+        "inputs": {
+          "persona": "skeptical_cfo",
+          "message": "Olá Roberto, temos telemetria de gestão de risco com redução de custo de sinistro comprovada. Posso te mostrar em 15 minutos?",
+          "transcript": []
+        }
+      },
+      "expected": {
+        "minClarity": 0,
+        "maxClarity": 100,
+        "minObjectionHandling": 0,
+        "maxObjectionHandling": 100
+      }
+    },
+    {
+      "id": "roleplay-002",
+      "category": "roleplay",
+      "description": "Diretora de logística com objeção de fornecedor já contratado (dificuldade Média).",
+      "tags": [
+        "diretora-logistica"
+      ],
+      "input": {
+        "brand": {
+          "name": "AtlasGR",
+          "description": "AtlasGR (inteligência comercial e gestão de risco logístico)"
+        },
+        "inputs": {
+          "persona": "strict_buyer",
+          "message": "Nosso diferencial é o alerta automático de desvio antes da perda do lote, não só o registro histórico. Posso mostrar um comparativo?",
+          "transcript": [
+            {
+              "sender": "sdr",
+              "text": "Boa tarde Ana, sobre monitoramento de temperatura em tempo real..."
+            },
+            {
+              "sender": "buyer",
+              "text": "Já temos um fornecedor para isso, o que vocês fazem de diferente?"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "minClarity": 0,
+        "maxClarity": 100,
+        "minObjectionHandling": 0,
+        "maxObjectionHandling": 100
+      }
+    },
+    {
+      "id": "roleplay-003",
+      "category": "roleplay",
+      "description": "Gerente de frota extremamente resistente a fornecedor novo (dificuldade Extremo).",
+      "tags": [
+        "gerente-frota",
+        "extremo"
+      ],
+      "input": {
+        "brand": {
+          "name": "AtlasGR",
+          "description": "AtlasGR (inteligência comercial e gestão de risco logístico)"
+        },
+        "inputs": {
+          "persona": "tech_director",
+          "message": "Carlos, sei que uma experiência ruim anterior pesa. Podemos começar com um piloto de 30 dias sem compromisso, sem risco pra você validar antes de decidir.",
+          "transcript": []
+        }
+      },
+      "expected": {
+        "minClarity": 0,
+        "maxClarity": 100,
+        "minObjectionHandling": 0,
+        "maxObjectionHandling": 100
+      }
+    },
+    {
+      "id": "next_best_action-001",
+      "category": "next_best_action",
+      "description": "Cliente pede desconto para fechar hoje — ação deve ser revisão de proposta com prioridade alta.",
+      "tags": [
+        "negociacao",
+        "desconto"
+      ],
+      "input": {
+        "leadOrClientName": "Gama Log",
+        "stage": "Negociação",
+        "rawNote": "Cliente pediu desconto de 5% para fechar 20 placas hoje.",
+        "salesRepName": "Rodrigo Matos"
+      },
+      "expected": {
+        "actionType": "proposal_revision",
+        "priorityOneOf": [
+          "Alta"
+        ]
+      }
+    },
+    {
+      "id": "next_best_action-002",
+      "category": "next_best_action",
+      "description": "Cliente sumiu após proposta enviada — reengajar por canal direto com prioridade alta.",
+      "tags": [
+        "silencio",
+        "reengajamento"
+      ],
+      "input": {
+        "leadOrClientName": "Vale Verde Transportes",
+        "stage": "Proposta_Enviada",
+        "rawNote": "Cliente sumiu há 10 dias, não responde e-mail nem WhatsApp desde o envio da proposta."
+      },
+      "expected": {
+        "actionType": "whatsapp",
+        "priorityOneOf": [
+          "Alta",
+          "Média"
+        ]
+      }
+    },
+    {
+      "id": "next_best_action-003",
+      "category": "next_best_action",
+      "description": "Reunião de demonstração já agendada, falta confirmar presença do decisor técnico.",
+      "tags": [
+        "reuniao-agendada"
+      ],
+      "input": {
+        "leadOrClientName": "Frota Sul Distribuidora",
+        "stage": "Reuniao_Agendada",
+        "rawNote": "Reunião de demonstração marcada para sexta, precisa confirmar presença do decisor técnico."
+      },
+      "expected": {
+        "actionType": "meeting",
+        "priorityOneOf": [
+          "Média",
+          "Alta"
+        ]
+      }
+    },
+    {
+      "id": "summary-001",
+      "category": "summary",
+      "description": "Reunião de demonstração com sinal positivo claro do decisor.",
+      "tags": [
+        "demonstracao",
+        "positivo"
+      ],
+      "input": {
+        "meetingTitle": "Demonstração de Telemetria",
+        "participants": [
+          "Vendedor Atlas",
+          "Diretor de Logística"
+        ],
+        "rawTranscript": "Vendedor: Bom dia, vou mostrar o painel de telemetria em tempo real. Diretor: Gostei bastante, isso resolveria nosso problema de visibilidade da frota. Quando conseguimos começar um piloto? Vendedor: Consigo enviar a proposta do piloto até sexta. Diretor: Perfeito, aguardo.",
+        "dealName": "Piloto Telemetria Q3"
+      },
+      "expected": {
+        "sentimentOneOf": [
+          "Positivo",
+          "Muito Positivo"
+        ],
+        "minActionItems": 1
+      }
+    },
+    {
+      "id": "summary-002",
+      "category": "summary",
+      "description": "Reunião de negociação com objeção de preço, tom cauteloso.",
+      "tags": [
+        "negociacao",
+        "objecao-preco"
+      ],
+      "input": {
+        "meetingTitle": "Negociação de Contrato",
+        "participants": [
+          "Vendedor Atlas",
+          "Gerente de Compras"
+        ],
+        "rawTranscript": "Vendedor: Essa é a proposta final para os 40 caminhões. Gerente: O valor está acima do que orçamos, preciso pensar e conversar com o financeiro. Vendedor: Entendo, posso retornar na próxima semana? Gerente: Pode ser, mas não prometo nada."
+      },
+      "expected": {
+        "sentimentOneOf": [
+          "Neutro / Cauteloso"
+        ],
+        "minActionItems": 1
+      }
+    },
+    {
+      "id": "summary-003",
+      "category": "summary",
+      "description": "Reunião de cancelamento, tom claramente negativo.",
+      "tags": [
+        "cancelamento",
+        "negativo"
+      ],
+      "input": {
+        "meetingTitle": "Reunião de Encerramento",
+        "participants": [
+          "Vendedor Atlas",
+          "Cliente"
+        ],
+        "rawTranscript": "Cliente: Decidimos cancelar o contrato, o serviço não atendeu nossas expectativas. Vendedor: Lamento muito, posso entender o que faltou? Cliente: A implementação atrasou demais e perdemos confiança."
+      },
+      "expected": {
+        "sentimentOneOf": [
+          "Negativo"
+        ],
+        "minActionItems": 0
+      }
+    },
+    {
+      "id": "rag-001",
+      "category": "rag",
+      "description": "Pergunta técnica com um hit claramente relevante e um hit irrelevante — deve citar só o relevante.",
+      "tags": [
+        "citacao-correta"
+      ],
+      "input": {
+        "question": "Qual módulo suporta 4 sondas de temperatura 1-Wire?",
+        "hits": [
+          {
+            "chunkId": "chunk-m400-temp",
+            "documentId": "doc-manual-m400",
+            "documentTitle": "Manual Técnico Atlas M400",
+            "content": "O módulo M400 suporta até 4 sondas de temperatura 1-Wire DS18B20 em barramento único.",
+            "chunkIndex": 0,
+            "matchedBy": [
+              "semantic",
+              "keyword"
+            ],
+            "similarity": 0.93,
+            "score": 0.9
+          },
+          {
+            "chunkId": "chunk-pgr-alarme",
+            "documentId": "doc-regra-pgr",
+            "documentTitle": "Regra PGR Alimentos",
+            "content": "Exige telemetria contínua com envio de pacote a cada 60 segundos.",
+            "chunkIndex": 0,
+            "matchedBy": [
+              "keyword"
+            ],
+            "similarity": 0.4,
+            "score": 0.2
+          }
+        ]
+      },
+      "expected": {
+        "expectedCitedChunkIds": [
+          "chunk-m400-temp"
+        ]
+      }
+    },
+    {
+      "id": "rag-002",
+      "category": "rag",
+      "description": "Pergunta sobre regra de PGR com hit único e específico.",
+      "tags": [
+        "citacao-unica"
+      ],
+      "input": {
+        "question": "Qual a frequência exigida de envio de telemetria pela regra de PGR de alimentos?",
+        "hits": [
+          {
+            "chunkId": "chunk-pgr-freq",
+            "documentId": "doc-regra-pgr",
+            "documentTitle": "Regra PGR Alimentos",
+            "content": "Exige telemetria contínua com envio de pacote a cada 60 segundos e alarme sonoro em desvio térmico superior a 2°C.",
+            "chunkIndex": 1,
+            "matchedBy": [
+              "semantic"
+            ],
+            "similarity": 0.88,
+            "score": 0.85
+          }
+        ]
+      },
+      "expected": {
+        "expectedCitedChunkIds": [
+          "chunk-pgr-freq"
+        ]
+      }
+    },
+    {
+      "id": "rag-003",
+      "category": "rag",
+      "description": "Pergunta sem nenhum documento relevante na base — não deve citar nada.",
+      "tags": [
+        "sem-cobertura"
+      ],
+      "input": {
+        "question": "Qual o protocolo de comunicação via satélite Iridium do módulo M900?",
+        "hits": []
+      },
+      "expected": {
+        "expectedCitedChunkIds": []
+      }
+    },
+    {
+      "id": "tool_use-001",
+      "category": "tool_use",
+      "description": "Pedido explícito de contexto de um lead por ID deve chamar get_lead_context.",
+      "tags": [
+        "leitura"
+      ],
+      "input": {
+        "scenario": "Vendedor pede: me mostre o contexto completo do lead ld-abc123 antes da call."
+      },
+      "expected": {
+        "expectedTool": "get_lead_context",
+        "expectedArgs": {
+          "leadId": "ld-abc123"
+        }
+      }
+    },
+    {
+      "id": "tool_use-002",
+      "category": "tool_use",
+      "description": "SDR concluiu qualificação e quer salvar nota/status — deve chamar update_lead_qualification.",
+      "tags": [
+        "escrita-interna"
+      ],
+      "input": {
+        "scenario": "O SDR qualificou o lead ld-xyz789 com nota 82, resumo \"Fit forte, frota grande, dor de sinistro confirmada\", e quer avançar para reunião agendada."
+      },
+      "expected": {
+        "expectedTool": "update_lead_qualification",
+        "expectedArgs": {
+          "leadId": "ld-xyz789",
+          "score": 82,
+          "summary": "Fit forte, frota grande, dor de sinistro confirmada",
+          "status": "Reuniao_Agendada"
+        }
+      }
+    },
+    {
+      "id": "tool_use-003",
+      "category": "tool_use",
+      "description": "Lead de altíssimo risco precisa alertar a equipe comercial — deve chamar notify_team.",
+      "tags": [
+        "alerta",
+        "escrita-interna"
+      ],
+      "input": {
+        "scenario": "Um lead de score 95 (altíssima prioridade) precisa de atenção imediata da equipe comercial."
+      },
+      "expected": {
+        "expectedTool": "notify_team",
+        "expectedArgs": {
+          "title": "Lead de alta prioridade precisa de atenção imediata",
+          "kind": "Alerta"
+        }
+      }
+    }
+  ]
+}

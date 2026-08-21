@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ShieldAlert, Copy, KeyRound } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ShieldAlert, Copy, KeyRound, AlertTriangle, CheckCircle2, Clock3, Eye, Pencil, PlugZap } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { IconWrench } from '../../../components/icons';
 import { BitrixImportPanel } from './BitrixImportPanel';
@@ -12,6 +12,37 @@ import { useBitrixIntegration } from '../../../hooks/useBitrixIntegration';
 import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
+import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+
+type IntegrationCapabilityStatus = 'connected' | 'read' | 'write' | 'stub' | 'error' | 'pending';
+
+const CAPABILITY_STYLES: Record<IntegrationCapabilityStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+    connected: { label: 'conectado', icon: PlugZap, className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20' },
+    read: { label: 'leitura real', icon: Eye, className: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/20' },
+    write: { label: 'escrita real', icon: Pencil, className: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20' },
+    stub: { label: 'stub/local', icon: AlertTriangle, className: 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20' },
+    error: { label: 'erro visível', icon: AlertTriangle, className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20' },
+    pending: { label: 'pendente de escopo', icon: Clock3, className: 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-white/5 dark:text-gray-300 dark:border-white/10' },
+};
+
+function CapabilityBadge({ status, children }: { status: IntegrationCapabilityStatus; children?: string }) {
+    const config = CAPABILITY_STYLES[status];
+    const Icon = config.icon;
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${config.className}`}>
+            <Icon className="w-3.5 h-3.5" />
+            {children ?? config.label}
+        </span>
+    );
+}
+
+function IntegrationTruthBox({ children }: { children: ReactNode }) {
+    return (
+        <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-black/20 p-3 text-xs text-gray-600 dark:text-gray-300 space-y-2">
+            {children}
+        </div>
+    );
+}
 
 export function Integrations() {
     // O backend já restringe conectar/desconectar/testar integração a ADMIN/GESTOR
@@ -121,7 +152,7 @@ export function Integrations() {
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">WhatsApp</h2>
                                 <p className={`text-sm text-gray-500 dark:text-gray-400 ${status === 'connected' ? 'hidden sm:block' : ''}`}>
                                     {status === 'connected'
-                                        ? 'WhatsApp Web da organização — converse direto pela plataforma.'
+                                        ? 'WhatsApp Web da organização — leitura e envio pela sessão local do servidor.'
                                         : 'Conecte para disparar quebra-gelos e conversar pelo WhatsApp direto na plataforma.'}
                                 </p>
                             </div>
@@ -131,12 +162,29 @@ export function Integrations() {
                         </div>
 
                         <div className="space-y-4">
+                            <IntegrationTruthBox>
+                                <div className="flex flex-wrap gap-2">
+                                    <CapabilityBadge status={status === 'connected' ? 'connected' : status === 'connecting' ? 'pending' : 'error'}>
+                                        {status === 'connected' ? 'conectado' : status === 'connecting' ? 'pendente' : 'desconectado'}
+                                    </CapabilityBadge>
+                                    <CapabilityBadge status={status === 'connected' ? 'read' : 'pending'}>leitura via sessão local</CapabilityBadge>
+                                    <CapabilityBadge status={status === 'connected' ? 'write' : 'pending'}>escrita via sessão local</CapabilityBadge>
+                                    <CapabilityBadge status="stub">não é API oficial Meta</CapabilityBadge>
+                                </div>
+                                <p>Integração Baileys/WhatsApp Web: funciona quando a sessão está viva no servidor; não há garantia de persistência após hibernação/restart.</p>
+                            </IntegrationTruthBox>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
                                     <span className={`w-3 h-3 rounded-full ${status === 'connected' ? 'bg-green-500' : status === 'connecting' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}></span>
                                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                         {status === 'connected' ? 'Conectado' : status === 'connecting' ? 'Conectando...' : 'Desconectado'}
                                     </span>
+                                    {status === 'connected' && (
+                                        <IntegrationStatusBadge
+                                            capability="write"
+                                            title="Envia e recebe mensagens de verdade pela sessão WhatsApp Web conectada"
+                                        />
+                                    )}
                                 </div>
                                 {status === 'connected' && (
                                     <button
@@ -188,19 +236,45 @@ export function Integrations() {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Workspace</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail e Calendar integrados.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail e Calendar em modo leitura; a Agenda do produto continua local.</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center">
                                 <span className="text-2xl">📧</span>
                             </div>
                         </div>
                         <div className="space-y-4">
-                            <div className="flex items-center gap-2">
+                            <IntegrationTruthBox>
+                                <div className="flex flex-wrap gap-2">
+                                    <CapabilityBadge status={googleConnected ? 'connected' : 'error'}>{googleConnected ? 'conectado' : 'desconectado'}</CapabilityBadge>
+                                    <CapabilityBadge status={googleConnected ? 'read' : 'pending'}>Calendar leitura</CapabilityBadge>
+                                    <CapabilityBadge status="stub">Agenda local</CapabilityBadge>
+                                    <CapabilityBadge status="pending">Google escrita pendente</CapabilityBadge>
+                                </div>
+                                <p>Decisão da Onda 3: não afirmar escrita real no Google. Eventos abaixo vêm do Google Calendar; criar/remarcar/concluir atividades acontece só na Agenda local do Atlas.</p>
+                            </IntegrationTruthBox>
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     {googleConnected ? `Conectado (${googleEmail})` : 'Desconectado'}
                                 </span>
+                                {googleConnected && (
+                                    <IntegrationStatusBadge
+                                        capability="read"
+                                        title="Lê Gmail e eventos do Calendar de verdade (escopo somente leitura)"
+                                    />
+                                )}
                             </div>
+
+                            {googleConnected && (
+                                <div className="flex items-start gap-2 p-3 rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30">
+                                    <IntegrationStatusBadge capability="pending_scope" />
+                                    <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
+                                        Agendamento pela Cadência grava a confirmação no Atlas, mas ainda não cria o evento no Google
+                                        Calendar de verdade — isso exige pedir o escopo de escrita (<code className="font-mono">calendar.events</code>)
+                                        e reconectar toda a organização, decisão de produto ainda não tomada.
+                                    </p>
+                                </div>
+                            )}
 
                             {googleConnected ? (
                                 <>
@@ -242,9 +316,17 @@ export function Integrations() {
                     <Card className="p-8 bg-white dark:bg-white/5 border border-gray-100 shadow-sm rounded-2xl">
                         <div className="flex items-start justify-between mb-8">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Bitrix24</h2>
+                                    {bitrixConnections.length > 0 && (
+                                        <>
+                                            <IntegrationStatusBadge capability="write" title="Todo lead novo é enviado automaticamente para o Bitrix24" />
+                                            <IntegrationStatusBadge capability="read" title="Importação do Bitrix24 para o Atlas é manual, portal por portal" />
+                                        </>
+                                    )}
+                                </div>
                                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-                                    Todo lead novo do Atlas vai automaticamente pro primeiro portal Bitrix24 conectado. A importação do Bitrix pro Atlas é manual — você escolhe o que trazer, portal por portal.
+                                    Bitrix24 tem leitura/importação real, escrita real de leads e comentários, e webhook de entrada opcional para atualizar registros já importados.
                                 </p>
                             </div>
                             <div className="w-12 h-12 bg-orange-50 dark:bg-orange-500/10 rounded-full flex items-center justify-center shrink-0">
@@ -253,6 +335,15 @@ export function Integrations() {
                         </div>
 
                         <div className="space-y-6">
+                            <IntegrationTruthBox>
+                                <div className="flex flex-wrap gap-2">
+                                    <CapabilityBadge status={bitrixConnections.length > 0 ? 'connected' : 'error'}>{bitrixConnections.length > 0 ? 'conectado' : 'desconectado'}</CapabilityBadge>
+                                    <CapabilityBadge status={bitrixConnections.length > 0 ? 'read' : 'pending'}>leitura/importação real</CapabilityBadge>
+                                    <CapabilityBadge status={bitrixConnections.length > 0 ? 'write' : 'pending'}>escrita real Atlas→Bitrix</CapabilityBadge>
+                                    <CapabilityBadge status={bitrixConnections.some((c) => c.inboundEventsEnabled) ? 'read' : 'pending'}>webhook entrada opcional</CapabilityBadge>
+                                </div>
+                                <p>Não é espelho bidirecional completo: importação automática segue regras/ciclos e o webhook só atualiza Lead/Negócio já importado.</p>
+                            </IntegrationTruthBox>
                             {bitrixConnections.length > 0 && (
                                 <div className="space-y-2">
                                     {bitrixConnections.map((conn) => (
@@ -413,16 +504,30 @@ export function Integrations() {
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">PABX Telefonia 3CX</h3>
                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                        Click-to-Call, gravação de chamadas e prospecção fria de IA 24h via 3CX IP PBX.
+                                        Cadastro de PABX 3CX e teste de comunicação; recursos avançados dependem da instalação 3CX conectada e dos webhooks habilitados.
                                     </p>
                                 </div>
                             </div>
-                            <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`px-3 py-1.5 text-xs font-bold rounded-lg ${threecxConnections.length > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {threecxConnections.length > 0 ? 'Ativo 24h' : 'Não conectado'}
+                                </span>
+                                {threecxConnections.length > 0 && (
+                                    <IntegrationStatusBadge capability="write" title="Click-to-call dispara chamada real no PABX conectado" />
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-6">
+                            <IntegrationTruthBox>
+                                <div className="flex flex-wrap gap-2">
+                                    <CapabilityBadge status={threecxConnections.length > 0 ? 'connected' : 'error'}>{threecxConnections.length > 0 ? 'conectado' : 'desconectado'}</CapabilityBadge>
+                                    <CapabilityBadge status={threecxConnections.length > 0 ? 'write' : 'pending'}>click-to-call configurado</CapabilityBadge>
+                                    <CapabilityBadge status="pending">gravações dependem de webhook</CapabilityBadge>
+                                    <CapabilityBadge status="pending">discador IA depende de escopo</CapabilityBadge>
+                                </div>
+                                <p>Esta tela registra conexão/ramal e testa comunicação; ela não prova, sozinha, gravação de chamadas ou prospecção 24h em produção.</p>
+                            </IntegrationTruthBox>
                             {threecxConnections.length > 0 && (
                                 <div className="space-y-3">
                                     {threecxConnections.map((conn) => (

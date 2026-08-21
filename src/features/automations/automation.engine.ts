@@ -335,6 +335,17 @@ export class AutomationEngine {
                 throw new Error('A ação "Ligar via SDR de Voz" só se aplica a eventos de lead.');
             }
             const { callLead, SuppressedNumberError } = await import('../integrations/birth-voice/birthVoice.service.js');
+            const { isWithinCallWindow } = await import('../integrations/birth-voice/coldCall.policy.js');
+            const { callWindowFromEnv } = await import('../integrations/birth-voice/coldCall.service.js');
+
+            if (!isWithinCallWindow(new Date(), callWindowFromEnv())) {
+                logger.info(
+                    { automationId: automation.id, leadId: event.entityId },
+                    'Automação de SDR de voz não ligou: fora da janela comercial de ligações.',
+                );
+                return;
+            }
+
             try {
                 await callLead(event.organizationId, event.entityId);
             } catch (error) {

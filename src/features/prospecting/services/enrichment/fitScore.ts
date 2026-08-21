@@ -1,8 +1,11 @@
-// Trechos (lowercase) de nomes de ERP/TMS comuns no mercado logístico/transportador brasileiro —
+// Trechos (lowercase) de nomes de ERP/TMS e Telemetria/GR comuns no mercado logístico/transportador brasileiro —
 // usados para um pequeno bônus de fit score quando a Apollo detecta um deles na empresa (ver
 // computeFitScore). Comparamos por "contains" porque a Apollo devolve nomes de exibição livres
-// (ex: "SAP Business One", "TOTVS Protheus"), não os UIDs usados como filtro de busca.
-const LOGISTICS_RELEVANT_TECH_KEYWORDS = ['sap', 'protheus', 'sankhya', 'netsuite', 'totvs'];
+// (ex: "SAP Business One", "TOTVS Protheus", "Autotrac"), não os UIDs usados como filtro de busca.
+const LOGISTICS_RELEVANT_TECH_KEYWORDS = [
+    'sap', 'protheus', 'sankhya', 'netsuite', 'totvs',
+    'autotrac', 'sascar', 'omnilink', 'onixsat', 'raster', 'quattrus', 'opentech', 'buonny',
+];
 
 // Categorias de carga com maior índice de roubo no Brasil, segundo a Associação Nacional do
 // Transporte de Cargas e Logística (NTC) — citadas na Apresentação de Gerenciamento de Risco da

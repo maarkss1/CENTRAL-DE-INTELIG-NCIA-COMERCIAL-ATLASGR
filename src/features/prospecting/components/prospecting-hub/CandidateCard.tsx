@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
     TrendingUp, Building2, Users, MapPin, Calendar, DollarSign, Wrench, Mail,
-    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck, ThumbsDown,
+    MessageCircle, Phone, Globe, Linkedin, Sparkles, CheckCircle2, Loader2, ShieldCheck, ThumbsDown, IdCard,
 } from 'lucide-react';
 import type { FitScoreResult } from '../../services/enrichment.service';
 import type { ProspectCandidate } from '../../services/prospecting.service';
@@ -13,6 +13,7 @@ import {
 } from '../../../../shared/utils/contact-links';
 import { DecisionMakerSearch } from './DecisionMakerSearch';
 import { WhatsAppChatPanel } from '../../../integrations/whatsapp/components/WhatsAppChatPanel';
+import { api } from '../../../../lib/api';
 
 interface PromoteResult {
     lead: { id: string };
@@ -44,6 +45,24 @@ export function CandidateCard({
     const isEstimate = !promotedResult?.fit;
     const enrichment = promotedResult?.enrichment;
     const [chatTarget, setChatTarget] = useState<{ phone: string; name: string } | null>(null);
+    const [icebreakerText, setIcebreakerText] = useState<string | null>(candidate.icebreakerHook ?? null);
+    const [isLoadingIcebreaker, setIsLoadingIcebreaker] = useState(false);
+
+    const handleFetchIcebreaker = async () => {
+        setIsLoadingIcebreaker(true);
+        try {
+            const res = await api.post<{ icebreaker: string }>('/api/prospecting/icebreaker', { companyName: candidate.tradeName });
+            if (res?.icebreaker) {
+                setIcebreakerText(res.icebreaker);
+            } else {
+                setIcebreakerText('Nenhuma notícia/fato recente encontrado via busca web.');
+            }
+        } catch {
+            setIcebreakerText('Falha ao buscar fatos recentes na internet.');
+        } finally {
+            setIsLoadingIcebreaker(false);
+        }
+    };
 
     return (
         <div className="bg-surface p-6 rounded-2xl border border-line hover:border-brand/40 transition-all shadow-sm group">
@@ -52,7 +71,10 @@ export function CandidateCard({
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <h3 className="font-black text-lg text-ink group-hover:text-brand transition-colors">{candidate.tradeName}</h3>
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-atlas-yellow/20 text-atlas-yellow'}`}>
+                        {/* Tier de Fit é um sinal de negócio (score), não uma cor de marca — usa o
+                            token semântico bg-warning/text-warning (mesmo já usado 2 linhas abaixo
+                            pro badge de rating do Google), não atlas-yellow. */}
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-warning/15 text-warning'}`}>
                             <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
                         {enrichment?.company.googleRating && (
@@ -66,6 +88,9 @@ export function CandidateCard({
                         <span className="flex items-center gap-1.5"><Building2 size={14} className="text-ink-2" /> {candidate.segment}</span>
                         <span className="flex items-center gap-1.5"><Users size={14} className="text-ink-2" /> {candidate.size}</span>
                         <span className="flex items-center gap-1.5"><MapPin size={14} className="text-ink-2" /> {candidate.location}</span>
+                        {candidate.cnpjGuess && (
+                            <span className="flex items-center gap-1.5"><IdCard size={14} className="text-ink-2" /> {candidate.cnpjGuess}</span>
+                        )}
                         {candidate.foundedYear && (
                             <span className="flex items-center gap-1.5"><Calendar size={14} className="text-ink-2" /> Fundada em {candidate.foundedYear}</span>
                         )}
@@ -132,6 +157,38 @@ export function CandidateCard({
                         <p className="text-xs text-ink-2 italic mb-2">&quot;{candidate.rationale}&quot;</p>
                     )}
 
+                    {(icebreakerText || (candidate.webInsights && candidate.webInsights.length > 0)) ? (
+                        <div className="my-3 p-3 bg-brand/10 border border-brand/20 rounded-xl">
+                            <p className="text-[10px] tracking-wider font-bold uppercase text-brand mb-1 flex items-center gap-1">
+                                <Sparkles size={12} /> ❄️ Quebra-Gelo / Notícia Recente (Busca Web)
+                            </p>
+                            {icebreakerText && (
+                                <p className="text-xs text-ink font-medium leading-relaxed mb-1">{icebreakerText}</p>
+                            )}
+                            {candidate.webInsights && candidate.webInsights.length > 0 && (
+                                <div className="mt-1 flex flex-col gap-1">
+                                    {candidate.webInsights.slice(0, 3).map((news, idx) => (
+                                        <a key={idx} href={news.url} target="_blank" rel="noreferrer" className="text-[11px] text-sky-500 hover:underline flex items-center gap-1 truncate">
+                                            <Globe size={11} /> {news.title} <span className="text-[9px] text-ink-2">({news.domain})</span>
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="my-2">
+                            <button
+                                type="button"
+                                onClick={handleFetchIcebreaker}
+                                disabled={isLoadingIcebreaker}
+                                className="text-[11px] font-semibold text-brand hover:underline flex items-center gap-1 bg-brand/5 border border-brand/20 px-2.5 py-1 rounded-lg transition-all cursor-pointer"
+                            >
+                                {isLoadingIcebreaker ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                                {isLoadingIcebreaker ? 'Buscando fatos recentes na internet...' : '🔍 Buscar Notícias / Quebra-Gelo Web'}
+                            </button>
+                        </div>
+                    )}
+
                     {!enrichment && candidate.decisionMakers && candidate.decisionMakers.length > 0 && (
                         <div className="mt-2 mb-3">
                             <p className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 flex items-center gap-1">
@@ -154,7 +211,13 @@ export function CandidateCard({
                                             {dm.email && (
                                                 <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success hover:underline">
                                                     <Mail size={12} /> {dm.email}
-                                                    {dm.emailSource === 'hunter' && <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>}
+                                                    {dm.emailSource === 'hunter' ? (
+                                                        <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>
+                                                    ) : dm.email.includes('@') ? (
+                                                        <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-bold ml-1">✓ CONFIRMADO</span>
+                                                    ) : (
+                                                        <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold ml-1">💡 INFERIDO</span>
+                                                    )}
                                                 </a>
                                             )}
                                             {tel && (

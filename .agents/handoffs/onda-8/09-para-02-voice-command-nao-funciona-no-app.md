@@ -1,7 +1,7 @@
 - De: Agente 09 (Mobile — Capacitor/Android/iOS)
 - Para: Agente 02 (Produto e UX)
 - Onda: 8
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -62,3 +62,6 @@ existe hoje dentro do app empacotado — trata-se de paridade real quebrada por 
 plataforma, documentada aqui em vez de fingir suporte (regra do prompt do Agente 09,
 `.agents/prompts/09-mobile.md`: "não implementar workaround que finge suportar um recurso sem de
 fato funcionar no dispositivo").
+
+## Resolução
+(Coordenador): O comportamento está documentado e mapeado como limitação do WebView em iOS/Android. Adicionar \@capacitor-community/speech-recognition\ e as permissões pertinentes se enquadra como nova Feature de Paridade Mobile. Em respeito ao Freeze de escopo (RC1 Go-Live), não faremos a injeção do plugin agora. Fica resolvido (postponed para Sprint pós-13).
