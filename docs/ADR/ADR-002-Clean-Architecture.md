@@ -27,3 +27,32 @@ Para orquestrar essa comunicação sem manter o alto acoplamento, implementamos 
 
 ## Alternativas Consideradas
 *NestJS:* Considerado pelo framework forte de injeção de dependências nativa, mas o alto custo de migração de um React SPA Express monolítico para NestJS no backend faria com que fosse muito invasivo comparado à implantação das abstrações internamente usando TypeScript Vanilla.
+
+## Atualização — 2026-08-21 (P2 Arquitetura e Manutenção)
+
+A consequência negativa listada acima ("wiring manual... exigindo disciplina do time") não era
+teórica: `notes` era uma feature híbrida real. `NoteController`/`NoteUseCases`/
+`PrismaNoteRepository` existiam completos e estavam registrados em `setup.ts`, mas
+`notes/routes/note.routes.ts` nunca os resolvia — chamava direto um `NoteService` legado
+(`notes/services/note.service.ts`) que duplicava a mesma regra sem a transação atômica
+nota+timeline que o repositório Clean Architecture já fazia. A wiring do container ficava
+registrada e nunca era exercitada em produção.
+
+Corrigido nesta rodada:
+- `note.routes.ts` passou a resolver `NoteController` via `container.resolve`, no mesmo padrão
+  das demais 8 features registradas em `setup.ts` (`activities`, `contacts`, `companies`, `crm`,
+  `automations`, `analytics`, `commercial-intelligence`, `crm360` — todas já corretas).
+- O único consumidor interno do service legado (`aiPendingAction.service.ts`, ação
+  `swarm_recommendation`) passou a resolver `NoteUseCases` pelo mesmo container em vez de
+  importar o service legado.
+- `note.service.ts` foi removido (sem mais nenhum consumidor).
+- Auditoria de todas as 9 features com Controller registrado confirmou que `notes` era o único
+  caso do gap — as outras 8 já resolviam seus Controllers corretamente.
+- Para evitar recorrência silenciosa deste padrão específico, `src/shared/di/wiringConsistency.ts`
+  + `tests/unit/shared/diWiringConsistency.test.ts` adicionam uma checagem estática (mesmo estilo
+  do drift check de `openapiRouteInventory.ts`/Agente 18): falha se algum Controller registrado em
+  `presentation/` de uma feature não for resolvido por nenhuma rota da mesma feature.
+
+Isso não elimina o wiring manual em `setup.ts` (permanece o mesmo padrão desta ADR, decisão não
+revisitada aqui) — apenas adiciona uma rede de segurança que transforma "uma rota esquecida de usar
+o Controller registrado" de silencioso em falha de teste.

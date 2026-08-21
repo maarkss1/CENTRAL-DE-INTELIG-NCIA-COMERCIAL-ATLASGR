@@ -14,6 +14,7 @@ import { toast } from '../../../lib/toast';
 import { AIEmailGenerator } from '../../../components/ui/AIEmailGenerator';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
+import { useAuth } from '../../../contexts/AuthContext';
 // Painel de conversa real (histórico + envio) já usado pela Prospecção sobre a mesma integração
 // de WhatsApp (src/features/integrations/whatsapp, sessão Baileys por tenant) — reusado aqui em vez
 // de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
@@ -40,6 +41,7 @@ interface LeadDetailDrawerProps {
 export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawerProps) {
     const { activeBrand, brandInfo } = useBrand();
     const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    const { currentUser } = useAuth();
     const titleId = useId();
     const statusSelectId = useId();
     const ownerSelectId = useId();
@@ -166,7 +168,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
         if (!noteText.trim() || !lead) return;
         setSavingNote(true);
         try {
-            const newNote = await api.post<Note>(`/api/leads/${lead.id}/notes`, { content: noteText.trim() });
+            const newNote = await api.post<Note>(`/api/leads/${lead.id}/notes`, {
+                content: noteText.trim(),
+                author: currentUser?.name || 'Usuário',
+            });
             setLead((prev) => (prev ? { ...prev, internalNotes: [newNote, ...(prev.internalNotes || [])] } : null));
             setNoteText('');
             toast.success('Nota adicionada');
