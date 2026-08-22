@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // não registra os matchers do jest-dom globalmente — importa aqui pra não depender de config
 // (mesmo padrão de tests/unit/features/companies/components/CompanyForm.test.tsx).
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, within, configure } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../mocks/server';
@@ -30,6 +30,16 @@ function mockAllIntegrationEndpoints() {
     );
 }
 
+// `findByText`/`waitFor` neste arquivo falharam de forma intermitente em CI (não reproduz local)
+// com o timeout padrão de 1000ms — runner sob I/O pesado (containers de Postgres/Redis do job)
+// pode atrasar o próximo render bem além disso mesmo sem nenhum fetch de rede envolvido, já que
+// o conteúdo de cada aba é puramente `activeTab === X &&` (sem efeito assíncrono). Timeout maior
+// só absorve lentidão do runner, não muda o que o teste verifica. O `testTimeout` de cada `it`
+// também precisa subir junto (padrão do vitest é 5000ms) — senão o teste inteiro estoura antes do
+// `asyncUtilTimeout` interno do findByText/waitFor ter chance de valer alguma coisa.
+const TEST_TIMEOUT_MS = 20_000;
+configure({ asyncUtilTimeout: 8_000 });
+
 beforeEach(() => {
     cleanup();
     mockAllIntegrationEndpoints();
@@ -53,7 +63,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
 
         // Aba inicial (WhatsApp) renderizou de fato o conteúdo, não só a casca da sidebar.
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
-    });
+    }, TEST_TIMEOUT_MS);
 
     it('troca de aba sem lançar erro e mostra o conteúdo de cada uma (activeTab via useState)', async () => {
         const user = userEvent.setup();
@@ -67,7 +77,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
 
         await user.click(screen.getByText('PABX 3CX')).catch(() => {});
         expect(await screen.findByText(/Cadastro de PABX 3CX e teste de comunicação/)).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
 
     it('mostra estado desconectado quando os endpoints de status falham (sem tela em branco)', async () => {
         server.use(
@@ -83,7 +93,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         // cai pro estado padrão "desconectado" de cada hook.
         expect(screen.getByText('Integrações')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
-    });
+    }, TEST_TIMEOUT_MS);
 
     it('declara maturidade real por integração — escrita real no Google Calendar (CYC-004) com prova, sem prometer 3CX 24h sem prova', async () => {
         const user = userEvent.setup();
@@ -119,7 +129,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         await user.click(screen.getByText('PABX 3CX'));
         expect(await screen.findByText('gravações dependem de webhook')).toBeInTheDocument();
         expect(screen.getByText(/não prova, sozinha, gravação de chamadas ou prospecção 24h/i)).toBeInTheDocument();
-    });
+    }, TEST_TIMEOUT_MS);
 
     it('VISUALIZADOR vê o status mas não consegue conectar (achado do inventário de navegação da Onda 1)', async () => {
         useAuthMock.mockReturnValue({ currentUser: { role: 'VISUALIZADOR' } });
@@ -129,5 +139,5 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
 
         expect(screen.getByText(/exige permissão de Gestor ou Administrador/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Conectar WhatsApp' })).toBeDisabled();
-    });
+    }, TEST_TIMEOUT_MS);
 });
