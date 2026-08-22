@@ -2,7 +2,8 @@ import type { AIPendingAction } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { sendEmail, MailerNotConfiguredError } from '../../../lib/email/mailer.js';
-import { noteService } from '../../notes/services/note.service.js';
+import { container } from '../../../shared/di/container.js';
+import type { NoteUseCases } from '../../notes/application/NoteUseCases.js';
 import { activityService } from '../../activities/services/activity.service.js';
 import type { ActivityType } from '../../../lib/zod.js';
 
@@ -54,7 +55,7 @@ export async function executeAction(action: ExecutableAction): Promise<Execution
             if (!action.organizationId || !payload.leadId || !payload.synthesis) {
                 return { sent: false, reason: 'unsupported_action' };
             }
-            await noteService.create(action.organizationId, payload.leadId, {
+            await container.resolve<NoteUseCases>('NoteUseCases').createNote(action.organizationId, payload.leadId, {
                 author: 'Enxame de IA AtlasGR',
                 content: [
                     'Recomendação autônoma aprovada',

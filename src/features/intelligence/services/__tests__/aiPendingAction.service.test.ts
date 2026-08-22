@@ -23,8 +23,8 @@ vi.mock('@/lib/logger', () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/features/notes/services/note.service', () => ({
-    noteService: { create: (...args: unknown[]) => noteCreateMock(...args) },
+vi.mock('@/shared/di/container', () => ({
+    container: { resolve: (name: string) => (name === 'NoteUseCases' ? { createNote: (...args: unknown[]) => noteCreateMock(...args) } : undefined) },
 }));
 
 vi.mock('@/features/activities/services/activity.service', () => ({
