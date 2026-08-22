@@ -90,7 +90,7 @@ export function EconomicScenarioAuditPanel({ input, onLoad }: Props) {
 
             <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-end">
                 <label className="flex-1 text-xs font-bold text-ink-2">Nome do snapshot
-                    <input aria-label="Nome do snapshot" maxLength={120} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Ex.: Expansão SP · orçamento aprovado" className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#FF5618]" />
+                    <input aria-label="Nome do snapshot" maxLength={120} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Ex.: Expansão SP · orçamento aprovado" className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand" />
                 </label>
                 <button type="button" aria-label="Salvar snapshot auditável" disabled={saving} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#333333] px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}

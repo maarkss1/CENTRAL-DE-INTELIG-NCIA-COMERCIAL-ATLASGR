@@ -302,12 +302,12 @@ export function Base() {
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         {hit.matchedBy.includes('semantic') && (
-                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 flex items-center gap-1">
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-800 dark:text-violet-300 flex items-center gap-1">
                                                 <Sparkles className="w-3 h-3" /> semântico
                                             </span>
                                         )}
                                         {hit.matchedBy.includes('keyword') && (
-                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300">
+                                            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info">
                                                 termo
                                             </span>
                                         )}
@@ -431,6 +431,7 @@ export function Base() {
                             <h2 className="text-lg font-bold text-ink">Adicionar texto à base</h2>
                             <button
                                 onClick={() => setPasteOpen(false)}
+                                aria-label="Fechar"
                                 className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                             >
                                 <X className="w-5 h-5" />

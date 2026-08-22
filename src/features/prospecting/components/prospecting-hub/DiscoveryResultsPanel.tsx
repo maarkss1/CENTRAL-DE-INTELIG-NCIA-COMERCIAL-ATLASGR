@@ -52,7 +52,7 @@ export function DiscoveryResultsPanel({
                         <button
                             onClick={onSaveAll}
                             disabled={isSavingBatch}
-                            className="bg-brand text-white px-4 py-2 rounded-[2rem] text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
+                            className="bg-brand-active text-white px-4 py-2 rounded-[2rem] text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50"
                         >
                             <UserPlus size={14} /> {isSavingBatch ? 'Salvando Lista...' : 'Salvar Lista de Leads'}
                         </button>
@@ -118,7 +118,7 @@ export function DiscoveryResultsPanel({
                         <button onClick={onBulkSave} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-surface-2 hover:bg-line text-ink px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
                             Salvar em Massa
                         </button>
-                        <button onClick={onBulkEnrich} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-brand hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
+                        <button onClick={onBulkEnrich} disabled={selectedCandidates.size === 0 || isSavingBatch} className="text-[10px] font-bold bg-brand-active hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg transition-all disabled:opacity-50">
                             Enriquecer em Massa
                         </button>
                     </div>

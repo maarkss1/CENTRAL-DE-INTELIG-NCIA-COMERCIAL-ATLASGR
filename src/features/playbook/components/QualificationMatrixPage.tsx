@@ -94,8 +94,8 @@ export function QualificationMatrixPage() {
                             <div key={item.id} className="bg-surface/80 p-6 rounded-2xl border border-line space-y-3 shadow-sm">
                                 <div className="flex items-center justify-between pb-3 border-b border-line flex-wrap gap-2">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand/15 text-brand font-bold">{item.framework} · {item.questionCategory}</span>
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info font-bold">{item.persona}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand/15 text-brand-active dark:text-brand-2 font-bold">{item.framework} · {item.questionCategory}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info font-bold">{item.persona}</span>
                                     </div>
                                     <button
                                         onClick={() => handleCopy(item.questionText, item.id)}
@@ -112,7 +112,7 @@ export function QualificationMatrixPage() {
                                 </div>
 
                                 <div className="p-4 rounded-xl bg-surface-2 border border-line">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-info block mb-1">Resposta Ideal / Sinal de Fit</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-info-active dark:text-info block mb-1">Resposta Ideal / Sinal de Fit</span>
                                     <p className="text-sm text-ink-2 leading-relaxed">{item.idealAnswer}</p>
                                 </div>
                             </div>

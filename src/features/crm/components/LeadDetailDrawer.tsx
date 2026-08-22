@@ -449,7 +449,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         <button
                                             onClick={handleSaveQualification}
                                             disabled={savingQual}
-                                            className="w-full py-2 bg-brand hover:bg-brand-active text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                                            className="w-full py-2 bg-brand-active hover:brightness-110 text-white rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
                                         >
                                             {savingQual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                             Salvar Qualificação
@@ -489,7 +489,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         <button
                                             type="submit"
                                             disabled={savingNote || !noteText.trim()}
-                                            className="px-4 py-2 bg-brand hover:bg-brand-active text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                            className="px-4 py-2 bg-brand-active hover:brightness-110 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
                                         >
                                             {savingNote ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                                             Adicionar Nota

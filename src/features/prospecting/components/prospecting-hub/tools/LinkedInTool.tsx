@@ -166,13 +166,13 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
             <div className="flex gap-2 bg-surface-2 p-1.5 rounded-xl border border-line w-fit">
                 <button
                     onClick={() => setSubTab('empresas')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${subTab === 'empresas' ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${subTab === 'empresas' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
                 >
                     <Building2 size={14} /> Empresas
                 </button>
                 <button
                     onClick={() => setSubTab('decisores')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${subTab === 'decisores' ? 'bg-brand text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${subTab === 'decisores' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
                 >
                     <Users size={14} /> Decisores
                 </button>
@@ -213,7 +213,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                         <button
                             onClick={searchCompanies}
                             disabled={isSearchingCompanies}
-                            className="w-full bg-brand text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                         >
                             {isSearchingCompanies ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Empresas</>)}
                         </button>
@@ -277,7 +277,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                         <button
                             onClick={searchPeople}
                             disabled={isSearchingPeople}
-                            className="w-full bg-brand text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                         >
                             {isSearchingPeople ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Decisores</>)}
                         </button>
@@ -315,7 +315,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                                             <button
                                                 onClick={() => promotePerson(dm, idx)}
                                                 disabled={promotingKey === key}
-                                                className="bg-brand text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 disabled:opacity-60"
+                                                className="bg-brand-active text-white px-4 py-2 rounded-xl font-bold text-xs hover:brightness-110 transition-all flex items-center gap-2 disabled:opacity-60"
                                             >
                                                 {promotingKey === key ? <Loader2 className="animate-spin" size={13} /> : <ShieldCheck size={13} />}
                                                 Salvar no CRM
@@ -349,7 +349,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                             {promoted['li-manual'] ? (
                                 <span className="flex items-center gap-1.5 text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
                             ) : (
-                                <button onClick={promoteManual} disabled={promotingKey === 'li-manual'} className="bg-brand text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-brand-active flex items-center gap-2 disabled:opacity-60">
+                                <button onClick={promoteManual} disabled={promotingKey === 'li-manual'} className="bg-brand-active text-white px-4 py-2 rounded-xl font-bold text-xs hover:brightness-110 flex items-center gap-2 disabled:opacity-60">
                                     {promotingKey === 'li-manual' ? <Loader2 className="animate-spin" size={13} /> : <ShieldCheck size={13} />}
                                     Salvar contato no CRM
                                 </button>

@@ -41,7 +41,7 @@ export function Settings() {
                             onClick={() => setActiveTab('profile')}
                             className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
                                 activeTab === 'profile'
-                                    ? 'border-brand text-brand-active'
+                                    ? 'border-brand text-brand-active dark:text-brand-2'
                                     : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
                             }`}
                         >
@@ -53,7 +53,7 @@ export function Settings() {
                                 onClick={() => setActiveTab('users')}
                                 className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
                                     activeTab === 'users'
-                                        ? 'border-brand text-brand-active'
+                                        ? 'border-brand text-brand-active dark:text-brand-2'
                                         : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
                                 }`}
                             >
@@ -65,7 +65,7 @@ export function Settings() {
                             onClick={() => setActiveTab('integrations')}
                             className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
                                 activeTab === 'integrations'
-                                    ? 'border-brand text-brand-active'
+                                    ? 'border-brand text-brand-active dark:text-brand-2'
                                     : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
                             }`}
                         >
@@ -77,7 +77,7 @@ export function Settings() {
                                 onClick={() => setActiveTab('featureFlags')}
                                 className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
                                     activeTab === 'featureFlags'
-                                        ? 'border-brand text-brand-active'
+                                        ? 'border-brand text-brand-active dark:text-brand-2'
                                         : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
                                 }`}
                             >

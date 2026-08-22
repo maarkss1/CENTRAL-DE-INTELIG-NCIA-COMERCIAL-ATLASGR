@@ -90,7 +90,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
+    <main className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
       {/* Duas marcas convivem nesta tela (ambas as logos sempre visíveis) antes de o login
           confirmar qual é a real — mesma justificativa da WelcomeScreen (Piloto 001, CLAUDE.md
           §7.7): metade laranja (AtlasGR) / metade azul (Total Trac) com peso visual igual, tokens
@@ -326,6 +326,6 @@ export function LoginScreen() {
         </div>
 
       </div>
-    </div>
+    </main>
   );
 }

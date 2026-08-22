@@ -358,7 +358,7 @@ export function DiscoveryFilterPanel({
                                                 const next = selected ? current.filter((v) => v !== opt.value) : [...current, opt.value];
                                                 setCriteria({ ...criteria, tecnologias: next.length ? next.join(',') : undefined });
                                             }}
-                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-brand border-brand text-white' : 'bg-surface border-line text-ink-2 hover:border-brand/40'}`}
+                                            className={`px-2 py-1 rounded-md text-[11px] font-medium border transition-colors ${selected ? 'bg-brand-active border-brand-active text-white' : 'bg-surface border-line text-ink-2 hover:border-brand/40'}`}
                                         >
                                             {opt.label}
                                         </button>
@@ -420,7 +420,7 @@ export function DiscoveryFilterPanel({
                     id="btn-discover"
                     onClick={onDiscover}
                     disabled={isSearching}
-                    className="w-full bg-brand text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                    className="w-full bg-brand-active text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (
                         <><Loader2 className="animate-spin" size={20} /> <span>⏳ Buscando...</span></>

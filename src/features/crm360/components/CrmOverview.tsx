@@ -153,7 +153,7 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
                 <section className="rounded-2xl border border-line bg-surface p-4">
                     <div className="mb-3 flex items-center justify-between">
                         <div><h3 className="font-black text-ink">Foco agora</h3><p className="text-xs text-ink-2">Próximas atividades por vencimento</p></div>
-                        <button onClick={() => onNavigate('activities')} className="text-xs font-bold text-brand">Ver tudo</button>
+                        <button onClick={() => onNavigate('activities')} className="text-xs font-bold text-brand-active dark:text-brand-2">Ver tudo</button>
                     </div>
                     <div className="divide-y divide-line">
                         {data.focusActivities.slice(0, 6).map((activity) => {
@@ -177,14 +177,14 @@ export function CrmOverview({ onNavigate }: CrmOverviewProps) {
             <section className="rounded-2xl border border-line bg-surface p-4">
                 <div className="mb-3 flex items-center justify-between">
                     <div><h3 className="font-black text-ink">Negócios recentes</h3><p className="text-xs text-ink-2">Últimas contas movimentadas</p></div>
-                    <button onClick={() => onNavigate('crm?funnel=Negocio')} className="text-xs font-bold text-brand">Abrir pipeline</button>
+                    <button onClick={() => onNavigate('crm?funnel=Negocio')} className="text-xs font-bold text-brand-active dark:text-brand-2">Abrir pipeline</button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     {data.recentDeals.map((deal) => (
                         <article key={deal.id} className="rounded-xl border border-line bg-surface-2/50 p-3">
                             <p className="truncate text-sm font-black text-ink">{deal.title || deal.company?.tradeName || 'Negócio sem título'}</p>
                             <p className="mt-1 truncate text-xs text-ink-2">{deal.status}</p>
-                            <div className="mt-3 flex items-end justify-between gap-2"><span className="font-black text-ink">{money.format(deal.amount ?? 0)}</span><span className="text-xs font-bold text-brand">{deal.probability ?? 0}%</span></div>
+                            <div className="mt-3 flex items-end justify-between gap-2"><span className="font-black text-ink">{money.format(deal.amount ?? 0)}</span><span className="text-xs font-bold text-brand-active dark:text-brand-2">{deal.probability ?? 0}%</span></div>
                         </article>
                     ))}
                     {data.recentDeals.length === 0 && <p className="col-span-full py-8 text-center text-sm text-ink-2">Nenhum negócio criado ainda.</p>}

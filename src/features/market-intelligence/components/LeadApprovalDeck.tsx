@@ -72,7 +72,7 @@ export function LeadApprovalDeck() {
     };
 
     if (loading) return <div className="p-8 text-center text-emerald-400">Carregando IA Deck...</div>;
-    if (currentIndex >= accounts.length) return <div className="p-8 text-center text-slate-400">Você zerou os leads de hoje! 🎉</div>;
+    if (currentIndex >= accounts.length) return <div className="p-8 text-center text-ink-2">Você zerou os leads de hoje! 🎉</div>;
 
     const account = accounts[currentIndex];
 

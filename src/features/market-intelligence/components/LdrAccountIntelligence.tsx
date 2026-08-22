@@ -185,7 +185,7 @@ export function LdrAccountIntelligence() {
             </div>
             <Link
               to="/app/market-intelligence/deck"
-              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-black text-white hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-active px-4 py-2 text-xs font-black text-white hover:brightness-110"
             >
               <Zap className="h-4 w-4" /> Abrir fila de aprovação
             </Link>
@@ -204,7 +204,7 @@ export function LdrAccountIntelligence() {
               className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
               placeholder="Digite um CNPJ presente no snapshot 2026-08"
             />
-            <button type="submit" disabled={loading} className="my-1.5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-black text-white disabled:opacity-50">
+            <button type="submit" disabled={loading} className="my-1.5 inline-flex items-center gap-2 rounded-lg bg-brand-active px-4 py-2 text-xs font-black text-white disabled:opacity-50">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
               Montar Account 360
             </button>

@@ -205,7 +205,7 @@ export function Team() {
                     <button
                         type="submit"
                         disabled={isCreating || !name || !email}
-                        className="bg-brand text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="bg-brand-active text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
                     >
                         {isCreating ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                         {isCreating ? 'Criando...' : 'Criar usuário'}
@@ -243,7 +243,7 @@ export function Team() {
                                         <span className="text-xs text-ink-2">{member.email}</span>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info font-bold">{ROLE_LABELS[member.role] || member.role}</span>
+                                        <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info-active dark:text-info font-bold">{ROLE_LABELS[member.role] || member.role}</span>
                                         <button
                                             type="button"
                                             onClick={() => handleResetPassword(member)}
