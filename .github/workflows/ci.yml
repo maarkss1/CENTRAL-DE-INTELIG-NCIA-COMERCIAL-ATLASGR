@@ -36,6 +36,12 @@ jobs:
     # "os dois jobs existem" — sem isso, secret-scan e build-and-test rodam em paralelo e um
     # secret-scan que falha não impede build/test/publish de prosseguir. Ver .agents/runs/final-fase-1.md.
     needs: secret-scan
+    # O job completo (lint+typecheck+unit+integration+e2e+build) normalmente termina em ~10-15min.
+    # Sem este limite, um runner degradado deixa o passo "Run E2E Tests" (que roda em série,
+    # workers: 1, ver tests/e2e/helpers.ts) travado por horas em vez de falhar rápido — já
+    # observado indo a 2h30 antes do timeout padrão do GitHub Actions (6h) finalmente encerrar o
+    # job. 30min dá margem de ~2-3x o tempo normal sem deixar um travamento consumir CI por horas.
+    timeout-minutes: 30
 
     services:
       postgres:
