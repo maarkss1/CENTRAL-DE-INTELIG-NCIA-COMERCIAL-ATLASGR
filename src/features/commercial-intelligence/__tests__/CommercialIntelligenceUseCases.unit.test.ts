@@ -76,8 +76,8 @@ class FakeRepository implements CommercialIntelligenceRepository {
         return this.syncActivity;
     }
 
-    filterOptionsResult: { owners: string[]; products: string[]; sources: string[]; icps: string[] } = { owners: [], products: [], sources: [], icps: [] };
-    async getFilterOptions(): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[] }> {
+    filterOptionsResult: { owners: string[]; products: string[]; sources: string[]; icps: string[]; companies: string[] } = { owners: [], products: [], sources: [], icps: [], companies: [] };
+    async getFilterOptions(): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[]; companies: string[] }> {
         return this.filterOptionsResult;
     }
 
@@ -691,7 +691,7 @@ describe('CommercialIntelligenceUseCases', () => {
 
     it('filterOptions: delega ao repositório os valores reais já usados por negócios do funil Negócio', async () => {
         const repo = new FakeRepository([]);
-        repo.filterOptionsResult = { owners: ['ana@atlasgr.com.br'], products: ['SKU-1'], sources: ['Indicação'], icps: ['Enterprise'] };
+        repo.filterOptionsResult = { owners: ['ana@atlasgr.com.br'], products: ['SKU-1'], sources: ['Indicação'], icps: ['Enterprise'], companies: ['Atlas Transportes'] };
         const useCases = new CommercialIntelligenceUseCases(repo);
         const result = await useCases.filterOptions(ORG);
         expect(result).toEqual(repo.filterOptionsResult);

@@ -198,9 +198,10 @@ export interface CommercialFilter {
     product?: string;
     source?: string;
     icp?: string;
+    company?: string;
 }
 
-export interface FilterOptions { owners: string[]; products: string[]; sources: string[]; icps: string[] }
+export interface FilterOptions { owners: string[]; products: string[]; sources: string[]; icps: string[]; companies: string[] }
 
 export interface HistoricalTrendPoint {
     period: string; label: string; winRate: number | null; salesCycleMeanDays: number | null;
@@ -233,6 +234,7 @@ function qs(filter: CommercialFilter, extra?: Record<string, string | number | b
     if (filter.product) params.set('product', filter.product);
     if (filter.source) params.set('source', filter.source);
     if (filter.icp) params.set('icp', filter.icp);
+    if (filter.company) params.set('company', filter.company);
     if (extra) {
         for (const [key, value] of Object.entries(extra)) {
             if (value !== undefined && value !== '') params.set(key, String(value));
