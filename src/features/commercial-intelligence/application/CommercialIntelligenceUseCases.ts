@@ -198,6 +198,7 @@ export class CommercialIntelligenceUseCases {
             // O ICP / Produto ainda não estão em DealRow, precisaremos adicioná-los no findDeals.
             if (filter.icp && s.deal.icp !== filter.icp) return false;
             if (filter.product && !s.deal.productSkus?.includes(filter.product)) return false;
+            if (filter.company && s.deal.companyName !== filter.company) return false;
             return true;
         });
     }

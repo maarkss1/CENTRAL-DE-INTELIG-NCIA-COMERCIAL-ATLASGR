@@ -61,7 +61,7 @@ function FilterSelect({ id, label, value, options, allLabel, onChange }: { id: s
 
 export function CommercialIntelligenceHub() {
     const [searchParams, setSearchParams] = useSearchParams();
-    const [filterOptions, setFilterOptions] = useState<FilterOptions>({ owners: [], products: [], sources: [], icps: [] });
+    const [filterOptions, setFilterOptions] = useState<FilterOptions>({ owners: [], products: [], sources: [], icps: [], companies: [] });
 
     useEffect(() => {
         let cancelled = false;
@@ -75,6 +75,7 @@ export function CommercialIntelligenceHub() {
     const product = searchParams.get('product') || '';
     const source = searchParams.get('source') || '';
     const icp = searchParams.get('icp') || '';
+    const company = searchParams.get('company') || '';
 
     const filter: CommercialFilter = useMemo(() => ({
         month,
@@ -82,7 +83,8 @@ export function CommercialIntelligenceHub() {
         product: product || undefined,
         source: source || undefined,
         icp: icp || undefined,
-    }), [month, owner, product, source, icp]);
+        company: company || undefined,
+    }), [month, owner, product, source, icp, company]);
 
     const setTab = (next: TabId) => {
         const params = new URLSearchParams(searchParams);
@@ -103,7 +105,7 @@ export function CommercialIntelligenceHub() {
         setSearchParams(params, { replace: true });
     };
 
-    const setFilter = (key: 'product' | 'source' | 'icp', next: string) => {
+    const setFilter = (key: 'product' | 'source' | 'icp' | 'company', next: string) => {
         const params = new URLSearchParams(searchParams);
         if (next) params.set(key, next);
         else params.delete(key);
@@ -133,6 +135,7 @@ export function CommercialIntelligenceHub() {
                         onChange={(e) => setMonth(e.target.value || currentMonth())}
                         className="rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink transition-all hover:border-brand/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     />
+                    <FilterSelect id="ci-company" label="Empresa" value={company} options={filterOptions.companies} allLabel="Todas as empresas" onChange={(v) => setFilter('company', v)} />
                     <FilterSelect id="ci-owner" label="Responsável" value={owner} options={filterOptions.owners} allLabel="Todos os vendedores" onChange={setOwner} />
                     <FilterSelect id="ci-product" label="Produto" value={product} options={filterOptions.products} allLabel="Todos os produtos" onChange={(v) => setFilter('product', v)} />
                     <FilterSelect id="ci-source" label="Origem" value={source} options={filterOptions.sources} allLabel="Todas as origens" onChange={(v) => setFilter('source', v)} />

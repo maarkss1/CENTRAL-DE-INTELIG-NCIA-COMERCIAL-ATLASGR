@@ -151,14 +151,19 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
         return { lastSyncAt: lastConnection?.lastImportedAt ?? null, syncedCount, failedCount };
     }
 
-    async getFilterOptions(organizationId: string): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[] }> {
-        const [owners, sources, icps, dealItems] = await Promise.all([
+    async getFilterOptions(organizationId: string): Promise<{ owners: string[]; products: string[]; sources: string[]; icps: string[]; companies: string[] }> {
+        const [owners, sources, icps, dealItems, companies] = await Promise.all([
             prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, owner: { not: null } }, distinct: ['owner'], select: { owner: true } }),
             prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, source: { not: null } }, distinct: ['source'], select: { source: true } }),
             prisma.lead.findMany({ where: { organizationId, funnel: LeadFunnel.Negocio, pic: { not: null } }, distinct: ['pic'], select: { pic: true } }),
             prisma.crmDealItem.findMany({
                 where: { organizationId, lead: { funnel: LeadFunnel.Negocio } },
                 select: { sku: true, product: { select: { sku: true } } },
+            }),
+            prisma.lead.findMany({
+                where: { organizationId, funnel: LeadFunnel.Negocio, companyId: { not: null } },
+                distinct: ['companyId'],
+                select: { company: { select: { tradeName: true, legalName: true } } },
             }),
         ]);
 
@@ -173,6 +178,7 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
             sources: sources.map((l) => l.source).filter((v): v is string => !!v).sort(),
             icps: icps.map((l) => l.pic).filter((v): v is string => !!v).sort(),
             products: [...products].sort(),
+            companies: [...new Set(companies.map((l) => l.company?.tradeName || l.company?.legalName).filter((v): v is string => !!v))].sort(),
         };
     }
 
