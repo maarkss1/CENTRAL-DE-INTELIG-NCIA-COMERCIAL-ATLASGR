@@ -181,6 +181,18 @@
      `--color-danger` (#ef4444) já definido no bloco `@theme` (4.93:1 contra a superfície escura),
      em vez de inventar uma cor nova.*/
   --critical: #d03b3b;
+  /* Mesmo problema do --critical acima, pros badges "soft" (bg-ok/15 text-ok, bg-info/15
+     text-info — Team.tsx, QualificationMatrixPage.tsx, ColdCallStatusCard.tsx etc.): o texto
+     saturado direto sobre --surface/--surface-2 claras cai abaixo de 4.5:1 (achado real do
+     axe-core, tests/e2e/accessibility.spec.ts — ex.: "Administrador" com --color-info cru dava
+     3.06:1). --color-ok/--color-info crus já passam 4.5:1 contra as superfícies escuras (~5-7:1
+     medido), então só o tema claro precisa da versão mais escura — color-mix escala os 3 canais
+     igualmente, sem precisar hardcodear um hex novo por cor. */
+  --ok-active: color-mix(in srgb, var(--color-ok) 70%, black);
+  --info-active: color-mix(in srgb, var(--color-info) 80%, black);
+  --success-active: color-mix(in srgb, var(--color-success) 70%, black);
+  --warning-active: color-mix(in srgb, var(--color-warning) 60%, black);
+  --danger-active: color-mix(in srgb, var(--color-danger) 85%, black);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
   --font-brand-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --font-brand-display: "Mont", "Montserrat", ui-sans-serif, system-ui, sans-serif;
@@ -201,6 +213,13 @@
   --soft: rgba(255, 86, 24, .15);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .6), 0 14px 34px -18px rgba(0, 0, 0, .9);
   --critical: #ef4444;
+  /* --color-ok/--color-info crus já passam 4.5:1 contra a superfície escura — ver comentário
+     de --ok-active/--info-active no :root acima. */
+  --ok-active: var(--color-ok);
+  --info-active: var(--color-info);
+  --success-active: var(--color-success);
+  --warning-active: var(--color-warning);
+  --danger-active: var(--color-danger);
 }
 
 :root[data-brand="totaltrac"].dark {
@@ -222,6 +241,14 @@
   --color-totaltrac-navy: #374898;
   --color-totaltrac-deep: #2D3B78;
   --color-totaltrac-light: #93DBF2;
+
+  /* Texto branco direto sobre bg-atlas-orange/bg-totaltrack-blue crus (useBrandAccent.ts `.bg`/
+     `.solidBg`, usado fora da troca de marca reativa — ex.: dia de hoje no Calendar, filtro de
+     período do Billing) cai pra ~3.2:1/3.6:1 — mesmo achado do axe-core que gerou
+     --color-brand-active, só que pro par estático dessas duas cores. Sem variação por tema
+     porque a cor de fundo (laranja/azul sólido) não muda entre claro/escuro. */
+  --color-atlas-orange-active: color-mix(in srgb, var(--color-atlas-orange) 65%, black);
+  --color-totaltrack-blue-active: color-mix(in srgb, var(--color-totaltrack-blue) 65%, black);
 
   --brand-primary: #FF5618;
   --brand-accent: #FF6B10;
@@ -257,6 +284,12 @@
   --color-brand-2-active: color-mix(in srgb, var(--brand-2) 65%, black);
   --color-warn: var(--warn);
   --color-ok: var(--ok);
+  /* Reativos a tema — ver --ok-active/--info-active em :root/.dark acima. */
+  --color-ok-active: var(--ok-active);
+  --color-info-active: var(--info-active);
+  --color-success-active: var(--success-active);
+  --color-warning-active: var(--warning-active);
+  --color-danger-active: var(--danger-active);
   --color-soft: var(--soft);
   --shadow-card: var(--shadow-card-value);
 

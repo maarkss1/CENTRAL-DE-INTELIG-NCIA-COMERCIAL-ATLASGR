@@ -73,8 +73,8 @@ export function CallSetup({
                     onClick={onStart}
                     className={`w-full lg:w-auto px-10 py-4 rounded-[1.75rem] font-black text-white text-sm uppercase tracking-wider shadow-xl shadow-current/20 flex items-center justify-center gap-3 transition-transform hover:scale-105 ${
                         activeBrand === 'totaltrac'
-                            ? 'bg-sky-600 hover:bg-sky-700'
-                            : 'bg-atlas-orange hover:bg-orange-600'
+                            ? 'bg-sky-700 hover:bg-sky-800'
+                            : 'bg-atlas-orange-active hover:bg-orange-700'
                     }`}
                 >
                     <Phone className="w-5 h-5" /> Ligar Agora

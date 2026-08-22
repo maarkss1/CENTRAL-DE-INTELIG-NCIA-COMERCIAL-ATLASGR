@@ -59,7 +59,7 @@ export function ColdCallStatusCard() {
         <Card padding="lg" accentBar>
             <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-500/15 text-slate-400'}`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${status.enabled ? 'bg-ok/15 text-ok' : 'bg-surface-2 text-ink-2'}`}>
                         <Phone className="w-5 h-5" />
                     </div>
                     <div>
@@ -72,7 +72,7 @@ export function ColdCallStatusCard() {
                     </div>
                 </div>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shrink-0 ${
-                    status.enabled ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-500/15 text-slate-400'
+                    status.enabled ? 'bg-ok/15 text-ok-active dark:text-ok' : 'bg-surface-2 text-ink-2'
                 }`}>
                     {status.enabled ? 'ativa' : 'inativa'}
                 </span>

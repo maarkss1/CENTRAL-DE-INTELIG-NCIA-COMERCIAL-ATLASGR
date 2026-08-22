@@ -27,10 +27,10 @@ const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
  * nunca só a cor) em vez das cores categóricas usadas em gráficos.
  */
 const STATUS_STYLE: Record<ActivityStatus, string> = {
-    'Pendente': 'bg-amber-500/15 text-amber-200 border-amber-500/30',
-    'Em andamento': 'bg-sky-500/15 text-sky-200 border-sky-500/30',
-    'Concluída': 'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
-    'Cancelada': 'bg-slate-500/15 text-slate-400 border-slate-500/30 line-through',
+    'Pendente': 'bg-warning/15 text-warning-active dark:text-warning border-warning/30',
+    'Em andamento': 'bg-info/15 text-info-active dark:text-info border-info/30',
+    'Concluída': 'bg-success/15 text-success-active dark:text-success border-success/30',
+    'Cancelada': 'bg-surface-2 text-ink-2 border-line line-through',
 };
 
 function timeLabel(activity: CalendarActivity): string {
