@@ -109,7 +109,10 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText('não é API oficial Meta')).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Google escrita pendente')).toBeInTheDocument();
+        // Timeout maior que o padrão (1000ms): sob a suíte completa em CI, com todos os workers
+        // disputando recursos, essa troca de aba ocasionalmente não assentava a tempo, causando
+        // falha intermitente sem relação com o componente (achado real, não hipotético).
+        expect(await screen.findByText('Google escrita pendente', {}, { timeout: 3000 })).toBeInTheDocument();
         expect(screen.getByText(/criar\/remarcar\/concluir atividades acontece só na Agenda local do Atlas/i)).toBeInTheDocument();
 
         await user.click(screen.getByText('Bitrix24'));
