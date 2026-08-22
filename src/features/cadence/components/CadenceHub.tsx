@@ -734,7 +734,7 @@ export function CadenceHub() {
     const [startRunOpen, setStartRunOpen] = useState(false);
 
     return (
-        <main className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
             <div className="max-w-6xl mx-auto space-y-6">
                 <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="flex flex-col gap-1">
@@ -774,6 +774,6 @@ export function CadenceHub() {
 
             <NewSequenceDialog isOpen={newSequenceOpen} onClose={() => setNewSequenceOpen(false)} onCreated={() => setRunsKey((k) => k + 1)} />
             <StartRunDialog isOpen={startRunOpen} onClose={() => setStartRunOpen(false)} onStarted={() => setRunsKey((k) => k + 1)} />
-        </main>
+        </div>
     );
 }

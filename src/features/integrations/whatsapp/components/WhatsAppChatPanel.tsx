@@ -61,7 +61,7 @@ export function WhatsAppChatPanel({
                             <p className="text-[11px] text-ink-2 truncate">{phone}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-ink-2 hover:text-ink p-1 shrink-0">
+                    <button onClick={onClose} aria-label="Fechar conversa" className="text-ink-2 hover:text-ink p-1 shrink-0">
                         <X size={18} />
                     </button>
                 </div>
@@ -119,6 +119,7 @@ export function WhatsAppChatPanel({
                                 <button
                                     onClick={handleSend}
                                     disabled={sending || !text.trim()}
+                                    aria-label="Enviar mensagem"
                                     className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white p-2.5 rounded-full transition-colors shrink-0"
                                 >
                                     {sending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
