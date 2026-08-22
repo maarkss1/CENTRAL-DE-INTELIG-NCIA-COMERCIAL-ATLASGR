@@ -14,7 +14,14 @@ const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 // "Bom dia"/"Boa tarde"/"Boa noite", cada uma com largura de texto diferente) e KPIs que variam
 // entre a hora em que a baseline foi capturada e a hora da comparação — folga maior, específica
 // pra essa tela, em vez de mascarar uma regressão real nas outras.
-const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 2500 };
+//
+// 2500 ainda estourava de forma intermitente em runs do CI sem nenhuma mudança na tela
+// (confirmado comparando várias execuções do workflow "E2E Playwright Tests" em main, incluindo
+// commits só de docs, alternando sucesso/falha) — um dos diffs observados teve 3054 pixels
+// (0.01 da imagem). Sobe pra 5000 pra absorver essa variação já esperada sem mascarar uma
+// regressão real: um diff de layout genuíno (elemento sumindo, cor errada, position shift)
+// produz milhares a dezenas de milhares de pixels diferentes, não uma centena a mais que isso.
+const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 5000 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
   await page.addInitScript((t) => {
