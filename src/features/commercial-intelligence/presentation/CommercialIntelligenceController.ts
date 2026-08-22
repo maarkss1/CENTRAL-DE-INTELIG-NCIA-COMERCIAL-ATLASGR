@@ -33,6 +33,7 @@ export function parseFilter(req: Request): CommercialIntelligenceFilter {
         product: typeof pick(req, 'product') === 'string' ? (pick(req, 'product') as string).trim() : undefined,
         source: typeof pick(req, 'source') === 'string' ? (pick(req, 'source') as string).trim() : undefined,
         icp: typeof pick(req, 'icp') === 'string' ? (pick(req, 'icp') as string).trim() : undefined,
+        company: typeof pick(req, 'company') === 'string' ? (pick(req, 'company') as string).trim() : undefined,
     };
 }
 

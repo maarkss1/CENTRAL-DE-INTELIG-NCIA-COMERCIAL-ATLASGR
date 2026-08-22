@@ -19,6 +19,8 @@ export interface CommercialIntelligenceFilter {
     product?: string;
     source?: string;
     icp?: string;
+    /** Filtra por empresa (Lead.company.tradeName || legalName) — mesmo padrão de valor-é-label dos demais filtros, sem id/label separado. */
+    company?: string;
 }
 
 // ─── Metas ──────────────────────────────────────────────────────────────────
@@ -545,6 +547,7 @@ export interface FilterOptions {
     products: string[];
     sources: string[];
     icps: string[];
+    companies: string[];
 }
 
 // ─── Tendências históricas (seção 23) ────────────────────────────────────────
