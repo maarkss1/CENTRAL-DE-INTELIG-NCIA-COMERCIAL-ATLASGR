@@ -1,9 +1,14 @@
 {
   "schemaVersion": "1.0",
-  "generatedAt": "2026-08-20T23:26:36.868760+00:00",
-  "methodologyVersion": "national-v1.1-core-evidence",
-  "decisionReady": true,
-  "decisionBlockers": [],
+  "generatedAt": "2026-08-22T13:09:00Z",
+  "methodologyVersion": "national-v1.1-core-evidence-final-gate",
+  "decisionReady": false,
+  "decisionBlockers": [
+    "Censo nacional de concorrência permanece PARCIAL; White Space competitivo final não pode ser inferido.",
+    "Territórios materializados são candidatos de Core Evidence e ainda não possuem CENSO_COMPLETO comparável.",
+    "Hub Suitability ainda não incorpora conectividade/tempo rodoviário, materialidade da base, aeroportos e custo operacional com evidência suficiente.",
+    "SAM, MRR potencial e break-even territorial ainda dependem de regras/premissas comerciais Atlas aprovadas."
+  ],
   "datasets": [
     {
       "id": "ibge",
@@ -55,9 +60,9 @@
     },
     {
       "id": "mdfe",
-      "label": "ANTT / MDF-e movimentação de cargas",
+      "label": "ANTT / Fluxo logístico origem-destino",
       "status": "ATUALIZADO",
-      "source": "ANTT / CIOT (proxy documentado para fluxo origem-destino; NAO e MDF-e literal -- ver FONTES.md)",
+      "source": "ANTT / CIOT (proxy documentado para fluxo origem-destino; NÃO é contagem literal de MDF-e)",
       "geography": "Origem / Destino / Corredor",
       "note": "Competencia 2026-07: 676267 de 690063 linhas casadas com IBGE (1.9992% sem match), 318162 interestaduais, 1210 grupos NCM observados. CIOT mede operacoes contratadas e e usado como proxy documentado de fluxo; manifests permanece null e nunca e preenchido como se fosse contagem literal de MDF-e.",
       "competence": "2026-07",
@@ -82,7 +87,15 @@
       "status": "PARCIAL",
       "source": "Fontes empresariais primárias + registros públicos",
       "geography": "Município / presença comercial / cobertura",
-      "note": "Pesquisa competitiva permanece parcial e por isso White Space continua indisponivel. A metodologia national-v1.1-core-evidence nao converte ausencia de concorrente encontrado em zero: concorrencia e eficiencia territorial ficam fora do score-base ate evidencia suficiente, sem bloquear o ranking territorial sustentado por ICP, RNTRC, CIOT e risco."
+      "note": "Pesquisa competitiva permanece parcial. Ausência de concorrente encontrado não é convertida em concorrência zero. White Space e decisão final de contratação permanecem bloqueados até cobertura comparável dos finalistas e regra de CENSO_COMPLETO."
+    },
+    {
+      "id": "hub-suitability",
+      "label": "Hub Suitability / eficiência da cidade-base",
+      "status": "NAO_DISPONIVEL",
+      "source": "DNIT + infraestrutura aeroportuária oficial + modelo territorial Atlas (camada em evolução)",
+      "geography": "Cidade-hub / território",
+      "note": "O otimizador atual usa distância geodésica e massa dentro do raio. Isso não prova tempo rodoviário, centralidade operacional nem adequação da cidade para lotação do vendedor. A camada final deve incorporar materialidade própria da base, conectividade, aeroportos quando relevantes, cidades satélites e custo operacional."
     }
   ],
   "files": {

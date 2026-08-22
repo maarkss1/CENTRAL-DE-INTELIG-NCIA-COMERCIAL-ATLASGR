@@ -1,100 +1,100 @@
-# CHANGELOG - Atlas Market Intelligence
+# CHANGELOG — Atlas Market Intelligence
 
-Todas as alterações relevantes devem ser classificadas como `CORRIGIDO`, `MELHORADO`, `NOVO`, `REMOVIDO`, `DADOS ATUALIZADOS` ou `METODOLOGIA ALTERADA`.
+Categorias: `CORRIGIDO`, `MELHORADO`, `NOVO`, `REMOVIDO`, `DADOS ATUALIZADOS`, `METODOLOGIA ALTERADA`.
 
-## Em desenvolvimento - National Market & Territory Intelligence
+## 22/08/2026 — National Market & Territory Intelligence
 
 ### CORRIGIDO
 
-- preservado baseline anterior em branch dedicada antes das mudanças;
-- corrigida a integração do Market Intelligence que dependia de iframe;
-- corrigida a arquitetura que tentava carregar RNTRC bruto de grande volume no navegador;
-- corrigida a semântica de decisão: ranking executivo permanece bloqueado quando os datasets mínimos não sustentam a recomendação;
-- corrigido fechamento JSX preexistente em `OcrCapturePanel.tsx` que bloqueava typecheck da branch;
-- incorporada correção validada do conflito ESLint 10 × `eslint-plugin-jsx-a11y` por alinhamento ao ESLint 9 suportado;
-- corrigido mock preexistente do worker de sinal WhatsApp para efetivamente exercitar a fila;
-- workflows de CI relevantes passaram a fixar GitHub Actions por SHA imutável;
-- quality gate e Playwright alinhados a Node 22, compatível com dependências atuais;
-- corrigido parser da geografia IBGE para aceitar municípios com `microrregiao = null` e resolver UF pelo esquema `regiao-imediata -> regiao-intermediaria -> UF`;
-- corrigida a publicação automatizada do snapshot RNTRC para tolerar avanço concorrente da branch via `fetch -> rebase -> push` com repetição segura;
-- removida antes da publicação a hipótese incorreta de que o recurso público `RNTRC-Dados de Veículos` possuiria RNTRC individual/município; o ETL foi realinhado ao dicionário oficial da ANTT.
+- `manifest.decisionReady` voltou a representar **decisão final de contratação**, e não mera capacidade de gerar ranking Core Evidence;
+- loader de runtime passa a bloquear decisão final se concorrência não estiver finalizada, se finalistas não tiverem `CENSO_COMPLETO`, ou se SAM/MRR/break-even ainda estiverem indisponíveis;
+- E2E foi alinhado ao comportamento fail-closed: Board bloqueada, candidatos Core Evidence preservados na visão de Territórios;
+- `DATA_LINEAGE.md`, `README.md` e `PLANO_EXPANSAO_ATLAS.md` foram reconciliados com os snapshots realmente publicados em 22/08;
+- documentação deixou de tratar a antiga tentativa de frota municipal via `RNTRC-Dados de Veículos` como fonte ativa;
+- CIOT permanece explicitamente identificado como proxy reproduzível de fluxo MDF-e, sem preencher `manifests` como se fosse contagem literal de MDF-e.
 
 ### MELHORADO
 
-- arquitetura separada em domínio, carregamento de dados, componentes e datasets derivados;
-- governança de `OBSERVADO`, `ESTIMADO`, `PROXY`, `PREMISSA_EDITAVEL`, `NAO_DISPONIVEL`;
-- confiança executiva incorporada ao contrato de dados;
-- saúde dos dados passou a ser declarada no manifest;
-- seller economics agora começa sem valores inventados;
-- identidade visual da nova feature usa logo oficial Atlas, laranja `#FF5618`, grafite `#333333`, branco e amarelo secundário;
-- metodologia consolidada distingue tamanho de mercado, demanda, White Space e prioridade territorial;
-- documentação passou a exigir competência, hash e lineage;
-- pipeline de frota passou a tratar indisponibilidade do recurso oficial como estado de Saúde dos Dados, sem converter falha upstream em número estimado;
-- testes de fixture Python passaram a validar os dois esquemas de geografia do IBGE e o schema oficial de frota por UF.
+- auditoria de estado atual reescrita sobre a `main` vigente, incluindo arquitetura React/TypeScript, datasets, fórmulas, inconsistências, dívida técnica e riscos metodológicos;
+- separação formal entre **Exploration Ready** e **Final Decision Ready**;
+- documentação explicita o viés de cidade-base do otimizador atual e a necessidade de `Hub Suitability` antes da recomendação final de residência/lotação;
+- adicionados comandos read-only de QA: `lint:check`, `typecheck`, `typecheck:market-intelligence` e `test:market-intelligence`;
+- governança reforçada para não converter `NAO_DISPONIVEL`, `PROXY` ou `PREMISSA_EDITAVEL` em fato observado;
+- compatibilidade do pipeline CNPJ com identificadores alfanuméricos passou a ser protegida por teste regressivo, evitando coerção silenciosa para dígitos;
+- QA E2E da rota real passa a validar overflow e responsividade em 1920×1080, 1440×900, 1366×768, tablet e mobile.
 
 ### NOVO
 
-- `AUDITORIA_ESTADO_ATUAL.md`;
-- `ARQUITETURA.md`;
-- `METODOLOGIA.md`;
-- `DATA_LINEAGE.md`;
-- `FONTES.md`;
-- `DICIONARIO_DADOS.md`;
-- feature React/TypeScript nativa `src/features/market-intelligence/`;
-- Board View com bloqueio de decisão por governança;
-- tela `Saúde dos Dados`;
-- simulador inicial de custo/break-even do vendedor;
-- contratos de dados para município, território, evidência, scores e manifest;
-- testes unitários de White Space, score bounds e seller economics;
-- `etl_rntrc_atlas.py` com descoberta do snapshot ANTT, cache, hash, join IBGE e agregado municipal;
-- workflow de dados RNTRC que publica somente derivado compacto e metadata;
-- `etl_rntrc_veiculos_atlas.py`, aderente ao dicionário oficial, para agregação de frota por UF quando o recurso público estiver íntegro;
-- workflow de frota com `probe` de disponibilidade, integridade mínima, metadata de indisponibilidade e recuperação automática quando a ANTT voltar a fornecer CSV nacional válido.
+- teste unitário `finalDecisionReadiness.test.ts` protege o gate final contra regressões;
+- bloqueadores econômicos explícitos para SAM, MRR potencial e break-even dos finalistas;
+- requisito formal de `HubSuitability` no plano final, incluindo materialidade da base, conectividade, tempo de deslocamento, aeroportos quando relevantes e custo operacional;
+- `etl_concorrencia_censo.py`, que materializa cobertura competitiva e rebaixa automaticamente falso `CENSO_COMPLETO`;
+- `concorrencia_censo_cobertura.csv`, protocolo versionado `competition-census-v1` para documentar pesquisa local, provedores nacionais, fontes primárias, registros empresariais, mapas, evidência negativa, revisão, data e confiança;
+- testes Python do censo competitivo para protocolo incompleto, protocolo integral e presença concorrencial isolada;
+- testes de compatibilidade CNPJ alfanumérico para segmento básico e ordem do estabelecimento;
+- screenshots de QA responsivo anexadas ao relatório Playwright em cada viewport obrigatório.
 
-### REMOVIDO
+### DADOS ATUALIZADOS / CONFIRMADOS
 
-- iframe como implementação da rota React de Market Intelligence;
-- dependência operacional do carregamento automático de arquivo RNTRC bruto no navegador na nova arquitetura;
-- valores comerciais default usados como se fossem plausíveis para decisão na nova feature;
-- tentativa de produzir frota municipal por join inexistente no schema público da ANTT.
-
-### DADOS ATUALIZADOS
-
-- **RNTRC Jul/2026 publicado**: 1.158.159 linhas processadas, 899.249 transportadores ativos, 5.422 municípios com presença RNTRC e 391 linhas ativas sem match IBGE (0,0435%); bruto de 158.740.046 bytes preservado fora do bundle e identificado por SHA-256;
-- **Frota oficial auditada**: o dicionário ANTT define granularidade `UF`; uso municipal é obrigatoriamente `PROXY_UF`. O recurso histórico Jul/2026, catalogado com 10,5 MiB, retornou HTTP 404 no pipeline em 14/08/2026; o recurso vigente Ago/2026 será tratado como `NAO_DISPONIVEL` enquanto não entregar payload nacional validável;
-- CNPJ, MDF-e e risco ainda aguardam snapshot nacional processado na nova arquitetura;
-- concorrência continua `PESQUISA_PARCIAL`.
+- **IBGE:** cadastro nacional publicado com 5.571 municípios e centroides derivados da BCIM quando disponíveis;
+- **RNTRC jul/2026:** 1.158.159 linhas processadas, 899.249 transportadores ativos, 5.422 municípios com presença RNTRC e 391 linhas ativas sem match IBGE, 0,0435%;
+- **SENATRAN frota jul/2026:** 5.535 municípios, 37 linhas sem match, 0,6640%; `cargoFleet` = caminhão + caminhão-trator + reboque + semirreboque;
+- **CNPJ/ICP ago/2026:** 5.554 municípios com estabelecimentos ICP, 6.639.808 registros candidatos processados e 15.231 sem match IBGE, 0,2294%;
+- **CNPJ alfanumérico:** a Receita Federal emitiu o primeiro CNPJ no novo formato em 31/07/2026; o pipeline Atlas preserva caracteres alfanuméricos e agora possui regressão automatizada;
+- **CIOT jul/2026:** 676.267 de 690.063 linhas casadas com IBGE, 1,9992% sem match, 318.162 operações interestaduais e 1.210 grupos NCM observados;
+- **Sinesp jan-jul/2026:** 27 UFs, usado como `PROXY_UF` para roubo de carga, roubo de veículo e furto de veículo no recorte processado;
+- **Concorrência:** permanece `PARCIAL`; nenhum White Space final é liberado.
 
 ### METODOLOGIA ALTERADA
 
-- os 16 clusters antigos passaram formalmente a `HIPÓTESES DE TRIAGEM`, não vencedores;
-- White Space requer `CENSO_COMPLETO`;
-- Opportunity Score será publicado em versões bruta e ajustada por confiança;
-- pesos históricos deixaram de ser aceitos cegamente e exigem análise de sensibilidade;
-- normalização deve usar universo nacional/competência definida, não somente o arquivo importado no browser;
-- município deve ser unido por código IBGE, não nome textual;
-- RNTRC foi definido como estoque/presença e MDF-e como fluxo logístico real;
-- risco estadual deve ser `PROXY_UF`;
-- frota pública ANTT é observada em nível `UF`; qualquer associação a município deve permanecer explicitamente `PROXY_UF` e nunca ser apresentada como dado observado;
-- TAM/SAM/SOM e MRR exigem premissas econômicas explícitas.
+- Core Evidence v1.1 passa a ser definido formalmente como **ranking exploratório**;
+- pesos Core permanecem ICP 35%, RNTRC 25%, CIOT 20% e Need 20%; White Space e eficiência territorial permanecem indisponíveis, não iguais a zero;
+- `decisionReady=true` passa a exigir o gate final, incluindo concorrência suficiente dos finalistas e economics necessários;
+- `CENSO_COMPLETO` passa a exigir protocolo de cobertura auditável; encontrar concorrentes não é suficiente para provar completude;
+- cidades como Guarujá, Miracatu e Ilhabela no topo do snapshot Core são tratadas como evidência de viés geométrico a corrigir, não como recomendação de lotação;
+- os 16 clusters históricos continuam `HIPOTESES_DE_TRIAGEM` sem bônus metodológico;
+- TAM, SAM, SOM e MRR continuam exigindo elegibilidade e premissas comerciais explícitas;
+- risco estadual continua `PROXY_UF`;
+- CIOT continua proxy documentado de intensidade de fluxo, não MDF-e literal.
 
-## Histórico anterior
+---
+
+## Histórico consolidado anterior
+
+### CORRIGIDO
+
+- preservação de baseline histórico antes da migração;
+- remoção do iframe como implementação principal de Market Intelligence;
+- remoção da tentativa de carregar RNTRC bruto no navegador;
+- normalização municipal por código IBGE;
+- workflows e pipelines de dados passaram a registrar competência/hash e falhar de forma explícita em recursos inválidos.
+
+### NOVO
+
+- feature React/TypeScript `src/features/market-intelligence/`;
+- Board View;
+- Saúde dos Dados;
+- simulador econômico;
+- consulta empresarial separada do CRM;
+- Territory Optimizer com raios 100/150/200/250/300/400 km e cenários 1/2/3/5/10/20 vendedores;
+- ETLs nacionais de geografia, RNTRC, CNPJ/ICP, frota SENATRAN, fluxo e risco;
+- documentação obrigatória de arquitetura, metodologia, lineage, fontes e plano de expansão.
 
 ### v0.5
 
 - camada Need/Risco;
-- Opportunity Score v1 condicionado a dados;
+- Opportunity Score condicionado a dados;
 - simulador por raio;
 - importadores CSV no navegador.
 
 ### v0.4
 
 - demanda combinada RNTRC + ICP;
-- MDF-e;
+- MDF-e/fluxo;
 - concorrência;
 - White Space preliminar.
 
 ### v0.1
 
 - triagem qualitativa de 16 clusters brasileiros;
-- planilha explicitamente não adequada para decisão final de contratação.
+- planilha explicitamente inadequada para decisão final de contratação.

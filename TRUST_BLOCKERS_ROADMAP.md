@@ -31,16 +31,56 @@ para elas e resume o veredito. Fontes cruzadas nesta auditoria: `PRODUCT_VISUAL_
 
 ## P0 — Bloqueadores de confiança
 
+**Atualização em 2026-08-21** (branch `claude/trust-blockers-p0-ybn9cd`): a rodada de 20/08 abaixo
+já havia marcado os 3 itens como resolvidos, mas por amostragem — o próprio texto original admitia
+isso em P0-2/P0-3. Uma nova varredura, mais ampla, achou instâncias **novas e ainda ativas** do
+mesmo padrão em telas/serviços que a amostragem anterior não cobriu. Todas corrigidas nesta rodada:
+
+- **`src/features/companies/components/CompanyList.tsx`** (grid e tabela — a tela de listagem de
+  empresas, tráfego bem maior que `CompanyDetail.tsx`): fallback `['React', 'AWS', 'Salesforce']`
+  / `['React', 'AWS']` renderizado como `TechToolLogo` idêntico a dado real, sem nenhum indicador.
+  Corrigido para `company.technologies ?? []` + badge "Sem detecção real" (mesmo padrão já usado em
+  `CompanyDetail.tsx`), em ambos os layouts (cards e tabela).
+- **`src/features/intelligence/components/ReportsHub.tsx`** + **`GlowChart.tsx`**: falha ao buscar
+  a série mensal (`analyticsApi.dashboard`) caía em `setMonthly([])`, indistinguível de uma série
+  real vazia (mesma mensagem "Sem dados suficientes ainda."). `GlowChart` ganhou prop `error`; a
+  tela agora mostra motivo real da falha em vez de mascarar como "sem dados ainda".
+- **`src/lib/queue/newsMonitor.worker.ts`**: job `scan-company-news` sorteava uma manchete de um
+  array fixo (`Math.random`) e gravava como `AccountSignal` com `evidenceType: 'FACT'`,
+  `confidence: 0.85`, `source: 'GDELT-News'` — fabricando um "fato" com a marca do serviço real de
+  notícias (`news.service.ts`). Mitigante: fila nunca registrada em `server.ts` (código órfão,
+  documentado como tal em `.agents/runs/onda-27.md:92` e mantido de propósito pelo dono do repo em
+  merge anterior) — não gerava dado falso em produção, mas era um risco latente caso reativada.
+  Reescrito para chamar `searchCompanyNews` real (mesma função usada no enriquecimento de empresa);
+  nunca escreve menção/sinal quando a busca real não encontra nada.
+- **`src/features/intelligence/services/abTesting.service.ts`**: `getConversionRates(promptName)`
+  retornava `{ variantA: 15.4, variantB: 12.1 }` fixo, ignorando o parâmetro — mesmo número não
+  importa o prompt. Não é chamado por nenhuma rota/UI hoje (confirmado por busca no repo), mas era
+  um número inventado pronto para aparecer em qualquer dashboard futuro que o consumisse. Reescrito
+  para calcular a taxa real a partir das Notas de tracking (`logPromptUsage`) e do status do Lead
+  (`Negocios_Ganhos`); retorna `0` (zero real, não invenção) quando a variante não tem nenhuma
+  interação rastreada ainda.
+
+Testes novos: `tests/unit/features/intelligence/components/ReportsHub.test.tsx` (caso "distingue
+falha ao buscar a série mensal de uma série real vazia") e
+`tests/unit/features/intelligence/services/abTesting.service.test.ts`. `npx tsc -b --noEmit` e
+`npm run lint` limpos (0 erros); suíte unitária completa 1564/1566 passando — as 2 falhas em
+`tests/unit/features/automation-sdr-voz.test.ts` são pré-existentes, confirmadas reproduzíveis sem
+as mudanças desta rodada (`git stash`), fora do escopo deste item.
+
 | # | Item | Status | Evidência | Nota |
 |---|---|---|---|---|
-| P0-1 | Remover fallback de tecnologias fixas em empresas ou rotular como demonstração | ✅ RESOLVIDO | `src/features/companies/components/CompanyDetail.tsx:93-94,207-237` — `technologiesList = company.technologies ?? []`, gate `hasDetectedTechnologies`; lista vazia mostra aviso explícito de que nenhum logo demonstrativo foi usado. Commit `33f9316` (fix(02): rotular dados demonstrativos). | — |
-| P0-2 | Garantir que dashboards diferenciem erro/offline de zero real | ✅ RESOLVIDO | `LiveStatsWidget.tsx:33-45,99,129-141,159` (badge "Modo Offline" + "—", nunca 0 disfarçado); `CrmOverview.tsx:57,86-91` (tela de erro dedicada); `SinglePageDashboard.tsx:37,44,100-103,146` (`statsError`/`agendaError` como bloco de erro). | Verificado nos 3 widgets executivos principais; não é auditoria de 100% dos KPI tiles do produto. |
-| P0-3 | Revisar telas com dado sintético/stub tratado como operacional | ✅ RESOLVIDO (amostragem) | `PRODUCT_VISUAL_TRUTH_MAP.md` seção C confirma ausência de `*mock*/*fixture*` em `src/`. `GamificationWidget.tsx:12-23` documenta XP/nível fictício zerado por padrão; `SpaceGame.tsx`/`GameWidget.tsx` usam `Math.random` só em mecânica decorativa já rotulada. | Verificação por amostragem — não cobre as ~24 features do produto uma a uma. Reabrir se uma tela nova reintroduzir número inventado. |
+| P0-1 | Remover fallback de tecnologias fixas em empresas ou rotular como demonstração | ✅ RESOLVIDO | `src/features/companies/components/CompanyDetail.tsx:93-94,207-237` (commit `33f9316`) + `CompanyList.tsx` grid/tabela (rodada de 21/08, ver acima) — `?? []` + badge "Sem detecção real" nas 3 superfícies onde tecnologias de empresa aparecem. | — |
+| P0-2 | Garantir que dashboards diferenciem erro/offline de zero real | ✅ RESOLVIDO | `LiveStatsWidget.tsx:33-45,99,129-141,159`; `CrmOverview.tsx:57,86-91`; `SinglePageDashboard.tsx:37,44,100-103,146`; `ReportsHub.tsx`/`GlowChart.tsx` (rodada de 21/08 — série mensal, ver acima). | Cobre os 3 widgets executivos principais + o gráfico de tendência mensal do Hub de Relatórios; ainda não é auditoria de 100% dos KPI tiles do produto. |
+| P0-3 | Revisar telas com dado sintético/stub tratado como operacional | ✅ RESOLVIDO (amostragem ampliada) | `PRODUCT_VISUAL_TRUTH_MAP.md` seção C; `GamificationWidget.tsx:12-23`; `SpaceGame.tsx`/`GameWidget.tsx` (`Math.random` decorativo, já rotulado). Rodada de 21/08 achou e corrigiu 2 instâncias adicionais fora dessa amostragem original: `newsMonitor.worker.ts` (mock de notícia gravado como FACT) e `abTesting.service.ts` (taxa de conversão fixa) — ver acima. | Ainda é verificação por amostragem, agora mais ampla — não cobre as ~24 features do produto uma a uma. Reabrir se uma tela/serviço novo reintroduzir número inventado. |
 
-**Resultado da Onda 1 ("Verdade do produto")**: os 3 itens P0 auditados aqui já foram corrigidos
-em rodadas anteriores (commits `33f9316` e a leva de widgets de dashboard). O achado real desta
-rodada não é um bug de P0 novo — é que o **rastreamento em si** (P1-7) está fragmentado e
-desatualizado.
+**Resultado da Onda 1 ("Verdade do produto")**: os 3 itens P0 seguem resolvidos, mas a rodada de
+21/08 mostra que "resolvido por amostragem" não é o mesmo que "resolvido". O padrão (fallback
+sintético apresentado como dado real) se repetiu em pelo menos 4 lugares que a auditoria de 20/08
+não cobriu. Recomendação para a próxima rodada: tratar este item como recorrente, não como
+concluído — repetir a varredura sempre que uma tela/serviço novo tocar `technologies`,
+`newsMentions`, métricas agregadas ou qualquer taxa/score calculado, antes de declarar P0
+resolvido de novo.
 
 ---
 
@@ -48,9 +88,9 @@ desatualizado.
 
 | # | Item | Status | Evidência | Nota |
 |---|---|---|---|---|
-| P1-4 | Implementar IA contextual ao registro aberto | 🟡 PARCIAL (ampliado 2026-08-21) | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook. `setActiveRecord` chamado em `CompanyDetail.tsx`, `LeadDetailDrawer.tsx:68`, `Account360.tsx` (tipo `company`), `crm360/components/PropostaDetail.tsx` (tipo novo `document`, adicionado ao union em `ActiveRecordContext.tsx`/`assistantContext.ts`), e `commercial-intelligence/components/DealDrillDownDrawer.tsx` (tipo `deal`, só quando o drill-down resolve para exatamente 1 negócio — uma lista filtrada com vários negócios não registra nada, de propósito). | Só falta contato: `ContactDetail.tsx` é dead code (nunca importado) — decidir se é ressuscitado ou se o contexto de contato entra por outro componente de fato montado antes de wire-lo. |
-| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🔴 PENDENTE | `src/components/layout/Sidebar.tsx:46-67` — grupo "IA & Capacitação" lista 8 itens (Hub de IA, Chatbook, Roleplay, Matriz de Objeções, Academy, Base de Conhecimento, Editor, Guia Bitrix24) sem hierarquia, e ao menos 4 hubs (IntelligenceHub, ChatbookHub, ReportsHub, CommercialIntelligenceHub) têm escopo de geração/relatório de IA sobreposto, espalhados entre os grupos "Analisar" e "IA & Capacitação". Só 2 de ~29 rotas em `App.tsx` têm `RequireRole` real; não existe conceito de "persona" em `src/lib/auth/authorization.ts` (só a hierarquia de `Role` ADMIN/GESTOR/CLOSER/SDR/VISUALIZADOR). | Nenhuma consolidação ocorreu; requer decisão de produto sobre quais hubs mesclar/despriorizar e o que "persona" significa neste produto antes de mexer na navegação em produção — não é um refactor mecânico. Ver também P3-15 (mesma raiz). |
-| P1-6 | Fechar ou rotular stubs de calendário/Google | ✅ RESOLVIDO (2026-08-21) | Commit `608ab098` (mesmo dia) trocou o escopo OAuth para `calendar.events` e `PrismaCalendarSchedulerPort.createEvent` passou a chamar `google.service.ts::createCalendarEvent` de verdade (fallback local só se a chamada falhar) — não é mais stub. `Integrations.tsx:239,248-253,268` atualizado para refletir isso: badge "Calendar escrita (via Cadência)" em vez de "Google escrita pendente", texto explica que o agendamento pela Cadência já escreve no Google, mas o CRUD manual da Agenda (`Calendar.tsx`, `/app/calendar`) continua só local. `docs/CADENCE-CYCLE-AUDIT.md` (CYC-004) atualizado no mesmo commit para não descrever mais escrita como stub. | A Agenda manual do Atlas (`/app/calendar`) continua sem sincronizar com o Google — isso é intencional e agora está rotulado na UI, não é mais um gap de confiança. |
+| P1-4 | Implementar IA contextual ao registro aberto | ✅ RESOLVIDO | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook (union `company\|contact\|lead\|deal\|document`). `setActiveRecord` chamado em `CompanyDetail.tsx` e `Account360.tsx` (empresa), `LeadDetailDrawer.tsx:68` (lead), `ContactForm.tsx:73` (contato — `ContactDetail.tsx` é stub morto, nunca importado; a tela real de contato é o formulário), `commercial-intelligence/components/DealDrillDownDrawer.tsx` (negócio, só quando o drill-down resolve para exatamente 1 registro — uma lista filtrada com vários negócios não tem um "registro aberto" único) e `crm360/components/PropostaDetail.tsx` (tipo novo `document`, proposta comercial aberta). | Os 5 tipos de registro já registram/limpam o registro ativo corretamente, incluindo contato (via `ContactForm.tsx`, achado que a rodada anterior deste documento não tinha capturado). |
+| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🟡 PARCIAL | Duplicação de **IA conversacional** resolvida no backend: `agent.routes.ts` tinha 4 endpoints órfãos (`/chat`, `/groq`, `/roleplay`, `/qualification`) com prompt/sistema próprio, inatingíveis por qualquer UI viva (só o hook morto `useAiPlaybookGenerator.ts` os chamava) — ambos removidos; `ChatbookHub.tsx` (página `/app/chatbook`) e `FloatingChatbook.tsx` (drawer global) continuam sendo duas entradas, mas já compartilhavam a mesma fonte de estado (`useAssistantChat`), agora documentado em comentário nos dois arquivos em vez de parecer implementações concorrentes — só `POST /api/intelligence/studio/stream` é a fonte real. Duplicação de **navegação/hubs** ainda aberta: `src/components/layout/Sidebar.tsx:46-67` agrupa por jornada ("IA & Capacitação" com 8 itens), não mais o grupo único de 14 itens descrito antes, mas ao menos 4 hubs (IntelligenceHub, ChatbookHub, ReportsHub, CommercialIntelligenceHub) têm escopo de geração/relatório de IA sobreposto, espalhados entre os grupos "Analisar" e "IA & Capacitação"; não existe conceito de "persona" em `src/lib/auth/authorization.ts` (só a hierarquia de `Role` ADMIN/GESTOR/CLOSER/SDR/VISUALIZADOR). | Fonte única do backend conversacional confirmada e duplicação de código morto eliminada. Falta decisão de produto sobre quais hubs mesclar/despriorizar e o que "persona" significa neste produto antes de mexer na navegação em produção — não é um refactor mecânico. Ver também P3-15 (mesma raiz). |
+| P1-6 | Fechar ou rotular stubs de calendário/Google | ✅ RESOLVIDO (2026-08-21) | Commit `608ab098` trocou o escopo OAuth para `calendar.events` e `PrismaCalendarSchedulerPort.createEvent` passou a chamar `google.service.ts::createCalendarEvent` de verdade (fallback local só se a chamada falhar) — não é mais stub. `Integrations.tsx:239,248-253,268` atualizado para refletir isso: badge "Calendar escrita (via Cadência)" em vez de "Google escrita pendente", texto explica que o agendamento pela Cadência já escreve no Google, mas o CRUD manual da Agenda (`Calendar.tsx`, `/app/calendar`) continua só local. `docs/CADENCE-CYCLE-AUDIT.md` (CYC-004) atualizado no mesmo commit para não descrever mais escrita como stub. | A Agenda manual do Atlas (`/app/calendar`) continua sem sincronizar com o Google — isso é intencional e agora está rotulado na UI, não é mais um gap de confiança. |
 | P1-7 | Manter matriz viva de maturidade por rota | 🟡 PARCIAL | Existem 3 mapas: `PRODUCT_VISUAL_TRUTH_MAP.md` (marketing, 17/08), `.agents/completion/02-mapa-plataforma.md` §7 (dev/ops, 15/08), `docs/architecture/FEATURE-CLASSIFICATION.md` (02/08). Nenhum tem histórico de atualização contínua e já divergem entre si (ex.: FEATURE-CLASSIFICATION.md ainda chama Google de "inteiramente mockado", contradito pelo código — ver P1-6). | Não é uma matriz única e viva; são fotografias pontuais desatualizadas em ~2 semanas. **Este arquivo (`TRUST_BLOCKERS_ROADMAP.md`) é o candidato a matriz única** — ver seção final sobre como mantê-lo atualizado, e consolidar/depreciar os outros três quando possível. |
 
 ---
@@ -86,9 +126,9 @@ desatualizado.
 - **Resultado esperado ("nenhuma tela parece mostrar dado real quando não mostra")**: alcançado nos pontos auditados nesta rodada (P0-1/2/3); manter via revisão de toda tela nova antes de merge.
 
 ### Onda 2 — "IA útil no fluxo"
-- Passar contexto de rota/registro para Chatbook/copiloto — 🟡 feito para empresa (2 telas), lead, e documento comercial; falta contato (via componente montado) e drill-down de negócio (P1-4).
-- Definir fonte única de IA conversacional / remover superfícies duplicadas — 🔴 não iniciado (P1-5).
-- **Resultado esperado ("IA responde sobre a empresa, contato, lead, negócio ou documento aberto")**: quase alcançado — só contato e negócio ainda não passam contexto.
+- Passar contexto de rota/registro para Chatbook/copiloto — ✅ feito para empresa (2 telas), lead, contato, negócio (drill-down) e documento comercial (P1-4).
+- Definir fonte única de IA conversacional / remover superfícies duplicadas — 🟡 duplicação de backend (rotas órfãs de `agent.routes.ts` e hook morto) removida e fonte única confirmada; duplicação de navegação/hubs de IA ainda depende de decisão de produto (P1-5).
+- **Resultado esperado ("IA responde sobre a empresa, contato, lead, negócio ou documento aberto")**: alcançado — os 5 tipos de registro passam contexto ao copiloto.
 
 ### Onda 3 — "Integrações honestas"
 - Calendário: decidir entre escrita real no Google ou renomear para agenda local — ✅ decidido e implementado 2026-08-21: escrita real via Cadência (`calendar.events`), Agenda manual rotulada como local na UI (P1-6).
@@ -108,16 +148,16 @@ desatualizado.
 
 Com P0 e P1-6 já resolvidos, os itens de maior impacto de confiança/valor ainda abertos são:
 
-1. **P1-4** — completar `setActiveRecord` em `ContactDetail.tsx` (hoje dead code — precisa primeiro
-   decidir se ele é ressuscitado ou se o contexto de contato entra por outro componente montado) e
-   em `DealDrillDownDrawer.tsx`, para fechar a paridade de contexto de IA entre os 5 tipos de
-   registro (empresa, lead, contato, negócio, documento).
-2. **P1-7** — decidir qual dos três mapas de maturidade é a fonte única (proposta: este arquivo) e
+1. ~~**P1-6 / Onda 3** — rotular no UI que `/app/calendar` é local e a integração Google é
+   somente-leitura.~~ ✅ Resolvido — ver P1-6.
+2. ~~**P1-4** — completar `setActiveRecord` para os 5 tipos de registro.~~ ✅ Resolvido — ver P1-4.
+3. **P1-7** — decidir qual dos três mapas de maturidade é a fonte única (proposta: este arquivo) e
    apontar os outros dois para ele em vez de manter conteúdo divergente.
-3. **P1-5 / P3-15** — mesma causa raiz (sidebar por inventário técnico + hubs de IA sobrepostos);
-   resolver junto reduz retrabalho. Requer decisão de produto (quais hubs mesclam, o que "persona"
-   significa aqui) antes de qualquer mudança de navegação em produção — não é um item mecânico como
-   os demais desta lista.
+4. **P1-5 / P3-15** — mesma causa raiz (sidebar por inventário técnico + hubs de IA sobrepostos); a
+   duplicação de backend já foi resolvida (ver P1-5), mas a duplicação de navegação/hubs segue
+   pendente. Requer decisão de produto (quais hubs mesclam, o que "persona" significa aqui) antes
+   de qualquer mudança de navegação em produção — não é um item mecânico como os demais desta
+   lista.
 
 ---
 

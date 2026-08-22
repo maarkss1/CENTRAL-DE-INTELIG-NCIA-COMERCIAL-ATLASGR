@@ -185,7 +185,7 @@ export function LdrAccountIntelligence() {
             </div>
             <Link
               to="/app/market-intelligence/deck"
-              className="inline-flex items-center gap-2 rounded-xl bg-[#FF5618] px-4 py-2 text-xs font-black text-white hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-black text-white hover:brightness-110"
             >
               <Zap className="h-4 w-4" /> Abrir fila de aprovação
             </Link>
@@ -196,7 +196,7 @@ export function LdrAccountIntelligence() {
       <form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <label className="block max-w-3xl">
           <span className="text-xs font-black text-slate-700">CNPJ da empresa</span>
-          <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-[#FF5618]">
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-brand">
             <Search className="h-4 w-4 text-slate-400" />
             <input
               value={draftCnpj}
@@ -204,7 +204,7 @@ export function LdrAccountIntelligence() {
               className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
               placeholder="Digite um CNPJ presente no snapshot 2026-08"
             />
-            <button type="submit" disabled={loading} className="my-1.5 inline-flex items-center gap-2 rounded-lg bg-[#FF5618] px-4 py-2 text-xs font-black text-white disabled:opacity-50">
+            <button type="submit" disabled={loading} className="my-1.5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-black text-white disabled:opacity-50">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
               Montar Account 360
             </button>
@@ -220,7 +220,7 @@ export function LdrAccountIntelligence() {
 
       {!account && !error && !loading && (
         <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <FileSearch className="mx-auto h-9 w-9 text-[#FF5618]" />
+          <FileSearch className="mx-auto h-9 w-9 text-brand" />
           <h2 className="mt-3 text-xl font-black text-[#333333]">Account 360 aguardando uma empresa</h2>
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">Consulte um CNPJ real do catálogo. O LDR vai mostrar o que já sabe, o que é derivado e, principalmente, o que ainda não pode afirmar.</p>
         </section>
@@ -269,7 +269,7 @@ export function LdrAccountIntelligence() {
 
           <section className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
             <article className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
-              <div className="flex items-center gap-2"><Target className="h-5 w-5 text-[#FF5618]" /><h3 className="text-lg font-black text-[#333333]">Por que essa conta tem esse fit?</h3></div>
+              <div className="flex items-center gap-2"><Target className="h-5 w-5 text-brand" /><h3 className="text-lg font-black text-[#333333]">Por que essa conta tem esse fit?</h3></div>
               {account.qualification.reasons.length ? (
                 <ul className="mt-4 space-y-2 text-sm text-slate-700">{account.qualification.reasons.map((reason) => <li key={reason} className="rounded-xl bg-slate-50 px-3 py-2">{reason}</li>)}</ul>
               ) : <p className="mt-3 text-sm text-slate-500">Razões ICP não foram publicadas para esta conta.</p>}
@@ -285,7 +285,7 @@ export function LdrAccountIntelligence() {
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
-            <div className="flex items-center gap-2"><Database className="h-5 w-5 text-[#FF5618]" /><h3 className="font-black text-[#333333]">Proveniência e governança</h3></div>
+            <div className="flex items-center gap-2"><Database className="h-5 w-5 text-brand" /><h3 className="font-black text-[#333333]">Proveniência e governança</h3></div>
             <div className="mt-4 grid gap-3 text-xs md:grid-cols-4">
               <div><div className="font-black text-slate-500">Fonte</div><div className="mt-1 text-slate-800">{account.provenance.source}</div></div>
               <div><div className="font-black text-slate-500">Competência</div><div className="mt-1 text-slate-800">{account.provenance.competencia}</div></div>

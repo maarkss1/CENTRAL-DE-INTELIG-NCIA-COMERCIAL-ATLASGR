@@ -2,14 +2,38 @@
 
 Plataforma de geointeligência, inteligência de mercado e planejamento territorial para responder com evidência:
 
-> Onde a Atlas GR deve contratar o próximo vendedor consultor externo, qual território ele deve cobrir e qual capacidade econômica existe nesse território?
+> Onde a Atlas GR deve contratar o próximo vendedor consultor externo, qual território ele deve cobrir, quais contas existem nesse território e qual capacidade econômica a operação pode gerar?
 
-## Estado
+## Estado em 22/08/2026
 
-A base empresarial detalhada está implementada no backend e no frontend. O sistema territorial
-continua sem publicar um vencedor enquanto os datasets mínimos não sustentarem a decisão.
+A plataforma já saiu da fase de HTML de triagem e opera como feature nativa React/TypeScript da Central de Inteligência Comercial.
 
-Os 16 clusters históricos são `HIPÓTESES DE TRIAGEM`, não ranking final.
+### Pronto para análise exploratória nacional
+
+- geografia IBGE;
+- RNTRC jul/2026;
+- frota municipal SENATRAN jul/2026;
+- CNPJ/ICP ago/2026;
+- fluxo CIOT jul/2026 como proxy documentado de MDF-e;
+- risco Sinesp jan-jul/2026 como `PROXY_UF`;
+- Core Evidence nacional;
+- Territory Optimizer e cenários de headcount;
+- simulador econômico sem defaults inventados;
+- consulta empresarial separada do CRM.
+
+### Ainda bloqueado para ordem final de contratação
+
+- censo competitivo nacional está `PARCIAL`;
+- White Space final está `NAO_DISPONIVEL` sem `CENSO_COMPLETO`;
+- Hub Suitability ainda precisa de malha/tempo/aeroportos/custo operacional;
+- SAM/MRR/break-even final dependem de regras e premissas Atlas aprovadas;
+- sensibilidade final com White Space ainda não foi liberada.
+
+`data/manifest.json` usa `decisionReady=false` enquanto esses gates permanecerem abertos.
+
+Os 16 clusters históricos são `HIPOTESES_DE_TRIAGEM`, nunca vencedores pré-definidos.
+
+---
 
 ## Arquitetura
 
@@ -20,13 +44,16 @@ fontes oficiais/primárias
 → ETL Python
 → código IBGE
 → agregações municipais/corredores/contas
-→ scores + confiança + evidências
-→ datasets compactos
+→ disponibilidade + confiança + evidência
+→ scores derivados
+→ datasets compactos/materializados
 → React + TypeScript
-→ Board / Mapa / Territórios / Economics
+→ Board / Territórios / Economics / Empresas
 ```
 
-A rota Market Intelligence da Central é nativa React. O HTML v0.5 foi preservado no baseline/branch de backup para paridade, mas não é mais a arquitetura-alvo.
+A rota Market Intelligence é nativa React. O HTML histórico foi preservado apenas como baseline funcional.
+
+---
 
 ## Governança obrigatória
 
@@ -34,100 +61,101 @@ A rota Market Intelligence da Central é nativa React. O HTML v0.5 foi preservad
 OBSERVADO
 ESTIMADO
 PROXY
-PREMISSA_EDITÁVEL
-NÃO DISPONÍVEL
+PREMISSA_EDITAVEL
+NAO_DISPONIVEL
 ```
 
 Concorrência:
 
 ```text
-NÃO PESQUISADO
-PESQUISA PARCIAL
-CENSO COMPLETO
+NAO_PESQUISADO
+PESQUISA_PARCIAL
+CENSO_COMPLETO
 ```
 
-Somente `CENSO COMPLETO` libera White Space competitivo como indicador decisório.
+Somente `CENSO_COMPLETO` libera White Space competitivo como indicador decisório.
 
-## Camadas
+---
 
-1. geografia IBGE;
-2. RNTRC / estoque logístico;
-3. frota RNTRC;
-4. CNPJ / ICP A-B-C;
-5. MDF-e / fluxo logístico real;
-6. Need Atlas / risco;
-7. tipo/pressão de carga;
-8. concorrência;
-9. White Space;
-10. Opportunity Score bruto e ajustado por confiança;
-11. Territory Optimizer;
-12. TAM / SAM / SOM;
-13. seller economics;
-14. Plano Nacional de Expansão.
+## Separação essencial
 
-## ETLs
+```text
+Core Evidence ≠ White Space ≠ recomendação final
+```
+
+O Core Evidence atual usa dados nacionais reproduzíveis para **priorizar investigação**. Ele não converte concorrência ausente em zero e não autoriza “Vendedor 01”.
+
+A Board executiva final é fail-closed em runtime.
+
+---
+
+## Datasets canônicos do frontend
+
+Entrada:
+
+`public/tools/atlas-market-intelligence/data/manifest.json`
+
+Derivados atuais:
+
+```text
+municipios.json
+municipios_scored.json
+icp_municipios.json
+rntrc_municipios.json
+senatran_frota_municipios.json
+mdfe_origens_municipios.json
+mdfe_destinos_municipios.json
+mdfe_corredores.json
+risco_uf.json
+territorios.json
+```
+
+Bases brutas CNPJ/RNTRC/fluxo nunca entram no bundle web.
+
+---
+
+## ETLs principais
 
 ### RNTRC
 
 `etl_rntrc_atlas.py`
 
-- descobre a competência mensal mais recente no CKAN oficial ANTT;
-- baixa para `.cache/market-intelligence/`;
+- descobre snapshot oficial;
+- baixa para cache;
 - registra SHA-256;
 - cruza município/UF com IBGE;
 - agrega ETC/TAC/CTC;
-- publica apenas JSON municipal compacto.
+- publica somente derivado municipal.
 
-Workflow: `.github/workflows/market-intelligence-rntrc.yml`.
+### Frota
+
+Fonte ativa: SENATRAN / frota por município e tipo.
+
+A camada antiga de `RNTRC-Dados de Veículos` foi supersedida para uso municipal porque não fornecia a granularidade necessária.
 
 ### CNPJ / ICP
 
 `etl_cnpj_atlas.py`
 
-- descobre a competência do diretório oficial Receita;
-- processa ZIPs em streaming;
-- usa SQLite temporário;
+- processa bases oficiais em streaming;
+- usa intermediário local, sem jogar milhões de registros no navegador;
 - considera situação ativa;
-- usa CNAE principal + secundários;
-- aplica `icp_taxonomy.v1.json`;
-- preserva matriz/filial e porte como sinais;
-- publica agregado municipal por código IBGE.
+- aplica CNAE principal/secundários, porte e taxonomia ICP versionada;
+- publica agregado municipal e, quando solicitado, catálogo empresarial particionado.
 
-Quando `--companies-output-dir` é informado, a mesma execução também produz a base empresarial
-detalhada em CSV gzip particionado por UF, com Empresas + Estabelecimentos + Simples/MEI + tabelas
-de domínio da Receita. O output é imutável por `competencia` e `datasetHash`; ICP e RNTRC
-empresarial permanecem nulos quando não há evidência individual.
+A taxonomia `1.0.0` ainda precisa ser calibrada com ganhos/perdas e economics reais Atlas.
 
-Prova de Ribeirão Preto, preparada para a competência realmente disponível na fonte:
+### Fluxo
 
-```bash
-python public/tools/atlas-market-intelligence/etl_cnpj_atlas.py \
-  --competence YYYY-MM \
-  --workdir .cache/market-intelligence/cnpj \
-  --companies-output-dir .cache/market-intelligence/normalized/companies \
-  --companies-uf SP \
-  --companies-municipality-ibge 3543402
-```
+`etl_mdfe_atlas.py`
 
-Carga em massa do manifest validado (requer `psql` e `DATABASE_URL`/`DIRECT_URL`):
-
-```bash
-python scripts/market_intelligence/import_companies.py \
-  --manifest .cache/market-intelligence/normalized/companies/competencia=YYYY-MM/snapshot=HASH/manifest.json
-```
-
-O importador usa `COPY` para uma tabela temporária, valida contagens e só então troca o
-`publicationSlot=CNPJ_ACTIVE` em transação. Reexecutar o mesmo hash é idempotente.
-
-A taxonomia é regra de modelo versionada e ainda deve ser calibrada com dados comerciais Atlas.
-
-### MDF-e
-
-`etl_mdfe_atlas.py` existe como normalizador legado e será promovido a pipeline nacional de fluxo/corredores antes de liberar a camada.
+A fonte reproduzível atual é CIOT. Ela é tratada como **proxy documentado de fluxo MDF-e**, não como contagem literal de manifestos. `manifests`, toneladas e TKU permanecem `null` quando não observados.
 
 ### Risco
 
-`etl_risco_sinesp.py` existe como base inicial. A versão nacional deverá registrar granularidade e usar `PROXY_UF` quando não houver observação municipal.
+Sinesp VDE processado em nível UF para os indicadores usados. A propagação municipal é `PROXY_UF`, com confiança reduzida.
+
+---
 
 ## Frontend
 
@@ -135,49 +163,60 @@ Feature:
 
 ```text
 src/features/market-intelligence/
-  components/CompanyExplorer.tsx
-  components/MarketIntelligenceApp.tsx
-  domain/MarketIntelligence.ts
-  domain/territoryOptimizer.ts
+  components/
+  domain/
+  server/
   marketIntelligence.data.ts
   marketIntelligence.api.ts
-  server/marketIntelligence.routes.ts
-  server/marketIntelligence.service.ts
 ```
 
 Já implementado:
 
-- consulta empresarial real e separada do CRM;
-- paginação e filtros server-side;
-- detalhe por CNPJ com proveniência;
-- Board View com gate de decisão;
+- Board View com gate final;
 - Saúde dos Dados;
-- simulador econômico sem defaults inventados;
-- contratos tipados de dados/evidência/confiança;
+- territórios materializados;
+- cenários econômicos;
+- ramp-up;
+- consulta empresarial real e separada do CRM;
+- contratos tipados de evidência/confiança;
 - Territory Optimizer com raios 100/150/200/250/300/400 km;
 - cenários 1/2/3/5/10/20 vendedores;
-- penalização de overlap por valor incremental.
+- penalização de overlap.
 
-## Datasets do frontend
+Ainda em evolução:
 
-Entrada canônica:
+- mapa nacional nativo com clusters/heatmap/layers;
+- perfil municipal completo;
+- comparador de até quatro territórios;
+- Hub Suitability;
+- censo competitivo nacional;
+- Product Fit;
+- exportações executivas completas.
 
-`public/tools/atlas-market-intelligence/data/manifest.json`
+---
 
-Derivados previstos:
+## QA
 
-```text
-municipios.json
-territorios.json
-evidencias.json
-competidores.json
-rntrc_municipios.json
-icp_municipios.json
+Comandos disponíveis:
+
+```bash
+npm run lint:check
+npm run typecheck:market-intelligence
+npm run test:market-intelligence
+npm run build
 ```
 
-Bases brutas CNPJ/RNTRC/MDF-e nunca devem entrar em `public/`.
+Quality Gate específico:
 
-## Documentação
+`.github/workflows/market-intelligence-ci.yml`
+
+Também existem fixtures Python e E2E Playwright da rota real.
+
+A plataforma não deve ser marcada como concluída apenas porque o Core Evidence possui ranking. A conclusão exige os gates de dados, economics e validação visual descritos em `PLANO_EXPANSAO_ATLAS.md`.
+
+---
+
+## Documentação obrigatória
 
 - `AUDITORIA_ESTADO_ATUAL.md`
 - `ARQUITETURA.md`
@@ -187,32 +226,25 @@ Bases brutas CNPJ/RNTRC/MDF-e nunca devem entrar em `public/`.
 - `DICIONARIO_DADOS.md`
 - `CHANGELOG.md`
 - `PLANO_EXPANSAO_ATLAS.md`
-- `METODOLOGIA_WHITESPACE.md` (histórico)
-- `METODOLOGIA_RISCO_TERRITORIO.md` (histórico)
 
-## Testes
-
-A feature possui testes unitários para:
-
-- gate do censo competitivo;
-- scores 0-100;
-- divisão por zero;
-- seller break-even;
-- distância Haversine;
-- exclusão de municípios bloqueados;
-- minimização de sobreposição territorial.
-
-O projeto só será marcado como concluído após lint, typecheck, unit, integration, build, E2E real e screenshots nos breakpoints definidos.
+---
 
 ## Segurança
 
 - sem secrets/tokens no Market Intelligence;
-- cache bruto ignorado pelo Git;
-- catálogo empresarial detalhado em tabelas próprias, somente leitura para tenants autenticados e
-  separado do CRM; exports brutos não são publicados no bundle;
+- bruto fora de `public/`;
+- catálogo empresarial separado do CRM;
 - nenhuma necessidade de dados pessoais de sócios;
-- hashes e evidências permitem auditoria sem republicar bases públicas gigantes.
+- hashes/evidências permitem auditoria sem republicar bases gigantes.
 
-## Antes de usar para contratação
+---
 
-Consulte `data/manifest.json` e `PLANO_EXPANSAO_ATLAS.md`. Se `decisionReady=false`, qualquer cidade ainda é hipótese e não decisão executiva.
+## Antes de decidir uma contratação
+
+Consulte `data/manifest.json` e `PLANO_EXPANSAO_ATLAS.md`.
+
+```text
+if decisionReady == false:
+    candidatos Core Evidence podem ser investigados
+    Vendedor 01 não pode ser declarado
+```

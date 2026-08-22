@@ -87,7 +87,9 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
       <div className="flex items-center justify-between p-4 border-b border-line shrink-0">
         <h2 className="text-lg font-semibold text-ink">{title}</h2>
         <button
+          type="button"
           onClick={onClose}
+          aria-label="Fechar"
           className="p-1 rounded-md text-ink-2 hover:text-ink hover:bg-surface-2 transition focus-visible:ring-2 focus-visible:ring-brand outline-none"
         >
           <X size={20} />

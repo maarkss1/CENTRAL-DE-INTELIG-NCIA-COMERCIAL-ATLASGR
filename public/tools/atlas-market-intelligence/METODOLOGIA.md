@@ -1,86 +1,63 @@
-# METODOLOGIA - Atlas Market Intelligence
+# METODOLOGIA — Atlas GR National Market & Territory Intelligence System
+
+**Atualizado em:** 22/08/2026
 
 ## 1. Regra de ouro
 
-O sistema separa quatro conceitos que não podem ser confundidos:
-
 ```text
-TAMANHO DE MERCADO != DEMANDA ATENDÍVEL != WHITE SPACE != PRIORIDADE DE CONTRATAÇÃO
+TAMANHO DE MERCADO ≠ DEMANDA ATENDÍVEL ≠ WHITE SPACE ≠ PRIORIDADE DE CONTRATAÇÃO
 ```
 
-Um município pode ser enorme e ainda assim ser uma escolha ruim para o próximo vendedor se houver saturação, baixa eficiência territorial ou confiança insuficiente.
+Um mercado enorme pode ser uma escolha ruim se estiver saturado, for operacionalmente ineficiente ou tiver evidência insuficiente.
 
 ## 2. Estados de evidência
 
-Todo indicador material deve possuir um estado:
-
 - `OBSERVADO`: calculado de fonte identificada;
 - `ESTIMADO`: inferência quantitativa documentada;
-- `PROXY`: indicador de outra granularidade/variável usado como aproximação;
-- `PREMISSA_EDITAVEL`: parâmetro comercial fornecido/editável;
+- `PROXY`: aproximação de outra variável ou granularidade;
+- `PREMISSA_EDITAVEL`: parâmetro comercial editável;
 - `NAO_DISPONIVEL`: dado ausente.
 
 `NAO_DISPONIVEL` nunca vira zero automaticamente.
 
 ## 3. Confiança
 
-Cada componente recebe confiança numérica de 0 a 1 e classe executiva:
-
 ```text
-ALTO    >= 0,80
-MEDIO   >= 0,60 e < 0,80
-BAIXO   > 0 e < 0,60
+ALTO      >= 0,80
+MEDIO     >= 0,60 e < 0,80
+BAIXO     > 0 e < 0,60
 BLOQUEADO = regra de governança impede uso decisório
 ```
 
-A confiança considera:
-
-- autoridade da fonte;
-- competência/defasagem;
-- granularidade;
-- cobertura;
-- completude;
-- qualidade de join geográfico;
-- observação versus proxy;
-- status do censo competitivo.
+A confiança considera fonte, competência, cobertura, granularidade, qualidade do join, observação versus proxy e completude competitiva.
 
 ## 4. Demanda potencial
 
-A camada de demanda deve combinar dimensões distintas.
+### 4.1 ICP Atlas
 
-### 4.1 ICP
+**Tier A:** transportadoras, operadores logísticos, 3PL, armazenagem relevante, agenciadores, grandes frotas e embarcadores intensivos.
 
-Taxonomia:
+**Tier B:** alimentos, bebidas, frigoríficos, pharma, eletrônicos, automotivo, autopeças, químico, combustíveis, papel/celulose, mineração, metalurgia, máquinas, e-commerce e grandes distribuidores.
 
-**Tier A**: aderência logística direta e alta prioridade. Transportadoras, operadores logísticos, 3PL, armazenagem relevante, agenciadores de carga, grandes frotas e embarcadores intensivos.
+**Tier C:** atacado, distribuição regional, agro, cooperativas, insumos, construção e mercados adjacentes com exposição rodoviária relevante.
 
-**Tier B**: indústrias/embarcadores com alta exposição logística, incluindo alimentos, bebidas, frigoríficos, pharma, eletrônico, automotivo, autopeças, químico, combustíveis, papel/celulose, mineração, metalurgia, máquinas, e-commerce e grandes distribuidores.
-
-**Tier C**: atacado, distribuição regional, agro, cooperativas, insumos, construção e demais exposições rodoviárias relevantes.
-
-A classificação de conta evolui de:
+A classificação deve combinar, conforme a evidência disponível:
 
 ```text
-CNAE principal
-```
-
-para:
-
-```text
-CNAE principal/secundário
+CNAE principal/secundários
 + porte
 + atividade
-+ evidência logística
++ sinais logísticos
 + frota
 + movimentação
 + risco
 ```
 
-quando as bases permitirem.
+A taxonomia atual é versionada, mas ainda precisa ser calibrada com ganhos/perdas Atlas.
 
-### 4.2 RNTRC transportadores
+### 4.2 RNTRC
 
-Mede **estoque/presença logística municipal** quando o recurso oficial permite join município + UF com o IBGE:
+RNTRC mede **estoque/presença logística**:
 
 - transportadores ativos;
 - ETC;
@@ -88,84 +65,62 @@ Mede **estoque/presença logística municipal** quando o recurso oficial permite
 - CTC;
 - ETC equiparada.
 
-O snapshot nacional publicado na ONDA 2 usa competência `2026-07` e permanece separado de MDF-e.
+Snapshot atual: `2026-07`.
 
-### 4.3 RNTRC frota
+### 4.3 Frota
 
-A frota é uma camada distinta. O dicionário oficial `RNTRC-Dados de Veículos` expõe:
+A fonte municipal ativa é a **SENATRAN**, que publica frota por município e tipo.
 
-```text
-Categoria do Transportador
-Tipo de Veículo
-UF do Veículo
-Categoria
-Carroceria
-Ano de Fabricação do Veículo
-Quantidade
-```
-
-Consequências metodológicas obrigatórias:
+A plataforma deriva:
 
 ```text
-granularidade observada = UF
-uso municipal = PROXY_UF
+cargoFleet = CAMINHAO + CAMINHAO TRATOR + REBOQUE + SEMI-REBOQUE
 ```
 
-O recurso público não fornece município nem número RNTRC individual. Portanto:
+Essa soma é uma transformação Atlas documentada, não um indicador oficial nomeado pela SENATRAN.
 
-- frota total, tração e implementos só podem ser `OBSERVADO` em UF quando o CSV oficial estiver íntegro;
-- um valor de frota estadual nunca é rotulado como observação municipal;
-- não é permitido dividir frota estadual entre municípios por RNTRC, população, CNPJ ou qualquer rateio implícito;
-- não é permitido usar quantidade de transportadores como substituto de frota;
-- se o recurso oficial não passar no gate de integridade, `fleet = NAO_DISPONIVEL`.
+A antiga tentativa via `RNTRC-Dados de Veículos` fica apenas como histórico, pois aquele recurso não oferecia granularidade municipal adequada.
 
-### 4.4 MDF-e
+### 4.4 Fluxo MDF-e / CIOT
 
-Mede **fluxo logístico observado**:
+A missão deseja MDF-e como medida de movimentação. No snapshot nacional reproduzível atual, a fonte automatizável disponível é CIOT da ANTT.
 
-- origens;
-- destinos;
-- MDF-e/viagens;
-- toneladas;
-- TKU quando disponível;
-- interestadualidade;
-- concentração de corredores;
-- tipo/pressão da carga quando tecnicamente observável.
+Logo:
 
-RNTRC e MDF-e não são substitutos.
+```text
+CIOT = OBSERVADO como operação contratada
+CIOT = PROXY documentado de intensidade de fluxo MDF-e
+MDF-e literal / manifests = NAO_DISPONIVEL
+```
 
-## 5. Need Atlas / pressão securitária
+Nunca preencher `manifests`, toneladas ou TKU com valores não observados.
 
-A camada de Need não é sinônimo de criminalidade.
+RNTRC mede presença. Fluxo mede movimentação. Não são substitutos.
 
-Ela combina, quando disponíveis:
+## 5. Need Atlas / risco
 
-- exposição logística;
-- intensidade/categoria de carga;
-- roubo de carga;
-- roubo de veículo;
-- furto de veículo;
-- corredores relevantes;
-- sinais securitários observáveis.
+Need não é sinônimo de criminalidade. Deve combinar, quando possível:
 
-Se crime existir apenas por UF:
+```text
+exposição logística
++ tipo/atratividade de carga
++ roubo de carga
++ roubo de veículo
++ furto de veículo
++ corredores
+```
+
+No snapshot atual, os indicadores Sinesp utilizados estão em UF:
 
 ```text
 geography = PROXY_UF
 ```
 
-A confiança é reduzida e a interface não apresenta o valor como municipal.
-
-A fórmula v0.5 anterior é preservada como histórico, mas não será promovida automaticamente a fórmula nacional final sem sensibilidade e cobertura:
-
-```text
-crime_raw = 5*roubo_carga + 0,60*roubo_veiculo + 0,25*furto_veiculo
-Need v0.5 = 60% crime + 20% MDF-e + 20% cargo mix
-```
+A confiança é reduzida e a interface não pode chamar o valor de risco municipal observado.
 
 ## 6. Concorrência
 
-Estados:
+Estados obrigatórios:
 
 ```text
 NAO_PESQUISADO
@@ -173,170 +128,167 @@ PESQUISA_PARCIAL
 CENSO_COMPLETO
 ```
 
-Dimensões separadas:
+Devem ser distinguidos:
 
 ```text
-sede fisica
+sede
 filial
 representante
-presenca comercial
+presença comercial
 atendimento remoto
 atendimento nacional
 GR
 rastreamento
 monitoramento
 pronta resposta
-PGR/servicos correlatos
+PGR e correlatos
 ```
 
-Uma sede ausente não significa cidade desatendida.
+Sede ausente não significa território desatendido.
 
 ## 7. White Space
 
-A expressão conceitual é multiplicativa:
+Conceitualmente:
 
 ```text
 White Space ∝ Demanda × Need × Intensidade Logística × Baixa Pressão Competitiva
 ```
-
-A implementação não deve ser uma soma ingênua que permita a um mercado saturado vencer apenas por escala.
 
 Regra dura:
 
 ```text
 if census_status != CENSO_COMPLETO:
     white_space = NULL
-    status = BLOQUEADO
 ```
 
-Quando o censo estiver completo, a primeira versão candidata será construída com componentes normalizados nacionalmente e transformação de saturação que penalize de fato pressão competitiva. Pesos finais serão definidos por análise de sensibilidade.
+Mercados saturados não podem vencer por escala usando uma soma ingênua.
 
-## 8. Opportunity Score
+## 8. Core Evidence versus Opportunity final
 
-A referência histórica é:
+### Core Evidence v1.1
+
+Ranking exploratório atual:
+
+```text
+ICP       35%
+RNTRC     25%
+CIOT      20%
+Need      20%
+```
+
+White Space e eficiência territorial permanecem `NAO_DISPONIVEL`, não zero.
+
+### Opportunity final
+
+A referência histórica:
 
 ```text
 ICP                     25%
 RNTRC                   20%
-MDF-e                   15%
+Fluxo                    15%
 Need / risco            15%
 White Space             20%
 Eficiência territorial   5%
 ```
 
-Esses pesos são **hipótese de modelagem**, não dogma.
+é apenas hipótese inicial. Pesos finais exigem análise de sensibilidade.
 
-A plataforma deve publicar pelo menos:
+A plataforma deve distinguir:
 
 ```text
 Demand Score
-Risk Score
-Competitive Pressure Score
-White Space Score
-Territorial Efficiency Score
-Raw Opportunity Score
-Confidence-adjusted Opportunity Score
+Risk/Need Score
+Competitive Pressure
+White Space
+Territorial Efficiency
+Core Evidence Score
+Final Raw Opportunity
+Final Confidence-adjusted Opportunity
 ```
-
-### Score ajustado por confiança
-
-Primeira regra de trabalho:
-
-```text
-Adjusted = Raw × ConfidenceAggregate
-```
-
-onde `ConfidenceAggregate` é derivada das camadas que efetivamente participam da nota e aplica bloqueios duros antes da multiplicação.
-
-Não usar essa regra para mascarar ausência de censo competitivo. Sem censo completo, o ranking decisório permanece bloqueado.
 
 ## 9. Normalização
 
-Não normalizar score sobre uma amostra arbitrária importada pelo usuário.
+O universo é nacional e de competência registrada.
 
-O universo deve ser registrado no snapshot, preferencialmente nacional e de competência fixa.
+Para distribuições assimétricas, testar e documentar percentil, `log1p`, winsorization ou estatística robusta. Nunca normalizar apenas sobre um CSV arbitrário importado na UI.
 
-Para distribuições muito assimétricas, testar:
+## 10. Sensibilidade
 
-- percentil/rank nacional;
-- winsorization documentada;
-- `log1p` antes de min-max;
-- z-score robusto.
-
-Escolher transformação por estabilidade, explicabilidade e sensibilidade a outliers.
-
-## 10. Análise de sensibilidade
-
-Para cada versão do score:
+Para cada metodologia final:
 
 1. variar pesos em faixas plausíveis;
-2. recalcular top N;
-3. medir estabilidade de posição;
-4. identificar territórios que só vencem sob um conjunto estreito de pesos;
+2. recalcular Top N;
+3. medir estabilidade de posições;
+4. identificar vencedores frágeis;
 5. reduzir confiança de recomendações instáveis;
-6. registrar metodologia_version.
-
-Se houver histórico de ganhos/perdas Atlas suficiente, usar calibração supervisionada apenas como complemento, preservando explicabilidade.
+6. persistir `methodologyVersion`.
 
 ## 11. Territory Optimizer
 
 Candidatos:
 
 ```text
-cada cidade-base elegível × [100,150,200,250,300,400] km
+cidade-base × [100,150,200,250,300,400] km
 ```
 
-Cada candidato agrega os municípios dentro do raio.
+Múltiplos vendedores são escolhidos por cobertura incremental com penalização de overlap.
 
-Valor territorial considera, quando observável e metodologicamente compatível:
-
-- Opportunity ajustado;
-- contas ICP;
-- Tier A/B;
-- RNTRC municipal;
-- frota apenas na granularidade permitida (`UF` / `PROXY_UF`);
-- MDF-e;
-- confiança;
-- densidade;
-- dispersão;
-- acesso/eficiência;
-- custo comercial quando disponível.
-
-Para múltiplos vendedores, selecionar conjuntos maximizando valor/cobertura e penalizando interseção.
-
-Métrica mínima de overlap:
+Métricas mínimas:
 
 ```text
-overlap_accounts = contas cobertas por >1 território
-coverage_efficiency = contas únicas / soma das contas brutas dos territórios
+overlap_accounts
+unique_accounts
+coverage_efficiency
+incremental_value
 ```
 
-O algoritmo deve emitir cenários para 1, 2, 3, 5, 10 e 20 vendedores.
+Cenários obrigatórios:
+
+```text
+1 / 2 / 3 / 5 / 10 / 20 vendedores
+```
+
+### Hub Suitability
+
+A seleção final da cidade-base precisa considerar, além do círculo geométrico:
+
+```text
+materialidade da própria base
+RNTRC/frota próprios
+centralidade comercial
+malha rodoviária
+tempo de deslocamento
+aeroportos quando relevantes
+custo operacional
+cidades satélites
+```
+
+Haversine é distância geodésica, não tempo rodoviário.
+
+O ranking Core atual provou que esse gate é necessário ao produzir bases geometricamente convenientes que não podem ser tratadas automaticamente como melhor cidade para o vendedor morar.
 
 ## 12. TAM / SAM / SOM
 
-### TAM
+**TAM:** contas economicamente aderentes no universo definido.
 
-Contas economicamente aderentes no universo definido.
+**SAM:** subconjunto atendível pelo portfólio, território e restrições Atlas.
 
-### SAM
+**SOM:** parcela capturável do SAM dentro do horizonte e cenário.
 
-Subconjunto do TAM atendível pelo portfólio, geografia e restrições do território.
-
-### SOM
-
-Parcela capturável do SAM dentro do horizonte e cenário, dependente de premissas explícitas.
-
-Nunca:
+Proibido:
 
 ```text
 CNPJs × ticket = receita factual
 ```
 
-Sempre:
+Correto:
 
 ```text
-contas observadas + elegibilidade + premissas comerciais = cenário econômico
+contas observadas
++ elegibilidade
++ Product Fit
++ premissas comerciais
+= cenário econômico
 ```
 
 ## 13. Economia do vendedor
@@ -344,39 +296,23 @@ contas observadas + elegibilidade + premissas comerciais = cenário econômico
 Custo mensal:
 
 ```text
-salario
-+ encargos
-+ beneficios
-+ veiculo
-+ combustivel
-+ hospedagem
-+ pedagio
-+ comissao
-+ ferramentas
-+ administrativo
+salário + encargos + benefícios + veículo + combustível + hospedagem
++ pedágio + comissão + ferramentas + administrativo
 ```
-
-Contribuição por contrato:
 
 ```text
-Ticket MRR × Margem
+contribuição por contrato = Ticket MRR × margem
+break-even contratos = ceil(custo mensal / contribuição)
+oportunidades mínimas = ceil(break-even / win rate)
 ```
 
-Break-even de contratos:
+A camada deve incorporar sales cycle, churn, ramp-up, payback e ROI 12/24 meses.
 
-```text
-ceil(Custo mensal / contribuição por contrato)
-```
+Sem premissa aprovada, a saída é `PREMISSA_EDITAVEL`/`NAO_DISPONIVEL`, nunca um número inventado.
 
-Oportunidades qualificadas mínimas:
+## 14. Cenários e ramp-up
 
-```text
-ceil(contratos break-even / win rate)
-```
-
-A evolução inclui sales cycle, churn, comissão variável, ramp-up, fluxo de caixa, payback e ROI 12/24 meses.
-
-## 14. Cenários
+Cenários:
 
 ```text
 Conservador
@@ -384,45 +320,51 @@ Base
 Agressivo
 ```
 
-Variáveis:
+Variam ticket, win rate, penetração, margem, churn, ramp-up e custo.
 
-- ticket;
-- win rate;
-- penetração;
-- margem;
-- churn;
-- ramp-up;
-- custo de campo.
+Ramp-up deve suportar pelo menos:
 
-Todos permanecem `PREMISSA_EDITAVEL` até receber origem Atlas documentada.
+```text
+M1 / M2 / M3 / M6 / M12
+```
 
 ## 15. Explicabilidade
 
-Cada município/território deve conseguir responder:
+Todo município e território deve responder:
+
+> Por que recebeu esta nota?
+
+A explicação é derivada dos componentes persistidos, incluindo positivos, negativos, proxies, bloqueios, competência e evidências.
+
+## 16. Gate de decisão executiva
+
+Existem dois estados:
+
+### Exploration Ready
+
+Core Evidence suficiente para priorizar investigação.
+
+### Final Decision Ready
+
+A ordem `Vendedor 01`, `Vendedor 02`, etc. somente é liberada com:
 
 ```text
-Por que esta nota?
+geografia válida
++ RNTRC
++ frota/limitação documentada
++ CNPJ/ICP
++ fluxo
++ Need
++ concorrência CENSO_COMPLETO nos finalistas
++ White Space
++ Hub Suitability
++ sensibilidade
++ Territory Optimizer
++ SAM/MRR/break-even
++ evidências/competências
++ QA aprovado
 ```
 
-A explicação cita componentes positivos, negativos, bloqueios, proxies e evidências.
+`manifest.decisionReady` representa **Final Decision Ready**.
 
-Não gerar justificativa textual desconectada dos números persistidos.
-
-## 16. Critério de decisão executiva
-
-A plataforma só publica ordem nacional de contratação como decisão quando:
-
-1. geografia canônica válida;
-2. RNTRC processado;
-3. ICP processado;
-4. MDF-e processado ou explicitamente dispensado por versão metodológica aprovada;
-5. Need com cobertura/confiança registrada;
-6. concorrência com `CENSO_COMPLETO` nos territórios candidatos à recomendação;
-7. score testado para 0-100 e sensibilidade;
-8. Territory Optimizer executado;
-9. premissas econômicas preenchidas para MRR/break-even;
-10. evidências e competências visíveis.
-
-Frota indisponível não pode ser substituída por número inventado. Se a versão metodológica aprovada considerar frota obrigatória, ela é bloqueio; se for opcional, o score deve registrar explicitamente a ausência e reduzir a confiança conforme regra versionada.
-
-Até lá, qualquer cluster anterior é rotulado **HIPÓTESE DE TRIAGEM**.
+Até o gate final, os 16 clusters históricos e os territórios Core atuais permanecem **hipóteses/candidatos para investigação**, não ordem de contratação.

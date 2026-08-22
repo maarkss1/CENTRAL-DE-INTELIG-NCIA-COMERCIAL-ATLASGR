@@ -1,562 +1,351 @@
-# AUDITORIA DO ESTADO ATUAL - Atlas Market Intelligence / Territory Intelligence
+# AUDITORIA DO ESTADO ATUAL — Atlas GR National Market & Territory Intelligence System
 
-**Data da auditoria:** 2026-08-13  
-**Branch auditada:** `main`  
-**Commit baseline preservado:** `098aef11401b291fb3fe04ec4c79267a4805652a`  
-**Branch de backup:** `backup/market-intelligence-pre-national-20260813`  
-**Branch de evolução:** `feat/atlas-national-territory-intelligence`
+**Data de corte:** 22/08/2026  
+**Baseline auditado:** `main` @ `617b392fa6fe42bbd9bb17eb5df1b201170e24a3`  
+**Branch de trabalho:** `codex/atlas-national-territory-finalization-20260822`  
+**Regra de governança:** nenhum dado ausente pode ser interpretado como zero; estimativas, proxies e premissas devem permanecer explicitamente rotulados.
 
 ## Resumo executivo
 
-O projeto já contém um protótipo funcional de inteligência territorial, mas ainda não é um sistema nacional auditável capaz de sustentar uma decisão de contratação. A versão atual combina um HTML monolítico, importadores de CSV executados no navegador, três ETLs Python, um seed concorrencial parcial e uma triagem manual de 16 clusters.
+O projeto deixou de ser apenas um HTML de triagem e hoje já possui uma feature React/TypeScript nativa, domínio tipado, pipelines de dados públicos, snapshots nacionais por município, Quality Gate específico e materialização de territórios. A evolução é substancial.
 
-Há boas decisões de governança que devem ser preservadas: ausência de dado concorrencial não é tratada como concorrência zero; White Space e Opportunity Score são bloqueados quando o censo competitivo não é completo; risco estadual é identificado como proxy; e premissas comerciais são editáveis.
+Entretanto, a plataforma ainda **não pode emitir uma ordem final de contratação** que responda plenamente à tese de White Space da Atlas GR. O principal bloqueador é o censo competitivo nacional, que continua `PARCIAL`. Há também dois problemas metodológicos relevantes na versão `national-v1.1-core-evidence`:
 
-O principal problema é que a camada executiva ainda mistura **hipóteses de triagem** com a aparência de ranking quantitativo. Os 16 clusters e respectivos scores estão hardcoded no front, enquanto os datasets reais necessários para revalidá-los nacionalmente ainda não estão versionados como agregações reproduzíveis. O front também referencia arquivos locais que não existem na árvore atual, inclusive `atlas_icp_municipios.csv` e `transportadores_rntrc_07_2026.csv`.
+1. `manifest.json` declara `decisionReady=true` apesar de o próprio `PLANO_EXPANSAO_ATLAS.md` manter a decisão final bloqueada por concorrência incompleta;
+2. o Territory Optimizer atual privilegia massa agregada dentro de raios geométricos e pode escolher cidades-base pouco adequadas como hub comercial. O snapshot atual materializa, entre os primeiros candidatos, Guarujá/SP, Miracatu/SP e Ilhabela/SP, sinal de que a qualidade da cidade-base ainda não está suficientemente modelada.
 
-A recomendação arquitetural é migrar o módulo de um iframe contendo HTML monolítico para uma feature React/TypeScript nativa, mantendo Python + DuckDB/SQLite/Parquet para ingestão e agregação offline. O navegador deve receber apenas datasets compactos por município/território.
+A correção recomendada é separar formalmente **prontidão exploratória** de **prontidão decisória final**, preservar o Core Evidence como priorização investigativa, bloquear a página “Onde contratar agora?” até o gate competitivo/econômico aplicável e endurecer os critérios de cidade-hub.
 
 ---
 
 # 1. Arquitetura existente
 
-## 1.1 Aplicação principal
+## 1.1 Aplicação
 
-A Central AtlasGR é uma aplicação React 19 + TypeScript + Vite 6, com backend Express, Prisma/Postgres e ampla suíte de dependências já instalada.
-
-O módulo Market Intelligence está integrado em `src/pages/MarketIntelligence.tsx`, mas a integração é apenas uma casca React que renderiza:
+A Central de Inteligência Comercial é React 19 + TypeScript + Vite, com backend Express e Prisma/Postgres. Market Intelligence está integrado nativamente em:
 
 ```text
-iframe -> /tools/atlas-market-intelligence/index.html
+src/pages/MarketIntelligence.tsx
+src/features/market-intelligence/
 ```
 
-Portanto, apesar de aparecer como rota nativa na Central, o módulo continua tecnicamente isolado em um documento HTML monolítico.
+A arquitetura antiga em HTML monolítico foi superada como interface principal, mas seus recursos históricos devem ser preservados para comparação funcional.
 
-## 1.2 Módulo atual
+## 1.2 Domínio atual
 
-Diretório principal:
+O domínio `MarketIntelligence.ts` já modela:
+
+- disponibilidade: `OBSERVADO`, `ESTIMADO`, `PROXY`, `PREMISSA_EDITAVEL`, `NAO_DISPONIVEL`;
+- confiança: `ALTO`, `MEDIO`, `BAIXO`, `BLOQUEADO`;
+- concorrência: `NAO_PESQUISADO`, `PESQUISA_PARCIAL`, `CENSO_COMPLETO`;
+- população ICP A/B/C;
+- RNTRC;
+- fluxo logístico;
+- risco;
+- concorrência;
+- scores;
+- TAM/SAM/SOM e unit economics;
+- evidências e metadados de datasets.
+
+## 1.3 Dados e processamento
+
+Arquitetura atual:
 
 ```text
-public/tools/atlas-market-intelligence/
+Fonte oficial/primária
+→ download/cache fora do bundle
+→ ETL Python
+→ normalização por código IBGE
+→ agregação municipal/corredor
+→ JSON compacto/materializado
+→ domínio TypeScript
+→ React
 ```
 
-Componentes confirmados:
-
-```text
-index.html
-README.md
-METODOLOGIA_WHITESPACE.md
-METODOLOGIA_RISCO_TERRITORIO.md
-FONTES_CONCORRENCIA_SEED.md
-etl_cnpj_atlas.py
-etl_mdfe_atlas.py
-etl_risco_sinesp.py
-modelo_atlas_icp_municipios.csv
-modelo_atlas_mdfe_fluxo.csv
-modelo_atlas_concorrencia.csv
-modelo_atlas_risco_municipios.csv
-concorrencia_seed_verificada.csv
-atlas-logo-positive.png
-atlas-logo-negative.png
-atlas-symbol-positive.png
-atlas-symbol-negative.png
-```
-
-## 1.3 Arquitetura de dados atual
-
-```text
-Fonte externa/manual
-    -> download/exportação pelo usuário
-    -> ETL Python ou importador JS
-    -> CSV
-    -> FileReader/fetch no navegador
-    -> arrays JavaScript em memória
-    -> normalização relativa
-    -> mapa/ranking/simulador
-```
-
-Não existe ainda uma camada formal de dados intermediários em DuckDB/Parquet, catálogo de metadados, hashes, data lineage executável ou pipeline reprodutível de atualização nacional.
+Há Quality Gate específico em `.github/workflows/market-intelligence-ci.yml`, com fixtures Python, typecheck específico, testes unitários, smoke sobre snapshots nacionais, verificação de drift de `territorios.json` e build.
 
 ---
 
 # 2. Funcionalidades existentes
 
-A v0.5 já possui:
+Confirmadas no estado atual:
 
-1. mapa Leaflet/OpenStreetMap;
-2. filtros por região, UF, classificação e score;
-3. ranking dos 16 clusters iniciais;
-4. camada RNTRC importável;
-5. camada ICP/CNPJ importável;
-6. demanda combinada RNTRC + ICP;
-7. camada MDF-e importável;
-8. concorrência importável;
-9. White Space condicionado a censo completo;
-10. camada Need/Risco;
-11. Opportunity Score v1 condicionado à disponibilidade das camadas;
-12. simulador de território por raio;
-13. premissas de custo, ticket, margem, penetração e win rate;
-14. cálculo preliminar de SAM, SOM, MRR, break-even e pipeline;
-15. logos Atlas oficiais já armazenados no módulo;
-16. fallback visual caso Leaflet/CDN não carregue.
+1. feature Market Intelligence nativa em React/TypeScript;
+2. Board View territorial;
+3. Saúde dos Dados;
+4. simulador econômico;
+5. cenários comerciais Conservador/Base/Agressivo;
+6. ramp-up econômico;
+7. consulta empresarial separada do CRM;
+8. Account 360 / LDR;
+9. Territory Optimizer com raios 100/150/200/250/300/400 km;
+10. cenários de 1/2/3/5/10/20 vendedores no domínio do otimizador;
+11. penalização de sobreposição;
+12. explicabilidade municipal básica;
+13. manifest de datasets;
+14. snapshots nacionais materializados;
+15. testes unitários específicos de Market Intelligence;
+16. pipelines de atualização de dados por GitHub Actions.
 
-Recursos requeridos pela missão e ainda ausentes ou incompletos:
+Ainda incompletos ou insuficientes para a missão final:
 
-- Board View `Onde contratar agora?`;
-- Territory Optimizer multi-vendedores com minimização de sobreposição;
-- ranking nacional dos 5.570 municípios;
-- heatmap/clusterização WebGL/canvas;
-- perfil municipal completo em painel lateral;
-- comparador de até 4 territórios;
-- Plano Nacional de Expansão calculado;
-- cenários Conservador/Base/Agressivo;
-- ramp-up mensal do vendedor;
-- Product Fit Score;
-- lista de prospecção por território;
-- evidências por recomendação;
-- Saúde dos Dados;
-- Data Lineage navegável;
-- exportações estruturadas CSV/XLSX/PDF executivo;
-- testes automatizados do módulo/ETLs;
-- metadados de competência e hashes por dataset.
+- mapa geográfico nacional nativo com clusters/heatmap/layers e radius overlay;
+- perfil municipal completo em drawer;
+- comparador lado a lado de até quatro territórios;
+- censo competitivo nacional suficientemente completo;
+- White Space decisório nacional;
+- cidade-hub com malha viária/aeroportos/tempo de deslocamento;
+- Product Fit Score por produto Atlas comprovado;
+- lista Top 50/100/500 por território em escala nacional;
+- exportação executiva completa CSV/XLSX/PDF;
+- análise de sensibilidade publicada dos pesos;
+- plano nacional final com MRR/ROI usando premissas Atlas aprovadas;
+- E2E visual comprovado nos breakpoints requeridos nesta rodada.
 
 ---
 
 # 3. Datasets localizados
 
-## 3.1 Dentro do repositório
+## 3.1 Publicados no bundle otimizado
 
-### Concorrência
-
-`concorrencia_seed_verificada.csv`
-
-- 11 presenças competitivas verificadas;
-- todos os registros com `censo_status=PARCIAL`;
-- cobre apenas parte dos clusters iniciais;
-- não constitui censo nacional.
-
-### Modelos de schema
-
-`modelo_atlas_icp_municipios.csv`  
-`modelo_atlas_mdfe_fluxo.csv`  
-`modelo_atlas_concorrencia.csv`  
-`modelo_atlas_risco_municipios.csv`
-
-São templates de cabeçalho/exemplo, não bases observadas completas.
-
-### Arquivos referenciados, porém não encontrados no commit baseline
-
-O front tenta carregar automaticamente:
+Em `public/tools/atlas-market-intelligence/data/` existem, entre outros:
 
 ```text
-atlas_icp_municipios.csv
-transportadores_rntrc_07_2026.csv
+manifest.json
+municipios.json
+municipios_scored.json
+icp_municipios.json
+rntrc_municipios.json
+senatran_frota_municipios.json
+mdfe_origens_municipios.json
+mdfe_destinos_municipios.json
+mdfe_corredores.json
+risco_uf.json
+territorios.json
 ```
 
-Ambos retornam ausência na árvore atual. Portanto a experiência auto-load não é reproduzível a partir do repositório.
+Há arquivos `.metadata.json` associados às principais camadas.
 
-## 3.2 Acervo anterior recuperado
+## 3.2 Cobertura informada pelo manifest
 
-Foi localizado no acervo do projeto:
+- IBGE: 5.571 municípios no cadastro publicado;
+- RNTRC jul/2026: 5.422 municípios com transportadores; 391 linhas ativas sem match IBGE, 0,0435%;
+- SENATRAN jul/2026: 5.535 municípios; 37 linhas sem match, 0,6640%;
+- CNPJ ago/2026: 5.554 municípios com estabelecimentos ICP; 15.231 de 6.639.808 candidatos sem match, 0,2294%;
+- CIOT jul/2026: 676.267 de 690.063 linhas casadas com IBGE, 1,9992% sem match;
+- Sinesp jan-jul/2026: 27 UFs, usado como `PROXY_UF` para os indicadores disponíveis;
+- concorrência: `PARCIAL`.
 
-`Mapa_Oportunidade_Comercial_AtlasGR_v0.1.xlsx`
+## 3.3 Acervo histórico recuperado
 
-A planilha possui quatro abas:
-
-- `Resumo`;
-- `Triagem Brasil v0.1`;
-- `Metodologia`;
-- `Fontes`.
-
-O próprio arquivo declara que os scores são hipóteses de triagem e que a decisão final exige RNTRC, CNPJ, MDF-e e censo competitivo municipal.
-
-## 3.3 Versões solicitadas e não localizadas até o baseline
-
-Não foram localizados na árvore `main` nem na busca do acervo disponível pelos nomes exatos:
-
-```text
-atlas-market-intelligence-site-v0.5.zip
-atlas-market-intelligence-site-v0.4.zip
-atlas-market-intelligence-site-v0.3.zip
-index.v0.4.backup.html
-index.v0.3.backup.html
-```
-
-A ausência desses nomes não prova que nunca tenham existido. O histórico Git do `index.html` será preservado como fonte de versões anteriores durante a migração, e nenhum recurso será removido sem comparação funcional.
+Foram recuperadas versões anteriores da experiência HTML e a planilha `Mapa_Oportunidade_Comercial_AtlasGR_v0.1.xlsx`. Os 16 clusters originais permanecem hipóteses de triagem e não devem receber bônus na metodologia nacional.
 
 ---
 
-# 4. Fontes existentes
+# 4. Fontes
 
-As fontes já referenciadas no projeto incluem:
+Fontes primárias/estruturantes já utilizadas ou documentadas:
 
-- ANTT / RNTRC;
-- ANTT / Movimentação de Cargas com MDF-e;
-- Receita Federal / Dados Abertos do CNPJ;
-- MJSP / Sinesp VDE;
-- Atlas GR institucional;
-- fontes governamentais estaduais/portuárias usadas na triagem;
-- sites institucionais de concorrentes;
-- um agregador empresarial em um caso do seed competitivo.
+1. IBGE — cadastro/limites municipais;
+2. ANTT — RNTRC;
+3. Receita Federal — Dados Abertos do CNPJ;
+4. ANTT — fluxo de cargas, com CIOT atualmente utilizado como proxy documentado para fluxo origem-destino;
+5. SENATRAN — frota municipal por tipo;
+6. MJSP/Sinesp — risco, atualmente com granularidade de UF para os indicadores utilizados;
+7. fontes empresariais primárias e registros públicos — concorrência.
 
-Problema atual: as fontes aparecem distribuídas entre XLSX, Markdown, HTML e CSV, mas ainda não existe um `FONTES.md` canônico com competência, data de acesso, transformação, limitação e dataset derivado.
-
----
-
-# 5. Fórmulas atuais
-
-## 5.1 Triagem v0.1
-
-A planilha anterior usa notas qualitativas 1-5:
-
-```text
-30% Demanda
-20% Need Atlas
-35% Baixa concorrência
-15% Acesso comercial
-```
-
-A própria planilha determina que esse score é somente de triagem.
-
-## 5.2 Demanda combinada v0.4
-
-```text
-58% ICP/CNPJ + 42% RNTRC
-```
-
-## 5.3 White Space provisório v0.4
-
-```text
-45% Demanda
-25% MDF-e
-30% (100 - Pressão Concorrencial)
-```
-
-Há inner join entre demanda, MDF-e e concorrência, evitando transformar ausência de censo em zero concorrência.
-
-## 5.4 Need/Risk v0.5
-
-```text
-crime_raw = roubo_carga * 5
-          + roubo_veiculo * 0,60
-          + furto_veiculo * 0,25
-
-Need/Risk = 60% crime
-          + 20% MDF-e
-          + 20% cargo mix
-```
-
-## 5.5 Opportunity Score v1
-
-```text
-25% ICP
-20% RNTRC
-15% MDF-e
-15% Need/Risco
-20% espaço competitivo
- 5% eficiência territorial
-```
-
-O score só deveria ser liberado com todas as camadas e `censo_status=COMPLETO`.
-
-## 5.6 Simulador comercial
-
-A implementação atual calcula, de forma simplificada:
-
-```text
-SAM contas = soma de contas ICP no raio com pesos simplificados
-SOM contas = SAM * penetração
-MRR potencial = SOM * ticket MRR
-Break-even contratos = custo mensal / (ticket MRR * margem)
-Pipeline em oportunidades = break-even contratos / win rate
-```
-
-Ainda não modela ramp-up, churn, ciclo de vendas, comissão variável, CAC comercial completo, fluxo de caixa, payback temporal nem ROI 12/24 meses de forma adequada.
+A camada concorrencial ainda não possui cobertura suficiente para inferir baixa pressão competitiva nacional.
 
 ---
 
-# 6. Bugs e falhas funcionais identificadas
+# 5. Fórmulas e metodologia vigentes
 
-## P0 - dados referenciados e ausentes
+## 5.1 Core Evidence v1.1
 
-`index.html` tenta auto-carregar `atlas_icp_municipios.csv` e `transportadores_rntrc_07_2026.csv`, mas os arquivos não existem no baseline.
+A metodologia materializada usa:
 
-## P0 - arquivo RNTRC bruto no navegador
+```text
+ICP / CNPJ       35%
+RNTRC            25%
+CIOT / fluxo     20%
+Need / risco     20%
+White Space       0%
+Eficiência        0%
+```
 
-O front foi desenhado para carregar um RNTRC declarado no próprio código como aproximadamente 150 MB. Isso conflita com a necessidade de fluidez, aumenta memória/tempo de parse e viola a regra de não colocar datasets gigantes no front.
+O score ajustado multiplica o score-base pela confiança agregada.
 
-## P0 - ranking inicial hardcoded
+Isso é válido como **priorização exploratória**, mas não como resposta final à pergunta de White Space, porque concorrência e eficiência territorial estão fora da função objetivo.
 
-Os 16 clusters, scores, notas e narrativas continuam embutidos no JavaScript. Eles são hipóteses de triagem e não podem ocupar o papel de ranking nacional final.
+## 5.2 White Space
 
-## P1 - iframe dentro da aplicação React
+A regra histórica correta deve permanecer:
 
-A rota React contém um iframe do HTML estático. Consequências:
+```text
+CENSO_COMPLETO → pode calcular White Space competitivo
+PESQUISA_PARCIAL → White Space indisponível
+NAO_PESQUISADO → White Space indisponível
+```
 
-- duplicação de design system;
-- isolamento de acessibilidade;
-- dificuldade de deep link/state;
-- testes mais difíceis;
-- bundle e estado desconectados;
-- impossibilidade de reaproveitar componentes existentes da Central;
-- experiência mobile/altura dependente do container pai.
+Ausência de concorrente encontrado nunca equivale a concorrência zero.
 
-## P1 - renderização cartográfica limitada
+## 5.3 Unit economics
 
-O mapa usa `L.circleMarker` e corta datasets não-opportunity em 400 pontos. Isso evita colapso imediato, mas impede exploração nacional real e não implementa clusters/heatmap/WebGL.
+O domínio já calcula custo mensal, contribuição, break-even e oportunidades qualificadas a partir de premissas editáveis. Não deve preencher ticket, margem, win rate, churn, salário ou custos com números inventados.
 
-## P1 - geocodificação incompleta
+---
 
-Os ETLs atuais não consolidam um cadastro canônico de município com `codigo_ibge`, latitude, longitude, mesorregião/região imediata/intermediária e validação de homônimos.
+# 6. Bugs e falhas funcionais
 
-## P1 - ETL MDF-e apenas normaliza
+## P0 — semântica de `decisionReady`
 
-`etl_mdfe_atlas.py` reconhece aliases e regrava CSV, porém não executa o pipeline necessário de:
+`manifest.json` declara `decisionReady=true`, enquanto:
 
-- tipagem numérica robusta;
-- códigos IBGE;
-- deduplicação;
-- agregação municipal origem/destino;
-- corredores;
-- interestadualidade;
-- NCM/carga;
-- concentração;
-- Parquet/DuckDB;
-- metadados de competência.
+- concorrência está `PARCIAL`;
+- White Space está indisponível;
+- `PLANO_EXPANSAO_ATLAS.md` declara decisão bloqueada;
+- economia territorial final ainda contém `null` em SAM/SOM/MRR/break-even no ranking materializado.
 
-## P1 - ICP v0.1 insuficiente
+Isso cria duas verdades executivas dentro do mesmo produto.
 
-`etl_cnpj_atlas.py`:
+**Correção:** separar `explorationReady` de `finalDecisionReady` e fazer a Board View final respeitar o segundo gate.
 
-- usa apenas CNAE principal;
-- possui taxonomia reduzida;
-- não usa CNAEs secundários;
-- não combina RNTRC/MDF-e/risco para classificar contas;
-- não produz `codigo_ibge` canônico;
-- não diferencia explicitamente conta jurídica versus estabelecimento como métrica de negócio;
-- usa pesos ainda não calibrados com ganhos/perdas Atlas;
-- não gera Product Fit.
+## P0 — cidade-base geométrica pode não ser hub comercial
 
-## P1 - risco pode perder grafia canônica do município
+O algoritmo exige apenas quartil superior de ICP da cidade-base e maximiza valor agregado no raio. Isso não modela adequadamente:
 
-O ETL de risco normaliza o nome municipal para comparação e depois usa `.title()` para saída. Isso não é substituto de chave IBGE e pode gerar divergências de grafia/acentuação. A união deve ser por código geográfico oficial quando disponível.
+- centralidade comercial real;
+- peso próprio da cidade no território;
+- RNTRC próprio;
+- conectividade rodoviária;
+- aeroportos;
+- custo/tempo de deslocamento.
 
-## P2 - dependência de CDN em produção
+Resultado observado no snapshot atual: bases como Miracatu e Ilhabela aparecem à frente de hubs comercialmente mais plausíveis. Isso deve ser tratado como viés de modelo.
 
-Leaflet CSS/JS e Montserrat são carregados externamente. Há fallback parcial de mapa, mas a disponibilidade e política de CSP precisam ser tratadas no deploy.
+## P1 — TAM inflado semanticamente
+
+`tamAccounts` territorial atualmente deriva da soma de `icp.total` no raio. É população ICP modelada, não necessariamente total de contas economicamente aderentes com capacidade de compra comprovada. A UI/documentação deve manter essa distinção.
+
+## P1 — “MDF-e” versus CIOT
+
+O manifest já corrige a semântica: a camada atual usa CIOT como proxy documentado de fluxo e mantém `manifests=null`. Qualquer UI antiga que rotule isso como contagem literal de MDF-e deve ser corrigida.
+
+## P1 — performance
+
+`municipios_scored.json` possui aproximadamente 11,6 MB. O caminho materializado de `territorios.json` reduz o custo do Board, mas perfil municipal/mapa nacional exigirão carregamento progressivo e/ou datasets derivados mais enxutos.
+
+## P1 — lint global possui `--fix`
+
+`npm run lint` executa `eslint src --fix`, portanto não é um gate puramente read-only. Para CI/auditoria, o ideal é um script `lint:check` sem mutação.
 
 ---
 
 # 7. Inconsistências
 
-1. `README.md` identifica o site como v0.5, enquanto `FONTES_CONCORRENCIA_SEED.md` se apresenta como v0.6.
-2. A Central chama a rota de nativa, mas tecnicamente ela permanece iframe.
-3. O seed concorrencial é corretamente marcado como PARCIAL, porém o ranking hardcoded possui classificações como `ATACAR` provenientes da triagem anterior. A semântica visual pode induzir a decisão antes da liberação do score final.
-4. O front mistura `score` qualitativo dos 16 hubs com índices normalizados de datasets importados.
-5. O simulador usa `icpData` georreferenciado, mas o schema do ETL CNPJ não inclui latitude/longitude. Logo a cobertura por raio depende de enriquecimento externo não formalizado.
-6. Não há competência visível e consistente para todas as camadas simultaneamente.
-7. O modelo concorrencial registra presença, mas ainda não separa de forma estruturada sede, filial, representante, cobertura remota e atendimento nacional em dimensões independentes.
+1. README afirma que o sistema não publica vencedor enquanto os dados mínimos não sustentarem a decisão; manifest declara `decisionReady=true`.
+2. `PLANO_EXPANSAO_ATLAS.md` está bloqueado, mas a Board View pode exibir “Top 5 territórios calculados” sob `decisionReady=true`.
+3. White Space está corretamente bloqueado, porém o nome genérico `Opportunity Score` pode ser interpretado como score final quando, na v1.1, é Core Evidence.
+4. `mdfe` é o identificador de domínio, mas a observação disponível é CIOT proxy. A interface deve expor a proveniência sem ambiguidade.
+5. confiança territorial `ALTO` hoje pode significar alta confiança nos componentes Core, não alta confiança na decisão final. Esses conceitos precisam ser separados.
 
 ---
 
 # 8. Dívida técnica
 
-## Arquitetura
-
-- HTML/CSS/JS monolítico;
-- lógica de dados, UI, mapa e cálculo no mesmo arquivo;
-- iframe na aplicação React;
-- ausência de contratos TypeScript para datasets;
-- ausência de camada de domínio para scores/territórios.
-
-## Dados
-
-- CSV como principal formato intermediário;
-- ausência de catálogo local DuckDB/Parquet;
-- ausência de manifest de datasets;
-- ausência de hashes e lineage;
-- ausência de código IBGE como chave universal;
-- falta de fixtures formais para ETLs.
-
-## Qualidade
-
-- sem unit tests específicos dos scores;
-- sem testes de propriedade 0-100;
-- sem testes de joins municipais;
-- sem QA automatizado de NULL/divisão por zero;
-- sem E2E específico do módulo;
-- sem acessibilidade automatizada específica da feature.
-
-## Operação
-
-- atualização de bases depende de passos manuais;
-- ausência de cache/versionamento de snapshots;
-- ausência de comando único para atualizar datasets públicos.
+- ausência de modelo explícito de `HubSuitability`;
+- ausência de `FinalDecisionGate` separado do Core Evidence;
+- mapa nacional ainda não nativo na feature React;
+- performance do dataset municipal detalhado pode ser melhorada com resumo/lazy-load;
+- exportações incompletas;
+- ausência de teste específico que impeça `finalDecisionReady=true` com competição incompleta;
+- ausência de teste que rejeite hubs cuja própria materialidade seja residual em relação ao território;
+- falta de camada oficial de malha/tempo de viagem no otimizador.
 
 ---
 
-# 9. Dados simulados / hipotéticos
+# 9. Dados simulados
 
-Devem ser explicitamente classificados como **HIPÓTESE DE TRIAGEM**, não como observação:
+Não foi encontrada necessidade metodológica de manter números simulados como observação nacional. Os números econômicos sem fonte devem permanecer `PREMISSA_EDITAVEL` e os componentes indisponíveis devem permanecer `null`/`NAO_DISPONIVEL`.
 
-- ranking dos 16 clusters;
-- notas 1-5 de demanda, Need, concorrência e acesso da v0.1;
-- scores hardcoded dos hubs;
-- narrativas de classificação `ATACAR`, `VALIDAR`, `MERCADO GRANDE` quando não recalculadas sobre datasets completos;
-- pesos atuais de ICP;
-- pesos do score final ainda não calibrados;
-- parâmetros econômicos do vendedor antes de receber valores reais Atlas.
+Os 16 clusters históricos e seus scores qualitativos devem permanecer apenas como **hipóteses históricas**.
 
 ---
 
-# 10. Dados reais / verificáveis já presentes
+# 10. Dados reais / observados
 
-1. estrutura e regras de governança do código;
-2. logos oficiais armazenados no diretório do módulo;
-3. Manual de Identidade Visual Atlas localizado no acervo;
-4. seed competitivo com URLs e datas de verificação, sempre PARCIAL;
-5. scripts ETL executáveis como ponto de partida;
-6. planilha v0.1 com fontes e declaração explícita de limitações;
-7. URLs oficiais já documentadas para ANTT, Receita e Sinesp.
+Atualmente há evidência publicada para:
 
-Importante: presença de uma URL/fonte no projeto não significa que o snapshot bruto correspondente esteja atualmente disponível ou atualizado.
+- geografia municipal IBGE;
+- população ICP derivada de CNPJ oficial e taxonomia versionada;
+- transportadores RNTRC;
+- frota municipal SENATRAN;
+- fluxo CIOT origem/destino como proxy de intensidade logística;
+- risco Sinesp em nível UF, explicitamente `PROXY_UF`.
+
+Concorrência não é observação nacional completa.
 
 ---
 
 # 11. Recursos incompletos
 
-- RNTRC: ingestão existe no front, mas falta pipeline oficial para estoque + frota agregados e snapshot compacto.
-- CNPJ: ETL existe, mas taxonomia e modelo de dados são v0.1.
-- MDF-e: normalizador existe, não o ETL analítico completo.
-- Risco: ETL existe, falta consolidar chave IBGE, confiança e cobertura geográfica nacional observada.
-- Concorrência: seed existe, porém nenhum município atingiu CENSO COMPLETO.
-- White Space: metodologia existe, mas por governança não pode ser considerada nacional/confiável enquanto o censo for parcial.
-- Opportunity Score: fórmula existe, mas não há sensibilidade/calibração.
-- Territory Optimizer: não existe; há apenas simulador de um hub selecionado.
-- TAM/SAM/SOM: há aproximação de SAM/SOM, sem metodologia econômica completa.
-- ROI vendedor: parcial.
-- Plano Nacional de Expansão: inexistente como resultado calculado.
+Prioridade de conclusão:
+
+1. separar ranking exploratório e decisão final;
+2. corrigir seleção de hub;
+3. censo competitivo dos finalistas e depois expansão nacional;
+4. White Space final;
+5. camada de conectividade/eficiência territorial;
+6. sensibilidade de pesos;
+7. Product Fit;
+8. mapa nacional moderno;
+9. perfil municipal e comparador;
+10. exportações;
+11. QA visual e E2E completo.
 
 ---
 
 # 12. Riscos metodológicos
 
-## 12.1 Viés de tamanho
-
-Sem transformação adequada, grandes metrópoles podem vencer por volume absoluto mesmo com saturação elevada.
-
-## 12.2 Viés de ausência concorrencial
-
-Já mitigado parcialmente pela trava de `censo_status`, mas ainda é o maior risco para um ranking final.
-
-## 12.3 Normalização relativa instável
-
-Índices 0-100 recalculados apenas sobre o arquivo importado mudam se o universo muda. O score nacional deve ser normalizado sobre universo e competência definidos.
-
-## 12.4 Mistura temporal
-
-RNTRC, CNPJ, MDF-e, risco e concorrência podem possuir competências distintas. O sistema precisa exibir e penalizar defasagem/confiança, não misturar silenciosamente.
-
-## 12.5 CNPJ como demanda
-
-Quantidade de CNPJs mede população potencial, não intenção, ticket ou capacidade logística real. Precisa ser combinada com porte, frota, fluxo e evidências de logística.
-
-## 12.6 Crime como Need
-
-Ocorrência policial não equivale a sinistro securitário ou demanda comercial. Proxy UF deve reduzir confiança e nunca aparecer como dado municipal.
-
-## 12.7 Distância euclidiana versus território real
-
-Haversine é adequado para shortlist, mas não captura tempo rodoviário, pedágios, barreiras geográficas ou malha efetiva. O optimizer deve distinguir distância geodésica de custo/tempo rodoviário quando dados oficiais permitirem.
-
-## 12.8 Receita potencial
-
-Contagem de contas não pode ser convertida em MRR sem ticket, penetração, mix de produtos, win rate, ciclo e ramp-up explicitamente editáveis.
+1. **Viés metropolitano:** raios próximos a megamercados podem vencer por capturar massa de cidades vizinhas.
+2. **Viés de centro geométrico:** uma cidade pequena pode ser escolhida por posição espacial, não por qualidade operacional como base.
+3. **Risco estadual:** todos os municípios da UF recebem o mesmo proxy de risco.
+4. **CIOT como proxy de MDF-e:** mede fluxo contratado observado pela fonte disponível, não é contagem literal de MDF-e.
+5. **Taxonomia ICP não calibrada:** tiers ainda precisam de validação com ganhos/perdas, ticket e ciclo reais Atlas.
+6. **Concorrência parcial:** impede inferência confiável de White Space.
+7. **TAM/SAM/SOM:** quantidade de CNPJ não pode virar receita sem elegibilidade e premissas econômicas explícitas.
+8. **Séries temporais:** competências diferentes precisam permanecer visíveis e nunca ser misturadas silenciosamente.
 
 ---
 
-# 13. Melhorias recomendadas e plano de evolução
+# 13. Melhorias recomendadas e ordem de execução
 
-## Onda 1 - arquitetura/UX
+## Imediatas
 
-1. substituir iframe por feature React/TypeScript nativa;
-2. separar `domain`, `data`, `scores`, `territory`, `components` e `pages`;
-3. aplicar Design System Atlas com logos oficiais e Montserrat;
-4. preservar recursos funcionais do HTML durante migração;
-5. criar contratos Zod/TypeScript para datasets compactos.
+- introduzir `explorationReady` e `finalDecisionReady`;
+- bloquear decisão final enquanto não houver censo competitivo suficiente nos finalistas;
+- renomear a saída v1.1 para “Core Evidence / Prioridade de Investigação” na UI;
+- introduzir Hub Suitability e participação mínima da cidade-base na massa do território;
+- atualizar README, metodologia, plano de expansão, lineage e changelog para a semântica única.
 
-## Onda 2-6 - dados
+## Próxima camada de dados
 
-Criar pipeline reproduzível:
+- concluir censo competitivo dos territórios candidatos com sede/filial/representante/remoto/nacional separados;
+- incorporar DNIT/rodovias e aeroportos oficiais para eficiência territorial;
+- recalcular White Space e executar sensibilidade dos pesos.
 
-```text
-DOWNLOAD
--> raw/ versionado por metadata, não necessariamente por Git
--> DuckDB/Parquet
--> validação
--> agregação IBGE municipal
--> compact datasets
--> manifest/hash
--> front
-```
+## Gate final
 
-Chave canônica: `codigo_ibge`.
-
-## Onda 7 - scores
-
-Separar e documentar:
+A plataforma somente poderá responder “Vendedor 01 = cidade X” quando, no mínimo:
 
 ```text
-Demand Score
-Risk Score
-Competitive Pressure
-White Space Score
-Territorial Efficiency
-Raw Opportunity Score
-Confidence-adjusted Opportunity Score
-Product Fit Score
+Core Evidence válido
++ finalistas com CENSO_COMPLETO comparável
++ White Space disponível
++ Hub Suitability aprovado
++ SAM calculável
++ premissas econômicas Atlas preenchidas
++ QA automatizado e visual aprovado
 ```
 
-Executar análise de sensibilidade dos pesos e impedir ranking final quando a confiança mínima não for atendida.
-
-## Onda 8 - Territory Optimizer
-
-O optimizer deve resolver cenários de 1, 2, 3, 5, 10 e 20 vendedores, testar raios de 100-400 km e penalizar sobreposição. A saída deve conter território, municípios, massa ICP, score, cobertura e confiança.
-
-## Onda 9 - economia
-
-Formalizar TAM/SAM/SOM e unit economics com premissas editáveis, cenários e ramp-up. Nenhuma premissa comercial será rotulada como dado observado até receber fonte Atlas.
-
-## Onda 10 - Plano Nacional
-
-Gerar ordem calculada de contratação, não uma cópia dos 16 clusters iniciais. Os 16 hubs serão reavaliados contra todos os municípios brasileiros.
-
-## Onda 11 - QA
-
-Adicionar lint/typecheck/unit/integration/build/E2E, fixtures de ETL, validação de IBGE/homônimos/NULL/encoding e QA visual real em múltiplos breakpoints.
-
----
-
-# Decisão de arquitetura decorrente da Onda 0
-
-**O HTML monolítico atingiu o limite de manutenção para a missão nacional.**
-
-A evolução deve ocorrer como módulo React/TypeScript nativo da Central, com processamento pesado fora do browser. O HTML atual será preservado na branch de backup e usado como checklist de paridade durante a migração.
-
-# Estado de conclusão da Onda 0
-
-- [x] baseline identificado;
-- [x] branch de backup criada;
-- [x] branch de trabalho criada;
-- [x] arquitetura atual auditada;
-- [x] ETLs existentes revisados;
-- [x] metodologias atuais revisadas;
-- [x] seed competitivo revisado;
-- [x] planilha v0.1 recuperada e comparada conceitualmente;
-- [x] Manual de Identidade Visual Atlas localizado e regras críticas confirmadas;
-- [x] dados simulados versus reais classificados;
-- [x] bugs/dívida/riscos metodológicos registrados;
-- [ ] snapshots oficiais nacionais atualizados e processados - inicia na Onda 2;
-- [ ] censo nacional competitivo - Onda 6.
-
-A partir deste documento, toda recomendação executiva deverá ser rastreável a dados observados, proxies declarados ou premissas editáveis.
+Até lá, o produto pode mostrar **candidatos para investigação**, nunca uma recomendação final de contratação.

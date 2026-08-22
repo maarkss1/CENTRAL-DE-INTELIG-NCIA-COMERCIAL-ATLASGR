@@ -6,6 +6,8 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { KpiTile } from './KpiTile';
 import { AlertsPanel } from './AlertsPanel';
+import { FunnelConversionCard } from './FunnelConversionCard';
+import { PipelineByStageCard } from './PipelineByStageCard';
 import { GoalEditorDialog } from './GoalEditorDialog';
 import { DealDrillDownDrawer, type DrillDownQuery } from './DealDrillDownDrawer';
 import { ForecastRangeCard } from './ForecastRangeCard';
@@ -289,7 +291,11 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                 />
             </div>
 
+            {performance && <FunnelConversionCard funnel={performance.funnel} trackingSince={performance.funnelHistoricalTrackingSince} />}
+
             <CoverageProtectionTable entries={overview.coverageProtection} />
+
+            {performance && <PipelineByStageCard funnel={performance.funnel} currency={currency} />}
 
             {(performance || creation) && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
