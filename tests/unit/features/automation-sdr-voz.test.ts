@@ -25,9 +25,12 @@ vi.mock('@/features/integrations/birth-voice/birthVoice.service', () => ({
     SuppressedNumberError: class SuppressedNumberError extends Error {},
 }));
 
-// O motor também consulta a janela comercial de ligação (isWithinCallWindow) antes de discar. Sem
-// mockar isso, o teste dependeria do horário real em que roda (CI em UTC, janela em
-// America/Sao_Paulo) e falharia sempre que executado fora de 9h-18h em dia útil.
+// O motor também checa a janela comercial de ligação (`isWithinCallWindow`/`callWindowFromEnv`,
+// ver automation.engine.ts) antes de discar — sem mockar isso, o teste dependia da hora real do
+// relógio de quem roda a suíte (passava em horário comercial de SP em dia útil, falhava fora
+// disso). A lógica de janela em si já tem cobertura determinística própria em
+// coldCall.policy.test.ts; aqui só precisamos que ela sempre deixe passar. callWindowFromEnv só é
+// repassado como argumento pro isWithinCallWindow já mockado acima, então seu retorno não importa.
 vi.mock('@/features/integrations/birth-voice/coldCall.policy', () => ({
     isWithinCallWindow: vi.fn(() => true),
 }));

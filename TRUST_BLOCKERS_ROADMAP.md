@@ -31,16 +31,56 @@ para elas e resume o veredito. Fontes cruzadas nesta auditoria: `PRODUCT_VISUAL_
 
 ## P0 — Bloqueadores de confiança
 
+**Atualização em 2026-08-21** (branch `claude/trust-blockers-p0-ybn9cd`): a rodada de 20/08 abaixo
+já havia marcado os 3 itens como resolvidos, mas por amostragem — o próprio texto original admitia
+isso em P0-2/P0-3. Uma nova varredura, mais ampla, achou instâncias **novas e ainda ativas** do
+mesmo padrão em telas/serviços que a amostragem anterior não cobriu. Todas corrigidas nesta rodada:
+
+- **`src/features/companies/components/CompanyList.tsx`** (grid e tabela — a tela de listagem de
+  empresas, tráfego bem maior que `CompanyDetail.tsx`): fallback `['React', 'AWS', 'Salesforce']`
+  / `['React', 'AWS']` renderizado como `TechToolLogo` idêntico a dado real, sem nenhum indicador.
+  Corrigido para `company.technologies ?? []` + badge "Sem detecção real" (mesmo padrão já usado em
+  `CompanyDetail.tsx`), em ambos os layouts (cards e tabela).
+- **`src/features/intelligence/components/ReportsHub.tsx`** + **`GlowChart.tsx`**: falha ao buscar
+  a série mensal (`analyticsApi.dashboard`) caía em `setMonthly([])`, indistinguível de uma série
+  real vazia (mesma mensagem "Sem dados suficientes ainda."). `GlowChart` ganhou prop `error`; a
+  tela agora mostra motivo real da falha em vez de mascarar como "sem dados ainda".
+- **`src/lib/queue/newsMonitor.worker.ts`**: job `scan-company-news` sorteava uma manchete de um
+  array fixo (`Math.random`) e gravava como `AccountSignal` com `evidenceType: 'FACT'`,
+  `confidence: 0.85`, `source: 'GDELT-News'` — fabricando um "fato" com a marca do serviço real de
+  notícias (`news.service.ts`). Mitigante: fila nunca registrada em `server.ts` (código órfão,
+  documentado como tal em `.agents/runs/onda-27.md:92` e mantido de propósito pelo dono do repo em
+  merge anterior) — não gerava dado falso em produção, mas era um risco latente caso reativada.
+  Reescrito para chamar `searchCompanyNews` real (mesma função usada no enriquecimento de empresa);
+  nunca escreve menção/sinal quando a busca real não encontra nada.
+- **`src/features/intelligence/services/abTesting.service.ts`**: `getConversionRates(promptName)`
+  retornava `{ variantA: 15.4, variantB: 12.1 }` fixo, ignorando o parâmetro — mesmo número não
+  importa o prompt. Não é chamado por nenhuma rota/UI hoje (confirmado por busca no repo), mas era
+  um número inventado pronto para aparecer em qualquer dashboard futuro que o consumisse. Reescrito
+  para calcular a taxa real a partir das Notas de tracking (`logPromptUsage`) e do status do Lead
+  (`Negocios_Ganhos`); retorna `0` (zero real, não invenção) quando a variante não tem nenhuma
+  interação rastreada ainda.
+
+Testes novos: `tests/unit/features/intelligence/components/ReportsHub.test.tsx` (caso "distingue
+falha ao buscar a série mensal de uma série real vazia") e
+`tests/unit/features/intelligence/services/abTesting.service.test.ts`. `npx tsc -b --noEmit` e
+`npm run lint` limpos (0 erros); suíte unitária completa 1564/1566 passando — as 2 falhas em
+`tests/unit/features/automation-sdr-voz.test.ts` são pré-existentes, confirmadas reproduzíveis sem
+as mudanças desta rodada (`git stash`), fora do escopo deste item.
+
 | # | Item | Status | Evidência | Nota |
 |---|---|---|---|---|
-| P0-1 | Remover fallback de tecnologias fixas em empresas ou rotular como demonstração | ✅ RESOLVIDO | `src/features/companies/components/CompanyDetail.tsx:93-94,207-237` — `technologiesList = company.technologies ?? []`, gate `hasDetectedTechnologies`; lista vazia mostra aviso explícito de que nenhum logo demonstrativo foi usado. Commit `33f9316` (fix(02): rotular dados demonstrativos). | — |
-| P0-2 | Garantir que dashboards diferenciem erro/offline de zero real | ✅ RESOLVIDO | `LiveStatsWidget.tsx:33-45,99,129-141,159` (badge "Modo Offline" + "—", nunca 0 disfarçado); `CrmOverview.tsx:57,86-91` (tela de erro dedicada); `SinglePageDashboard.tsx:37,44,100-103,146` (`statsError`/`agendaError` como bloco de erro). | Verificado nos 3 widgets executivos principais; não é auditoria de 100% dos KPI tiles do produto. |
-| P0-3 | Revisar telas com dado sintético/stub tratado como operacional | ✅ RESOLVIDO (amostragem) | `PRODUCT_VISUAL_TRUTH_MAP.md` seção C confirma ausência de `*mock*/*fixture*` em `src/`. `GamificationWidget.tsx:12-23` documenta XP/nível fictício zerado por padrão; `SpaceGame.tsx`/`GameWidget.tsx` usam `Math.random` só em mecânica decorativa já rotulada. | Verificação por amostragem — não cobre as ~24 features do produto uma a uma. Reabrir se uma tela nova reintroduzir número inventado. |
+| P0-1 | Remover fallback de tecnologias fixas em empresas ou rotular como demonstração | ✅ RESOLVIDO | `src/features/companies/components/CompanyDetail.tsx:93-94,207-237` (commit `33f9316`) + `CompanyList.tsx` grid/tabela (rodada de 21/08, ver acima) — `?? []` + badge "Sem detecção real" nas 3 superfícies onde tecnologias de empresa aparecem. | — |
+| P0-2 | Garantir que dashboards diferenciem erro/offline de zero real | ✅ RESOLVIDO | `LiveStatsWidget.tsx:33-45,99,129-141,159`; `CrmOverview.tsx:57,86-91`; `SinglePageDashboard.tsx:37,44,100-103,146`; `ReportsHub.tsx`/`GlowChart.tsx` (rodada de 21/08 — série mensal, ver acima). | Cobre os 3 widgets executivos principais + o gráfico de tendência mensal do Hub de Relatórios; ainda não é auditoria de 100% dos KPI tiles do produto. |
+| P0-3 | Revisar telas com dado sintético/stub tratado como operacional | ✅ RESOLVIDO (amostragem ampliada) | `PRODUCT_VISUAL_TRUTH_MAP.md` seção C; `GamificationWidget.tsx:12-23`; `SpaceGame.tsx`/`GameWidget.tsx` (`Math.random` decorativo, já rotulado). Rodada de 21/08 achou e corrigiu 2 instâncias adicionais fora dessa amostragem original: `newsMonitor.worker.ts` (mock de notícia gravado como FACT) e `abTesting.service.ts` (taxa de conversão fixa) — ver acima. | Ainda é verificação por amostragem, agora mais ampla — não cobre as ~24 features do produto uma a uma. Reabrir se uma tela/serviço novo reintroduzir número inventado. |
 
-**Resultado da Onda 1 ("Verdade do produto")**: os 3 itens P0 auditados aqui já foram corrigidos
-em rodadas anteriores (commits `33f9316` e a leva de widgets de dashboard). O achado real desta
-rodada não é um bug de P0 novo — é que o **rastreamento em si** (P1-7) está fragmentado e
-desatualizado.
+**Resultado da Onda 1 ("Verdade do produto")**: os 3 itens P0 seguem resolvidos, mas a rodada de
+21/08 mostra que "resolvido por amostragem" não é o mesmo que "resolvido". O padrão (fallback
+sintético apresentado como dado real) se repetiu em pelo menos 4 lugares que a auditoria de 20/08
+não cobriu. Recomendação para a próxima rodada: tratar este item como recorrente, não como
+concluído — repetir a varredura sempre que uma tela/serviço novo tocar `technologies`,
+`newsMentions`, métricas agregadas ou qualquer taxa/score calculado, antes de declarar P0
+resolvido de novo.
 
 ---
 

@@ -293,9 +293,7 @@ export function CompanyList() {
                     /* CARDS GRID VIEW */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {companies.map((company) => {
-                            const techStack = company.technologies && company.technologies.length > 0
-                                ? company.technologies
-                                : ['React', 'AWS', 'Salesforce']; // Fallback demonstrativo caso sem tecnologias
+                            const techStack = company.technologies ?? [];
                             const companyLabel = company.tradeName || company.legalName;
 
                             return (
@@ -381,17 +379,25 @@ export function CompanyList() {
                                                 Ferramentas & Tech Stack
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
-                                                {techStack.slice(0, 5).map((tech, idx) => (
-                                                    <TechToolLogo
-                                                        key={idx}
-                                                        techName={tech}
-                                                        size="sm"
-                                                        onClick={(info) => setActiveToolPopover(info)}
-                                                    />
-                                                ))}
-                                                {techStack.length > 5 && (
-                                                    <span className="text-[11px] text-ink/70 dark:text-ink-2 px-2 py-0.5 rounded-lg bg-surface-2 border border-line flex items-center">
-                                                        +{techStack.length - 5}
+                                                {techStack.length > 0 ? (
+                                                    <>
+                                                        {techStack.slice(0, 5).map((tech, idx) => (
+                                                            <TechToolLogo
+                                                                key={idx}
+                                                                techName={tech}
+                                                                size="sm"
+                                                                onClick={(info) => setActiveToolPopover(info)}
+                                                            />
+                                                        ))}
+                                                        {techStack.length > 5 && (
+                                                            <span className="text-[11px] text-ink/70 dark:text-ink-2 px-2 py-0.5 rounded-lg bg-surface-2 border border-line flex items-center">
+                                                                +{techStack.length - 5}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-[11px] text-amber-300 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                                                        Sem detecção real
                                                     </span>
                                                 )}
                                             </div>
@@ -463,9 +469,7 @@ export function CompanyList() {
                                 </thead>
                                 <tbody className="divide-y divide-line">
                                     {companies.map((company) => {
-                                        const techStack = company.technologies && company.technologies.length > 0
-                                            ? company.technologies
-                                            : ['React', 'AWS'];
+                                        const techStack = company.technologies ?? [];
                                         const companyLabel = company.tradeName || company.legalName;
 
                                         return (
@@ -509,17 +513,25 @@ export function CompanyList() {
                                                 {/* Ferramentas em formato de logos */}
                                                 <td className="p-4">
                                                     <div className="flex flex-wrap gap-1">
-                                                        {techStack.slice(0, 3).map((tech, idx) => (
-                                                            <TechToolLogo
-                                                                key={idx}
-                                                                techName={tech}
-                                                                size="sm"
-                                                                onClick={(info) => setActiveToolPopover(info)}
-                                                            />
-                                                        ))}
-                                                        {techStack.length > 3 && (
-                                                            <span className="text-[10px] text-ink/70 dark:text-ink-2 px-1.5 py-0.5 rounded bg-surface-2 border border-line">
-                                                                +{techStack.length - 3}
+                                                        {techStack.length > 0 ? (
+                                                            <>
+                                                                {techStack.slice(0, 3).map((tech, idx) => (
+                                                                    <TechToolLogo
+                                                                        key={idx}
+                                                                        techName={tech}
+                                                                        size="sm"
+                                                                        onClick={(info) => setActiveToolPopover(info)}
+                                                                    />
+                                                                ))}
+                                                                {techStack.length > 3 && (
+                                                                    <span className="text-[10px] text-ink/70 dark:text-ink-2 px-1.5 py-0.5 rounded bg-surface-2 border border-line">
+                                                                        +{techStack.length - 3}
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-[10px] text-amber-300 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                                                Sem detecção real
                                                             </span>
                                                         )}
                                                     </div>
