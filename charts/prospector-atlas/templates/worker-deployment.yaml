@@ -23,6 +23,7 @@ spec:
         {{- include "prospector-atlas.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: worker
     spec:
+      terminationGracePeriodSeconds: 35
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -36,11 +37,37 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["npm", "run", "start:worker"]
+          ports:
+            - name: health
+              containerPort: 3006
+              protocol: TCP
           envFrom:
             - configMapRef:
                 name: {{ include "prospector-atlas.fullname" . }}-config
             - secretRef:
                 name: {{ include "prospector-atlas.fullname" . }}-secret
+          # Só fica pronto após provar Redis + Postgres e registrar os processadores.
+          startupProbe:
+            httpGet:
+              path: /health/ready
+              port: health
+            periodSeconds: 5
+            timeoutSeconds: 4
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: health
+            periodSeconds: 20
+            timeoutSeconds: 4
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 4
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

@@ -1,4 +1,7 @@
-name: CI
+# Este e o unico workflow que publica o check canonico de release da aplicacao.
+# ETLs de Market Intelligence, builds mobile, deploys e scans agendados possuem
+# ciclos proprios e nao devem ser configurados como required checks da main.
+name: Central AtlasGR Release
 
 on:
   push:
@@ -10,6 +13,13 @@ on:
   # 'workflow_dispatch'`, então em qualquer outro trigger ele simplesmente não roda).
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: central-atlasgr-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Varredura de segredo versionado no diff do push/PR. Este repositório já teve credenciais reais
   # e PII versionadas por engano (ver commit 40a99c31 "fix(seguranca): expurga credenciais reais e
@@ -19,6 +29,7 @@ jobs:
   # não para rodar o scanner em CI). Ver AGENTS.md → "Segurança e higiene" (varredura de segredo
   # obrigatória antes de finalizar qualquer onda).
   secret-scan:
+    name: Central AtlasGR / secret scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -31,7 +42,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-test:
+    name: Central AtlasGR / application gate
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     # Fase Final 1 (Gate Único de Release): dependência explícita no próprio arquivo, não só
     # "os dois jobs existem" — sem isso, secret-scan e build-and-test rodam em paralelo e um
     # secret-scan que falha não impede build/test/publish de prosseguir. Ver .agents/runs/final-fase-1.md.
@@ -109,9 +122,6 @@ jobs:
           APP_DB_PASSWORD: ci_app_test_pass
         run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
       # SEC-005 (Sprint 01/Onda 13): substitui o `continue-on-error: true` solto, que suprimia
       # falha do step inteiro (não só do advisory waivado), por um script que cruza o achado real
       # do `npm audit` com docs/security/AUDIT_WAIVERS.md advisory por advisory. Um HIGH/CRITICAL
@@ -166,7 +176,10 @@ jobs:
           PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
           EOF
 
-      - name: Run Integration Tests
+      # Esta suite inclui as regressoes de autenticacao, RBAC e isolamento de tenant. Ela usa o
+      # papel NOSUPERUSER criado acima; um banco superuser tornaria os testes de RLS falsamente
+      # verdes.
+      - name: Run Integration Tests (auth, RBAC and tenant isolation)
         run: npm run test:integration -- --coverage
 
       - name: Install Playwright browsers
@@ -193,6 +206,26 @@ jobs:
         if: always()
       - name: Run Build
         run: npm run build
+
+  # Contexto estavel para branch protection: somente este job representa o veredito do codigo da
+  # Central AtlasGR. Nunca substituir por checks de ETL, deploy, mobile ou servico externo. O `if`
+  # garante que uma dependencia falha/cancelada produza FAIL explicito em vez de check ausente.
+  release-gate:
+    name: Central AtlasGR / release gate
+    if: always() && github.event_name != 'workflow_dispatch'
+    needs: [secret-scan, build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consolidar veredito do repositorio
+        env:
+          SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
+          APPLICATION_GATE_RESULT: ${{ needs.build-and-test.result }}
+        run: |
+          set -euo pipefail
+          printf 'secret-scan=%s\napplication-gate=%s\n' \
+            "$SECRET_SCAN_RESULT" "$APPLICATION_GATE_RESULT"
+          test "$SECRET_SCAN_RESULT" = success
+          test "$APPLICATION_GATE_RESULT" = success
 
   # Job manual, único — gera as baselines de regressão visual *-chromium-linux.png que faltam em
   # tests/e2e/visual.spec.ts-snapshots/ (só existem as *-chromium-win32.png, geradas no Windows;
