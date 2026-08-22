@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 // não registra os matchers do jest-dom globalmente — importa aqui pra não depender de config
 // (mesmo padrão de tests/unit/features/companies/components/CompanyForm.test.tsx).
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, within, configure } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../../mocks/server';
@@ -29,6 +29,13 @@ function mockAllIntegrationEndpoints() {
         http.get('/api/integrations/3cx/connections', () => HttpResponse.json({ success: true, data: [] })),
     );
 }
+
+// `findByText`/`waitFor` neste arquivo falharam de forma intermitente em CI (não reproduz local)
+// com o timeout padrão de 1000ms — runner sob I/O pesado (containers de Postgres/Redis do job)
+// pode atrasar o próximo render bem além disso mesmo sem nenhum fetch de rede envolvido, já que
+// o conteúdo de cada aba é puramente `activeTab === X &&` (sem efeito assíncrono). Timeout maior
+// só absorve lentidão do runner, não muda o que o teste verifica.
+configure({ asyncUtilTimeout: 5000 });
 
 beforeEach(() => {
     cleanup();
