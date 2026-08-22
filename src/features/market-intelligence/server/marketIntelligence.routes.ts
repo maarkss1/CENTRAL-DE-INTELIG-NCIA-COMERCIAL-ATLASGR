@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { marketIntelligenceService } from './marketIntelligence.service.js';
+import { economicScenarioRoutes } from './economicScenario.routes.js';
 import {
     companyCnpjParamsSchema,
     companyListQuerySchema,
@@ -8,6 +9,10 @@ import {
 } from './marketIntelligence.schemas.js';
 
 const router = Router();
+
+// Cenários econômicos versionados. O sub-router aplica RBAC ADMIN/GESTOR e o mount global em
+// server.ts já garante authenticateToken + requireTenant antes de chegar aqui.
+router.use('/economic-scenarios', economicScenarioRoutes);
 
 router.get('/companies', async (req, res, next) => {
     try {

@@ -45,8 +45,19 @@ function resolvePrismaCliUrl(): string {
 // DIRECT_URL é sempre preferida. Em Render/Supabase, se DATABASE_URL vier por engano no
 // Supavisor transaction-mode (:6543), resolvePrismaCliUrl converte apenas a porta para o
 // Session Pooler (:5432), que mantém uma conexão estável para migrations em redes IPv4.
+//
+// MarketIntelligenceEconomicScenario é deliberadamente mantida por SQL cru + withRlsContext,
+// não pelo Prisma Client. A tabela é criada pela migration versionada da v1.4, mas fica marcada
+// como externa para que futuros `prisma migrate dev` não tentem removê-la por não existir como
+// model em schema.prisma.
 export default defineConfig({
   schema: 'prisma/schema.prisma',
+  experimental: {
+    externalTables: true,
+  },
+  tables: {
+    external: ['public.MarketIntelligenceEconomicScenario'],
+  },
   datasource: {
     url: resolvePrismaCliUrl(),
   },

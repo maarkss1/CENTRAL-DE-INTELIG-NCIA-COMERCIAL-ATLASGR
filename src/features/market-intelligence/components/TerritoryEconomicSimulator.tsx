@@ -16,6 +16,7 @@ import {
     currentBrasiliaMonth,
     type CrmEconomicCalibration,
 } from '../domain/crmEconomicCalibration';
+import type { SavedEconomicScenario } from '../domain/economicScenarioAudit';
 import {
     DEFAULT_RAMP,
     type CommercialScenario,
@@ -29,6 +30,7 @@ import {
     type EconomicDecisionPolicy,
     type EconomicRecommendation,
 } from '../domain/territoryEconomics';
+import { EconomicScenarioAuditPanel } from './EconomicScenarioAuditPanel';
 
 interface Props {
     territories: TerritoryRecord[];
@@ -118,6 +120,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
     const [calibrationLoading, setCalibrationLoading] = useState(true);
     const [calibrationError, setCalibrationError] = useState<string | null>(null);
     const [calibrationApplied, setCalibrationApplied] = useState(false);
+    const [restoredSnapshotLabel, setRestoredSnapshotLabel] = useState<string | null>(null);
 
     useEffect(() => {
         if (!territories.length) return;
@@ -165,6 +168,44 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
         () => compareTerritoryEconomics(territories.slice(0, 5), { serviceableSharePct }, model, policy, scenario),
         [model, policy, scenario, serviceableSharePct, territories],
     );
+
+    const auditInput = useMemo(() => ({
+        territoryId: selectedTerritory?.id ?? '',
+        serviceableSharePct,
+        costs,
+        revenue: {
+            averageMrrTicket: revenue.averageMrrTicket,
+            grossMarginPct: revenue.grossMarginPct,
+            winRatePct: revenue.winRatePct,
+            meetingToQualifiedOpportunityPct: revenue.meetingToQualifiedOpportunityPct,
+            monthlyChurnPct: revenue.monthlyChurnPct,
+            salesCycleDays: revenue.salesCycleDays,
+            fullProductivityQualifiedOpportunitiesPerMonth: revenue.fullProductivityQualifiedOpportunitiesPerMonth,
+            variableCommissionPctOfNewMrr: revenue.variableCommissionPctOfNewMrr,
+            penetrationPct: revenue.penetrationPct,
+        },
+        upfrontInvestment,
+        policy,
+        scenario,
+        calibration: { applied: calibrationApplied, snapshot: crmCalibration },
+    }), [calibrationApplied, costs, crmCalibration, policy, revenue, scenario, selectedTerritory?.id, serviceableSharePct, upfrontInvestment]);
+
+    const loadSavedScenario = (saved: SavedEconomicScenario) => {
+        const input = saved.snapshot.input;
+        if (!territories.some((territory) => territory.id === saved.snapshot.territory.id)) return;
+        setSelectedTerritoryId(saved.snapshot.territory.id);
+        setServiceableSharePct(input.serviceableSharePct);
+        setCosts(input.costs);
+        setRevenue({ ...input.revenue, samAccounts: null });
+        setUpfrontInvestment(input.upfrontInvestment);
+        setPolicy(input.policy);
+        setScenario(input.scenario);
+        // O snapshot antigo continua preservando a proveniência CRM. Ao transformá-lo numa nova
+        // versão, exigimos reaplicação explícita da calibração corrente para não rotular números
+        // históricos como se ainda fossem a leitura atual do CRM.
+        setCalibrationApplied(false);
+        setRestoredSnapshotLabel(saved.label);
+    };
 
     if (!selectedTerritory || !assessment) {
         return (
@@ -216,6 +257,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
             salesCycleDays: rounded(calibrated.salesCycleDays) ?? current.salesCycleDays,
         }));
         setCalibrationApplied(true);
+        setRestoredSnapshotLabel(null);
     };
 
     const issues = assessment.blockers.length ? assessment.blockers : assessment.failedPolicyRules;
@@ -225,13 +267,13 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Unit Economics territorial · v1.3</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Unit Economics territorial · v1.4</p>
                         <h2 id="territory-economics-title" className="mt-1 text-2xl font-black tracking-tight text-[#333333]">O território paga a contratação?</h2>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">O mapa define o TAM ICP observado. O CRM pode calibrar ticket ganho, Win Rate e Sales Cycle com histórico real. SAM, margem, custos, capacidade e política financeira continuam explícitos.</p>
                     </div>
                     <label className="min-w-[280px] text-xs font-bold text-slate-600">
                         Território analisado
-                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => setSelectedTerritoryId(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#333333] outline-none focus:ring-2 focus:ring-brand">
+                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => { setSelectedTerritoryId(event.target.value); setRestoredSnapshotLabel(null); }} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#333333] outline-none focus:ring-2 focus:ring-[#FF5618]">
                             {territories.map((territory, index) => (
                                 <option key={territory.id} value={territory.id}>#{index + 1} {territory.baseCity}/{territory.uf} · {territory.radiusKm} km</option>
                             ))}
@@ -246,6 +288,9 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                     <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><CircleDollarSign className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">SOM máximo</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.economics.maximumCaptureContracts ?? 'PENDENTE'}</p><p className="text-xs text-slate-500">SAM × penetração</p></article>
                 </div>
             </div>
+
+            <EconomicScenarioAuditPanel input={auditInput} onLoad={loadSavedScenario} />
+            {restoredSnapshotLabel && <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800"><strong>Snapshot reaberto:</strong> {restoredSnapshotLabel}. As premissas foram restauradas; para gravar uma nova versão com selo CRM, reaplique a calibração corrente.</div>}
 
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Calibração CRM">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
