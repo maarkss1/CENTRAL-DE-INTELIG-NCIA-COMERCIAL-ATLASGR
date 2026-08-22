@@ -37,6 +37,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     const administrationItems: TabType[] = [
         'notifications',
+        'bitrix',
         ...(isAdmin ? (['integrations', 'automations', 'usage', 'team'] as TabType[]) : []),
         'settings',
     ];
@@ -51,6 +52,9 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { title: 'Fechar', items: ['crm', 'crm360', 'propostas'] },
         { title: 'Analisar', items: analyzeItems },
         {
+            // Guia Bitrix24 saiu daqui: é referência estática de mapeamento de campos, não gera
+            // nada com IA — morava aqui só por associação de nome com o resto do grupo. Agora fica
+            // em Administração, ao lado de Integrações, onde a função real dele pertence.
             title: 'IA & Capacitação',
             items: [
                 'intelligence',
@@ -60,7 +64,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 'topic_training',
                 'knowledge',
                 'editor',
-                'bitrix',
             ],
         },
         { title: 'Administração', items: administrationItems },
@@ -136,7 +139,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                                 <TotalTrackLogo variant="symbol" className="h-6 w-6 shrink-0" />
                             )}
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand">Operação Atual</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-active">Operação Atual</span>
                                 <span className="text-sm font-black text-ink">{isAtlas ? 'AtlasGR' : 'Total Trac'}</span>
                             </div>
                         </div>
@@ -176,7 +179,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 <button
                     type="button"
                     onClick={logout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition-all cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-critical hover:bg-critical/10 transition-all cursor-pointer"
                     title="Encerrar sessão e sair da conta"
                 >
                     <LogOut size={20} className="shrink-0 opacity-80" />

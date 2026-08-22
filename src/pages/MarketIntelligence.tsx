@@ -13,13 +13,13 @@ export function MarketIntelligence() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-surface">
-      <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 md:px-6">
-        <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Visão do Market Intelligence">
+      <div className="shrink-0 border-b border-line bg-surface px-4 py-3 md:px-6">
+        <div className="inline-flex max-w-full overflow-x-auto rounded-xl border border-line bg-surface-2 p-1" role="group" aria-label="Visão do Market Intelligence">
           <button
             type="button"
             onClick={() => setView('territories')}
             aria-pressed={view === 'territories'}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'territories' ? 'bg-white text-[#C43E0E] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'territories' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
           >
             <MapPinned className="h-4 w-4" /> Territorial
           </button>
@@ -27,7 +27,7 @@ export function MarketIntelligence() {
             type="button"
             onClick={() => setView('economics')}
             aria-pressed={view === 'economics'}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'economics' ? 'bg-white text-[#C43E0E] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'economics' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
           >
             <CircleDollarSign className="h-4 w-4" /> Economia territorial
           </button>
@@ -35,7 +35,7 @@ export function MarketIntelligence() {
             type="button"
             onClick={() => setView('companies')}
             aria-pressed={view === 'companies'}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'companies' ? 'bg-white text-[#C43E0E] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'companies' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
           >
             <Building2 className="h-4 w-4" /> Empresas
           </button>
@@ -43,7 +43,7 @@ export function MarketIntelligence() {
             type="button"
             onClick={() => setView('ldr')}
             aria-pressed={view === 'ldr'}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'ldr' ? 'bg-white text-[#C43E0E] shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-black transition ${view === 'ldr' ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'}`}
           >
             <Bot className="h-4 w-4" /> LDR · Account 360
           </button>
