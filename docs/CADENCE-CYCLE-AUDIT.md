@@ -87,6 +87,14 @@ código-fonte diretamente) do estado atual de cada entrega do roadmap
 > abaixo para o estado atual; esta rodada só atualizou a documentação e a tela de Integrações
 > (`Integrations.tsx`) para pararem de descrever a escrita como pendente — não houve mudança de
 > comportamento de integração nesta rodada.
+>
+> Nota à parte, sem relação com CYC-004: o CI desta mesma rodada revelou `tests/unit/features/
+> automation-sdr-voz.test.ts` dependendo do horário real de execução (`isWithinCallWindow(new
+> Date(), ...)`, expediente comercial em horário de Brasília, nunca mockado no teste) — fora do
+> expediente (18h+ ou fim de semana em BRT) a suíte inteira falhava de forma intermitente,
+> reproduzido também em `origin/main` e não causado por esta rodada. Corrigido no mesmo PR
+> (mock de `coldCall.policy`/`coldCall.service`) por ser a causa raiz do CI vermelho encontrado
+> aqui, não por fazer parte do escopo de CYC-004.
 
 ## Achado estrutural que atravessa quase toda a sprint
 
