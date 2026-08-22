@@ -8,6 +8,7 @@ on:
       - 'src/features/market-intelligence/**'
       - 'public/tools/atlas-market-intelligence/**'
       - 'scripts/market-intelligence-core-evidence-smoke.ts'
+      - 'scripts/market-intelligence-hub-suitability-smoke.ts'
       - 'tests/unit/market-intelligence/**'
       - 'tests/python/market_intelligence/**'
       - 'tests/e2e/market-intelligence.spec.ts'
@@ -20,6 +21,7 @@ on:
       - 'src/features/market-intelligence/**'
       - 'public/tools/atlas-market-intelligence/**'
       - 'scripts/market-intelligence-core-evidence-smoke.ts'
+      - 'scripts/market-intelligence-hub-suitability-smoke.ts'
       - 'tests/unit/market-intelligence/**'
       - 'tests/python/market_intelligence/**'
       - 'tests/e2e/market-intelligence.spec.ts'
@@ -66,6 +68,9 @@ jobs:
 
       - name: Run Market Intelligence unit tests
         run: npx vitest run tests/unit/market-intelligence
+
+      - name: Verify Hub Suitability components against published national snapshot
+        run: npx tsx scripts/market-intelligence-hub-suitability-smoke.ts
 
       - name: Verify and materialize Core Evidence against published snapshots
         run: npx tsx scripts/market-intelligence-core-evidence-smoke.ts --write

@@ -121,7 +121,7 @@ export interface TerritoryRecord {
 }
 
 export interface DatasetHealth {
-    id: 'rntrc' | 'fleet' | 'cnpj' | 'mdfe' | 'risk' | 'competition' | 'ibge';
+    id: 'rntrc' | 'fleet' | 'cnpj' | 'mdfe' | 'risk' | 'competition' | 'ibge' | 'hub-suitability';
     label: string;
     status: 'ATUALIZADO' | 'PARCIAL' | 'DESATUALIZADO' | 'NAO_DISPONIVEL';
     competence?: string;
@@ -154,6 +154,7 @@ export interface MarketIntelligenceManifest {
         territories?: string;
         evidences?: string;
         competitors?: string;
+        hubSuitability?: string;
     };
 }
 

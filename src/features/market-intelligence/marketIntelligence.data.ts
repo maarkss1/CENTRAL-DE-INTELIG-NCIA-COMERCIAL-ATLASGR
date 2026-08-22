@@ -94,11 +94,7 @@ function validateRuntimeReadiness(
         runtimeBlockers.push('Censo nacional de concorrência ainda não está completo; White Space competitivo final permanece bloqueado.');
     }
 
-    // O contrato DatasetHealth legado ainda não possui um id próprio para Hub Suitability.
-    // Enquanto a migração de schema não ocorre, o gate reconhece a camada pela label publicada
-    // no manifest. Isso mantém a decisão fechada sem falsificar que distância Haversine já mede
-    // conectividade/tempo de viagem real.
-    const hubDataset = manifest.datasets.find((dataset) => dataset.label.startsWith('Hub Suitability'));
+    const hubDataset = manifest.datasets.find((dataset) => dataset.id === 'hub-suitability');
     if (!hubDataset || hubDataset.status !== 'ATUALIZADO') {
         runtimeBlockers.push('Hub Suitability ainda não foi validado com conectividade, materialidade da base e eficiência operacional suficientes.');
     }

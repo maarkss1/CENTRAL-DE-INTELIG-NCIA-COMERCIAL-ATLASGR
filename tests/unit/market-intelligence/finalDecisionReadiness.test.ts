@@ -32,9 +32,7 @@ const manifest = (
     decisionBlockers: [],
     datasets: [
         { id: 'competition', label: 'Concorrência', status: competitionStatus },
-        // O schema legado ainda não possui id próprio de Hub Suitability; o runtime o reconhece
-        // pela label até a próxima migração de contrato.
-        { id: 'ibge', label: 'Hub Suitability / eficiência da cidade-base', status: hubStatus },
+        { id: 'hub-suitability', label: 'Hub Suitability / eficiência da cidade-base', status: hubStatus },
     ],
     files: { territories: 'territorios.json' },
 });
