@@ -37,7 +37,7 @@ export async function signUp(page: Page, { email, password = E2E_PASSWORD, name 
   await page.goto('/login');
   await page.getByText('Não possui conta? Registrar Novo Acesso').click();
   await page.getByPlaceholder('Ex: Marcelo Nascimento').fill(resolvedName);
-  await page.getByPlaceholder('seu.nome@atlasgr.com.br ou @totaltrac.com.br').fill(email);
+  await page.getByLabel('E-mail:').fill(email);
   await page.getByPlaceholder('••••••••').fill(password);
   await page.getByRole('button', { name: /Criar Nova Conta/ }).click();
   // 15s bastava numa suíte E2E curta, mas com dezenas de specs rodando em série (workers: 1) contra
