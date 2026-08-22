@@ -249,6 +249,16 @@
   }
   .oculto { display: none !important; }
   .rodape-nota { font-size: 11.5px; color: var(--ink-2); margin-top: 8px; line-height: 1.5; }
+  .tabela-relatorio-wrap { margin-top: 4px; }
+  .tabela-relatorio-busca-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .tabela-relatorio-busca {
+    flex: 1 1 220px; max-width: 340px; padding: 7px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12.5px;
+  }
+  .tabela-relatorio-busca:focus { outline: none; border-color: var(--brand); }
+  .tabela-relatorio-wrap table { margin-top: 8px; }
   .total-pill {
     display: inline-block; background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok);
     padding: 5px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
@@ -318,27 +328,37 @@
 
   .relatorio-especial-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
     margin: 12px 0 16px;
   }
   .relatorio-especial-kpi {
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 13px 14px;
+    border-radius: 16px;
+    padding: 18px 18px;
     background: var(--surface-2);
+  }
+  .relatorio-especial-kpi.kpi-clicavel {
+    cursor: pointer;
+    background: none repeat scroll 0 0 var(--surface-2);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .relatorio-especial-kpi.kpi-clicavel:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+    border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
   }
   .relatorio-especial-kpi .valor {
     display: block;
-    font-size: 21px;
+    font-size: 27px;
     font-weight: 800;
     color: var(--brand);
     letter-spacing: -0.03em;
   }
   .relatorio-especial-kpi .rotulo {
     display: block;
-    margin-top: 3px;
-    font-size: 11px;
+    margin-top: 4px;
+    font-size: 12px;
     color: var(--ink-2);
     line-height: 1.35;
   }
@@ -473,6 +493,35 @@
   body { background: linear-gradient(180deg,#FAF9F7 0%,#F4F1EC 100%) fixed; }
   :root[data-tema="escuro"] body { background: var(--bg); }
 
+  /* ====================================================================
+     v27 — Portal multi-empresa: reskin da Total Trac. Os dois blocos de
+     tokens acima (--brand/--brand-2/--gold/--soft e --orange/--orange-2/
+     --orange-3/--cream/--page-plane) já cobrem praticamente toda cor de
+     marca visível no site (header, letterhead, cards, badges, o próprio
+     logo inline via `.letterhead-brand svg{fill:var(--brand)}`) — por
+     isso um único bloco de override, chaveado por `[data-empresa]` no
+     `<html>` de cada página (ver js/config.js `MARCAS`), reskinha a
+     ferramenta inteira sem duplicar nenhuma regra visual.
+     ==================================================================== */
+  [data-empresa="totaltrac"] {
+    --brand: #008FCE;
+    --brand-2: #374898;
+    --gold: #93DBF2;
+    --soft: rgba(0, 143, 206, .08);
+    --orange: #008FCE;
+    --orange-2: #374898;
+    --orange-3: #2D3B78;
+    --cream: #E8F5FC;
+    --page-plane: #F3FAFD;
+    /* "Fivo Sans" (fonte oficial da Total Trac) não está no Google Fonts —
+       Poppins é a substituta (geométrica, mesma família de pesos 400–800),
+       carregada via <link> nas páginas totaltrac-*.html. */
+    --font-sans: "Poppins", "Montserrat", "Segoe UI", Arial, sans-serif;
+  }
+  [data-empresa="totaltrac"][data-tema="escuro"] { --soft: rgba(0, 143, 206, .18); }
+  [data-empresa="totaltrac"] body { background: linear-gradient(180deg,#F3FAFD 0%,#E8F5FC 100%) fixed; }
+  [data-empresa="totaltrac"][data-tema="escuro"] body { background: var(--bg); }
+
   .letterhead { background: var(--surface); border-bottom: 3px solid var(--orange); position: relative; z-index: 30; }
   .letterhead-inner { max-width:1240px; margin:0 auto; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; }
   .letterhead-brand { display:flex; align-items:center; gap:16px; min-width:0; }
@@ -519,6 +568,15 @@
   .quick-nav-shell { background:color-mix(in srgb,var(--surface) 94%,transparent); backdrop-filter:blur(14px); border:1px solid var(--line); border-radius:15px; box-shadow:var(--shadow-forecast); display:flex; gap:4px; padding:7px; overflow:auto; }
   .quick-nav a { text-decoration:none; color:var(--ink-2); font-size:10.5px; font-weight:800; padding:8px 10px; border-radius:9px; white-space:nowrap; }
   .quick-nav a:hover { background:var(--soft); color:var(--brand); }
+
+  /* .quick-nav fica sticky no topo (z-index 25) por cima do fluxo normal da
+     página. Sem isso, um clique em "Nesta página" (ou o scrollIntoView do
+     card de relatório) alinha o topo da seção exatamente com o topo da
+     viewport — ou seja, embaixo da própria barra sticky — escondendo o
+     cabeçalho ali (toggle ▾, botão "?") atrás dela: o clique nessa área acaba
+     caindo na barra de navegação (sobreposição), não no controle desejado. */
+  html { scroll-padding-top: 68px; }
+  .card { scroll-margin-top: 68px; }
 
   main { max-width:1240px; margin:26px auto 96px; padding:0 24px; }
   .workspace-intro { margin-bottom:22px; }
@@ -592,6 +650,8 @@
   .sync-danger-zone { margin-top:12px; padding:12px 14px; border-radius:11px; border:1px dashed color-mix(in srgb,var(--danger) 45%,var(--line)); background:color-mix(in srgb,var(--danger) 4%,var(--surface)); }
   .sync-danger-zone .checkbox-linha { margin:0 0 8px; }
   .sync-log { margin-top:10px;font-size:10.5px;color:var(--ink-2);white-space:pre-wrap;background:var(--surface-2);padding:9px;border-radius:8px;max-height:160px;overflow:auto; }
+  .sync-auditoria { margin-top:18px; }
+  .sync-auditoria .sync-preview { max-height:220px; }
 
   .help-modal { position:fixed;inset:0;background:rgba(24,18,15,.58);z-index:9999;display:none;place-items:center;padding:18px;backdrop-filter:blur(4px); }
   .help-modal.aberto { display:grid; }
@@ -760,7 +820,7 @@
   .quick-nav-grupo:first-child { padding-left: 4px; }
 
   .cockpit-card { border-top: 4px solid var(--brand); }
-  .cockpit-card.cockpit-recolhido > *:not(.cockpit-header) { display: none !important; }
+
   .cockpit-header {
     display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap;
   }
@@ -893,6 +953,146 @@
     display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 10px;
     padding: 8px 12px; background: var(--surface-2);
   }
-  .cockpit-situacao-label { font-size: 10.5px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .02em; }
   .cockpit-situacao-valor { font-size: 14px; font-weight: 700; color: var(--brand); }
 
+  /* Skeleton Loading */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-2);
+    border-radius: 4px;
+    color: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.2) 20%,
+      rgba(255, 255, 255, 0.5) 60%,
+      rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 2s infinite;
+  }
+  :root[data-tema="escuro"] .skeleton::after {
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.05) 20%,
+      rgba(255, 255, 255, 0.1) 60%,
+      rgba(255, 255, 255, 0)
+    );
+  }
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+
+  /* Evolução (evolucao.html) — gráfico grande + tabela de histórico do Forecast */
+  .evo-chart-box { margin-top: 10px; }
+  .evo-svg { width: 100%; height: auto; display: block; }
+  .evo-grid-line { stroke: var(--line); stroke-width: 1; }
+  .evo-grid-label { font-size: 10.5px; fill: var(--ink-2); font-family: var(--font-sans); }
+  .evo-line { fill: none; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .evo-line-fechado { stroke: var(--brand); }
+  .evo-line-projecao { stroke: var(--gold); stroke-dasharray: 6 4; }
+  .evo-line-meta { stroke: var(--ink-2); stroke-dasharray: 2 4; }
+  .evo-point { cursor: default; }
+  .evo-point-fechado { fill: var(--brand); stroke: var(--surface); stroke-width: 1.5; }
+  .evo-legend { display: flex; gap: 18px; margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--ink-2); flex-wrap: wrap; }
+  .trend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .trend-dot-fechado { background: var(--brand); }
+  .trend-dot-projecao { background: var(--gold); }
+  .trend-dot-meta { background: var(--ink-2); }
+  .evolucao-fontes { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+  .evolucao-fontes strong { color: var(--ink); }
+
+  /* v26 — pontos de atenção na página Evolução (mesmos números do alerta
+     proativo do Forecast semanal — item "sincronização entre dispositivos"). */
+  .atencao-mini-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 4px 0 10px; }
+  .atencao-mini-card { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; background: var(--surface-2); }
+  .atencao-mini-card b { display: block; font-size: 24px; color: var(--brand); letter-spacing: -0.02em; }
+  .atencao-mini-card span { font-size: 12px; color: var(--ink-2); }
+
+  /* v25 — "Abrir modelo visual": modal (overlay fixo) que sobe por cima da
+     página atual, em vez de abrir aba/arquivo separado. Some sozinho até o
+     usuário clicar em "Abrir modelo visual"; nunca aparece automaticamente. */
+  @keyframes relatorioModalSobe { from { opacity: 0; transform: translateY(24px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  @keyframes relatorioModalFundo { from { opacity: 0; } to { opacity: 1; } }
+  .relatorio-modal-overlay {
+    position: fixed; inset: 0; z-index: 600; padding: clamp(10px, 3vw, 32px);
+    background: rgba(15, 12, 10, .58); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center;
+    animation: relatorioModalFundo .18s ease both;
+  }
+  .relatorio-modal-sheet {
+    width: min(1180px, 100%); height: min(90vh, 960px);
+    background: var(--surface); border-radius: 22px; overflow: hidden;
+    display: flex; flex-direction: column; box-shadow: 0 30px 70px -20px rgba(0,0,0,.5);
+    animation: relatorioModalSobe .26s cubic-bezier(.2,.9,.3,1) both;
+  }
+  .relatorio-modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 14px 18px; border-bottom: 1px solid var(--line); background: var(--surface-2);
+  }
+  .relatorio-modal-head h2 { margin: 0; font-size: 15px; }
+  .relatorio-modal-acoes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .relatorio-modal-acoes button.secundario { padding: 7px 12px; font-size: 12.5px; }
+  .relatorio-modal-fechar {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink-2); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .relatorio-modal-fechar:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+  .relatorio-visual-inline-frame {
+    flex: 1 1 auto; width: 100%; height: 100%; border: none; background: #fff;
+  }
+  .relatorio-salvos-painel { border-bottom: 1px solid var(--line); background: var(--surface-2); padding: 12px 18px; max-height: 220px; overflow-y: auto; }
+  .relatorio-salvo-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .relatorio-salvo-item:last-child { border-bottom: none; }
+  .relatorio-salvo-abrir {
+    flex: 1; text-align: left; background: none; border: none; cursor: pointer; padding: 4px 6px;
+    display: flex; flex-direction: column; color: var(--ink);
+  }
+  .relatorio-salvo-abrir strong { font-size: 12.5px; }
+  .relatorio-salvo-abrir span { font-size: 10.5px; color: var(--ink-2); }
+  .relatorio-salvo-excluir { background: none; border: none; color: var(--ink-2); cursor: pointer; font-size: 13px; padding: 4px 8px; }
+  .relatorio-salvo-excluir:hover { color: var(--danger); }
+  @media (max-width: 720px) {
+    .relatorio-modal-sheet { height: 96vh; border-radius: 16px; }
+    .relatorio-modal-acoes span, .relatorio-modal-acoes button.secundario { font-size: 11.5px; padding: 6px 9px; }
+  }
+
+  /* v25 — realce breve ao rolar até uma seção a partir de um card clicável */
+  @keyframes secaoRealce { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); } 70% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--brand) 0%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 0%, transparent); } }
+  .secao-realce { animation: secaoRealce 1.2s ease; border-radius: 14px; }
+
+  /* v26 — Portal com senha única por navegador (js/auth.js). O gate fica
+     sempre no DOM; enquanto <body> tem "aguardando-login", tudo mais fica
+     escondido via CSS (sem flash de conteúdo antes do JS rodar, porque a
+     classe já vem no HTML). */
+  body.aguardando-login > *:not(.login-gate) { display: none !important; }
+  @keyframes loginGateSobe { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .login-gate {
+    position: fixed; inset: 0; z-index: 9999; padding: 20px;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--brand) 22%, var(--bg)) 0%, var(--bg) 62%);
+  }
+  .login-gate.oculto { display: none; }
+  .login-gate-card {
+    width: min(380px, 100%); background: var(--surface);
+    border: 2px solid color-mix(in srgb, var(--brand) 55%, var(--line));
+    border-radius: var(--radius-card); box-shadow: 0 30px 70px -20px rgba(0,0,0,.5);
+    padding: 34px 30px; text-align: center; animation: loginGateSobe .3s cubic-bezier(.2,.9,.3,1) both;
+  }
+  .login-gate-icone { font-size: 34px; margin-bottom: 6px; }
+  .login-gate-card h1 { margin: 0 0 6px; font-size: 20px; }
+  .login-gate-card p { margin: 0 0 18px; font-size: 13px; color: var(--ink-2); }
+  .login-gate-card form { display: flex; flex-direction: column; gap: 10px; }
+  .login-gate-card input { text-align: center; font-size: 15px; }
+  .login-gate-erro { color: var(--danger); font-size: 12.5px; font-weight: 700; margin-top: 12px !important; }

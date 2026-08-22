@@ -17,6 +17,13 @@ interface FloatingChatbookProps {
   onClose: () => void;
 }
 
+/**
+ * Drawer global do copiloto, montado em toda tela autenticada via `AtlasChatbotTrigger` e
+ * acionável de qualquer lugar (botão flutuante ou ⌘K → "Chamar copiloto de IA"). A aba
+ * "Assistente IA" usa `useAssistantChat`, a mesma fonte única de estado/histórico consumida pela
+ * página cheia `/app/chatbook` (`ChatbookHub`) — as duas são o mesmo copiloto, não implementações
+ * duplicadas. Ver TRUST_BLOCKERS_ROADMAP.md P1-5.
+ */
 export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
   const navigate = useNavigate();
   const { activeBrand, brandInfo } = useBrand();

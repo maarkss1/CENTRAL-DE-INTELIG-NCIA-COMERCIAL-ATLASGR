@@ -1,171 +1,132 @@
-# DATA LINEAGE - Atlas GR National Market & Territory Intelligence System
+# DATA LINEAGE — Atlas GR National Market & Territory Intelligence System
 
-**Objetivo:** permitir que qualquer número exibido pela plataforma seja rastreado de volta à fonte, competência, transformação e regra metodológica que o produziu.
+**Atualizado em:** 22/08/2026  
+**Objetivo:** permitir que qualquer número exibido pela plataforma seja rastreado até a fonte, competência, transformação e regra metodológica que o produziu.
 
 ## Regra geral
 
 ```text
-Fonte
+Fonte primária/oficial
 ↓
-Snapshot bruto + metadata + hash
+Arquivo bruto em cache + competência + URL + SHA-256
 ↓
 ETL versionado
 ↓
-Chave geográfica canônica IBGE
+Normalização e chave IBGE
 ↓
 Tabela/agregado intermediário
 ↓
-Indicador componente
+Indicador + disponibilidade + confiança
 ↓
-Score + confiança
+Score de componente
+↓
+Core Evidence / White Space
 ↓
 Território
 ↓
-Recomendação executiva
+Gate final de decisão
 ↓
 Interface / exportação
 ```
 
-Nenhuma etapa pode substituir `NÃO DISPONÍVEL` por zero sem uma regra de negócio explícita e documentada.
+`NAO_DISPONIVEL` nunca vira zero. `PROXY` nunca vira `OBSERVADO`. `PREMISSA_EDITAVEL` nunca vira fato público.
 
 ---
 
-## 1. Geografia IBGE
+## 1. Geografia municipal
 
 ```text
-IBGE API de Localidades
+IBGE Localidades
++ IBGE BCIM / limite municipal
 ↓
-.cache/market-intelligence/raw/ibge/municipios.json
+cache bruto
 ↓
-normalização para lookup UF + município
+etl_municipios_ibge.py
 ↓
-codigo_ibge como chave canônica
+join por geocódigo IBGE
 ↓
-dim_municipio
-↓
-joins RNTRC / CNPJ / MDF-e / risco / concorrência
+centroide geométrico quando há polígono válido
 ↓
 municipios.json
++ municipios.metadata.json
+↓
+base canônica para todos os joins municipais
 ```
 
-### Transformações
+### Estado publicado
 
-- preservação do nome oficial para apresentação;
-- normalização textual apenas para lookup de contingência;
-- código IBGE como chave final;
-- município homônimo nunca é unido apenas pelo nome;
-- parser aceita tanto a hierarquia histórica `microrregiao -> mesorregiao -> UF` quanto `regiao-imediata -> regiao-intermediaria -> UF`;
-- o lookup é rejeitado se não cobrir pelo menos 5.500 municípios;
-- latitude/longitude devem vir de fonte documentada e não de inferência textual -- resolvido via
-  IBGE BCIM (camada `lim_municipio_a`, join por código IBGE `geocodigo`, centroide geométrico do
-  polígono municipal). Ver `FONTES.md` seção 5 e `etl_municipios_ibge.py`.
+- cadastro: 5.571 municípios;
+- três registros permanecem sem centroide quando o polígono não casa;
+- município homônimo nunca é unido somente por nome.
 
 ---
 
-## 2. RNTRC - transportadores
+## 2. RNTRC — estoque/presença logística
 
 ```text
-ANTT / recurso oficial RNTRC Jul/2026
+ANTT / RNTRC transportadores
 ↓
-transportadores_rntrc_07_2026.csv
+snapshot mensal oficial
 ↓
-.cache/market-intelligence/raw/rntrc/2026-07/
+.cache/market-intelligence/raw/rntrc/<competencia>/
 ↓
 etl_rntrc_atlas.py
 ↓
 filtro de situação ativa
 ↓
-lookup município + UF → codigo_ibge
+município + UF → código IBGE
 ↓
 agregação ETC / TAC / CTC / ETC equiparada
 ↓
 rntrc_municipios.json
 + rntrc_municipios.metadata.json
 ↓
-Demand Score / Territory Optimizer
+percentil nacional de presença logística
 ↓
-Interface
+Core Evidence / Territory Optimizer
 ```
 
-### Snapshot publicado
+### Estado publicado
 
 - competência: `2026-07`;
-- atualização declarada do recurso: `2026-08-10`;
-- bruto: `158.740.046` bytes;
-- linhas processadas: `1.158.159`;
-- transportadores ativos: `899.249`;
-- municípios com presença RNTRC: `5.422`;
-- linhas ativas sem match IBGE: `391` (`0,0435%`);
-- SHA-256 bruto e derivado persistidos em metadata.
+- 5.422 municípios com transportadores;
+- 391 linhas ativas sem match IBGE, 0,0435%;
+- bruto permanece fora do bundle web.
 
-### Controles
-
-- SHA-256 do bruto e do derivado;
-- total de linhas processadas;
-- total de linhas ativas;
-- linhas sem casamento IBGE;
-- taxa de unmatched;
-- competência;
-- URL e resource id oficiais;
-- dataset bruto nunca entra no bundle web.
+RNTRC mede presença/estoque logístico. Não substitui fluxo de carga.
 
 ---
 
-## 3. RNTRC - frota
+## 3. Frota municipal — SENATRAN
 
-O dicionário oficial do recurso `RNTRC-Dados de Veículos` define os campos públicos como:
-
-```text
-Categoria do Transportador
-Tipo de Veículo
-UF do Veículo
-Categoria
-Carroceria
-Ano de Fabricação do Veículo
-Quantidade
-```
-
-Ele **não fornece município nem número RNTRC individual**. Portanto a linhagem correta é:
+A tentativa histórica de obter frota municipal pelo recurso `RNTRC-Dados de Veículos` foi abandonada porque aquele recurso tem outra granularidade. A camada municipal atual usa a fonte oficial da SENATRAN.
 
 ```text
-ANTT / RNTRC-Dados de Veículos
-+ dicionário oficial
+SENATRAN / Frota por Município e Tipo
 ↓
-probe de disponibilidade e integridade do recurso corrente
+snapshot mensal oficial
 ↓
-SE payload nacional válido:
-    CSV bruto
-    ↓
-    etl_rntrc_veiculos_atlas.py
-    ↓
-    soma de Quantidade por UF
-    + Tipo de Veículo: Tração / Implemento
-    + Categoria do Transportador: ETC / ETC Equiparada / TAC / CTC
-    + ano médio ponderado quando disponível
-    ↓
-    rntrc_frota_uf.json
-    + rntrc_frota_uf.metadata.json
-    ↓
-    indicador observado em UF
-    ↓
-    município = PROXY_UF somente quando metodologicamente permitido
-SE payload inválido/indisponível:
-    NÃO publicar valores de frota
-    ↓
-    rntrc_frota_uf.metadata.json = NAO_DISPONIVEL
-    ↓
-    manifest = NAO_DISPONIVEL
-    ↓
-    decisão registra bloqueio
+ETL de frota
+↓
+município + UF → código IBGE
+↓
+por tipo de veículo
+↓
+cargoFleet = CAMINHAO + CAMINHAO TRATOR + REBOQUE + SEMI-REBOQUE
+↓
+senatran_frota_municipios.json
++ metadata
+↓
+indicador municipal OBSERVADO
 ```
 
-### Estado auditado em 14/08/2026
+### Estado publicado
 
-- recurso histórico Jul/2026: catálogo declarava aproximadamente `10,5 MiB`, porém o arquivo físico retornou HTTP 404/HTML no CI;
-- recurso vigente Ago/2026: sujeito a `probe` automatizado; payload abaixo do piso de integridade é registrado como `NAO_DISPONIVEL`, não como zero;
-- granularidade permitida: `UF`;
-- uso municipal: `PROXY_UF`;
-- a camada de frota nunca é estimada a partir do número de transportadores.
+- competência: `2026-07`;
+- 5.535 municípios processados;
+- 37 linhas sem match IBGE, 0,6640%;
+- `cargoFleet` é soma documentada dos quatro tipos acima;
+- demais tipos permanecem disponíveis em `byType`.
 
 ---
 
@@ -178,320 +139,411 @@ Empresas*.zip
 + Estabelecimentos*.zip
 + Municipios.zip
 + Cnaes.zip
++ Simples quando necessário
 ↓
 .cache/market-intelligence/raw/cnpj/<competencia>/
 ↓
-etl_cnpj_atlas.py / pipeline nacional
+etl_cnpj_atlas.py
 ↓
-DuckDB/SQLite/Parquet intermediário
+processamento em streaming + SQLite/intermediários
 ↓
-situação cadastral ativa
+situação ativa
 + matriz/filial
 + porte
-+ capital social quando útil
-+ CNAE principal
-+ CNAEs secundários quando viável
++ capital social
++ CNAE principal/secundários
 ↓
-taxonomia ICP A/B/C versionada
+icp_taxonomy.v1.json
 ↓
-join município Receita → codigo_ibge
+município Receita → código IBGE
 ↓
-fact_icp_municipio
-+ lista empresarial de prospecção, quando publicada
+icp_municipios.json
++ metadata
 ↓
-ICP Score / TAM / SAM / Product Fit
-↓
-Interface
+municipios_scored.json
++ catálogo empresarial particionado quando publicado
 ```
 
-### Regra de privacidade
+### Estado publicado
 
-O front recebe agregações empresariais e, futuramente, uma lista de contas B2B estritamente necessária. Dados pessoais de sócios não são requisito deste produto.
+- competência: `2026-08`;
+- 5.554 municípios com estabelecimentos ICP;
+- 6.639.808 registros candidatos processados;
+- 15.231 sem match IBGE, 0,2294%;
+- taxonomia `1.0.0` ainda é `REGRA_DE_MODELO_NAO_CALIBRADA` contra ganhos/perdas Atlas.
+
+A taxonomia atual fornece população ICP modelada. Ela não prova capacidade econômica individual nem substitui SAM.
 
 ---
 
-## 5. MDF-e / fluxo logístico real
+## 5. Fluxo logístico — CIOT como proxy documentado de MDF-e
 
-**Implementado via CIOT** (proxy documentado -- o portal MDF-e da ANTT só expõe dashboard
-interativo, sem exportação reproduzível; ver `FONTES.md` seção 3). `sourceKind` no metadata e a
-`note` do dataset `mdfe` deixam a distinção CIOT-vs-MDF-e explícita em todo lugar que o dado
-aparece; `manifests` (contagem de MDF-e) permanece `null` quando a fonte é CIOT.
+A plataforma desejada pede MDF-e. No snapshot reproduzível publicado, a observação usada é CIOT da ANTT como **proxy de fluxo origem-destino**. Por isso:
 
 ```text
-ANTT / Movimentação de Cargas (CIOT como proxy documentado; MDF-e oficial quando/se existir)
-↓
-descoberta automática do CSV mensal (API CKAN) ou exportação oficial informada manualmente
-↓
-etl_mdfe_atlas.py
-↓
-normalização de origem / destino / UF
-↓
-chaves IBGE
-↓
-fact_mdfe_fluxo
-↓
-agregações:
-  origem municipal
-  destino municipal
-  corredores
-  interestadualidade
-  viagens/MDF-e
-  toneladas
-  TKU quando disponível
-  tipo de carga quando disponível
-↓
-mdfe_municipios.json / corredores.json
-↓
-Logistics Intensity / Need Atlas / Territory Optimizer
-↓
-Interface
+manifests = null
+sourceKind = CIOT_PROXY
 ```
 
-RNTRC mede **estoque logístico**. MDF-e mede **fluxo logístico observado**. Os dois permanecem separados no modelo.
+Nunca preencher `manifests` com a contagem CIOT como se fosse MDF-e literal.
+
+```text
+ANTT / fluxo CIOT
+↓
+snapshot 2026-07
+↓
+etl_mdfe_atlas.py / normalização de fluxo
+↓
+origem + destino + UF
+↓
+join IBGE
+↓
+mdfe_origens_municipios.json
++ mdfe_destinos_municipios.json
++ mdfe_corredores.json
++ mdfe.metadata.json
+↓
+trips por município
+↓
+percentil nacional de intensidade de fluxo
+↓
+Core Evidence
+```
+
+### Estado publicado
+
+- competência: `2026-07`;
+- 676.267 de 690.063 linhas casadas com IBGE;
+- unmatched: 1,9992%;
+- 318.162 operações interestaduais no snapshot;
+- 1.210 grupos NCM observados;
+- toneladas/TKU/MDF-e literal permanecem `NAO_DISPONIVEL` quando a fonte não os fornece.
 
 ---
 
-## 6. Need Atlas / risco
-
-**Implementado em `etl_sinesp_risco.py`** (`risco_uf.json`). Achado real ao processar o
-`bancovde-2026.xlsx` oficial: para os 3 indicadores usados (roubo de carga, roubo de veículo,
-furto de veículo), a fonte só publica granularidade **UF** -- 100% das linhas relevantes têm
-`municipio = "NÃO INFORMADO"` (crimes contra a pessoa, no mesmo arquivo, têm município real; só
-estes 3 indicadores de propriedade não têm). Não é limitação do parser, é a fonte oficial.
+## 6. Need / risco
 
 ```text
-MJSP / Sinesp VDE (bancovde-<ano>.xlsx)
+MJSP / Sinesp VDE
 ↓
-descoberta automática do ano vigente + parser stdlib em streaming (iterparse)
+bancovde-<ano>.xlsx / recurso oficial
+↓
+ETL Sinesp
 ↓
 roubo de carga
 + roubo de veículo
 + furto de veículo
 ↓
-soma por UF (granularidade municipal não existe na fonte para estes indicadores)
+agregação por UF
 ↓
-risco_uf.json (geography: PROXY_UF)
+risco_uf.json
 ↓
-etl_municipal_aggregate.py aplica o valor de UF a cada município da UF,
-availability: PROXY (nunca OBSERVADO), confiança reduzida
+percentil de risco por UF
 ↓
-Risk Score (scores.risk) -- calculado
-Need Score (componente do Opportunity Score) -- fórmula risco→Need ainda não definida
+propagação aos municípios com availability=PROXY
+confidence reduzida
 ↓
-Opportunity Score -- permanece bloqueado até Need existir
+Need v1 = sinal de risco PROXY_UF
 ↓
-Interface
+Core Evidence
 ```
 
-Proxy estadual nunca é rotulado como observação municipal.
+### Estado publicado
+
+- competência: `2026-01 a 2026-07`;
+- 27 UFs;
+- 1.134 linhas relevantes;
+- a fonte utilizada não fornece município real para esses três indicadores no recorte processado;
+- a UI deve exibir `PROXY_UF`, nunca “risco municipal observado”.
 
 ---
 
 ## 7. Concorrência
 
 ```text
-Site institucional / página de contato / rede de unidades
+site institucional / página de unidades / contato
 + registro público quando necessário
 + evidência comercial verificável
 ↓
-registro de presença
-↓
-empresa
-+ município/UF
-+ tipo de presença
-+ produtos/serviços
-+ cobertura remota/nacional
+empresa + município/UF
++ sede/filial/representante
++ atendimento remoto/nacional
++ GR/rastreamento/monitoramento/pronta resposta/PGR
 + URL
 + data de verificação
 + confiança
 ↓
-fact_competicao_presenca
+concorrencia_seed_verificada.csv / base evolutiva
 ↓
-status do município:
+status de cobertura:
   NAO_PESQUISADO
   PESQUISA_PARCIAL
   CENSO_COMPLETO
 ↓
 Competitive Pressure
 ↓
-White Space SOMENTE quando CENSO_COMPLETO
-↓
-Opportunity Score
+White Space SOMENTE se CENSO_COMPLETO
 ```
 
-Ausência de registro nunca significa ausência de concorrência.
+### Estado atual
+
+`PESQUISA_PARCIAL` / dataset `PARCIAL`.
+
+Logo:
+
+```text
+White Space final = NAO_DISPONIVEL
+Decisão final de contratação = BLOQUEADA
+```
+
+Uma cidade sem registro de concorrente não recebe concorrência zero.
 
 ---
 
-## 8. White Space
+## 8. Scores municipais
+
+### 8.1 Demand/ICP
 
 ```text
-Demand Score
-+ Need Atlas
-+ Logistics Intensity
-+ Competitive Pressure
-+ confidence
+ICP A×3 + B×2 + C×1
 ↓
-verificação census_status
+percentil nacional
+↓
+Demand Score
+```
+
+A regra é versão de modelo e deve ser calibrada contra resultados comerciais reais.
+
+### 8.2 RNTRC
+
+```text
+transportadores ativos por município
+↓
+percentil nacional
+↓
+RNTRC component
+```
+
+### 8.3 Fluxo
+
+```text
+CIOT origem + destino por município
+↓
+percentil nacional
+↓
+Flow component
+availability = OBSERVADO quanto ao CIOT
+semântica = PROXY de MDF-e/intensidade de fluxo
+```
+
+### 8.4 Need
+
+```text
+Sinesp por UF
+↓
+percentil
+↓
+Need component
+availability = PROXY
+confidence = reduzida
+```
+
+---
+
+## 9. Core Evidence v1.1
+
+O ranking exploratório nacional atualmente materializado usa:
+
+```text
+ICP       35%
+RNTRC     25%
+CIOT      20%
+Need      20%
+White Space 0%
+Eficiência territorial 0%
+```
+
+```text
+componentes disponíveis
+↓
+Raw Core Evidence Score
+↓
+confiança agregada
+↓
+Confidence-adjusted Core Evidence
+↓
+buildCoreTerritories()
+↓
+territorios.json
+```
+
+**Interpretação obrigatória:** esse resultado é uma lista de **candidatos para investigação**, não a ordem final de contratação.
+
+---
+
+## 10. White Space final
+
+```text
+Demanda
+× Need
+× Intensidade logística
+× Baixa pressão competitiva
+↓
+gate census_status
 ↓
 se != CENSO_COMPLETO:
-  White Space = NULL / BLOQUEADO
+  White Space = NULL
 se == CENSO_COMPLETO:
-  transformação versionada
+  transformação versionada + sensibilidade
 ↓
 White Space Score
-↓
-Opportunity Score
 ```
 
-A fórmula final deve ser acompanhada de análise de sensibilidade e `methodology_version`.
+O White Space não entra como zero no Core Evidence. Ele simplesmente ainda não está autorizado como componente final.
 
 ---
 
-## 9. Opportunity Score
-
-**Implementado em `etl_municipal_aggregate.py`** (`municipios_scored.json`, publicado via
-`market-intelligence-aggregate.yml`), espelhando `calculateOpportunityScore` de `scoreEngine.ts`.
-
-- **ICP component**: percentil nacional ponderado por tier ICP (peso A=3, B=2, C=1) sobre o
-  snapshot CNPJ/ICP. Metodologia validada explicitamente com o usuário, não é uma escolha
-  arbitrária da IA.
-- **RNTRC component**: percentil nacional da contagem de transportadores ativos, mesma técnica.
-- **MDF-e component**: percentil nacional de viagens CIOT (origem + destino) por município,
-  quando `mdfe_origens/destinos_municipios.json` existem; caso contrário `NAO_DISPONIVEL`.
-- **Risk (`scores.risk`, fora do Opportunity Score)**: percentil nacional (roubo de carga + roubo
-  de veículo + furto de veículo) por UF, quando `risco_uf.json` existe; sempre `PROXY` (nunca
-  `OBSERVADO`), pois a fonte só publica granularidade UF para estes indicadores.
-- **Need / White Space / Territorial Efficiency**: `NAO_DISPONIVEL` até serem definidos (Need é a
-  fórmula que converte risco em sinal de oportunidade -- ainda não definida, mesmo com o risco já
-  disponível; White Space depende de `CENSO_COMPLETO`; Territorial Efficiency ainda não tem
-  fórmula definida).
-
-Como o Opportunity Score exige todos os componentes ponderados presentes, ele permanece
-**bloqueado (`null`) para todo município** enquanto Need, White Space e Territorial Efficiency não
-forem definidos — isso é esperado e correto, não um bug: o sistema não converte lacuna de dados em
-oportunidade.
+## 11. Territory Optimizer
 
 ```text
-ICP component
-RNTRC component
-MDF-e component
-Need component
-White Space component
-Territorial Efficiency component
+municípios com score válido + coordenadas
 ↓
-normalização sobre universo nacional definido
+cidade-base × raio [100,150,200,250,300,400]
 ↓
-Raw Opportunity Score
+Haversine para cobertura geométrica
 ↓
-Confidence Aggregate
+contas ICP + Core Evidence + confiança
 ↓
-Confidence-adjusted Opportunity Score
-↓
-explicabilidade por componente
-↓
-ranking municipal / território
-```
-
-Uma recomendação bloqueada por governança não pode ser liberada apenas por multiplicação de confiança.
-
----
-
-## 10. Territory Optimizer
-
-```text
-municipios.json
-↓
-base candidata × raio [100,150,200,250,300,400]
-↓
-matriz de cobertura municipal
-↓
-contas ICP + scores + confiança + logística + custos
-↓
-territorio_candidato
-↓
-cenários 1/2/3/5/10/20 vendedores
+candidatos
 ↓
 penalização de sobreposição
 ↓
-territorios.json
+cenários 1/2/3/5/10/20 vendedores
+```
+
+### Limitação aberta
+
+Haversine mede distância geodésica, não tempo de viagem. A qualidade da **cidade-hub** ainda precisa incorporar:
+
+- malha rodoviária DNIT;
+- tempos/deslocamentos;
+- aeroportos quando relevantes;
+- materialidade própria da cidade-base;
+- custo operacional estimado.
+
+Por isso `territorios.json` atual não é autorização final de lotação.
+
+---
+
+## 12. TAM / SAM / SOM
+
+```text
+população ICP modelada
 ↓
-Plano Nacional de Expansão
+TAM candidato
+↓
+restrições de produto + capacidade econômica + cobertura Atlas
+↓
+SAM
+↓
+penetração + horizonte
+↓
+SOM
+```
+
+CNPJ × ticket nunca é receita factual.
+
+---
+
+## 13. Seller economics
+
+```text
+salário + encargos + benefícios + veículo + combustível + hospedagem
++ pedágio + comissão + ferramentas + administrativo
+↓
+custo mensal
+
+Ticket MRR × margem
+↓
+contribuição por contrato
+
+custo / contribuição
+↓
+break-even contratos
+
+break-even / win rate
+↓
+oportunidades necessárias
+↓
+pipeline / payback / ROI / ramp-up
+```
+
+As entradas comerciais são `PREMISSA_EDITAVEL` ou calibração interna explicitamente aprovada.
+
+---
+
+## 14. Gate final de contratação
+
+`manifest.json → decisionReady` representa **decisão final**, não mera capacidade de ranquear candidatos.
+
+O loader revalida em runtime:
+
+```text
+CIOT origem/destino presente
++ territórios presentes
++ concorrência nacional/finalistas adequada
++ CENSO_COMPLETO nos finalistas
++ SAM disponível
++ MRR potencial disponível
++ break-even disponível
+↓
+decisionReady=true
+```
+
+Se qualquer condição obrigatória falhar:
+
+```text
+decisionReady=false
++ decisionBlockers[]
+```
+
+Esse gate impede que um snapshot antigo ou parcial libere “Vendedor 01” por acidente.
+
+---
+
+## 15. Manifest e interface
+
+```text
+data/manifest.json
+↓
+loadMarketManifest()
+↓
+territorios.json materializado quando presente
++ fluxo CIOT runtime para fail-closed
+↓
+validateRuntimeReadiness()
 ↓
 Board View
 ```
 
-Haversine, quando usado, é apenas distância geodésica. Não é tempo rodoviário.
+A aba Territórios pode continuar mostrando candidatos Core Evidence mesmo quando a Board final está bloqueada.
 
 ---
 
-## 11. TAM / SAM / SOM e seller economics
+## 16. Evidência
+
+A trilha desejada para qualquer recomendação final é:
 
 ```text
-contas ICP observadas
-+ elegibilidade de produto/território
-↓
-TAM
-↓
-restrições Atlas / portfólio / cobertura
-↓
-SAM
-↓
-premissas editáveis:
-  penetração
-  ticket
-  win rate
-  margem
-  churn
-  sales cycle
-  ramp-up
-↓
-SOM / MRR potencial
-↓
-custos do vendedor
-↓
-break-even / pipeline / payback / ROI
-↓
-Plano Nacional de Expansão
+território
+→ município
+→ score/componente
+→ evidenceIds
+→ metadata
+→ SHA-256
+→ snapshot
+→ URL oficial
+→ competência
 ```
 
-Premissas comerciais devem guardar versão/origem e nunca ser apresentadas como dado público observado.
-
----
-
-## 12. Manifest e publicação
-
-`public/tools/atlas-market-intelligence/data/manifest.json` é a porta de entrada da interface.
-
-Ele contém:
-
-```text
-schemaVersion
-generatedAt
-methodologyVersion
-decisionReady
-decisionBlockers
-datasets[]
-files{}
-```
-
-O front consulta o manifest antes dos derivados. Portanto, um arquivo ausente, uma competência inválida, um recurso upstream inválido ou um dataset parcial aparece como estado de dados e não como tela silenciosamente vazia.
-
----
-
-## 13. Evidência e auditoria
-
-Cada recomendação final deve conseguir percorrer:
-
-```text
-cidade/território
-→ score
-→ componentes
-→ evidences[]
-→ dataset metadata
-→ hash
-→ snapshot oficial
-→ URL da fonte
-```
-
-Esse percurso é o critério técnico para o botão **Ver evidências**.
+Esse percurso é o contrato do recurso **Ver evidências**.

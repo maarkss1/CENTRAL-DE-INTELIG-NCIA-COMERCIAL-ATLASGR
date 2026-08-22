@@ -20,11 +20,11 @@ function territory(overrides: Partial<TerritoryRecord> = {}): TerritoryRecord {
         icp: { total: 1000, tierA: 300, tierB: 400, tierC: 300 },
         rntrc: { transporters: 100, etc: 20, tac: 70, ctc: 10, etcEquiparada: 0, activeVehicles: 300, tractionVehicles: 180, implements: 120 },
         mdfe: { trips: 5000, manifests: null, tonnes: null, tku: null, interstateShare: null },
-        competition: { censusStatus: 'PESQUISA_PARCIAL', verifiedPresences: 0, directRiskManagement: 0, tracking: 0, monitoring: 0, readyResponse: 0, nationalRemoteCoverage: 0 },
+        competition: { censusStatus: 'CENSO_COMPLETO', verifiedPresences: 3, directRiskManagement: 1, tracking: 1, monitoring: 1, readyResponse: 1, nationalRemoteCoverage: 1 },
         opportunityScore: 80,
         confidence: 'ALTO',
         economics: { tamAccounts: 1000, samAccounts: null, somAccounts: null, potentialMrr: null, breakEvenContracts: null, requiredPipeline: null },
-        evidenceIds: ['cnpj', 'rntrc', 'mdfe-ciot'],
+        evidenceIds: ['cnpj', 'rntrc', 'mdfe-ciot', 'hub-suitability'],
         ...overrides,
     };
 }
@@ -64,7 +64,7 @@ const policy: EconomicDecisionPolicy = {
     minRoi24Pct: 0,
 };
 
-describe('territory economics v1.2', () => {
+describe('territory economics v1.3', () => {
     it('deriva SAM somente de TAM observado x atendibilidade explicita', () => {
         expect(deriveTerritorySam(territory(), 25)).toBe(250);
         expect(deriveTerritorySam(territory(), 0)).toBeNull();
@@ -80,6 +80,18 @@ describe('territory economics v1.2', () => {
         const result = assessTerritoryEconomics(territory(), { serviceableSharePct: 0 }, emptyModel, policy, 'BASE');
         expect(result.recommendation).toBe('PREMISSAS_PENDENTES');
         expect(result.blockers.length).toBeGreaterThanOrEqual(6);
+    });
+
+    it('impede recomendacao de contratacao se censo competitivo ou hub suitability estiverem pendentes', () => {
+        const exploratory = territory({
+            competition: { censusStatus: 'PESQUISA_PARCIAL', verifiedPresences: 2, directRiskManagement: 1, tracking: 1, monitoring: 0, readyResponse: 0, nationalRemoteCoverage: 1 },
+            evidenceIds: ['cnpj', 'rntrc', 'mdfe-ciot'],
+        });
+        const result = assessTerritoryEconomics(exploratory, { serviceableSharePct: 50 }, model, policy, 'BASE');
+
+        expect(result.recommendation).toBe('PREMISSAS_PENDENTES');
+        expect(result.blockers.some((blocker) => blocker.includes('White Space final continua bloqueado'))).toBe(true);
+        expect(result.blockers.some((blocker) => blocker.includes('Hub Suitability pendente'))).toBe(true);
     });
 
     it('nao emite recomendacao sem politica explicita de payback e ROI', () => {
@@ -103,7 +115,7 @@ describe('territory economics v1.2', () => {
         expect(result.failedPolicyRules.some((rule) => rule.includes('SOM máximo'))).toBe(true);
     });
 
-    it('recomenda quando capacidade territorial e politica economica sao atendidas', () => {
+    it('recomenda somente quando evidencia territorial, capacidade e politica economica sao atendidas', () => {
         const permissivePolicy: EconomicDecisionPolicy = { maxPaybackMonths: 24, minRoi12Pct: -100, minRoi24Pct: -100 };
         const result = assessTerritoryEconomics(territory(), { serviceableSharePct: 50 }, model, permissivePolicy, 'BASE');
         expect(result.samAccounts).toBe(500);

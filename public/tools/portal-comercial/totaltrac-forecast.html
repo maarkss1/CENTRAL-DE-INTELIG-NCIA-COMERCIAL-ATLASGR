@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-empresa="totaltrac">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Total Trac — Relatórios Comerciais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial Total Trac</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" style="height:64px;width:auto;">
+        <g transform="translate(2,4)">
+          <path d="M52 0C27 0 7 19 7 43c0 30 45 71 45 71s45-41 45-71C97 19 77 0 52 0z" fill="#93DBF2"/>
+          <circle cx="52" cy="43" r="15" fill="#ffffff"/>
+          <circle cx="52" cy="43" r="6.5" fill="#374898"/>
+          <path d="M52 20a24 24 0 0 1 24 20" stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+          <path d="M52 31a13 13 0 0 1 13 11" stroke="#ffffff" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text x="122" y="76" font-family="Poppins, Arial, sans-serif" font-weight="800" font-size="54"><tspan fill="#374898">TOTAL</tspan><tspan fill="#008FCE">TRAC</tspan></text>
+      </svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Conectar para cuidar · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">Total Trac · Bitrix24 · v10.0 · Comercial &amp; Receita</div>
+      <h1>📈 Relatórios Comerciais.</h1>
+      <p>Forecast semanal pronto direto nesta página. Os demais relatórios do grupo Comercial &amp; Receita (mensal, pipeline &amp; coverage, conversão, aging, performance, ganhos/perdas, origens, produtos, clientes) abrem no motor de extração completo.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="connection-pill" id="statusConexaoTopo"><span class="connection-dot"></span><span id="statusConexaoTexto">Conexão não testada</span></span>
+      <button type="button" class="hero-btn" onclick="testarConexaoBitrix()">Testar conexão</button>
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="totaltrac-home.html">Início</a><a href="totaltrac-cockpit.html">Cockpit Executivo</a><a href="totaltrac-forecast.html">Relatórios Comerciais</a><a href="totaltrac-sdr.html">SDR &amp; Operação</a><a href="totaltrac-extracao.html">Extração &amp; Diagnóstico</a><a href="totaltrac-evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <section class="workspace-intro" id="inicio">
+    <div class="workspace-title">
+      <div><h2>Relatórios do grupo Comercial &amp; Receita</h2><p>Clique em qualquer card. O Forecast semanal roda direto nesta página; os demais levam para a Extração &amp; Diagnóstico já configurados.</p></div>
+    </div>
+    <div id="atalhosRelatoriosGrupoForecast"></div>
+  </section>
+
+  <div class="card" id="conexao">
+    <h2>🔑 Conexão com o Bitrix</h2>
+    <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
+    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://totaltrac.bitrix24.com.br/rest/.../" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <div class="row" style="margin-top:9px;align-items:center;">
+      <div class="webhook-actions">
+        <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+        <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
+        <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não configurado</span></span>
+      </div>
+    </div>
+    <p class="rodape-nota">A Total Trac ainda não tem um webhook fixo configurado nesta ferramenta — cole a URL do webhook de entrada do Bitrix24 da Total Trac acima e clique em "💾 Salvar webhook".</p>
+  </div>
+
+  <!-- Piezas do motor genérico necessárias para o Forecast semanal funcionar nesta
+       página (extrair() lê #entidade/#relatorio; aoTrocarEntidade/aoTrocarRelatorio
+       tocam estes elementos). Ficam ocultas porque, no grupo Comercial, só o
+       Forecast semanal roda diretamente aqui — os outros relatórios do grupo usam
+       o motor genérico completo em extracao.html. -->
+  <div class="card oculto" id="configuracao" aria-hidden="true">
+    <div class="row">
+      <div>
+        <label for="entidade">Tipo de dado</label>
+        <select id="entidade" onchange="aoTrocarEntidade(true)"></select>
+      </div>
+      <div>
+        <label for="relatorio">Relatórios</label>
+        <select id="relatorio" onchange="aoTrocarRelatorio()">
+          <option value="">Nenhum — extração manual de dados</option>
+        </select>
+      </div>
+      <div id="bloco-categoria" class="oculto">
+        <label for="categoria">Categoria (pipeline)</label>
+        <select id="categoria" onchange="aoTrocarCategoria()"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div id="bloco-estagio" class="oculto">
+        <label for="estagio">Estágio / Status</label>
+        <select id="estagio"></select>
+      </div>
+      <div id="bloco-vendedor" class="oculto">
+        <label for="vendedor">Vendedor / Responsável</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="vendedor" style="flex:1;"><option value="">Todos os vendedores</option></select>
+          <button type="button" class="secundario" id="btnCarregarVendedores" onclick="carregarVendedores()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+      <div id="bloco-origem" class="oculto">
+        <label for="origem">Origem (canal de entrada)</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="origem" style="flex:1;"><option value="">Todas as origens</option></select>
+          <button type="button" class="secundario" id="btnCarregarOrigens" onclick="carregarOrigens()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+    </div>
+    <div id="bloco-campo-personalizado" class="row oculto">
+      <div>
+        <label for="campoPersonalizadoCodigo">Filtrar por campo personalizado (ex: segmento) — código</label>
+        <input type="text" id="campoPersonalizadoCodigo" placeholder="UF_CRM_1234567890">
+      </div>
+      <div>
+        <label for="campoPersonalizadoValor">Valor exato a filtrar</label>
+        <input type="text" id="campoPersonalizadoValor" placeholder="Ex: Transportadora">
+      </div>
+    </div>
+    <div class="selection-summary-card" id="resumoSelecaoPrincipal">
+      <div class="selection-icon">◎</div><div><strong id="resumoSelecaoTitulo">Extração manual</strong><span id="resumoSelecaoDetalhe">Escolha um tipo de dado ou um relatório.</span></div>
+    </div>
+    <div id="nota-tudo" class="aviso oculto"></div>
+    <div id="nota-jornada" class="aviso oculto"></div>
+    <div id="nota-diario-sdr" class="aviso oculto"></div>
+    <div id="nota-analise-sdr" class="aviso oculto"></div>
+    <div id="nota-relatorio-catalogo" class="aviso oculto">
+      <strong id="relatorioCatalogoTitulo">Relatório</strong>
+      <div id="relatorioCatalogoDescricao"></div>
+      <div id="configRelatorioCatalogo">
+        <div id="configMetaComercial"><input type="number" id="metaRelatorioComercial" min="0" step="0.01"></div>
+        <div id="configSlaAging"><input type="number" id="slaAgingRelatorio" min="1" step="1" value="30"></div>
+        <div id="configSlaPrimeiroContato"><input type="number" id="slaPrimeiroContatoHoras" min="1" step="1" value="4"></div>
+        <div id="configDiasEstagnacaoSDR"><input type="number" id="diasEstagnacaoSDR" min="1" step="1" value="15"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card oculto" id="card-campos" aria-hidden="true">
+    <div id="campos-lista" class="campos-grid"></div>
+    <input type="text" id="filtroCampos" oninput="aplicarFiltroCampos()">
+    <input type="text" id="camposExtra">
+    <span class="field-counter" id="camposSelecionadosContagem"></span>
+    <p class="rodape-nota" id="notaCamposCarregados"></p>
+  </div>
+  <div class="oculto" style="display:none" id="linha-campo-data" aria-hidden="true"><select id="campoData"></select></div>
+
+  <div class="card" id="nota-forecast-wrap">
+    <h2>🔮 Forecast semanal • Comercial</h2>
+    <div id="nota-forecast" class="aviso oculto" style="margin-top:0;">
+      <strong>Forecast semanal • Comercial.</strong> Identifica o pipeline Comercial dinamicamente, usa a semana
+      selecionada em "De/Até" (abaixo), separa <strong>Fechado, Commit, Best Case e Pipeline</strong>, mostra
+      previsão ponderada por vendedor e sinaliza oportunidades <strong>sem CLOSEDATE</strong> ou vencidas.
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="metaForecastSemanal" style="margin-top:0;">Meta semanal opcional (R$)</label>
+          <input type="number" id="metaForecastSemanal" min="0" step="0.01" placeholder="Ex: 250000">
+        </div>
+        <div>
+          <label for="metaForecastMensal" style="margin-top:0;">Meta mensal (R$)</label>
+          <input type="number" id="metaForecastMensal" min="0" step="0.01" placeholder="Preenchida automaticamente pelo mês do período">
+        </div>
+        <div>
+          <label for="palavraFunilForecast" style="margin-top:0;">Nome do pipeline para Forecast</label>
+          <input type="text" id="palavraFunilForecast" value="Comercial" placeholder="Comercial">
+        </div>
+      </div>
+      <p class="rodape-nota" style="margin-bottom:0;">A meta mensal é preenchida automaticamente pelo mês selecionado em "Até". Se a meta semanal ficar em branco, é calculada dividindo a meta mensal pelo número de semanas do mês.</p>
+    </div>
+  </div>
+
+  <div class="card" id="bloco-periodo">
+    <h2>Período</h2>
+    <div class="row">
+      <div>
+        <label for="periodoPreset">Intervalo rápido</label>
+        <select id="periodoPreset" onchange="aoTrocarPresetPeriodo()">
+          <option value="personalizado">Personalizado (uso as datas abaixo)</option>
+          <option value="todas">Todas as datas (sem filtro de período)</option>
+          <option value="diario">Diário (hoje)</option>
+          <option value="semana_atual">Semana atual (segunda a domingo)</option>
+          <option value="semanal">Semanal (últimos 7 dias)</option>
+          <option value="mensal">Mensal (mês atual)</option>
+          <option value="trimestral">Trimestral (trimestre atual)</option>
+          <option value="semestral">Semestral (semestre atual)</option>
+        </select>
+      </div>
+      <div>
+        <label for="mesEspecifico">Ou escolha um mês específico</label>
+        <input type="month" id="mesEspecifico" onchange="aoEscolherMesEspecifico()">
+      </div>
+      <div>
+        <label for="diaEspecifico">Ou um dia específico</label>
+        <input type="date" id="diaEspecifico" onchange="aoEscolherDiaEspecifico()">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="dataInicio">De</label>
+        <input type="date" id="dataInicio" onchange="voltarParaPersonalizado()">
+      </div>
+      <div>
+        <label for="dataFim">Até</label>
+        <input type="date" id="dataFim" onchange="voltarParaPersonalizado()">
+      </div>
+    </div>
+    <p class="rodape-nota">Datas em fuso -03:00 (São Paulo). O Forecast semanal já vem pré-configurado para a semana atual ao abrir esta página.</p>
+  </div>
+
+  <div class="card run-zone" id="execucao">
+    <h2>Executar consulta</h2>
+    <div class="run-buttons"><button type="button" id="btnExtrair" onclick="extrair()">Extrair dados do Forecast semanal</button>
+    <button type="button" class="secundario" id="btnParar" onclick="pararExtracao()" disabled>Parar</button>
+    <button type="button" class="secundario oculto" id="btnContinuar" onclick="continuarExtracao()">Continuar extração</button></div>
+    <div class="status-linha">
+      <div class="spinner" id="spinner"></div>
+      <span id="statusTexto"></span>
+    </div>
+    <div class="erro oculto" id="areaErro"></div>
+  </div>
+
+  <div class="card" id="bloco-forecast-semanal">
+    <h2><span class="num">📈</span> Forecast semanal • Comercial</h2>
+    <div class="aviso" id="forecastPeriodoTexto"></div>
+    <div class="relatorio-especial-grid" id="forecastKpis"></div>
+    <div id="forecastMetasBarras" class="meta-progress-wrap"></div>
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="window.location.href='totaltrac-extracao.html?relatorio=forecast_semanal&amp;ia=1'" title="Abre a Central de Inteligência v10 (Extração &amp; Diagnóstico) já com este relatório em foco">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualForecast()">Abrir modelo visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLForecastModelo()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastNegocios()">CSV • negócios</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastVendedores()">CSV • vendedores</button>
+      <button type="button" class="secundario" onclick="baixarJSONForecast()">JSON completo</button>
+    </div>
+    <div class="relatorio-subtitulo">Forecast por vendedor</div>
+    <div class="relatorio-scroll"><div id="forecastVendedoresTabela"></div></div>
+    <div class="relatorio-subtitulo">Negócios da semana</div>
+    <div class="relatorio-scroll"><div id="forecastNegociosTabela"></div></div>
+    <div class="relatorio-subtitulo">Higiene do forecast</div>
+    <div class="relatorio-scroll"><div id="forecastHigieneTabela"></div></div>
+    <p class="rodape-nota">
+      Forecast ponderado = OPPORTUNITY × probabilidade. O total previsto soma o que já foi ganho na semana
+      ao forecast ponderado dos negócios abertos com CLOSEDATE dentro da semana.
+    </p>
+  </div>
+
+  <div class="relatorio-modal-overlay oculto" id="relatorioVisualInlineCard" onclick="if(event.target===this)fecharRelatorioVisualInline()">
+    <div class="relatorio-modal-sheet">
+      <div class="relatorio-modal-head">
+        <h2 id="relatorioModalTitulo">📊 Modelo visual do relatório</h2>
+        <div class="relatorio-modal-acoes">
+          <button type="button" class="secundario" onclick="alternarPainelRelatoriosSalvos()" title="Ver relatórios salvos neste navegador">📂 Salvos</button>
+          <button type="button" class="secundario" onclick="salvarRelatorioVisualAtual()" title="Salvar este relatório neste navegador">💾 Salvar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualAtual()" title="Baixar como arquivo .html">⬇️ Baixar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualPDF()" title="Imprimir ou salvar como PDF">🖨️ PDF</button>
+          <button type="button" class="secundario" onclick="abrirRelatorioVisualEmNovaAba()" title="Abrir em uma aba nova">🌐 Abrir em nova aba</button>
+          <button type="button" class="relatorio-modal-fechar" onclick="fecharRelatorioVisualInline()" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="relatorio-salvos-painel oculto" id="relatorioSalvosPainel">
+        <div id="relatorioSalvosLista"></div>
+      </div>
+      <iframe id="relatorioVisualInlineFrame" class="relatorio-visual-inline-frame" title="Modelo visual do relatório"></iframe>
+    </div>
+  </div>
+
+</main>
+
+<div class="help-modal" id="helpModal" onclick="fecharAjudaPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitulo">
+    <div class="help-head"><div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Ajuda contextual</div><h3 id="helpTitulo">Como funciona</h3></div><button type="button" class="help-close" onclick="fecharAjuda()">×</button></div>
+    <div class="help-body" id="helpConteudo"></div>
+  </div>
+</div>
+
+<div class="ferramentas-flutuantes" id="ferramentasFlutuantes">
+  <button type="button" class="ferramentas-toggle" onclick="alternarPainelFerramentas()" title="Ferramentas">🛠️</button>
+  <div class="ferramentas-painel oculto" id="ferramentasPainel">
+    <div class="ferramentas-titulo">Ferramentas</div>
+    <button type="button" onclick="ferramentaImprimir()">🖨️ Imprimir</button>
+    <button type="button" onclick="ferramentaBaixar()">⬇️ Baixar</button>
+    <button type="button" id="btnFerramentaDitar" onclick="alternarDitado()">🎙️ Ditar</button>
+    <button type="button" id="btnFerramentaComandoVoz" onclick="alternarComandoDeVoz()">🗣️ Comando de Voz</button>
+    <p class="rodape-nota" id="ferramentasVozStatus" style="margin:6px 0 0;"></p>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Init específico desta página: mostra só os cards do grupo "Comercial &
+  // Receita" (reaproveita RELATORIOS/cardRelatorioRapidoHTML, sem duplicar
+  // lógica) e pré-seleciona o Forecast semanal, já pronto pra rodar.
+  (function () {
+    if (typeof renderizarAtalhosRelatoriosGrupo === "function") {
+      renderizarAtalhosRelatoriosGrupo("Comercial & Receita", "atalhosRelatoriosGrupoForecast");
+    }
+    var sel = document.getElementById("relatorio");
+    if (sel && typeof aoTrocarRelatorio === "function") {
+      sel.value = "forecast_semanal";
+      aoTrocarRelatorio();
+    }
+  })();
+</script>
+
+</body>
+</html>

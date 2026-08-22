@@ -1,93 +1,184 @@
-# PLANO NACIONAL DE EXPANSÃO - Atlas GR
+# PLANO NACIONAL DE EXPANSÃO — Atlas GR
 
-**Status atual:** `DECISÃO BLOQUEADA POR DADOS`  
-**Regra:** este documento é gerado/atualizado a partir dos resultados auditáveis da plataforma. Ele não promove a triagem histórica dos 16 clusters a ranking nacional.
-
-## Onde contratar agora?
-
-No estado atual da nova arquitetura, **NÃO DISPONÍVEL**.
-
-Ainda não é metodologicamente válido declarar:
-
-```text
-VENDEDOR 01 = cidade X
-VENDEDOR 02 = cidade Y
-VENDEDOR 03 = cidade Z
-```
-
-porque a recomendação final depende de camadas que ainda estão em processamento ou incompletas, especialmente censo competitivo, MDF-e nacional, ICP/CNPJ nacional e premissas comerciais Atlas.
-
-Inventar uma ordem agora violaria a regra central do sistema.
+**Atualizado em:** 22/08/2026  
+**Status executivo:** `DECISÃO FINAL BLOQUEADA`  
+**Ranking Core Evidence:** disponível apenas para investigação  
+**Regra:** nenhum território recebe a etiqueta “Vendedor 01” antes de White Space competitivo e economics passarem pelo gate final.
 
 ---
 
-## Respostas às 10 perguntas executivas no estado atual
+# Onde contratar agora?
 
-### 1. Qual é o melhor território brasileiro para o primeiro vendedor externo Atlas GR?
+## Resposta executiva
+
+**AINDA NÃO DISPONÍVEL COM CONFIANÇA SUFICIENTE.**
+
+Hoje a plataforma já possui cobertura nacional reproduzível para:
+
+- geografia IBGE;
+- RNTRC jul/2026;
+- frota municipal SENATRAN jul/2026;
+- CNPJ/ICP ago/2026;
+- fluxo CIOT jul/2026 como proxy documentado de MDF-e;
+- risco Sinesp jan-jul/2026 como `PROXY_UF`;
+- Territory Optimizer Core Evidence.
+
+Os bloqueios que permanecem são mais específicos do que nas versões anteriores:
+
+1. **concorrência nacional ainda `PARCIAL`;**
+2. **finalistas sem `CENSO_COMPLETO` comparável;**
+3. **White Space final indisponível;**
+4. **cidade-hub ainda sem malha/tempo/aeroporto modelados;**
+5. **SAM/MRR/break-even territoriais ainda dependem de regras e premissas Atlas aprovadas;**
+6. **sensibilidade final do score com White Space ainda não concluída.**
+
+Portanto, os territórios materializados em `data/territorios.json` são **candidatos Core Evidence**, não uma ordem de contratação.
+
+---
+
+# Diagnóstico do ranking Core atual
+
+O snapshot Core Evidence atual revelou um problema útil para a evolução do modelo: bases como Guarujá/SP, Miracatu/SP e Ilhabela/SP aparecem entre os primeiros candidatos porque o algoritmo maximiza massa e score dentro de raios geométricos.
+
+Isso não significa que essas cidades sejam boas bases residenciais/comerciais para um vendedor.
+
+Esse resultado prova que ainda falta um `Hub Suitability Score` com:
+
+```text
+materialidade da própria cidade-base
++ RNTRC/frota próprios
++ centralidade real
++ rodovias e tempo de deslocamento
++ aeroportos quando relevantes
++ custo operacional
++ penalização de base residual dentro de megamercado vizinho
+```
+
+Até essa camada ser validada, o ranking Core serve para localizar **áreas de massa comercial**, não para escolher automaticamente onde o vendedor deve morar.
+
+---
+
+# Respostas às 10 perguntas executivas
+
+## 1. Qual é o melhor território brasileiro para o primeiro vendedor externo Atlas GR?
+
+**NÃO DISPONÍVEL COMO DECISÃO FINAL.**
+
+Bloqueadores atuais:
+
+```text
+censo competitivo dos finalistas
++ White Space
++ Hub Suitability
++ economics final
+```
+
+## 2. Por que ele venceu?
+
+**NÃO APLICÁVEL ainda.**
+
+Quando liberado, o vencedor deverá apresentar simultaneamente:
+
+```text
+alta demanda ICP
++ forte presença/frota logística
++ fluxo elevado
++ Need relevante
++ baixa pressão competitiva comprovada
++ hub operacional eficiente
++ economia positiva
++ confiança suficiente
+```
+
+## 3. Qual o segundo e terceiro?
+
+**NÃO DISPONÍVEL COMO ORDEM FINAL.**
+
+A plataforma pode exibir candidatos exploratórios, mas não rotulá-los Vendedor 02/03 enquanto o mesmo gate não for atendido.
+
+## 4. Quantas contas ICP existem no território?
+
+**Disponível para os candidatos Core** como população ICP modelada no raio.
+
+**Atenção:** esse número não é SAM e ainda não prova capacidade econômica individual.
+
+## 5. Qual o SAM?
 
 **NÃO DISPONÍVEL.**
 
-Datasets bloqueadores:
+Precisa de regra explícita de atendibilidade Atlas, Product Fit e elegibilidade econômica.
 
-- ICP/CNPJ nacional agregado;
-- MDF-e nacional agregado;
-- Need/risco nacional consolidado;
-- censo competitivo completo dos territórios finalistas;
-- Territory Optimizer executado sobre o universo nacional.
+## 6. Qual o MRR potencial?
 
-### 2. Por que ele venceu?
+**NÃO DISPONÍVEL como fato.**
 
-**NÃO DISPONÍVEL**, pois não há vencedor liberado.
-
-Quando houver, a explicação será composta por evidências de:
+Será calculado como cenário a partir de:
 
 ```text
-demanda
-+ estoque logístico RNTRC
-+ fluxo MDF-e
-+ Need Atlas
-+ White Space competitivo
-+ eficiência territorial
-+ confiança
+SAM
+× penetração
+× ticket MRR
+× mix de produto quando aplicável
 ```
 
-### 3. Qual o segundo e terceiro?
+Ticket e penetração permanecem `PREMISSA_EDITAVEL` ou calibração interna aprovada.
 
-**NÃO DISPONÍVEL.** Mesmos bloqueadores da pergunta 1.
+## 7. Quantos contratos pagam o vendedor?
 
-### 4. Quantas contas ICP existem no território?
+**NÃO DISPONÍVEL como número Atlas aprovado.**
 
-**NÃO DISPONÍVEL** até publicação do agregado CNPJ/ICP nacional e execução do território.
+O simulador já implementa a fórmula de break-even, mas a resposta só é liberada depois de preencher custo total, ticket e margem.
 
-### 5. Qual o SAM?
+## 8. Qual pipeline ele precisa gerar?
 
-**NÃO DISPONÍVEL.** Depende da população ICP observada, regras de elegibilidade/portfólio e território calculado.
+**NÃO DISPONÍVEL como número final.**
 
-### 6. Qual o MRR potencial?
+Depende de:
 
-**NÃO DISPONÍVEL.** Além do SAM, exige ticket, penetração, mix e horizonte como `PREMISSA EDITÁVEL` ou fonte interna Atlas validada.
+```text
+break-even contratos
+÷ win rate
+× ticket/pipeline necessário
+```
 
-### 7. Quantos contratos pagam o vendedor?
+Sales Cycle e ramp-up também participam do cenário.
 
-**NÃO DISPONÍVEL como número Atlas.** O simulador já contém a fórmula, mas salário, encargos, benefícios, veículo, combustível, hospedagem, pedágio, comissão, ferramentas, administrativo, ticket e margem não são preenchidos com números inventados.
+## 9. Quais municípios pertencem ao território?
 
-### 8. Qual pipeline ele precisa gerar?
+**Disponível para os candidatos Core** em `territorios.json` por `municipalityCodes`.
 
-**NÃO DISPONÍVEL como número Atlas.** Depende de break-even e Win Rate validado. Sales Cycle e ramp-up também serão incorporados ao cenário final.
+A composição poderá mudar quando Hub Suitability e White Space entrarem na otimização final.
 
-### 9. Quais municípios pertencem ao território?
+## 10. Qual o nível de confiança da recomendação?
 
-**NÃO DISPONÍVEL** até o Territory Optimizer calcular cidade-base + raio e publicar `municipalityCodes`.
+**BLOQUEADO para recomendação final.**
 
-### 10. Qual o nível de confiança da recomendação?
-
-**BLOQUEADO.** A confiança competitiva é insuficiente enquanto a concorrência estiver em `PESQUISA_PARCIAL`.
+Existe confiança alta em vários componentes Core, mas isso não equivale a confiança alta na decisão de contratação porque concorrência e economics continuam incompletos.
 
 ---
 
-## Hipóteses históricas que serão reavaliadas
+# Estado das ondas
 
-Os 16 clusters abaixo entram no algoritmo apenas como **hipóteses de validação**, sem bônus por terem sido escolhidos anteriormente:
+| Onda | Estado em 22/08/2026 | Observação |
+| --- | --- | --- |
+| 0 — Backup/auditoria | CONCLUÍDA nesta rodada | Auditoria atualizada sobre `main` atual |
+| 1 — Arquitetura/UX/identidade | PARCIAL AVANÇADA | React nativo; mapa moderno e comparador ainda pendentes |
+| 2 — RNTRC/frota | CONCLUÍDA PARA SNAPSHOT ATUAL | RNTRC jul/2026 + SENATRAN municipal jul/2026 |
+| 3 — CNPJ/ICP | CONCLUÍDA PARA SNAPSHOT ATUAL | ago/2026; taxonomia ainda requer calibração comercial |
+| 4 — MDF-e/fluxo | PARCIAL COM PROXY | CIOT jul/2026 reproduzível; MDF-e literal não publicado no dataset atual |
+| 5 — Need/risco | IMPLEMENTADA COM PROXY | Sinesp jan-jul/2026 em nível UF |
+| 6 — Concorrência | BLOQUEADORA | censo nacional parcial |
+| 7 — White Space/Opportunity | PARCIAL | Core Evidence disponível; White Space final bloqueado |
+| 8 — Territory Optimizer | PARCIAL | cobertura/overlap existem; Hub Suitability incompleto |
+| 9 — TAM/SAM/SOM/ROI | PARCIAL | simulador existe; premissas finais ausentes |
+| 10 — Plano de contratação | BLOQUEADO | não há Vendedor 01 final |
+| 11 — QA/performance/docs | EM EXECUÇÃO | PR #235 fecha semântica/gates e documentação |
+
+---
+
+# Revalidação dos 16 clusters históricos
+
+Continuam como **hipóteses**, sem bônus:
 
 1. Luís Eduardo Magalhães / Barreiras;
 2. Balsas;
@@ -106,13 +197,11 @@ Os 16 clusters abaixo entram no algoritmo apenas como **hipóteses de validaçã
 15. Fortaleza / Maracanaú;
 16. Barcarena / Santarém.
 
-O algoritmo nacional pode encontrar polos melhores fora desta lista.
+A plataforma nacional pode promover ou derrubar qualquer um deles depois dos gates finais.
 
 ---
 
-## Estrutura da saída final
-
-Quando `decisionReady=true`, este documento deve passar a conter, no mínimo:
+# Estrutura obrigatória da saída quando liberada
 
 ```text
 VENDEDOR 01
@@ -121,18 +210,16 @@ UF:
 Raio recomendado:
 Municípios:
 Contas ICP:
-Tier A:
-Tier B:
-Tier C:
-ETCs:
-TACs:
+Tier A/B/C:
+ETCs/TACs/CTCs:
 Frota:
-Fluxo MDF-e:
+Fluxo:
 Need Atlas:
-Concorrentes / cobertura:
+Concorrência:
 White Space:
-Opportunity Score bruto:
-Opportunity Score ajustado:
+Core Evidence Score:
+Final Opportunity Score:
+Hub Suitability:
 SAM:
 SOM:
 MRR potencial:
@@ -148,42 +235,26 @@ Principal risco:
 Evidências:
 ```
 
-E repetir para a ordem nacional de contratação.
-
 ---
 
-## Cenários de headcount obrigatórios
+# Gate de liberação
 
-O Territory Optimizer deve produzir planos para:
+A ordem nacional só pode ser publicada quando:
 
-```text
-1 vendedor
-2 vendedores
-3 vendedores
-5 vendedores
-10 vendedores
-20 vendedores
-```
-
-Cada cenário deve minimizar sobreposição e mostrar cobertura incremental, não apenas pegar os primeiros N municípios do ranking individual.
-
----
-
-## Gate para liberar este plano
-
-O plano só sai de `DECISÃO BLOQUEADA` quando:
-
-- [ ] geografia nacional canônica validada;
-- [ ] RNTRC processado e com competência explícita;
-- [ ] frota processada ou limitação formalmente aceita na versão metodológica;
-- [ ] CNPJ/ICP nacional processado;
-- [ ] MDF-e nacional processado;
-- [ ] Need/risco processado com proxies identificados;
-- [ ] censo competitivo `CENSO_COMPLETO` nos finalistas;
+- [x] geografia canônica validada;
+- [x] RNTRC com competência explícita;
+- [x] frota municipal oficial publicada;
+- [x] CNPJ/ICP nacional processado;
+- [x] fluxo nacional reproduzível publicado, com CIOT explicitamente classificado como proxy de MDF-e;
+- [x] risco processado com `PROXY_UF` explícito;
+- [ ] censo competitivo comparável e `CENSO_COMPLETO` nos finalistas;
 - [ ] White Space recalculado;
-- [ ] análise de sensibilidade do Opportunity Score concluída;
-- [ ] Territory Optimizer executado para todos os cenários;
-- [ ] premissas comerciais Atlas preenchidas para cálculo econômico;
-- [ ] QA e evidências aprovados.
+- [ ] Hub Suitability com conectividade real validado;
+- [ ] análise de sensibilidade final concluída;
+- [x] Territory Optimizer executável para múltiplos headcounts;
+- [ ] SAM/SOM e premissas econômicas Atlas aprovadas;
+- [ ] QA automatizado + E2E visual final aprovado.
 
-Até esse gate ser cumprido, a plataforma tem a obrigação de dizer **“ainda não sabemos com confiança suficiente”** em vez de produzir precisão fictícia.
+Até que os itens restantes sejam concluídos, a resposta correta do sistema é:
+
+> **Temos evidência para priorizar onde investigar, mas ainda não temos evidência suficiente para autorizar onde contratar.**

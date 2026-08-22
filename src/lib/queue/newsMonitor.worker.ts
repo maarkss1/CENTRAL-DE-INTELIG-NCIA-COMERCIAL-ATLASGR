@@ -1,7 +1,9 @@
 import { Queue, Worker, Job } from 'bullmq';
+import type { Prisma } from '@prisma/client';
 import { connection } from './redis.js';
 import { logger } from '../logger.js';
 import { prisma } from '../prisma.js';
+import { searchCompanyNews } from '../../features/prospecting/services/news.service.js';
 
 export const NEWS_MONITOR_QUEUE = 'news-monitor';
 export const newsMonitorQueue = new Queue(NEWS_MONITOR_QUEUE, { connection });
@@ -16,26 +18,35 @@ export function createNewsMonitorWorker() {
                 const company = await prisma.company.findUnique({ where: { id: companyId } });
                 if (!company) return;
 
-                // Mock de detecção de notícia
-                const mockNews = [
-                    "Empresa anuncia nova rodada de investimentos de R$ 50 Milhões.",
-                    "Nova diretoria executiva assume e foca em expansão nacional.",
-                    "Empresa lança novo produto revolucionário no mercado.",
-                    "Fusão concluída: empresa adquire concorrente direto."
-                ];
-                const randomNews = mockNews[Math.floor(Math.random() * mockNews.length)];
+                // Busca real via GDELT/SearXNG (mesmo serviço usado no enriquecimento de empresa) —
+                // nunca fabrica notícia quando não há menção real encontrada.
+                const companyName = company.tradeName || company.legalName;
+                const freshMentions = await searchCompanyNews(companyName || '');
+                if (freshMentions.length === 0) {
+                    logger.info(`News scan finished for company ${companyId} — nenhuma menção real encontrada`);
+                    return;
+                }
 
-                // Adiciona a menção ao json
                 const currentMentions = Array.isArray(company.newsMentions) ? company.newsMentions : [];
-                const updatedMentions = [...currentMentions, { date: new Date().toISOString(), snippet: randomNews, source: "GDELT-News" }];
+                const knownUrls = new Set(
+                    currentMentions
+                        .filter((m): m is { url?: string } => typeof m === 'object' && m !== null)
+                        .map((m) => m.url)
+                );
+                const newMentions = freshMentions.filter((m) => !knownUrls.has(m.url));
+                if (newMentions.length === 0) {
+                    logger.info(`News scan finished for company ${companyId} — sem menções novas`);
+                    return;
+                }
 
                 await prisma.company.update({
                     where: { id: companyId },
-                    data: { newsMentions: updatedMentions }
+                    data: { newsMentions: [...currentMentions, ...newMentions] as unknown as Prisma.InputJsonValue }
                 });
 
-                // Cria um sinal de intenção baseado na notícia
+                // Cria um sinal de intenção a partir da menção real mais recente.
                 if (company.organizationId) {
+                    const latest = newMentions[0];
                     await prisma.accountSignal.create({
                         data: {
                             organizationId: company.organizationId,
@@ -43,16 +54,16 @@ export function createNewsMonitorWorker() {
                             type: 'news_mention',
                             taxonomyVersion: 'v1',
                             title: 'Menção em notícia recente',
-                            description: randomNews,
-                            source: 'GDELT-News',
+                            description: latest.title,
+                            source: latest.domain,
                             confidence: 0.85,
                             evidenceType: 'FACT',
-                            dedupeKey: `news:${company.id}:${Date.now()}`
+                            dedupeKey: `news:${company.id}:${latest.url}`
                         }
                     });
                 }
 
-                logger.info(`News scan finished for company ${companyId}`);
+                logger.info(`News scan finished for company ${companyId} — ${newMentions.length} menção(ões) real(is) encontrada(s)`);
             } else if (job.name === 'scan-all-companies-news') {
                 const companies = await prisma.company.findMany({ select: { id: true } });
                 for (const c of companies) {

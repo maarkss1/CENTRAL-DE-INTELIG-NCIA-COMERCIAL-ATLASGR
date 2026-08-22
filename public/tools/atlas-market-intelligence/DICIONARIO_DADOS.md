@@ -1,143 +1,133 @@
-# DICIONÁRIO DE DADOS - Atlas Market Intelligence
+# DICIONÁRIO DE DADOS — Atlas Market Intelligence
+
+**Atualizado em:** 22/08/2026
 
 ## Convenções globais
 
 | Campo/estado | Tipo | Definição |
 |---|---:|---|
-| `codigo_ibge` / `ibgeCode` | string(7) | Chave geográfica canônica do município. |
+| `ibgeCode` | string(7) | Chave geográfica canônica do município. |
 | `availability` | enum | `OBSERVADO`, `ESTIMADO`, `PROXY`, `PREMISSA_EDITAVEL`, `NAO_DISPONIVEL`. |
-| `confidence` | enum/number | Confiança executiva (`ALTO`, `MEDIO`, `BAIXO`, `BLOQUEADO`) e, internamente, fator 0-1. |
-| `competence` | string | Período de referência do dado, nunca presumido pela data de download. |
-| `downloadedAt` | datetime | Momento em que o snapshot foi obtido. |
-| `probedAt` | datetime | Momento em que um recurso foi testado quanto à disponibilidade/integridade, mesmo sem snapshot utilizável. |
-| `sha256` | string | Hash do arquivo bruto ou derivado quando aplicável. |
-| `evidenceIds` | string[] | Chaves das evidências que sustentam o registro/score. |
-| `geographyLevel` | enum | Granularidade observada: `MUNICIPIO`, `UF`, `REGIAO`, conforme dataset. |
-| `municipalUse` | enum/null | Regra de uso municipal de dado supramunicipal; `PROXY_UF` quando o valor observado é estadual. |
+| `confidence` | enum/number | `ALTO`, `MEDIO`, `BAIXO`, `BLOQUEADO` ou fator interno 0-1. |
+| `competence` | string | Período de referência do dado. |
+| `downloadedAt` | datetime | Data de download/processamento quando aplicável. |
+| `sha256` | string | Hash do bruto/derivado quando aplicável. |
+| `evidenceIds` | string[] | Evidências que sustentam registro/score. |
+| `geographyLevel` | enum | `MUNICIPIO`, `UF`, `REGIAO`. |
+| `municipalUse` | enum/null | Ex.: `PROXY_UF`. |
+
+`null` nunca é convertido em zero apenas para facilitar gráfico ou ranking.
 
 ## Geografia
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `name` | string | Nome oficial/apresentável do município. |
-| `uf` | string(2) | Unidade da Federação. |
+| `name` | string | Município. |
+| `uf` | string(2) | UF. |
 | `region` | string | Região brasileira. |
-| `latitude` | number/null | Latitude documentada da referência municipal. |
-| `longitude` | number/null | Longitude documentada da referência municipal. |
-| `baseCity` | string | Cidade-base de um território comercial candidato/otimizado. |
-| `radiusKm` | enum | Raio analisado: 100, 150, 200, 250, 300 ou 400 km. |
-| `municipalityCodes` | string[] | Municípios pertencentes ao território calculado. |
+| `latitude` | number/null | Centroide municipal documentado. |
+| `longitude` | number/null | Centroide municipal documentado. |
+| `baseCity` | string | Cidade-base de território candidato. |
+| `radiusKm` | enum | 100, 150, 200, 250, 300 ou 400 km. |
+| `municipalityCodes` | string[] | Municípios cobertos pelo território. |
 
 ## ICP
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `icp.total` | integer/null | Total de contas/estabelecimentos elegíveis segundo a versão da taxonomia. |
-| `icp.tierA` | integer/null | Aderência máxima: transporte, logística, grandes frotas e operações diretamente expostas. |
-| `icp.tierB` | integer/null | Indústrias/embarcadores com alta exposição logística. |
-| `icp.tierC` | integer/null | Mercados adjacentes com exposição rodoviária relevante. |
-| `productFit` | object | Aderência relativa da conta/segmento aos produtos Atlas comprovadamente existentes. |
+| `icp.total` | integer/null | Estabelecimentos classificados pela versão da taxonomia ICP. |
+| `icp.tierA` | integer/null | Aderência máxima. |
+| `icp.tierB` | integer/null | Alta exposição logística. |
+| `icp.tierC` | integer/null | Mercado adjacente. |
+| `productFit` | object/null | Fit relativo por produto Atlas quando implementado/evidenciado. |
 
-## RNTRC - transportadores municipais
+`icp.total` é população ICP modelada, não SAM automaticamente.
 
-Dataset derivado: `rntrc_municipios.json`. Competência publicada na ONDA 2: `2026-07`.
+## RNTRC
+
+Dataset: `rntrc_municipios.json`.
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `transporters` | integer | Transportadores RNTRC ativos agregados no município. |
+| `transporters` | integer | Transportadores ativos. |
 | `etc` | integer | Empresas de Transporte Rodoviário de Cargas. |
-| `tac` | integer | Transportadores Autônomos de Cargas. |
-| `ctc` | integer | Cooperativas de Transporte Rodoviário de Cargas. |
-| `etcEquiparada` | integer | ETC equiparada quando identificável no campo oficial. |
-| `ibgeCode` | string(7) | Município canônico resultante do join município + UF contra o IBGE. |
+| `tac` | integer | Transportadores Autônomos. |
+| `ctc` | integer | Cooperativas. |
+| `etcEquiparada` | integer | ETC equiparada quando identificável. |
 
-## RNTRC - frota por UF
+## Frota municipal — SENATRAN
 
-Dataset derivado quando disponível: `rntrc_frota_uf.json`. Metadata de saúde: `rntrc_frota_uf.metadata.json`.
-
-O dicionário oficial ANTT do recurso de veículos contém `Categoria do Transportador`, `Tipo de Veículo`, `UF do Veículo`, `Categoria`, `Carroceria`, `Ano de Fabricação do Veículo` e `Quantidade`. Não contém município nem RNTRC individual. Por isso estes campos são **observados em UF**:
+Dataset: `senatran_frota_municipios.json`.
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `uf` | string(2) | UF do veículo informada na base oficial. |
-| `geographyLevel` | literal `UF` | Granularidade factual do recurso público. |
-| `municipalUse` | literal `PROXY_UF` | Proíbe apresentação do valor estadual como observação municipal. |
-| `fleetTotal` | integer | Soma de `Quantidade` na UF. |
-| `tractionVehicles` | integer | Soma de `Quantidade` para `Tipo de Veículo = Tração`. |
-| `implements` | integer | Soma de `Quantidade` para `Tipo de Veículo = Implemento`. |
-| `otherVehicleType` | integer | Quantidade em tipo não mapeado, mantida separada e nunca redistribuída. |
-| `fleetByTransporterCategory.ETC` | integer | Frota associada à categoria ETC. |
-| `fleetByTransporterCategory.ETC_EQUIPARADA` | integer | Frota associada à ETC equiparada. |
-| `fleetByTransporterCategory.TAC` | integer | Frota associada à categoria TAC. |
-| `fleetByTransporterCategory.CTC` | integer | Frota associada à categoria CTC. |
-| `averageManufactureYear` | number/null | Ano médio de fabricação ponderado por `Quantidade`, quando disponível. |
-| `estimatedAverageVehicleAgeYears` | number/null | Derivado aritmético do ano médio de fabricação; deve ser rotulado como derivado, não campo bruto. |
+| `byType` | object | Quantidade observada por tipo de veículo. |
+| `cargoFleet` | integer | Derivado Atlas = caminhão + caminhão-trator + reboque + semirreboque. |
+| `rntrc.activeVehicles` | integer/null | Na agregação municipal atual recebe `cargoFleet` SENATRAN quando disponível. |
+| `rntrc.tractionVehicles` | integer/null | Caminhão + caminhão-trator. |
+| `rntrc.implements` | integer/null | Reboque + semirreboque. |
 
-### Regra de indisponibilidade
+A antiga fonte `RNTRC-Dados de Veículos` permanece apenas como histórico de auditoria para uso municipal.
 
-Se o recurso oficial vigente não entregar payload nacional válido:
-
-```text
-status = NAO_DISPONIVEL
-fleetTotal = não publicado
-tractionVehicles = não publicado
-implements = não publicado
-```
-
-Nunca usar número de transportadores como substituto de frota.
-
-## MDF-e / movimentação
+## Fluxo CIOT / MDF-e
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `mdfe.trips` | integer/null | Viagens observadas na competência definida, conforme schema oficial. |
-| `mdfe.manifests` | integer/null | Quantidade de MDF-e quando separável de viagens. |
-| `mdfe.tonnes` | number/null | Toneladas movimentadas. |
-| `mdfe.tku` | number/null | Tonelada-quilômetro útil quando disponibilizada/calculável com fonte adequada. |
-| `mdfe.interstateShare` | number/null | Participação de fluxo interestadual, 0-100 ou 0-1 conforme contrato do dataset publicado. |
-| `originIbgeCode` | string | Código IBGE da origem. |
-| `destinationIbgeCode` | string | Código IBGE do destino. |
-| `corridor` | string/id | Par origem-destino ou corredor logístico agregado. |
+| `mdfe.trips` | integer/null | Operações/viagens derivadas da contagem CIOT no snapshot atual. |
+| `mdfe.manifests` | integer/null | MDF-e literal; `null` quando a fonte ativa é CIOT. |
+| `mdfe.tonnes` | number/null | Toneladas, apenas se observadas. |
+| `mdfe.tku` | number/null | TKU, apenas se observável/calculável com fonte adequada. |
+| `mdfe.interstateShare` | number/null | Participação interestadual quando materializada. |
+| `originIbgeCode` | string | Origem. |
+| `destinationIbgeCode` | string | Destino. |
 
-## Risco / Need Atlas
+CIOT é observado como CIOT e usado como **proxy documentado de intensidade de fluxo MDF-e**.
+
+## Risco / Need
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `risk.cargoRobbery` | number/null | Roubo de carga observado na granularidade registrada. |
+| `risk.cargoRobbery` | number/null | Roubo de carga na granularidade da fonte. |
 | `risk.vehicleRobbery` | number/null | Roubo de veículo. |
 | `risk.vehicleTheft` | number/null | Furto de veículo. |
 | `risk.geography` | enum | `MUNICIPIO`, `PROXY_UF`, `NAO_DISPONIVEL`. |
-| `riskScore` | 0-100/null | Componente de Need/risco segundo metodologia versionada. |
-| `cargoPressure` | 0-100/null | Pressão relativa decorrente do mix/tipo de carga quando observável. |
+| `scores.risk` | ScoreComponent | Percentil/Need conforme metodologia. |
+
+No snapshot atual, os três indicadores utilizados são `PROXY_UF`.
 
 ## Concorrência
 
 | Campo | Tipo | Definição |
 |---|---:|---|
 | `censusStatus` | enum | `NAO_PESQUISADO`, `PESQUISA_PARCIAL`, `CENSO_COMPLETO`. |
-| `verifiedPresences` | integer | Presenças concorrenciais verificadas, não “número total de concorrentes” quando o censo não é completo. |
-| `directRiskManagement` | integer | Presenças com oferta comprovada de gerenciamento de risco. |
-| `tracking` | integer | Oferta comprovada de rastreamento. |
-| `monitoring` | integer | Oferta comprovada de monitoramento. |
-| `readyResponse` | integer | Oferta comprovada de pronta resposta. |
-| `nationalRemoteCoverage` | integer | Concorrentes com atendimento nacional/remoto comprovado aplicável ao território. |
-| `presenceType` | enum | Sede, filial, representante, presença comercial, remoto ou nacional, conforme evidência. |
+| `verifiedPresences` | integer | Presenças verificadas, não total de mercado se o censo não for completo. |
+| `directRiskManagement` | integer | Oferta estruturada comprovada de GR. |
+| `tracking` | integer | Rastreamento comprovado. |
+| `monitoring` | integer | Monitoramento comprovado. |
+| `readyResponse` | integer | Pronta resposta comprovada. |
+| `nationalRemoteCoverage` | integer | Cobertura nacional/remota comprovada aplicável. |
 
-## Scores
+### Protocolo de cobertura
 
-Todos os scores quantitativos utilizam escala 0-100 quando não bloqueados.
+Arquivo: `concorrencia_censo_cobertura.csv`.
 
 | Campo | Definição |
 |---|---|
-| `demand` | Força de demanda potencial combinando componentes observáveis. |
-| `risk` | Need Atlas / pressão securitária. |
-| `competitionPressure` | Pressão competitiva comprovada, não ausência de registros. |
-| `whiteSpace` | Oportunidade residual após demanda/Need/logística/pressão competitiva. Fica `null` se censo não for completo. |
-| `territorialEfficiency` | Eficiência de cobertura da cidade-hub/raio. |
-| `rawOpportunity` | Opportunity Score antes do ajuste de confiança. |
-| `confidenceAdjustedOpportunity` | Score bruto penalizado pela confiança, sem contornar bloqueios duros. |
+| `protocol_version` | Deve ser `competition-census-v1` para liberar censo completo. |
+| `local_business_search` | Pesquisa de oferta/local presence concluída. |
+| `national_provider_search` | Cobertura de provedores nacionais/remotos concluída. |
+| `primary_websites_reviewed` | Sites/fontes primárias verificados. |
+| `business_registry_search` | Pesquisa de registros empresariais concluída. |
+| `maps_search` | Pesquisa geográfica/local concluída. |
+| `negative_evidence_recorded` | Ausências e buscas negativas documentadas. |
+| `reviewed_by` | Identificador do revisor/analista, sem exigir dado pessoal desnecessário. |
+| `verified_at` | Data/hora da verificação. |
+| `confidence` | Deve ser `ALTO` para aceitar `CENSO_COMPLETO`. |
+| `census_status` | Status solicitado. O ETL pode rebaixá-lo. |
 
-Cada componente é representado por:
+`etl_concorrencia_censo.py` rebaixa qualquer `CENSO_COMPLETO` sem protocolo integral para `PESQUISA_PARCIAL`.
+
+## ScoreComponent
 
 ```ts
 {
@@ -148,60 +138,81 @@ Cada componente é representado por:
 }
 ```
 
+Scores quantitativos usam 0-100 quando disponíveis.
+
+| Score | Definição |
+|---|---|
+| `demand` | Demanda/ICP. |
+| `risk` | Need/pressão securitária. |
+| `competitionPressure` | Pressão competitiva comprovada. |
+| `whiteSpace` | Oportunidade residual; `null` sem `CENSO_COMPLETO`. |
+| `territorialEfficiency` | Eficiência da cobertura/hub. |
+| `rawOpportunity` | Score antes da confiança. |
+| `confidenceAdjustedOpportunity` | Score ajustado, sem contornar bloqueios. |
+
 ## Território
 
 | Campo | Tipo | Definição |
 |---|---:|---|
-| `territory.id` | string | Identificador estável da combinação base/raio/versão. |
+| `territory.id` | string | Identificador. |
+| `baseIbgeCode` | string | Código da cidade-base. |
+| `baseCity` | string | Cidade-base candidata. |
+| `radiusKm` | number | Raio. |
 | `municipalityCount` | integer | Municípios cobertos. |
-| `opportunityScore` | number/null | Valor territorial calculado. |
-| `overlapAccounts` | integer/null | Contas cobertas por mais de um vendedor no cenário. |
-| `coverageEfficiency` | number/null | Cobertura única em relação à soma bruta de cobertura. |
-| `sellerCountScenario` | enum | 1, 2, 3, 5, 10 ou 20 vendedores. |
+| `opportunityScore` | number/null | Valor territorial da metodologia ativa. |
+| `confidence` | enum | Confiança dos componentes ativos, não substitui o gate final. |
+| `overlapAccounts` | integer/null | Contas cobertas por mais de um território. |
+| `coverageEfficiency` | number/null | Cobertura única / cobertura bruta. |
+
+A cidade-base Core não é automaticamente `Hub Suitability` aprovado.
 
 ## TAM / SAM / SOM
 
 | Campo | Definição |
 |---|---|
-| `tamAccounts` | Contas economicamente aderentes no universo definido. |
-| `samAccounts` | Contas do TAM atendíveis pelo portfólio/território/restrições. |
-| `somAccounts` | Parcela capturável do SAM no horizonte e cenário. |
-| `potentialMrr` | MRR de cenário derivado de SOM e premissas comerciais explícitas. Não é receita observada. |
+| `tamAccounts` | Universo economicamente aderente conforme regra vigente. |
+| `samAccounts` | Parte atendível pelo portfólio/território/restrições. |
+| `somAccounts` | Parte capturável no horizonte/cenário. |
+| `potentialMrr` | Cenário de MRR derivado, nunca receita observada. |
 
 ## Seller economics
 
 | Campo | Definição |
 |---|---|
-| `salary` | Salário mensal, premissa Atlas. |
-| `payrollCharges` | Encargos mensais. |
+| `salary` | Salário mensal. |
+| `payrollCharges` | Encargos. |
 | `benefits` | Benefícios. |
-| `vehicle` | Custo mensal de veículo. |
+| `vehicle` | Veículo. |
 | `fuel` | Combustível. |
 | `lodging` | Hospedagem. |
-| `tolls` | Pedágios. |
-| `commission` | Comissão/custo variável incluído na simulação. |
+| `tolls` | Pedágio. |
+| `commission` | Comissão. |
 | `tools` | Ferramentas. |
-| `administration` | Rateio administrativo. |
-| `averageMrrTicket` | Ticket MRR médio do cenário. |
-| `grossMarginPct` | Margem bruta usada para contribuição. |
-| `winRatePct` | Win Rate usado para converter oportunidades em contratos. |
-| `penetrationPct` | Penetração esperada do SAM. |
-| `monthlyChurnPct` | Churn mensal do cenário. |
-| `salesCycleDays` | Ciclo de vendas em dias. |
-| `monthlyCost` | Soma dos custos mensais definidos. |
-| `breakEvenContracts` | Contratos necessários para cobrir custo recorrente do vendedor pela contribuição. |
-| `breakEvenMrr` | MRR correspondente ao break-even de contratos. |
-| `requiredQualifiedOpportunities` | Oportunidades qualificadas necessárias dado o Win Rate. |
+| `administration` | Custo administrativo. |
+| `averageMrrTicket` | Ticket MRR. |
+| `grossMarginPct` | Margem. |
+| `winRatePct` | Win Rate. |
+| `penetrationPct` | Penetração do SAM. |
+| `monthlyChurnPct` | Churn. |
+| `salesCycleDays` | Ciclo de vendas. |
+| `monthlyCost` | Custo mensal total. |
+| `breakEvenContracts` | Contratos para cobrir custo recorrente pela contribuição. |
+| `breakEvenMrr` | MRR correspondente ao break-even. |
+| `requiredQualifiedOpportunities` | Oportunidades necessárias pelo Win Rate. |
+
+Parâmetros econômicos são `PREMISSA_EDITAVEL` ou calibração interna aprovada.
 
 ## Saúde dos dados
 
 | Status | Definição |
 |---|---|
-| `ATUALIZADO` | Snapshot/derivado com competência e qualidade dentro do critério vigente. |
-| `PARCIAL` | Fonte ou cobertura existe, mas não satisfaz integralmente o critério de decisão. |
-| `DESATUALIZADO` | Competência excede a tolerância metodológica. |
-| `NAO_DISPONIVEL` | Dataset utilizável não foi obtido/publicado; pode ser falha/ausência na fonte upstream e não erro de software. |
+| `ATUALIZADO` | Snapshot dentro da competência/qualidade exigida. |
+| `PARCIAL` | Existe evidência, mas não satisfaz integralmente a decisão. |
+| `DESATUALIZADO` | Competência excede tolerância. |
+| `NAO_DISPONIVEL` | Dataset utilizável não foi obtido/publicado. |
 
-## Regra de NULL
+## Prontidão
 
-`null` significa ausência/não aplicabilidade/bloqueio conforme o campo e metadado. Nunca deve ser convertido em zero apenas para facilitar gráfico, ranking ou cálculo.
+`manifest.decisionReady` significa **Final Decision Ready**.
+
+Core Evidence pode existir com `decisionReady=false` para investigação, mas a ordem `Vendedor 01` só pode aparecer após os gates competitivos, territoriais e econômicos finais.

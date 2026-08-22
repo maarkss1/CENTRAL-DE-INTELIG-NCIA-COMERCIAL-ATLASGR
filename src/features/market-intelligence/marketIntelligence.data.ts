@@ -12,6 +12,7 @@ import {
 
 const BASE = '/tools/atlas-market-intelligence/data';
 const MIN_NATIONAL_SCORED_MUNICIPALITIES = 1_000;
+const FINALIST_COUNT = 5;
 
 async function readJson<T>(path: string): Promise<T> {
     const response = await fetch(path, { headers: { Accept: 'application/json' } });
@@ -60,6 +61,14 @@ export interface MarketIntelligenceSnapshot {
     evidences: SourceEvidence[];
 }
 
+/**
+ * `decisionReady` é o gate FINAL da ordem de contratação, não o gate do ranking exploratório.
+ *
+ * Core Evidence pode ordenar territórios para investigação com ICP/RNTRC/fluxo/Need. A Board
+ * "Onde contratar agora?" só abre quando concorrência, White Space, qualidade da cidade-hub e
+ * unit economics mínimos forem auditáveis. A validação é repetida no runtime para impedir que
+ * um manifest antigo/errado deixe a interface artificialmente verde.
+ */
 function validateRuntimeReadiness(
     manifest: MarketIntelligenceManifest,
     territories: TerritoryRecord[],
@@ -80,6 +89,34 @@ function validateRuntimeReadiness(
         runtimeBlockers.push('Nenhum território elegível pôde ser construído a partir dos snapshots publicados.');
     }
 
+    const competitionDataset = manifest.datasets.find((dataset) => dataset.id === 'competition');
+    if (!competitionDataset || competitionDataset.status !== 'ATUALIZADO') {
+        runtimeBlockers.push('Censo nacional de concorrência ainda não está completo; White Space competitivo final permanece bloqueado.');
+    }
+
+    // O contrato DatasetHealth legado ainda não possui um id próprio para Hub Suitability.
+    // Enquanto a migração de schema não ocorre, o gate reconhece a camada pela label publicada
+    // no manifest. Isso mantém a decisão fechada sem falsificar que distância Haversine já mede
+    // conectividade/tempo de viagem real.
+    const hubDataset = manifest.datasets.find((dataset) => dataset.label.startsWith('Hub Suitability'));
+    if (!hubDataset || hubDataset.status !== 'ATUALIZADO') {
+        runtimeBlockers.push('Hub Suitability ainda não foi validado com conectividade, materialidade da base e eficiência operacional suficientes.');
+    }
+
+    const finalists = territories.slice(0, FINALIST_COUNT);
+    if (finalists.length && finalists.some((territory) => territory.competition.censusStatus !== 'CENSO_COMPLETO')) {
+        runtimeBlockers.push(`Os ${Math.min(FINALIST_COUNT, finalists.length)} territórios finalistas ainda não possuem CENSO_COMPLETO comparável.`);
+    }
+    if (finalists.length && finalists.some((territory) => territory.economics.samAccounts === null)) {
+        runtimeBlockers.push('SAM dos territórios finalistas ainda não está calculado com regra comercial aprovada.');
+    }
+    if (finalists.length && finalists.some((territory) => territory.economics.potentialMrr === null)) {
+        runtimeBlockers.push('MRR potencial dos territórios finalistas depende de PREMISSAS_EDITÁVEIS Atlas ainda não aprovadas.');
+    }
+    if (finalists.length && finalists.some((territory) => territory.economics.breakEvenContracts === null)) {
+        runtimeBlockers.push('Break-even por território ainda não está autorizado por premissas econômicas Atlas validadas.');
+    }
+
     if (!runtimeBlockers.length) return manifest;
     return {
         ...manifest,
@@ -97,8 +134,8 @@ export async function loadMarketIntelligenceSnapshot(): Promise<MarketIntelligen
     ]);
 
     // Caminho rápido de produção: territorios.json é uma visão materializada e validada pelo
-    // Quality Gate contra os snapshots nacionais. Quando ele existe, a UI não baixa nem recalcula
-    // municipios_scored.json no caminho crítico. Ainda exigimos CIOT em runtime para fail-closed.
+    // Quality Gate contra os snapshots nacionais. Quando existe, a Board não baixa nem recalcula
+    // municipios_scored.json no caminho crítico. O gate final ainda é revalidado em runtime.
     if (publishedTerritories.length) {
         const runtimeManifest = validateRuntimeReadiness(manifest, publishedTerritories, mdfe);
         return {
@@ -109,9 +146,8 @@ export async function loadMarketIntelligenceSnapshot(): Promise<MarketIntelligen
         };
     }
 
-    // Fallback de compatibilidade: enquanto um snapshot territorial materializado ainda não foi
-    // publicado, recompomos somente os componentes matematicamente reproduzíveis no cliente.
-    // Este caminho permanece fail-closed e não transforma lacunas de concorrência em zero.
+    // Fallback: recompõe apenas os componentes matematicamente reproduzíveis no cliente.
+    // Continua fail-closed e jamais converte lacuna competitiva em concorrência zero.
     const municipalitiesBase = await loadMunicipalities(manifest);
     const municipalities = mdfe.origins.length || mdfe.destinations.length
         ? hydrateCoreEvidence(municipalitiesBase, mdfe.origins, mdfe.destinations)

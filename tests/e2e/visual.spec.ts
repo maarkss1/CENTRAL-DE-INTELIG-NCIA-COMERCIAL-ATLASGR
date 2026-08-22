@@ -10,11 +10,17 @@ import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 // jitter normal de anti-aliasing/fontes entre execuções — sem isso a screenshot nunca estabiliza
 // (o segundo do relógio muda enquanto o Playwright tira a foto de novo pra comparar consigo mesma).
 const SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
-// O dashboard também tem a saudação por horário do dia (greeting() em SinglePageDashboard.tsx —
-// "Bom dia"/"Boa tarde"/"Boa noite", cada uma com largura de texto diferente) e KPIs que variam
-// entre a hora em que a baseline foi capturada e a hora da comparação — folga maior, específica
-// pra essa tela, em vez de mascarar uma regressão real nas outras.
-const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 2500 };
+// O dashboard também tem a saudação por horário do dia e a data de hoje (greeting()/todayLabel em
+// SinglePageDashboard.tsx — "Bom dia"/"Boa tarde"/"Boa noite" e a data por extenso, cada
+// combinação com largura de texto diferente da baseline capturada num dia/hora diferentes) e o
+// ClockCalendarWidget (relógio ao vivo com segundos, dia/data por extenso, e destaque de "hoje" —
+// uma célula inteira do calendário — que muda de posição conforme o dia do mês em que a baseline
+// foi capturada vs. o dia em que o CI roda). Isso era a causa de diffs intermitentes de milhares
+// de pixels em runs sem nenhuma mudança real na tela (ex.: 3054px num commit só de docs).
+// Mascarado via data-testid (blocos puramente informativos, não afetam o layout dos elementos
+// vizinhos) em vez de só alargar o orçamento de diff pra essa tela inteira, que continua no mesmo
+// padrão das outras (600).
+const DASHBOARD_SCREENSHOT_OPTIONS = { fullPage: true, maxDiffPixels: 600 };
 
 async function setTheme(page: import('@playwright/test').Page, theme: 'light' | 'dark') {
   await page.addInitScript((t) => {
@@ -31,7 +37,10 @@ test.describe('Regressão visual', () => {
       await setTheme(page, theme);
       await signUp(page, { email: uniqueTestEmail(`visual-dash-${theme}`) });
       await waitForAppReady(page);
-      await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, DASHBOARD_SCREENSHOT_OPTIONS);
+      await expect(page).toHaveScreenshot(`dashboard-${theme}.png`, {
+        ...DASHBOARD_SCREENSHOT_OPTIONS,
+        mask: [page.getByTestId('dashboard-greeting'), page.getByTestId('clock-calendar-widget')],
+      });
     });
 
     test(`Pipeline CRM — ${theme}`, async ({ page }) => {

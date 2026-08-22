@@ -56,7 +56,7 @@ async function executarLoteExtracao() {
         : "Se o erro persistir, o motivo mais provável é bloqueio de CORS do Bitrix para chamadas feitas " +
           "de um arquivo HTML local (isso não é um erro no seu webhook). " +
           "Solução: copie o código Python equivalente e rode localmente — " +
-          "ele usa a mesma variável de ambiente BITRIX24_WEBHOOK_URL dos outros " +
+          "ele usa a mesma variável de ambiente BITRIX_WEBHOOK_URL dos outros " +
           "scripts deste projeto.") +
       (ctx.acumulado.length ? `\n\n${ctx.acumulado.length} registros já haviam sido extraídos antes do erro — clique em "Continuar extração" para tentar retomar de onde parou.` : "")
     );
@@ -76,6 +76,7 @@ async function executarLoteExtracao() {
 }
 
 async function extrair() {
+  if (window.limparCacheBitrix) window.limparCacheBitrix();
   const webhook = document.getElementById("webhook").value.trim();
   const erroWebhook = validarWebhook(webhook);
   if (erroWebhook) {
@@ -274,17 +275,32 @@ function pararExtracao() {
 }
 
 function atualizarStatus(msg) {
-  document.getElementById("statusTexto").textContent = msg;
+  const el = document.getElementById("statusTexto");
+  if (el) el.textContent = msg;
 }
 
+// index.html e cockpit.html não têm o passo 5 (execução/extração) no DOM, então
+// não têm o #areaErro dedicado -- mas testarConexaoBitrix() roda em toda
+// página e usa esta função para mostrar o motivo real de uma falha de conexão.
+// Sem esse fallback, o erro detalhado simplesmente desaparecia nessas páginas
+// (a chamada a document.getElementById("areaErro") retornava null e quebrava
+// silenciosamente), deixando só a pilula "Falha na conexão" sem explicação.
 function mostrarErro(msg) {
-  const area = document.getElementById("areaErro");
+  let area = document.getElementById("areaErro");
+  if (!area) {
+    const ancora = document.getElementById("conexao");
+    if (!ancora) { console.error(msg); return; }
+    area = document.createElement("div");
+    area.id = "areaErro";
+    area.className = "erro oculto";
+    ancora.appendChild(area);
+  }
   area.textContent = msg;
   area.classList.remove("oculto");
 }
 
 function esconderErro() {
-  document.getElementById("areaErro").classList.add("oculto");
+  document.getElementById("areaErro")?.classList.add("oculto");
 }
 
 // ---------------------------------------------------------------------------
@@ -485,7 +501,7 @@ function construirLinhaProduto(nomeCliente, negocio, p, camposAlvo) {
 // Gera, dentro da própria página (bloco "Equivalente em Python", passo 8), o
 // script que busca crm.deal.productrows.get + crm.company.get para os negócios
 // já extraídos — mesmo padrão de gerarCodigoPython(): lê o webhook de
-// BITRIX24_WEBHOOK_URL, nunca embute o valor da chave no código gerado.
+// BITRIX_WEBHOOK_URL, nunca embute o valor da chave no código gerado.
 function gerarCodigoPythonProdutos(negocios, campos) {
   const bloco = document.getElementById("bloco-python");
   bloco.classList.remove("oculto");
@@ -500,11 +516,11 @@ function gerarCodigoPythonProdutos(negocios, campos) {
 
   const codigo = `import os, json, csv, time, urllib.request, urllib.parse, urllib.error
 
-WEBHOOK_URL = os.environ.get("BITRIX24_WEBHOOK_URL", "").rstrip("/")
+WEBHOOK_URL = os.environ.get("BITRIX_WEBHOOK_URL", "").rstrip("/")
 if not WEBHOOK_URL:
-    raise SystemExit("Defina BITRIX24_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
+    raise SystemExit("Defina BITRIX_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
 if "/rest/" not in WEBHOOK_URL:
-    raise SystemExit("BITRIX24_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
+    raise SystemExit("BITRIX_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
 
 # Negócios extraídos na página (passo 6) no momento em que este código foi gerado.
 DEALS = [

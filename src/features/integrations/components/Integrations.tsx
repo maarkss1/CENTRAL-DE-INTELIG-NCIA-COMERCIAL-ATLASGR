@@ -236,7 +236,7 @@ export function Integrations() {
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">Google Workspace</h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail e Calendar em modo leitura; a Agenda do produto continua local.</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">Gmail em modo leitura; Calendar já lê e cria eventos reais quando a Cadência agenda uma reunião.</p>
                             </div>
                             <div className="w-12 h-12 bg-blue-50 dark:bg-blue-500/10 rounded-full flex items-center justify-center">
                                 <span className="text-2xl">📧</span>
@@ -247,10 +247,10 @@ export function Integrations() {
                                 <div className="flex flex-wrap gap-2">
                                     <CapabilityBadge status={googleConnected ? 'connected' : 'error'}>{googleConnected ? 'conectado' : 'desconectado'}</CapabilityBadge>
                                     <CapabilityBadge status={googleConnected ? 'read' : 'pending'}>Calendar leitura</CapabilityBadge>
-                                    <CapabilityBadge status="stub">Agenda local</CapabilityBadge>
-                                    <CapabilityBadge status="pending">Google escrita pendente</CapabilityBadge>
+                                    <CapabilityBadge status={googleConnected ? 'write' : 'pending'}>Calendar escrita (via Cadência)</CapabilityBadge>
+                                    <CapabilityBadge status="stub">Agenda local (CRUD manual)</CapabilityBadge>
                                 </div>
-                                <p>Decisão da Onda 3: não afirmar escrita real no Google. Eventos abaixo vêm do Google Calendar; criar/remarcar/concluir atividades acontece só na Agenda local do Atlas.</p>
+                                <p>CYC-004 (onda 27): reuniões agendadas pela Cadência já criam o evento real no Google Calendar (escopo <code className="font-mono">calendar.events</code>), com fallback local só se a chamada ao Google falhar. Criar/editar atividades manualmente na Agenda do Atlas continua sendo só local — essa tela não sincroniza com o Google.</p>
                             </IntegrationTruthBox>
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className={`w-3 h-3 rounded-full ${googleConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
@@ -259,22 +259,11 @@ export function Integrations() {
                                 </span>
                                 {googleConnected && (
                                     <IntegrationStatusBadge
-                                        capability="read"
-                                        title="Lê Gmail e eventos do Calendar de verdade (escopo somente leitura)"
+                                        capability="write"
+                                        title="Lê Gmail e eventos do Calendar, e cria eventos reais no Calendar quando a Cadência agenda uma reunião (escopo calendar.events)"
                                     />
                                 )}
                             </div>
-
-                            {googleConnected && (
-                                <div className="flex items-start gap-2 p-3 rounded-lg border border-dashed border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30">
-                                    <IntegrationStatusBadge capability="pending_scope" />
-                                    <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                                        Agendamento pela Cadência grava a confirmação no Atlas, mas ainda não cria o evento no Google
-                                        Calendar de verdade — isso exige pedir o escopo de escrita (<code className="font-mono">calendar.events</code>)
-                                        e reconectar toda a organização, decisão de produto ainda não tomada.
-                                    </p>
-                                </div>
-                            )}
 
                             {googleConnected ? (
                                 <>

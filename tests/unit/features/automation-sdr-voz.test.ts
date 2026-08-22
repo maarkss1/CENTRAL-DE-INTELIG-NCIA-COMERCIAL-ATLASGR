@@ -25,6 +25,19 @@ vi.mock('@/features/integrations/birth-voice/birthVoice.service', () => ({
     SuppressedNumberError: class SuppressedNumberError extends Error {},
 }));
 
+// O motor também checa a janela comercial de ligação (`isWithinCallWindow`/`callWindowFromEnv`,
+// ver automation.engine.ts) antes de discar — sem mockar isso, o teste dependia da hora real do
+// relógio de quem roda a suíte (passava em horário comercial de SP em dia útil, falhava fora
+// disso). A lógica de janela em si já tem cobertura determinística própria em
+// coldCall.policy.test.ts; aqui só precisamos que ela sempre deixe passar. callWindowFromEnv só é
+// repassado como argumento pro isWithinCallWindow já mockado acima, então seu retorno não importa.
+vi.mock('@/features/integrations/birth-voice/coldCall.policy', () => ({
+    isWithinCallWindow: vi.fn(() => true),
+}));
+vi.mock('@/features/integrations/birth-voice/coldCall.service', () => ({
+    callWindowFromEnv: vi.fn(() => ({})),
+}));
+
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { callLead, SuppressedNumberError } from '@/features/integrations/birth-voice/birthVoice.service';
@@ -62,12 +75,11 @@ function regraLigar(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
     vi.clearAllMocks();
-    // A ação "Ligar via SDR de Voz" só liga dentro da janela comercial (9h-18h, dia útil,
-    // America/Sao_Paulo — ver isWithinCallWindow em coldCall.policy.ts). Sem fixar "agora", o
-    // resultado deste teste dependeria do horário real em que o CI roda — passa de dia, falha à
-    // noite/fim de semana. Fixado numa terça-feira às 13h BRT, dentro da janela.
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-08-25T16:00:00.000Z'));
+    // A ação "Ligar via SDR de Voz" só liga dentro da janela comercial (9h-18h, dias úteis, em
+    // America/Sao_Paulo — ver coldCall.policy.ts). Sem congelar o relógio, este teste passa ou
+    // falha dependendo da hora em que o CI roda; terça-feira 13h local está sempre dentro da
+    // janela padrão.
+    vi.setSystemTime(new Date('2026-01-06T16:00:00Z'));
     automationMock.update.mockResolvedValue({});
     auditLogMock.create.mockResolvedValue({});
     mockCallLead.mockResolvedValue({ sessionId: 'sess-1', callSid: 'CA1', status: 'queued' });

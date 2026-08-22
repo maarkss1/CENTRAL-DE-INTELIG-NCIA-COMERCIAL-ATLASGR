@@ -46,17 +46,27 @@ e `_CICLO` — o Cockpit não recalcula essas fórmulas, só as consome.
 - **Negócios ganhos** = contagem.
 - **Ticket médio** = `Fechado / Negócios ganhos`.
 
-### 2. Forecast (`js/cockpit.js:257`, bloco B)
+### 2. Forecast (`js/cockpit.js`, bloco B)
 - **Fonte**: negócios abertos (`_SEMANTICA==="process"`), **excluindo
   estágios "Piloto"** (`ehEstagioPiloto`, `js/jornada.js:421`), com
   `CLOSEDATE` dentro do mês atual.
-- **Classificação**: reaproveita exatamente `probabilidadeFallbackForecast`
-  e `classificarBucketForecast` (`js/jornada.js:426` e `:437`) via o helper
-  `cockpitClassificarAberto` (`js/cockpit.js:249`) — a mesma fórmula do
-  Forecast semanal/mensal, não uma nova regra.
-- **Commit / Best Case / Pipeline (forecast)** = soma de `_VALOR` por bucket.
-- **Forecast ponderado** = soma de `_VALOR × probabilidade / 100`.
-- **Forecast total do mês** = Fechado do mês + Forecast ponderado.
+- **Probabilidade**: reaproveita exatamente `probabilidadeFallbackForecast`
+  (`js/jornada.js:437`) via o helper `cockpitClassificarAberto`
+  (`js/cockpit.js`) — mesma fonte de probabilidade do Forecast semanal/mensal.
+- **Classificação de bucket (Commit/Best Case/Pipeline/Upside)**: usa
+  `cockpitClassificarBucketForecast` — thresholds **próprios do Cockpit**
+  (70%/40%/10%), **não** a `classificarBucketForecast` compartilhada
+  (`js/jornada.js:448`, thresholds 80%/50%, sem tier "Upside") usada pelo
+  Forecast Semanal (`js/forecast.js`) e pelo relatório "Forecast Mensal" do
+  Catálogo (`js/catalogo-relatorios.js`). Ver "Convergência com a Central de
+  Inteligência Comercial" abaixo para o motivo.
+- **Commit / Best Case** = soma de `_VALOR` **em valor cheio** (não ponderado).
+- **Pipeline** = soma de `_VALOR` (bruto) **e** soma de `_VALOR × probabilidade
+  / 100` (ponderado) — só o ponderado entra no Forecast total.
+- **Upside** = soma de `_VALOR` (probabilidade <10%) — mostrado só como
+  referência, **não entra no Forecast total** (nem cheio, nem ponderado).
+- **Forecast total do mês** = Fechado do mês + Commit (cheio) + Best Case
+  (cheio) + Pipeline (ponderado).
 - **Gap do Forecast** = `max(0, Meta − Forecast total)`.
 - O aviso fixo no bloco "Saúde do Pipeline" (`#cockpitAvisoPipelineForecast`)
   deixa explícito que **Pipeline Total não é o mesmo número que aparece
@@ -66,27 +76,121 @@ e `_CICLO` — o Cockpit não recalcula essas fórmulas, só as consome.
 - **Pipeline Total** = soma de `_VALOR` de todos os negócios abertos do
   Comercial (inclui estágios "Piloto" — é o valor bruto do funil, não uma
   previsão).
-- **Pipeline Elegível** = negócios abertos, sem "Piloto", com `CLOSEDATE`
-  dentro do **período selecionado no filtro** (`cockpitPeriodoFiltro`,
-  `js/cockpit.js:78` — usa `calcularIntervaloPreset`, `js/bitrix-api.js:119`,
-  a mesma função de intervalo rápido do wizard). Se nenhum período estiver
-  selecionado, cai no mês atual.
-- **Coverage** = `Pipeline Elegível ÷ Gap da meta` (não ÷ meta cheia). Se o
-  Gap for zero, mostra "meta batida"; se a meta não foi informada, mostra
-  "não disponível".
+- **Pipeline Elegível** = negócios abertos que passam em **todos** os
+  critérios de `cockpitVerificarElegibilidade` (aberto/não-Piloto, valor>0,
+  `CLOSEDATE` preenchido, `ASSIGNED_BY_ID` preenchido, aging na etapa atual
+  ≤45 dias — ver "Convergência com a Central" abaixo), **mais** o filtro de
+  período já existente neste projeto: `CLOSEDATE` dentro do **período
+  selecionado no filtro** (`cockpitPeriodoFiltro`, `js/cockpit.js` — usa
+  `calcularIntervaloPreset`, `js/bitrix-api.js:119`). Se nenhum período
+  estiver selecionado, cai no mês atual. O filtro de período é uma decisão
+  de arquitetura própria deste Cockpit (não vem da Central).
+- **Pipeline inelegível** (novo) = contagem/lista dos negócios abertos que
+  falham em pelo menos um dos 5 critérios aplicados (independente do
+  período) — o drill-down mostra o(s) motivo(s) de cada um (ex.: "Sem
+  responsável", "Aging acima do crítico (52d > 45d)").
+- **Coverage atual** = `Pipeline Elegível ÷ Gap da meta` (não ÷ meta cheia).
+  Se o Gap for zero, mostra "meta batida"; se a meta não foi informada,
+  mostra "não disponível".
+- **Coverage recomendado** (novo) = `1 ÷ (Win Rate histórico do período
+  filtrado / 100)` — ver "Convergência com a Central" abaixo. Mostrado ao
+  lado do Coverage atual, "não disponível" se o Win Rate não for calculável.
 - **Pipeline criado no período** = soma de `_VALOR` dos negócios cujo
   `DATE_CREATE` cai no período filtrado.
 - **Ticket médio do pipeline** = `Pipeline Total ÷ quantidade de negócios abertos`.
 
-### 4. Proteção de Receita M / M+1 / M+2 / M+3 (bloco D, `js/cockpit.js:305-321`)
+### 4. Proteção de Receita M / M+1 / M+2 / M+3 (bloco D)
 - Para cada um dos 4 meses (atual + 3 seguintes): Meta (campo editável,
   pré-preenchida por `metaMensalPadrao` do mês correspondente), Pipeline
-  Elegível daquele mês (mesma regra do item 3, sem "Piloto"), Coverage
-  (`Pipeline ÷ Meta`) e Status.
-- **Threshold de status** (`cockpitStatusProtecao`, `js/cockpit.js:381`):
+  Elegível daquele mês (mesma regra de "aberto + não-Piloto + `CLOSEDATE` no
+  mês"; **não** reaplica os 5 critérios completos de elegibilidade do item 3
+  — só o recorte histórico de "aberto/não-Piloto/CLOSEDATE no mês", para não
+  alterar o comportamento já existente desta tabela específica), Coverage
+  (`Pipeline ÷ Meta`), Status (chão fixo) e Recomendado (Win Rate).
+- **Threshold de status — "chão fixo"** (`cockpitStatusProtecao`):
   `<2x` = crítico, `2x–3x` = atenção, `≥3x` = saudável. **Critério inicial e
   configurável**, documentado em comentário no código — não é uma regra de
   negócio fixa acordada com a diretoria, só um ponto de partida razoável.
+  Continua exibido (não foi removido).
+- **Recomendado (Win Rate)** (novo) = mesmo `coverageRecomendado` do bloco 3
+  (`1 ÷ Win Rate/100` do período filtrado), repetido nas 4 linhas — é um
+  único Win Rate por carregamento, não um por mês. "não disponível" quando o
+  Win Rate não é calculável.
+
+## Convergência de fórmulas com a Central de Inteligência Comercial
+
+Auditoria (comparação lado a lado entre este Cockpit e o "Comercial
+Inteligente" do projeto `CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR`, que tem
+testes unitários dedicados — `forecastEngine.unit.test.ts`,
+`pipelineEligibility.unit.test.ts`) encontrou 3 divergências, resolvidas
+adotando a fórmula da Central como oficial. A lógica foi **reimplementada em
+JavaScript vanilla** (sem import/export, no padrão já existente deste
+arquivo) — nenhum código React foi copiado.
+
+### Divergência 1 — Forecast total
+- **Fonte de verdade**: `forecastEngine.ts` (`FORECAST_RULES`) e
+  `CommercialIntelligenceUseCases.executiveOverview` da Central.
+- **Fórmula antiga (`js/cockpit.js`, bloco B)**: todo o pipeline aberto do
+  mês — Commit, Best Case e Pipeline juntos — entrava ponderado por
+  probabilidade (`ponderado += valor × prob/100` para todos os buckets).
+  `ForecastTotal = Fechado + Ponderado(tudo)`.
+- **Fórmula nova**: Commit e Best Case entram em **valor cheio**; só o tier
+  "Pipeline" entra ponderado; o novo tier "Upside" (probabilidade <10%,
+  antes misturado dentro de "Pipeline") **não entra** no forecast total.
+  `ForecastTotal = Fechado + Commit(bruto) + BestCase(bruto) +
+  Pipeline(ponderado)`. Thresholds de bucket: Commit ≥70%, Best Case ≥40%,
+  Pipeline ≥10%, Upside <10%.
+- **Implementação**: nova função `cockpitClassificarBucketForecast`
+  (`js/cockpit.js`), **isolada** da `classificarBucketForecast` compartilhada
+  de `js/jornada.js` (thresholds 80%/50%, sem "Upside") — essa função
+  compartilhada continua intocada e continua sendo a fonte de verdade do
+  Forecast Semanal (`js/forecast.js`) e do "Forecast Mensal" do Catálogo
+  (`js/catalogo-relatorios.js`), que não fizeram parte desta convergência e
+  não podiam ter seu comportamento alterado.
+- Convergido com a fórmula testada da Central de Inteligência Comercial (ver
+  auditoria de comparação).
+
+### Divergência 2 — Pipeline Elegível
+- **Fonte de verdade**: `pipelineEligibility.ts` (`checkEligibility`) da
+  Central, validado por `pipelineEligibility.unit.test.ts`.
+- **Fórmula antiga (`js/cockpit.js`, bloco C)**: um negócio era "elegível" se
+  estivesse aberto, fora de estágio "Piloto" e com `CLOSEDATE` dentro do
+  período do filtro — só 3 critérios.
+- **Fórmula nova**: um negócio só é elegível se **todos** os critérios forem
+  verdadeiros — (1) aberto, (2) valor > 0, (3) `CLOSEDATE` preenchido, (4)
+  responsável (`ASSIGNED_BY_ID`) preenchido, (5) aging na etapa atual ≤45
+  dias (`MOVED_TIME`) — **mais** o filtro de período que já existia neste
+  projeto.
+- **Limitação documentada**: a Central também exige (6) "próxima ação
+  preenchida" — este projeto **não extrai** nenhum campo de próxima
+  ação/atividade agendada para negócios (`crm.deal.list` não busca esse
+  campo hoje, ver `ENTIDADES` em `js/config.js` e `enriquecerDealCatalogo`
+  em `js/catalogo-relatorios.js`). Esse critério **não foi implementado**
+  para não fabricar um dado inexistente — **o Pipeline Elegível deste
+  projeto é mais permissivo que o da Central nesse ponto específico**. Os
+  outros 5 critérios foram implementados fielmente, incluindo o mesmo
+  threshold de aging crítico (45 dias) da Central
+  (`STAGE_AGING_CRITICAL_DAYS`).
+- **Drill-down**: o card "Pipeline inelegível (com motivo)" abre uma lista
+  com o(s) motivo(s) de reprovação de cada negócio (`cockpitVerificarElegibilidade`).
+- Convergido com a fórmula testada da Central de Inteligência Comercial (ver
+  auditoria de comparação).
+
+### Divergência 3 — Coverage recomendado
+- **Fonte de verdade**: `CommercialIntelligenceUseCases.ts`
+  (`coverageRecommended = 1 / (winRate/100)`) da Central.
+- **Fórmula antiga (`js/cockpit.js`, `cockpitStatusProtecao`)**: threshold
+  fixo hardcoded — `<2x` crítico, `2x–3x` atenção, `≥3x` saudável —
+  documentado como "não validado com a diretoria".
+- **Fórmula nova**: adicionado `coverageRecomendado = 1 ÷ (Win Rate
+  histórico do período filtrado / 100)`, calculado a partir do Win Rate já
+  calculado no bloco Eficiência da Máquina. Exibido **ao lado** do threshold
+  fixo (ex.: "Coverage atual: 2,10x · recomendado (Win Rate histórico):
+  2,80x"), sem remover o semáforo fixo existente — ele continua útil como um
+  "chão" mínimo simples. Se o Win Rate for `null`/não calculável, mostra
+  "não disponível" para o recomendado, mantendo só o threshold fixo.
+- Convergido com a fórmula testada da Central de Inteligência Comercial (ver
+  auditoria de comparação).
 
 ### 5. Pipeline por Estágio (bloco G, `js/cockpit.js:339-354`)
 - Agrupa **todos** os negócios abertos do Comercial (inclui "Piloto", para
@@ -297,11 +401,13 @@ serializa o que já está na tela.
 
 Toda métrica numérica relevante tem `data-drill` associado a uma lista de
 negócios guardada em `cockpitDrill` (populada dentro de `cockpitCalcular`).
-Clicar no card/linha chama `cockpitAbrirDrill(chave, titulo)`
-(`js/cockpit.js:471`), que abre um modal (reaproveitando a mesma estrutura
-visual do modal de ajuda já existente, `#helpModal`) com a tabela via
-`tabelaRelatorio` (`js/jornada.js:471`): Empresa/Cliente, Valor, Etapa,
-Vendedor, CLOSEDATE.
+Clicar no card/linha chama `cockpitAbrirDrill(chave, titulo)`, que abre um
+modal (reaproveitando a mesma estrutura visual do modal de ajuda já
+existente, `#helpModal`) com a tabela via `tabelaRelatorio`
+(`js/jornada.js:482`): Empresa/Cliente, Valor, Etapa, Vendedor, CLOSEDATE.
+O drill-down `pipelineInelegivel` ("Pipeline inelegível") ganha uma coluna
+extra, "Motivo(s) de inelegibilidade", com o(s) critério(s) reprovado(s) de
+cada negócio (ver `cockpitVerificarElegibilidade`).
 
 ## Filtros
 
@@ -333,14 +439,22 @@ Vendedor, CLOSEDATE.
    nenhum mês (nem M, nem M+1/2/3). Isso é intencional (não adivinha data de
    fechamento), mas significa que Pipeline Elegível pode subestimar o
    pipeline real se a higiene de CLOSEDATE estiver ruim — mesmo aviso já
-   feito no Forecast semanal sobre negócios "Sem CLOSEDATE".
+   feito no Forecast semanal sobre negócios "Sem CLOSEDATE". Desde a
+   convergência com a Central de Inteligência Comercial (ver seção acima),
+   Pipeline Elegível também exige valor>0, responsável e aging ≤45 dias — e
+   **não** exige "próxima ação preenchida" (campo que este projeto não
+   extrai), tornando este critério mais permissivo que o da Central nesse
+   ponto específico.
 3. **`ASSIGNED_BY_ID` é o responsável atual, não histórico** — igual ao
    resto do projeto (ver auditoria, seção 15), o filtro de "Vendedor" reflete
    quem é responsável **hoje**, não quem trabalhou o negócio ao longo do
    tempo.
 4. **Threshold de Proteção de Receita (2x/3x) é um ponto de partida, não uma
    meta corporativa validada** — precisa de validação com a diretoria antes
-   de virar critério oficial de alerta.
+   de virar critério oficial de alerta. Desde a convergência com a Central,
+   o Coverage Recomendado (`1 ÷ Win Rate/100`) é exibido ao lado como
+   referência derivada de dado real — mas o semáforo fixo 2x/3x continua
+   sendo o "chão" oficial até uma decisão da diretoria.
 5. **Sales Cycle usa `UF_CRM_1770928318695` (data de contrato assinado) como
    preferência sobre `CLOSEDATE`** (via `fecharDataDeal`/`cicloDealDias`,
    igual ao resto do catálogo) — se esse campo customizado não estiver

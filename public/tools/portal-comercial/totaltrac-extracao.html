@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-empresa="totaltrac">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Total Trac — Extração &amp; Diagnóstico · Bitrix24 v10.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  // Aplica o tema salvo (ou o do sistema operacional) antes da primeira pintura,
+  // pra não piscar claro→escuro ao carregar. Preferência de tema não é credencial —
+  // pode ficar em localStorage. O webhook só persiste após ação explícita no botão Salvar webhook.
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial Total Trac</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" style="height:64px;width:auto;">
+        <g transform="translate(2,4)">
+          <path d="M52 0C27 0 7 19 7 43c0 30 45 71 45 71s45-41 45-71C97 19 77 0 52 0z" fill="#93DBF2"/>
+          <circle cx="52" cy="43" r="15" fill="#ffffff"/>
+          <circle cx="52" cy="43" r="6.5" fill="#374898"/>
+          <path d="M52 20a24 24 0 0 1 24 20" stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+          <path d="M52 31a13 13 0 0 1 13 11" stroke="#ffffff" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text x="122" y="76" font-family="Poppins, Arial, sans-serif" font-weight="800" font-size="54"><tspan fill="#374898">TOTAL</tspan><tspan fill="#008FCE">TRAC</tspan></text>
+      </svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Conectar para cuidar · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">Total Trac · Bitrix24 · v10.0 · Extração &amp; Diagnóstico</div>
+      <h1>Extraia, entenda e atualize o CRM em um só lugar.</h1>
+      <p>O motor genérico da ferramenta: escolha qualquer entidade ou relatório do catálogo, filtre por período/campos, execute a consulta ao Bitrix, exporte e sincronize de volta. Página dedicada — os outros painéis do portal (Cockpit, Comercial, SDR) ficam a um clique na navegação abaixo.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="connection-pill" id="statusConexaoTopo"><span class="connection-dot"></span><span id="statusConexaoTexto">Conexão não testada</span></span>
+      <button type="button" class="hero-btn" onclick="testarConexaoBitrix()">Testar conexão</button>
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="totaltrac-home.html">Início</a><a href="totaltrac-cockpit.html">Cockpit Executivo</a><a href="totaltrac-forecast.html">Relatórios Comerciais</a><a href="totaltrac-sdr.html">SDR &amp; Operação</a><a href="totaltrac-extracao.html">Extração &amp; Diagnóstico</a><a href="totaltrac-evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
+    <span class="quick-nav-grupo">Nesta página</span><a href="#conexao">Conexão</a><a href="#configuracao">Escolher</a><a href="#bloco-periodo">Período</a><a href="#card-campos">Campos</a><a href="#execucao">Executar</a><a href="#card-sincronizacao">Sincronizar</a><a href="#bloco-resultado">Resultados</a><a href="#central-inteligencia-v10">Central v10 ✨</a><a href="#analise-ia">IA</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <section class="workspace-intro" id="inicio">
+    <div class="workspace-title">
+      <div><h2>Comece pelo que você quer descobrir</h2><p>Um card para cada relatório que pode ser gerado. Clique em qualquer um para configurar o relatório e o período automaticamente — você ainda pode ajustar tudo depois.</p></div>
+      <button type="button" class="secundario" onclick="abrirAjuda('visaoGeral')">Como usar esta tela?</button>
+    </div>
+    <label for="buscaAtalhosRelatorios">Buscar relatório (nome, palavra-chave ou grupo)</label>
+    <input type="text" id="buscaAtalhosRelatorios" placeholder="Ex: forecast, SDR, pipeline, aging, clientes..." oninput="filtrarAtalhosRelatorios()">
+    <div id="atalhosRelatoriosGrupos"></div>
+    <p class="rodape-nota oculto" id="atalhosRelatoriosSemResultado">Nenhum relatório encontrado para esta busca.</p>
+    <div class="row" style="margin-top:14px;">
+      <button type="button" class="secundario" onclick="revelarFluxoExtracaoManual()">⚙️ Configurar extração manual (sem relatório pronto)</button>
+    </div>
+    <div class="config-summary" id="resumoConfiguracaoTopo"></div>
+  </section>
+
+  <div class="oculto" id="fluxo-extracao">
+  <div class="row" style="margin-bottom:14px;">
+    <button type="button" class="secundario" onclick="voltarParaRelatorios()">← Voltar para os relatórios</button>
+  </div>
+  <div class="card" id="conexao">
+    <h2><span class="num">1</span> Conexão com o Bitrix</h2>
+    <div class="aviso">
+      A Total Trac ainda não tem um webhook fixo configurado nesta ferramenta. Cole a URL do webhook de entrada do Bitrix24 da Total Trac abaixo e salve no navegador.
+    </div>
+    <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
+    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://totaltrac.bitrix24.com.br/rest/.../" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <div class="row" style="margin-top:9px;align-items:center;">
+      <div class="webhook-actions">
+        <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+        <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
+        <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não configurado</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="configuracao">
+    <h2><span class="num">2</span> Escolha o que você quer fazer</h2>
+    <div class="row">
+      <div>
+        <div class="label-line"><label for="entidade">Tipo de dado</label><button type="button" class="info-btn" onclick="abrirAjuda('tipoDado')">?</button></div>
+        <select id="entidade" onchange="aoTrocarEntidade(true)"></select>
+      </div>
+      <div>
+        <div class="label-line"><label for="relatorio">Relatórios</label><button type="button" class="info-btn" onclick="abrirAjuda('relatorios')">?</button></div>
+        <select id="relatorio" onchange="aoTrocarRelatorio()">
+          <option value="">Nenhum — extração manual de dados</option>
+        </select>
+      </div>
+      <div id="bloco-categoria" class="oculto">
+        <label for="categoria">Categoria (pipeline)</label>
+        <select id="categoria" onchange="aoTrocarCategoria()"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div id="bloco-estagio" class="oculto">
+        <label for="estagio">Estágio / Status</label>
+        <select id="estagio"></select>
+      </div>
+      <div id="bloco-vendedor" class="oculto">
+        <label for="vendedor">Vendedor / Responsável</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="vendedor" style="flex:1;"><option value="">Todos os vendedores</option></select>
+          <button type="button" class="secundario" id="btnCarregarVendedores" onclick="carregarVendedores()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+      <div id="bloco-origem" class="oculto">
+        <label for="origem">Origem (canal de entrada)</label>
+        <div class="row" style="gap:8px; flex-wrap:nowrap;">
+          <select id="origem" style="flex:1;"><option value="">Todas as origens</option></select>
+          <button type="button" class="secundario" id="btnCarregarOrigens" onclick="carregarOrigens()" style="white-space:nowrap;">Carregar lista</button>
+        </div>
+      </div>
+    </div>
+    <div id="bloco-campo-personalizado" class="row oculto">
+      <div>
+        <label for="campoPersonalizadoCodigo">Filtrar por campo personalizado (ex: segmento) — código</label>
+        <input type="text" id="campoPersonalizadoCodigo" placeholder="UF_CRM_1234567890">
+      </div>
+      <div>
+        <label for="campoPersonalizadoValor">Valor exato a filtrar</label>
+        <input type="text" id="campoPersonalizadoValor" placeholder="Ex: Transportadora">
+      </div>
+    </div>
+    <div class="selection-summary-card" id="resumoSelecaoPrincipal">
+      <div class="selection-icon">◎</div><div><strong id="resumoSelecaoTitulo">Extração manual</strong><span id="resumoSelecaoDetalhe">Escolha um tipo de dado ou um relatório.</span></div>
+    </div>
+    <div id="nota-tudo" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      No modo <strong>Extração completa</strong>, o botão "Extrair dados" busca, em sequência: Negócios (todos os funis/pipelines), Leads, Empresas, Contatos, Atividades (ligações, reuniões e tarefas de CRM) e Usuários — cada um com <strong>todos os campos existentes</strong> (incluindo campos personalizados UF_CRM_*), consultados diretamente na estrutura do seu Bitrix no momento da extração. Não é preciso escolher campos manualmente (passo 4 fica oculto). O filtro de período do passo 3, se preenchido, é aplicado à data de criação de cada entidade.
+    </div>
+    <div id="nota-jornada" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      No modo <strong>Jornada do Cliente</strong>, a extração busca negócios de <strong>todos os funis/pipelines</strong>, descobre os nomes dos funis e estágios diretamente do Bitrix e usa <strong>COMPANY_ID como chave principal do cliente</strong> (CONTACT_ID, LEAD_ID e ID do negócio são apenas fallbacks). Além do arquivo bruto, o extrator cria uma <strong>jornada normalizada</strong>: o mesmo cliente não é contado várias vezes no mesmo bloco de pipeline, mas uma reentrada real no funil depois de passar por outro pipeline continua aparecendo como novo evento. Também sinaliza duplicidade de cadastro de empresa, negócios repetidos no mesmo pipeline e mudança de responsável observável entre Lead → Negócio e entre registros sucessivos da jornada.
+      <div class="checkbox-linha">
+        <input type="checkbox" id="incluirHistoricoEstagios" checked>
+        <label for="incluirHistoricoEstagios" style="margin:0;">Incluir histórico real de mudanças de estágio via <strong>crm.stagehistory.list</strong> (mais completo, porém faz chamadas adicionais).</label>
+      </div>
+    </div>
+
+    <div id="nota-forecast" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      <strong>Forecast semanal • Comercial.</strong> O relatório identifica o pipeline Comercial dinamicamente,
+      usa a semana selecionada em "De/Até", separa <strong>Fechado, Commit, Best Case e Pipeline</strong>,
+      mostra previsão ponderada por vendedor e sinaliza oportunidades <strong>sem CLOSEDATE</strong> ou com
+      fechamento previsto já vencido. Quando <code>PROBABILITY</code> estiver preenchida no negócio ela é
+      utilizada; quando estiver zerada, o extrator aplica uma probabilidade de fallback baseada no nome do estágio.
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="metaForecastSemanal" style="margin-top:0;">Meta semanal opcional (R$)</label>
+          <input type="number" id="metaForecastSemanal" min="0" step="0.01" placeholder="Ex: 250000">
+        </div>
+        <div>
+          <label for="metaForecastMensal" style="margin-top:0;">Meta mensal (R$)</label>
+          <input type="number" id="metaForecastMensal" min="0" step="0.01" placeholder="Preenchida automaticamente pelo mês do período">
+        </div>
+        <div>
+          <label for="palavraFunilForecast" style="margin-top:0;">Nome do pipeline para Forecast</label>
+          <input type="text" id="palavraFunilForecast" value="Comercial" placeholder="Comercial">
+        </div>
+      </div>
+      <p class="rodape-nota" style="margin-bottom:0;">A meta mensal é preenchida automaticamente com o valor padrão do mês selecionado em "Até" (tabela de metas do forecast). Se a meta semanal ficar em branco, ela é calculada dividindo a meta mensal pelo número de semanas do mês (meta mensal ÷ semanas do mês); qualquer um dos dois campos pode ser sobrescrito manualmente a qualquer momento.</p>
+    </div>
+
+    <div id="nota-diario-sdr" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      <strong>Relatório diário SDR.</strong> Cruza atividades concluídas no período com seus vínculos de CRM,
+      identifica <strong>Leads atendidos</strong>, potenciais ainda na esteira do SDR e negócios em andamento
+      nos pipelines <strong>Comercial / SDR</strong>. A lista de etapas é descoberta no Bitrix, sem depender
+      apenas de IDs fixos.
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="nomeSdrPrincipal" style="margin-top:0;">SDR principal</label>
+          <input type="text" id="nomeSdrPrincipal" value="João Reis" placeholder="João Reis">
+        </div>
+        <div>
+          <label for="palavrasFunisSDR" style="margin-top:0;">Pipelines de potenciais</label>
+          <input type="text" id="palavrasFunisSDR" value="comercial, sdr" placeholder="comercial, sdr">
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label for="palavrasEtapasSDR" style="margin-top:0;">Etapas consideradas na esteira SDR</label>
+        <input type="text" id="palavrasEtapasSDR" value="lead recebido, sdr, cadência, cadencia, qualificação, qualificacao, reunião agendada, reuniao agendada" placeholder="sdr, qualificação, cadência...">
+      </div>
+    </div>
+
+
+    <div id="nota-relatorio-catalogo" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      <strong id="relatorioCatalogoTitulo">Relatório</strong>
+      <div id="relatorioCatalogoDescricao" style="margin-top:4px;"></div>
+      <div class="row" style="margin-top:10px;" id="configRelatorioCatalogo">
+        <div id="configMetaComercial">
+          <label for="metaRelatorioComercial" style="margin-top:0;">Meta comercial mensal opcional (R$)</label>
+          <input type="number" id="metaRelatorioComercial" min="0" step="0.01" placeholder="Ex: 1000000">
+        </div>
+        <div id="configSlaAging">
+          <label for="slaAgingRelatorio" style="margin-top:0;">SLA de aging / follow-up (dias)</label>
+          <input type="number" id="slaAgingRelatorio" min="1" step="1" value="30">
+        </div>
+        <div id="configSlaPrimeiroContato">
+          <label for="slaPrimeiroContatoHoras" style="margin-top:0;">SLA de primeiro contato (horas)</label>
+          <input type="number" id="slaPrimeiroContatoHoras" min="1" step="1" value="4">
+        </div>
+        <div id="configDiasEstagnacaoSDR">
+          <label for="diasEstagnacaoSDR" style="margin-top:0;">Considerar Lead estagnado a partir de (dias)</label>
+          <input type="number" id="diasEstagnacaoSDR" min="1" step="1" value="15">
+        </div>
+      </div>
+      <p class="rodape-nota" style="margin-bottom:0;">
+        O relatório usa somente campos e históricos já mapeados pelo extrator. Quando uma análise depender
+        de histórico de responsável que o Bitrix não forneça retroativamente, a limitação é mantida explícita.
+      </p>
+    </div>
+
+    <div id="nota-analise-sdr" class="aviso oculto" style="margin-top:12px; margin-bottom:0;">
+      <strong>Análise SDR • Semanal e Mensal.</strong> Analisa a produção do SDR configurado em duas janelas simultâneas:
+      <strong>semana da data de referência</strong> e <strong>mês da data de referência</strong>. O relatório conta
+      atividades realizadas por dia, Leads únicos trabalhados, reuniões, oportunidades originadas dos Leads,
+      backlog atual, jornada histórica do Lead e taxas de conversão com denominadores explícitos.
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="nomeSdrAnalise" style="margin-top:0;">SDR analisado</label>
+          <input type="text" id="nomeSdrAnalise" value="João Reis" placeholder="João Reis">
+        </div>
+        <div>
+          <label for="diasSemAtividadeCriticoSDR" style="margin-top:0;">Backlog crítico sem atividade (dias)</label>
+          <input type="number" id="diasSemAtividadeCriticoSDR" min="1" step="1" value="3">
+        </div>
+      </div>
+      <p class="rodape-nota" style="margin-bottom:0;">
+        A data <strong>Até</strong> funciona como data de referência. Para o mês atual, o extrator corta automaticamente
+        em hoje. As taxas de conversão são observadas até a data da extração e não presumem histórico de responsável
+        que o Bitrix não forneça.
+      </p>
+    </div>
+  </div>
+
+  <div class="card" id="bloco-periodo">
+    <h2><span class="num">3</span> Período <button type="button" class="info-btn" onclick="abrirAjuda('periodo')">?</button></h2>
+    <div class="row">
+      <div>
+        <label for="periodoPreset">Intervalo rápido</label>
+        <select id="periodoPreset" onchange="aoTrocarPresetPeriodo()">
+          <option value="personalizado">Personalizado (uso as datas abaixo)</option>
+          <option value="todas">Todas as datas (sem filtro de período)</option>
+          <option value="diario">Diário (hoje)</option>
+          <option value="semana_atual">Semana atual (segunda a domingo)</option>
+          <option value="semanal">Semanal (últimos 7 dias)</option>
+          <option value="mensal">Mensal (mês atual)</option>
+          <option value="trimestral">Trimestral (trimestre atual)</option>
+          <option value="semestral">Semestral (semestre atual)</option>
+        </select>
+      </div>
+      <div>
+        <label for="mesEspecifico">Ou escolha um mês específico</label>
+        <input type="month" id="mesEspecifico" onchange="aoEscolherMesEspecifico()">
+      </div>
+      <div>
+        <label for="diaEspecifico">Ou um dia específico</label>
+        <input type="date" id="diaEspecifico" onchange="aoEscolherDiaEspecifico()">
+      </div>
+      <div id="linha-campo-data">
+        <label for="campoData">Filtrar pela data de...</label>
+        <select id="campoData"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="dataInicio">De</label>
+        <input type="date" id="dataInicio" onchange="voltarParaPersonalizado()">
+      </div>
+      <div>
+        <label for="dataFim">Até</label>
+        <input type="date" id="dataFim" onchange="voltarParaPersonalizado()">
+      </div>
+    </div>
+    <p class="rodape-nota">Datas são enviadas ao Bitrix no fuso -03:00 (São Paulo). Escolha um intervalo rápido acima, um mês específico (qualquer mês/ano, não só o atual), ou preencha "De"/"Até" manualmente (isso muda o intervalo rápido para "Personalizado"). Deixe as duas datas em branco (ou escolha "Todas as datas") para não filtrar por período.</p>
+  </div>
+
+  <div class="card" id="card-campos">
+    <h2><span class="num">4</span> Campos a extrair</h2>
+    <div class="field-toolbar">
+      <div class="field-presets">
+        <button type="button" class="secundario" onclick="selecionarPresetCampos('essenciais')">Essenciais</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('cliente')">Cliente</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('comercial')">Comercial</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('datas')">Datas</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('marketing')">Marketing</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('custom')">Personalizados</button>
+        <button type="button" class="secundario" onclick="filtrarCamposCategoria('todos')">Mostrar todos</button>
+      </div>
+      <span class="field-counter" id="camposSelecionadosContagem">0 campos selecionados</span>
+    </div>
+    <div class="row" style="margin-bottom:8px;">
+      <button type="button" class="secundario" onclick="selecionarCampos(true)">Selecionar visíveis</button>
+      <button type="button" class="secundario" onclick="selecionarCampos(false)">Limpar visíveis</button>
+      <button type="button" class="secundario" id="btnCarregarCampos" onclick="carregarTodosCampos()">Sincronizar campos do Bitrix</button>
+      <button type="button" class="info-btn" onclick="abrirAjuda('campos')">?</button>
+    </div>
+    <p class="rodape-nota" id="notaCamposCarregados"></p>
+    <label for="filtroCampos">Buscar campo (nome ou código)</label>
+    <input type="text" id="filtroCampos" placeholder="Ex: telefone, e-mail, UF_CRM, segmento..." oninput="aplicarFiltroCampos()">
+    <div id="campos-lista" class="campos-grid"></div>
+    <label for="camposExtra">Campos extras (códigos separados por vírgula, ex: UF_CRM_1234567890)</label>
+    <input type="text" id="camposExtra" placeholder="UF_CRM_1234567890, UF_CRM_9876543210">
+  </div>
+
+  <div class="card run-zone" id="execucao">
+    <h2><span class="num">5</span> Executar consulta</h2>
+    <div class="run-buttons"><button type="button" id="btnExtrair" onclick="extrair()">Extrair dados</button>
+    <button type="button" class="secundario" id="btnParar" onclick="pararExtracao()" disabled>Parar</button>
+    <button type="button" class="secundario oculto" id="btnContinuar" onclick="continuarExtracao()">Continuar extração</button>
+    <button type="button" class="info-btn" onclick="abrirAjuda('extrair')">?</button></div>
+    <div class="status-linha">
+      <div class="spinner" id="spinner"></div>
+      <span id="statusTexto"></span>
+    </div>
+    <div class="erro oculto" id="areaErro"></div>
+  </div>
+
+  <div class="card oculto" id="bloco-resultado">
+    <h2><span class="num">6</span> Resultado</h2>
+    <div class="resultado-header">
+      <div>
+        <span id="totalRegistros" class="total-pill"></span>
+        <span id="totalValor" style="margin-left:10px; font-size:13px; color:var(--texto-suave);"></span>
+      </div>
+      <div class="botoes-download">
+        <button type="button" class="secundario oculto" id="btnProdutos" onclick="buscarProdutosDosNegocios()">Buscar produtos destes negócios</button>
+        <button type="button" class="secundario" onclick="baixarCSV()">Baixar CSV</button>
+        <button type="button" class="secundario" onclick="baixarJSON()">Baixar JSON</button>
+      </div>
+    </div>
+    <p class="rodape-nota">Pré-visualização das 50 primeiras linhas (o arquivo baixado tem tudo).</p>
+    <div id="tabela-wrapper"></div>
+  </div>
+
+
+
+  <div class="card sync-card" id="card-sincronizacao">
+    <h2><span class="num">↻</span> Sincronizar alterações de volta com o Bitrix <button type="button" class="info-btn" onclick="abrirAjuda('sincronizacao')">?</button></h2>
+    <div class="sync-banner"><div class="sync-icon">↻</div><div><strong>Leitura e escrita ficam separadas.</strong><p>Carregue um registro pelo ID, monte uma prévia e só então habilite a escrita. O extrator não altera o CRM automaticamente depois de uma extração.</p></div></div>
+    <div class="sync-grid">
+      <div><label for="syncEntidade">Entidade</label><select id="syncEntidade" onchange="prepararCamposSync()"><option value="deal">Negócio</option><option value="lead">Lead</option><option value="company">Empresa</option><option value="contact">Contato</option></select></div>
+      <div><label for="syncId">ID no Bitrix</label><input type="number" id="syncId" min="1" placeholder="Ex: 25982"></div>
+      <div><label>&nbsp;</label><button type="button" class="secundario" onclick="carregarRegistroSync()">Carregar registro</button></div>
+      <div><label>Status</label><div class="selection-summary-card" style="margin:0;min-height:40px;padding:6px 9px;"><div><strong id="syncRegistroStatus">Nenhum registro carregado</strong><span id="syncRegistroNome">Informe entidade e ID.</span></div></div></div>
+      <div class="span-2"><label for="syncCampo">Campo para alterar</label><select id="syncCampo" onchange="atualizarCampoSyncSelecionado()"></select></div>
+      <div class="span-2"><label for="syncNovoValor">Novo valor</label><input type="text" id="syncNovoValor" placeholder="Novo valor"></div>
+    </div>
+    <div class="row" style="margin-top:10px;"><button type="button" class="secundario" onclick="adicionarAlteracaoSync()">Adicionar à prévia</button><button type="button" class="secundario" onclick="limparAlteracoesSync()">Limpar prévia</button></div>
+    <div class="sync-preview" id="syncPreview"><div class="rodape-nota" style="padding:12px;">Nenhuma alteração preparada.</div></div>
+    <div class="sync-danger-zone">
+      <div class="checkbox-linha"><input type="checkbox" id="syncHabilitarEscrita" onchange="atualizarBotaoSync()"><label for="syncHabilitarEscrita" style="margin:0;">Habilitar escrita no Bitrix para esta operação</label></div>
+      <label for="syncConfirmacao">Confirmação</label><input type="text" id="syncConfirmacao" placeholder="Digite SINCRONIZAR" oninput="atualizarBotaoSync()">
+      <div class="row" style="margin-top:10px;"><button type="button" id="btnExecutarSync" onclick="executarSyncBitrix()" disabled>Sincronizar alterações</button></div>
+      <div class="sync-log" id="syncLog">Modo leitura ativo. Nenhuma alteração foi enviada ao Bitrix.</div>
+    </div>
+    <div class="sync-auditoria">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:14px;">
+        <strong style="font-size:12px;">Histórico de sincronizações (auditoria, neste navegador)</strong>
+        <button type="button" class="secundario" onclick="limparAuditoriaSync()">Limpar histórico</button>
+      </div>
+      <div class="sync-preview" id="syncAuditoriaLista"><div class="rodape-nota" style="padding:12px;">Nenhuma sincronização registrada neste navegador ainda.</div></div>
+    </div>
+  </div>
+
+  <div class="card oculto" id="bloco-auditoria-jornada">
+    <h2><span class="num">✓</span> Auditoria da Jornada</h2>
+    <div class="aviso">
+      <strong>Contagem segura:</strong> use o arquivo "Jornada normalizada" para mapas e indicadores de clientes.
+      O CSV bruto continua preservando todos os negócios. Duplicidades suspeitas nunca são apagadas silenciosamente: ficam marcadas para conferência.
+    </div>
+    <div class="auditoria-grid" id="auditoriaJornadaGrid"></div>
+    <ul class="auditoria-lista" id="auditoriaJornadaNotas"></ul>
+    <div class="botoes-download" style="margin-top:14px;">
+      <button type="button" class="secundario" onclick="abrirIAParaRelatorio('Jornada do Cliente — completa')">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualJornada()">Abrir modelo visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLRelatorioVisualJornada()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVJornadaNormalizada()">Baixar jornada normalizada</button>
+      <button type="button" class="secundario" onclick="baixarCSVDuplicidadesJornada()">Baixar duplicidades / conflitos</button>
+      <button type="button" class="secundario" onclick="baixarCSVHandoffsCliente()">Baixar handoffs da jornada</button>
+      <button type="button" class="secundario" id="btnHistoricoEstagiosCsv" onclick="baixarCSVHistoricoEstagios()">Baixar histórico de estágios</button>
+    </div>
+    <p class="rodape-nota">
+      Troca histórica exata de <code>ASSIGNED_BY_ID</code> dentro do mesmo negócio não é devolvida retroativamente pelo snapshot de negócios.
+      Este arquivo mede as trocas observáveis entre registros da jornada e Lead → Negócio, e preserva CREATED_BY_ID, MODIFY_BY_ID e MOVED_BY_ID para auditoria.
+      Para histórico futuro 100% fiel de responsável, registre eventos onCrmDealUpdate em um serviço externo.
+    </p>
+  </div>
+
+
+
+  <div class="card oculto" id="bloco-analise-sdr">
+    <h2><span class="num">📊</span> Análise SDR • Semanal e Mensal</h2>
+    <div class="aviso" id="analiseSdrPeriodoTexto"></div>
+
+    <div class="relatorio-subtitulo">Semana</div>
+    <div class="relatorio-especial-grid" id="analiseSdrSemanaKpis"></div>
+
+    <div class="relatorio-subtitulo">Mês</div>
+    <div class="relatorio-especial-grid" id="analiseSdrMesKpis"></div>
+
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="abrirIAParaRelatorio('João Reis — análise semanal e mensal')">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualJoao()">Abrir relatório visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLRelatorioJoao()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVAnaliseSdrDiario()">CSV • atividades diárias</button>
+      <button type="button" class="secundario" onclick="baixarCSVAnaliseSdrClientes()">CSV • atividades por cliente</button>
+      <button type="button" class="secundario" onclick="baixarCSVAnaliseSdrConversoes()">CSV • conversões</button>
+      <button type="button" class="secundario" onclick="baixarCSVAnaliseSdrJornada()">CSV • jornada dos Leads</button>
+      <button type="button" class="secundario" onclick="baixarCSVAnaliseSdrBacklog()">CSV • backlog atual</button>
+      <button type="button" class="secundario" onclick="baixarJSONAnaliseSdr()">JSON completo</button>
+    </div>
+
+    <div class="relatorio-subtitulo">Atividades realizadas dia a dia no mês</div>
+    <div class="relatorio-scroll"><div id="analiseSdrDiarioTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Atividades por cliente • quantidade x clientes diferentes</div>
+    <div class="relatorio-scroll"><div id="analiseSdrClientesTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Mix de atividades • Semana x Mês</div>
+    <div class="relatorio-scroll"><div id="analiseSdrMixTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Taxas de conversão</div>
+    <div class="relatorio-scroll"><div id="analiseSdrConversoesTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Jornada dos Leads trabalhados pelo SDR</div>
+    <div class="relatorio-scroll"><div id="analiseSdrRotasTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Transições mais frequentes da jornada</div>
+    <div class="relatorio-scroll"><div id="analiseSdrTransicoesTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Leads / clientes e sua jornada</div>
+    <div class="relatorio-scroll"><div id="analiseSdrLeadsTabela"></div></div>
+
+    <div class="relatorio-subtitulo">Backlog atual do João Reis</div>
+    <div class="relatorio-scroll"><div id="analiseSdrBacklogTabela"></div></div>
+
+    <p class="rodape-nota">
+      <strong>Definições:</strong> Lead trabalhado = Lead vinculado a pelo menos uma atividade concluída pelo SDR no período.
+      Reunião = atividade concluída TYPE_ID=1 vinculada ao Lead. Oportunidade criada = negócio com LEAD_ID daquele Lead e
+      DATE_CREATE dentro do período. Ganho = oportunidade criada no período que está hoje em estágio de sucesso.
+      Portanto as taxas são uma leitura operacional observada até a data da extração, não uma coorte totalmente maturada.
+    </p>
+  </div>
+
+  <div class="card oculto" id="bloco-forecast-semanal">
+    <h2><span class="num">📈</span> Forecast semanal • Comercial</h2>
+    <div class="aviso" id="forecastPeriodoTexto"></div>
+    <div class="relatorio-especial-grid" id="forecastKpis"></div>
+    <div id="forecastMetasBarras" class="meta-progress-wrap"></div>
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="abrirIAParaRelatorio('Forecast semanal — Comercial')">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualForecast()">Abrir modelo visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLForecastModelo()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastNegocios()">CSV • negócios</button>
+      <button type="button" class="secundario" onclick="baixarCSVForecastVendedores()">CSV • vendedores</button>
+      <button type="button" class="secundario" onclick="baixarJSONForecast()">JSON completo</button>
+    </div>
+    <div class="relatorio-subtitulo">Forecast por vendedor</div>
+    <div class="relatorio-scroll"><div id="forecastVendedoresTabela"></div></div>
+    <div class="relatorio-subtitulo">Negócios da semana</div>
+    <div class="relatorio-scroll"><div id="forecastNegociosTabela"></div></div>
+    <div class="relatorio-subtitulo">Higiene do forecast</div>
+    <div class="relatorio-scroll"><div id="forecastHigieneTabela"></div></div>
+    <p class="rodape-nota">
+      Forecast ponderado = OPPORTUNITY × probabilidade. O total previsto soma o que já foi ganho na semana
+      ao forecast ponderado dos negócios abertos com CLOSEDATE dentro da semana. O extrator não transforma
+      automaticamente negócios sem CLOSEDATE ou com data vencida em Commit.
+    </p>
+  </div>
+
+  <div class="card oculto" id="bloco-diario-sdr">
+    <h2><span class="num">📅</span> Diário SDR • Atividades e Potenciais</h2>
+    <div class="aviso" id="diarioSdrPeriodoTexto"></div>
+    <div class="relatorio-especial-grid" id="diarioSdrKpis"></div>
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="abrirIAParaRelatorio('Diário SDR — atividades, Leads atendidos e potenciais')">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario" onclick="abrirRelatorioVisualDiarioSDR()">Abrir modelo visual</button>
+      <button type="button" class="secundario" onclick="baixarHTMLRelatorioVisualDiarioSDR()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVAtividadesDiarioSDR()">CSV • atividades</button>
+      <button type="button" class="secundario" onclick="baixarCSVLeadsAtendidosDiarioSDR()">CSV • leads atendidos</button>
+      <button type="button" class="secundario" onclick="baixarCSVPotenciaisLeadsSDR()">CSV • potenciais Leads</button>
+      <button type="button" class="secundario" onclick="baixarCSVPotenciaisNegociosSDR()">CSV • potenciais Comercial/SDR</button>
+      <button type="button" class="secundario" onclick="baixarJSONDiarioSDR()">JSON completo</button>
+    </div>
+    <div class="relatorio-subtitulo">Resumo por SDR / responsável</div>
+    <div class="relatorio-scroll"><div id="diarioSdrResponsaveisTabela"></div></div>
+    <div class="relatorio-subtitulo">Atividades realizadas</div>
+    <div class="relatorio-scroll"><div id="diarioSdrAtividadesTabela"></div></div>
+    <div class="relatorio-subtitulo">Leads atendidos no dia</div>
+    <div class="relatorio-scroll"><div id="diarioSdrLeadsAtendidosTabela"></div></div>
+    <div class="relatorio-subtitulo">Potenciais Leads na esteira SDR</div>
+    <div class="relatorio-scroll"><div id="diarioSdrPotenciaisLeadsTabela"></div></div>
+    <div class="relatorio-subtitulo">Potenciais negócios nos pipelines Comercial / SDR</div>
+    <div class="relatorio-scroll"><div id="diarioSdrPotenciaisNegociosTabela"></div></div>
+    <p class="rodape-nota">
+      "Atividade realizada" considera atividade <strong>COMPLETED=Y</strong> cujo <strong>END_TIME</strong>
+      esteja no período escolhido. "Lead atendido" exige vínculo da atividade ao Lead CRM. Os potenciais
+      permanecem listados mesmo quando não tiveram atividade no dia, permitindo identificar quem ainda precisa de contato.
+    </p>
+  </div>
+
+
+  <div class="card oculto" id="bloco-relatorio-catalogo">
+    <h2><span class="num">📊</span> <span id="relatorioResultadoTitulo">Relatório</span></h2>
+    <div class="aviso" id="relatorioResultadoSubtitulo"></div>
+    <div class="relatorio-especial-grid" id="relatorioResultadoKpis"></div>
+    <div id="relatorioResultadoMetaBarras" class="meta-progress-wrap"></div>
+    <div class="botoes-download">
+      <button type="button" class="secundario" onclick="abrirIAParaRelatorio(resultadoRelatorioCatalogo.titulo)">🤖 Perguntar à IA sobre este relatório</button>
+      <button type="button" class="primario oculto" id="btnAbrirVisualCatalogo" onclick="abrirRelatorioVisualCatalogo()">Abrir modelo visual</button>
+      <button type="button" class="secundario oculto" id="btnBaixarVisualCatalogo" onclick="baixarHTMLRelatorioVisualCatalogo()">HTML • modelo executivo</button>
+      <button type="button" class="secundario" onclick="baixarCSVRelatorioCatalogo()">CSV • tabela principal</button>
+      <button type="button" class="secundario" onclick="baixarJSONRelatorioCatalogo()">JSON completo</button>
+    </div>
+    <div id="relatorioResultadoTabelas"></div>
+    <p class="rodape-nota" id="relatorioResultadoNota"></p>
+  </div>
+
+  <div class="card oculto" id="bloco-campos-produtos">
+    <h2>Campos de produto a extrair</h2>
+    <p class="rodape-nota" style="margin-top:-8px; margin-bottom:10px;">
+      Escolha os campos antes de clicar em "Buscar produtos destes negócios" (botão no resultado
+      acima). Identificação vem do negócio/empresa já extraídos; o restante vem de cada linha de
+      produto (crm.deal.productrows.get).
+    </p>
+    <div class="row" style="margin-bottom:4px;">
+      <button type="button" class="secundario" onclick="selecionarCamposProdutos(true)">Selecionar todos</button>
+      <button type="button" class="secundario" onclick="selecionarCamposProdutos(false)">Limpar seleção</button>
+    </div>
+    <label>Identificação (negócio / cliente)</label>
+    <div id="campos-produtos-contexto" class="campos-grid"></div>
+    <label>Produto (linha do negócio)</label>
+    <div id="campos-produtos-bitrix" class="campos-grid"></div>
+    <label for="camposProdutosExtra">Campos extras de produto (códigos separados por vírgula)</label>
+    <input type="text" id="camposProdutosExtra" placeholder="Ex: XML_ID, RESERVE_ID">
+  </div>
+
+  <div class="card oculto" id="bloco-produtos">
+    <h2>Produtos por negócio</h2>
+    <div class="resultado-header">
+      <div>
+        <span id="totalLinhasProdutos" class="total-pill"></span>
+      </div>
+      <div class="botoes-download">
+        <button type="button" class="secundario" onclick="baixarCSVProdutos()">Baixar CSV</button>
+        <button type="button" class="secundario" onclick="baixarJSONProdutos()">Baixar JSON</button>
+      </div>
+    </div>
+    <p class="rodape-nota">Uma linha por produto vendido em cada negócio (crm.deal.productrows.get), com nome do cliente (crm.company.get) e o valor total do negócio ao lado para conferência.</p>
+    <label for="filtroProduto">Filtrar por produto (ou qualquer texto na linha)</label>
+    <input type="text" id="filtroProduto" placeholder="Ex: Profile, GR, Torre de controle..." oninput="aplicarFiltroProdutos()">
+    <p class="rodape-nota">Baixar CSV/JSON exporta só o que está filtrado aqui — limpe o campo para baixar tudo.</p>
+    <div id="tabela-produtos-wrapper"></div>
+  </div>
+
+  <div class="card oculto" id="bloco-resultado-completo">
+    <h2 style="margin-bottom:4px;">Resultado — extração completa</h2>
+    <p class="rodape-nota">Uma entidade por card, com contagem de registros e download individual. Todos os campos de cada entidade foram incluídos automaticamente.</p>
+    <div class="row" style="margin:10px 0 4px;">
+      <button type="button" class="secundario" onclick="baixarJSONCompleto()">Baixar tudo em um único JSON</button>
+    </div>
+    <div id="entidades-lista" class="campos-grid" style="grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px;"></div>
+  </div>
+
+  <div class="card v10-card" id="central-inteligencia-v10">
+    <h2><span class="num">✨</span> Central de Inteligência <span class="v10-badge-novo">Novo · v10</span> <button type="button" class="info-btn" onclick="abrirAjuda('centralV10')">?</button></h2>
+    <p class="rodape-nota" style="margin-top:-8px;margin-bottom:14px;">Funciona em cima do que você já extraiu acima — Jornada, Forecast, Análise SDR, Diário SDR, Catálogo ou uma extração manual. Cada aba calcula na hora, sem nova chamada ao Bitrix.</p>
+
+    <div class="v10-tabs">
+      <button type="button" class="v10-tab ativa" id="v10tab-btn-radar" onclick="abrirAbaV10('radar')">🎯 Radar de prioridades</button>
+      <button type="button" class="v10-tab" id="v10tab-btn-funil" onclick="abrirAbaV10('funil')">🌊 Funil visual</button>
+      <button type="button" class="v10-tab" id="v10tab-btn-construtor" onclick="abrirAbaV10('construtor')">🧮 Construtor de relatório</button>
+      <button type="button" class="v10-tab" id="v10tab-btn-ia" onclick="abrirAbaV10('ia')">🤖 IA ao vivo</button>
+    </div>
+
+    <div class="v10-tab-content" id="v10tab-radar">
+      <div class="v10-radar-controles">
+        <div>
+          <label for="v10RadarSlaDias">Considerar parado a partir de (dias)</label>
+          <input type="number" id="v10RadarSlaDias" min="1" step="1" value="7">
+        </div>
+        <div><button type="button" onclick="renderizarRadarPrioridades()">Recalcular radar</button></div>
+        <div><button type="button" class="secundario" onclick="baixarCSVRadarV10()" id="v10BtnBaixarRadar" disabled>Baixar lista (CSV)</button></div>
+      </div>
+      <div id="v10RadarConteudo"></div>
+    </div>
+
+    <div class="v10-tab-content oculto" id="v10tab-funil">
+      <div class="v10-sankey-toolbar">
+        <div>
+          <label for="v10FunilSelect">Pipeline (funil)</label>
+          <select id="v10FunilSelect" onchange="renderizarFunilVisualSankey()"></select>
+        </div>
+        <div><button type="button" onclick="renderizarFunilVisualSankey()">Atualizar funil</button></div>
+      </div>
+      <div id="v10FunilConteudo"></div>
+    </div>
+
+    <div class="v10-tab-content oculto" id="v10tab-construtor">
+      <div class="v10-pivot-controles">
+        <div>
+          <label for="v10PivotFonte">Fonte de dados</label>
+          <select id="v10PivotFonte" onchange="aoTrocarFontePivotV10()"></select>
+        </div>
+        <div>
+          <label for="v10PivotLinha">Agrupar por</label>
+          <select id="v10PivotLinha"></select>
+        </div>
+        <div>
+          <label for="v10PivotLinha2">e depois por (opcional)</label>
+          <select id="v10PivotLinha2"></select>
+        </div>
+        <div>
+          <label for="v10PivotMetrica">Métrica</label>
+          <select id="v10PivotMetrica" onchange="aoTrocarMetricaPivotV10()">
+            <option value="contagem">Contagem de registros</option>
+            <option value="soma">Soma de um campo numérico</option>
+            <option value="media">Média de um campo numérico</option>
+          </select>
+        </div>
+        <div id="v10PivotCampoMetricaWrap" class="oculto">
+          <label for="v10PivotCampoMetrica">Campo numérico</label>
+          <select id="v10PivotCampoMetrica"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:0 0 auto;"><button type="button" onclick="gerarRelatorioConstrutorV10()">Gerar cruzamento</button></div>
+        <div style="flex:0 0 auto;"><button type="button" class="secundario" onclick="baixarCSVConstrutorV10()" id="v10BtnBaixarPivot" disabled>Baixar CSV</button></div>
+      </div>
+      <div class="v10-pivot-resultado-wrap" id="v10PivotResultado"></div>
+    </div>
+
+    <div class="v10-tab-content oculto" id="v10tab-ia">
+      <div class="aviso">
+        <strong>Diferente do prompt do passo 7:</strong> aqui, ao enviar uma pergunta, os dados já extraídos nesta página são enviados diretamente do seu navegador para a API da Anthropic (api.anthropic.com), usando uma chave sua — sem passar por nenhum servidor da Total Trac. Use uma chave própria (console.anthropic.com) e trate-a como senha. Prefere não enviar dados a uma IA? Use o prompt para copiar do passo 7 em vez desta aba.
+      </div>
+      <label for="v10ChaveIA">Chave da API Anthropic (sk-ant-...)</label>
+      <input type="password" id="v10ChaveIA" placeholder="sk-ant-api03-...">
+      <div class="row" style="margin-top:8px;">
+        <button type="button" class="secundario" onclick="salvarChaveIANoNavegadorV10()">Salvar chave neste navegador</button>
+        <button type="button" class="secundario" onclick="esquecerChaveIASalvaV10()">Esquecer chave</button>
+      </div>
+      <div class="v10-ia-status-chave" id="v10StatusChaveIA"><span class="ponto"></span><span id="v10StatusChaveIATexto">Chave não salva</span></div>
+
+      <label style="margin-top:16px;">Modelo</label>
+      <div class="v10-modelo-select" id="v10ModeloSelect">
+        <label class="checkbox-linha" style="margin-top:0;"><input type="radio" name="v10modelo" value="claude-haiku-4-5-20251001"> Haiku 4.5 — rápido e econômico</label>
+        <label class="checkbox-linha" style="margin-top:0;"><input type="radio" name="v10modelo" value="claude-sonnet-5" checked> Sonnet 5 — equilibrado (recomendado)</label>
+        <label class="checkbox-linha" style="margin-top:0;"><input type="radio" name="v10modelo" value="claude-opus-4-8"> Opus 4.8 — mais profundo</label>
+      </div>
+
+      <div class="v10-chat-janela" id="v10ChatJanela"></div>
+      <div class="v10-chat-input-row">
+        <textarea id="v10ChatInput" placeholder="Ex: quais 5 negócios merecem atenção esta semana e por quê?" onkeydown="aoTeclarChatV10(event)"></textarea>
+        <button type="button" onclick="enviarMensagemChatIAV10()" id="v10BtnEnviarChat">Enviar</button>
+      </div>
+      <p class="rodape-nota">O contexto enviado é o mesmo pacote do gerador de prompt (passo 7): o relatório/extração mais recente feito nesta página, com o mesmo limite de tamanho.</p>
+    </div>
+  </div>
+
+  <div class="card" id="analise-ia">
+    <h2><span class="num">7</span> Analisar com IA</h2>
+    <div class="aviso">
+      Este extrator não manda seus dados para nenhuma IA por conta própria — mesma lógica de segurança do webhook do passo 1. Em vez disso, ele monta, aqui na sua tela, um prompt pronto (sua pergunta + os dados extraídos) para você colar na conversa com o Claude, ChatGPT ou outra IA que você já usa.
+    </div>
+    <label for="perguntaIA">O que você quer que a IA leia/analise nesse relatório?</label>
+    <input type="text" id="perguntaIA" placeholder="Ex: calcule a taxa de conversão de leads para negócios ganhos, por vendedor e por mês, no período extraído">
+    <div class="row" style="margin-top:12px;">
+      <button type="button" onclick="gerarPromptIA()">Gerar prompt para IA</button>
+    </div>
+    <div id="bloco-prompt-ia" class="oculto" style="margin-top:14px;">
+      <p class="rodape-nota" id="avisoTamanhoPrompt" style="color:var(--laranja-escuro); font-weight:600;"></p>
+      <pre id="promptIA"></pre>
+      <div class="botoes-download">
+        <button type="button" class="secundario" onclick="copiarPromptIA()">Copiar prompt</button>
+        <button type="button" class="secundario" onclick="baixarPromptIA()">Baixar prompt (.txt)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card oculto" id="bloco-python">
+    <h2><span class="num">8</span> Equivalente em Python (opcional)</h2>
+    <p class="rodape-nota">
+      Se o navegador bloquear a chamada direta (CORS) ou se você quiser rodar essa mesma
+      extração de forma automatizada/agendada, use este trecho — ele lê o webhook de uma
+      variável de ambiente, do mesmo jeito que os outros scripts deste projeto.
+    </p>
+    <pre id="codigoPython"></pre>
+    <button type="button" class="secundario" onclick="copiarPython()">Copiar código</button>
+  </div>
+
+  </div>
+
+  <div class="relatorio-modal-overlay oculto" id="relatorioVisualInlineCard" onclick="if(event.target===this)fecharRelatorioVisualInline()">
+    <div class="relatorio-modal-sheet">
+      <div class="relatorio-modal-head">
+        <h2 id="relatorioModalTitulo">📊 Modelo visual do relatório</h2>
+        <div class="relatorio-modal-acoes">
+          <button type="button" class="secundario" onclick="alternarPainelRelatoriosSalvos()" title="Ver relatórios salvos neste navegador">📂 Salvos</button>
+          <button type="button" class="secundario" onclick="salvarRelatorioVisualAtual()" title="Salvar este relatório neste navegador">💾 Salvar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualAtual()" title="Baixar como arquivo .html">⬇️ Baixar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualPDF()" title="Imprimir ou salvar como PDF">🖨️ PDF</button>
+          <button type="button" class="secundario" onclick="abrirRelatorioVisualEmNovaAba()" title="Abrir em uma aba nova">🌐 Abrir em nova aba</button>
+          <button type="button" class="relatorio-modal-fechar" onclick="fecharRelatorioVisualInline()" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="relatorio-salvos-painel oculto" id="relatorioSalvosPainel">
+        <div id="relatorioSalvosLista"></div>
+      </div>
+      <iframe id="relatorioVisualInlineFrame" class="relatorio-visual-inline-frame" title="Modelo visual do relatório"></iframe>
+    </div>
+  </div>
+
+</main>
+
+
+<div class="help-modal" id="helpModal" onclick="fecharAjudaPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitulo">
+    <div class="help-head"><div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Ajuda contextual</div><h3 id="helpTitulo">Como funciona</h3></div><button type="button" class="help-close" onclick="fecharAjuda()">×</button></div>
+    <div class="help-body" id="helpConteudo"></div>
+  </div>
+</div>
+
+<div class="ferramentas-flutuantes" id="ferramentasFlutuantes">
+  <button type="button" class="ferramentas-toggle" onclick="alternarPainelFerramentas()" title="Ferramentas">🛠️</button>
+  <div class="ferramentas-painel oculto" id="ferramentasPainel">
+    <div class="ferramentas-titulo">Ferramentas</div>
+    <button type="button" onclick="ferramentaImprimir()">🖨️ Imprimir</button>
+    <button type="button" onclick="ferramentaBaixar()">⬇️ Baixar</button>
+    <button type="button" onclick="ferramentaSincronizar()">↻ Sincronizar</button>
+    <button type="button" id="btnFerramentaDitar" onclick="alternarDitado()">🎙️ Ditar</button>
+    <button type="button" id="btnFerramentaComandoVoz" onclick="alternarComandoDeVoz()">🗣️ Comando de Voz</button>
+    <p class="rodape-nota" id="ferramentasVozStatus" style="margin:6px 0 0;"></p>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Init específico desta página: se chegou por um link "totaltrac-extracao.html?relatorio=chave"
+  // (totaltrac-home.html, totaltrac-forecast.html, totaltrac-sdr.html), pré-seleciona o
+  // relatório e revela o motor de extração já configurado, exatamente como um clique no
+  // card equivalente faria.
+  (function () {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var chave = params.get("relatorio");
+      if (chave && typeof RELATORIOS === "object" && RELATORIOS[chave] && typeof selecionarRelatorioRapido === "function") {
+        selecionarRelatorioRapido(chave);
+        // "&ia=1": usado pelo botão "🤖 Perguntar à IA" dos blocos dedicados de
+        // totaltrac-forecast.html/totaltrac-sdr.html, que não têm a Central de
+        // Inteligência v10 embutida — leva pra cá e já abre a aba de IA com o relatório em foco.
+        if (params.get("ia") === "1" && typeof abrirIAParaRelatorio === "function") {
+          abrirIAParaRelatorio(RELATORIOS[chave].label);
+        }
+      }
+    } catch (e) {
+      // parâmetro inválido/ausente — a página funciona normalmente sem pré-seleção.
+    }
+  })();
+</script>
+
+</body>
+</html>
