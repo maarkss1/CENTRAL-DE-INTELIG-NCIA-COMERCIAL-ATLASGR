@@ -25,19 +25,14 @@ vi.mock('@/features/integrations/birth-voice/birthVoice.service', () => ({
     SuppressedNumberError: class SuppressedNumberError extends Error {},
 }));
 
-// O motor também guarda "Ligar via SDR de Voz" atrás da janela comercial real
-// (`isWithinCallWindow(new Date(), ...)`, horário de Brasília) — sem mockar isso, este arquivo
-// inteiro dependia da hora real de quando os testes rodavam: fora do expediente (18h+ ou fim de
-// semana em BRT), a automação sempre tomava o caminho "fora da janela" e `callLead` nunca era
-// chamado, quebrando exatamente as asserções abaixo de forma intermitente. Fixar como "sempre
-// dentro da janela" torna o comportamento determinístico, que é o que este arquivo já quer testar
-// (a lógica da automação, não a política de horário comercial — essa tem cobertura própria em
-// coldCall.policy.test.ts).
+// O motor também consulta a janela comercial de ligação (isWithinCallWindow) antes de discar. Sem
+// mockar isso, o teste dependeria do horário real em que roda (CI em UTC, janela em
+// America/Sao_Paulo) e falharia sempre que executado fora de 9h-18h em dia útil.
 vi.mock('@/features/integrations/birth-voice/coldCall.policy', () => ({
     isWithinCallWindow: vi.fn(() => true),
 }));
 vi.mock('@/features/integrations/birth-voice/coldCall.service', () => ({
-    callWindowFromEnv: vi.fn(() => ({ startHour: 0, endHour: 24, weekdaysOnly: false, timeZone: 'UTC' })),
+    callWindowFromEnv: vi.fn(() => ({})),
 }));
 
 import { prisma } from '@/lib/prisma';

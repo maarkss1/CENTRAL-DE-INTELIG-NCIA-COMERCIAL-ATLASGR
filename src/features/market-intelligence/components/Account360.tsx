@@ -7,6 +7,7 @@ import { Skeleton } from '../../../components/ui/Skeleton.js';
 import { Building2, AlertCircle, Loader2, ArrowLeft, Target, TrendingUp, Zap, Users, BrainCircuit } from 'lucide-react';
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext.js';
 
 interface AccountIntelligenceSummary {
     account: { id: string; legalName: string; tradeName: string | null };
@@ -92,6 +93,20 @@ export function Account360() {
     useEffect(() => {
         fetchIntelligence();
     }, [fetchIntelligence]);
+
+    // Torna o copiloto de IA global ciente de qual conta está aberta na tela (Account 360).
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (!intelligence) return;
+        const { account, latestInference } = intelligence;
+        setActiveRecord({
+            type: 'company',
+            id: account.id,
+            label: account.tradeName || account.legalName,
+            summary: latestInference?.total != null ? `Score de conta: ${formatScore(latestInference.total)}` : undefined,
+        });
+        return () => clearActiveRecord(account.id);
+    }, [intelligence, setActiveRecord, clearActiveRecord]);
 
     const fetchTab = useCallback(async (tab: TabId) => {
         if (tab === 'overview' || !id) return;

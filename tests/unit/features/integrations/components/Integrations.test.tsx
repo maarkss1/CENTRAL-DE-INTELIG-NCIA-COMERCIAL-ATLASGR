@@ -85,7 +85,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
     });
 
-    it('declara maturidade real por integração, sem prometer escrita Google ou 3CX 24h sem prova', async () => {
+    it('declara maturidade real por integração — escrita real no Google Calendar (CYC-004) com prova, sem prometer 3CX 24h sem prova', async () => {
         const user = userEvent.setup();
         server.use(
             http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com', hasCalendarWriteScope: true } })),

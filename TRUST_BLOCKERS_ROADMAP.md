@@ -48,9 +48,9 @@ desatualizado.
 
 | # | Item | Status | Evidência | Nota |
 |---|---|---|---|---|
-| P1-4 | Implementar IA contextual ao registro aberto | 🟡 PARCIAL | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` (commit `d35576c`) injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook. `setActiveRecord` chamado em `CompanyDetail.tsx` e `LeadDetailDrawer.tsx:68`. | `ContactDetail.tsx` e `commercial-intelligence/components/DealDrillDownDrawer.tsx` **não** chamam `setActiveRecord` — funciona para empresa e lead, não para contato nem para o drill-down de negócio. |
-| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🔴 PENDENTE | `src/components/layout/Sidebar.tsx:70-85` — grupo único "Inteligência" lista 14 itens lado a lado sem hierarquia (Roleplay, Matriz de Qualificação, Matriz de Objeções, Chatbook, Hub de IA, Market Intelligence, Academy, Guia Bitrix24, Integrações, Relatórios IA, Base de Conhecimento, Editor, Automações, Consumo de IA). | Nenhuma consolidação ocorreu; ver também P3-15 (mesma raiz: sidebar organizada por inventário técnico, não por jornada). |
-| P1-6 | Fechar ou rotular stubs de calendário/Google | 🟡 PARCIAL | `google.service.ts` tem OAuth real (`OAuth2Client`, HMAC state, chamadas reais a `googleapis.com/calendar/v3`), escopo `calendar.readonly` — não é mock, ao contrário do que `docs/architecture/FEATURE-CLASSIFICATION.md:34` (02/08, desatualizado) ainda descreve. Commit `e91ee7a` rotula escrita de agendamento como "stub de transporte" no código/commit. `Calendar.tsx` do app (`/app/calendar`) é 100% local, sem ligação ao Google. | Rotulagem existe em código/commit, **não na UI**: `Integrations.tsx:191` diz "Gmail e Calendar integrados" sem qualificar como somente-leitura; a tela `/app/calendar` não avisa que não sincroniza com o Google. Decisão de produto pendente: implementar escrita real ou renomear para "agenda local" (ver Onda 3). |
+| P1-4 | Implementar IA contextual ao registro aberto | 🟡 PARCIAL (ampliado 2026-08-21) | `src/contexts/ActiveRecordContext.tsx` + `src/hooks/assistantContext.ts` injetam tipo/id/label/resumo do registro aberto no prompt do Chatbook. `setActiveRecord` chamado em `CompanyDetail.tsx`, `LeadDetailDrawer.tsx:68`, `Account360.tsx` (tipo `company`), `crm360/components/PropostaDetail.tsx` (tipo novo `document`, adicionado ao union em `ActiveRecordContext.tsx`/`assistantContext.ts`), e `commercial-intelligence/components/DealDrillDownDrawer.tsx` (tipo `deal`, só quando o drill-down resolve para exatamente 1 negócio — uma lista filtrada com vários negócios não registra nada, de propósito). | Só falta contato: `ContactDetail.tsx` é dead code (nunca importado) — decidir se é ressuscitado ou se o contexto de contato entra por outro componente de fato montado antes de wire-lo. |
+| P1-5 | Clarificar navegação por persona e reduzir duplicação de superfícies de IA | 🔴 PENDENTE | `src/components/layout/Sidebar.tsx:46-67` — grupo "IA & Capacitação" lista 8 itens (Hub de IA, Chatbook, Roleplay, Matriz de Objeções, Academy, Base de Conhecimento, Editor, Guia Bitrix24) sem hierarquia, e ao menos 4 hubs (IntelligenceHub, ChatbookHub, ReportsHub, CommercialIntelligenceHub) têm escopo de geração/relatório de IA sobreposto, espalhados entre os grupos "Analisar" e "IA & Capacitação". Só 2 de ~29 rotas em `App.tsx` têm `RequireRole` real; não existe conceito de "persona" em `src/lib/auth/authorization.ts` (só a hierarquia de `Role` ADMIN/GESTOR/CLOSER/SDR/VISUALIZADOR). | Nenhuma consolidação ocorreu; requer decisão de produto sobre quais hubs mesclar/despriorizar e o que "persona" significa neste produto antes de mexer na navegação em produção — não é um refactor mecânico. Ver também P3-15 (mesma raiz). |
+| P1-6 | Fechar ou rotular stubs de calendário/Google | ✅ RESOLVIDO (2026-08-21) | Commit `608ab098` (mesmo dia) trocou o escopo OAuth para `calendar.events` e `PrismaCalendarSchedulerPort.createEvent` passou a chamar `google.service.ts::createCalendarEvent` de verdade (fallback local só se a chamada falhar) — não é mais stub. `Integrations.tsx:239,248-253,268` atualizado para refletir isso: badge "Calendar escrita (via Cadência)" em vez de "Google escrita pendente", texto explica que o agendamento pela Cadência já escreve no Google, mas o CRUD manual da Agenda (`Calendar.tsx`, `/app/calendar`) continua só local. `docs/CADENCE-CYCLE-AUDIT.md` (CYC-004) atualizado no mesmo commit para não descrever mais escrita como stub. | A Agenda manual do Atlas (`/app/calendar`) continua sem sincronizar com o Google — isso é intencional e agora está rotulado na UI, não é mais um gap de confiança. |
 | P1-7 | Manter matriz viva de maturidade por rota | 🟡 PARCIAL | Existem 3 mapas: `PRODUCT_VISUAL_TRUTH_MAP.md` (marketing, 17/08), `.agents/completion/02-mapa-plataforma.md` §7 (dev/ops, 15/08), `docs/architecture/FEATURE-CLASSIFICATION.md` (02/08). Nenhum tem histórico de atualização contínua e já divergem entre si (ex.: FEATURE-CLASSIFICATION.md ainda chama Google de "inteiramente mockado", contradito pelo código — ver P1-6). | Não é uma matriz única e viva; são fotografias pontuais desatualizadas em ~2 semanas. **Este arquivo (`TRUST_BLOCKERS_ROADMAP.md`) é o candidato a matriz única** — ver seção final sobre como mantê-lo atualizado, e consolidar/depreciar os outros três quando possível. |
 
 ---
@@ -86,15 +86,15 @@ desatualizado.
 - **Resultado esperado ("nenhuma tela parece mostrar dado real quando não mostra")**: alcançado nos pontos auditados nesta rodada (P0-1/2/3); manter via revisão de toda tela nova antes de merge.
 
 ### Onda 2 — "IA útil no fluxo"
-- Passar contexto de rota/registro para Chatbook/copiloto — 🟡 feito para empresa e lead, falta contato e drill-down de negócio (P1-4).
+- Passar contexto de rota/registro para Chatbook/copiloto — 🟡 feito para empresa (2 telas), lead, e documento comercial; falta contato (via componente montado) e drill-down de negócio (P1-4).
 - Definir fonte única de IA conversacional / remover superfícies duplicadas — 🔴 não iniciado (P1-5).
-- **Resultado esperado ("IA responde sobre a empresa, contato, lead ou negócio aberto")**: parcialmente alcançado — contato e negócio ainda não passam contexto.
+- **Resultado esperado ("IA responde sobre a empresa, contato, lead, negócio ou documento aberto")**: quase alcançado — só contato e negócio ainda não passam contexto.
 
 ### Onda 3 — "Integrações honestas"
-- Calendário: decidir entre escrita real no Google ou renomear para agenda local — 🔴 decisão de produto ainda pendente; hoje é leitura real + escrita local não rotulada na UI (P1-6).
+- Calendário: decidir entre escrita real no Google ou renomear para agenda local — ✅ decidido e implementado 2026-08-21: escrita real via Cadência (`calendar.events`), Agenda manual rotulada como local na UI (P1-6).
 - Revisar Bitrix/Google/WhatsApp/3CX por maturidade real — parcialmente coberto por `BITRIX24-LEAD-FLOW-AUDIT.md` (Bitrix) e por este documento (Google); WhatsApp/3CX fora do escopo desta rodada.
-- Criar status visual por integração (conectado/leitura/escrita/stub/erro/pendente de escopo) — 🔴 não existe; `Integrations.tsx` hoje não distingue esses estados.
-- **Resultado esperado ("usuário sabe exatamente o que está conectado e o que é apenas local")**: não alcançado — é o maior gap de confiança ainda aberto no P1.
+- Criar status visual por integração (conectado/leitura/escrita/stub/erro/pendente de escopo) — 🟡 existe para Google/Bitrix/3CX (`CapabilityBadge`/`IntegrationStatusBadge` em `Integrations.tsx`); não auditado para WhatsApp nesta rodada.
+- **Resultado esperado ("usuário sabe exatamente o que está conectado e o que é apenas local")**: alcançado para Google — era o maior gap de confiança aberto no P1, agora fechado.
 
 ### Onda 4 — "UX e design system"
 - Redesenhar navegação por jornada/persona — 🔴 não iniciado (P3-15, mesma raiz de P1-5).
@@ -106,18 +106,18 @@ desatualizado.
 
 ## Prioridade sugerida para a próxima rodada
 
-Com P0 já resolvido, os itens de maior impacto de confiança/valor ainda abertos são:
+Com P0 e P1-6 já resolvidos, os itens de maior impacto de confiança/valor ainda abertos são:
 
-1. **P1-6 / Onda 3** — rotular no UI (não só no código) que `/app/calendar` é local e que a
-   integração Google é somente-leitura. É o gap mais simples de fechar com maior redução de risco
-   de confiança — hoje o usuário pode achar que agendar ali sincroniza com o Google e não
-   sincroniza.
-2. **P1-4** — completar `setActiveRecord` em `ContactDetail.tsx` e `DealDrillDownDrawer.tsx` para
-   fechar a paridade de contexto de IA entre os 4 tipos de registro.
-3. **P1-7** — decidir qual dos três mapas de maturidade é a fonte única (proposta: este arquivo) e
+1. **P1-4** — completar `setActiveRecord` em `ContactDetail.tsx` (hoje dead code — precisa primeiro
+   decidir se ele é ressuscitado ou se o contexto de contato entra por outro componente montado) e
+   em `DealDrillDownDrawer.tsx`, para fechar a paridade de contexto de IA entre os 5 tipos de
+   registro (empresa, lead, contato, negócio, documento).
+2. **P1-7** — decidir qual dos três mapas de maturidade é a fonte única (proposta: este arquivo) e
    apontar os outros dois para ele em vez de manter conteúdo divergente.
-4. **P1-5 / P3-15** — mesma causa raiz (sidebar por inventário técnico); resolver junto reduz
-   retrabalho.
+3. **P1-5 / P3-15** — mesma causa raiz (sidebar por inventário técnico + hubs de IA sobrepostos);
+   resolver junto reduz retrabalho. Requer decisão de produto (quais hubs mesclam, o que "persona"
+   significa aqui) antes de qualquer mudança de navegação em produção — não é um item mecânico como
+   os demais desta lista.
 
 ---
 

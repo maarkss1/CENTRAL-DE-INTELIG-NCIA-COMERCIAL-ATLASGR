@@ -7,7 +7,7 @@ export interface AssistantRouteContext {
 }
 
 export interface AssistantRecordContext {
-    type: 'company' | 'contact' | 'lead' | 'deal';
+    type: 'company' | 'contact' | 'lead' | 'deal' | 'document';
     id: string;
     label: string;
     summary?: string;
@@ -39,6 +39,7 @@ export function formatAssistantRecordContext(activeRecord: AssistantRecordContex
         contact: 'contato',
         lead: 'lead',
         deal: 'negócio',
+        document: 'documento comercial',
     };
     return [
         `REGISTRO ABERTO NA TELA (${typeLabel[activeRecord.type]}): ${activeRecord.label}`,

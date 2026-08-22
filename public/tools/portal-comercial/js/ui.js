@@ -32,6 +32,35 @@ function iniciar() {
 
   if (document.getElementById("campos-produtos-contexto")) construirCamposProdutosUI();
   atualizarIconeTema();
+
+  // Restaurar filtros globais e plugar persistência
+  try {
+    const salvo = localStorage.getItem("atlas-filtros-globais");
+    if (salvo) {
+      const f = JSON.parse(salvo);
+      if (f.inicio && document.getElementById("dataInicio")) document.getElementById("dataInicio").value = f.inicio;
+      if (f.fim && document.getElementById("dataFim")) document.getElementById("dataFim").value = f.fim;
+      if (f.preset && document.getElementById("periodoPreset")) document.getElementById("periodoPreset").value = f.preset;
+      if (f.meta && document.getElementById("cockpitMetaMensal")) document.getElementById("cockpitMetaMensal").value = f.meta;
+    }
+  } catch(e) {}
+
+  const salvarFiltros = () => {
+    try {
+      const f = {
+        inicio: document.getElementById("dataInicio")?.value || "",
+        fim: document.getElementById("dataFim")?.value || "",
+        preset: document.getElementById("periodoPreset")?.value || "",
+        meta: document.getElementById("cockpitMetaMensal")?.value || ""
+      };
+      localStorage.setItem("atlas-filtros-globais", JSON.stringify(f));
+    } catch(e) {}
+  };
+
+  ["dataInicio", "dataFim", "periodoPreset", "cockpitMetaMensal", "mesEspecifico", "diaEspecifico"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", salvarFiltros);
+  });
 }
 
 // Alterna claro/escuro. A escolha fica salva em localStorage (preferência de UI,
@@ -413,7 +442,9 @@ function selecionarRelatorioRapido(chave){
       bloco.scrollIntoView({behavior:"smooth",block:"start"});
       return;
     }
-    window.location.href=`extracao.html?relatorio=${encodeURIComponent(chave)}`;
+    // v27: nas páginas da Total Trac isso precisa levar para
+    // totaltrac-extracao.html, não para o extracao.html da AtlasGR.
+    window.location.href=`${marcaAtiva().prefixoArquivo}extracao.html?relatorio=${encodeURIComponent(chave)}`;
     return;
   }
   revelarFluxoExtracao();const s=document.getElementById("relatorio");s.value=chave;aoTrocarRelatorio();atualizarResumoConfiguracaoV7();document.getElementById("configuracao")?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -422,21 +453,36 @@ function selecionarRelatorioRapido(chave){
 // Passos 1-8 (Conexão, Escolha, Período, Campos, Executar, Sincronizar, Central
 // de Inteligência, Analisar com IA) ficam escondidos até o usuário escolher um
 // relatório na tela inicial (ou clicar em "Configurar extração manualmente"/
-// "Ver Cockpit completo") -- a primeira tela deve mostrar só os cards. Na
-// primeira vez que aparecem, cada passo começa recolhido (só o título) --
-// evita despejar as 8 seções abertas de uma vez; o usuário abre só o que
-// precisa (a "segunda tela" de cada card). Escolhas já feitas nos passos
-// anteriores (relatório, período, campos) continuam aplicadas mesmo
-// recolhidas -- collapse é só visual.
-let fluxoExtracaoJaRevelado = false;
+// "Ver Cockpit completo") -- troca real de tela, não acordeão: a tela dos
+// cards (#inicio) some e o motor de extração (#fluxo-extracao) ocupa o lugar
+// dela, todo aberto (sem seções recolhidas). "← Voltar para os relatórios"
+// desfaz a troca.
 function revelarFluxoExtracao(){
   const wrap = document.getElementById("fluxo-extracao");
   if (!wrap) return;
   wrap.classList.remove("oculto");
-  if (!fluxoExtracaoJaRevelado) {
-    fluxoExtracaoJaRevelado = true;
-    wrap.querySelectorAll(":scope > .card").forEach((card) => card.classList.add("card-collapsed"));
-  }
+  document.getElementById("inicio")?.classList.add("oculto");
+  // Não rola aqui -- quem chama esta função já rola para o alvo certo depois
+  // (ex.: selecionarRelatorioRapido/revelarFluxoExtracaoManual rolam até
+  // #configuracao); rolar aqui também causaria dois scrolls concorrentes.
+}
+
+function voltarParaRelatorios(){
+  document.getElementById("fluxo-extracao")?.classList.add("oculto");
+  const inicio = document.getElementById("inicio");
+  inicio?.classList.remove("oculto");
+  inicio?.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+// Botão "Configurar extração manual" da tela inicial de extracao.html: mesmo
+// caminho de selecionarRelatorioRapido, mas sem pré-selecionar nenhum
+// relatório do catálogo (fica no modo "Extração manual" já default do
+// select #relatorio) -- é a única forma de chegar ao motor genérico sem
+// escolher um card pronto, já que o fluxo agora começa escondido.
+function revelarFluxoExtracaoManual(){
+  revelarFluxoExtracao();
+  atualizarResumoConfiguracaoV7();
+  document.getElementById("configuracao")?.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
 function atualizarResumoConfiguracaoV7(){
@@ -577,16 +623,45 @@ function renderizarPreviewSync(){
 }
 function atualizarBotaoSync(){const ok=document.getElementById("syncHabilitarEscrita")?.checked&&document.getElementById("syncConfirmacao")?.value.trim().toUpperCase()==="SINCRONIZAR"&&syncAlteracoes.length>0&&syncRegistroAtual;document.getElementById("btnExecutarSync").disabled=!ok;}
 
+// v20 — auditoria de sincronização: toda escrita no Bitrix (sucesso ou falha)
+// fica registrada neste navegador (localStorage), já que a ferramenta é
+// 100% client-side e não existe log de auditoria em servidor. Não é um
+// substituto de um audit trail real (é local e pode ser limpo pelo próprio
+// usuário), mas dá visibilidade imediata de "o que foi alterado, quando e
+// com qual resultado" — ver seção "Riscos de segurança" da auditoria do repo.
+const CHAVE_AUDITORIA_SYNC_LOCAL="atlas-extrator-auditoria-sync";
+function carregarAuditoriaSync(){try{return JSON.parse(localStorage.getItem(CHAVE_AUDITORIA_SYNC_LOCAL)||"[]");}catch(e){return [];}}
+function registrarAuditoriaSync(entrada){
+  try{
+    const lista=carregarAuditoriaSync();lista.unshift(entrada);
+    localStorage.setItem(CHAVE_AUDITORIA_SYNC_LOCAL,JSON.stringify(lista.slice(0,50)));
+  }catch(e){/* localStorage indisponível — segue sem persistir a auditoria */}
+  renderizarAuditoriaSync();
+}
+function limparAuditoriaSync(){try{localStorage.removeItem(CHAVE_AUDITORIA_SYNC_LOCAL);}catch(e){}renderizarAuditoriaSync();}
+function renderizarAuditoriaSync(){
+  const el=document.getElementById("syncAuditoriaLista");if(!el)return;
+  const lista=carregarAuditoriaSync();
+  if(!lista.length){el.innerHTML='<div class="rodape-nota" style="padding:12px;">Nenhuma sincronização registrada neste navegador ainda.</div>';return}
+  el.innerHTML=`<table><thead><tr><th>Quando</th><th>Registro</th><th>Campos alterados</th><th>Resultado</th></tr></thead><tbody>${lista.map((x)=>`<tr><td>${escapeHtmlRelatorio(x.quando)}</td><td>${escapeHtmlRelatorio(x.registro)}</td><td>${escapeHtmlRelatorio(x.campos)}</td><td><span class="badge-relatorio ${x.ok?"ok":"alerta"}">${x.ok?"OK":"Falhou"}</span></td></tr>`).join("")}</tbody></table>`;
+}
+
 async function executarSyncBitrix(){
   atualizarBotaoSync();if(document.getElementById("btnExecutarSync").disabled)return;
   const webhook=document.getElementById("webhook").value.trim(),err=validarWebhook(webhook);if(err){mostrarErro(err);return}
   const tipo=document.getElementById("syncEntidade").value,id=Number(document.getElementById("syncId").value),cfg=CAMPOS_SYNC[tipo],fields={};syncAlteracoes.forEach((x)=>fields[x.campo]=x.novo);
+  const camposResumo=syncAlteracoes.map((x)=>`${x.codigo}: ${x.atual??""} → ${x.novo??""}`).join("; ");
   try{
     document.getElementById("btnExecutarSync").disabled=true;document.getElementById("syncLog").textContent="Enviando alterações ao Bitrix via crm.item.update...";
     const body=await bitrixPostJsonComRetentativa(webhook,"crm.item.update",{entityTypeId:cfg.entityTypeId,id,fields});
     document.getElementById("syncLog").textContent=`Sincronização concluída em ${new Date().toLocaleString("pt-BR")}\nMétodo: crm.item.update\nentityTypeId: ${cfg.entityTypeId}\nID: ${id}\nCampos: ${Object.keys(fields).join(", ")}\nResultado: ${JSON.stringify(body.result)}`;
+    registrarAuditoriaSync({quando:new Date().toLocaleString("pt-BR"),registro:`${cfg.label} #${id}`,campos:camposResumo,ok:true});
     document.getElementById("syncHabilitarEscrita").checked=false;document.getElementById("syncConfirmacao").value="";await carregarRegistroSync();atualizarStatus(`${cfg.label} #${id} atualizado no Bitrix.`);
-  }catch(e){document.getElementById("syncLog").textContent=`Falha na sincronização: ${e.message}`;mostrarErro("O Bitrix não confirmou a atualização.\n\n"+e.message);}finally{atualizarBotaoSync();}
+  }catch(e){
+    document.getElementById("syncLog").textContent=`Falha na sincronização: ${e.message}`;
+    registrarAuditoriaSync({quando:new Date().toLocaleString("pt-BR"),registro:`${cfg.label} #${id}`,campos:camposResumo,ok:false});
+    mostrarErro("O Bitrix não confirmou a atualização.\n\n"+e.message);
+  }finally{atualizarBotaoSync();}
 }
 
 function iniciarExperienciaV7(){
@@ -595,6 +670,7 @@ function iniciarExperienciaV7(){
   renderizarAtalhosRelatorios();
   ativarAcordeoesExtrator();
   prepararCamposSync();
+  renderizarAuditoriaSync();
   carregarWebhookSalvo();
   atualizarStatusWebhookSalvo();
   atualizarResumoConfiguracaoV7();
@@ -1189,7 +1265,7 @@ async function enviarMensagemChatIAV10() {
   }
   const modeloEscolhido = document.querySelector('input[name="v10modelo"]:checked')?.value || "claude-sonnet-5";
 
-  const systemPrompt = `Você é um analista de dados comerciais ajudando a equipe da AtlasGR a interpretar dados extraídos do CRM Bitrix24 (${pacote.modo}). Responda em português do Brasil, de forma direta e objetiva, sempre baseado nos dados abaixo — não invente números que não estejam neles. Quando fizer contas, mostre o raciocínio de forma resumida.${avisoCorte}\n\nDados extraídos (JSON):\n\`\`\`json\n${dadosTexto}\n\`\`\``;
+  const systemPrompt = `Você é um analista de dados comerciais ajudando a equipe da ${marcaAtiva().nome} a interpretar dados extraídos do CRM Bitrix24 (${pacote.modo}). Responda em português do Brasil, de forma direta e objetiva, sempre baseado nos dados abaixo — não invente números que não estejam neles. Quando fizer contas, mostre o raciocínio de forma resumida.${avisoCorte}\n\nDados extraídos (JSON):\n\`\`\`json\n${dadosTexto}\n\`\`\``;
 
   v10ChatHistorico.push({ role: "user", content: pergunta });
   input.value = "";

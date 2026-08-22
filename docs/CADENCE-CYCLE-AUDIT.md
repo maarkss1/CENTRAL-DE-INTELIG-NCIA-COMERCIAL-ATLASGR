@@ -248,13 +248,21 @@ no Google Calendar é uma chamada real à API, não mais um stub.**
 - **Escrita real ligada**: o escopo OAuth foi ampliado de `calendar.readonly` para `calendar.events`
   (`google.service.ts` — toda organização reconectada desde então recebe o escopo de escrita; uma
   organização que conectou antes da mudança e nunca reconectou pode não ter o escopo novo, e a
-  chamada volta 403 do Google nesse caso). `PrismaCalendarSchedulerPort.createEvent` chama
+  chamada volta 403 do Google nesse caso — a tela de Integrações expõe isso por organização via
+  `hasCalendarWriteScope`, não assume que toda conexão já tem o escopo novo). `PrismaCalendarSchedulerPort.createEvent` chama
   `google.service.ts::createCalendarEvent` (`POST
   https://www.googleapis.com/calendar/v3/calendars/primary/events`) de verdade. Continua best-effort
   e não-bloqueante por design: se a chamada ao Google falhar (rede, 403 de escopo antigo, token
   revogado), o erro é logado e o fluxo segue gravando `CadenceCalendarEvent` com um
   `fallback-event-<uuid>` local — o Google nunca foi, e continua não sendo, a fonte de verdade do
   agendamento comercial (ver comentário do campo `googleEventId` no schema).
+- **Histórico (Onda 27, superado pela escrita real acima)**: a chamada real ao Google Calendar era
+  um **stub de transporte**, mesma categoria de CYC-003/CYC-006. A integração OAuth já era real e
+  funcionava para leitura (`google.service.ts::getUpcomingCalendarEvents`, `getValidAccessToken` +
+  `fetchWithTimeout`), mas o escopo então conectado era só `calendar.readonly` — pedir
+  `calendar.events` forçaria reconsentimento de toda organização já conectada ao Google, apontado
+  então como decisão de produto fora do escopo daquela rodada. O stub devolvia um `googleEventId`
+  sintético (`stub-google-event-<uuid>`, logado como tal).
 - `CadenceCalendarEvent` sai da lista de tabelas mortas confirmadas deste documento.
 - Fora de escopo (documentado, não corrigido): freebusy antes de propor um horário,
   cancelamento/reagendamento de um `CadenceCalendarEvent` já criado, e os 2 outros tipos de
@@ -451,7 +459,7 @@ Esta é a última entrega pendente do bloco CYC-001..CYC-009 desta rodada.
 | CYC-001 Opt-out | Sim — gap de enforcement no WhatsApp manual | Maioria implementada e enforced; unificação parcial |
 | CYC-002 Máquina de estados | Sim (Onda 22) | 5/5 estados, 5/5 motivos; runtime conectado (worker onda-19/22) |
 | CYC-003 Reply tracking e-mail | Sim (Onda 26) | Webhook real (stub de transporte) conectado; `hasLeadReplied` cobre e-mail |
-| CYC-004 Agendamento Google | Sim (Onda 27) | `manual-verified` conectado (Note + CadenceCalendarEvent reais); criação no Google é stub de transporte |
+| CYC-004 Agendamento Google | Sim (Onda 27, escrita real desde 2026-08-21) | `manual-verified` conectado (Note + CadenceCalendarEvent reais); criação no Google Calendar é escrita real (`calendar.events`), com fallback local se a chamada falhar |
 | CYC-005 Proposta versionada | Sim (Onda 25) | Versionamento real conectado; visualização pública real via publicToken |
 | CYC-006 Assinatura eletrônica | Sim (Onda 28) | Solicitação + webhook de status reais; envio ao gov.br é stub de transporte |
 | CYC-007 Fechamento determinístico | Sim (Onda 24) | Gate conectado nos 3 caminhos de escrita; evidência humana real, fechamento automatizado bloqueado |

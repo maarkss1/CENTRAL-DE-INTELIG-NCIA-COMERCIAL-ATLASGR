@@ -4,7 +4,21 @@ function alternarVisibilidadeWebhook() {
 }
 
 
+const WEBHOOK_FIXO_PADRAO = "https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/";
 const CHAVE_WEBHOOK_LOCAL = "atlas-extrator-bitrix-webhook";
+
+// v27 — multi-empresa: cada marca (ver MARCAS em config.js) tem sua própria
+// chave de localStorage (sufixoStorage) e seu próprio webhook padrão
+// (webhookPadrao) — senão, salvar um webhook na Total Trac sobrescreveria o
+// da AtlasGR, já que hoje é uma única chave global. Sem sufixo pra AtlasGR
+// (sufixoStorage:"" no registro dela), então continua lendo o que já estava
+// salvo antes desta mudança.
+function chaveWebhookAtual() {
+  return CHAVE_WEBHOOK_LOCAL + (typeof marcaAtiva === "function" ? marcaAtiva().sufixoStorage : "");
+}
+function webhookPadraoAtual() {
+  return typeof marcaAtiva === "function" ? marcaAtiva().webhookPadrao : WEBHOOK_FIXO_PADRAO;
+}
 
 // ---------------------------------------------------------------------------
 // Ofuscação leve do webhook salvo no localStorage.
@@ -61,9 +75,10 @@ function desofuscarWebhook(valorArmazenado) {
 
 function obterWebhookSalvo() {
   try {
-    return desofuscarWebhook(localStorage.getItem(CHAVE_WEBHOOK_LOCAL) || "").trim();
+    const salvo = desofuscarWebhook(localStorage.getItem(chaveWebhookAtual()) || "").trim();
+    return salvo || webhookPadraoAtual();
   } catch (e) {
-    return "";
+    return webhookPadraoAtual();
   }
 }
 
@@ -78,14 +93,31 @@ function atualizarStatusWebhookSalvo() {
   status.classList.toggle("salvo", !!salvo);
 
   if (!salvo) {
-    texto.textContent = "Webhook não salvo";
-    return;
+    texto.textContent = "Webhook não configurado";
+  } else if (atual && atual !== salvo) {
+    texto.textContent = "Existe outro webhook informado";
+  } else if (salvo === webhookPadraoAtual()) {
+    texto.textContent = "Webhook fixo ativo";
+  } else {
+    texto.textContent = "Webhook salvo neste navegador";
   }
-  if (atual && atual !== salvo) {
-    texto.textContent = "Existe outro webhook salvo";
-    return;
+
+  const inputWebhook = document.getElementById("webhook");
+  if (inputWebhook) {
+    if (atual === "") {
+      inputWebhook.style.borderColor = "";
+      inputWebhook.style.backgroundColor = "";
+    } else {
+      const erroValidacao = validarWebhook(atual);
+      if (erroValidacao) {
+        inputWebhook.style.borderColor = "var(--perda)";
+        inputWebhook.style.backgroundColor = "var(--fundo)";
+      } else {
+        inputWebhook.style.borderColor = "var(--sucesso)";
+        inputWebhook.style.backgroundColor = "rgba(40, 167, 69, 0.05)";
+      }
+    }
   }
-  texto.textContent = "Webhook salvo neste navegador";
 }
 
 function carregarWebhookSalvo() {
@@ -93,12 +125,7 @@ function carregarWebhookSalvo() {
   if (!campo) return false;
 
   const salvo = obterWebhookSalvo();
-  if (!salvo) {
-    atualizarStatusWebhookSalvo();
-    return false;
-  }
-
-  campo.value = salvo;
+  campo.value = salvo || webhookPadraoAtual();
   campo.type = "password";
   marcarConexaoPendente();
   atualizarStatusWebhookSalvo();
@@ -116,51 +143,47 @@ function salvarWebhookNoNavegador() {
   }
 
   const confirmar = window.confirm(
-    "Salvar o webhook neste navegador?\n\n" +
-    "A URL contém uma credencial de acesso total ao Bitrix24 e ficará armazenada (ofuscada, não " +
-    "criptografada de verdade) no localStorage deste navegador. Qualquer pessoa com acesso a este " +
-    "navegador (DevTools, extensões, backup do perfil) pode extraí-la. Não salve em computador " +
-    "compartilhado — nessas máquinas, digite o webhook a cada sessão e use \"Esquecer webhook\" ao terminar."
+    "Salvar o webhook personalizado neste navegador?\n\n" +
+    "A URL ficará armazenada (ofuscada, não criptografada de verdade) no localStorage deste navegador."
   );
   if (!confirmar) return;
 
   try {
-    localStorage.setItem(CHAVE_WEBHOOK_LOCAL, ofuscarWebhook(webhook));
+    localStorage.setItem(chaveWebhookAtual(), ofuscarWebhook(webhook));
     atualizarStatusWebhookSalvo();
-    atualizarStatus("Webhook salvo somente neste navegador (ofuscado, não é criptografia real). Ele será carregado automaticamente na próxima abertura.");
+    atualizarStatus("Webhook salvo neste navegador. Ele será carregado automaticamente na próxima abertura.");
   } catch (e) {
     mostrarErro("Não foi possível salvar o webhook. O modo privado ou uma política do navegador pode estar bloqueando o armazenamento local.");
   }
 }
 
 function esquecerWebhookSalvo() {
-  const salvo = obterWebhookSalvo();
-
-  if (!salvo) {
-    atualizarStatusWebhookSalvo();
-    atualizarStatus("Não existe webhook salvo neste navegador.");
-    return;
-  }
-
-  const confirmar = window.confirm(
-    "Esquecer o webhook salvo neste navegador?\n\n" +
-    "O campo atual também será limpo para evitar que a credencial fique ativa nesta sessão."
-  );
-  if (!confirmar) return;
+  const salvoLocal = (() => {
+    try {
+      return desofuscarWebhook(localStorage.getItem(chaveWebhookAtual()) || "").trim();
+    } catch (e) {
+      return "";
+    }
+  })();
 
   try {
-    localStorage.removeItem(CHAVE_WEBHOOK_LOCAL);
+    localStorage.removeItem(chaveWebhookAtual());
   } catch (e) {}
 
   const campo = document.getElementById("webhook");
   if (campo) {
-    campo.value = "";
+    campo.value = webhookPadraoAtual();
     campo.type = "password";
   }
 
   marcarConexaoPendente();
   atualizarStatusWebhookSalvo();
-  atualizarStatus("Webhook removido deste navegador.");
+  const temPadraoFixo = !!webhookPadraoAtual();
+  if (salvoLocal) {
+    atualizarStatus(temPadraoFixo ? "Webhook personalizado removido. Restaurado webhook fixo padrão." : "Webhook personalizado removido. Cole outro webhook para conectar.");
+  } else {
+    atualizarStatus(temPadraoFixo ? "Webhook fixo padrão restaurado." : "Nenhum webhook salvo. Cole um webhook para conectar.");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +529,12 @@ function validarWebhook(webhook) {
   return null;
 }
 
+// Extrai só o domínio do webhook (ex: "empresa.bitrix24.com.br") para montar
+// links diretos de "abrir no Bitrix" nos relatórios — nunca inclui o token.
+function extrairDominioWebhook(webhook) {
+  try { return new URL(webhook).host; } catch (e) { return ""; }
+}
+
 function validarPeriodo() {
   const inicio = document.getElementById("dataInicio").value;
   const fim = document.getElementById("dataFim").value;
@@ -514,6 +543,23 @@ function validarPeriodo() {
   }
   return null;
 }
+
+function gerarHashSimples(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash.toString(36);
+}
+
+window.FORCAR_ATUALIZACAO_BITRIX = false;
+window.limparCacheBitrix = function() {
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith("atlas_cache_")).forEach(k => localStorage.removeItem(k));
+    console.log("Cache local do Bitrix limpo com sucesso.");
+  } catch(e){}
+};
 
 // fetch com timeout (AbortController) + retentativa com backoff exponencial.
 // Trata especificamente erro de limite de chamadas do Bitrix (QUERY_LIMIT_EXCEEDED).
@@ -528,6 +574,21 @@ async function bitrixFetchComRetentativa(url) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: parts[1]
     };
+  }
+
+  const chaveCache = "atlas_cache_" + gerarHashSimples(fetchUrl + "|" + (fetchOptions.body || ""));
+  if (!window.FORCAR_ATUALIZACAO_BITRIX) {
+    try {
+      const emCache = localStorage.getItem(chaveCache);
+      if (emCache) {
+        const parseado = JSON.parse(emCache);
+        if (Date.now() - parseado.ts < 5 * 60 * 1000) { // 5 minutos de TTL
+          return parseado.data;
+        } else {
+          localStorage.removeItem(chaveCache);
+        }
+      }
+    } catch (e) {}
   }
 
   let ultimoErro = null;
@@ -560,6 +621,15 @@ async function bitrixFetchComRetentativa(url) {
         const erroFinal = new Error(`HTTP ${resp.status} — ${resp.statusText}`);
         erroFinal.definitivo = (resp.status >= 400 && resp.status < 500 && resp.status !== 429);
         throw erroFinal;
+      }
+      
+      try {
+        localStorage.setItem(chaveCache, JSON.stringify({ ts: Date.now(), data: body }));
+      } catch(e) {
+        try {
+           window.limparCacheBitrix();
+           localStorage.setItem(chaveCache, JSON.stringify({ ts: Date.now(), data: body }));
+        } catch(e2) {}
       }
       
       return body;

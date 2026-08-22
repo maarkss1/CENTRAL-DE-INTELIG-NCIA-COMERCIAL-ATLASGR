@@ -17,3 +17,9 @@ if (document.getElementById("ferramentasFlutuantes")) iniciarFerramentasFlutuant
 // ticker ao vivo (#cockpitTicker) — iniciarCockpitExecutivo() é seguro nos dois
 // casos (cada passo interno já é protegido por checagem de elemento).
 if (document.getElementById("cockpit-executivo") || document.getElementById("cockpitTicker")) iniciarCockpitExecutivo();
+// v25 — Esc fecha o modal de "Abrir modelo visual", em qualquer página que o tenha.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key !== "Escape") return;
+  const modal = document.getElementById("relatorioVisualInlineCard");
+  if (modal && !modal.classList.contains("oculto")) fecharRelatorioVisualInline();
+});
