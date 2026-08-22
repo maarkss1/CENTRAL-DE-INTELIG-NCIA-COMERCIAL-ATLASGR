@@ -76,6 +76,7 @@ function iniciarCockpitExecutivo() {
   cockpitRenderEstadoVazio();
   cockpitAtualizarTicker();
   cockpitIniciarAutoAtualizacao();
+  initDragAndDrop();
 }
 
 // ---------------------------------------------------------------------------
@@ -282,6 +283,7 @@ async function atualizarCockpit() {
   extracaoCancelada = false;
   const btn = cockpitEl("cockpitBtnAtualizar");
   if (btn) btn.disabled = true;
+  cockpitRenderEstadoSkeleton();
   atualizarStatus("Cockpit: buscando negócios do funil Comercial...");
   try {
     const base = await baseDealsCatalogo(webhook, true); // somenteComercial=true → CATEGORY_ID 0
@@ -319,15 +321,104 @@ function cockpitMesAtual() {
   return { inicio, fim, referencia: hojeISO, hojeISO };
 }
 
-// Classifica um negócio aberto (não-piloto) usando exatamente a mesma lógica
-// do Forecast semanal/mensal: probabilidade do Bitrix quando existir, senão
-// probabilidadeFallbackForecast; bucket via classificarBucketForecast.
+// Classifica um negócio aberto (não-piloto) usando a mesma probabilidade do
+// Forecast semanal/mensal (Bitrix quando existir, senão
+// probabilidadeFallbackForecast) — mas o BUCKET usa thresholds próprios do
+// Cockpit (ver cockpitClassificarBucketForecast abaixo), não
+// classificarBucketForecast.
 function cockpitClassificarAberto(d) {
   const pr = Number(d.PROBABILITY);
   const usaBitrix = Number.isFinite(pr) && pr > 0 && pr <= 100;
   const prob = usaBitrix ? pr : probabilidadeFallbackForecast(d._ESTAGIO, d._SEMANTICA);
-  const bucket = classificarBucketForecast(prob, d._SEMANTICA);
+  const bucket = cockpitClassificarBucketForecast(prob);
   return { prob, bucket, ponderado: d._VALOR * prob / 100 };
+}
+
+// ---------------------------------------------------------------------------
+// Classificação de bucket do Forecast — ESPECÍFICA DO COCKPIT.
+// ---------------------------------------------------------------------------
+// Convergência com a Central de Inteligência Comercial (auditoria de
+// comparação entre os dois projetos, divergência #1): o motor de forecast
+// testado da Central (CENTRAL-DE-INTELIGENCIA-COMECIAL-ATLASGR,
+// src/features/commercial-intelligence/application/forecastEngine.ts,
+// FORECAST_RULES) usa Commit ≥70%, Best Case ≥40%, Pipeline ≥10%, e abaixo
+// disso é "Upside" (baixíssima probabilidade).
+//
+// NÃO reaproveitamos classificarBucketForecast (js/jornada.js, thresholds
+// 80%/50%, sem tier "Upside") porque essa função é a fonte de verdade do
+// Forecast Semanal (js/forecast.js) e do relatório "Forecast Mensal" do
+// Catálogo (js/catalogo-relatorios.js) — mudar os thresholds ali quebraria os
+// dois relatórios, que não fizeram parte desta convergência com a Central.
+// Por isso o Cockpit ganhou esta função própria, só para si.
+function cockpitClassificarBucketForecast(prob) {
+  if (prob >= 70) return "Commit";
+  if (prob >= 40) return "Best Case";
+  if (prob >= 10) return "Pipeline";
+  return "Upside";
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline Elegível — critérios convergidos com pipelineEligibility.ts da
+// Central de Inteligência Comercial (divergência #2 da auditoria).
+// ---------------------------------------------------------------------------
+// A Central exige, para um negócio ser "elegível" (condição real de
+// fechar), que TODOS os critérios sejam verdadeiros:
+//   1. Aberto (não ganho/perdido)             → já garantido por _SEMANTICA
+//   2. Valor > 0                              → d._VALOR > 0
+//   3. Data prevista de fechamento preenchida → CLOSEDATE
+//   4. Responsável preenchido                 → ASSIGNED_BY_ID
+//   5. "Próxima ação" preenchida              → NÃO IMPLEMENTADO AQUI (ver nota abaixo)
+//   6. Aging na etapa atual ≤ 45 dias         → MOVED_TIME
+//
+// LIMITAÇÃO CONHECIDA (documentar sempre que este cálculo for citado): este
+// projeto não extrai nenhum campo de "próxima ação"/"próxima atividade
+// agendada" para negócios — crm.deal.list (ver ENTIDADES em js/config.js e
+// enriquecerDealCatalogo em js/catalogo-relatorios.js) não busca esse dado
+// hoje, e não há infraestrutura de N+1 para buscar atividades futuras por
+// negócio no Cockpit. Por isso o critério 5 NÃO é aplicado — inventar esse
+// dado violaria a regra do projeto de nunca fabricar informação que não
+// existe no Bitrix configurado para este cliente. Consequência prática:
+// o Pipeline Elegível deste projeto é mais PERMISSIVO que o da Central
+// nesse ponto específico (um negócio sem nenhuma próxima ação registrada
+// ainda pode contar como elegível aqui, desde que passe nos outros 5
+// critérios). Os outros 5 critérios são implementados fielmente, incluindo
+// o mesmo threshold de aging crítico (45 dias) usado pela Central
+// (STAGE_AGING_CRITICAL_DAYS em pipelineEligibility.ts).
+const COCKPIT_AGING_CRITICO_ELEGIBILIDADE_DIAS = 45;
+
+// Aging na etapa atual, em dias — mesma base (MOVED_TIME) já usada pelo
+// bloco "Pipeline por Estágio" (G) e pelo alerta de aging alto. `null`
+// quando MOVED_TIME não está preenchido (nunca estimamos um valor aqui).
+function cockpitAgingAtualDias(d, refISO) {
+  const mt = parteDataISO(d.MOVED_TIME);
+  if (!mt) return null;
+  return Math.max(0, Math.floor((new Date(`${refISO}T12:00:00`) - new Date(`${mt}T12:00:00`)) / 86400000));
+}
+
+// Verifica os 5 critérios de elegibilidade aplicáveis (ver nota da
+// limitação acima) e devolve os motivos de reprovação — usado no
+// drill-down de "Pipeline inelegível" para explicar cada negócio de fora.
+function cockpitVerificarElegibilidade(d, refISO) {
+  const motivos = [];
+  if (ehEstagioPiloto(d.STAGE_ID, d._ESTAGIO)) motivos.push("Estágio Piloto (fora do critério de elegibilidade)");
+  if (!(Number(d._VALOR) > 0)) motivos.push("Sem valor válido");
+  if (!parteDataISO(d.CLOSEDATE)) motivos.push("Sem data prevista de fechamento (CLOSEDATE)");
+  if (!idBitrixValido(d.ASSIGNED_BY_ID)) motivos.push("Sem responsável");
+  const aging = cockpitAgingAtualDias(d, refISO);
+  if (aging != null && aging > COCKPIT_AGING_CRITICO_ELEGIBILIDADE_DIAS) {
+    motivos.push(`Aging acima do crítico (${aging}d > ${COCKPIT_AGING_CRITICO_ELEGIBILIDADE_DIAS}d)`);
+  }
+  return { elegivel: motivos.length === 0, motivos };
+}
+
+// Coverage recomendado — convergido com CommercialIntelligenceUseCases.ts
+// da Central (divergência #3 da auditoria): coverageRecommended = 1 /
+// (winRate/100), derivado do Win Rate histórico REAL do período filtrado
+// (não um threshold fixo). `null` quando o Win Rate não é calculável
+// (winRate null ou 0) — nunca inventa um número.
+function cockpitCoverageRecomendado(winRate) {
+  if (winRate == null || !Number.isFinite(winRate) || winRate <= 0) return null;
+  return 1 / (winRate / 100);
 }
 
 function cockpitCalcular() {
@@ -345,30 +436,83 @@ function cockpitCalcular() {
   drill.resultadoMesFechado = ganhosMes;
   drill.resultadoMesGap = ganhosMes; // mesmo conjunto: o que falta é sobre o que já foi fechado
 
-  // -------------------- B) Forecast (Commit / Best Case / Pipeline / Gap) --
+  // -------------------- B) Forecast (Commit / Best Case / Pipeline / Upside) --
+  // FÓRMULA CONVERGIDA COM A CENTRAL DE INTELIGÊNCIA COMERCIAL (auditoria de
+  // comparação, divergência #1 — ver forecastEngine.ts e
+  // CommercialIntelligenceUseCases.executiveOverview no outro projeto):
+  //   Commit e Best Case entram em VALOR CHEIO (não ponderado) no forecast —
+  //   são tiers de alta probabilidade; ponderar por probabilidade os
+  //   subestimava sem necessidade. Só o tier "Pipeline" (probabilidade
+  //   intermediária) entra PONDERADO (valor × probabilidade/100). O tier
+  //   "Upside" (probabilidade muito baixa, <10%) NÃO entra no forecast total
+  //   — nem cheio, nem ponderado — é mostrado à parte, só como referência.
+  //   ForecastTotal = Fechado + Commit(bruto) + BestCase(bruto) + Pipeline(ponderado).
+  //
+  // FÓRMULA ANTIGA (divergente, corrigida nesta convergência): todo o
+  // pipeline aberto do mês (Commit + Best Case + Pipeline, tudo junto) entrava
+  // ponderado por probabilidade (`ponderado += valor*prob/100` para todos os
+  // buckets) — isso subestimava sistematicamente o forecast em negócios de
+  // alta probabilidade (Commit/Best Case).
   const abertosMes = deals.filter((d) => d._SEMANTICA === "process" && !ehEstagioPiloto(d.STAGE_ID, d._ESTAGIO) && dentroPeriodoCatalogo(d.CLOSEDATE, mes));
-  let commit = 0, bestCase = 0, pipelineForecast = 0, ponderado = 0;
-  const linhasCommit = [], linhasBest = [], linhasPipe = [];
+  let commit = 0, bestCase = 0, pipelineForecast = 0, upside = 0, pipelinePonderado = 0;
+  const linhasCommit = [], linhasBest = [], linhasPipe = [], linhasUpside = [];
   abertosMes.forEach((d) => {
-    const { bucket, ponderado: pond } = cockpitClassificarAberto(d);
-    ponderado += pond;
+    const { bucket, prob } = cockpitClassificarAberto(d);
     if (bucket === "Commit") { commit += d._VALOR; linhasCommit.push(d); }
     else if (bucket === "Best Case") { bestCase += d._VALOR; linhasBest.push(d); }
-    else { pipelineForecast += d._VALOR; linhasPipe.push(d); }
+    else if (bucket === "Pipeline") { pipelineForecast += d._VALOR; pipelinePonderado += d._VALOR * prob / 100; linhasPipe.push(d); }
+    else { upside += d._VALOR; linhasUpside.push(d); }
   });
-  const forecastTotal = fechadoMes + ponderado;
+  const forecastTotal = fechadoMes + commit + bestCase + pipelinePonderado;
   const gapForecast = metaMensal > 0 ? Math.max(0, metaMensal - forecastTotal) : null;
   drill.forecastCommit = linhasCommit;
   drill.forecastBestCase = linhasBest;
   drill.forecastPipeline = linhasPipe;
-  drill.forecastTotal = abertosMes;
+  drill.forecastUpside = linhasUpside;
+  drill.forecastTotal = [...linhasCommit, ...linhasBest, ...linhasPipe]; // Upside não entra no forecast total
+
+  // -------------------- Período do filtro (usado por F, C e D abaixo) ------
+  const periodoSelecionado = cockpitPeriodoFiltro();
+  const periodoFiltro = (periodoSelecionado.inicio || periodoSelecionado.fim) ? periodoSelecionado : mes;
+
+  // -------------------- F) Eficiência da Máquina ----------------------------
+  // (calculado antes de C/D porque o Win Rate daqui alimenta o Coverage
+  // Recomendado — divergência #3, ver cockpitCoverageRecomendado.)
+  const fechadosPeriodo = deals.filter((d) => d._SEMANTICA !== "process" && dentroPeriodoCatalogo(d._FECHAMENTO, periodoFiltro));
+  const ganhosPeriodo = fechadosPeriodo.filter((d) => d._SEMANTICA === "success");
+  const perdidosPeriodo = fechadosPeriodo.filter((d) => d._SEMANTICA === "failure");
+  const winRate = (ganhosPeriodo.length + perdidosPeriodo.length) > 0
+    ? Math.round((ganhosPeriodo.length / (ganhosPeriodo.length + perdidosPeriodo.length)) * 1000) / 10
+    : null;
+  const receitaGanhaPeriodo = ganhosPeriodo.reduce((a, d) => a + d._VALOR, 0);
+  const ticketMedioVendido = ganhosPeriodo.length ? receitaGanhaPeriodo / ganhosPeriodo.length : null;
+  const ciclos = ganhosPeriodo.map((d) => Number(d._CICLO)).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+  const cicloMedia = ciclos.length ? Math.round((ciclos.reduce((a, b) => a + b, 0) / ciclos.length) * 10) / 10 : null;
+  const cicloMediana = ciclos.length ? (ciclos.length % 2 ? ciclos[(ciclos.length - 1) / 2] : Math.round(((ciclos[ciclos.length / 2 - 1] + ciclos[ciclos.length / 2]) / 2) * 10) / 10) : null;
+  drill.winRateGanhos = ganhosPeriodo;
+  drill.winRatePerdidos = perdidosPeriodo;
+  drill.cicloVenda = ganhosPeriodo;
 
   // -------------------- C) Saúde do Pipeline --------------------------------
   const abertosTodos = deals.filter((d) => d._SEMANTICA === "process");
   const pipelineTotal = abertosTodos.reduce((a, d) => a + d._VALOR, 0);
-  const periodoSelecionado = cockpitPeriodoFiltro();
-  const periodoFiltro = (periodoSelecionado.inicio || periodoSelecionado.fim) ? periodoSelecionado : mes;
-  const abertosElegiveis = abertosTodos.filter((d) => !ehEstagioPiloto(d.STAGE_ID, d._ESTAGIO) && dentroPeriodoCatalogo(d.CLOSEDATE, periodoFiltro));
+  // Pipeline Elegível — CRITÉRIOS CONVERGIDOS COM A CENTRAL (divergência #2,
+  // ver cockpitVerificarElegibilidade acima: aberto/não-piloto, valor>0,
+  // CLOSEDATE preenchida, responsável preenchido, aging ≤45d na etapa atual
+  // — critério de "próxima ação preenchida" da Central NÃO é aplicado aqui,
+  // ver limitação documentada em cockpitVerificarElegibilidade), MAIS o
+  // filtro de período que já existia neste projeto (CLOSEDATE dentro do
+  // período selecionado no Cockpit) — esse recorte por período é uma decisão
+  // de arquitetura própria deste Cockpit (Coverage = elegível ÷ gap DO
+  // PERÍODO escolhido), não algo definido pela Central, e foi mantido para
+  // não quebrar a leitura de Coverage/Proteção de Receita já em uso.
+  const elegibilidadeTodos = abertosTodos.map((d) => ({ deal: d, check: cockpitVerificarElegibilidade(d, mes.hojeISO) }));
+  const abertosElegiveis = elegibilidadeTodos
+    .filter(({ deal, check }) => check.elegivel && dentroPeriodoCatalogo(deal.CLOSEDATE, periodoFiltro))
+    .map(({ deal }) => deal);
+  const inelegiveisComMotivo = elegibilidadeTodos
+    .filter(({ check }) => !check.elegivel)
+    .map(({ deal, check }) => ({ ...deal, _MOTIVOS_INELEGIBILIDADE: check.motivos.join("; ") }));
   const pipelineElegivel = abertosElegiveis.reduce((a, d) => a + d._VALOR, 0);
   // Coverage = Pipeline Elegível ÷ Gap da Meta (não ÷ meta cheia) — mostra se o
   // que falta para bater a meta do mês está coberto pelo pipeline compatível
@@ -376,11 +520,17 @@ function cockpitCalcular() {
   let coverage = null;
   if (gapMeta === 0) coverage = "meta batida";
   else if (gapMeta != null && gapMeta > 0) coverage = pipelineElegivel / gapMeta;
+  // Coverage Recomendado — divergência #3: derivado do Win Rate histórico
+  // REAL do período filtrado (calculado no bloco F acima), não um threshold
+  // fixo. Exibido AO LADO do semáforo fixo existente (cockpitStatusProtecao),
+  // que continua útil como "chão" mínimo simples — ver COCKPIT_COMERCIAL.md.
+  const coverageRecomendado = cockpitCoverageRecomendado(winRate);
   const criadosPeriodo = deals.filter((d) => dentroPeriodoCatalogo(d.DATE_CREATE, periodoFiltro));
   const pipelineCriadoPeriodo = criadosPeriodo.reduce((a, d) => a + d._VALOR, 0);
   const ticketMedioPipeline = abertosTodos.length ? pipelineTotal / abertosTodos.length : null;
   drill.pipelineTotal = abertosTodos;
   drill.pipelineElegivel = abertosElegiveis;
+  drill.pipelineInelegivel = inelegiveisComMotivo;
   drill.pipelineCriado = criadosPeriodo;
 
   // -------------------- D) Proteção de Receita M / M+1 / M+2 / M+3 ---------
@@ -397,27 +547,13 @@ function cockpitCalcular() {
     const coverageM = metaM > 0 ? pipelineM / metaM : null;
     // Threshold inicial (configurável, não é regra fixa da AtlasGR): <2x
     // crítico, 2x–3x atenção, ≥3x saudável — ver comentário na função
-    // cockpitStatusProtecao().
+    // cockpitStatusProtecao(). Coverage Recomendado (Win Rate) exibido ao
+    // lado — mesmo valor de coverageRecomendado do bloco C (Win Rate é
+    // calculado uma única vez por período filtrado, não por mês M/M+1/M+2/M+3).
     const statusM = cockpitStatusProtecao(coverageM);
-    protecao.push({ label: `${i === 0 ? "M" : `M+${i}`} (${mesAnoBR(inicioM)})`, meta: metaM, pipeline: pipelineM, coverage: coverageM, status: statusM, deals: elegiveisM });
+    protecao.push({ label: `${i === 0 ? "M" : `M+${i}`} (${mesAnoBR(inicioM)})`, meta: metaM, pipeline: pipelineM, coverage: coverageM, coverageRecomendado, status: statusM, deals: elegiveisM });
     drill[`protecao_${i}`] = elegiveisM;
   }
-
-  // -------------------- F) Eficiência da Máquina ----------------------------
-  const fechadosPeriodo = deals.filter((d) => d._SEMANTICA !== "process" && dentroPeriodoCatalogo(d._FECHAMENTO, periodoFiltro));
-  const ganhosPeriodo = fechadosPeriodo.filter((d) => d._SEMANTICA === "success");
-  const perdidosPeriodo = fechadosPeriodo.filter((d) => d._SEMANTICA === "failure");
-  const winRate = (ganhosPeriodo.length + perdidosPeriodo.length) > 0
-    ? Math.round((ganhosPeriodo.length / (ganhosPeriodo.length + perdidosPeriodo.length)) * 1000) / 10
-    : null;
-  const receitaGanhaPeriodo = ganhosPeriodo.reduce((a, d) => a + d._VALOR, 0);
-  const ticketMedioVendido = ganhosPeriodo.length ? receitaGanhaPeriodo / ganhosPeriodo.length : null;
-  const ciclos = ganhosPeriodo.map((d) => Number(d._CICLO)).filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
-  const cicloMedia = ciclos.length ? Math.round((ciclos.reduce((a, b) => a + b, 0) / ciclos.length) * 10) / 10 : null;
-  const cicloMediana = ciclos.length ? (ciclos.length % 2 ? ciclos[(ciclos.length - 1) / 2] : Math.round(((ciclos[ciclos.length / 2 - 1] + ciclos[ciclos.length / 2]) / 2) * 10) / 10) : null;
-  drill.winRateGanhos = ganhosPeriodo;
-  drill.winRatePerdidos = perdidosPeriodo;
-  drill.cicloVenda = ganhosPeriodo;
 
   // -------------------- G) Pipeline por Estágio -----------------------------
   const refAging = new Date(`${mes.referencia}T12:00:00`);
@@ -438,13 +574,35 @@ function cockpitCalcular() {
   })).sort((a, b) => b.valor - a.valor);
   estagiosLista.forEach((g, i) => { drill[`estagio_${i}`] = g.deals; });
 
+  const mesAnteriorObj = new Date(Number(mes.inicio.split("-")[0]), Number(mes.inicio.split("-")[1]) - 1, 1);
+  const mFimObj = new Date(mesAnteriorObj.getFullYear(), mesAnteriorObj.getMonth() + 1, 0);
+  const mesAnterior = { inicio: formatarDataISO(mesAnteriorObj), fim: formatarDataISO(mFimObj) };
+  
+  const ganhosMesAnterior = deals.filter((d) => d._SEMANTICA === "success" && dentroPeriodoCatalogo(d._FECHAMENTO, mesAnterior));
+  const fechadoMesAnterior = ganhosMesAnterior.reduce((a, d) => a + d._VALOR, 0);
+  const qtdAnterior = ganhosMesAnterior.length;
+  const ticketMedioMesAnterior = qtdAnterior ? fechadoMesAnterior / qtdAnterior : null;
+
+  function fmtMom(atual, ant) {
+    if (!ant) return "";
+    const pct = ((atual - ant) / ant) * 100;
+    if (pct === 0) return `<span style="color:var(--ink-2); font-weight:bold;">— 0%</span> vs mês anterior`;
+    const sinal = pct > 0 ? "▲" : "▼";
+    const cor = pct > 0 ? "var(--ok)" : "var(--danger)";
+    return `<span style="color:${cor}; font-weight:bold;">${sinal} ${Math.abs(pct).toFixed(1)}%</span> vs mês anterior`;
+  }
+
+  const fechadoMesMom = fmtMom(fechadoMes, fechadoMesAnterior);
+  const qtdMom = fmtMom(ganhosMes.length, qtdAnterior);
+  const ticketMom = fmtMom(ticketMedioMes, ticketMedioMesAnterior);
+
   cockpitDrill = drill;
 
   return {
     mes, deals,
-    resultadoMes: { fechadoMes, metaMensal, pctMeta, gapMeta, qtd: ganhosMes.length, ticketMedioMes },
-    forecast: { commit, bestCase, pipelineForecast, ponderado, forecastTotal, metaMensal, gapForecast },
-    saude: { pipelineTotal, pipelineElegivel, coverage, pipelineCriadoPeriodo, ticketMedioPipeline, qtdAberto: abertosTodos.length, periodoFiltro },
+    resultadoMes: { fechadoMes, metaMensal, pctMeta, gapMeta, qtd: ganhosMes.length, ticketMedioMes, fechadoMesMom, qtdMom, ticketMom },
+    forecast: { commit, bestCase, pipelineForecast, pipelinePonderado, upside, forecastTotal, metaMensal, gapForecast },
+    saude: { pipelineTotal, pipelineElegivel, pipelineInelegivelQtd: inelegiveisComMotivo.length, coverage, coverageRecomendado, pipelineCriadoPeriodo, ticketMedioPipeline, qtdAberto: abertosTodos.length, periodoFiltro },
     protecao,
     eficiencia: { winRate, ganhos: ganhosPeriodo.length, perdidos: perdidosPeriodo.length, ticketMedioVendido, cicloMedia, cicloMediana, amostraCiclo: ciclos.length, periodoFiltro },
     estagios: estagiosLista, totalEstagios,
@@ -671,6 +829,26 @@ function cockpitCalcularAlertas(c, g) {
     lista.push({ nivel: "critico", motivo: "Oportunidades abertas com CLOSEDATE vencida (data de fechamento no passado)", valor: `${vencidas.length} negócio(s) · ${moedaRelatorio(valorVencidas)}`, acao: "Atualizar a data de fechamento ou mover o negócio para ganho/perda.", tipo: "drill", alvo: "alertaVencidas", titulo: "Oportunidades com CLOSEDATE vencida" });
   }
 
+  // 2.5) Grandes Negócios Inativos (Alerta Proativo)
+  const ticketBase = c.resultadoMes.ticketMedioMes || c.saude.ticketMedioPipeline || 0;
+  if (ticketBase > 0) {
+    const limiarGrande = ticketBase * 2;
+    const diasInativoMax = 15;
+    const refHoje = new Date(hojeISO + "T12:00:00");
+    const grandesInativos = (c.deals || []).filter(d => {
+      if (d._SEMANTICA !== "process" || d._VALOR < limiarGrande) return false;
+      const act = d.LAST_ACTIVITY_TIME || d.DATE_MODIFY;
+      if (!act) return true;
+      const dias = Math.floor((refHoje - new Date(act.split("T")[0] + "T12:00:00")) / 86400000);
+      return dias > diasInativoMax;
+    });
+    if (grandesInativos.length) {
+      cockpitDrill.alertaGrandesInativos = grandesInativos;
+      const valTotal = grandesInativos.reduce((a,d)=>a+d._VALOR,0);
+      lista.push({ nivel: "critico", motivo: `Grandes negócios (>= 2x Ticket Médio) sem interação há >${diasInativoMax} dias`, valor: `${grandesInativos.length} negócio(s) · ${moedaRelatorio(valTotal)} em risco`, acao: "Retomar contato urgentemente para evitar perda da oportunidade (SLA vencido).", tipo: "drill", alvo: "alertaGrandesInativos", titulo: "Grandes Negócios Inativos" });
+    }
+  }
+
   // 3) Aging alto por estágio (mesmo aging médio do bloco Pipeline por Estágio).
   const estagiosAltos = [];
   (c.estagios || []).forEach((eg, idx) => {
@@ -762,11 +940,14 @@ function cockpitGerarSituacaoAgora() {
     ["% da Meta", fmtPct(c.resultadoMes.pctMeta)],
     ["Forecast total do mês", fmtMoeda(c.forecast.forecastTotal)],
     ["Gap do Forecast", fmtMoeda(c.forecast.gapForecast)],
-    ["Commit", fmtMoeda(c.forecast.commit)],
-    ["Best Case", fmtMoeda(c.forecast.bestCase)],
+    ["Commit (valor cheio)", fmtMoeda(c.forecast.commit)],
+    ["Best Case (valor cheio)", fmtMoeda(c.forecast.bestCase)],
+    ["Pipeline ponderado (entra no forecast)", fmtMoeda(c.forecast.pipelinePonderado)],
+    ["Upside (não entra no forecast)", fmtMoeda(c.forecast.upside)],
     ["Pipeline Total", fmtMoeda(c.saude.pipelineTotal)],
     ["Pipeline Elegível", fmtMoeda(c.saude.pipelineElegivel)],
-    ["Coverage (elegível ÷ gap)", c.saude.coverage === "meta batida" ? "meta já batida" : (c.saude.coverage != null ? `${c.saude.coverage.toFixed(2)}x` : "não disponível")],
+    ["Coverage atual (elegível ÷ gap)", c.saude.coverage === "meta batida" ? "meta já batida" : (c.saude.coverage != null ? `${c.saude.coverage.toFixed(2)}x` : "não disponível")],
+    ["Coverage recomendado (Win Rate histórico)", c.saude.coverageRecomendado != null ? `${c.saude.coverageRecomendado.toFixed(2)}x` : "não disponível"],
     ["Pipeline criado no período", fmtMoeda(c.saude.pipelineCriadoPeriodo)],
     ["Win Rate", fmtPct(c.eficiencia.winRate)],
     ["Sales Cycle (média)", c.eficiencia.cicloMedia != null ? `${c.eficiencia.cicloMedia}d` : "não disponível"],
@@ -775,7 +956,7 @@ function cockpitGerarSituacaoAgora() {
   ];
 
   const linhasTexto = [];
-  linhasTexto.push("=== SITUAÇÃO COMERCIAL AGORA — AtlasGR ===");
+  linhasTexto.push(`=== SITUAÇÃO COMERCIAL AGORA — ${marcaAtiva().nome} ===`);
   linhasTexto.push(`Gerado em: ${carimbo} · Fonte: Bitrix24 (último "Atualizar agora" do Cockpit)`);
   linhasTexto.push("");
   campos.forEach(([label, valor]) => linhasTexto.push(`${label}: ${valor}`));
@@ -852,10 +1033,43 @@ function cockpitND(valor, formato) {
   return formato ? formato(valor) : valor;
 }
 
-function cockpitKpiCard(rotulo, valor, chaveDrill, extraClasse = "") {
+function cockpitGerarResumoIA() {
+  const c = cockpitState.ultimoCalculo;
+  if (!c) {
+    alert("Sem dados para gerar resumo. Atualize o Cockpit primeiro.");
+    return;
+  }
+  
+  let texto = "🤖 Resumo Executivo (Narrativa):\n\n";
+  
+  const pct = c.resultadoMes.pctMeta || 0;
+  if (pct >= 100) texto += `O mês está excelente! Já batemos a meta com ${pct}% de atingimento e R$ ${c.resultadoMes.fechadoMes.toLocaleString('pt-BR')} em novos negócios.\n`;
+  else if (pct >= 80) texto += `Estamos muito perto da meta! Já atingimos ${pct}%. O gap atual é de R$ ${c.resultadoMes.gapMeta.toLocaleString('pt-BR')}.\n`;
+  else if (pct > 0) texto += `Até agora, alcançamos ${pct}% da meta. Faltam R$ ${c.resultadoMes.gapMeta.toLocaleString('pt-BR')} para chegarmos ao objetivo do mês.\n`;
+  else texto += `Ainda não tivemos fechamentos computados neste mês em relação à meta.\n`;
+
+  const fc = c.forecast;
+  texto += `\nO pipeline atual tem um Forecast Total projetado de R$ ${fc.forecastTotal.toLocaleString('pt-BR')}. Deste valor, R$ ${fc.commit.toLocaleString('pt-BR')} são considerados Commit (alta probabilidade).\n`;
+
+  if (c.lista && c.lista.length > 0) {
+    texto += `\nPontos de Atenção Identificados:\n`;
+    c.lista.forEach(a => {
+      if (a.nivel === "critico") texto += `⚠️ CRÍTICO: ${a.motivo}. Ação recomendada: ${a.acao}\n`;
+      else if (a.nivel === "atencao") texto += `👀 ATENÇÃO: ${a.motivo}.\n`;
+    });
+  }
+
+  const cov = typeof c.saude.coverage === 'number' ? c.saude.coverage.toFixed(2) + "x" : "indisponível";
+  texto += `\nA Saúde do Pipeline registra um coverage de ${cov}.`;
+
+  alert(texto);
+}
+
+function cockpitKpiCard(rotulo, valor, chaveDrill, extraClasse = "", subTexto = "") {
   const clique = chaveDrill ? ` onclick="cockpitAbrirDrill('${chaveDrill}','${escapeHtmlRelatorio(rotulo).replace(/'/g, "\\'")}')"` : "";
   const cls = chaveDrill ? "cockpit-kpi cockpit-kpi-clicavel" : "cockpit-kpi";
-  return `<div class="${cls} ${extraClasse}"${clique}><span class="valor">${valor}</span><span class="rotulo">${escapeHtmlRelatorio(rotulo)}</span></div>`;
+  const sub = subTexto ? `<div style="font-size:10px; margin-top:4px; color:var(--ink-2); line-height:1.2;">${subTexto}</div>` : "";
+  return `<div class="${cls} ${extraClasse}"${clique}><span class="valor">${valor}</span><span class="rotulo">${escapeHtmlRelatorio(rotulo)}</span>${sub}</div>`;
 }
 
 // Ids de todos os containers de KPI/lista do Cockpit que ficam vazios até o
@@ -887,6 +1101,17 @@ function cockpitRenderEstadoVazio() {
   if (sdrAviso) sdrAviso.textContent = "";
 }
 
+function cockpitRenderEstadoSkeleton() {
+  const skl = `<div class="skeleton" style="height:38px; margin-bottom:8px; width:100%; border-radius:8px;"></div>`;
+  const html = `<div style="display:flex; flex-direction:column; gap:8px;">${skl}${skl}${skl}</div>`;
+  COCKPIT_CONTAINERS_KPI.forEach((id) => { const el = cockpitEl(id); if (el) el.innerHTML = html; });
+  COCKPIT_CONTAINERS_LISTA.forEach((id) => { const el = cockpitEl(id); if (el) el.innerHTML = html; });
+  const protecao = cockpitEl("cockpitProtecaoTabela");
+  if (protecao) protecao.innerHTML = html;
+  const aviso = cockpitEl("cockpitAvisoPipelineForecast");
+  if (aviso) { aviso.textContent = ""; aviso.classList.add("oculto"); }
+}
+
 function renderizarCockpit() {
   if (!cockpitState.deals.length) { cockpitRenderEstadoVazio(); return; }
   const aviso = cockpitEl("cockpitAvisoPipelineForecast");
@@ -896,43 +1121,50 @@ function renderizarCockpit() {
   // A) Resultado do Mês
   cockpitEl("cockpitResultadoMes").innerHTML = [
     cockpitKpiCard("Meta New MRR (mês)", c.resultadoMes.metaMensal ? moedaRelatorio(c.resultadoMes.metaMensal) : "não informada", null),
-    cockpitKpiCard("Fechado no mês", moedaRelatorio(c.resultadoMes.fechadoMes), "resultadoMesFechado"),
+    cockpitKpiCard("Fechado no mês", moedaRelatorio(c.resultadoMes.fechadoMes), "resultadoMesFechado", "", c.resultadoMes.fechadoMesMom),
     cockpitKpiCard("% da Meta", cockpitND(c.resultadoMes.pctMeta, (v) => `${v}%`), "resultadoMesFechado"),
     cockpitKpiCard("Gap para a meta", cockpitND(c.resultadoMes.gapMeta, moedaRelatorio), "resultadoMesGap"),
-    cockpitKpiCard("Negócios ganhos", c.resultadoMes.qtd, "resultadoMesFechado"),
-    cockpitKpiCard("Ticket médio (mês)", cockpitND(c.resultadoMes.ticketMedioMes, moedaRelatorio), "resultadoMesFechado"),
+    cockpitKpiCard("Negócios ganhos", c.resultadoMes.qtd, "resultadoMesFechado", "", c.resultadoMes.qtdMom),
+    cockpitKpiCard("Ticket médio (mês)", cockpitND(c.resultadoMes.ticketMedioMes, moedaRelatorio), "resultadoMesFechado", "", c.resultadoMes.ticketMom),
   ].join("");
 
-  // B) Forecast — visualmente separado do Pipeline (cor/bloco diferentes)
+  // B) Forecast — visualmente separado do Pipeline (cor/bloco diferentes).
+  // Commit e Best Case = valor cheio; Pipeline entra ponderado; Upside fica
+  // de fora do forecast total (ver cockpitCalcular, bloco B).
   cockpitEl("cockpitForecast").innerHTML = [
-    cockpitKpiCard("Commit", moedaRelatorio(c.forecast.commit), "forecastCommit"),
-    cockpitKpiCard("Best Case", moedaRelatorio(c.forecast.bestCase), "forecastBestCase"),
-    cockpitKpiCard("Pipeline (forecast)", moedaRelatorio(c.forecast.pipelineForecast), "forecastPipeline"),
-    cockpitKpiCard("Forecast ponderado", moedaRelatorio(c.forecast.ponderado), "forecastTotal"),
+    cockpitKpiCard("Commit (valor cheio)", moedaRelatorio(c.forecast.commit), "forecastCommit"),
+    cockpitKpiCard("Best Case (valor cheio)", moedaRelatorio(c.forecast.bestCase), "forecastBestCase"),
+    cockpitKpiCard("Pipeline (bruto)", moedaRelatorio(c.forecast.pipelineForecast), "forecastPipeline"),
+    cockpitKpiCard("Pipeline (ponderado — entra no forecast)", moedaRelatorio(c.forecast.pipelinePonderado), "forecastPipeline"),
+    cockpitKpiCard("Upside (não entra no forecast)", moedaRelatorio(c.forecast.upside), "forecastUpside"),
     cockpitKpiCard("Forecast total do mês", moedaRelatorio(c.forecast.forecastTotal), "forecastTotal", "cockpit-kpi-destaque"),
     cockpitKpiCard("Gap do Forecast", cockpitND(c.forecast.gapForecast, moedaRelatorio), "forecastTotal"),
   ].join("");
 
   // C) Saúde do Pipeline
   const covTxt = c.saude.coverage === "meta batida" ? "meta já batida" : cockpitND(c.saude.coverage, (v) => `${v.toFixed(2)}x`);
+  const covRecTxt = cockpitND(c.saude.coverageRecomendado, (v) => `${v.toFixed(2)}x`);
   cockpitEl("cockpitSaudePipeline").innerHTML = [
     cockpitKpiCard("Pipeline Total", moedaRelatorio(c.saude.pipelineTotal), "pipelineTotal"),
     cockpitKpiCard("Pipeline Elegível (filtro)", moedaRelatorio(c.saude.pipelineElegivel), "pipelineElegivel"),
-    cockpitKpiCard("Coverage (elegível ÷ gap)", covTxt, "pipelineElegivel"),
+    cockpitKpiCard("Pipeline inelegível (com motivo)", c.saude.pipelineInelegivelQtd, "pipelineInelegivel"),
+    cockpitKpiCard("Coverage atual (elegível ÷ gap)", covTxt, "pipelineElegivel"),
+    cockpitKpiCard("Coverage recomendado (Win Rate histórico)", covRecTxt, null),
     cockpitKpiCard("Pipeline criado no período", moedaRelatorio(c.saude.pipelineCriadoPeriodo), "pipelineCriado"),
     cockpitKpiCard("Ticket médio do pipeline", cockpitND(c.saude.ticketMedioPipeline, moedaRelatorio), "pipelineTotal"),
   ].join("");
   cockpitEl("cockpitAvisoPipelineForecast").textContent =
-    `Pipeline Total (${moedaRelatorio(c.saude.pipelineTotal)}) é o valor bruto de tudo que está aberto no Comercial — não é previsão de fechamento. A previsão fica nos cards de Forecast acima (Commit/Best Case/Pipeline ponderado).`;
+    `Pipeline Total (${moedaRelatorio(c.saude.pipelineTotal)}) é o valor bruto de tudo que está aberto no Comercial — não é previsão de fechamento. A previsão fica nos cards de Forecast acima (Commit/Best Case/Pipeline ponderado). Coverage atual: ${covTxt} · recomendado (baseado no Win Rate histórico do período): ${covRecTxt}.`;
 
   // D) Proteção de Receita
-  cockpitEl("cockpitProtecaoTabela").innerHTML = `<table><thead><tr><th>Mês</th><th>Meta</th><th>Pipeline Elegível</th><th>Coverage</th><th>Status</th></tr></thead><tbody>` +
+  cockpitEl("cockpitProtecaoTabela").innerHTML = `<table><thead><tr><th>Mês</th><th>Meta</th><th>Pipeline Elegível</th><th>Coverage</th><th>Status (chão fixo)</th><th>Recomendado (Win Rate)</th></tr></thead><tbody>` +
     c.protecao.map((p, i) => `<tr class="cockpit-linha-clicavel" onclick="cockpitAbrirDrill('protecao_${i}','Pipeline elegível — ${escapeHtmlRelatorio(p.label)}')">` +
       `<td>${escapeHtmlRelatorio(p.label)}</td>` +
       `<td>${p.meta ? moedaRelatorio(p.meta) : "não informada"}</td>` +
       `<td>${moedaRelatorio(p.pipeline)}</td>` +
       `<td>${p.coverage != null ? `${p.coverage.toFixed(2)}x` : "não disponível"}</td>` +
       `<td><span class="cockpit-status-badge ${p.status.classe}">${p.status.rotulo}</span></td>` +
+      `<td>${p.coverageRecomendado != null ? `${p.coverageRecomendado.toFixed(2)}x` : "não disponível"}</td>` +
       `</tr>`).join("") + `</tbody></table>`;
 
   // E) Pipeline por Estágio
@@ -997,6 +1229,10 @@ function renderizarCockpit() {
   // Agora" para montar o resumo sem reprocessar nada (nem chamar o Bitrix).
   cockpitState.ultimoCalculo = { c, g, s, q, alertasInfo };
   cockpitAtualizarTicker();
+  
+  // Customizações (Criação 5 e 10)
+  cockpitRenderizarGrafico(c);
+  cockpitRenderizarMetasDesdobradas(c);
 }
 
 // ---------------------------------------------------------------------------
@@ -1008,14 +1244,31 @@ function cockpitAbrirDrill(chave, titulo) {
   if (!modal) return;
   cockpitEl("cockpitDrillTitulo").textContent = titulo || "Detalhamento";
   cockpitEl("cockpitDrillContagem").textContent = `${linhas.length} negócio(s)`;
-  cockpitEl("cockpitDrillConteudo").innerHTML = tabelaRelatorio([
+  // Drill de "Pipeline inelegível" ganha uma coluna extra com o(s) motivo(s)
+  // de reprovação (ver cockpitVerificarElegibilidade) — os demais drills
+  // seguem as colunas padrão.
+  const colunas = [
     { label: "Empresa / Cliente", valor: "_CLIENTE" },
     { label: "Valor", valor: (x) => moedaRelatorio(x._VALOR), html: true },
     { label: "Etapa", valor: "_ESTAGIO" },
     { label: "Vendedor", valor: "_RESPONSAVEL" },
     { label: "CLOSEDATE", valor: (x) => formatarDataBR(parteDataISO(x.CLOSEDATE)) },
-  ], linhas, 300);
+  ];
+  if (chave === "pipelineInelegivel") colunas.push({ label: "Motivo(s) de inelegibilidade", valor: "_MOTIVOS_INELEGIBILIDADE" });
+  let tabelaHTML = tabelaRelatorio(colunas, linhas, 300);
+  const inputHTML = `<input type="text" id="cockpitDrillBusca" placeholder="Pesquisar nos registros..." style="width:100%; padding:8px 12px; margin-bottom:12px; border-radius:6px; border:1px solid var(--line); font-size:13px; outline:none;" onkeyup="filtrarTabelaDrillDown(this)">`;
+  
+  cockpitEl("cockpitDrillConteudo").innerHTML = inputHTML + tabelaHTML;
   modal.classList.add("aberto");
+}
+
+window.filtrarTabelaDrillDown = function(input) {
+  const filtro = input.value.toLowerCase();
+  const linhas = document.querySelectorAll("#cockpitDrillConteudo table tbody tr");
+  linhas.forEach(linha => {
+    const texto = linha.textContent.toLowerCase();
+    linha.style.display = texto.includes(filtro) ? "" : "none";
+  });
 }
 function fecharDrillCockpit() {
   cockpitEl("cockpitDrillModal")?.classList.remove("aberto");
@@ -1064,16 +1317,19 @@ function cockpitListaKpisExport(cache) {
   add("Resultado do Mês", "Negócios ganhos", num(c.resultadoMes.qtd), "qtd");
   add("Resultado do Mês", "Ticket médio (mês)", moeda(c.resultadoMes.ticketMedioMes), "R$");
 
-  add("Forecast", "Commit", moeda(c.forecast.commit), "R$");
-  add("Forecast", "Best Case", moeda(c.forecast.bestCase), "R$");
-  add("Forecast", "Pipeline (forecast)", moeda(c.forecast.pipelineForecast), "R$");
-  add("Forecast", "Forecast ponderado", moeda(c.forecast.ponderado), "R$");
+  add("Forecast", "Commit (valor cheio)", moeda(c.forecast.commit), "R$");
+  add("Forecast", "Best Case (valor cheio)", moeda(c.forecast.bestCase), "R$");
+  add("Forecast", "Pipeline (bruto, tier Pipeline)", moeda(c.forecast.pipelineForecast), "R$");
+  add("Forecast", "Pipeline (ponderado — entra no forecast)", moeda(c.forecast.pipelinePonderado), "R$");
+  add("Forecast", "Upside (não entra no forecast)", moeda(c.forecast.upside), "R$");
   add("Forecast", "Forecast total do mês", moeda(c.forecast.forecastTotal), "R$");
   add("Forecast", "Gap do Forecast", moeda(c.forecast.gapForecast), "R$");
 
   add("Saúde do Pipeline", "Pipeline Total", moeda(c.saude.pipelineTotal), "R$");
   add("Saúde do Pipeline", "Pipeline Elegível (filtro)", moeda(c.saude.pipelineElegivel), "R$");
-  add("Saúde do Pipeline", "Coverage (elegível ÷ gap)", c.saude.coverage === "meta batida" ? "meta batida" : (c.saude.coverage != null ? String(Math.round(c.saude.coverage * 100) / 100) : null), "x");
+  add("Saúde do Pipeline", "Pipeline inelegível (qtd)", num(c.saude.pipelineInelegivelQtd), "qtd");
+  add("Saúde do Pipeline", "Coverage atual (elegível ÷ gap)", c.saude.coverage === "meta batida" ? "meta batida" : (c.saude.coverage != null ? String(Math.round(c.saude.coverage * 100) / 100) : null), "x");
+  add("Saúde do Pipeline", "Coverage recomendado (Win Rate histórico)", c.saude.coverageRecomendado != null ? String(Math.round(c.saude.coverageRecomendado * 100) / 100) : null, "x");
   add("Saúde do Pipeline", "Pipeline criado no período", moeda(c.saude.pipelineCriadoPeriodo), "R$");
   add("Saúde do Pipeline", "Ticket médio do pipeline", moeda(c.saude.ticketMedioPipeline), "R$");
   add("Saúde do Pipeline", "Oportunidades abertas", num(c.saude.qtdAberto), "qtd");
@@ -1082,7 +1338,8 @@ function cockpitListaKpisExport(cache) {
     add("Proteção de Receita", `Meta — ${p.label}`, p.meta ? moeda(p.meta) : null, "R$");
     add("Proteção de Receita", `Pipeline Elegível — ${p.label}`, moeda(p.pipeline), "R$");
     add("Proteção de Receita", `Coverage — ${p.label}`, p.coverage != null ? String(Math.round(p.coverage * 100) / 100) : null, "x");
-    add("Proteção de Receita", `Status — ${p.label}`, p.status?.rotulo || null, "");
+    add("Proteção de Receita", `Status (chão fixo) — ${p.label}`, p.status?.rotulo || null, "");
+    add("Proteção de Receita", `Recomendado (Win Rate) — ${p.label}`, p.coverageRecomendado != null ? String(Math.round(p.coverageRecomendado * 100) / 100) : null, "x");
   });
 
   add("Eficiência da Máquina", "Win Rate", pct(c.eficiencia.winRate), "%");
@@ -1132,7 +1389,7 @@ function cockpitExportarJSON() {
   if (!cache) return;
   const payload = {
     gerado_em: new Date().toISOString(),
-    fonte: "Cockpit Comercial Executivo — AtlasGR (snapshot já calculado, sem novo acesso ao Bitrix)",
+    fonte: `Cockpit Comercial Executivo — ${marcaAtiva().nome} (snapshot já calculado, sem novo acesso ao Bitrix)`,
     periodo_filtro: cache.c?.saude?.periodoFiltro || null,
     dados: cache,
   };
@@ -1174,6 +1431,8 @@ function cockpitHtmlAlertas(cache) {
 function cockpitGerarHTMLExport(completo) {
   const cache = cockpitExigirCache();
   if (!cache) return "";
+  const marca = marcaAtiva();
+  const paginaHome = `${marca.prefixoArquivo}home.html`;
   const agora = new Date();
   const carimbo = formatarDataBR(formatarDataISO(agora)) + " " + String(agora.getHours()).padStart(2, "0") + ":" + String(agora.getMinutes()).padStart(2, "0");
   const titulo = completo ? "Relatório Executivo Completo" : "Cockpit Comercial";
@@ -1195,22 +1454,22 @@ function cockpitGerarHTMLExport(completo) {
       `<ul><li><strong>Catálogo de Relatórios</strong> — origem, produtos, clientes, aging/SLA, ganhos e perdas por ciclo.</li>` +
       `<li><strong>Análise SDR / Diário SDR</strong> — leads trabalhados, reuniões, conversão Lead → Oportunidade.</li>` +
       `<li><strong>Forecast semanal</strong> — visão semana a semana com o mesmo detalhamento de fechados/pendentes/pipeline.</li></ul>` +
-      `<p class="small-note">Este HTML é estático (baixado do navegador) e não tem link direto de volta à ferramenta — reabra "Relatórios AtlasGR.html" e navegue pelos menus para essas telas.</p>`;
+      `<p class="small-note">Este HTML é estático (baixado do navegador) e não tem link direto de volta à ferramenta — reabra "${paginaHome}" e navegue pelos menus para essas telas.</p>`;
   }
 
   corpo += `</div>`;
 
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlRelatorio(titulo)} — Atlas</title><style>${MODELO_EXECUTIVO_CSS}</style></head><body>` +
-    `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${MODELO_EXECUTIVO_LOGO}<div class="letterhead-divider"></div><div class="letterhead-tagline">Gerenciamento de Risco em Processos Logísticos</div></div><div class="letterhead-ref"><strong>${escapeHtmlRelatorio(titulo)}</strong><br>Gerado em ${carimbo}</div></div></div>` +
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlRelatorio(titulo)} — ${escapeHtmlRelatorio(marca.nome)}</title><style>${modeloExecutivoCssParaMarca(marca)}</style></head><body>` +
+    `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${marca.logoSvg}<div class="letterhead-divider"></div><div class="letterhead-tagline">${escapeHtmlRelatorio(marca.tagline)}</div></div><div class="letterhead-ref"><strong>${escapeHtmlRelatorio(titulo)}</strong><br>Gerado em ${carimbo}</div></div></div>` +
     `<header class="hero"><div class="hero-inner"><p class="eyebrow">Cockpit Comercial · Bitrix24</p><h1>${escapeHtmlRelatorio(titulo)}</h1><p class="subtitle">${cabecalhoInfo}</p></div></header>` +
     corpo +
-    `<footer><div class="footer-brand">${MODELO_EXECUTIVO_LOGO}<span>Atlas</span></div>Atlas · ${escapeHtmlRelatorio(titulo)} · gerado em ${carimbo} · nenhum webhook/credencial incluído neste arquivo.</footer>` +
+    `<footer><div class="footer-brand">${marca.logoSvg}<span>${escapeHtmlRelatorio(marca.nome)}</span></div>${escapeHtmlRelatorio(marca.nome)} · ${escapeHtmlRelatorio(titulo)} · gerado em ${carimbo} · nenhum webhook/credencial incluído neste arquivo.</footer>` +
     `</body></html>`;
 }
 
 function cockpitAbrirHTMLExport() {
   const h = cockpitGerarHTMLExport(false);
-  if (h) abrirHtmlEmNovaAba(h);
+  if (h) mostrarRelatorioVisualInline(h,"Cockpit Comercial");
 }
 function cockpitBaixarHTMLExport() {
   const h = cockpitGerarHTMLExport(false);
@@ -1218,9 +1477,163 @@ function cockpitBaixarHTMLExport() {
 }
 function cockpitAbrirRelatorioExecutivo() {
   const h = cockpitGerarHTMLExport(true);
-  if (h) abrirHtmlEmNovaAba(h);
+  if (h) mostrarRelatorioVisualInline(h,"Relatório Executivo Completo — Cockpit");
 }
 function cockpitBaixarRelatorioExecutivo() {
   const h = cockpitGerarHTMLExport(true);
   if (h) baixarArquivo(h, `relatorio_executivo_completo_${dataHoje()}.html`, "text/html;charset=utf-8;");
+}
+
+// ---------------------------------------------------------------------------
+// Gráfico de Evolução (Criação 10)
+// ---------------------------------------------------------------------------
+let graficoCockpitInstance = null;
+function cockpitRenderizarGrafico(c) {
+  const ctx = document.getElementById("graficoEvolucaoPipeline");
+  if (!ctx || !window.Chart) return;
+  
+  // Agrupar fechamentos por dia do mês atual
+  const ganhosMes = c.resultadoMesFechado || (c.deals || []).filter(d => d._SEMANTICA === "success" && dentroPeriodoCatalogo(d._FECHAMENTO, c.mes));
+  const diasMes = new Date(c.mes.hojeISO).getDate();
+  const dados = new Array(diasMes).fill(0);
+  ganhosMes.forEach(d => {
+    const dia = parseInt(d._FECHAMENTO.split("-")[2], 10);
+    if (dia >= 1 && dia <= diasMes) dados[dia-1] += d._VALOR;
+  });
+  
+  const acumulado = [];
+  let soma = 0;
+  for (let i = 0; i < diasMes; i++) {
+    soma += dados[i];
+    acumulado.push(soma);
+  }
+  
+  const labels = Array.from({length: diasMes}, (_, i) => `${i+1}`);
+  const metaLinha = new Array(diasMes).fill(c.resultadoMes.metaMensal || 0);
+
+  if (graficoCockpitInstance) graficoCockpitInstance.destroy();
+  graficoCockpitInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Fechado Acumulado (R$)', data: acumulado, borderColor: '#053eff', backgroundColor: 'rgba(5, 62, 255, 0.1)', fill: true, tension: 0.1 },
+        { label: 'Meta Mensal', data: metaLinha, borderColor: '#ccc', borderDash: [5, 5], fill: false, pointRadius: 0 }
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Metas Desdobradas (Criação 5)
+// ---------------------------------------------------------------------------
+function cockpitRenderizarMetasDesdobradas(c) {
+  const tbody = document.getElementById("cockpitMetasDesdobradasTabela");
+  const elGlobal = document.getElementById("metaGlobalDesdobramento");
+  if (!tbody || !elGlobal) return;
+  
+  const metaGlobal = c.resultadoMes.metaMensal || 0;
+  elGlobal.textContent = moedaRelatorio(metaGlobal);
+  
+  const ganhosMes = c.resultadoMesFechado || (c.deals || []).filter(d => d._SEMANTICA === "success" && dentroPeriodoCatalogo(d._FECHAMENTO, c.mes));
+  
+  // Agrupar por vendedor
+  const vendasVendedor = {};
+  ganhosMes.forEach(d => {
+    const v = d._RESPONSAVEL || "Desconhecido";
+    vendasVendedor[v] = (vendasVendedor[v] || 0) + d._VALOR;
+  });
+  const vendedores = [...new Set((c.deals || []).map(d => d._RESPONSAVEL || "Desconhecido"))];
+  
+  let salvo = {};
+  try { salvo = JSON.parse(localStorage.getItem("atlas-metas-desdobradas")) || {}; } catch(e){}
+  
+  let html = "";
+  vendedores.forEach((v, i) => {
+    const fechado = vendasVendedor[v] || 0;
+    const atribuida = salvo[v] || (metaGlobal > 0 ? (metaGlobal / vendedores.length) : 0);
+    const pct = atribuida > 0 ? ((fechado / atribuida) * 100).toFixed(1) + "%" : "—";
+    html += `<tr>
+      <td>${escapeHtmlRelatorio(v)}</td>
+      <td><input type="number" class="meta-vendedor" data-vendedor="${escapeHtmlRelatorio(v)}" value="${atribuida.toFixed(2)}" style="width:120px; padding:4px;"></td>
+      <td>${moedaRelatorio(fechado)}</td>
+      <td><span class="${parseFloat(pct)>=100 ? 'badge-relatorio ok' : ''}">${pct}</span></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || "<tr><td colspan='4'>Nenhum vendedor listado.</td></tr>";
+}
+
+window.cockpitSalvarMetasIndividuais = function() {
+  const inputs = document.querySelectorAll(".meta-vendedor");
+  const metas = {};
+  inputs.forEach(i => { metas[i.dataset.vendedor] = parseFloat(i.value) || 0; });
+  try { localStorage.setItem("atlas-metas-desdobradas", JSON.stringify(metas)); } catch(e){}
+  atualizarStatus("Metas individuais salvas localmente!");
+  setTimeout(() => renderizarCockpit(), 500);
+};
+
+// ---------------------------------------------------------------------------
+// Customização de Layout Drag & Drop (Criação 8)
+// ---------------------------------------------------------------------------
+function initDragAndDrop() {
+  const container = document.querySelector('.cockpit-executivo');
+  if (!container) return;
+  
+  const draggables = document.querySelectorAll('.draggable-card');
+  draggables.forEach(drg => {
+    drg.addEventListener('dragstart', () => { drg.classList.add('dragging'); });
+    drg.addEventListener('dragend', () => {
+      drg.classList.remove('dragging');
+      salvarOrdemLayout();
+    });
+  });
+
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(container, e.clientY);
+    const draggable = document.querySelector('.dragging');
+    if (draggable) {
+      if (afterElement == null) {
+        container.appendChild(draggable);
+      } else {
+        container.insertBefore(draggable, afterElement);
+      }
+    }
+  });
+
+  restaurarOrdemLayout();
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.draggable-card:not(.dragging)')];
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function salvarOrdemLayout() {
+  const container = document.querySelector('.cockpit-executivo');
+  if (!container) return;
+  const ids = [...container.querySelectorAll('.draggable-card')].map(el => el.id);
+  try { localStorage.setItem('atlas-layout-ordem', JSON.stringify(ids)); } catch(e){}
+}
+
+function restaurarOrdemLayout() {
+  try {
+    const salvo = JSON.parse(localStorage.getItem('atlas-layout-ordem'));
+    if (!salvo) return;
+    const container = document.querySelector('.cockpit-executivo');
+    if (!container) return;
+    salvo.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) container.appendChild(el);
+    });
+  } catch(e){}
 }

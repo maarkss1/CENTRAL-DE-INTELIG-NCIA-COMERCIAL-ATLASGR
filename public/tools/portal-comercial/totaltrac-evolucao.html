@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-empresa="totaltrac">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Total Trac — Evolução do Forecast</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial Total Trac</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" style="height:64px;width:auto;">
+        <g transform="translate(2,4)">
+          <path d="M52 0C27 0 7 19 7 43c0 30 45 71 45 71s45-41 45-71C97 19 77 0 52 0z" fill="#93DBF2"/>
+          <circle cx="52" cy="43" r="15" fill="#ffffff"/>
+          <circle cx="52" cy="43" r="6.5" fill="#374898"/>
+          <path d="M52 20a24 24 0 0 1 24 20" stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+          <path d="M52 31a13 13 0 0 1 13 11" stroke="#ffffff" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text x="122" y="76" font-family="Poppins, Arial, sans-serif" font-weight="800" font-size="54"><tspan fill="#374898">TOTAL</tspan><tspan fill="#008FCE">TRAC</tspan></text>
+      </svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Conectar para cuidar · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">Total Trac · Bitrix24 · v10.0 · Evolução</div>
+      <h1>Evolução do Forecast.</h1>
+      <p>Cada extração do Forecast feita nesta ferramenta grava uma "foto" de meta, fechado e projeção neste navegador. Esta página junta esse histórico e mostra a evolução ao longo do tempo — sem precisar reextrair nada.</p>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="totaltrac-home.html">Início</a><a href="totaltrac-cockpit.html">Cockpit Executivo</a><a href="totaltrac-forecast.html">Relatórios Comerciais</a><a href="totaltrac-sdr.html">SDR &amp; Operação</a><a href="totaltrac-extracao.html">Extração &amp; Diagnóstico</a><a href="totaltrac-evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <div class="card">
+    <h2>📊 De onde vêm os dados</h2>
+    <div class="evolucao-fontes">
+      <span>💻 <strong>Local</strong> — gravado neste navegador sempre que você extrai o Forecast (semanal ou o "Forecast mensal" do catálogo) por aqui. Só aparece neste navegador/dispositivo.</span>
+      <span>A Total Trac ainda não tem a automação semanal (GitHub Actions) configurada — diferente da AtlasGR, esta página só mostra o histórico local, gravado neste navegador a cada extração.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="resultado-header">
+      <h2>📈 Evolução: Fechado, Projeção e Meta mensal</h2>
+      <button type="button" class="secundario" onclick="iniciarPaginaEvolucao()">↻ Atualizar agora</button>
+    </div>
+    <p class="rodape-nota" id="evolucaoStatus">Carregando histórico...</p>
+    <div class="evo-chart-box" id="evolucaoGrafico"></div>
+  </div>
+
+  <div class="card">
+    <h2>⚠️ Pontos de atenção (pipeline aberto)</h2>
+    <p class="rodape-nota" style="margin-top:-6px;">Disponível apenas quando a automação semanal do Forecast está configurada (hoje, só para a AtlasGR).</p>
+    <div id="evolucaoAtencao"></div>
+  </div>
+
+  <div class="card">
+    <h2>🗓️ Histórico detalhado</h2>
+    <div id="evolucaoTabela"></div>
+  </div>
+
+</main>
+
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  // Init específico desta página: carrega e desenha a evolução assim que a
+  // página abre (não depende de webhook nem de extração nesta sessão).
+  iniciarPaginaEvolucao();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-empresa="atlasgr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>AtlasGR — Portal Comercial · Bitrix24 v10.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+  // Aplica o tema salvo (ou o do sistema operacional) antes da primeira pintura,
+  // pra não piscar claro→escuro ao carregar. Preferência de tema não é credencial —
+  // pode ficar em localStorage. O webhook só persiste após ação explícita no botão Salvar webhook.
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial AtlasGR</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 800 174.78" xmlns="http://www.w3.org/2000/svg" fill="#FF5618"><path d="M403.66,171.69l-10-28.49h-57l-9.78,28.49H294.09L350.17,21.5h29.14L437.2,171.69ZM365,61.19l-18.66,53.73H383.9Z"/>
+        <path d="M494.61,145.14h13.58v26.55H487q-18.16,0-28.69-10.53t-10.53-28.89v-47h-21.4V78.88L472.8,32.47h4.35V61.31h31v24H477.65v43q0,8.08,4.39,12.47t12.57,4.39"/>
+        <rect x="529.49" y="21.5" width="29.84" height="150.2"/>
+        <path d="M670.83,61.12h22.36V171.49H669.73l-2.59-9.88q-15.07,13.17-35.73,13.17a58.64,58.64,0,0,1-29.64-7.58,54.09,54.09,0,0,1-20.76-21,60.29,60.29,0,0,1-7.48-29.89A59.58,59.58,0,0,1,581,86.61a53.89,53.89,0,0,1,20.76-20.85,58.92,58.92,0,0,1,29.64-7.54q21.06,0,36.23,13.47ZM612.3,137.91q8.54,8.63,21.51,8.63t21.5-8.58q8.54-8.58,8.54-21.66t-8.54-21.65q-8.52-8.58-21.5-8.59T612.3,94.7q-8.53,8.63-8.53,21.6t8.53,21.61"/>
+        <path d="M753.69,174.78q-20.75,0-33.48-10.82t-12.82-28.6h29q.11,7.09,5.14,10.88T754.89,150A20.3,20.3,0,0,0,766,147.14a9.17,9.17,0,0,0,4.54-8.18,7.43,7.43,0,0,0-1.55-4.69,11.43,11.43,0,0,0-4.84-3.35,43.86,43.86,0,0,0-6.48-2.09q-3.2-.75-8.39-1.65-4.68-.8-7.88-1.45t-7.73-1.94a44.3,44.3,0,0,1-7.64-2.85,43.08,43.08,0,0,1-6.54-4.14,23,23,0,0,1-5.49-5.74,29.62,29.62,0,0,1-3.39-7.63,34.21,34.21,0,0,1-1.35-9.88,31.18,31.18,0,0,1,12.28-25.5q12.27-9.82,32.13-9.83t32,10.13q12.07,10.13,12.17,26.7H769.56q-.09-6.49-4.44-9.78T752.9,82q-6.9,0-10.83,2.9a9.07,9.07,0,0,0-3.94,7.68,7.92,7.92,0,0,0,.64,3.25,5.9,5.9,0,0,0,2.3,2.49q1.65,1,3.09,1.8a22.06,22.06,0,0,0,4.39,1.49c2,.5,3.56.87,4.79,1.1l5.64,1q16.07,2.89,23.16,6,17.86,8,17.86,27.94,0,16.86-12.67,27t-33.64,10.12"/>
+        <polygon points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56"/>
+        <polygon points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94"/></svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Central de Inteligência Comercial · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">AtlasGR · Bitrix24 · v10.0 · Portal Comercial</div>
+      <h1>Extraia, entenda e atualize o CRM em um só lugar.</h1>
+      <p>Portal com páginas dedicadas: Cockpit Executivo, Relatórios Comerciais, SDR &amp; Operação e Extração &amp; Diagnóstico. Comece escolhendo o que você quer descobrir abaixo, ou use a navegação no topo.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="connection-pill" id="statusConexaoTopo"><span class="connection-dot"></span><span id="statusConexaoTexto">Conexão não testada</span></span>
+      <button type="button" class="hero-btn" onclick="testarConexaoBitrix()">Testar conexão</button>
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="home.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a><a href="evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <div class="cockpit-ticker" id="cockpitTicker" aria-live="polite">
+    <div class="cockpit-ticker-label"><span class="cockpit-ticker-dot"></span> Cockpit ao vivo</div>
+    <div class="cockpit-ticker-track-wrap">
+      <div class="cockpit-ticker-track" id="cockpitTickerTrack">
+        <span class="cockpit-ticker-item">Sem dados carregados nesta sessão — cole o webhook abaixo e clique em "Ver Cockpit completo", ou salve o webhook para o ticker atualizar sozinho a cada 5 minutos.</span>
+      </div>
+    </div>
+    <a href="cockpit.html" class="cockpit-ticker-link">Ver Cockpit completo →</a>
+  </div>
+
+  <div class="card" id="conexao">
+    <h2>🔑 Conexão rápida com o Bitrix</h2>
+    <p class="rodape-nota" style="margin-top:-6px;">Só é necessária para o ticker acima atualizar sozinho e para testar a conexão por aqui. Cada relatório abaixo também pede o webhook na própria página, se ainda não estiver salvo.</p>
+    <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
+    <input type="password" id="webhook" value="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <div class="row" style="margin-top:9px;align-items:center;">
+      <div class="webhook-actions">
+        <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+        <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
+        <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook fixo ativo</span></span>
+      </div>
+    </div>
+    <p class="rodape-nota">Webhook fixo padrão configurado para a AtlasGR. Se precisar usar uma credencial diferente, altere no campo acima ou salve no navegador.</p>
+  </div>
+
+  <section class="workspace-intro" id="inicio">
+    <div class="workspace-title">
+      <div><h2>Comece pelo que você quer descobrir</h2><p>Um card para cada relatório disponível. Clique em qualquer um para ir direto à Extração &amp; Diagnóstico já configurada com esse relatório e período — ou use os mini-portais de Relatórios Comerciais/SDR &amp; Operação na navegação acima, que já trazem alguns relatórios prontos na própria página.</p></div>
+      <button type="button" class="secundario" onclick="abrirAjuda('visaoGeral')">Como usar esta tela?</button>
+    </div>
+    <label for="buscaAtalhosRelatorios">Buscar relatório (nome, palavra-chave ou grupo)</label>
+    <input type="text" id="buscaAtalhosRelatorios" placeholder="Ex: forecast, SDR, pipeline, aging, clientes..." oninput="filtrarAtalhosRelatorios()">
+    <div id="atalhosRelatoriosGrupos"></div>
+    <p class="rodape-nota oculto" id="atalhosRelatoriosSemResultado">Nenhum relatório encontrado para esta busca.</p>
+  </section>
+
+</main>
+
+<div class="help-modal" id="helpModal" onclick="fecharAjudaPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitulo">
+    <div class="help-head"><div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Ajuda contextual</div><h3 id="helpTitulo">Como funciona</h3></div><button type="button" class="help-close" onclick="fecharAjuda()">×</button></div>
+    <div class="help-body" id="helpConteudo"></div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
