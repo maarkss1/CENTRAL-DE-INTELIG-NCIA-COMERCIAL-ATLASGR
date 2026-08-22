@@ -54,6 +54,10 @@ function sumMonthlyCosts(model: SellerModelAssumptions): number {
     );
 }
 
+function territoryHasHubEvidence(territory: TerritoryRecord): boolean {
+    return territory.evidenceIds.some((id) => id === 'hub-suitability' || id.startsWith('hub-suitability:'));
+}
+
 export function deriveTerritorySam(
     territory: TerritoryRecord,
     serviceableSharePct: number,
@@ -65,12 +69,24 @@ export function deriveTerritorySam(
     return Math.floor(tam * share);
 }
 
+/**
+ * O simulador pode calcular cenários exploratórios sobre territórios Core, mas não pode produzir
+ * `RECOMENDADO` enquanto a evidência territorial necessária à contratação final estiver faltando.
+ * Assim a proteção não depende apenas de um banner de UI.
+ */
 export function validateEconomicAssumptions(
     territory: TerritoryRecord,
     market: TerritoryMarketAssumptions,
     model: SellerModelAssumptions,
 ): string[] {
     const blockers: string[] = [];
+
+    if (territory.competition.censusStatus !== 'CENSO_COMPLETO') {
+        blockers.push(`Evidência competitiva pendente: censo está ${territory.competition.censusStatus.replaceAll('_', ' ')}; White Space final continua bloqueado.`);
+    }
+    if (!territoryHasHubEvidence(territory)) {
+        blockers.push('Hub Suitability pendente: a cidade-base ainda não possui evidência validada de conectividade e eficiência operacional.');
+    }
     if (territory.icp.total === null || territory.icp.total <= 0) {
         blockers.push('TAM territorial indisponível: o território não possui contas ICP observáveis.');
     }
