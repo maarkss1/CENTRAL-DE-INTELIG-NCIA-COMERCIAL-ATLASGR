@@ -28,7 +28,7 @@ export function MarketIntelligenceEconomics() {
         return <div role="alert" className="m-4 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800 md:m-7"><AlertTriangle className="mb-2 h-5 w-5" aria-hidden="true" />{error}</div>;
     }
     if (!manifest) {
-        return <div className="flex min-h-64 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando unit economics territorial...</div></div>;
+        return <div className="flex min-h-64 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-ink-2"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando unit economics territorial...</div></div>;
     }
     if (!territories.length) {
         return (
@@ -41,7 +41,7 @@ export function MarketIntelligenceEconomics() {
     }
 
     return (
-        <div className="bg-[#F7F7F5] p-4 md:p-7">
+        <div className="bg-bg p-4 md:p-7">
             <div className="mx-auto w-full max-w-[1600px] space-y-4">
                 {!manifest.decisionReady && (
                     <section
@@ -53,12 +53,12 @@ export function MarketIntelligenceEconomics() {
                             <div className="rounded-2xl bg-amber-100 p-2.5"><ShieldAlert className="h-5 w-5" aria-hidden="true" /></div>
                             <div className="min-w-0">
                                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-800">SIMULAÇÃO EXPLORATÓRIA · DECISÃO FINAL BLOQUEADA</p>
-                                <h2 className="mt-1 text-lg font-black text-[#333333]">Você pode testar a economia dos territórios Core, mas o resultado não autoriza a contratação.</h2>
-                                <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-700">
+                                <h2 className="mt-1 text-lg font-black text-amber-900">Você pode testar a economia dos territórios Core, mas o resultado não autoriza a contratação.</h2>
+                                <p className="mt-2 max-w-4xl text-sm leading-6 text-amber-900">
                                     Custos, ticket, margem, funil, SAM e política financeira continuam editáveis para planejamento. A ordem Vendedor 01/02/03 permanece bloqueada até White Space competitivo, qualidade da cidade-hub e demais gates executivos estarem completos.
                                 </p>
                                 {manifest.decisionBlockers.length > 0 && (
-                                    <ul className="mt-3 grid gap-2 text-xs leading-5 text-slate-700 md:grid-cols-2">
+                                    <ul className="mt-3 grid gap-2 text-xs leading-5 text-amber-900 md:grid-cols-2">
                                         {manifest.decisionBlockers.map((blocker) => <li key={blocker} className="rounded-xl border border-amber-200/70 bg-white/70 p-3">• {blocker}</li>)}
                                     </ul>
                                 )}

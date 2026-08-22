@@ -123,7 +123,7 @@ function CapabilityCard({ title, capability, icon: Icon }: { title: string; capa
     ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
     : partial
       ? 'border-amber-200 bg-amber-50 text-amber-900'
-      : 'border-slate-200 bg-slate-50 text-slate-700';
+      : 'border-line bg-surface-2 text-ink';
 
   return (
     <article className={`rounded-2xl border p-4 ${tone}`}>
@@ -193,11 +193,11 @@ export function LdrAccountIntelligence() {
         </div>
       </header>
 
-      <form onSubmit={submit} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form onSubmit={submit} className="rounded-3xl border border-line bg-surface p-5 shadow-sm">
         <label className="block max-w-3xl">
-          <span className="text-xs font-black text-slate-700">CNPJ da empresa</span>
-          <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-brand">
-            <Search className="h-4 w-4 text-slate-400" />
+          <span className="text-xs font-black text-ink">CNPJ da empresa</span>
+          <div className="mt-1 flex items-center gap-2 rounded-xl border border-line px-3 focus-within:border-brand">
+            <Search className="h-4 w-4 text-ink-2" />
             <input
               value={draftCnpj}
               onChange={(event) => setDraftCnpj(event.target.value)}
@@ -219,35 +219,35 @@ export function LdrAccountIntelligence() {
       )}
 
       {!account && !error && !loading && (
-        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
+        <section className="rounded-3xl border border-dashed border-line bg-surface p-10 text-center">
           <FileSearch className="mx-auto h-9 w-9 text-brand" />
-          <h2 className="mt-3 text-xl font-black text-[#333333]">Account 360 aguardando uma empresa</h2>
-          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">Consulte um CNPJ real do catálogo. O LDR vai mostrar o que já sabe, o que é derivado e, principalmente, o que ainda não pode afirmar.</p>
+          <h2 className="mt-3 text-xl font-black text-ink">Account 360 aguardando uma empresa</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-2">Consulte um CNPJ real do catálogo. O LDR vai mostrar o que já sabe, o que é derivado e, principalmente, o que ainda não pode afirmar.</p>
         </section>
       )}
 
       {account && (
         <>
           <section className="grid gap-4 xl:grid-cols-[1.4fr_.6fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+            <article className="rounded-3xl border border-line bg-surface p-5 shadow-sm md:p-6">
               <div className="flex items-start gap-3">
                 <div className="rounded-2xl bg-orange-50 p-3 text-[#C43E0E]"><Building2 className="h-6 w-6" /></div>
                 <div className="min-w-0">
-                  <p className="font-mono text-xs font-bold text-slate-500">{formatCnpj(account.identity.cnpj)}</p>
-                  <h2 className="mt-1 text-2xl font-black text-[#333333]">{account.identity.legalName}</h2>
-                  <p className="mt-1 text-sm text-slate-600">{account.identity.tradeName || 'Sem nome fantasia'} · {label(account.identity.municipality)}{account.identity.uf ? `/${account.identity.uf}` : ''}</p>
+                  <p className="font-mono text-xs font-bold text-ink-2">{formatCnpj(account.identity.cnpj)}</p>
+                  <h2 className="mt-1 text-2xl font-black text-ink">{account.identity.legalName}</h2>
+                  <p className="mt-1 text-sm text-ink-2">{account.identity.tradeName || 'Sem nome fantasia'} · {label(account.identity.municipality)}{account.identity.uf ? `/${account.identity.uf}` : ''}</p>
                   <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.1em]">
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">{label(account.identity.registrationStatus)}</span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">{label(account.identity.branchType)}</span>
+                    <span className="rounded-full bg-surface-2 px-3 py-1.5 text-ink">{label(account.identity.registrationStatus)}</span>
+                    <span className="rounded-full bg-surface-2 px-3 py-1.5 text-ink">{label(account.identity.branchType)}</span>
                     <span className="rounded-full bg-orange-50 px-3 py-1.5 text-orange-800">ICP {label(account.qualification.icpTier)}</span>
                   </div>
                 </div>
               </div>
               <dl className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-2xl bg-slate-50 p-4"><dt className="text-[10px] font-black uppercase text-slate-500">CNAE</dt><dd className="mt-1 text-sm font-bold text-slate-800">{label(account.identity.primaryCnae)}</dd></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><dt className="text-[10px] font-black uppercase text-slate-500">Porte</dt><dd className="mt-1 text-sm font-bold text-slate-800">{label(account.identity.size)}</dd></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><dt className="text-[10px] font-black uppercase text-slate-500">Capital social</dt><dd className="mt-1 text-sm font-bold text-slate-800">{account.identity.capitalSocial ? money.format(Number(account.identity.capitalSocial)) : 'NÃO DISPONÍVEL'}</dd></div>
-                <div className="rounded-2xl bg-slate-50 p-4"><dt className="text-[10px] font-black uppercase text-slate-500">Competência</dt><dd className="mt-1 text-sm font-bold text-slate-800">{account.provenance.competencia}</dd></div>
+                <div className="rounded-2xl bg-surface-2 p-4"><dt className="text-[10px] font-black uppercase text-ink-2">CNAE</dt><dd className="mt-1 text-sm font-bold text-ink">{label(account.identity.primaryCnae)}</dd></div>
+                <div className="rounded-2xl bg-surface-2 p-4"><dt className="text-[10px] font-black uppercase text-ink-2">Porte</dt><dd className="mt-1 text-sm font-bold text-ink">{label(account.identity.size)}</dd></div>
+                <div className="rounded-2xl bg-surface-2 p-4"><dt className="text-[10px] font-black uppercase text-ink-2">Capital social</dt><dd className="mt-1 text-sm font-bold text-ink">{account.identity.capitalSocial ? money.format(Number(account.identity.capitalSocial)) : 'NÃO DISPONÍVEL'}</dd></div>
+                <div className="rounded-2xl bg-surface-2 p-4"><dt className="text-[10px] font-black uppercase text-ink-2">Competência</dt><dd className="mt-1 text-sm font-bold text-ink">{account.provenance.competencia}</dd></div>
               </dl>
             </article>
 
@@ -256,7 +256,7 @@ export function LdrAccountIntelligence() {
               <div className="mt-2 flex items-end gap-2"><span className="text-5xl font-black tracking-[-0.06em] text-[#C43E0E]">{scoreLabel(account.accountScore.total)}</span><span className="pb-1 text-xs font-bold text-orange-800">/100 · {account.accountScore.status}</span></div>
               <p className="mt-3 text-xs leading-5 text-orange-900">{account.accountScore.explanation}</p>
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                {Object.entries(account.accountScore.components).map(([key, value]) => <div key={key} className="rounded-xl bg-white/70 p-3"><div className="font-black uppercase text-orange-700">{key}</div><div className="mt-1 text-lg font-black text-slate-800">{scoreLabel(value)}</div></div>)}
+                {Object.entries(account.accountScore.components).map(([key, value]) => <div key={key} className="rounded-xl bg-white/70 p-3"><div className="font-black uppercase text-orange-700">{key}</div><div className="mt-1 text-lg font-black text-orange-900">{scoreLabel(value)}</div></div>)}
               </div>
             </article>
           </section>
@@ -268,15 +268,15 @@ export function LdrAccountIntelligence() {
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[1fr_.8fr]">
-            <article className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
-              <div className="flex items-center gap-2"><Target className="h-5 w-5 text-brand" /><h3 className="text-lg font-black text-[#333333]">Por que essa conta tem esse fit?</h3></div>
+            <article className="rounded-3xl border border-line bg-surface p-5 md:p-6">
+              <div className="flex items-center gap-2"><Target className="h-5 w-5 text-brand" /><h3 className="text-lg font-black text-ink">Por que essa conta tem esse fit?</h3></div>
               {account.qualification.reasons.length ? (
-                <ul className="mt-4 space-y-2 text-sm text-slate-700">{account.qualification.reasons.map((reason) => <li key={reason} className="rounded-xl bg-slate-50 px-3 py-2">{reason}</li>)}</ul>
-              ) : <p className="mt-3 text-sm text-slate-500">Razões ICP não foram publicadas para esta conta.</p>}
-              <p className="mt-4 text-xs text-slate-500">Taxonomia: {label(account.qualification.taxonomyVersion)} · Campos cadastrais: {account.provenance.companyFields} · ICP: {account.provenance.icp}</p>
+                <ul className="mt-4 space-y-2 text-sm text-ink">{account.qualification.reasons.map((reason) => <li key={reason} className="rounded-xl bg-surface-2 px-3 py-2">{reason}</li>)}</ul>
+              ) : <p className="mt-3 text-sm text-ink-2">Razões ICP não foram publicadas para esta conta.</p>}
+              <p className="mt-4 text-xs text-ink-2">Taxonomia: {label(account.qualification.taxonomyVersion)} · Campos cadastrais: {account.provenance.companyFields} · ICP: {account.provenance.icp}</p>
             </article>
 
-            <article className={`rounded-3xl border p-5 md:p-6 ${account.nextBestAction.status === 'READY' ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+            <article className={`rounded-3xl border p-5 md:p-6 ${account.nextBestAction.status === 'READY' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
               <div className="flex items-center gap-2"><Bot className="h-5 w-5" /><h3 className="text-lg font-black">Next Best Action</h3></div>
               <div className="mt-2 text-xs font-black uppercase tracking-[0.16em]">{account.nextBestAction.status}</div>
               <p className="mt-3 text-sm leading-6">{account.nextBestAction.message}</p>
@@ -284,15 +284,15 @@ export function LdrAccountIntelligence() {
             </article>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 md:p-6">
-            <div className="flex items-center gap-2"><Database className="h-5 w-5 text-brand" /><h3 className="font-black text-[#333333]">Proveniência e governança</h3></div>
+          <section className="rounded-3xl border border-line bg-surface p-5 md:p-6">
+            <div className="flex items-center gap-2"><Database className="h-5 w-5 text-brand" /><h3 className="font-black text-ink">Proveniência e governança</h3></div>
             <div className="mt-4 grid gap-3 text-xs md:grid-cols-4">
-              <div><div className="font-black text-slate-500">Fonte</div><div className="mt-1 text-slate-800">{account.provenance.source}</div></div>
-              <div><div className="font-black text-slate-500">Competência</div><div className="mt-1 text-slate-800">{account.provenance.competencia}</div></div>
-              <div><div className="font-black text-slate-500">Política de evidência</div><div className="mt-1 text-slate-800">{account.provenance.evidencePolicy}</div></div>
-              <div><div className="font-black text-slate-500">Contato público</div><div className="mt-1 text-slate-800">{account.provenance.publicContact}</div></div>
+              <div><div className="font-black text-ink-2">Fonte</div><div className="mt-1 text-ink">{account.provenance.source}</div></div>
+              <div><div className="font-black text-ink-2">Competência</div><div className="mt-1 text-ink">{account.provenance.competencia}</div></div>
+              <div><div className="font-black text-ink-2">Política de evidência</div><div className="mt-1 text-ink">{account.provenance.evidencePolicy}</div></div>
+              <div><div className="font-black text-ink-2">Contato público</div><div className="mt-1 text-ink">{account.provenance.publicContact}</div></div>
             </div>
-            {dataset && <p className="mt-4 text-xs text-slate-500">Snapshot ativo: {dataset.competencia} · {number.format(dataset.recordsImported)} importados · {number.format(dataset.recordsActive)} ativos.</p>}
+            {dataset && <p className="mt-4 text-xs text-ink-2">Snapshot ativo: {dataset.competencia} · {number.format(dataset.recordsImported)} importados · {number.format(dataset.recordsActive)} ativos.</p>}
           </section>
         </>
       )}
