@@ -51,7 +51,7 @@ export function ResetPasswordScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
+    <main className="min-h-screen bg-bg text-ink flex items-center justify-center relative overflow-hidden font-sans p-4 transition-colors">
       {/* Mesmo tratamento visual do LoginScreen (mesmo fluxo de auth) — metade laranja/metade azul
           com tokens estáticos em vez do indigo-500 genérico anterior. Ver LoginScreen.tsx. */}
       <motion.div
@@ -168,6 +168,6 @@ export function ResetPasswordScreen() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -81,7 +81,7 @@ export function ChatbookHub() {
                                 <div
                                     className={`max-w-[85%] p-4 rounded-2xl text-sm space-y-2 leading-relaxed shadow-md ${
                                         msg.sender === 'user'
-                                            ? 'bg-brand text-white rounded-br-none font-medium'
+                                            ? 'bg-brand-active text-white rounded-br-none font-medium'
                                             : 'bg-surface-2 text-ink border border-line rounded-bl-none'
                                     }`}
                                 >
@@ -116,7 +116,8 @@ export function ChatbookHub() {
                         <button
                             type="submit"
                             disabled={isSearching || !inputQuery.trim()}
-                            className="p-3 rounded-xl bg-brand text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors shrink-0"
+                            aria-label="Enviar mensagem"
+                            className="p-3 rounded-xl bg-brand-active text-white font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors shrink-0"
                         >
                             <Send className="w-5 h-5" />
                         </button>

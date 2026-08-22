@@ -5,7 +5,9 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-100",
+  // disabled:text-gray-600 (não gray-400) — gray-400 sobre disabled:bg-gray-200 dá só 2.1:1,
+  // abaixo do mínimo WCAG AA de 4.5:1 (achado real do axe-core, tests/e2e/accessibility.spec.ts).
+  "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 active:scale-[0.97] cursor-pointer disabled:pointer-events-none disabled:bg-gray-200 disabled:text-gray-600 disabled:opacity-100",
   {
     variants: {
       variant: {

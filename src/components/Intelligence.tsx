@@ -229,7 +229,7 @@ export function Intelligence() {
                                     </div>
                                     <button 
                                         onClick={() => setPickerOpen(true)} 
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-brand hover:text-white transition-colors shrink-0"
+                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-ink-2 hover:bg-brand-active hover:text-white transition-colors shrink-0"
                                         title="Trocar Lead"
                                     >
                                         <RefreshCw size={14} />
@@ -265,7 +265,7 @@ export function Intelligence() {
                                     <span className="text-[10px] tracking-widest font-bold uppercase text-ink-2 flex items-center gap-1">
                                         <Fingerprint size={12} /> Selecionar Alvo
                                     </span>
-                                    <button onClick={() => setPickerOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
+                                    <button onClick={() => setPickerOpen(false)} aria-label="Fechar" className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
                                 </div>
                                 <div className="relative mb-3">
                                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-2" />
@@ -416,14 +416,14 @@ export function Intelligence() {
                                     <span className="text-[10px] tracking-widest font-black uppercase text-brand flex items-center gap-1.5">
                                         <Swords size={14} /> {suggestedCompetitors.length ? 'Selecione o Concorrente' : 'Informe o Concorrente'}
                                     </span>
-                                    <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
+                                    <button onClick={() => { setCompetitorPickerOpen(false); setActiveTool(null); }} aria-label="Fechar" className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-2 text-ink-2"><X size={14} /></button>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {suggestedCompetitors.map((c) => (
                                         <button
                                             key={c}
                                             onClick={() => { setCompetitor(c); handleGenerate('competitor_battlecard', c); }}
-                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-line bg-surface text-ink-2 hover:border-brand hover:bg-brand hover:text-white transition-all shadow-sm"
+                                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-line bg-surface text-ink-2 hover:border-brand hover:bg-brand-active hover:text-white transition-all shadow-sm"
                                         >
                                             {c}
                                         </button>

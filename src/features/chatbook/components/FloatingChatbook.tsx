@@ -110,7 +110,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
               <button
                 onClick={() => setActiveTab('assistant')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'assistant' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'assistant' ? 'bg-brand-active text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <Globe className="w-4 h-4" /> Assistente IA
@@ -118,7 +118,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
               <button
                 onClick={() => setActiveTab('roleplay')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'roleplay' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'roleplay' ? 'bg-brand-active text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <User className="w-4 h-4" /> Roleplay Simulator
@@ -126,7 +126,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
               <button
                 onClick={() => setActiveTab('playbook')}
                 className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  activeTab === 'playbook' ? 'bg-brand text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
+                  activeTab === 'playbook' ? 'bg-brand-active text-white shadow-md font-extrabold' : 'text-ink-2 hover:text-ink'
                 }`}
               >
                 <Target className="w-4 h-4" /> Matrizes & Objeções
@@ -169,7 +169,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                       <div
                         className={`max-w-[88%] p-4 rounded-2xl text-xs space-y-2 leading-relaxed shadow-md ${
                           msg.sender === 'user'
-                            ? 'bg-brand text-white rounded-br-none font-medium'
+                            ? 'bg-brand-active text-white rounded-br-none font-medium'
                             : 'bg-surface-2 text-ink-2 border border-line rounded-bl-none'
                         }`}
                       >
@@ -205,7 +205,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                     onChange={(e) => setInputQuery(e.target.value)}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-surface-2 text-ink text-xs border border-line focus:outline-none focus:ring-1 focus:ring-brand"
                   />
-                  <Button type="submit" disabled={isSearching} size="sm" className="px-4 py-2.5 bg-brand text-white font-bold cursor-pointer">
+                  <Button type="submit" disabled={isSearching} size="sm" aria-label="Enviar mensagem" className="px-4 py-2.5 bg-brand-active text-white font-bold cursor-pointer">
                     <Send className="w-4 h-4" />
                   </Button>
                 </form>
@@ -351,7 +351,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                       <button
                         onClick={() => setPlaybookView('objections')}
                         className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                          playbookView === 'objections' ? 'bg-brand text-white' : 'text-ink-2 hover:text-ink'
+                          playbookView === 'objections' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'
                         }`}
                       >
                         Objeções
@@ -359,7 +359,7 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
                       <button
                         onClick={() => setPlaybookView('qualifications')}
                         className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                          playbookView === 'qualifications' ? 'bg-brand text-white' : 'text-ink-2 hover:text-ink'
+                          playbookView === 'qualifications' ? 'bg-brand-active text-white' : 'text-ink-2 hover:text-ink'
                         }`}
                       >
                         Qualificação

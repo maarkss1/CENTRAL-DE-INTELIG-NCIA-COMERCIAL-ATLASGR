@@ -74,11 +74,11 @@ export function CandidateCard({
                         {/* Tier de Fit é um sinal de negócio (score), não uma cor de marca — usa o
                             token semântico bg-warning/text-warning (mesmo já usado 2 linhas abaixo
                             pro badge de rating do Google), não atlas-yellow. */}
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success' : finalScore >= 45 ? 'bg-info/15 text-info' : 'bg-warning/15 text-warning'}`}>
+                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${finalScore >= 75 ? 'bg-success/15 text-success-active dark:text-success' : finalScore >= 45 ? 'bg-info/15 text-info-active dark:text-info' : 'bg-warning/15 text-warning-active dark:text-warning'}`}>
                             <TrendingUp size={10} /> Fit {finalScore}% {isEstimate && '(estimado)'}
                         </div>
                         {enrichment?.company.googleRating && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warning/10 text-warning border border-warning/30">
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-warning/10 text-warning-active dark:text-warning border border-warning/30">
                                 ⭐ {enrichment.company.googleRating} Google ({enrichment.company.googleReviewsCount})
                             </span>
                         )}
@@ -325,7 +325,7 @@ export function CandidateCard({
                         <button
                             onClick={onPromote}
                             disabled={isPromoting || isRejecting}
-                            className="bg-brand text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
+                            className="bg-brand-active text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:brightness-110 transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
                         >
                             {isPromoting ? <Loader2 className="animate-spin" size={15} /> : <ShieldCheck size={15} />}
                             {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer & Salvar no CRM'}

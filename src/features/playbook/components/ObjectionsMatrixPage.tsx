@@ -94,8 +94,8 @@ export function ObjectionsMatrixPage() {
                             <div key={item.id} className="bg-surface/80 p-6 rounded-2xl border border-line space-y-3 shadow-sm">
                                 <div className="flex items-center justify-between pb-3 border-b border-line flex-wrap gap-2">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger font-bold">{item.segment}</span>
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info font-bold">{item.persona}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger-active dark:text-danger font-bold">{item.segment}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info font-bold">{item.persona}</span>
                                     </div>
                                     <button
                                         onClick={() => handleCopy(item.responseScript, item.id)}
@@ -114,11 +114,11 @@ export function ObjectionsMatrixPage() {
                                 </div>
 
                                 <div className="p-4 rounded-xl bg-surface-2 border border-line">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-success block mb-1">Script de Contorno Recomendado</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-success-active dark:text-success block mb-1">Script de Contorno Recomendado</span>
                                     <p className="text-sm text-ink leading-relaxed font-medium">{item.responseScript}</p>
                                 </div>
 
-                                <p className="text-xs text-amber-500 font-bold">💡 Diferencial-chave: {item.keyDifferentiator}</p>
+                                <p className="text-xs text-warning-active dark:text-warning font-bold">💡 Diferencial-chave: {item.keyDifferentiator}</p>
                             </div>
                         ))
                     )}

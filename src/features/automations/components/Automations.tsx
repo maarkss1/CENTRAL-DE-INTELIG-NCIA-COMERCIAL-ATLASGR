@@ -345,8 +345,8 @@ export function Automations() {
                                     <p className="text-sm font-semibold text-ink truncate">{item.name}</p>
                                     <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                         item.enabled
-                                            ? 'bg-emerald-500/15 text-emerald-300'
-                                            : 'bg-slate-500/15 text-slate-400'
+                                            ? 'bg-ok/15 text-ok-active dark:text-ok'
+                                            : 'bg-surface-2 text-ink-2'
                                     }`}>
                                         {item.enabled ? 'ativa' : 'pausada'}
                                     </span>

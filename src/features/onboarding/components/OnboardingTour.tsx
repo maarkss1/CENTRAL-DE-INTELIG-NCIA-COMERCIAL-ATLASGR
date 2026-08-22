@@ -141,7 +141,7 @@ export function OnboardingTour() {
             </button>
             <Button
               onClick={handleNext}
-              className={`${isAtlas ? 'bg-brand hover:bg-orange-600' : 'bg-brand-2 hover:bg-sky-600'} text-white shadow-lg`}
+              className={`${isAtlas ? 'bg-brand-active hover:bg-orange-600' : 'bg-brand-2-active hover:bg-sky-600'} text-white shadow-lg`}
             >
               {currentStep === steps.length - 1 ? 'Começar' : 'Avançar'} <ChevronRight size={16} className="ml-1" />
             </Button>
