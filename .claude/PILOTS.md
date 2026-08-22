@@ -368,3 +368,62 @@ entrada nova.
   (só `--color-info` existe) — provavelmente renderiza sem cor de fundo no estado ativo. Pré-
   existente, não introduzido por este piloto; o botão novo "Ferramentas" usou `bg-info` (classe
   real) para não repetir o mesmo problema.
+
+## Pilot 005 — Market Intelligence, módulo inteiro nunca reagia a dark mode
+
+- **Objetivo**: continuação do Onda 4 (piloto de navegação/tipografia/multibrand, PR #232, já
+  mergeado) — resolver o achado documentado como "fora do escopo" naquela rodada:
+  `text-[#333333]` hardcoded (51 ocorrências) no módulo Market Intelligence. Investigação mostrou
+  que o achado real era bem maior: as 8 telas do módulo (`src/pages/MarketIntelligence.tsx` +
+  7 componentes em `src/features/market-intelligence/components/`) tinham **~330 ocorrências**
+  de `bg-white`/`bg-slate-*`/`border-slate-*`/`text-slate-*` cruas — o módulo inteiro nunca
+  reagia à troca de tema, só ao texto. Achado agravado por `ThemeContext.tsx` ter `dark` como
+  tema **default** (`localStorage.getItem('atlas_theme') || 'dark'`) — a maioria dos usuários via
+  esse módulo como um bloco branco cru dentro de um app escuro.
+- **Escopo mantido deliberadamente restrito**: 2 arquivos com estética escura permanente e
+  proposital (`LeadApprovalDeck.tsx` — deck estilo cartão/gamificado; `Account360.tsx` — usa
+  `bg-white/N`/`border-white/N` translúcidos sobre fundo escuro fixo) foram excluídos da migração
+  — não é o mesmo bug (não reagir a tema), é uma escolha de composição consistente que reagir
+  quebraria. `bg-[#333333]` (cabeçalhos/botões escuros fixos, ex. `MarketIntelligenceApp.tsx`) e
+  cores semânticas de status já pareadas (`bg-emerald-50 text-emerald-800` etc., em `statusTone`/
+  `CALIBRATION_TONE`/badges de ICP) também ficaram de fora — já eram internamente consistentes.
+- **Bug real introduzido pela própria migração mecânica, encontrado só em QA visual**: um
+  find-replace ingênuo de `text-slate-700`/`text-[#333333]` → `text-ink` quebra qualquer painel
+  com fundo semântico fixo e claro (ex. `bg-amber-50` de um banner "decisão bloqueada por
+  governança") — `--ink` vira quase-branco no dark mode, ficando ilegível sobre um fundo que
+  nunca escurece. Mesmo problema, mais sutil, com `bg-white/N`→`bg-surface/N` dentro de cabeçalhos
+  permanentemente escuros (`bg-[#333333]`): a "sombra" translúcida vira quase-preta sobre
+  quase-preto. Achado sistematicamente via screenshot real (Playwright, luz e escuro) em vez de
+  só leitura de diff — regex por si só não distingue "texto neutro sobre superfície neutra" de
+  "texto neutro sobre painel semântico fixo". Corrigido revertendo os pontos afetados para tons
+  semânticos fixos (`text-amber-900`, `bg-white/70`/`bg-white/5`) pareados com o fundo que também
+  não reage.
+- **Bug real e pré-existente encontrado pelo axe-core, não pela migração**: a aba ativa do seletor
+  em `src/pages/MarketIntelligence.tsx` (Territorial/Economia/Empresas/LDR) usava `bg-white
+  text-[#C43E0E]` — ao virar `bg-surface text-[#C43E0E]` (tema-reativo), `#C43E0E` sobre
+  `--surface` escuro mede 3.57:1, abaixo do mínimo AA. Não era bug pré-existente por acaso: no
+  tema claro original o par já funcionava (laranja sobre branco), e só ficou mensurável ao virar
+  reativo. Corrigido trocando para o padrão já estabelecido no restante do app para "aba ativa"
+  (`bg-brand-active text-white`, mesmo token usado em `Sidebar.tsx`/`MarketIntelligenceApp.tsx`) —
+  também tokeniza a marca (bônus: reage a Total Trac, que a versão anterior não fazia).
+  `tests/e2e/accessibility.spec.ts` (specc "Market Intelligence não tem violações críticas/sérias")
+  pegou isso automaticamente; sem essa suíte, o bug teria passado despercebido de novo.
+- **`bg-[#F7F7F5]` (fundo de página, 3 ocorrências) → `bg-bg`**: valor hexadecimal a 1 dígito de
+  distância do token `--bg` (`#F8F9FA`) já existente — quase certamente uma cópia manual do valor
+  em vez do token. Corrigido como tokenização real, não só como parte do bug de contraste.
+- **Validação**: `npm run lint`/`tsc -b --noEmit`/`npm run build` limpos; screenshots reais via
+  Playwright (`chromium-1194` pré-instalado, `PLAYWRIGHT_CHROMIUM_EXECUTABLE`) nas 4 abas do
+  módulo em claro e escuro, inspecionadas visualmente antes e depois de cada correção;
+  `tests/e2e/accessibility.spec.ts` (6/6, incl. Market Intelligence — pegou o bug de contraste da
+  aba ativa), `tests/e2e/market-intelligence.spec.ts` (8/8), `tests/e2e/mobile-sweep.spec.ts` +
+  `crm-kanban-mobile.spec.ts` (6/6), `tests/e2e/crm.spec.ts` + `command-palette.spec.ts` (9/9) —
+  todos verdes depois da mudança.
+- **Aprendizados incorporados à constituição**:
+  - `design-system/SKILL.md` — migração mecânica de token de tema (`text-slate-*`→`text-ink`)
+    exige checar, painel por painel, se o fundo que envolve o texto também vai reagir ao tema; um
+    regex cego cria contraste quebrado em vez de resolvê-lo quando fundo e texto reagem em
+    velocidades diferentes.
+  - `visual-qa/SKILL.md` — reforça o precedente já registrado no Piloto 003 (Centro de Decisão) de
+    que contraste precisa de verificação real (screenshot/axe-core) nos dois temas, não inferência
+    de código; aqui o achado foi automatizado (axe-core pegou a aba ativa) e visual (screenshot
+    pegou o banner de governança) em conjunto.

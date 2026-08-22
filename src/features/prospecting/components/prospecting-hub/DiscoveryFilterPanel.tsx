@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Loader2, Cpu, Database, SlidersHorizontal, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import type { ProspectCriteria } from '../../services/prospecting.service';
-import { PORTE_OPTIONS, TECNOLOGIA_OPTIONS } from '../../../../shared/constants/icp-options';
+import { PORTE_OPTIONS, TECNOLOGIA_OPTIONS, ESTADO_OPTIONS, QUANTIDADE_LEADS_OPTIONS } from '../../../../shared/constants/icp-options';
 import { fadeIn } from '../../../../lib/motion';
 
 type PersonaOption = { label: string; nivel: string; titles: string; seniorities: readonly string[] };
@@ -60,18 +60,14 @@ export function DiscoveryFilterPanel({
 
                     <div>
                         <label htmlFor="discovery-segmento" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Segmento</label>
-                        <input
+                        <select
                             id="discovery-segmento"
-                            type="text"
-                            list="segmento-suggestions"
-                            placeholder="Ex: Transportadora / Frotista, Logística..."
-                            className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                            className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                             value={criteria.segmento || ''}
                             onChange={(e) => setCriteria({ ...criteria, segmento: e.target.value })}
-                        />
-                        <datalist id="segmento-suggestions">
-                            {activeSegments.map((seg) => <option key={seg} value={seg} />)}
-                        </datalist>
+                        >
+                            {activeSegments.map((seg) => <option key={seg} value={seg}>{seg}</option>)}
+                        </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -102,11 +98,9 @@ export function DiscoveryFilterPanel({
                     <div className="grid grid-cols-2 gap-2">
                         <div>
                             <label htmlFor="discovery-estado" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Estado</label>
-                            <input
+                            <select
                                 id="discovery-estado"
-                                type="text"
-                                placeholder="Ex: São Paulo, SP, Sul..."
-                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                                 value={criteria.estado || ''}
                                 onChange={(e) => {
                                     const estado = e.target.value;
@@ -116,30 +110,46 @@ export function DiscoveryFilterPanel({
                                         localizacao: criteria.cidade ? `${criteria.cidade}, ${estado}` : estado || criteria.localizacao
                                     });
                                 }}
-                            />
+                            >
+                                <option value="">Todos os estados</option>
+                                {ESTADO_OPTIONS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                            </select>
                         </div>
                         <div>
                             <label htmlFor="discovery-cidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Cidade (opcional)</label>
-                            <input
-                                id="discovery-cidade"
-                                type="text"
-                                list="cidade-suggestions"
-                                placeholder="Ex: Campinas, Santos..."
-                                className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
-                                value={criteria.cidade || ''}
-                                onChange={(e) => {
-                                    const cidade = e.target.value;
-                                    setCriteria({
-                                        ...criteria,
-                                        cidade,
-                                        localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
-                                    });
-                                }}
-                            />
-                            {cities.length > 0 && (
-                                <datalist id="cidade-suggestions">
-                                    {cities.map((city) => <option key={city} value={city} />)}
-                                </datalist>
+                            {cities.length > 0 ? (
+                                <select
+                                    id="discovery-cidade"
+                                    className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
+                                    value={criteria.cidade || ''}
+                                    onChange={(e) => {
+                                        const cidade = e.target.value;
+                                        setCriteria({
+                                            ...criteria,
+                                            cidade: cidade || undefined,
+                                            localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
+                                        });
+                                    }}
+                                >
+                                    <option value="">Todas as cidades</option>
+                                    {cities.map((city) => <option key={city} value={city}>{city}</option>)}
+                                </select>
+                            ) : (
+                                <input
+                                    id="discovery-cidade"
+                                    type="text"
+                                    placeholder="Selecione um estado..."
+                                    className="w-full p-3 bg-surface rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                                    value={criteria.cidade || ''}
+                                    onChange={(e) => {
+                                        const cidade = e.target.value;
+                                        setCriteria({
+                                            ...criteria,
+                                            cidade,
+                                            localizacao: cidade ? (criteria.estado ? `${cidade}, ${criteria.estado}` : cidade) : criteria.estado || ''
+                                        });
+                                    }}
+                                />
                             )}
                         </div>
                     </div>
@@ -292,16 +302,14 @@ export function DiscoveryFilterPanel({
 
                 <div>
                     <label htmlFor="discovery-quantidade" className="block text-[10px] tracking-wider font-bold uppercase mb-1.5 text-ink-2">Quantidade de Leads</label>
-                    <input
+                    <select
                         id="discovery-quantidade"
-                        type="number"
-                        min={1}
-                        max={20}
-                        placeholder="Ex: 10, 15, 20..."
-                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink placeholder-ink-2"
+                        className="w-full p-3 bg-surface-2 rounded-xl border border-line outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all text-sm font-medium text-ink"
                         value={criteria.quantidade ?? 20}
-                        onChange={(e) => setCriteria({ ...criteria, quantidade: Math.min(20, Number(e.target.value) || 20) })}
-                    />
+                        onChange={(e) => setCriteria({ ...criteria, quantidade: Number(e.target.value) })}
+                    >
+                        {QUANTIDADE_LEADS_OPTIONS.map((qtd) => <option key={qtd} value={qtd}>{qtd}</option>)}
+                    </select>
                     <p className="text-[10px] text-ink-2 mt-1">Máximo 20 — priorizamos qualidade (CNPJ, decisores e notícias em todos os leads) em vez de volume.</p>
                 </div>
 

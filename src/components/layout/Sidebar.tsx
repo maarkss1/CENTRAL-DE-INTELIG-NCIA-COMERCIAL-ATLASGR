@@ -37,6 +37,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     const administrationItems: TabType[] = [
         'notifications',
+        'bitrix',
         ...(isAdmin ? (['integrations', 'automations', 'usage', 'team'] as TabType[]) : []),
         'settings',
     ];
@@ -51,6 +52,9 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         { title: 'Fechar', items: ['crm', 'crm360', 'propostas'] },
         { title: 'Analisar', items: analyzeItems },
         {
+            // Guia Bitrix24 saiu daqui: é referência estática de mapeamento de campos, não gera
+            // nada com IA — morava aqui só por associação de nome com o resto do grupo. Agora fica
+            // em Administração, ao lado de Integrações, onde a função real dele pertence.
             title: 'IA & Capacitação',
             items: [
                 'intelligence',
@@ -60,7 +64,6 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 'topic_training',
                 'knowledge',
                 'editor',
-                'bitrix',
             ],
         },
         { title: 'Administração', items: administrationItems },

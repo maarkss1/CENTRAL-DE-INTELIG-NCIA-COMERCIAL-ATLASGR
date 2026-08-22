@@ -264,16 +264,16 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
 
     return (
         <section className="space-y-4" aria-labelledby="territory-economics-title">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
+            <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Unit Economics territorial · v1.4</p>
-                        <h2 id="territory-economics-title" className="mt-1 text-2xl font-black tracking-tight text-[#333333]">O território paga a contratação?</h2>
-                        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">O mapa define o TAM ICP observado. O CRM pode calibrar ticket ganho, Win Rate e Sales Cycle com histórico real. SAM, margem, custos, capacidade e política financeira continuam explícitos.</p>
+                        <h2 id="territory-economics-title" className="mt-1 text-2xl font-black tracking-tight text-ink">O território paga a contratação?</h2>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">O mapa define o TAM ICP observado. O CRM pode calibrar ticket ganho, Win Rate e Sales Cycle com histórico real. SAM, margem, custos, capacidade e política financeira continuam explícitos.</p>
                     </div>
-                    <label className="min-w-[280px] text-xs font-bold text-slate-600">
+                    <label className="min-w-[280px] text-xs font-bold text-ink-2">
                         Território analisado
-                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => { setSelectedTerritoryId(event.target.value); setRestoredSnapshotLabel(null); }} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#333333] outline-none focus:ring-2 focus:ring-[#FF5618]">
+                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => { setSelectedTerritoryId(event.target.value); setRestoredSnapshotLabel(null); }} className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-bold text-ink outline-none focus:ring-2 focus:ring-[#FF5618]">
                             {territories.map((territory, index) => (
                                 <option key={territory.id} value={territory.id}>#{index + 1} {territory.baseCity}/{territory.uf} · {territory.radiusKm} km</option>
                             ))}
@@ -282,28 +282,28 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                 </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><MapPinned className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">Prioridade territorial</p><p className="mt-1 text-xl font-black text-[#333333]">{selectedTerritory.opportunityScore?.toFixed(1) ?? 'N/A'}</p><p className="text-xs text-slate-500">Confiança {selectedTerritory.confidence}</p></article>
-                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><ShieldCheck className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">TAM ICP observado</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.tamAccounts === null ? 'N/A' : integer.format(assessment.tamAccounts)}</p><p className="text-xs text-slate-500">Não é SAM automático</p></article>
-                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><Calculator className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">SAM derivado</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.samAccounts === null ? 'PENDENTE' : integer.format(assessment.samAccounts)}</p><p className="text-xs text-slate-500">TAM × % atendível</p></article>
-                    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><CircleDollarSign className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-slate-500">SOM máximo</p><p className="mt-1 text-xl font-black text-[#333333]">{assessment.economics.maximumCaptureContracts ?? 'PENDENTE'}</p><p className="text-xs text-slate-500">SAM × penetração</p></article>
+                    <article className="rounded-2xl border border-line bg-surface-2 p-4"><MapPinned className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-ink-2">Prioridade territorial</p><p className="mt-1 text-xl font-black text-ink">{selectedTerritory.opportunityScore?.toFixed(1) ?? 'N/A'}</p><p className="text-xs text-ink-2">Confiança {selectedTerritory.confidence}</p></article>
+                    <article className="rounded-2xl border border-line bg-surface-2 p-4"><ShieldCheck className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-ink-2">TAM ICP observado</p><p className="mt-1 text-xl font-black text-ink">{assessment.tamAccounts === null ? 'N/A' : integer.format(assessment.tamAccounts)}</p><p className="text-xs text-ink-2">Não é SAM automático</p></article>
+                    <article className="rounded-2xl border border-line bg-surface-2 p-4"><Calculator className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-ink-2">SAM derivado</p><p className="mt-1 text-xl font-black text-ink">{assessment.samAccounts === null ? 'PENDENTE' : integer.format(assessment.samAccounts)}</p><p className="text-xs text-ink-2">TAM × % atendível</p></article>
+                    <article className="rounded-2xl border border-line bg-surface-2 p-4"><CircleDollarSign className="h-4 w-4 text-brand" aria-hidden="true" /><p className="mt-2 text-[10px] font-black uppercase text-ink-2">SOM máximo</p><p className="mt-1 text-xl font-black text-ink">{assessment.economics.maximumCaptureContracts ?? 'PENDENTE'}</p><p className="text-xs text-ink-2">SAM × penetração</p></article>
                 </div>
             </div>
 
             <EconomicScenarioAuditPanel input={auditInput} onLoad={loadSavedScenario} />
             {restoredSnapshotLabel && <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800"><strong>Snapshot reaberto:</strong> {restoredSnapshotLabel}. As premissas foram restauradas; para gravar uma nova versão com selo CRM, reaplique a calibração corrente.</div>}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7" aria-label="Calibração CRM">
+            <div className="rounded-3xl border border-line bg-surface p-5 md:p-7" aria-label="Calibração CRM">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex gap-3">
-                        <div className="rounded-2xl bg-slate-100 p-2.5 text-brand"><Database className="h-5 w-5" aria-hidden="true" /></div>
+                        <div className="rounded-2xl bg-surface-2 p-2.5 text-brand"><Database className="h-5 w-5" aria-hidden="true" /></div>
                         <div>
                             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Calibração CRM · 6 meses</p>
-                            <h3 className="mt-1 text-lg font-black text-[#333333]">Use o histórico real antes de digitar premissas comerciais</h3>
-                            <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">Fonte canônica: Comercial Inteligente / negócios fechados. A aplicação é manual e rastreável. Margem, churn, conversão reunião→oportunidade, produtividade e penetração não são preenchidos por esta calibração.</p>
+                            <h3 className="mt-1 text-lg font-black text-ink">Use o histórico real antes de digitar premissas comerciais</h3>
+                            <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-2">Fonte canônica: Comercial Inteligente / negócios fechados. A aplicação é manual e rastreável. Margem, churn, conversão reunião→oportunidade, produtividade e penetração não são preenchidos por esta calibração.</p>
                         </div>
                     </div>
                     {calibrationLoading ? (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />Lendo CRM...</span>
+                        <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-3 py-2 text-xs font-bold text-ink-2"><Loader2 className="h-4 w-4 animate-spin" />Lendo CRM...</span>
                     ) : crmCalibration ? (
                         <span className={`rounded-full border px-3 py-2 text-xs font-black ${CALIBRATION_TONE[crmCalibration.quality]}`}>CONFIANÇA {crmCalibration.quality}</span>
                     ) : null}
@@ -313,13 +313,13 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                 {crmCalibration && (
                     <div className="mt-5 space-y-4">
                         <div className="grid gap-3 md:grid-cols-4">
-                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Amostra</p><p className="mt-1 text-xl font-black">{integer.format(crmCalibration.totalClosedSample)}</p><p className="text-xs text-slate-500">negócios fechados · {crmCalibration.monthsWithClosedSample} meses</p></article>
-                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Ticket ganho calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.averageMrrTicket === null ? 'N/A' : money.format(crmCalibration.recommended.averageMrrTicket)}</p><p className="text-xs text-slate-500">mediana dos tickets médios mensais</p></article>
-                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Win Rate calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.winRatePct === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.winRatePct)}%`}</p><p className="text-xs text-slate-500">ponderado por fechamentos</p></article>
-                            <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase text-slate-500">Sales Cycle calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.salesCycleDays === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.salesCycleDays)} dias`}</p><p className="text-xs text-slate-500">ponderado por fechamentos</p></article>
+                            <article className="rounded-2xl border border-line bg-surface-2 p-4"><p className="text-[10px] font-black uppercase text-ink-2">Amostra</p><p className="mt-1 text-xl font-black">{integer.format(crmCalibration.totalClosedSample)}</p><p className="text-xs text-ink-2">negócios fechados · {crmCalibration.monthsWithClosedSample} meses</p></article>
+                            <article className="rounded-2xl border border-line bg-surface-2 p-4"><p className="text-[10px] font-black uppercase text-ink-2">Ticket ganho calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.averageMrrTicket === null ? 'N/A' : money.format(crmCalibration.recommended.averageMrrTicket)}</p><p className="text-xs text-ink-2">mediana dos tickets médios mensais</p></article>
+                            <article className="rounded-2xl border border-line bg-surface-2 p-4"><p className="text-[10px] font-black uppercase text-ink-2">Win Rate calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.winRatePct === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.winRatePct)}%`}</p><p className="text-xs text-ink-2">ponderado por fechamentos</p></article>
+                            <article className="rounded-2xl border border-line bg-surface-2 p-4"><p className="text-[10px] font-black uppercase text-ink-2">Sales Cycle calibrado</p><p className="mt-1 text-xl font-black">{crmCalibration.recommended.salesCycleDays === null ? 'N/A' : `${decimal.format(crmCalibration.recommended.salesCycleDays)} dias`}</p><p className="text-xs text-ink-2">ponderado por fechamentos</p></article>
                         </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-xs text-slate-500">
+                            <div className="text-xs text-ink-2">
                                 Período: <strong>{crmCalibration.fromPeriod ?? 'N/A'} → {crmCalibration.toPeriod ?? 'N/A'}</strong>
                                 {calibrationApplied && <span className="ml-2 font-black text-emerald-700">✓ aplicado ao cenário atual</span>}
                             </div>
@@ -332,42 +332,42 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
 
             <div className="grid gap-4 xl:grid-cols-[1.35fr_.85fr]">
                 <div className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                        <h3 className="text-lg font-black text-[#333333]">Mercado atendível e investimento inicial</h3>
+                    <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                        <h3 className="text-lg font-black text-ink">Mercado atendível e investimento inicial</h3>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            <label className="text-xs font-bold text-slate-600">ICP territorial realmente atendível<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label="ICP territorial realmente atendível" type="number" min="0" max="100" step="any" value={serviceableSharePct} onChange={(event) => setServiceableSharePct(Math.max(0, Number(event.target.value) || 0))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" /><span className="text-[10px] text-slate-400">%</span></div></label>
-                            <label className="text-xs font-bold text-slate-600">Investimento inicial<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label="Investimento inicial" type="number" min="0" step="any" value={upfrontInvestment} onChange={(event) => setUpfrontInvestment(Math.max(0, Number(event.target.value) || 0))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" /></div><span className="mt-1 block text-[10px] font-normal text-slate-400">Recrutamento, onboarding, equipamento e outros custos únicos.</span></label>
+                            <label className="text-xs font-bold text-ink-2">ICP territorial realmente atendível<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label="ICP territorial realmente atendível" type="number" min="0" max="100" step="any" value={serviceableSharePct} onChange={(event) => setServiceableSharePct(Math.max(0, Number(event.target.value) || 0))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" /><span className="text-[10px] text-ink-2">%</span></div></label>
+                            <label className="text-xs font-bold text-ink-2">Investimento inicial<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label="Investimento inicial" type="number" min="0" step="any" value={upfrontInvestment} onChange={(event) => setUpfrontInvestment(Math.max(0, Number(event.target.value) || 0))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" /></div><span className="mt-1 block text-[10px] font-normal text-ink-2">Recrutamento, onboarding, equipamento e outros custos únicos.</span></label>
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                        <h3 className="text-lg font-black text-[#333333]">Custos mensais do vendedor</h3>
+                    <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                        <h3 className="text-lg font-black text-ink">Custos mensais do vendedor</h3>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {costFields.map((field) => <label key={field.key} className="text-xs font-bold text-slate-600">{field.label}<div className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="w-full bg-transparent py-2.5 text-sm outline-none" /></div></label>)}
+                            {costFields.map((field) => <label key={field.key} className="text-xs font-bold text-ink-2">{field.label}<div className="mt-1 rounded-xl border border-line bg-surface-2 px-3"><input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="w-full bg-transparent py-2.5 text-sm outline-none" /></div></label>)}
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                        <h3 className="text-lg font-black text-[#333333]">Receita, funil e retenção</h3>
+                    <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                        <h3 className="text-lg font-black text-ink">Receita, funil e retenção</h3>
                         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            {revenueFields.map((field) => <label key={field.key} className="text-xs font-bold text-slate-600">{field.label}<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" />{field.suffix && <span className="ml-2 text-[10px] text-slate-400">{field.suffix}</span>}</div></label>)}
+                            {revenueFields.map((field) => <label key={field.key} className="text-xs font-bold text-ink-2">{field.label}<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none" />{field.suffix && <span className="ml-2 text-[10px] text-ink-2">{field.suffix}</span>}</div></label>)}
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                        <h3 className="text-lg font-black text-[#333333]">Política para autorizar a contratação</h3>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">Sem política explícita, o sistema calcula os números, mas não emite “recomendado”.</p>
+                    <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                        <h3 className="text-lg font-black text-ink">Política para autorizar a contratação</h3>
+                        <p className="mt-1 text-xs leading-5 text-ink-2">Sem política explícita, o sistema calcula os números, mas não emite “recomendado”.</p>
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                            <label className="text-xs font-bold text-slate-600">Payback máximo<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label="Payback máximo" type="number" min="1" step="1" placeholder="PENDENTE" value={policy.maxPaybackMonths ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, maxPaybackMonths: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-slate-400" /><span className="text-[10px] text-slate-400">meses</span></div></label>
-                            <label className="text-xs font-bold text-slate-600">ROI mínimo em 12 meses<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label="ROI mínimo em 12 meses" type="number" step="any" placeholder="PENDENTE" value={policy.minRoi12Pct ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minRoi12Pct: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-slate-400" /><span className="text-[10px] text-slate-400">%</span></div></label>
-                            <label className="text-xs font-bold text-slate-600">ROI mínimo em 24 meses (opcional)<div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3"><input aria-label="ROI mínimo em 24 meses" type="number" step="any" placeholder="OPCIONAL" value={policy.minRoi24Pct ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minRoi24Pct: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-slate-400" /><span className="text-[10px] text-slate-400">%</span></div></label>
+                            <label className="text-xs font-bold text-ink-2">Payback máximo<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label="Payback máximo" type="number" min="1" step="1" placeholder="PENDENTE" value={policy.maxPaybackMonths ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, maxPaybackMonths: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-ink-2" /><span className="text-[10px] text-ink-2">meses</span></div></label>
+                            <label className="text-xs font-bold text-ink-2">ROI mínimo em 12 meses<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label="ROI mínimo em 12 meses" type="number" step="any" placeholder="PENDENTE" value={policy.minRoi12Pct ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minRoi12Pct: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-ink-2" /><span className="text-[10px] text-ink-2">%</span></div></label>
+                            <label className="text-xs font-bold text-ink-2">ROI mínimo em 24 meses (opcional)<div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3"><input aria-label="ROI mínimo em 24 meses" type="number" step="any" placeholder="OPCIONAL" value={policy.minRoi24Pct ?? ''} onChange={(event) => setPolicy((current) => ({ ...current, minRoi24Pct: nullableNumber(event.target.value) }))} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-ink-2" /><span className="text-[10px] text-ink-2">%</span></div></label>
                         </div>
                     </div>
                 </div>
 
                 <aside className="space-y-4">
-                    <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
-                        {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${scenario === item ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{SCENARIO_LABELS[item]}</button>)}
+                    <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5">
+                        {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${scenario === item ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface-2'}`}>{SCENARIO_LABELS[item]}</button>)}
                     </div>
 
                     <div className={`rounded-3xl border p-5 ${recommendationTone(assessment.recommendation)}`}>
@@ -392,9 +392,9 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                 </aside>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-                <div className="border-b border-slate-100 p-5"><h3 className="text-lg font-black text-[#333333]">Comparação econômica · Top 5 territorial</h3><p className="mt-1 text-xs text-slate-500">Custos e funil são mantidos iguais; cada território altera TAM, SAM, SOM e o desempate final pelo Opportunity Score.</p></div>
-                <div className="overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Território</th><th className="p-3">Score</th><th className="p-3">TAM</th><th className="p-3">SAM</th><th className="p-3">Payback</th><th className="p-3">ROI 12m</th><th className="p-3">Veredito</th></tr></thead><tbody>{comparison.map((item) => <tr key={item.territoryId} className="border-t border-slate-100"><td className="p-3 font-black text-[#333333]">{item.baseCity}/{item.uf}</td><td className="p-3">{item.opportunityScore?.toFixed(1) ?? 'N/A'}</td><td className="p-3">{item.tamAccounts === null ? 'N/A' : integer.format(item.tamAccounts)}</td><td className="p-3">{item.samAccounts === null ? 'PENDENTE' : integer.format(item.samAccounts)}</td><td className="p-3">{item.economics.paybackMonth === null ? 'N/A' : `${item.economics.paybackMonth}m`}</td><td className="p-3">{item.economics.roi12Pct === null ? 'N/A' : `${item.economics.roi12Pct.toFixed(0)}%`}</td><td className="p-3 font-black">{RECOMMENDATION_LABEL[item.recommendation]}</td></tr>)}</tbody></table></div>
+            <div className="overflow-hidden rounded-3xl border border-line bg-surface">
+                <div className="border-b border-line p-5"><h3 className="text-lg font-black text-ink">Comparação econômica · Top 5 territorial</h3><p className="mt-1 text-xs text-ink-2">Custos e funil são mantidos iguais; cada território altera TAM, SAM, SOM e o desempate final pelo Opportunity Score.</p></div>
+                <div className="overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Território</th><th className="p-3">Score</th><th className="p-3">TAM</th><th className="p-3">SAM</th><th className="p-3">Payback</th><th className="p-3">ROI 12m</th><th className="p-3">Veredito</th></tr></thead><tbody>{comparison.map((item) => <tr key={item.territoryId} className="border-t border-line"><td className="p-3 font-black text-ink">{item.baseCity}/{item.uf}</td><td className="p-3">{item.opportunityScore?.toFixed(1) ?? 'N/A'}</td><td className="p-3">{item.tamAccounts === null ? 'N/A' : integer.format(item.tamAccounts)}</td><td className="p-3">{item.samAccounts === null ? 'PENDENTE' : integer.format(item.samAccounts)}</td><td className="p-3">{item.economics.paybackMonth === null ? 'N/A' : `${item.economics.paybackMonth}m`}</td><td className="p-3">{item.economics.roi12Pct === null ? 'N/A' : `${item.economics.roi12Pct.toFixed(0)}%`}</td><td className="p-3 font-black">{RECOMMENDATION_LABEL[item.recommendation]}</td></tr>)}</tbody></table></div>
             </div>
         </section>
     );

@@ -77,7 +77,7 @@ function statusTone(status: string) {
     if (status === 'ATUALIZADO') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
     if (status === 'PARCIAL') return 'border-amber-200 bg-amber-50 text-amber-800';
     if (status === 'DESATUALIZADO') return 'border-rose-200 bg-rose-50 text-rose-700';
-    return 'border-slate-200 bg-slate-50 text-slate-600';
+    return 'border-line bg-surface-2 text-ink-2';
 }
 
 // MI-006 (Sprint 04/Onda 16): os workflows de dados rodam mensalmente (ver `on.schedule` em
@@ -118,15 +118,15 @@ function DecisionBlocked({ manifest }: { manifest: MarketIntelligenceManifest })
                 <div className="rounded-2xl bg-amber-100 p-2.5 text-amber-800"><AlertTriangle className="h-5 w-5" aria-hidden="true" /></div>
                 <div className="min-w-0">
                     <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-800">Decisão executiva bloqueada por governança</p>
-                    <h2 id="decision-blocked-title" className="mt-1 text-xl font-black tracking-tight text-[#333333]">
+                    <h2 id="decision-blocked-title" className="mt-1 text-xl font-black tracking-tight text-amber-900">
                         Ainda não há evidência suficiente para nomear o vendedor 01.
                     </h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-900">
                         O sistema não transforma ausência de dados em oportunidade. O ranking nacional só será liberado quando as camadas mínimas estiverem processadas e a confiança competitiva atender ao critério da metodologia.
                     </p>
                     <div className="mt-4 grid gap-2 md:grid-cols-2">
                         {manifest.decisionBlockers.map((blocker) => (
-                            <div key={blocker} className="flex gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-3 text-xs leading-5 text-slate-700">
+                            <div key={blocker} className="flex gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-3 text-xs leading-5 text-amber-900">
                                 <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                                 <span>{blocker}</span>
                             </div>
@@ -150,14 +150,14 @@ function BoardView({ manifest, territories }: { manifest: MarketIntelligenceMani
         <section className="space-y-3" aria-labelledby="board-title">
             <div>
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Board View</p>
-                <h2 id="board-title" className="text-2xl font-black tracking-tight text-[#333333]">Top 5 territórios calculados</h2>
+                <h2 id="board-title" className="text-2xl font-black tracking-tight text-ink">Top 5 territórios calculados</h2>
             </div>
             <div className="grid gap-3 xl:grid-cols-5">
                 {ranking.map((territory, index) => (
-                    <article key={territory.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <article key={territory.id} className="rounded-3xl border border-line bg-surface p-5 shadow-sm">
                         <span className="text-4xl font-black tracking-tighter text-brand-active">#{index + 1}</span>
-                        <h3 className="mt-3 text-lg font-black text-[#333333]">{territory.baseCity}/{territory.uf}</h3>
-                        <p className="mt-1 text-xs text-slate-500">Raio {territory.radiusKm} km · {number.format(territory.municipalityCount)} municípios</p>
+                        <h3 className="mt-3 text-lg font-black text-ink">{territory.baseCity}/{territory.uf}</h3>
+                        <p className="mt-1 text-xs text-ink-2">Raio {territory.radiusKm} km · {number.format(territory.municipalityCount)} municípios</p>
                         <dl className="mt-4 space-y-2 text-xs">
                             <div className="flex justify-between gap-2"><dt>Score</dt><dd className="font-black">{territory.opportunityScore?.toFixed(1)}</dd></div>
                             <div className="flex justify-between gap-2"><dt>SAM</dt><dd className="font-black">{territory.economics.samAccounts === null ? 'NÃO DISPONÍVEL' : number.format(territory.economics.samAccounts)}</dd></div>
@@ -183,21 +183,21 @@ function TopMunicipalitiesByDemand({ municipalities }: { municipalities: Municip
     if (!ranked.length) return null;
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 p-5">
+        <section className="overflow-hidden rounded-3xl border border-line bg-surface">
+            <div className="border-b border-line p-5">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Componentes observados · Opportunity Score bloqueado</p>
-                <h2 className="mt-1 text-lg font-black text-[#333333]">Top 20 municípios por demanda (ICP)</h2>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Percentil nacional ponderado por tier ICP (A/B/C). Não é ranking de oportunidade — MDF-e, risco e concorrência ainda faltam para liberar o score final.</p>
+                <h2 className="mt-1 text-lg font-black text-ink">Top 20 municípios por demanda (ICP)</h2>
+                <p className="mt-1 text-xs leading-5 text-ink-2">Percentil nacional ponderado por tier ICP (A/B/C). Não é ranking de oportunidade — MDF-e, risco e concorrência ainda faltam para liberar o score final.</p>
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500">
+                    <thead className="bg-surface-2 text-ink-2">
                         <tr><th className="p-3">Município</th><th className="p-3">Demanda (percentil)</th><th className="p-3">Contas ICP</th><th className="p-3">Transportadores RNTRC</th><th className="p-3">Frota de carga (SENATRAN)</th></tr>
                     </thead>
                     <tbody>
                         {ranked.map((row) => (
-                            <tr key={row.ibgeCode} className="border-t border-slate-100">
-                                <td className="p-3 font-black text-[#333333]">{row.name}/{row.uf}</td>
+                            <tr key={row.ibgeCode} className="border-t border-line">
+                                <td className="p-3 font-black text-ink">{row.name}/{row.uf}</td>
                                 <td className="p-3">{row.scores.demand.value?.toFixed(1)}</td>
                                 <td className="p-3">{row.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(row.icp.total)}</td>
                                 <td className="p-3">{row.rntrc.transporters === null ? 'NÃO DISPONÍVEL' : number.format(row.rntrc.transporters)}</td>
@@ -215,10 +215,10 @@ function TerritoryView({ manifest, territories, municipalities }: { manifest: Ma
     if (!territories.length) {
         return (
             <div className="space-y-3">
-                <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+                <section className="rounded-3xl border border-line bg-surface p-8 text-center">
                     <MapPinned className="mx-auto h-9 w-9 text-brand" aria-hidden="true" />
-                    <h2 className="mt-3 text-xl font-black text-[#333333]">Territory Optimizer aguardando dados nacionais</h2>
-                    <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                    <h2 className="mt-3 text-xl font-black text-ink">Territory Optimizer aguardando dados nacionais</h2>
+                    <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-ink-2">
                         Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km e penalização de sobreposição.
                     </p>
                     <p className="mt-4 text-xs font-bold text-amber-700">Status: {manifest.decisionReady ? 'PRONTO' : 'BLOQUEADO POR DADOS'}</p>
@@ -229,12 +229,12 @@ function TerritoryView({ manifest, territories, municipalities }: { manifest: Ma
     }
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 p-5"><h2 className="text-lg font-black text-[#333333]">Territórios calculados</h2></div>
+        <section className="overflow-hidden rounded-3xl border border-line bg-surface">
+            <div className="border-b border-line p-5"><h2 className="text-lg font-black text-ink">Territórios calculados</h2></div>
             <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Base</th><th className="p-3">Raio</th><th className="p-3">Municípios</th><th className="p-3">ICP</th><th className="p-3">Score</th><th className="p-3">Confiança</th></tr></thead>
-                    <tbody>{territories.map((territory) => <tr key={territory.id} className="border-t border-slate-100"><td className="p-3 font-black text-[#333333]">{territory.baseCity}/{territory.uf}</td><td className="p-3">{territory.radiusKm} km</td><td className="p-3">{number.format(territory.municipalityCount)}</td><td className="p-3">{territory.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(territory.icp.total)}</td><td className="p-3">{territory.opportunityScore?.toFixed(1) ?? 'BLOQUEADO'}</td><td className="p-3 font-bold">{territory.confidence}</td></tr>)}</tbody>
+                    <thead className="bg-surface-2 text-ink-2"><tr><th className="p-3">Base</th><th className="p-3">Raio</th><th className="p-3">Municípios</th><th className="p-3">ICP</th><th className="p-3">Score</th><th className="p-3">Confiança</th></tr></thead>
+                    <tbody>{territories.map((territory) => <tr key={territory.id} className="border-t border-line"><td className="p-3 font-black text-ink">{territory.baseCity}/{territory.uf}</td><td className="p-3">{territory.radiusKm} km</td><td className="p-3">{number.format(territory.municipalityCount)}</td><td className="p-3">{territory.icp.total === null ? 'NÃO DISPONÍVEL' : number.format(territory.icp.total)}</td><td className="p-3">{territory.opportunityScore?.toFixed(1) ?? 'BLOQUEADO'}</td><td className="p-3 font-bold">{territory.confidence}</td></tr>)}</tbody>
                 </table>
             </div>
         </section>
@@ -277,45 +277,45 @@ function SellerSimulator() {
     return (
         <section className="grid gap-4 xl:grid-cols-[1.4fr_.8fr]">
             <div className="space-y-4">
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                    <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-[#333333]">Custos fixos do vendedor</h2></div><Calculator className="h-6 w-6 text-brand" aria-hidden="true" /></div>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">Os campos começam zerados deliberadamente. A plataforma não presume salário, ticket, margem ou win rate da Atlas.</p>
+                <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                    <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-ink">Custos fixos do vendedor</h2></div><Calculator className="h-6 w-6 text-brand" aria-hidden="true" /></div>
+                    <p className="mt-2 text-sm leading-6 text-ink-2">Os campos começam zerados deliberadamente. A plataforma não presume salário, ticket, margem ou win rate da Atlas.</p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {costFields.map((field) => (
-                            <label key={field.key} className="text-xs font-bold text-slate-600">
+                            <label key={field.key} className="text-xs font-bold text-ink-2">
                                 {field.label}
-                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
-                                    <input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
+                                <div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-brand">
+                                    <input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink outline-none" />
                                 </div>
                             </label>
                         ))}
                     </div>
                 </div>
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                    <h2 className="text-xl font-black text-[#333333]">Receita, funil e retenção</h2>
+                <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                    <h2 className="text-xl font-black text-ink">Receita, funil e retenção</h2>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {revenueFields.map((field) => (
-                            <label key={field.key} className="text-xs font-bold text-slate-600">
+                            <label key={field.key} className="text-xs font-bold text-ink-2">
                                 {field.label}
-                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
-                                    <input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
-                                    {field.suffix && <span className="ml-2 text-[10px] text-slate-400">{field.suffix}</span>}
+                                <div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-brand">
+                                    <input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink outline-none" />
+                                    {field.suffix && <span className="ml-2 text-[10px] text-ink-2">{field.suffix}</span>}
                                 </div>
                             </label>
                         ))}
-                        <label className="text-xs font-bold text-slate-600">
+                        <label className="text-xs font-bold text-ink-2">
                             Contas potenciais na região (SAM)
-                            <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
-                                <input aria-label="Contas potenciais na região (SAM)" type="number" min="0" step="any" placeholder="NÃO DISPONÍVEL" value={revenue.samAccounts ?? ''} onChange={(event) => updateSam(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none placeholder:text-slate-400" />
+                            <div className="mt-1 flex items-center rounded-xl border border-line bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-brand">
+                                <input aria-label="Contas potenciais na região (SAM)" type="number" min="0" step="any" placeholder="NÃO DISPONÍVEL" value={revenue.samAccounts ?? ''} onChange={(event) => updateSam(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink outline-none placeholder:text-ink-2" />
                             </div>
                         </label>
                     </div>
                 </div>
             </div>
             <aside className="space-y-4">
-                <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
+                <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1.5">
                     {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => (
-                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${scenario === item ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${scenario === item ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface-2'}`}>
                             {SCENARIO_LABELS[item]}
                         </button>
                     ))}
@@ -343,16 +343,16 @@ function SellerSimulator() {
 function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
     return (
         <section className="space-y-4">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-brand" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Saúde dos Dados</p><h2 className="text-xl font-black text-[#333333]">Competência, cobertura e confiança antes do score</h2></div></div>
+            <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
+                <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-brand" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Saúde dos Dados</p><h2 className="text-xl font-black text-ink">Competência, cobertura e confiança antes do score</h2></div></div>
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {manifest.datasets.map((dataset) => {
                         const freshness = formatFreshness(dataset);
                         const stale = isStale(dataset);
                         return (
-                            <article key={dataset.id} className="rounded-2xl border border-slate-200 p-4">
+                            <article key={dataset.id} className="rounded-2xl border border-line p-4">
                                 <div className="flex items-start justify-between gap-3">
-                                    <h3 className="text-sm font-black text-[#333333]">{dataset.label}</h3>
+                                    <h3 className="text-sm font-black text-ink">{dataset.label}</h3>
                                     <div className="flex flex-col items-end gap-1">
                                         <span className={`rounded-full border px-2 py-1 text-[9px] font-black ${statusTone(dataset.status)}`}>{dataset.status.replaceAll('_', ' ')}</span>
                                         {stale && (
@@ -362,7 +362,7 @@ function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
                                         )}
                                     </div>
                                 </div>
-                                <dl className="mt-3 space-y-1 text-xs text-slate-600">
+                                <dl className="mt-3 space-y-1 text-xs text-ink-2">
                                     <div><dt className="inline font-bold">Fonte: </dt><dd className="inline">{dataset.source ?? 'NÃO DISPONÍVEL'}</dd></div>
                                     <div><dt className="inline font-bold">Competência: </dt><dd className="inline">{dataset.competence ?? 'NÃO DISPONÍVEL'}</dd></div>
                                     <div><dt className="inline font-bold">Geografia: </dt><dd className="inline">{dataset.geography ?? 'NÃO DISPONÍVEL'}</dd></div>
@@ -371,12 +371,12 @@ function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
                                     {dataset.taxonomyVersion && <div><dt className="inline font-bold">Taxonomia: </dt><dd className="inline">{dataset.taxonomyVersion}</dd></div>}
                                 </dl>
                                 {freshness && (
-                                    <p className={`mt-3 flex items-center gap-1.5 text-xs font-bold ${stale ? 'text-rose-700' : 'text-slate-500'}`}>
+                                    <p className={`mt-3 flex items-center gap-1.5 text-xs font-bold ${stale ? 'text-rose-700' : 'text-ink-2'}`}>
                                         <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{freshness}
                                         {stale && ' — acima da cadência mensal esperada'}
                                     </p>
                                 )}
-                                {dataset.note && <p className="mt-3 text-xs leading-5 text-slate-500">{dataset.note}</p>}
+                                {dataset.note && <p className="mt-3 text-xs leading-5 text-ink-2">{dataset.note}</p>}
                             </article>
                         );
                     })}
@@ -407,10 +407,10 @@ export function MarketIntelligenceApp() {
     }, []);
 
     if (error) return <main className="flex-1 overflow-y-auto p-6"><div role="alert" className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><AlertTriangle className="mb-2 h-5 w-5" aria-hidden="true" />{error}</div></main>;
-    if (!manifest) return <main className="flex flex-1 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando inteligência territorial...</div></main>;
+    if (!manifest) return <main className="flex flex-1 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-ink-2"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando inteligência territorial...</div></main>;
 
     return (
-        <main className="flex-1 overflow-y-auto bg-[#F7F7F5] p-4 md:p-7">
+        <main className="flex-1 overflow-y-auto bg-bg p-4 md:p-7">
             <div className="mx-auto w-full max-w-[1600px] space-y-5">
                 <header className="relative overflow-hidden rounded-[28px] bg-[#333333] px-5 py-6 text-white md:px-8 md:py-8">
                     <div className="absolute inset-y-0 right-0 w-2 bg-brand" aria-hidden="true" />
@@ -428,8 +428,8 @@ export function MarketIntelligenceApp() {
                     </div>
                 </header>
 
-                <nav aria-label="Módulos de Market Intelligence" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5">
-                    {TABS.map((item) => { const Icon = item.icon; const active = tab === item.id; return <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-[#333333]'}`}><Icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>; })}
+                <nav aria-label="Módulos de Market Intelligence" className="flex gap-1 overflow-x-auto rounded-2xl border border-line bg-surface p-1.5">
+                    {TABS.map((item) => { const Icon = item.icon; const active = tab === item.id; return <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? 'bg-brand-active text-white' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'}`}><Icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>; })}
                 </nav>
 
                 {tab === 'board' && <BoardView manifest={manifest} territories={territories} />}
@@ -437,7 +437,7 @@ export function MarketIntelligenceApp() {
                 {tab === 'simulator' && <SellerSimulator />}
                 {tab === 'data' && <DataHealth manifest={manifest} />}
 
-                <footer className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 md:flex-row md:items-center md:justify-between">
+                <footer className="flex flex-col gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-[10px] text-ink-2 md:flex-row md:items-center md:justify-between">
                     <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-brand" aria-hidden="true" />Scores finais só aparecem quando o dataset e a confiança permitem.</span>
                     <span>Atlas GR · Market Intelligence</span>
                 </footer>

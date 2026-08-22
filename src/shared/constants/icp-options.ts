@@ -37,6 +37,11 @@ export const LOCALIZACAO_OPTIONS = [
 
 export const QUANTIDADE_OPTIONS = [10, 25, 50, 100, 200, 500];
 
+// Opções do dropdown "Quantidade de Leads" do Motor de Busca Turbo — capadas em 20
+// porque priorizamos qualidade (CNPJ, decisores e notícias em todos os leads) sobre
+// volume; ao contrário de QUANTIDADE_OPTIONS acima, não deve ultrapassar esse limite.
+export const QUANTIDADE_LEADS_OPTIONS = [5, 10, 15, 20];
+
 // Estados do Brasil — usados para refinar a busca (Google Places + Apollo) além da região ampla do playbook.
 export const ESTADO_OPTIONS = [
     'Acre', 'Alagoas', 'Amapá', 'Amazonas', 'Bahia', 'Ceará', 'Distrito Federal',
