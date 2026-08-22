@@ -6,6 +6,7 @@ import { Label } from '../../../components/ui/Label';
 import { Select } from '../../../components/ui/Select';
 import { clientLogger } from '../../../lib/clientLogger';
 import { toast } from '../../../lib/toast';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import { crm360Api } from '../crm360.api';
 import type { CrmCommercialDocument, CrmCommercialDocumentVersionDTO } from '../crm360.types';
 import { diffProposalVersions } from './proposalVersionDiff';
@@ -62,6 +63,18 @@ export function PropostaDetail({ document, onBack, onEdit, onChanged }: Proposta
             .catch((err) => clientLogger.error({ err }, 'Falha ao carregar versões do documento'))
             .finally(() => setLoadingVersions(false));
     }, [document.id]);
+
+    // Torna o copiloto de IA global ciente de qual documento comercial está aberto na tela.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        setActiveRecord({
+            type: 'document',
+            id: document.id,
+            label: `${document.number} — ${document.title}`,
+            summary: [document.type, document.status].filter(Boolean).join(' — '),
+        });
+        return () => clearActiveRecord(document.id);
+    }, [document, setActiveRecord, clearActiveRecord]);
 
     const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: document.currency || 'BRL' });
     const availableNextStatuses = STATUS_FLOW[document.status] ?? [];
