@@ -1,4 +1,5 @@
 
+import { AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -7,12 +8,14 @@ import { formatMonthLabel, type MonthlyPoint } from '../analytics.api';
 interface GlowChartProps {
   /** Série mensal real (criados/ganhos/perdidos) vinda de /api/analytics/dashboard. */
   data: MonthlyPoint[];
+  /** Mensagem de erro da busca — quando presente, mostra um estado de falha em vez de "sem dados", que ficaria indistinguível de uma série real vazia. */
+  error?: string | null;
 }
 
 // CORREÇÃO: este componente antes renderizava um array fixo hard-coded no código, rotulado como
 // "Volume de Leads (Ao Vivo)" / "Métricas em tempo real processadas pela IA" — números fictícios
 // exibidos como se fossem dados reais da organização em qualquer relatório que o abrisse.
-export function GlowChart({ data }: GlowChartProps) {
+export function GlowChart({ data, error }: GlowChartProps) {
   const { isAtlas } = useBrandAccent();
   const { theme } = useTheme();
 
@@ -34,7 +37,13 @@ export function GlowChart({ data }: GlowChartProps) {
         </div>
 
         <div className="w-full h-[80%]">
-          {chartData.length === 0 ? (
+          {error ? (
+            <div className="h-full flex flex-col items-center justify-center gap-2 text-center px-4" role="status">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
+              <p className="text-sm text-amber-300 font-semibold">Não foi possível carregar a série mensal.</p>
+              <p className="text-xs text-ink-2">{error}</p>
+            </div>
+          ) : chartData.length === 0 ? (
             <div className="h-full flex items-center justify-center text-sm text-ink-2">Sem dados suficientes ainda.</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

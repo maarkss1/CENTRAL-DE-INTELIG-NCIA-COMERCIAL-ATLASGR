@@ -34,6 +34,7 @@ export function ReportsHub() {
   const { activeBrand } = useBrand();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [monthly, setMonthly] = useState<MonthlyPoint[]>([]);
+  const [monthlyError, setMonthlyError] = useState<string | null>(null);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
   const [report, setReport] = useState<string | null>(null);
   const [reportSavedAt, setReportSavedAt] = useState<string | null>(null);
@@ -49,8 +50,13 @@ export function ReportsHub() {
       .finally(() => { if (!cancelled) setLoadingMetrics(false); });
     analyticsApi
       .dashboard(6)
-      .then((data) => { if (!cancelled) setMonthly(data.monthly); })
-      .catch(() => { if (!cancelled) setMonthly([]); });
+      .then((data) => { if (!cancelled) { setMonthly(data.monthly); setMonthlyError(null); } })
+      .catch((err) => {
+        if (!cancelled) {
+          setMonthly([]);
+          setMonthlyError(err instanceof Error ? err.message : 'Tente novamente em instantes.');
+        }
+      });
     // PC-008: antes desta correção o relatório só existia em estado local — sumia ao navegar ou
     // recarregar. Carrega o último relatório salvo desta organização ao montar a tela, para o
     // usuário não perder o que já foi gerado.
@@ -123,7 +129,7 @@ export function ReportsHub() {
 
       <CardContent className="space-y-6">
         <div className="mb-8 w-full">
-          <GlowChart data={monthly} />
+          <GlowChart data={monthly} error={monthlyError} />
         </div>
 
         {/* Métricas usadas como base do relatório */}
