@@ -6,13 +6,25 @@ const { Pool } = pg;
 const emergencyPassword = process.env.EMERGENCY_RESET_ALL_PASSWORDS_PASSWORD?.trim();
 const databaseUrl = process.env.DATABASE_URL?.trim();
 
-type UserRow = { id: string; email: string };
+type UserRow = { id: string };
 type CredentialRow = { id: string };
+
+const CONFIRMATION_FLAG = '--confirm-global-password-reset';
 
 async function main() {
   if (!emergencyPassword) {
     console.log('Emergency password reset disabled.');
     return;
+  }
+
+  // A senha pode permanecer temporariamente no ambiente durante a resposta a um incidente. Ela
+  // não é, sozinha, autorização para executar novamente uma mutação global. Exigir um argumento
+  // explícito torna cada execução deliberada e impede que a simples presença da variável (inclusive
+  // em um manifesto antigo) transforme uma chamada acidental ao script em outro reset global.
+  if (process.argv.length !== 3 || process.argv[2] !== CONFIRMATION_FLAG) {
+    throw new Error(
+      `Global password reset requires the explicit one-shot flag ${CONFIRMATION_FLAG}.`,
+    );
   }
 
   if (emergencyPassword.length < 16) {
@@ -43,7 +55,7 @@ async function main() {
     await client.query(`SELECT set_config('app.bypass_rls', 'on', true)`);
 
     const usersResult = await client.query<UserRow>(
-      `SELECT "id", "email" FROM "user" ORDER BY "createdAt" ASC`,
+      `SELECT "id" FROM "user" ORDER BY "createdAt" ASC`,
     );
     const users = usersResult.rows;
 
@@ -98,7 +110,8 @@ async function main() {
         [user.id],
       );
 
-      console.log(`EMERGENCY_AUTH_RESET user=${user.email} status=reset`);
+      // Não registre e-mail/PII de cada titular. Os totais operacionais abaixo são suficientes
+      // para provar a execução; a trilha por usuário continua no banco via mustChangePassword.
     }
 
     await client.query('COMMIT');
