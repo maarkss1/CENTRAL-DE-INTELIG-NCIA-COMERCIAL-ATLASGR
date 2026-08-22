@@ -95,7 +95,7 @@ export function QualificationMatrixPage() {
                                 <div className="flex items-center justify-between pb-3 border-b border-line flex-wrap gap-2">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand/15 text-brand font-bold">{item.framework} · {item.questionCategory}</span>
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info font-bold">{item.persona}</span>
+                                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-info/15 text-info-active dark:text-info font-bold">{item.persona}</span>
                                     </div>
                                     <button
                                         onClick={() => handleCopy(item.questionText, item.id)}

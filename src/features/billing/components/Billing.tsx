@@ -98,7 +98,7 @@ export function Billing() {
 
                 {/* O produto não tem plano, assinatura nem provedor de pagamento; dizer "faturamento"
                     aqui seria inventar. O que existe de real é o custo estimado das chamadas de IA. */}
-                <div className="flex items-start gap-2 text-xs text-sky-200 bg-sky-500/10 border border-sky-500/20 rounded-xl px-4 py-3">
+                <div className="flex items-start gap-2 text-xs text-info-active dark:text-info bg-info/10 border border-info/20 rounded-xl px-4 py-3">
                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                     <p>
                         Esta tela mostra <strong>consumo</strong>, não cobrança. O custo é estimado a partir

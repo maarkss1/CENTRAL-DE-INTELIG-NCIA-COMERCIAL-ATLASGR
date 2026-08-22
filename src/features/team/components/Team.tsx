@@ -243,7 +243,7 @@ export function Team() {
                                         <span className="text-xs text-ink-2">{member.email}</span>
                                     </div>
                                     <div className="flex items-center gap-3">
-                                        <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info font-bold">{ROLE_LABELS[member.role] || member.role}</span>
+                                        <span className="text-[10px] px-2.5 py-1 rounded-full bg-info/15 text-info-active dark:text-info font-bold">{ROLE_LABELS[member.role] || member.role}</span>
                                         <button
                                             type="button"
                                             onClick={() => handleResetPassword(member)}
