@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { toast } from '../../../lib/toast';
+import { useActiveRecord } from '../../../contexts/ActiveRecordContext';
 import {
     commercialIntelligenceApi, formatCurrency,
     type CommercialFilter, type DealDrillDownRow, type ForecastTier,
@@ -108,6 +109,22 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
             cancelled = true;
         };
     }, [filter, query]);
+
+    // Torna o copiloto de IA global ciente do negócio aberto — só faz sentido quando o drill-down
+    // resolve para exatamente 1 negócio (aberto via Centro de Decisão/Mentor); uma lista filtrada
+    // com vários negócios não tem um "registro aberto" único para registrar.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (rows.length !== 1) return;
+        const deal = rows[0];
+        setActiveRecord({
+            type: 'deal',
+            id: deal.id,
+            label: deal.title || deal.companyName || 'Negócio sem título',
+            summary: [deal.stageName, deal.companyName].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(deal.id);
+    }, [rows, setActiveRecord, clearActiveRecord]);
 
     return (
         <Drawer isOpen={!!query} onClose={onClose} title={query?.title ?? 'Negócios'} subtitle={total > 0 ? `${total} negócio(s)` : undefined}>
