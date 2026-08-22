@@ -127,7 +127,7 @@ function DecisionBlocked({ manifest }: { manifest: MarketIntelligenceManifest })
                     <div className="mt-4 grid gap-2 md:grid-cols-2">
                         {manifest.decisionBlockers.map((blocker) => (
                             <div key={blocker} className="flex gap-2 rounded-xl border border-amber-200/70 bg-white/70 p-3 text-xs leading-5 text-slate-700">
-                                <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-[#FF5618]" aria-hidden="true" />
+                                <FileSearch className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
                                 <span>{blocker}</span>
                             </div>
                         ))}
@@ -149,16 +149,13 @@ function BoardView({ manifest, territories }: { manifest: MarketIntelligenceMani
     return (
         <section className="space-y-3" aria-labelledby="board-title">
             <div>
-                {/* #A63810, não #FF5618 — mesmo padrão DQA-19: texto pequeno em laranja cru sobre
-                    fundo claro só atinge ~3:1, abaixo do mínimo WCAG AA de 4.5:1 (achado real do
-                    axe-core em accessibility.spec.ts). */}
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A63810]">Board View</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Board View</p>
                 <h2 id="board-title" className="text-2xl font-black tracking-tight text-[#333333]">Top 5 territórios calculados</h2>
             </div>
             <div className="grid gap-3 xl:grid-cols-5">
                 {ranking.map((territory, index) => (
                     <article key={territory.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <span className="text-4xl font-black tracking-tighter text-[#A63810]">#{index + 1}</span>
+                        <span className="text-4xl font-black tracking-tighter text-brand-active">#{index + 1}</span>
                         <h3 className="mt-3 text-lg font-black text-[#333333]">{territory.baseCity}/{territory.uf}</h3>
                         <p className="mt-1 text-xs text-slate-500">Raio {territory.radiusKm} km · {number.format(territory.municipalityCount)} municípios</p>
                         <dl className="mt-4 space-y-2 text-xs">
@@ -188,7 +185,7 @@ function TopMunicipalitiesByDemand({ municipalities }: { municipalities: Municip
     return (
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
             <div className="border-b border-slate-100 p-5">
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A63810]">Componentes observados · Opportunity Score bloqueado</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Componentes observados · Opportunity Score bloqueado</p>
                 <h2 className="mt-1 text-lg font-black text-[#333333]">Top 20 municípios por demanda (ICP)</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-500">Percentil nacional ponderado por tier ICP (A/B/C). Não é ranking de oportunidade — MDF-e, risco e concorrência ainda faltam para liberar o score final.</p>
             </div>
@@ -219,7 +216,7 @@ function TerritoryView({ manifest, territories, municipalities }: { manifest: Ma
         return (
             <div className="space-y-3">
                 <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
-                    <MapPinned className="mx-auto h-9 w-9 text-[#FF5618]" aria-hidden="true" />
+                    <MapPinned className="mx-auto h-9 w-9 text-brand" aria-hidden="true" />
                     <h2 className="mt-3 text-xl font-black text-[#333333]">Territory Optimizer aguardando dados nacionais</h2>
                     <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                         Nenhum território calculado foi publicado no manifest atual. Quando os agregados municipais forem produzidos, esta visão receberá cenários de 1, 2, 3, 5, 10 e 20 vendedores com raios de 100 a 400 km e penalização de sobreposição.
@@ -281,13 +278,13 @@ function SellerSimulator() {
         <section className="grid gap-4 xl:grid-cols-[1.4fr_.8fr]">
             <div className="space-y-4">
                 <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                    <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A63810]">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-[#333333]">Custos fixos do vendedor</h2></div><Calculator className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /></div>
+                    <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">PREMISSA EDITÁVEL</p><h2 className="mt-1 text-xl font-black text-[#333333]">Custos fixos do vendedor</h2></div><Calculator className="h-6 w-6 text-brand" aria-hidden="true" /></div>
                     <p className="mt-2 text-sm leading-6 text-slate-600">Os campos começam zerados deliberadamente. A plataforma não presume salário, ticket, margem ou win rate da Atlas.</p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {costFields.map((field) => (
                             <label key={field.key} className="text-xs font-bold text-slate-600">
                                 {field.label}
-                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
+                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
                                     <input aria-label={field.label} type="number" min="0" step="any" value={costs[field.key]} onChange={(event) => updateCost(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
                                 </div>
                             </label>
@@ -300,7 +297,7 @@ function SellerSimulator() {
                         {revenueFields.map((field) => (
                             <label key={field.key} className="text-xs font-bold text-slate-600">
                                 {field.label}
-                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
+                                <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
                                     <input aria-label={field.label} type="number" min="0" step="any" value={revenue[field.key]} onChange={(event) => updateRevenue(field.key, event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none" />
                                     {field.suffix && <span className="ml-2 text-[10px] text-slate-400">{field.suffix}</span>}
                                 </div>
@@ -308,7 +305,7 @@ function SellerSimulator() {
                         ))}
                         <label className="text-xs font-bold text-slate-600">
                             Contas potenciais na região (SAM)
-                            <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-[#FF5618]">
+                            <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 focus-within:ring-2 focus-within:ring-brand">
                                 <input aria-label="Contas potenciais na região (SAM)" type="number" min="0" step="any" placeholder="NÃO DISPONÍVEL" value={revenue.samAccounts ?? ''} onChange={(event) => updateSam(event.target.value)} className="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-[#333333] outline-none placeholder:text-slate-400" />
                             </div>
                         </label>
@@ -318,10 +315,7 @@ function SellerSimulator() {
             <aside className="space-y-4">
                 <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
                     {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => (
-                        // #A63810 = mesmo mix de 65% #FF5618 + preto usado em --color-brand-active
-                        // (globals.css/DQA-19) — texto branco direto sobre #FF5618 só atinge ~3.2:1,
-                        // abaixo do mínimo WCAG AA de 4.5:1 (achado real do axe-core).
-                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-[#A63810] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${scenario === item ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
                             {SCENARIO_LABELS[item]}
                         </button>
                     ))}
@@ -350,7 +344,7 @@ function DataHealth({ manifest }: { manifest: MarketIntelligenceManifest }) {
     return (
         <section className="space-y-4">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 md:p-7">
-                <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-[#FF5618]" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#A63810]">Saúde dos Dados</p><h2 className="text-xl font-black text-[#333333]">Competência, cobertura e confiança antes do score</h2></div></div>
+                <div className="flex items-start gap-3"><ShieldCheck className="h-6 w-6 text-brand" aria-hidden="true" /><div><p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Saúde dos Dados</p><h2 className="text-xl font-black text-[#333333]">Competência, cobertura e confiança antes do score</h2></div></div>
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {manifest.datasets.map((dataset) => {
                         const freshness = formatFreshness(dataset);
@@ -413,13 +407,13 @@ export function MarketIntelligenceApp() {
     }, []);
 
     if (error) return <main className="flex-1 overflow-y-auto p-6"><div role="alert" className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800"><AlertTriangle className="mb-2 h-5 w-5" aria-hidden="true" />{error}</div></main>;
-    if (!manifest) return <main className="flex flex-1 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-[#FF5618]" aria-hidden="true" />Carregando inteligência territorial...</div></main>;
+    if (!manifest) return <main className="flex flex-1 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando inteligência territorial...</div></main>;
 
     return (
         <main className="flex-1 overflow-y-auto bg-[#F7F7F5] p-4 md:p-7">
             <div className="mx-auto w-full max-w-[1600px] space-y-5">
                 <header className="relative overflow-hidden rounded-[28px] bg-[#333333] px-5 py-6 text-white md:px-8 md:py-8">
-                    <div className="absolute inset-y-0 right-0 w-2 bg-[#FF5618]" aria-hidden="true" />
+                    <div className="absolute inset-y-0 right-0 w-2 bg-brand" aria-hidden="true" />
                     <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-4xl">
                             <img src="/tools/atlas-market-intelligence/atlas-logo-negative.png" alt="Atlas GR" className="h-auto w-28" />
@@ -435,10 +429,7 @@ export function MarketIntelligenceApp() {
                 </header>
 
                 <nav aria-label="Módulos de Market Intelligence" className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5">
-                    {/* #A63810 = mesmo mix de 65% #FF5618 + preto usado em --color-brand-active
-                        (globals.css/DQA-19) — texto branco direto sobre #FF5618 só atinge ~3.2:1,
-                        abaixo do mínimo WCAG AA de 4.5:1 (achado real do axe-core). */}
-                    {TABS.map((item) => { const Icon = item.icon; const active = tab === item.id; return <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${active ? 'bg-[#A63810] text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-[#333333]'}`}><Icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>; })}
+                    {TABS.map((item) => { const Icon = item.icon; const active = tab === item.id; return <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${active ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-[#333333]'}`}><Icon className="h-4 w-4" aria-hidden="true" />{item.label}</button>; })}
                 </nav>
 
                 {tab === 'board' && <BoardView manifest={manifest} territories={territories} />}
@@ -447,7 +438,7 @@ export function MarketIntelligenceApp() {
                 {tab === 'data' && <DataHealth manifest={manifest} />}
 
                 <footer className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[10px] text-slate-500 md:flex-row md:items-center md:justify-between">
-                    <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-[#FF5618]" aria-hidden="true" />Scores finais só aparecem quando o dataset e a confiança permitem.</span>
+                    <span className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-brand" aria-hidden="true" />Scores finais só aparecem quando o dataset e a confiança permitem.</span>
                     <span>Atlas GR · Market Intelligence</span>
                 </footer>
             </div>

@@ -28,7 +28,7 @@ export function MarketIntelligenceEconomics() {
         return <div role="alert" className="m-4 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800 md:m-7"><AlertTriangle className="mb-2 h-5 w-5" aria-hidden="true" />{error}</div>;
     }
     if (!manifest) {
-        return <div className="flex min-h-64 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-[#FF5618]" aria-hidden="true" />Carregando unit economics territorial...</div></div>;
+        return <div className="flex min-h-64 items-center justify-center"><div className="flex items-center gap-2 text-sm font-bold text-slate-600"><Loader2 className="h-5 w-5 animate-spin text-brand" aria-hidden="true" />Carregando unit economics territorial...</div></div>;
     }
     if (!territories.length) {
         return (
