@@ -25,6 +25,16 @@ vi.mock('@/features/integrations/birth-voice/birthVoice.service', () => ({
     SuppressedNumberError: class SuppressedNumberError extends Error {},
 }));
 
+// O motor também consulta a janela comercial de ligação (isWithinCallWindow) antes de discar. Sem
+// mockar isso, o teste dependeria do horário real em que roda (CI em UTC, janela em
+// America/Sao_Paulo) e falharia sempre que executado fora de 9h-18h em dia útil.
+vi.mock('@/features/integrations/birth-voice/coldCall.policy', () => ({
+    isWithinCallWindow: vi.fn(() => true),
+}));
+vi.mock('@/features/integrations/birth-voice/coldCall.service', () => ({
+    callWindowFromEnv: vi.fn(() => ({})),
+}));
+
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { callLead, SuppressedNumberError } from '@/features/integrations/birth-voice/birthVoice.service';
