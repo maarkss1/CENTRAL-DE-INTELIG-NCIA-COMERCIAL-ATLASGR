@@ -73,7 +73,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText(/Bitrix24 tem leitura\/importação real/)).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Gmail em modo leitura; Calendar já lê e cria eventos reais quando a Cadência agenda uma reunião.')).toBeInTheDocument();
+        expect(await screen.findByText('Gmail em modo leitura; Calendar tem leitura e escrita real (via Cadência); a Agenda do produto continua local.')).toBeInTheDocument();
 
         await user.click(screen.getByText('PABX 3CX')).catch(() => {});
         expect(await screen.findByText(/Cadastro de PABX 3CX e teste de comunicação/)).toBeInTheDocument();
@@ -98,7 +98,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
     it('declara maturidade real por integração — escrita real no Google Calendar (CYC-004) com prova, sem prometer 3CX 24h sem prova', async () => {
         const user = userEvent.setup();
         server.use(
-            http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com' } })),
+            http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com', hasCalendarWriteScope: true } })),
             http.get('/api/google/calendar/upcoming', () => HttpResponse.json({ success: true, data: [] })),
             http.get('/api/bitrix/connections', () => HttpResponse.json({
                 success: true,
@@ -119,8 +119,9 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText('não é API oficial Meta')).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Calendar escrita (via Cadência)')).toBeInTheDocument();
-        expect(screen.getByText(/reuniões agendadas pela Cadência já criam o evento real no Google Calendar/i)).toBeInTheDocument();
+        expect(await screen.findByText('Calendar escrita via Cadência')).toBeInTheDocument();
+        expect(screen.getByText(/A Agenda do Atlas continua local e não sincroniza com o Google/i)).toBeInTheDocument();
+        expect(screen.getByText(/Agendamento pela Cadência cria o evento de verdade no Google Calendar/i)).toBeInTheDocument();
 
         await user.click(screen.getByText('Bitrix24'));
         expect(await screen.findByText('webhook entrada opcional')).toBeInTheDocument();
@@ -130,6 +131,20 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText('gravações dependem de webhook')).toBeInTheDocument();
         expect(screen.getByText(/não prova, sozinha, gravação de chamadas ou prospecção 24h/i)).toBeInTheDocument();
     }, TEST_TIMEOUT_MS);
+
+    it('avisa (sem prometer escrita) quando a conexão Google é anterior ao escopo calendar.events', async () => {
+        const user = userEvent.setup();
+        server.use(
+            http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com', hasCalendarWriteScope: false } })),
+            http.get('/api/google/calendar/upcoming', () => HttpResponse.json({ success: true, data: [] })),
+        );
+
+        render(<Integrations />);
+
+        await user.click(screen.getByText('Google Workspace'));
+        expect(await screen.findByText(/ainda tem só/i)).toBeInTheDocument();
+        expect(screen.getByText(/desconectar e reconectar a conta abaixo/i)).toBeInTheDocument();
+    });
 
     it('VISUALIZADOR vê o status mas não consegue conectar (achado do inventário de navegação da Onda 1)', async () => {
         useAuthMock.mockReturnValue({ currentUser: { role: 'VISUALIZADOR' } });

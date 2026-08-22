@@ -136,15 +136,23 @@ describe('getGoogleStatus', () => {
         vi.mocked(prisma.googleWorkspaceConnection.findUnique).mockResolvedValue(null);
         const { getGoogleStatus } = await import('../google.service.js');
 
-        expect(await getGoogleStatus(ORG)).toEqual({ connected: false, email: null });
+        expect(await getGoogleStatus(ORG)).toEqual({ connected: false, email: null, hasCalendarWriteScope: false });
     });
 
-    it('devolve connected=true com o e-mail quando há conexão', async () => {
+    it('devolve connected=true com o e-mail e hasCalendarWriteScope=true quando o escopo inclui calendar.events', async () => {
         const { prisma } = await import('@/lib/prisma');
-        vi.mocked(prisma.googleWorkspaceConnection.findUnique).mockResolvedValue({ email: 'comercial@atlasgr.com.br' } as never);
+        vi.mocked(prisma.googleWorkspaceConnection.findUnique).mockResolvedValue({ email: 'comercial@atlasgr.com.br', scope: 'https://www.googleapis.com/auth/calendar.events' } as never);
         const { getGoogleStatus } = await import('../google.service.js');
 
-        expect(await getGoogleStatus(ORG)).toEqual({ connected: true, email: 'comercial@atlasgr.com.br' });
+        expect(await getGoogleStatus(ORG)).toEqual({ connected: true, email: 'comercial@atlasgr.com.br', hasCalendarWriteScope: true });
+    });
+
+    it('devolve hasCalendarWriteScope=false quando a conexão só tem o escopo antigo (calendar.readonly)', async () => {
+        const { prisma } = await import('@/lib/prisma');
+        vi.mocked(prisma.googleWorkspaceConnection.findUnique).mockResolvedValue({ email: 'comercial@atlasgr.com.br', scope: 'https://www.googleapis.com/auth/calendar.readonly' } as never);
+        const { getGoogleStatus } = await import('../google.service.js');
+
+        expect(await getGoogleStatus(ORG)).toEqual({ connected: true, email: 'comercial@atlasgr.com.br', hasCalendarWriteScope: false });
     });
 });
 

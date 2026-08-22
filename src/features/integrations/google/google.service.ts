@@ -149,12 +149,20 @@ export async function processGoogleCallback(organizationId: string, code: string
     return { email };
 }
 
-export async function getGoogleStatus(organizationId: string): Promise<{ connected: boolean; email: string | null }> {
+export async function getGoogleStatus(organizationId: string): Promise<{ connected: boolean; email: string | null; hasCalendarWriteScope: boolean }> {
     const connection = await prisma.googleWorkspaceConnection.findUnique({
         where: { organizationId },
-        select: { email: true },
+        select: { email: true, scope: true },
     });
-    return { connected: !!connection, email: connection?.email ?? null };
+    return {
+        connected: !!connection,
+        email: connection?.email ?? null,
+        // Escopo `calendar.events` só existe em conexões feitas (ou reconectadas) depois da mudança
+        // de escopo do CYC-004 — uma organização conectada antes disso ainda tem só
+        // `calendar.readonly` até reconectar (o Google não amplia escopo de um token já emitido),
+        // e a escrita real via Cadência falharia (403) silenciosamente sem este sinal.
+        hasCalendarWriteScope: !!connection?.scope?.includes('calendar.events'),
+    };
 }
 
 export async function disconnectGoogle(organizationId: string): Promise<void> {
