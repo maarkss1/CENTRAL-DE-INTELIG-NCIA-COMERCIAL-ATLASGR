@@ -10,8 +10,10 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // Redesign simplificado: Fundo sólido, sem borda agressiva.
-        // Usa bg-brand direto. Para contraste WCAG (se necessário), usar color-mix.
-        default: "bg-brand text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(255,86,24,0.2)]",
+        // bg-brand puro com texto branco dá só ~3.2:1 (AtlasGR) / ~3.9:1 (TotalTrac) de contraste
+        // — abaixo do mínimo AA de 4.5:1 (achado real do axe-core, DQA-19). bg-brand-active já
+        // existe pra exatamente este caso (ver comentário de --color-brand-active em globals.css).
+        default: "bg-brand-active text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(255,86,24,0.2)]",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
         outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
         secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",
