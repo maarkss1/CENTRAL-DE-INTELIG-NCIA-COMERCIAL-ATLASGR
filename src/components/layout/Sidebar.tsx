@@ -139,7 +139,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                                 <TotalTrackLogo variant="symbol" className="h-6 w-6 shrink-0" />
                             )}
                             <div className="flex flex-col">
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand">Operação Atual</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-active">Operação Atual</span>
                                 <span className="text-sm font-black text-ink">{isAtlas ? 'AtlasGR' : 'Total Trac'}</span>
                             </div>
                         </div>
@@ -179,7 +179,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
                 <button
                     type="button"
                     onClick={logout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-rose-500 hover:bg-rose-500/10 hover:text-rose-600 transition-all cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-sm text-left text-critical hover:bg-critical/10 transition-all cursor-pointer"
                     title="Encerrar sessão e sair da conta"
                 >
                     <LogOut size={20} className="shrink-0 opacity-80" />
