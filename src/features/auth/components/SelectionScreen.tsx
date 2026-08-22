@@ -11,7 +11,7 @@ export function SelectionScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030305] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans p-6">
+    <main className="min-h-screen bg-[#030305] text-white flex flex-col items-center justify-center relative overflow-hidden font-sans p-6">
       
       {/* Background Ambience */}
       <motion.div
@@ -123,6 +123,6 @@ export function SelectionScreen() {
           </p>
         </motion.div>
       </div>
-    </div>
+    </main>
   );
 }

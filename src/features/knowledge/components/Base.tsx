@@ -431,6 +431,7 @@ export function Base() {
                             <h2 className="text-lg font-bold text-ink">Adicionar texto à base</h2>
                             <button
                                 onClick={() => setPasteOpen(false)}
+                                aria-label="Fechar"
                                 className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors"
                             >
                                 <X className="w-5 h-5" />

@@ -131,7 +131,7 @@ export function HunterTool({ configured }: { configured: boolean }) {
                 <button
                     onClick={handleSearch}
                     disabled={isSearching}
-                    className="w-full bg-brand text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                    className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Pessoas</>)}
                 </button>
@@ -205,7 +205,7 @@ export function HunterTool({ configured }: { configured: boolean }) {
                                     <button
                                         onClick={() => promoteContact(contact, idx)}
                                         disabled={promotingKey === key}
-                                        className="bg-brand text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 disabled:opacity-60"
+                                        className="bg-brand-active text-white px-4 py-2 rounded-xl font-bold text-xs hover:brightness-110 transition-all flex items-center gap-2 disabled:opacity-60"
                                     >
                                         {promotingKey === key ? <Loader2 className="animate-spin" size={13} /> : <ShieldCheck size={13} />}
                                         Salvar no CRM

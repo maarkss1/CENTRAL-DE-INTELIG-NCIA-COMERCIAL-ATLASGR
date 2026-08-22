@@ -325,7 +325,7 @@ export function CandidateCard({
                         <button
                             onClick={onPromote}
                             disabled={isPromoting || isRejecting}
-                            className="bg-brand text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-brand-active transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
+                            className="bg-brand-active text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:brightness-110 transition-all flex items-center gap-2 shadow-md hover:scale-[1.02] w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
                         >
                             {isPromoting ? <Loader2 className="animate-spin" size={15} /> : <ShieldCheck size={15} />}
                             {isPromoting ? '⏳ Enriquecendo...' : '✨ Enriquecer & Salvar no CRM'}

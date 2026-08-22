@@ -273,7 +273,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                     </div>
                     <label className="min-w-[280px] text-xs font-bold text-ink-2">
                         Território analisado
-                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => { setSelectedTerritoryId(event.target.value); setRestoredSnapshotLabel(null); }} className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-bold text-ink outline-none focus:ring-2 focus:ring-[#FF5618]">
+                        <select aria-label="Território analisado" value={selectedTerritory.id} onChange={(event) => { setSelectedTerritoryId(event.target.value); setRestoredSnapshotLabel(null); }} className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm font-bold text-ink outline-none focus:ring-2 focus:ring-brand">
                             {territories.map((territory, index) => (
                                 <option key={territory.id} value={territory.id}>#{index + 1} {territory.baseCity}/{territory.uf} · {territory.radiusKm} km</option>
                             ))}

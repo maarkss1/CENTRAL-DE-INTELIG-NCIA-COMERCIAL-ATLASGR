@@ -68,6 +68,7 @@ export function GoogleLoginModal({ isOpen, onClose, selectedBrand }: GoogleLogin
           {/* Close button */}
           <button
             onClick={onClose}
+            aria-label="Fechar"
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
           >
             <X size={20} />

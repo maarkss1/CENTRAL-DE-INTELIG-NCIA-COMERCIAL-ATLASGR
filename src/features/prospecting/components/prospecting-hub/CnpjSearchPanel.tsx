@@ -40,7 +40,7 @@ export function CnpjSearchPanel({
                     <button
                         onClick={onLookup}
                         disabled={cnpjLoading || !cnpjInput}
-                        className="w-full bg-brand text-white py-3.5 rounded-[2rem] font-bold hover:bg-[#E04B12] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                        className="w-full bg-brand-active text-white py-3.5 rounded-[2rem] font-bold hover:bg-[#E04B12] disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                     >
                         {cnpjLoading ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
                         {cnpjLoading ? '⏳ Consultando...' : '🔎 Consultar CNPJ'}

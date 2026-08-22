@@ -149,7 +149,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('spin'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'spin' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'spin' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Target className="w-3.5 h-3.5" /> SPIN
@@ -157,7 +157,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('snap'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'snap' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'snap' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Zap className="w-3.5 h-3.5" /> SNAP
@@ -165,7 +165,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('aida'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'aida' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'aida' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Flame className="w-3.5 h-3.5" /> AIDA
@@ -173,7 +173,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('meddpicc'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'meddpicc' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'meddpicc' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <FileText className="w-3.5 h-3.5" /> MEDDPICC
@@ -181,7 +181,7 @@ export function SalesMethodologyStudio() {
             <button
               onClick={() => { setActiveTab('challenger'); setResult(null); }}
               className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                activeTab === 'challenger' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
+                activeTab === 'challenger' ? 'bg-brand-active text-white shadow-lg shadow-brand/20' : 'text-ink-2 hover:text-ink'
               }`}
             >
               <Compass className="w-3.5 h-3.5" /> Challenger

@@ -881,6 +881,7 @@ export function BitrixImportPanel({ connectionId }: BitrixImportPanelProps) {
                             </div>
                             <button
                                 onClick={() => setShowBulkEditModal(false)}
+                                aria-label="Fechar"
                                 className="text-gray-400 hover:text-gray-700 dark:hover:text-white p-1 rounded-lg"
                             >
                                 <X className="w-4 h-4" />
