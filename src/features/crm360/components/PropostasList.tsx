@@ -123,6 +123,7 @@ export function PropostasList() {
                         />
                     </div>
                     <select
+                        aria-label="Filtrar por tipo de documento"
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value as DocumentType | '')}
                         className="w-full sm:w-auto px-3 py-2.5 bg-surface-2 border border-line text-ink rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand/30"
@@ -131,6 +132,7 @@ export function PropostasList() {
                         {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                     <select
+                        aria-label="Filtrar por status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as DocumentStatus | '')}
                         className="w-full sm:w-auto px-3 py-2.5 bg-surface-2 border border-line text-ink rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand/30"
