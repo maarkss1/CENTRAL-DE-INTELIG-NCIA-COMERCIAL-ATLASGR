@@ -96,6 +96,7 @@ export function LoginScreen() {
           §7.7): metade laranja (AtlasGR) / metade azul (Total Trac) com peso visual igual, tokens
           estáticos em vez de --brand reativo. Split linear substitui o indigo-500 genérico
           anterior (violava a regra #3 — gradiente azul/roxo de "IA genérica"). */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-black/[0.07]" />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 bg-gradient-to-r from-atlas-orange/30 via-transparent via-50% to-totaltrack-blue/30"
@@ -104,13 +105,13 @@ export function LoginScreen() {
         aria-hidden="true"
         animate={{ scale: [1, 1.08, 1], rotate: [0, 90, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: 'linear' }}
-        className="absolute left-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-atlas-orange/25 blur-[120px] pointer-events-none"
+        className="absolute left-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-gradient-to-br from-atlas-orange/35 to-atlas-light-orange/15 blur-[120px] pointer-events-none"
       />
       <motion.div
         aria-hidden="true"
         animate={{ scale: [1, 1.1, 1], rotate: [0, -90, 0] }}
         transition={{ duration: 27, repeat: Infinity, ease: 'linear' }}
-        className="absolute right-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-totaltrack-blue/25 blur-[120px] pointer-events-none"
+        className="absolute right-[-12%] top-1/2 h-[640px] w-[560px] -translate-y-1/2 rounded-full bg-gradient-to-bl from-totaltrack-blue/35 to-totaltrac-navy/15 blur-[120px] pointer-events-none"
       />
 
       <div className="w-full max-w-md relative z-10">
@@ -125,7 +126,35 @@ export function LoginScreen() {
               <div className="h-8 w-px bg-line" aria-hidden="true" />
               <TotalTrackLogo className="h-8 w-auto" />
             </div>
-            <p className="text-ink-2 text-xs font-medium text-center">{BRAND_CONFIGS.atlasgr.slogan}</p>
+            <motion.p
+              className="text-center"
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <motion.span
+                className="inline-block font-black uppercase tracking-wide text-sm sm:text-base"
+                style={{
+                  backgroundImage: 'linear-gradient(90deg, #FF5618, #008FCE, #FF5618)',
+                  backgroundSize: '200% 100%',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                  WebkitTextFillColor: 'transparent',
+                }}
+                animate={{
+                  backgroundPosition: ['0% 50%', '200% 50%'],
+                  scale: [1, 1.04, 1],
+                  textShadow: [
+                    '0 0 6px rgba(255,86,24,0.4)',
+                    '0 0 14px rgba(0,143,206,0.5)',
+                    '0 0 6px rgba(255,86,24,0.4)',
+                  ],
+                }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                {BRAND_CONFIGS.atlasgr.slogan}
+              </motion.span>
+            </motion.p>
           </div>
 
           {isForgotPassword ? (
@@ -165,14 +194,13 @@ export function LoginScreen() {
                   </p>
 
                   <div>
-                    <label htmlFor="login-forgot-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                    <label htmlFor="login-forgot-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail:</label>
                     <input
                       id="login-forgot-email"
                       type="email"
                       value={email}
                       onChange={(e) => handleEmailChange(e.target.value)}
                       className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
-                      placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                       required
                       autoFocus
                     />
@@ -228,21 +256,20 @@ export function LoginScreen() {
                 )}
 
                 <div>
-                  <label htmlFor="login-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail Corporativo Autorizado</label>
+                  <label htmlFor="login-email" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 ml-1">E-mail:</label>
                   <input
                     id="login-email"
                     type="email"
                     value={email}
                     onChange={(e) => handleEmailChange(e.target.value)}
                     className="w-full bg-surface-2 border border-line rounded-2xl px-4 py-3.5 text-xs text-ink placeholder-ink-2 focus:outline-none focus:ring-2 focus:ring-brand transition-all"
-                    placeholder="seu.nome@atlasgr.com.br ou @totaltrac.com.br"
                     required
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5 ml-1 mr-1">
-                    <label htmlFor="login-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha de Acesso</label>
+                    <label htmlFor="login-password" className="block text-[10px] font-bold text-ink-2 uppercase tracking-wider">Senha:</label>
                     {!isSignUp && (
                       <button
                         type="button"
