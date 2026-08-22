@@ -149,7 +149,7 @@ function BoardView({ manifest, territories }: { manifest: MarketIntelligenceMani
     return (
         <section className="space-y-3" aria-labelledby="board-title">
             <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Board View</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-active">Board View</p>
                 <h2 id="board-title" className="text-2xl font-black tracking-tight text-[#333333]">Top 5 territórios calculados</h2>
             </div>
             <div className="grid gap-3 xl:grid-cols-5">
@@ -315,7 +315,7 @@ function SellerSimulator() {
             <aside className="space-y-4">
                 <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
                     {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => (
-                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-[#FF5618] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
+                        <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
                             {SCENARIO_LABELS[item]}
                         </button>
                     ))}

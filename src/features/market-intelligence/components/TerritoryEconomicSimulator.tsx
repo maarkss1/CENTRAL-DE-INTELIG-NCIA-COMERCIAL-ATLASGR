@@ -322,7 +322,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
 
                 <aside className="space-y-4">
                     <div className="flex gap-1 rounded-2xl border border-slate-200 bg-white p-1.5">
-                        {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-[#FF5618] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{SCENARIO_LABELS[item]}</button>)}
+                        {(['CONSERVADOR', 'BASE', 'AGRESSIVO'] as const).map((item) => <button key={item} type="button" onClick={() => setScenario(item)} aria-current={scenario === item ? 'true' : undefined} className={`flex-1 rounded-xl px-3 py-2 text-xs font-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5618] ${scenario === item ? 'bg-brand-active text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{SCENARIO_LABELS[item]}</button>)}
                     </div>
 
                     <div className={`rounded-3xl border p-5 ${recommendationTone(assessment.recommendation)}`}>
