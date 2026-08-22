@@ -1,8 +1,8 @@
 {
   "dataset": "Receita Federal - Dados Abertos CNPJ / ICP Atlas",
   "competence": "2026-08",
-  "processedAt": "2026-08-19T01:24:24.894495+00:00",
-  "durationSeconds": 8082.731,
+  "processedAt": "2026-08-19T18:02:45.549432+00:00",
+  "durationSeconds": 10971.088,
   "sourcePortal": "https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK",
   "taxonomyVersion": "1.0.0",
   "taxonomyStatus": "REGRA_DE_MODELO_NAO_CALIBRADA",

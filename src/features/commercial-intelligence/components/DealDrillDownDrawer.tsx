@@ -47,7 +47,6 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
     const [draftText, setDraftText] = useState('');
     const [drafting, setDrafting] = useState(false);
     const [sending, setSending] = useState(false);
-    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
 
     const defaultTemplate = (row: DealDrillDownRow) => `⚠️ Risco identificado pelo Comercial Inteligente (AtlasGR Prospector): ${row.riskFactors.join(', ')}.`;
 
@@ -88,26 +87,10 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
         }
     };
 
-    // Torna o copiloto de IA global ciente do negócio focado. O drawer normalmente lista vários
-    // negócios filtrados ao mesmo tempo — "um negócio aberto" só existe de fato quando o usuário
-    // abre o composer de risco de uma linha específica.
-    useEffect(() => {
-        if (!composerFor) return;
-        const row = rows.find((r) => r.id === composerFor);
-        if (!row) return;
-        setActiveRecord({
-            type: 'deal',
-            id: row.id,
-            label: row.title || row.companyName || 'Negócio',
-            summary: [row.stageName, row.tier ? TIER_LABEL[row.tier] : undefined].filter(Boolean).join(' — ') || undefined,
-        });
-        return () => clearActiveRecord(row.id);
-    }, [composerFor, rows, setActiveRecord, clearActiveRecord]);
-
     useEffect(() => {
         if (!query) {
             // Fecha o composer ao fechar o drawer inteiro — evita reabrir com estado de uma linha
-            // antiga e mantém o registro ativo do copiloto coerente com o que está mesmo na tela.
+            // antiga (draft de nota, composer expandido) quando o usuário volta a este drawer.
             setComposerFor(null);
             setDraftText('');
             return;
@@ -132,6 +115,22 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
             cancelled = true;
         };
     }, [filter, query]);
+
+    // Torna o copiloto de IA global ciente do negócio aberto — só faz sentido quando o drill-down
+    // resolve para exatamente 1 negócio (aberto via Centro de Decisão/Mentor); uma lista filtrada
+    // com vários negócios não tem um "registro aberto" único para registrar.
+    const { setActiveRecord, clearActiveRecord } = useActiveRecord();
+    useEffect(() => {
+        if (rows.length !== 1) return;
+        const deal = rows[0];
+        setActiveRecord({
+            type: 'deal',
+            id: deal.id,
+            label: deal.title || deal.companyName || 'Negócio sem título',
+            summary: [deal.stageName, deal.companyName].filter(Boolean).join(' — ') || undefined,
+        });
+        return () => clearActiveRecord(deal.id);
+    }, [rows, setActiveRecord, clearActiveRecord]);
 
     return (
         <Drawer isOpen={!!query} onClose={onClose} title={query?.title ?? 'Negócios'} subtitle={total > 0 ? `${total} negócio(s)` : undefined}>

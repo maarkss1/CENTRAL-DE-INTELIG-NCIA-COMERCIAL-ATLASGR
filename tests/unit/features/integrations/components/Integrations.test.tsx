@@ -63,7 +63,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText(/Bitrix24 tem leitura\/importação real/)).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Gmail e Calendar em modo leitura; a Agenda do produto continua local.')).toBeInTheDocument();
+        expect(await screen.findByText('Gmail em modo leitura; Calendar já lê e cria eventos reais quando a Cadência agenda uma reunião.')).toBeInTheDocument();
 
         await user.click(screen.getByText('PABX 3CX')).catch(() => {});
         expect(await screen.findByText(/Cadastro de PABX 3CX e teste de comunicação/)).toBeInTheDocument();
@@ -85,7 +85,7 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByText('Desconectado')).toBeInTheDocument());
     });
 
-    it('declara maturidade real por integração, sem prometer escrita Google ou 3CX 24h sem prova', async () => {
+    it('declara maturidade real por integração — escrita real no Google Calendar (CYC-004) com prova, sem prometer 3CX 24h sem prova', async () => {
         const user = userEvent.setup();
         server.use(
             http.get('/api/google/status', () => HttpResponse.json({ success: true, data: { connected: true, email: 'agenda@example.com' } })),
@@ -109,8 +109,8 @@ expect(screen.getByText('Integrações')).toBeInTheDocument();
         expect(await screen.findByText('não é API oficial Meta')).toBeInTheDocument();
 
         await user.click(screen.getByText('Google Workspace'));
-        expect(await screen.findByText('Google escrita pendente')).toBeInTheDocument();
-        expect(screen.getByText(/criar\/remarcar\/concluir atividades acontece só na Agenda local do Atlas/i)).toBeInTheDocument();
+        expect(await screen.findByText('Calendar escrita (via Cadência)')).toBeInTheDocument();
+        expect(screen.getByText(/reuniões agendadas pela Cadência já criam o evento real no Google Calendar/i)).toBeInTheDocument();
 
         await user.click(screen.getByText('Bitrix24'));
         expect(await screen.findByText('webhook entrada opcional')).toBeInTheDocument();

@@ -1,4 +1,48 @@
 // ---------------------------------------------------------------------------
+// v27 — Portal multi-empresa (AtlasGR + Total Trac): cada página se
+// autodeclara com `<html data-empresa="atlasgr">` ou `data-empresa="totaltrac"`
+// (sem depender de localStorage — abrir um link direto/favorito já sabe de
+// quem é a página). `MARCAS` é o único registro de identidade visual/senha/
+// storage por empresa; todo o resto do código (auth.js, bitrix-api.js,
+// catalogo-relatorios.js, cockpit.js, forecast.js, sdr.js, exportacoes.js,
+// ui.js) lê daqui via `marcaAtiva()` em vez de repetir cor/nome/logo.
+// `logoSvg`/`webhookPadrao` são getters (avaliados só quando lidos) porque
+// `MODELO_EXECUTIVO_LOGO*` (catalogo-relatorios.js) e `WEBHOOK_FIXO_PADRAO`
+// (bitrix-api.js) carregam DEPOIS deste arquivo na ordem de <script> das
+// páginas — um valor direto quebraria com ReferenceError neste ponto.
+// ---------------------------------------------------------------------------
+const MARCAS = {
+  atlasgr: {
+    nome: "AtlasGR",
+    tagline: "Gerenciamento de Risco em Processos Logísticos",
+    corPrimaria: "#FF5618", corSecundaria1: "#FF8008", corSecundaria2: "#FF6B10",
+    senhaHash: "971b5af4a5fda505e27419910527bf48b52b754ca55cc34592a3ea6c4f466d7a",
+    sufixoStorage: "",
+    prefixoArquivo: "",
+    get logoSvg() { return typeof MODELO_EXECUTIVO_LOGO !== "undefined" ? MODELO_EXECUTIVO_LOGO : ""; },
+    get webhookPadrao() { return typeof WEBHOOK_FIXO_PADRAO !== "undefined" ? WEBHOOK_FIXO_PADRAO : ""; }
+  },
+  totaltrac: {
+    nome: "Total Trac",
+    tagline: "Conectar para cuidar",
+    corPrimaria: "#008FCE", corSecundaria1: "#374898", corSecundaria2: "#93DBF2",
+    senhaHash: "d2f14884650339d997e82d0cde51942573bf7c1c0400a9714112eca7f5a0c2e6",
+    sufixoStorage: "__totaltrac",
+    prefixoArquivo: "totaltrac-",
+    get logoSvg() { return typeof MODELO_EXECUTIVO_LOGO_TOTALTRAC !== "undefined" ? MODELO_EXECUTIVO_LOGO_TOTALTRAC : ""; },
+    // Sem webhook fixo padrão: conexão manual (cola e salva no navegador),
+    // igual à opção que já existe hoje pra AtlasGR.
+    get webhookPadrao() { return ""; }
+  }
+};
+function empresaAtiva() {
+  return document.documentElement.getAttribute("data-empresa") || "atlasgr";
+}
+function marcaAtiva() {
+  return MARCAS[empresaAtiva()] || MARCAS.atlasgr;
+}
+
+// ---------------------------------------------------------------------------
 // Metadados conhecidos do Bitrix da AtlasGR (confirmados via API em 08/08/2026
 // — ver PIPELINE_MAPPING.md). Se a estrutura do CRM mudar, atualize aqui.
 // ---------------------------------------------------------------------------

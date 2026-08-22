@@ -63,7 +63,7 @@ function renderizarRelatorioCatalogo(){
   document.getElementById("bloco-relatorio-catalogo").classList.remove("oculto");
   document.getElementById("relatorioResultadoTitulo").textContent=r.titulo;
   document.getElementById("relatorioResultadoSubtitulo").innerHTML=r.subtitulo||"";
-  document.getElementById("relatorioResultadoKpis").innerHTML=(r.kpis||[]).map((x)=>`<div class="relatorio-especial-kpi"><span class="valor">${escapeHtmlRelatorio(x.valor)}</span><span class="rotulo">${escapeHtmlRelatorio(x.rotulo)}</span></div>`).join("");
+  document.getElementById("relatorioResultadoKpis").innerHTML=(r.kpis||[]).map((x)=>kpiCardHtml(x.rotulo,x.valor,r.tabelas?.length?"relatorioResultadoTabelas":undefined)).join("");
   const metaBarrasEl=document.getElementById("relatorioResultadoMetaBarras");if(metaBarrasEl)metaBarrasEl.innerHTML=r.barra_meta||"";
   document.getElementById("relatorioResultadoTabelas").innerHTML=(r.tabelas||[]).map((t)=>`<div class="relatorio-subtitulo">${escapeHtmlRelatorio(t.titulo)}</div><div class="relatorio-scroll">${tabelaRelatorio(t.colunas,t.dados||[],t.limite||300)}</div>`).join("");
   document.getElementById("relatorioResultadoNota").textContent=r.nota||"";
@@ -74,25 +74,43 @@ function renderizarRelatorioCatalogo(){
 // v11 — modelo visual genérico: mesmo letterhead/hero/kpis do modelo do Forecast,
 // aplicado a QUALQUER relatório do catálogo (chave/titulo/subtitulo/kpis/tabelas),
 // não só ao Forecast mensal. Cada tabela vira uma seção retrátil com model-table.
+// v25 — varre os KPIs à procura de padrões que sempre indicam algo que
+// merece atenção (vencido, atrasado, sem atividade/dados, fora do SLA,
+// crítico...) e monta alertas automáticos — funciona em QUALQUER relatório
+// do catálogo/Diário SDR/Jornada sem precisar de lógica dedicada por
+// relatório, já que só olha rótulo + valor numérico dos KPIs que o próprio
+// relatório já calculou.
+function pontosDeAtencaoGenerico(kpis){
+  const PADROES=/vencid|atrasad|sem atividade|sem closedate|sem clientedate|fora do sla|fora sla|cr[ií]tico|sem contato|pendente|não localizado/i;
+  const achados=(kpis||[]).filter((x)=>{
+    const n=Number(String(x.valor).replace(/[^\d,.-]/g,"").replace(",","."));
+    return PADROES.test(x.rotulo||"")&&Number.isFinite(n)&&n>0;
+  });
+  if(!achados.length)return "";
+  const itens=achados.map((x)=>`<li><strong>${escapeHtmlRelatorio(x.valor)}</strong> — ${escapeHtmlRelatorio(x.rotulo)}</li>`).join("");
+  return `<div class="alert-banner warn" style="align-items:flex-start;"><span class="icon">⚠️</span><div><strong>Pontos de atenção encontrados neste relatório:</strong><ul style="margin:6px 0 0;padding-left:18px;">${itens}</ul></div></div>`;
+}
 function gerarHTMLRelatorioVisualGenerico(r){
   if(!r?.titulo)return "";
-  const kpisHtml=(r.kpis||[]).map((x)=>`<div class="kpi"><div class="label">${escapeHtmlRelatorio(x.rotulo)}</div><div class="value">${escapeHtmlRelatorio(x.valor)}</div></div>`).join("");
+  const marca=marcaAtiva();
+  const kpisHtml=(r.kpis||[]).map((x)=>`<div class="kpi"><div class="label">${escapeHtmlRelatorio(x.rotulo)}</div><div class="value valor-pisca">${escapeHtmlRelatorio(x.valor)}</div></div>`).join("");
+  const atencaoHtml=pontosDeAtencaoGenerico(r.kpis);
   const tabelasHtml=(r.tabelas||[]).map((t,i)=>{
     const tabela=tabelaModelo((t.colunas||[]).map((c)=>({label:c.label,valor:typeof c.valor==="function"?c.valor:(row)=>row[c.valor],html:!!c.html})),(t.dados||[]).slice(0,t.limite||300));
     return `<details class="vcard section-card"${i===0?" open":""}><summary><span class="vcard-name">${escapeHtmlRelatorio(t.titulo||`Tabela ${i+1}`)}</span><span class="vcard-stats">${(t.dados||[]).length} registro(s)</span><span class="vcard-chevron">▾</span></summary><div class="vcard-body">${tabela}</div></details>`;
   }).join("");
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlRelatorio(r.titulo)} · Atlas</title><style>${MODELO_EXECUTIVO_CSS}</style></head><body>`+
-  `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${MODELO_EXECUTIVO_LOGO}<div class="letterhead-divider"></div><div class="letterhead-tagline">Gerenciamento de Risco em Processos Logísticos</div></div><div class="letterhead-ref"><strong>Relatório Comercial</strong><br>Extraído do Bitrix24 em ${formatarDataBR(formatarDataISO(new Date()))}</div></div></div>`+
-  `<header class="hero"><div class="hero-inner"><p class="eyebrow">Relatório Comercial · Bitrix24</p><h1>${escapeHtmlRelatorio(r.titulo)}</h1><p class="subtitle">${(r.subtitulo||"").replace(/<[^>]+>/g,"")||"Extraído automaticamente pelo extrator Atlas."}</p></div></header>`+
-  `<div class="wrap"><div class="overview-panel" id="visao-geral"><h2 class="section" style="margin-top:0;">Visão geral</h2><div class="kpis">${kpisHtml||'<p class="small-note">Sem indicadores.</p>'}</div></div>`+
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtmlRelatorio(r.titulo)} · ${escapeHtmlRelatorio(marca.nome)}</title><style>${modeloExecutivoCssParaMarca(marca)}</style></head><body>`+
+  `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${marca.logoSvg}<div class="letterhead-divider"></div><div class="letterhead-tagline">${escapeHtmlRelatorio(marca.tagline)}</div></div><div class="letterhead-ref"><strong>Relatório Comercial</strong><br>Extraído do Bitrix24 em ${formatarDataBR(formatarDataISO(new Date()))}</div></div></div>`+
+  `<header class="hero"><div class="hero-inner"><p class="eyebrow">Relatório Comercial · Bitrix24</p><h1>${escapeHtmlRelatorio(r.titulo)}</h1><p class="subtitle">${(r.subtitulo||"").replace(/<[^>]+>/g,"")||`Extraído automaticamente pelo extrator ${escapeHtmlRelatorio(marca.nome)}.`}</p></div></header>`+
+  `<div class="wrap"><div class="overview-panel" id="visao-geral"><h2 class="section" style="margin-top:0;">Visão geral</h2>${atencaoHtml}<div class="kpis">${kpisHtml||'<p class="small-note">Sem indicadores.</p>'}</div></div>`+
   `<h2 class="section">Detalhamento</h2><div class="top3grid">${tabelasHtml||'<p class="small-note">Sem tabelas neste relatório.</p>'}</div>`+
   (r.nota?`<div class="note">${escapeHtmlRelatorio(r.nota)}</div>`:"")+
-  `<a class="back-to-overview" href="#visao-geral">↑ Voltar à Visão geral</a></div><footer><div class="footer-brand">${MODELO_EXECUTIVO_LOGO}<span>Atlas</span></div>Atlas · ${escapeHtmlRelatorio(r.titulo)}</footer></body></html>`;
+  `<a class="back-to-overview" href="#visao-geral">↑ Voltar à Visão geral</a></div><footer><div class="footer-brand">${marca.logoSvg}<span>${escapeHtmlRelatorio(marca.nome)}</span></div>${escapeHtmlRelatorio(marca.nome)} · ${escapeHtmlRelatorio(r.titulo)}</footer></body></html>`;
 }
 function abrirRelatorioVisualCatalogo(){
   const r=resultadoRelatorioCatalogo;if(!r?.titulo)return;
   const h=(r.chave==="forecast_mensal"&&r.modelo_visual)?gerarHTMLForecastModelo(r,"mensal"):gerarHTMLRelatorioVisualGenerico(r);
-  if(h)abrirHtmlEmNovaAba(h);
+  if(h)mostrarRelatorioVisualInline(h,r.titulo);
 }
 function baixarHTMLRelatorioVisualCatalogo(){
   const r=resultadoRelatorioCatalogo;if(!r?.titulo)return;
@@ -128,17 +146,29 @@ async function extrairRelatorioCatalogo(webhook,chave){
         else if(d._SEMANTICA==="process"&&!ehEstagioPiloto(d.STAGE_ID,d._ESTAGIO)){const cd=parteDataISO(d.CLOSEDATE);if(!cd){semData++;sit="Sem CLOSEDATE"}else if(p.inicio&&cd<p.inicio){vencidas++;sit="CLOSEDATE vencida"}else if(dentroPeriodoCatalogo(cd,p)){sit="Previsto no mês";fp=d._VALOR*prob/100;pond+=fp;if(bucket==="Commit")commit+=d._VALOR;else if(bucket==="Best Case")best+=d._VALOR;else pipe+=d._VALOR}}
         if(sit!=="Fora")rows.push({DEAL_ID:d.ID,CLIENTE:d._CLIENTE,ESTAGIO:d._ESTAGIO,RESPONSAVEL:d._RESPONSAVEL,CLOSEDATE:parteDataISO(d.CLOSEDATE),VALOR:d._VALOR,PROBABILIDADE:prob,FONTE_PROBABILIDADE:usa?"Bitrix":"Fallback",BUCKET:bucket,SITUACAO:sit,FORECAST_PONDERADO:fp});
       });
-      const forecast=fechado+pond;
       const modeloVisualMensal=await construirDadosModeloForecast(webhook,b.meta,p.inicio,p.fim,b.deals);
+      // v24 — "Fechado" (e tudo que deriva dele: Forecast total, Gap, barra de
+      // atingimento) usa a MESMA base de modelo_visual.resumo.FECHADOS_VALOR
+      // (negócios no Financeiro em "Contrato assinado") em vez do `fechado`
+      // local (só negócios do funil Comercial marcados como ganho) — mesma
+      // correção já aplicada em gerarHTMLForecastModelo(), pra este preview
+      // (mostrado antes de abrir o modelo visual) não voltar a divergir do
+      // valor que a seção "✅ Fechados" do relatório mostra. `pond` (pipeline
+      // aberto ponderado) já é independente dessa base.
+      const fechadoConsistente=modeloVisualMensal.resumo.FECHADOS_VALOR;
+      const forecast=fechadoConsistente+pond;
       criarResultadoCatalogo(chave,"Forecast mensal • Comercial",`<strong>${escapeHtmlRelatorio(formatarDataBR(p.inicio))} a ${escapeHtmlRelatorio(formatarDataBR(p.fim))}</strong>`,
-        [kpi("Fechado",moedaRelatorio(fechado)),kpi("Forecast total",moedaRelatorio(forecast)),kpi("Commit",moedaRelatorio(commit)),kpi("Best Case",moedaRelatorio(best)),kpi("Pipeline",moedaRelatorio(pipe)),kpi("Sem CLOSEDATE",semData),kpi("CLOSEDATE vencida",vencidas),kpi(meta?"Gap para meta":"Meta",meta?moedaRelatorio(Math.max(0,meta-forecast)):"não informada"),kpi(`Meta semanal (÷${semanasNoMesCatalogo} semanas)`,metaSemanalImplicita?moedaRelatorio(metaSemanalImplicita):"—")],
+        [kpi("Fechado",moedaRelatorio(fechadoConsistente)),kpi("Forecast total",moedaRelatorio(forecast)),kpi("Commit",moedaRelatorio(commit)),kpi("Best Case",moedaRelatorio(best)),kpi("Pipeline",moedaRelatorio(pipe)),kpi("Sem CLOSEDATE",semData),kpi("CLOSEDATE vencida",vencidas),kpi(meta?"Gap para meta":"Meta",meta?moedaRelatorio(Math.max(0,meta-fechadoConsistente)):"não informada"),kpi(`Meta semanal (÷${semanasNoMesCatalogo} semanas)`,metaSemanalImplicita?moedaRelatorio(metaSemanalImplicita):"—")],
         [{titulo:"Negócios do forecast",dados:rows,colunas:[{label:"Deal",valor:"DEAL_ID"},{label:"Cliente",valor:"CLIENTE"},{label:"Estágio",valor:"ESTAGIO"},{label:"Responsável",valor:"RESPONSAVEL"},{label:"CLOSEDATE",valor:"CLOSEDATE"},{label:"Valor",valor:(x)=>moedaRelatorio(x.VALOR),html:true},{label:"Prob.",valor:(x)=>`${x.PROBABILIDADE}%`},{label:"Bucket",valor:"BUCKET"},{label:"Situação",valor:"SITUACAO"},{label:"Ponderado",valor:(x)=>moedaRelatorio(x.FORECAST_PONDERADO),html:true}]}],
         "PROBABILITY do Bitrix tem prioridade; quando zerada, usa fallback por estágio.");
       resultadoRelatorioCatalogo.modelo_visual=modeloVisualMensal;
       resultadoRelatorioCatalogo.meta_visual=meta;
       resultadoRelatorioCatalogo.meta_semanal_implicita=metaSemanalImplicita;
-      resultadoRelatorioCatalogo.resumo={FECHADO:fechado,FORECAST_TOTAL:forecast};
-      resultadoRelatorioCatalogo.barra_meta=barraAtingimentoMeta(`Atingimento da meta mensal (${mesAnoBR(p.fim||p.referencia)})`,forecast,meta);
+      resultadoRelatorioCatalogo.resumo={FECHADO:fechadoConsistente,FORECAST_TOTAL:forecast};
+      resultadoRelatorioCatalogo.barra_meta=barraAtingimentoMeta(`Atingimento da meta mensal (${mesAnoBR(p.fim||p.referencia)})`,fechadoConsistente,meta);
+      // v20 — mesma "foto" do dia salva pelo Forecast semanal (js/jornada.js), para
+      // que a tendência do relatório visual funcione também vindo do catálogo.
+      if(meta>0)salvarHistoricoForecastLocal({data:formatarDataISO(new Date()),metaMensal:meta,fechadoMes:fechadoConsistente,projecaoMes:forecast});
       renderizarRelatorioCatalogo();
     }
 
@@ -530,7 +560,7 @@ const MODELO_EXECUTIVO_CSS = String.raw`
   .back-to-overview:hover { text-decoration: underline; }
 
   .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 28px; }
-  .barrow { display: grid; grid-template-columns: 190px 1fr 110px; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .barrow { display: grid; grid-template-columns: minmax(0,190px) 1fr minmax(0,110px); align-items: center; gap: 10px; margin-bottom: 9px; }
   .barlabel { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bartrack { background: var(--grid); border-radius: 12px; height: 16px; position: relative; overflow: hidden; }
   .barfill { height: 100%; border-radius: 8px; min-width: 6px; }
@@ -598,7 +628,7 @@ const MODELO_EXECUTIVO_CSS = String.raw`
     padding: 12px 14px 8px; margin-bottom: 14px;
   }
   .mini-chart-title { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; color: var(--text-muted); margin-bottom: 8px; }
-  .mbarrow { display: grid; grid-template-columns: 150px 1fr 90px; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .mbarrow { display: grid; grid-template-columns: minmax(0,150px) 1fr minmax(0,90px); align-items: center; gap: 8px; margin-bottom: 6px; }
   .mbarlabel { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mbartrack { background: var(--grid); border-radius: 10px; height: 11px; overflow: hidden; }
   .mbarfill { height: 100%; border-radius: 6px; min-width: 4px; }
@@ -675,6 +705,9 @@ const MODELO_EXECUTIVO_CSS = String.raw`
   @media print {
     .hero { clip-path: none; }
     body { background: var(--white); }
+    .valor-pisca { animation: none !important; opacity: 1 !important; }
+    .kpi, .analise-card, .stat-item, .barrow, .mbarrow, .model-table-wrap { break-inside: avoid; page-break-inside: avoid; }
+    .info-tip::after, .info-tip::before { display: none !important; }
   }
 
 .model-table-wrap{overflow:auto;background:#fff;border-radius:14px;box-shadow:var(--shadow-soft);margin-bottom:22px}
@@ -709,6 +742,139 @@ const MODELO_EXECUTIVO_CSS = String.raw`
 .meta-card-linha strong{color:var(--text-primary);font-weight:700}
 .meta-card-pct{margin-top:8px;font-size:11.5px;font-weight:700;color:var(--muted)}
 @media(max-width:640px){.meta-cards-destaque{grid-template-columns:1fr}}
+
+/* ---------- v19: mais vida nos cards — animações de entrada, badge de */
+/* notificação, balão de dica, alertas e popup informativo ---------- */
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pingPulse{0%{box-shadow:0 0 0 0 rgba(208,59,59,.55)}70%{box-shadow:0 0 0 9px rgba(208,59,59,0)}100%{box-shadow:0 0 0 0 rgba(208,59,59,0)}}
+@keyframes popIn{from{opacity:0;transform:scale(.94) translateY(6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.kpis>*,.top3grid>*,.cgrid>*,.month-list>*,.stage-list>*{animation:fadeSlideIn .5s ease both}
+.kpis>*:nth-child(1){animation-delay:.04s}
+.kpis>*:nth-child(2){animation-delay:.1s}
+.kpis>*:nth-child(3){animation-delay:.16s}
+.kpis>*:nth-child(4){animation-delay:.22s}
+.top3grid>*:nth-child(1){animation-delay:.08s}
+.top3grid>*:nth-child(2){animation-delay:.16s}
+.top3grid>*:nth-child(3){animation-delay:.24s}
+.cgrid>*,.month-list>*,.stage-list>*{animation-delay:.2s}
+.cgrid>*:nth-child(1),.month-list>*:nth-child(1),.stage-list>*:nth-child(1){animation-delay:.03s}
+.cgrid>*:nth-child(2),.month-list>*:nth-child(2),.stage-list>*:nth-child(2){animation-delay:.07s}
+.cgrid>*:nth-child(3),.month-list>*:nth-child(3),.stage-list>*:nth-child(3){animation-delay:.11s}
+.cgrid>*:nth-child(4),.month-list>*:nth-child(4),.stage-list>*:nth-child(4){animation-delay:.15s}
+.kpi,.meta-card-destaque{position:relative;transition:transform .18s ease,box-shadow .18s ease}
+.kpi-clickable:hover{transform:translateY(-3px);box-shadow:var(--shadow-card)}
+.badge-ping{position:absolute;top:-8px;right:-8px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:var(--critical);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;animation:pingPulse 1.8s ease-out infinite}
+.info-tip{position:relative;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:rgba(51,51,51,.1);color:var(--text-secondary);font-size:9.5px;font-style:normal;font-weight:800;margin-left:5px;cursor:help;vertical-align:middle}
+.info-tip::after{content:attr(data-tip);position:absolute;left:50%;bottom:135%;transform:translateX(-50%) scale(.94);transform-origin:bottom center;background:#262b36;color:#fff;padding:8px 10px;border-radius:8px;font-size:11.5px;font-weight:500;text-transform:none;letter-spacing:normal;line-height:1.35;text-align:left;white-space:normal;width:min(200px,52vw);box-shadow:0 10px 24px rgba(0,0,0,.28);z-index:30;opacity:0;pointer-events:none;transition:opacity .15s ease,transform .15s ease}
+.info-tip::before{content:"";position:absolute;left:50%;bottom:123%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#262b36;z-index:30;opacity:0;transition:opacity .15s ease}
+.info-tip:hover::after,.info-tip:focus-visible::after,.info-tip:hover::before,.info-tip:focus-visible::before{opacity:1;transform:translateX(-50%) scale(1)}
+@media(max-width:480px){.info-tip::after,.info-tip::before{display:none}}
+.alert-banner{display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border-radius:12px;margin:14px 0 0;font-size:13px;font-weight:600;line-height:1.45;animation:slideDown .4s ease both}
+.alert-banner .icon{font-size:17px;line-height:1.2}
+.alert-banner.good{background:rgba(12,163,12,.08);color:#0ca30c;border:1px solid rgba(12,163,12,.25)}
+.alert-banner.bad{background:rgba(208,59,59,.08);color:#d03b3b;border:1px solid rgba(208,59,59,.25);animation:slideDown .4s ease both,pingPulse 2.4s ease-out 1}
+.alert-banner.warn{background:rgba(250,178,25,.14);color:#8a5a00;border:1px solid rgba(250,178,25,.4)}
+.btn-info-flutuante{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--atlas-primary);color:#fff;font-weight:800;font-size:12px;font-style:italic;cursor:pointer;border:none;margin-left:4px;transition:transform .15s ease;flex-shrink:0}
+.btn-info-flutuante:hover{transform:scale(1.15) rotate(8deg)}
+.popup-overlay{position:fixed;inset:0;background:rgba(15,18,25,.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px}
+.popup-overlay.aberto{display:flex;animation:fadeSlideIn .18s ease both}
+.popup-box{background:#fff;border-radius:16px;max-width:440px;width:100%;padding:24px 26px;box-shadow:0 26px 60px rgba(0,0,0,.32);animation:popIn .22s ease both;position:relative}
+.popup-box h3{margin:0 0 12px;font-size:15px;color:var(--atlas-dark)}
+.popup-box p{margin:0 0 10px;font-size:13px;color:var(--text-secondary);line-height:1.55}
+.popup-box p b{color:var(--text-primary)}
+.popup-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--text-secondary)}
+.popup-close:hover{color:var(--critical)}
+@media(prefers-reduced-motion:reduce){.kpis>*,.top3grid>*,.cgrid>*,.month-list>*,.stage-list>*,.alert-banner,.popup-box,.popup-overlay.aberto{animation:none!important}.badge-ping{animation:none!important}}
+
+/* ---------- v20: mini gráfico de tendência, drill-down e filtro por vendedor(a) ---------- */
+.trend-box{margin:14px 0 0;padding:14px 16px 8px;border:1px solid var(--line);border-radius:12px;background:var(--white)}
+.trend-box.trend-vazio{padding:14px 16px;font-size:12px;color:var(--text-muted);text-align:center}
+.trend-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;font-size:12.5px;font-weight:800;color:var(--atlas-dark)}
+.trend-sub{font-size:11px;font-weight:600;color:var(--text-muted)}
+.trend-svg{width:100%;height:64px;margin-top:8px;display:block}
+.trend-line{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.trend-line-fechado{stroke:var(--orange)}
+.trend-line-projecao{stroke:var(--gold);stroke-dasharray:5 3}
+.trend-line-meta{stroke:var(--muted);stroke-dasharray:2 3}
+.trend-legend{display:flex;gap:14px;margin-top:6px;font-size:10.5px;font-weight:700;color:var(--text-secondary)}
+.trend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.trend-dot-fechado{background:var(--orange)}
+.trend-dot-projecao{background:var(--gold)}
+.trend-dot-meta{background:var(--muted)}
+.ccard-abrir{align-self:flex-start;margin-top:2px;font-size:11.5px;font-weight:800;color:var(--atlas-primary);text-decoration:none;border:1px solid rgba(255,86,24,.35);border-radius:999px;padding:4px 10px;transition:background .15s ease,color .15s ease}
+.ccard-abrir:hover{background:var(--atlas-primary);color:#fff}
+.filtro-vendedor-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px 19px;font-size:12.5px;font-weight:700;color:var(--text-secondary)}
+.filtro-vendedor-row select{font:inherit;font-weight:700;padding:6px 10px;border-radius:8px;border:1.5px solid var(--orange);background:#fff;color:var(--text-primary)}
+.filtro-vendedor-aviso{font-size:11.5px;font-weight:700;color:var(--atlas-primary)}
+
+/* ---------- v20: fontes maiores, mais negrito e contorno laranja nos cards ---------- */
+body{font-size:15px}
+h2.section{font-size:17px;font-weight:900}
+.hero h1{font-size:36px}
+.kpi{border:2px solid var(--orange)}
+.kpi .label{font-size:11.5px;font-weight:800}
+.kpi .value{font-size:26px;font-weight:800}
+.kpi .small{font-size:12px;font-weight:700}
+.meta-card-destaque{border-width:2px;border-color:var(--orange)}
+.meta-card-label{font-size:12px;font-weight:800}
+.meta-card-valor{font-size:32px;font-weight:800}
+.meta-card-linha{font-size:14px;font-weight:600}
+.meta-card-linha strong{font-weight:800}
+.meta-card-pct{font-size:12.5px;font-weight:800}
+.ccard{border:2px solid var(--orange)}
+.ccard-name{font-size:16px;font-weight:800}
+.ccard-value{font-size:17px;font-weight:800}
+.ccard-meta{font-size:13px;font-weight:700}
+.vcard{border:2px solid var(--orange)}
+.vcard-name{font-size:15px;font-weight:800}
+.vcard-stats{font-size:12.5px;font-weight:800}
+
+/* ---------- v24: cards mais arredondados, fontes maiores, efeito "pisca" ---------- */
+/* nos valores, melhor distribuição dos cards e a seção "Análise" (composição, */
+/* comparativo ano a ano, pipeline por estágio, estatísticas) ---------- */
+.kpi{border-radius:20px}
+.meta-card-destaque{border-radius:22px}
+.ccard{border-radius:18px}
+.vcard{border-radius:18px}
+.alert-banner{border-radius:16px}
+.popup-box{border-radius:20px}
+.trend-box{border-radius:16px}
+.mini-chart{border-radius:14px}
+h2.section{font-size:18px}
+.kpi .value{font-size:27px}
+.meta-card-valor{font-size:30px}
+.ccard-name{font-size:16.5px}
+.hero h1{font-size:37px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.top3grid{gap:18px}
+.cgrid{gap:16px}
+@keyframes valorPisca{0%,100%{opacity:1;filter:drop-shadow(0 0 0 rgba(255,86,24,0))}50%{opacity:.72;filter:drop-shadow(0 0 6px rgba(255,86,24,.55))}}
+.valor-pisca{animation:valorPisca 1.7s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.valor-pisca{animation:none!important}}
+
+.meta-card-topo{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.meta-gauge{width:64px;height:64px;flex-shrink:0}
+.meta-gauge-trilha{fill:none;stroke:rgba(0,0,0,.08);stroke-width:8}
+.meta-gauge-progresso{fill:none;stroke-width:8;stroke-linecap:round;transform:rotate(-90deg);transform-origin:36px 36px;transition:stroke-dasharray .3s ease}
+.meta-gauge-texto{font-size:15px;font-weight:800;fill:var(--text-primary)}
+
+.donut-box{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.donut-svg{width:120px;height:120px;flex-shrink:0}
+.donut-fatia{fill:none;stroke-width:20;transition:stroke-dasharray .3s ease}
+.donut-total{font-size:13px;font-weight:800;fill:var(--text-primary)}
+.donut-legend{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:var(--text-secondary)}
+
+.analise-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin:16px 0 28px}
+.analise-card{padding:18px 20px;background:var(--white)}
+.analise-card-wide{grid-column:1 / -1}
+.analise-card-titulo{font-size:13px;font-weight:800;color:var(--atlas-dark);margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.stat-item{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--page-plane)}
+.stat-label{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted)}
+.stat-valor{font-size:18px;font-weight:800;color:var(--atlas-dark)}
+.stat-sub{font-size:11px;color:var(--text-secondary);font-weight:600}
+@media(max-width:640px){.donut-box{flex-direction:column;align-items:flex-start}}
 `;
 const MODELO_EXECUTIVO_LOGO = String.raw`<svg viewBox="0 0 800 174.78" xmlns="http://www.w3.org/2000/svg" fill="#FF5618"><path d="M403.66,171.69l-10-28.49h-57l-9.78,28.49H294.09L350.17,21.5h29.14L437.2,171.69ZM365,61.19l-18.66,53.73H383.9Z"/>
         <path d="M494.61,145.14h13.58v26.55H487q-18.16,0-28.69-10.53t-10.53-28.89v-47h-21.4V78.88L472.8,32.47h4.35V61.31h31v24H477.65v43q0,8.08,4.39,12.47t12.57,4.39"/>
@@ -717,4 +883,34 @@ const MODELO_EXECUTIVO_LOGO = String.raw`<svg viewBox="0 0 800 174.78" xmlns="ht
         <path d="M753.69,174.78q-20.75,0-33.48-10.82t-12.82-28.6h29q.11,7.09,5.14,10.88T754.89,150A20.3,20.3,0,0,0,766,147.14a9.17,9.17,0,0,0,4.54-8.18,7.43,7.43,0,0,0-1.55-4.69,11.43,11.43,0,0,0-4.84-3.35,43.86,43.86,0,0,0-6.48-2.09q-3.2-.75-8.39-1.65-4.68-.8-7.88-1.45t-7.73-1.94a44.3,44.3,0,0,1-7.64-2.85,43.08,43.08,0,0,1-6.54-4.14,23,23,0,0,1-5.49-5.74,29.62,29.62,0,0,1-3.39-7.63,34.21,34.21,0,0,1-1.35-9.88,31.18,31.18,0,0,1,12.28-25.5q12.27-9.82,32.13-9.83t32,10.13q12.07,10.13,12.17,26.7H769.56q-.09-6.49-4.44-9.78T752.9,82q-6.9,0-10.83,2.9a9.07,9.07,0,0,0-3.94,7.68,7.92,7.92,0,0,0,.64,3.25,5.9,5.9,0,0,0,2.3,2.49q1.65,1,3.09,1.8a22.06,22.06,0,0,0,4.39,1.49c2,.5,3.56.87,4.79,1.1l5.64,1q16.07,2.89,23.16,6,17.86,8,17.86,27.94,0,16.86-12.67,27t-33.64,10.12"/>
         <polygon points="153.4 87.56 167.65 62.87 167.68 62.85 178.13 44.72 178.11 44.68 178.15 44.68 203.95 0 182.97 0 152.31 0 110.4 0 99.17 0 73.37 44.68 73.35 44.72 62.87 62.87 48.62 87.56 48.41 87.94 0 171.76 83.81 171.76 104.78 171.76 125.74 135.49 125.76 135.44 153.19 87.94 153.4 87.56"/>
         <polygon points="203.07 87.94 175.75 87.94 153.9 125.79 153.9 125.83 137.02 155.01 146.7 171.76 209.57 171.76 251.48 171.76 203.07 87.94"/></svg>`;
+
+// v27 — logo da Total Trac para os relatórios exportáveis (segundo tenant do
+// portal), reproduzindo o símbolo (pin de localização + ondas de wi-fi) e o
+// wordmark de duas cores do manual de identidade visual deles (TOTAL em
+// navy #374898, TRAC em azul #008FCE) — mesmo padrão String.raw do logo
+// acima, usado por gerarHTMLRelatorioVisualGenerico/cockpitGerarHTMLExport/
+// gerarHTMLForecastModelo/gerarHTMLRelatorioJoao via marcaAtiva().logoSvg.
+const MODELO_EXECUTIVO_LOGO_TOTALTRAC = String.raw`<svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(2,4)">
+    <path d="M52 0C27 0 7 19 7 43c0 30 45 71 45 71s45-41 45-71C97 19 77 0 52 0z" fill="#93DBF2"/>
+    <circle cx="52" cy="43" r="15" fill="#ffffff"/>
+    <circle cx="52" cy="43" r="6.5" fill="#374898"/>
+    <path d="M52 20a24 24 0 0 1 24 20" stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+    <path d="M52 31a13 13 0 0 1 13 11" stroke="#ffffff" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="122" y="76" font-family="Poppins, Arial, sans-serif" font-weight="800" font-size="54"><tspan fill="#374898">TOTAL</tspan><tspan fill="#008FCE">TRAC</tspan></text>
+</svg>`;
+
+// Constrói o CSS do modelo executivo (letterhead/kpis/etc.) trocando a cor de
+// marca (--orange/--orange-2/--orange-3) pelas cores da empresa ativa — os
+// três hexes abaixo aparecem uma única vez cada, na definição de :root do
+// MODELO_EXECUTIVO_CSS (ver `--orange`/`--orange-2`/`--orange-3`), então essa
+// substituição simples reskinha todo o relatório exportado sem duplicar o
+// CSS inteiro por marca.
+function modeloExecutivoCssParaMarca(marca) {
+  return MODELO_EXECUTIVO_CSS
+    .replace("#FF5618", marca.corPrimaria)
+    .replace("#FF8008", marca.corSecundaria1)
+    .replace("#FF6B10", marca.corSecundaria2);
+}
 
