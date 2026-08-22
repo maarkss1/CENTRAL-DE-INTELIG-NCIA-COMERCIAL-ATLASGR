@@ -88,7 +88,13 @@ export function DealDrillDownDrawer({ filter, query, onClose }: DealDrillDownDra
     };
 
     useEffect(() => {
-        if (!query) return;
+        if (!query) {
+            // Fecha o composer ao fechar o drawer inteiro — evita reabrir com estado de uma linha
+            // antiga (draft de nota, composer expandido) quando o usuário volta a este drawer.
+            setComposerFor(null);
+            setDraftText('');
+            return;
+        }
         let cancelled = false;
         setLoading(true);
         setError(null);

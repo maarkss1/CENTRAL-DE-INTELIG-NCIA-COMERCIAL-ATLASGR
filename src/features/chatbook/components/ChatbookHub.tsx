@@ -4,6 +4,14 @@ import { Bot, Database, Globe, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAssistantChat } from '../../../hooks/useAssistantChat';
 
+/**
+ * Página cheia (`/app/chatbook`) do mesmo copiloto do drawer flutuante global
+ * (`FloatingChatbook`/`AtlasChatbotTrigger`) — as duas telas consomem `useAssistantChat`, a única
+ * fonte de estado/histórico/chamada do copiloto conversacional. Não são implementações
+ * concorrentes: o drawer é o acesso rápido a partir de qualquer tela (⌘K → "Chamar copiloto de
+ * IA"), esta página é a sessão dedicada para uma conversa mais longa. Ver TRUST_BLOCKERS_ROADMAP.md
+ * P1-5.
+ */
 export function ChatbookHub() {
     const { activeBrand, brandInfo } = useBrand();
     const selectedBrand = activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr';
