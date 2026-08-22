@@ -13,7 +13,7 @@ test.describe('Autenticação', () => {
 
   test('e-mail fora dos domínios autorizados é rejeitado antes de chamar o servidor', async ({ page }) => {
     await page.goto('/login');
-    await page.getByPlaceholder('seu.nome@atlasgr.com.br ou @totaltrac.com.br').fill('alguem@gmail.com');
+    await page.getByLabel('E-mail:').fill('alguem@gmail.com');
     await page.getByPlaceholder('••••••••').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
     await expect(page.getByText(/Acesso restrito/)).toBeVisible();
@@ -27,7 +27,7 @@ test.describe('Autenticação', () => {
     // Sessão nova, sem os cookies do signup, pra forçar um login real do zero.
     await context.clearCookies();
     await page.goto('/login');
-    await page.getByPlaceholder('seu.nome@atlasgr.com.br ou @totaltrac.com.br').fill(email);
+    await page.getByLabel('E-mail:').fill(email);
     await page.getByPlaceholder('••••••••').fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
     await expect(page).toHaveURL(/\/app/, { timeout: 15_000 });
@@ -39,7 +39,7 @@ test.describe('Autenticação', () => {
 
     await context.clearCookies();
     await page.goto('/login');
-    await page.getByPlaceholder('seu.nome@atlasgr.com.br ou @totaltrac.com.br').fill(email);
+    await page.getByLabel('E-mail:').fill(email);
     await page.getByPlaceholder('••••••••').fill('SenhaErradaDeProposito!');
     await page.getByRole('button', { name: /Entrar na Plataforma/ }).click();
 
