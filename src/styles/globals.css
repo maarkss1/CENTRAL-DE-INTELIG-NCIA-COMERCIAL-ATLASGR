@@ -189,10 +189,10 @@
      medido), então só o tema claro precisa da versão mais escura — color-mix escala os 3 canais
      igualmente, sem precisar hardcodear um hex novo por cor. */
   --ok-active: color-mix(in srgb, var(--color-ok) 70%, black);
-  --info-active: color-mix(in srgb, var(--color-info) 80%, black);
-  --success-active: color-mix(in srgb, var(--color-success) 70%, black);
-  --warning-active: color-mix(in srgb, var(--color-warning) 60%, black);
-  --danger-active: color-mix(in srgb, var(--color-danger) 85%, black);
+  --info-active: color-mix(in srgb, var(--color-info) 65%, black);
+  --success-active: color-mix(in srgb, var(--color-success) 55%, black);
+  --warning-active: color-mix(in srgb, var(--color-warning) 55%, black);
+  --danger-active: color-mix(in srgb, var(--color-danger) 65%, black);
   --shadow-card-value: 0 1px 2px rgba(0, 0, 0, .04), 0 10px 28px -16px rgba(0, 0, 0, .22);
   --font-brand-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --font-brand-display: "Mont", "Montserrat", ui-sans-serif, system-ui, sans-serif;
