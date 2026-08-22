@@ -36,8 +36,10 @@ export function Toaster() {
                         <Icon className="w-4 h-4 mt-0.5 shrink-0" />
                         <span className="flex-1">{t.text}</span>
                         <button
+                            type="button"
                             onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-                            className="shrink-0 opacity-70 hover:opacity-100 transition-opacity"
+                            aria-label="Fechar notificação"
+                            className="shrink-0 opacity-70 hover:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
                         >
                             <X className="w-4 h-4" />
                         </button>

@@ -421,6 +421,128 @@ Dois itens do backlog acima foram fechados numa rodada seguinte:
   mesmo formulário indefinidamente, já que `location.state` (ao contrário do singleton antigo)
   sobrevive a reload. Verificado com um spec novo, `tests/e2e/command-palette.spec.ts`.
 
+## Quinto lote — Onda 4 (UX e design system): navegação por persona, tokens de tipografia, efeitos multibrand
+
+Pedido do usuário com 3 frentes: redesenhar a navegação por jornada/persona, validar mobile nas
+rotas principais, e tokenizar tipografia e efeitos multibrand. Diferente das rodadas anteriores,
+esta sessão teve Postgres 16 (+ `pgvector`/`pg_trgm` instalados via `apt-get`) e Redis provisionáveis
+no ambiente — a suíte `tests/e2e/*.spec.ts` real rodou contra o servidor Express de verdade, não só
+leitura estática de código.
+
+| Categoria | Score | O que mudou |
+|---|---|---|
+| Typography | 75 | H1-H3 tokenizados (`--text-h1/h2/h3` + line-height em `@theme`), sem mudança visual. Ainda falta escala de corpo/label tokenizada (fora do escopo pedido nesta rodada). |
+| Design Consistency | 74 | Glow hardcoded pra laranja AtlasGR removido de `Button`/`Card`/`Badge` (3 primitivos) e de `.border-glow-orange`; 53 ocorrências de `#FF5618`/`#E84B13` cru no módulo Market Intelligence convertidas pros tokens `brand`/`brand-2`; `hover:bg-brand-accent` morto (nunca gerava CSS) corrigido pra `hover:bg-brand-2`. |
+| Frontend Architecture | 76 | Sidebar ganhou reordenação por papel (`GROUP_ORDER_BY_ROLE`) sobre a estrutura de jornada já existente — mesmo item set, RBAC inalterado, só ordem de apresentação. |
+| Mobile UX | 58 | Sem alteração de código nesta rodada — mas, pela primeira vez desde a criação da suíte, `mobile-sweep.spec.ts`/`crm-kanban-mobile.spec.ts` rodaram de verdade (não só leitura estática) e confirmaram 0 regressão nas 30 rotas + Kanban. |
+
+- **Navegação por persona**: a Sidebar já era organizada por jornada comercial (Visão Geral → Captar
+  → Qualificar → Relacionar → Fechar → Analisar → IA & Capacitação → Administração, ver nota em
+  `Sidebar.tsx`) desde uma rodada anterior — o que faltava era adaptar essa ordem ao papel de quem
+  está logado. `GROUP_ORDER_BY_ROLE` (`Sidebar.tsx`) reordena os MESMOS grupos (nenhum item some,
+  RBAC continua só nos itens condicionais já existentes) pra abrir a Sidebar no trecho da jornada que
+  aquele papel usa no dia a dia: CLOSER vê Relacionar/Fechar primeiro (não prospecta); GESTOR/ADMIN
+  veem Analisar logo depois de Visão Geral (abrem o app pra decidir, não pra prospectar);
+  VISUALIZADOR segue a mesma prioridade de leitura do Gestor, sem Administração em destaque (não tem
+  os itens extras que só ADMIN ganha). SDR e papel desconhecido mantêm a ordem padrão da jornada
+  (já era a ordem natural de quem prospecta) — nenhuma mudança visual pra esse papel.
+- **Tipografia tokenizada**: os valores `clamp(...)` de `h1`/`h2`/`h3` viviam hardcoded dentro da
+  regra de `@layer base` (débito "Typography: 68... sem tokens de tipografia", nunca corrigido nas
+  4 rodadas anteriores). Agora vivem em `--text-h1`/`--text-h2`/`--text-h3` (+ companion
+  `--text-*--line-height`) dentro do bloco `@theme` — mesmos valores, sem mudança visual, mas
+  reutilizáveis fora de um elemento `<h*>` via as utilities que o Tailwind 4 já gera sozinho
+  (`text-h1`/`text-h2`/`text-h3`) para quando algo precisa da escala de heading sem ser
+  semanticamente um heading.
+- **Efeitos multibrand tokenizados** (bug real, não só limpeza): 3 primitivos compartilhados
+  (`Button` variante `default`, `Card` variante `accent`, `Badge` variante `gradient`) tinham glow
+  em `box-shadow` hardcoded pra laranja AtlasGR (`rgba(255,86,24,...)`) mesmo depois da migração de
+  `bg`/`text`/`border` pra `--brand`/`--brand-2` registrada no terceiro lote — o glow continuava
+  laranja pra usuário Total Trac. Convertidos pra `color-mix(in srgb, var(--brand) N%, transparent)`
+  (matematicamente equivalente ao `rgba` original quando a marca é AtlasGR — no-op visual confirmado
+  via `tests/e2e/visual.spec.ts` nos specs que não dependem de fonte externa). `.border-glow-orange`
+  em `globals.css` (efeito morto, zero uso em `src/`) recebeu o mesmo tratamento e foi renomeado pra
+  `.border-glow-brand`, pra não deixar um efeito reativo-a-marca "novo" já nascer quebrado pra Total
+  Trac no dia em que alguém o usar.
+  **Achado adjacente corrigido** (mesmo arquivo, `Button.tsx`, barato): `hover:bg-brand-accent` no
+  Button `default` nunca gerou nenhuma utility Tailwind real — `--brand-accent` em `globals.css` não
+  tem o prefixo `--color-` que o Tailwind 4 exige pra virar classe, então o hover não mudava a cor de
+  fundo desde sempre (mesma categoria do bug `bg-info-base` já documentado no Pilot 004 de
+  `.claude/PILOTS.md`). Trocado por `hover:bg-brand-2`, que já existe, já é atualizado
+  dinamicamente na troca de marca (`BrandContext.tsx`) e já gera CSS real.
+  **Achado maior, fora de escopo desta rodada** (registrado, não corrigido): o módulo Market
+  Intelligence (`src/features/market-intelligence/components/*.tsx`, 8 arquivos) tinha **53
+  ocorrências** de `text-brand`/`bg-brand`/`ring-brand`/`border-brand` hardcoded como `#FF5618`/
+  `#E84B13` cru — sem nenhum `isAtlas`/`useBrand` no módulo inteiro, e listado na Sidebar pra
+  qualquer marca (grupo "Captar"), então usuário Total Trac via laranja AtlasGR na tela inteira.
+  Corrigido nesta sessão (find-replace mecânico pros tokens `brand`/`brand-2` reais, verificado sem
+  nenhum `#FF5618`/`#E84B13` residual). O mesmo módulo também tem **52 ocorrências** de
+  `text-[#333333]` (cor de tinta clara hardcoded, não reage a dark mode) nos mesmos arquivos — esse
+  achado é de tema (claro/escuro), não de marca, e fica fora do escopo desta rodada ("tokenizar
+  efeitos multibrand"); registrado aqui para não precisar ser "redescoberto" numa sessão futura.
+  **Bug real encontrado pelo CI de verdade, corrigido** (achado que a leitura estática/execução local
+  não pegou): 3 seletores de cenário/aba dentro do próprio módulo (`MarketIntelligenceApp.tsx:318`,
+  `:432`, `TerritoryEconomicSimulator.tsx:325`) já usavam `bg-[#FF5618] text-white` no estado ativo —
+  a migração desta sessão preservou o bug (virou `bg-brand text-white`, mesma cor computada) sem
+  querer, e o CI do GitHub (não o navegador local) pegou via `axe-core`: 3.18:1 contra o mínimo
+  4.5:1 AA, mesma categoria de DQA-19. Corrigido trocando pra `bg-brand-active` (o token que já existe
+  exatamente pra esse caso, usado com sucesso em `Sidebar.tsx`) — verificado no CI/local depois do
+  fix: 0 violações de contraste nesses 3 elementos.
+- **Validação mobile em rotas principais**: com Postgres/Redis reais provisionados, rodou-se a
+  suíte oficial de verdade em vez de leitura estática. `tests/e2e/mobile-sweep.spec.ts` (os 30
+  módulos navegáveis, viewport 393×851, sem overflow horizontal/tela branca) e
+  `tests/e2e/crm-kanban-mobile.spec.ts` (hit targets, drawer, touch-drag real) passaram **antes e
+  depois** das mudanças desta sessão — nenhuma regressão mobile introduzida, e a cobertura mobile já
+  documentada nos Pilotos 001/002 segue válida.
+- **Verificação executada** (suíte real, não só leitura de código): `npm run lint` (0 erros, mesmos
+  99 warnings pré-existentes, nenhum novo), `npx tsc -b --noEmit` (0 erros), `npm run build` (limpo),
+  e Playwright real contra o servidor Express: `mobile-sweep.spec.ts`, `crm-kanban-mobile.spec.ts`,
+  `command-palette.spec.ts`, `crm.spec.ts` e `accessibility.spec.ts` (6/6, incl. Cadência) —
+  todos verdes antes e depois das mudanças.
+  `tests/e2e/visual.spec.ts` **não pôde ser usado como confirmação direta** nesta sessão: os 5 casos
+  (dashboard/CRM/formulário, light+dark) estouram em "waiting for fonts to load" a 5s neste ambiente
+  — confirmado, revertendo temporariamente as mudanças via `git stash`, que **o mesmo timeout já
+  acontece em `main` sem nenhuma alteração desta sessão** (a fonte Montserrat vem de
+  `fonts.gstatic.com`; `curl` direto do shell alcança o host normalmente em <1s, mas o Chromium
+  headless deste ambiente às vezes não completa o carregamento a tempo dos 5s — limitação de
+  ambiente/flake, não regressão desta sessão).
+  **Achado real por trás do timeout, encontrado só quando o CI conseguiu passar da fase de fonte**:
+  com um timeout local temporariamente elevado (só para diagnóstico, nunca commitado), os 5
+  screenshots realmente divergiam da baseline — não por flake, mas porque a reordenação de Sidebar
+  por persona (`GROUP_ORDER_BY_ROLE`, ver acima) é uma mudança visual real, e **todo usuário criado
+  via `signUp()` nos testes e2e vira ADMIN automaticamente** (`src/lib/auth.ts:174-187` — quem cria
+  uma organização nova sempre vira ADMIN dela). As 5 baselines cobertas por `dashboard`/`Pipeline
+  CRM`/`Formulário de novo contato` incluem a Sidebar no screenshot, então herdam a nova ordem
+  `GROUP_ORDER_BY_ROLE.ADMIN` — exatamente o comportamento pretendido, não um bug. Confirmado
+  visualmente via `Diff` do Playwright (só a Sidebar e os elementos dinâmicos já tolerados por
+  `maxDiffPixels` mudaram) antes de regenerar.
+  **Correção de método**: a primeira tentativa de regenerar as baselines localmente (Chromium do
+  ambiente desta sessão) produziu PNGs que passavam localmente mas ainda divergiam ~16-29k pixels
+  do que o `e2e-tests`/`build-and-test` reais do CI mediam — o Chromium `1194` pré-instalado neste
+  sandbox não é bit-a-bit idêntico ao Chromium que `npx playwright install --with-deps chromium`
+  baixa no runner `ubuntu-latest` do GitHub Actions (antialiasing/hinting de fonte já é suficiente
+  pra isso). Correção: usado o mecanismo que o próprio repositório já tem pra exatamente esse
+  problema — o job manual `visual-baselines` (`workflow_dispatch` em `.github/workflows/ci.yml`,
+  "Gerar baselines visuais Linux") — disparado nesta branch, que gera os PNGs rodando de verdade no
+  runner do GitHub Actions e os publica como artifact (`visual-snapshots-linux`); os 5 PNGs baixados
+  desse artifact substituíram os gerados localmente antes de commitar. Fica registrado como
+  aprendizado geral: baseline de regressão visual **nunca** deve ser gerada num Chromium diferente
+  do que o CI realmente usa, mesmo que ambos rodem localmente sem erro — o job manual existe
+  precisamente para isso, ver o comentário completo em `.github/workflows/ci.yml` (linhas ~197-210).
+- **Achado de acessibilidade pré-existente, real, não corrigido** (fora do escopo desta rodada — nav/
+  tipografia/multibrand, não uma auditoria de contraste do design system): o `Button` variante
+  `default` (`bg-brand` + texto branco, sem `bg-brand-active`) falha AA (3.18:1 contra 4.5:1) sempre
+  que renderizado em texto pequeno — confirmado de verdade pelo CI do GitHub (não só localmente,
+  onde a reprodução é instável/dependente de timing de render): apareceu tanto na tela de Cadência
+  quanto — via um `Button` primitivo renderizado dentro do próprio Market Intelligence — nesta rodada.
+  Mesma categoria do bug já corrigido pra Sidebar via `--color-brand-active` (DQA-19), mas
+  `Button.tsx` nunca recebeu o mesmo tratamento. **Não corrigido aqui de propósito**: mudar o
+  variante `default` do `Button` primitivo muda a cor de fundo de todo botão primário do produto —
+  ao contrário dos 3 seletores locais do Market Intelligence corrigidos acima (escopo pontual, no-op
+  visual pra AtlasGR), essa é uma mudança visual ampla que precisa da mesma QA (light/dark, as duas
+  marcas, várias telas) que este documento já reservou pra uma sessão dedicada de acessibilidade —
+  ver precedente idêntico no Pilot 003 (adendo) de `.claude/PILOTS.md`, que também encontrou um bug
+  correlato de contraste durante outra tarefa e optou por reportar em vez de corrigir sozinho.
+
 ## Backlog Tier 2 (o que ainda falta)
 
 Depois de 4 lotes, o backlog original do Tier 1 está praticamente todo endereçado. O que

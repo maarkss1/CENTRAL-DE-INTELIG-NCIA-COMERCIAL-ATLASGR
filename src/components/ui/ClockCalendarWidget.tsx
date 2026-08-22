@@ -39,7 +39,7 @@ export function ClockCalendarWidget() {
     })), [activities]);
 
   return (
-    <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
+    <div data-testid="clock-calendar-widget" className="p-6 rounded-card-lg border border-line bg-surface shadow-card relative overflow-hidden text-ink font-sans">
       <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-brand to-brand-2" />
       <div className="absolute top-0 right-0 w-48 h-48 bg-brand-2/5 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />

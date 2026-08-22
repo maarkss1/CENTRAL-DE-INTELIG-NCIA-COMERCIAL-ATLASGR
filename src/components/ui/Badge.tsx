@@ -14,7 +14,7 @@ const badgeVariants = cva(
         danger: "bg-danger/15 text-danger focus:ring-danger/40",
         info: "bg-info/15 text-info focus:ring-info/40",
         neon: "bg-brand/15 text-brand focus:ring-brand/40",
-        gradient: "bg-gradient-to-r from-brand to-white text-slate-950 font-black shadow-[0_0_12px_-2px_rgba(255,86,24,0.6)] focus:ring-brand/40",
+        gradient: "bg-gradient-to-r from-brand to-white text-slate-950 font-black shadow-[0_0_12px_-2px_color-mix(in_srgb,var(--brand)_60%,transparent)] focus:ring-brand/40",
         outline: "border border-line text-ink-2 focus:ring-white/30",
       },
     },

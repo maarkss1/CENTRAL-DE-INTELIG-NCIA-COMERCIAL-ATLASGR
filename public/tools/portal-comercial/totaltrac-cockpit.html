@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-empresa="totaltrac">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>Total Trac — Cockpit Comercial Executivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    try {
+      var salvo = localStorage.getItem("atlas-extrator-tema");
+      var tema = salvo || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "escuro" : "claro");
+      document.documentElement.setAttribute("data-tema", tema);
+    } catch (e) {
+      document.documentElement.setAttribute("data-tema", "claro");
+    }
+  })();
+</script>
+<link rel="stylesheet" href="css/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<style>
+  /* Estilos para Drag & Drop e Layout Customizável */
+  .draggable-card { cursor: grab; transition: transform 0.2s, box-shadow 0.2s; }
+  .draggable-card:active { cursor: grabbing; opacity: 0.8; transform: scale(0.98); }
+  .drag-over { border: 2px dashed var(--brand) !important; background: var(--soft) !important; }
+</style>
+</head>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial Total Trac</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="letterhead-brand">
+      <svg viewBox="0 0 620 120" xmlns="http://www.w3.org/2000/svg" style="height:64px;width:auto;">
+        <g transform="translate(2,4)">
+          <path d="M52 0C27 0 7 19 7 43c0 30 45 71 45 71s45-41 45-71C97 19 77 0 52 0z" fill="#93DBF2"/>
+          <circle cx="52" cy="43" r="15" fill="#ffffff"/>
+          <circle cx="52" cy="43" r="6.5" fill="#374898"/>
+          <path d="M52 20a24 24 0 0 1 24 20" stroke="#ffffff" stroke-width="6.5" fill="none" stroke-linecap="round"/>
+          <path d="M52 31a13 13 0 0 1 13 11" stroke="#ffffff" stroke-width="5.5" fill="none" stroke-linecap="round"/>
+        </g>
+        <text x="122" y="76" font-family="Poppins, Arial, sans-serif" font-weight="800" font-size="54"><tspan fill="#374898">TOTAL</tspan><tspan fill="#008FCE">TRAC</tspan></text>
+      </svg>
+      <div class="letterhead-divider"></div>
+      <div class="letterhead-tagline">Conectar para cuidar · Extração e Relatórios Bitrix24</div>
+    </div>
+    <div class="live-datetime">
+      <strong id="dataAtualTopo">Carregando data...</strong>
+      <span id="horaAtualTopo">--:--:-- · horário local</span>
+    </div>
+  </div>
+</div>
+
+<header class="hero-extrator">
+  <div class="header-conteudo">
+    <div class="hero-copy">
+      <div class="hero-eyebrow">Total Trac · Bitrix24 · v10.0 · Cockpit Executivo</div>
+      <h1>Cockpit Comercial Executivo.</h1>
+      <p>Resultado do mês, forecast, saúde do pipeline, proteção de receita, eficiência da máquina, geração de pipeline, resumo de SDR e qualidade dos dados — tudo em uma única tela, com alertas gerenciais e drill-down por indicador.</p>
+    </div>
+    <div class="hero-actions">
+      <span class="connection-pill" id="statusConexaoTopo"><span class="connection-dot"></span><span id="statusConexaoTexto">Conexão não testada</span></span>
+      <button type="button" class="hero-btn" onclick="testarConexaoBitrix()">Testar conexão</button>
+      <button type="button" class="btn-tema hero-btn" id="btnTema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">🌙</button>
+    </div>
+  </div>
+</header>
+
+<nav class="quick-nav" aria-label="Navegação do portal">
+  <div class="quick-nav-inner"><div class="quick-nav-shell">
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="totaltrac-home.html">Início</a><a href="totaltrac-cockpit.html">Cockpit Executivo</a><a href="totaltrac-forecast.html">Relatórios Comerciais</a><a href="totaltrac-sdr.html">SDR &amp; Operação</a><a href="totaltrac-extracao.html">Extração &amp; Diagnóstico</a><a href="totaltrac-evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
+  </div></div>
+</nav>
+
+<main>
+
+  <div class="card" id="conexao">
+    <h2>🔑 Conexão com o Bitrix</h2>
+    <p class="rodape-nota" style="margin-top:-6px;">O Cockpit lê os mesmos negócios do funil Comercial usados pelo Forecast e pelo Catálogo de relatórios — cole o webhook aqui (ou use um já salvo) e clique em "↻ Atualizar agora" abaixo.</p>
+    <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
+    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://totaltrac.bitrix24.com.br/rest/.../" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <div class="row" style="margin-top:9px;align-items:center;">
+      <div class="webhook-actions">
+        <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
+        <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
+        <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não configurado</span></span>
+      </div>
+    </div>
+    <p class="rodape-nota">A Total Trac ainda não tem um webhook fixo configurado nesta ferramenta — cole a URL do webhook de entrada do Bitrix24 da Total Trac acima e clique em "💾 Salvar webhook".</p>
+  </div>
+
+  <div class="card cockpit-card" id="cockpit-executivo">
+    <div class="cockpit-header">
+      <div>
+        <div class="hero-eyebrow" style="color:var(--brand);">TOTAL TRAC | COCKPIT COMERCIAL</div>
+        <p class="rodape-nota" style="margin-top:2px;" id="cockpitUltimaAtualizacao">Última atualização: ainda não carregado nesta sessão.</p>
+      </div>
+      <div class="row" style="gap:8px;flex-wrap:wrap;">
+        <button type="button" id="cockpitBtnAtualizar" onclick="atualizarCockpit()">↻ Atualizar agora</button>
+        <button type="button" class="secundario" onclick="cockpitGerarSituacaoAgora()">⚡ Gerar Situação Agora</button>
+        <button type="button" class="secundario" style="background:var(--brand); color:white; border-color:var(--brand);" onclick="cockpitGerarResumoIA()">🤖 Resumo com IA</button>
+        <button type="button" class="secundario" onclick="cockpitAbrirHTMLExport()" title="Abre o snapshot do Cockpit em uma aba nova (HTML autônomo, sem webhook)">🌐 Abrir HTML</button>
+        <button type="button" class="secundario" onclick="cockpitBaixarHTMLExport()" title="Baixa o snapshot do Cockpit como HTML autônomo">⬇️ Baixar HTML</button>
+        <button type="button" class="secundario" onclick="cockpitExportarCSV()" title="Baixa os KPIs do Cockpit em CSV (bloco/indicador/valor/unidade)">⬇️ CSV</button>
+        <button type="button" class="secundario" onclick="cockpitExportarJSON()" title="Baixa o snapshot completo calculado do Cockpit em JSON">⬇️ JSON</button>
+        <button type="button" class="secundario" onclick="cockpitAbrirRelatorioExecutivo()" title="Abre o Relatório Executivo Completo (mais seções) em uma aba nova">📄 Gerar Relatório Executivo Completo</button>
+        <button type="button" class="secundario" onclick="cockpitBaixarRelatorioExecutivo()" title="Baixa o Relatório Executivo Completo como HTML autônomo">⬇️ Baixar Relatório Executivo</button>
+      </div>
+    </div>
+
+    <div class="aviso" style="margin-top:10px;">
+      Este painel usa o mesmo webhook do card acima e as mesmas fórmulas do Forecast e do Catálogo de
+      relatórios (ver <a href="totaltrac-forecast.html">Relatórios Comerciais</a>) — nada aqui é recalculado com uma
+      regra diferente. Números que não podem ser calculados com confiança aparecem como
+      <strong>"não disponível"</strong>, nunca como zero.
+    </div>
+
+    <div class="cockpit-filtros">
+      <div>
+        <label for="cockpitPeriodoPreset">Período (Saúde do Pipeline / Eficiência)</label>
+        <select id="cockpitPeriodoPreset" onchange="aoTrocarPeriodoCockpit(); renderizarCockpit();">
+          <option value="mensal" selected>Mensal (mês atual)</option>
+          <option value="semana_atual">Semana atual</option>
+          <option value="trimestral">Trimestral</option>
+          <option value="todas">Todas as datas</option>
+          <option value="personalizado">Personalizado</option>
+        </select>
+      </div>
+      <div class="cockpit-periodo-custom oculto">
+        <label for="cockpitDataInicio">De</label>
+        <input type="date" id="cockpitDataInicio" onchange="renderizarCockpit()">
+      </div>
+      <div class="cockpit-periodo-custom oculto">
+        <label for="cockpitDataFim">Até</label>
+        <input type="date" id="cockpitDataFim" onchange="renderizarCockpit()">
+      </div>
+      <div>
+        <label for="cockpitVendedor">Vendedor</label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap;">
+          <select id="cockpitVendedor" style="flex:1;" onchange="cockpitReaplicarFiltros()"><option value="">Todos</option></select>
+          <button type="button" class="secundario" onclick="carregarVendedoresCockpit()" title="Carregar lista">↻</button>
+        </div>
+      </div>
+      <div>
+        <label for="cockpitOrigem">Origem</label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap;">
+          <select id="cockpitOrigem" style="flex:1;" onchange="cockpitReaplicarFiltros()"><option value="">Todas</option></select>
+          <button type="button" class="secundario" onclick="carregarOrigensCockpit()" title="Carregar lista">↻</button>
+        </div>
+      </div>
+      <div>
+        <label for="cockpitProduto">Produto (texto no nome do produto)</label>
+        <input type="text" id="cockpitProduto" placeholder="Ex: Profile, GR..." onchange="aplicarFiltroProdutoCockpit()">
+        <p class="rodape-nota" id="cockpitProdutoStatus"></p>
+      </div>
+      <div>
+        <label for="cockpitMetaMensal">Meta New MRR do mês (R$)</label>
+        <input type="number" id="cockpitMetaMensal" min="0" step="0.01" onchange="renderizarCockpit()">
+      </div>
+    </div>
+    <p class="rodape-nota">Filtro de produto: como o Bitrix só expõe produtos por negócio individualmente
+      (uma chamada por negócio), o filtro busca sob demanda apenas nos negócios já carregados — não recarrega
+      tudo do zero. Meta: valor local editável desta ferramenta, pré-preenchido a partir da tabela de metas do
+      Forecast (js/config.js); o Bitrix não tem um módulo nativo de metas.</p>
+
+    <div class="cockpit-blocos">
+
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-alertas">
+        <h3>🔔 Alertas Gerenciais</h3>
+        <p class="rodape-nota">Gerados a partir dos indicadores já calculados abaixo (nenhuma fórmula nova) — clique em
+          um alerta para ver os negócios por trás ou ir direto ao bloco relacionado. Critérios e regra descartada
+          (Win Rate x média histórica, sem dado disponível): ver <code>cockpitCalcularAlertas</code>, js/cockpit.js.</p>
+        <div id="cockpitAlertas" class="cockpit-alertas-lista"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-resultado">
+        <h3>💰 Resultado do Mês</h3>
+        <div class="relatorio-especial-grid" id="cockpitResultadoMes"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-forecast">
+        <h3>🔮 Forecast <span class="cockpit-bloco-subtitulo">Commit + Best Case (valor cheio) + Pipeline (ponderado) · Upside fora do forecast</span></h3>
+        <div class="relatorio-especial-grid" id="cockpitForecast"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-saude">
+        <h3>🩺 Saúde do Pipeline</h3>
+        <p class="rodape-nota cockpit-aviso-forte" id="cockpitAvisoPipelineForecast"></p>
+        <div class="relatorio-especial-grid" id="cockpitSaudePipeline"></div>
+      </section>
+
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-protecao">
+        <h3>🛡️ Proteção de Receita <span class="cockpit-bloco-subtitulo">M · M+1 · M+2 · M+3</span></h3>
+        <div class="row cockpit-metas-protecao">
+          <div><label for="cockpitMetaM0" style="margin-top:0;">Meta M</label><input type="number" id="cockpitMetaM0" min="0" step="0.01" onchange="renderizarCockpit()"></div>
+          <div><label for="cockpitMetaM1" style="margin-top:0;">Meta M+1</label><input type="number" id="cockpitMetaM1" min="0" step="0.01" onchange="renderizarCockpit()"></div>
+          <div><label for="cockpitMetaM2" style="margin-top:0;">Meta M+2</label><input type="number" id="cockpitMetaM2" min="0" step="0.01" onchange="renderizarCockpit()"></div>
+          <div><label for="cockpitMetaM3" style="margin-top:0;">Meta M+3</label><input type="number" id="cockpitMetaM3" min="0" step="0.01" onchange="renderizarCockpit()"></div>
+        </div>
+        <div class="relatorio-scroll" id="cockpitProtecaoTabela"></div>
+        <p class="rodape-nota">Status (chão fixo): crítico &lt;2x cobertura, atenção 2x–3x, saudável ≥3x. Critério
+          inicial e configurável (ver comentário em <code>cockpitStatusProtecao</code>, js/cockpit.js) — não é uma
+          regra fixa acordada com a diretoria. Coluna "Recomendado (Win Rate)": 1 ÷ (Win Rate histórico do período
+          filtrado ÷ 100) — convergido com a Central de Inteligência Comercial; mostrado lado a lado com o chão
+          fixo, "não disponível" quando o Win Rate não é calculável.</p>
+      </section>
+
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-estagios">
+        <h3>📶 Pipeline por Estágio</h3>
+        <div id="cockpitEstagios" class="cockpit-estagios-lista"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-eficiencia">
+        <h3>⚙️ Eficiência da Máquina</h3>
+        <div class="relatorio-especial-grid" id="cockpitEficiencia"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-geracao">
+        <h3>🌱 Geração de Pipeline</h3>
+        <p class="rodape-nota">Pipeline necessário = Meta futura ÷ Win Rate (hipótese matemática, ver comentário em
+          <code>cockpitCalcularGeracaoPipeline</code>, js/cockpit.js) — não é uma fórmula validada pela diretoria,
+          é um ponto de partida para dimensionar quanto pipeline novo precisa ser criado.</p>
+        <div class="relatorio-especial-grid" id="cockpitGeracaoPipeline"></div>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-sdr">
+        <h3>📞 SDR <span class="cockpit-bloco-subtitulo">resumo</span></h3>
+        <p class="rodape-nota" id="cockpitSdrAviso"></p>
+        <div class="relatorio-especial-grid" id="cockpitSdrResumo"></div>
+        <p class="rodape-nota">Análise completa de SDR (leads trabalhados, atividades, reuniões): veja
+          <a href="totaltrac-sdr.html">SDR &amp; Operação</a> — este bloco não duplica aquela lógica, só resume o que já
+          está nos negócios do Comercial carregados aqui.</p>
+      </section>
+
+      <section class="cockpit-bloco" id="cockpit-bloco-qualidade">
+        <h3>🧹 Qualidade dos Dados <span class="cockpit-bloco-subtitulo">CRM</span></h3>
+        <p class="rodape-nota">"Data Quality Score" = média simples de completude de campos-chave nos negócios do
+          filtro atual. <strong>Não é confiança de forecast nem probabilidade de venda</strong> — é só uma medida de
+          quão bem preenchido está o CRM (ver comentário em <code>cockpitCalcularQualidadeDados</code>,
+          js/cockpit.js).</p>
+        <div class="relatorio-especial-grid" id="cockpitQualidadeDados"></div>
+      </section>
+
+      <!-- Novo Bloco: Gráfico de Evolução -->
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-grafico">
+        <h3>📈 Evolução Mensal do Fechamento <span class="cockpit-bloco-subtitulo">Acumulado do Mês Atual vs Anterior</span></h3>
+        <div class="relatorio-scroll" style="padding:15px; background:var(--surface);">
+          <canvas id="graficoEvolucaoPipeline" style="max-height:300px; width:100%;"></canvas>
+        </div>
+      </section>
+
+      <!-- Novo Bloco: Metas Desdobradas -->
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-metas">
+        <h3>🎯 Metas Individuais (Desdobramento) <span class="cockpit-bloco-subtitulo">Vendedores</span></h3>
+        <div class="relatorio-scroll" style="padding:15px; background:var(--surface);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <p class="small-note" style="margin:0;">Distribuição da Meta Global (R$ <span id="metaGlobalDesdobramento">0</span>).</p>
+            <button type="button" class="secundario" onclick="cockpitSalvarMetasIndividuais()">💾 Salvar Metas Individuais</button>
+          </div>
+          <table style="margin-top:0;">
+            <thead>
+              <tr><th>Vendedor</th><th>Meta Atribuída (R$)</th><th>Fechado (Mês)</th><th>% Atingido</th></tr>
+            </thead>
+            <tbody id="cockpitMetasDesdobradasTabela">
+              <!-- Gerado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <p class="rodape-nota">Clique em qualquer indicador acima para ver a lista de negócios que o compõe
+      (empresa, valor, etapa, vendedor e CLOSEDATE).</p>
+  </div>
+
+  <div class="relatorio-modal-overlay oculto" id="relatorioVisualInlineCard" onclick="if(event.target===this)fecharRelatorioVisualInline()">
+    <div class="relatorio-modal-sheet">
+      <div class="relatorio-modal-head">
+        <h2 id="relatorioModalTitulo">📊 Modelo visual do relatório</h2>
+        <div class="relatorio-modal-acoes">
+          <button type="button" class="secundario" onclick="alternarPainelRelatoriosSalvos()" title="Ver relatórios salvos neste navegador">📂 Salvos</button>
+          <button type="button" class="secundario" onclick="salvarRelatorioVisualAtual()" title="Salvar este relatório neste navegador">💾 Salvar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualAtual()" title="Baixar como arquivo .html">⬇️ Baixar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualPDF()" title="Imprimir ou salvar como PDF">🖨️ PDF</button>
+          <button type="button" class="secundario" onclick="abrirRelatorioVisualEmNovaAba()" title="Abrir em uma aba nova">🌐 Abrir em nova aba</button>
+          <button type="button" class="relatorio-modal-fechar" onclick="fecharRelatorioVisualInline()" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="relatorio-salvos-painel oculto" id="relatorioSalvosPainel">
+        <div id="relatorioSalvosLista"></div>
+      </div>
+      <iframe id="relatorioVisualInlineFrame" class="relatorio-visual-inline-frame" title="Modelo visual do relatório"></iframe>
+    </div>
+  </div>
+
+</main>
+
+<div class="help-modal" id="cockpitDrillModal" onclick="fecharDrillCockpitPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="cockpitDrillTitulo">
+    <div class="help-head">
+      <div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Cockpit Comercial · detalhamento</div><h3 id="cockpitDrillTitulo">Negócios</h3><p class="rodape-nota" id="cockpitDrillContagem" style="margin:2px 0 0;"></p></div>
+      <button type="button" class="help-close" onclick="fecharDrillCockpit()">×</button>
+    </div>
+    <div class="help-body"><div class="relatorio-scroll" id="cockpitDrillConteudo"></div></div>
+  </div>
+</div>
+
+<div class="help-modal" id="cockpitSituacaoModal" onclick="fecharSituacaoCockpitPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="cockpitSituacaoTitulo">
+    <div class="help-head">
+      <div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">⚡ Cockpit Comercial</div><h3 id="cockpitSituacaoTitulo">Situação Comercial Agora</h3><p class="rodape-nota" id="cockpitSituacaoCarimbo" style="margin:2px 0 0;"></p></div>
+      <button type="button" class="help-close" onclick="fecharSituacaoCockpit()">×</button>
+    </div>
+    <div class="help-body">
+      <div id="cockpitSituacaoConteudo"></div>
+      <pre id="cockpitSituacaoTexto" class="oculto"></pre>
+      <div class="row" style="gap:8px;margin-top:14px;">
+        <button type="button" class="secundario" onclick="cockpitCopiarSituacao()">Copiar como texto</button>
+        <button type="button" class="secundario" onclick="cockpitBaixarSituacao()">Baixar .txt</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="help-modal" id="helpModal" onclick="fecharAjudaPorFundo(event)">
+  <div class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitulo">
+    <div class="help-head"><div><div class="hero-eyebrow" style="color:var(--brand);margin-bottom:4px;">Ajuda contextual</div><h3 id="helpTitulo">Como funciona</h3></div><button type="button" class="help-close" onclick="fecharAjuda()">×</button></div>
+    <div class="help-body" id="helpConteudo"></div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/bitrix-api.js"></script>
+<script src="js/extrator.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/sdr.js"></script>
+<script src="js/jornada.js"></script>
+<script src="js/catalogo-relatorios.js"></script>
+<script src="js/exportacoes.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

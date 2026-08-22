@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-empresa="atlasgr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,9 +19,29 @@
     }
   })();
 </script>
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<style>
+  /* Estilos para Drag & Drop e Layout Customizável */
+  .draggable-card { cursor: grab; transition: transform 0.2s, box-shadow 0.2s; }
+  .draggable-card:active { cursor: grabbing; opacity: 0.8; transform: scale(0.98); }
+  .drag-over { border: 2px dashed var(--brand) !important; background: var(--soft) !important; }
+</style>
 </head>
-<body>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial AtlasGR</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
 
 <div class="letterhead">
   <div class="letterhead-inner">
@@ -60,7 +80,7 @@
 
 <nav class="quick-nav" aria-label="Navegação do portal">
   <div class="quick-nav-inner"><div class="quick-nav-shell">
-    <span class="quick-nav-grupo">🏠 Portal</span><a href="index.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a>
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="home.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a><a href="evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
   </div></div>
 </nav>
 
@@ -70,17 +90,17 @@
     <h2>🔑 Conexão com o Bitrix</h2>
     <p class="rodape-nota" style="margin-top:-6px;">O Cockpit lê os mesmos negócios do funil Comercial usados pelo Forecast e pelo Catálogo de relatórios — cole o webhook aqui (ou use um já salvo) e clique em "↻ Atualizar agora" abaixo.</p>
     <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
-    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <input type="password" id="webhook" value="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
     <div class="row" style="margin-top:9px;align-items:center;">
       <div class="webhook-actions">
         <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
         <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
         <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
-        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Esquecer webhook</button>
-        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não salvo</span></span>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook fixo ativo</span></span>
       </div>
     </div>
-    <p class="rodape-nota">O webhook nunca vem embutido neste HTML e só fica salvo neste navegador se você clicar em "Salvar webhook" (ofuscado, não é criptografia real). Detalhes completos do risco em <a href="extracao.html#conexao">Extração &amp; Diagnóstico</a>.</p>
+    <p class="rodape-nota">Webhook fixo padrão configurado para a AtlasGR. Se precisar usar uma credencial diferente, altere no campo acima ou salve no navegador.</p>
   </div>
 
   <div class="card cockpit-card" id="cockpit-executivo">
@@ -92,6 +112,7 @@
       <div class="row" style="gap:8px;flex-wrap:wrap;">
         <button type="button" id="cockpitBtnAtualizar" onclick="atualizarCockpit()">↻ Atualizar agora</button>
         <button type="button" class="secundario" onclick="cockpitGerarSituacaoAgora()">⚡ Gerar Situação Agora</button>
+        <button type="button" class="secundario" style="background:var(--brand); color:white; border-color:var(--brand);" onclick="cockpitGerarResumoIA()">🤖 Resumo com IA</button>
         <button type="button" class="secundario" onclick="cockpitAbrirHTMLExport()" title="Abre o snapshot do Cockpit em uma aba nova (HTML autônomo, sem webhook)">🌐 Abrir HTML</button>
         <button type="button" class="secundario" onclick="cockpitBaixarHTMLExport()" title="Baixa o snapshot do Cockpit como HTML autônomo">⬇️ Baixar HTML</button>
         <button type="button" class="secundario" onclick="cockpitExportarCSV()" title="Baixa os KPIs do Cockpit em CSV (bloco/indicador/valor/unidade)">⬇️ CSV</button>
@@ -172,7 +193,7 @@
       </section>
 
       <section class="cockpit-bloco" id="cockpit-bloco-forecast">
-        <h3>🔮 Forecast <span class="cockpit-bloco-subtitulo">Commit · Best Case · Pipeline ponderado</span></h3>
+        <h3>🔮 Forecast <span class="cockpit-bloco-subtitulo">Commit + Best Case (valor cheio) + Pipeline (ponderado) · Upside fora do forecast</span></h3>
         <div class="relatorio-especial-grid" id="cockpitForecast"></div>
       </section>
 
@@ -191,9 +212,11 @@
           <div><label for="cockpitMetaM3" style="margin-top:0;">Meta M+3</label><input type="number" id="cockpitMetaM3" min="0" step="0.01" onchange="renderizarCockpit()"></div>
         </div>
         <div class="relatorio-scroll" id="cockpitProtecaoTabela"></div>
-        <p class="rodape-nota">Status: crítico &lt;2x cobertura, atenção 2x–3x, saudável ≥3x. Critério inicial e
-          configurável (ver comentário em <code>cockpitStatusProtecao</code>, js/cockpit.js) — não é uma regra
-          fixa acordada com a diretoria.</p>
+        <p class="rodape-nota">Status (chão fixo): crítico &lt;2x cobertura, atenção 2x–3x, saudável ≥3x. Critério
+          inicial e configurável (ver comentário em <code>cockpitStatusProtecao</code>, js/cockpit.js) — não é uma
+          regra fixa acordada com a diretoria. Coluna "Recomendado (Win Rate)": 1 ÷ (Win Rate histórico do período
+          filtrado ÷ 100) — convergido com a Central de Inteligência Comercial; mostrado lado a lado com o chão
+          fixo, "não disponível" quando o Win Rate não é calculável.</p>
       </section>
 
       <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-estagios">
@@ -232,10 +255,57 @@
         <div class="relatorio-especial-grid" id="cockpitQualidadeDados"></div>
       </section>
 
+      <!-- Novo Bloco: Gráfico de Evolução -->
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-grafico">
+        <h3>📈 Evolução Mensal do Fechamento <span class="cockpit-bloco-subtitulo">Acumulado do Mês Atual vs Anterior</span></h3>
+        <div class="relatorio-scroll" style="padding:15px; background:var(--surface);">
+          <canvas id="graficoEvolucaoPipeline" style="max-height:300px; width:100%;"></canvas>
+        </div>
+      </section>
+      
+      <!-- Novo Bloco: Metas Desdobradas -->
+      <section class="cockpit-bloco cockpit-bloco-full" id="cockpit-bloco-metas">
+        <h3>🎯 Metas Individuais (Desdobramento) <span class="cockpit-bloco-subtitulo">Vendedores</span></h3>
+        <div class="relatorio-scroll" style="padding:15px; background:var(--surface);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <p class="small-note" style="margin:0;">Distribuição da Meta Global (R$ <span id="metaGlobalDesdobramento">0</span>).</p>
+            <button type="button" class="secundario" onclick="cockpitSalvarMetasIndividuais()">💾 Salvar Metas Individuais</button>
+          </div>
+          <table style="margin-top:0;">
+            <thead>
+              <tr><th>Vendedor</th><th>Meta Atribuída (R$)</th><th>Fechado (Mês)</th><th>% Atingido</th></tr>
+            </thead>
+            <tbody id="cockpitMetasDesdobradasTabela">
+              <!-- Gerado via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </div>
 
     <p class="rodape-nota">Clique em qualquer indicador acima para ver a lista de negócios que o compõe
       (empresa, valor, etapa, vendedor e CLOSEDATE).</p>
+  </div>
+
+  <div class="relatorio-modal-overlay oculto" id="relatorioVisualInlineCard" onclick="if(event.target===this)fecharRelatorioVisualInline()">
+    <div class="relatorio-modal-sheet">
+      <div class="relatorio-modal-head">
+        <h2 id="relatorioModalTitulo">📊 Modelo visual do relatório</h2>
+        <div class="relatorio-modal-acoes">
+          <button type="button" class="secundario" onclick="alternarPainelRelatoriosSalvos()" title="Ver relatórios salvos neste navegador">📂 Salvos</button>
+          <button type="button" class="secundario" onclick="salvarRelatorioVisualAtual()" title="Salvar este relatório neste navegador">💾 Salvar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualAtual()" title="Baixar como arquivo .html">⬇️ Baixar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualPDF()" title="Imprimir ou salvar como PDF">🖨️ PDF</button>
+          <button type="button" class="secundario" onclick="abrirRelatorioVisualEmNovaAba()" title="Abrir em uma aba nova">🌐 Abrir em nova aba</button>
+          <button type="button" class="relatorio-modal-fechar" onclick="fecharRelatorioVisualInline()" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="relatorio-salvos-painel oculto" id="relatorioSalvosPainel">
+        <div id="relatorioSalvosLista"></div>
+      </div>
+      <iframe id="relatorioVisualInlineFrame" class="relatorio-visual-inline-frame" title="Modelo visual do relatório"></iframe>
+    </div>
   </div>
 
 </main>
@@ -274,6 +344,7 @@
   </div>
 </div>
 
+<script src="js/auth.js"></script>
 <script src="js/config.js"></script>
 <script src="js/bitrix-api.js"></script>
 <script src="js/extrator.js"></script>
@@ -288,3 +359,4 @@
 
 </body>
 </html>
+

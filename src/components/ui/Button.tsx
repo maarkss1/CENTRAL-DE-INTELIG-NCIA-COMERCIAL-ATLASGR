@@ -10,8 +10,17 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // Redesign simplificado: Fundo sólido, sem borda agressiva.
-        // Usa bg-brand direto. Para contraste WCAG (se necessário), usar color-mix.
-        default: "bg-brand text-white hover:bg-brand-accent hover:scale-[1.02] hover:shadow-brand-sm",
+        // bg-brand-active (não bg-brand) — texto branco direto sobre --brand só atinge ~3.2:1
+        // (AtlasGR) / ~3.9:1 (TotalTrac), abaixo do mínimo WCAG AA de 4.5:1 (achado real do
+        // axe-core em accessibility.spec.ts, mesmo padrão do DQA-19 documentado em globals.css).
+        // `hover:bg-brand-accent` (usado antes aqui) não gerava nenhuma utility real: `--brand-accent`
+        // em globals.css não tem o prefixo `--color-` que o Tailwind 4 exige pra virar classe — hover
+        // era um no-op silencioso. `--color-brand-2`/`--brand-2` já existem, já são atualizados
+        // dinamicamente na troca de marca (BrandContext.tsx) e já geram `bg-brand-2` de verdade.
+        // O glow em hover usa o token `shadow-brand-sm` (color-mix com var(--brand)) em vez de
+        // rgba(255,86,24,...) cru pelo mesmo motivo — reage à troca de marca em vez de ficar preso
+        // ao laranja da AtlasGR.
+        default: "bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-brand-sm",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
         outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
         secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",

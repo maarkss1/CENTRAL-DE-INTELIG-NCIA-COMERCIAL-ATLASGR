@@ -13,9 +13,12 @@ páginas).
 ## Princípio geral
 
 Todas as páginas do portal carregam o **mesmo** `css/styles.css` e os
-**mesmos 10 arquivos `js/*.js`**, sempre na mesma ordem (`config.js`,
-`bitrix-api.js`, `extrator.js`, `forecast.js`, `sdr.js`, `jornada.js`,
-`catalogo-relatorios.js`, `exportacoes.js`, `cockpit.js`, `ui.js`, `app.js`).
+**mesmos 11 arquivos `js/*.js`**, sempre na mesma ordem (`auth.js`,
+`config.js`, `bitrix-api.js`, `extrator.js`, `forecast.js`, `sdr.js`,
+`jornada.js`, `catalogo-relatorios.js`, `exportacoes.js`, `cockpit.js`,
+`ui.js`, `app.js`). `auth.js` (v26) é o único que roda antes de tudo — ele
+cuida do gate de senha única do portal (ver seção "Senha única (acesso
+restrito)" mais abaixo) e não depende de nenhum outro arquivo.
 **Nenhuma lógica de negócio foi duplicada entre páginas** — só o HTML de cada
 página muda (quais seções existem no DOM) e um pequeno `<script>` inline no
 fim de cada página cuida da inicialização específica dela (ex.: ler
@@ -25,7 +28,14 @@ grupo). Isso é seguro porque `js/app.js` e as funções de boot (`iniciar()`,
 realmente existem em cada página (ver seção "O que mudou no JS compartilhado"
 abaixo).
 
-## As 5 páginas
+## As páginas
+
+> **Nota (2026-08-18):** uma 6ª página, `evolucao.html`, foi adicionada depois
+> desta reestruturação original — ver seção "Página 6" logo após a página 5
+> abaixo. Ela segue os mesmos princípios gerais (mesmo `css/styles.css` e os
+> mesmos `js/*.js`, sem lógica duplicada), mas é mais enxuta: não tem card de
+> conexão com o Bitrix nem depende do motor genérico, porque só lê dados já
+> salvos (histórico local + `relatorios/forecast-semanal/historico.json`).
 
 ### 1. `index.html` — Home do portal
 - Cabeçalho/hero simples, ticker do Cockpit ao vivo (`#cockpitTicker`,
@@ -55,17 +65,22 @@ abaixo).
   aqui, já que esta página é dedicada só a ele.
 
 ### 3. `extracao.html` — Extração & Diagnóstico
-- O motor genérico completo: passos 1–8 (Conexão, Escolha o que fazer,
-  Período, Campos, Executar consulta, Sincronizar, Central de Inteligência
-  v10, Analisar com IA/Python) **exatamente** como viviam dentro do wrapper
-  `<div class="oculto" id="fluxo-extracao">` da página única — só que agora
-  sem a classe `oculto` (conteúdo sempre visível/normal, é a página dedicada
-  para isso).
+- Troca real de tela, não accordion: a seção `#inicio` (busca + grade de
+  cards de relatório) e o wrapper `<div class="oculto" id="fluxo-extracao">`
+  (passos 1–8: Conexão, Escolha o que fazer, Período, Campos, Executar
+  consulta, Sincronizar, Central de Inteligência v10, Analisar com IA/Python)
+  nunca ficam visíveis ao mesmo tempo. `revelarFluxoExtracao()` (`js/ui.js`)
+  esconde `#inicio` e mostra `#fluxo-extracao` já todo aberto (sem seções
+  recolhidas); `voltarParaRelatorios()` desfaz a troca. Disparado ao clicar
+  num card de relatório, em "⚙️ Configurar extração manual"
+  (`revelarFluxoExtracaoManual()`) ou via `?relatorio=chave` na URL. Um botão
+  "← Voltar para os relatórios" no topo do wrapper chama
+  `voltarParaRelatorios()`.
 - Todos os blocos de resultado por relatório especial e do catálogo
   (`bloco-resultado`, `bloco-auditoria-jornada`, `bloco-analise-sdr`,
   `bloco-forecast-semanal`, `bloco-diario-sdr`, `bloco-relatorio-catalogo`,
   `bloco-campos-produtos`, `bloco-produtos`, `bloco-resultado-completo`,
-  `bloco-python`).
+  `bloco-python`) também ficam dentro do wrapper, escondidos até lá.
 - Também tem a grade de cards no topo (`renderizarAtalhosRelatorios()`) para
   quem chega direto aqui, ou quer trocar de relatório sem sair da página.
 - Aceita `?relatorio=chave` na URL: ao carregar, se presente, chama
@@ -105,6 +120,22 @@ abaixo).
   SLA de primeiro contato, Auditoria SDR, Decisão Final SDR) levam para
   `extracao.html?relatorio=chave`.
 - Mesmos elementos ocultos do motor genérico que `forecast.html` tem.
+
+### 6. `evolucao.html` — 📈 Evolução (adicionada depois, ver nota no topo)
+- Sem card de conexão com o Bitrix e sem nenhum elemento do motor genérico —
+  é só leitura de dados já salvos, não faz nenhuma chamada ao Bitrix.
+- Junta duas fontes de histórico do Forecast (função `iniciarPaginaEvolucao()`,
+  `js/jornada.js`): o histórico local (`localStorage`, gravado a cada
+  extração do Forecast feita nesta ferramenta — `salvarHistoricoForecastLocal()`)
+  e o histórico "oficial" (`relatorios/forecast-semanal/historico.json`,
+  gravado toda sexta-feira por `scripts/forecast-semanal.mjs` via GitHub
+  Actions, versionado no repo e publicado com o site). Quando os dois têm um
+  registro do mesmo dia, o automático vence.
+- Mostra um gráfico grande (SVG puro, `graficoEvolucaoForecast()`) com três
+  séries — Fechado, Projeção final e Meta mensal — e uma tabela com o
+  detalhe de cada "foto" salva.
+- Botão "↻ Atualizar agora" só re-executa `iniciarPaginaEvolucao()` (não
+  refaz nenhuma extração) — útil depois que a automação semanal roda.
 
 ## Navegação entre páginas
 
@@ -250,3 +281,43 @@ ui.js".
   reaproveitam os mesmos padrões de ofuscação/aviso já existentes.
 - `.github/workflows/pages.yml` já publica todo `*.html` da raiz
   automaticamente (`cp *.html _site/`) — nenhuma mudança necessária.
+
+## Senha única (acesso restrito) — v26
+
+Todas as 6 páginas do portal (não o redirect `Relatorios AtlasGR.html`)
+carregam um overlay `#loginGate` logo após `<body class="aguardando-login">`
+e `js/auth.js` como o **primeiro** `<script>` da página. Enquanto o `<body>`
+tiver a classe `aguardando-login`, uma regra CSS (`css/styles.css`) esconde
+tudo que não seja o próprio gate — não há flash de conteúdo antes do JS
+rodar, porque a classe já vem escrita no HTML, não é adicionada via JS.
+
+`js/auth.js` compara a senha digitada (hash SHA-256, via Web Crypto —
+`crypto.subtle.digest`) contra uma constante `SENHA_HASH`. **Não é
+segurança forte** — é só para afastar acesso casual de quem não tem o
+link/senha, conforme pedido explicitamente. Ao acertar, grava
+`atlas-portal-auth-ok=1` no `localStorage` (desbloqueio persiste entre
+sessões, até alguém clicar em "🔒 Sair" na navegação ou limpar os dados do
+navegador). Para trocar a senha, gere o novo hash SHA-256 e substitua
+`SENHA_HASH` em `js/auth.js` (comentário no topo do arquivo explica como).
+
+## Pontos de atenção + alerta expandido — v26
+
+`scripts/forecast-semanal.mjs` (a mesma automação semanal que já gravava
+`relatorios/forecast-semanal/historico.json`) agora também conta, a partir
+do mesmo laço de negócios que já percorre (sem chamada extra ao Bitrix):
+negócios com CLOSEDATE vencida ainda abertos, e negócios abertos sem
+CLOSEDATE preenchida. Esses números entram (a) no `historico.json`
+compartilhado (lido por `evolucao.html`, novo card "Pontos de atenção"), (b)
+na seção nova do relatório em Markdown, e (c) no alerta proativo
+(`ALERTA_WEBHOOK_URL`), que agora dispara por qualquer um dos três motivos
+(projeção fora da meta, CLOSEDATE vencida, ou sem CLOSEDATE) — cada motivo
+some do texto quando não se aplica.
+
+## Baixar PDF — v26
+
+O botão "🖨️ PDF" no modal de relatório (`js/forecast.js`,
+`baixarRelatorioVisualPDF()`) chama `iframe.contentWindow.print()` — o
+relatório já tem regras `@media print` próprias (sem "pisca", sem cortar
+cards no meio de página). "Salvar como PDF" é uma das impressoras do
+diálogo nativo do navegador; não há biblioteca de PDF nova (o portal
+continua 100% estático, sem etapa de build).

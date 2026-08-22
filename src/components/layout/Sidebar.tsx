@@ -43,7 +43,7 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
 
     // Navegação orientada pela jornada comercial, não pela árvore técnica do projeto.
     // TAB_META é a fonte única de rótulo/ícone e TabType impede destinos fantasma.
-    const navGroups: NavGroupDefinition[] = [
+    const navGroupsByJourney: NavGroupDefinition[] = [
         { title: 'Visão Geral', items: ['dashboard'] },
         { title: 'Captar', items: ['prospect', 'market-intelligence'] },
         { title: 'Qualificar', items: ['companies', 'contacts', 'mesa-tratamento', 'qualification_matrix'] },
@@ -65,6 +65,28 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
         },
         { title: 'Administração', items: administrationItems },
     ];
+
+    // Reordena os MESMOS grupos (nenhum item some, nenhum some por papel — RBAC continua só nos
+    // itens condicionais acima) pra abrir a Sidebar já no trecho da jornada comercial que aquele
+    // papel usa no dia a dia. Papel ausente/desconhecido e SDR (início do funil: captar→qualificar)
+    // caem na ordem padrão da jornada, que já é a ordem natural pra quem prospecta. Ver seção 5 da
+    // Constituição (`CLAUDE.md`) — exceção justificada por papel/fluxo real de uso, não estética.
+    const GROUP_ORDER_BY_ROLE: Partial<Record<string, string[]>> = {
+        // Closer trabalha negócios já qualificados: acompanhamento e fechamento vêm antes de
+        // prospecção, que não é responsabilidade dele.
+        CLOSER: ['Visão Geral', 'Relacionar', 'Fechar', 'Qualificar', 'Captar', 'Analisar', 'IA & Capacitação', 'Administração'],
+        // Gestor/Admin abrem o app pra decidir, não pra prospectar — visão executiva primeiro.
+        GESTOR: ['Visão Geral', 'Analisar', 'Fechar', 'Relacionar', 'Qualificar', 'Captar', 'Administração', 'IA & Capacitação'],
+        ADMIN: ['Visão Geral', 'Analisar', 'Fechar', 'Relacionar', 'Qualificar', 'Captar', 'Administração', 'IA & Capacitação'],
+        // Visualizador só acompanha (sem create/edit em massa) — mesma prioridade de leitura do
+        // Gestor, sem a Administração em destaque (não tem os itens extras que só ADMIN ganha).
+        VISUALIZADOR: ['Visão Geral', 'Analisar', 'Relacionar', 'Fechar', 'Qualificar', 'Captar', 'IA & Capacitação', 'Administração'],
+    };
+
+    const roleOrder = GROUP_ORDER_BY_ROLE[currentUser?.role ?? ''];
+    const navGroups = roleOrder
+        ? [...navGroupsByJourney].sort((a, b) => roleOrder.indexOf(a.title) - roleOrder.indexOf(b.title))
+        : navGroupsByJourney;
 
     const renderNavItem = (tab: TabType) => {
         const meta = TAB_META[tab];

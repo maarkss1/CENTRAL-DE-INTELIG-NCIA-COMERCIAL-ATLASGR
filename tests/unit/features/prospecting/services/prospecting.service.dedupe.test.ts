@@ -44,6 +44,7 @@ vi.mock('../../../../../src/features/integrations/bitrix/bitrix.service.js', () 
 vi.mock('../../../../../src/features/prospecting/services/apollo.service', () => ({
     fetchApolloCandidates: vi.fn(),
     searchDecisionMakersAdvanced: vi.fn(),
+    enrichOrganizationWithContacts: vi.fn().mockResolvedValue({ contacts: [] }),
 }));
 
 vi.mock('../../../../../src/features/prospecting/services/places.service', () => ({
@@ -52,6 +53,19 @@ vi.mock('../../../../../src/features/prospecting/services/places.service', () =>
 
 vi.mock('../../../../../src/features/prospecting/services/nominatim.service', () => ({
     searchNominatimCandidates: vi.fn(),
+}));
+
+// discoverCandidates roda enrichCandidatesWithQualityData ao final (CNPJ + notícias reais via
+// rede — DuckDuckGo/GDELT) com orçamento próprio de até 9s (Promise.race em prospecting.service.ts)
+// — maior que o timeout padrão de 5s do Vitest. Sem mock, o teste sempre estoura o timeout aqui,
+// já que unit test não deve depender de rede real de qualquer forma.
+vi.mock('../../../../../src/features/prospecting/services/cnpj.util', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../../../../src/features/prospecting/services/cnpj.util')>();
+    return { ...actual, discoverCnpjByName: vi.fn().mockResolvedValue(null) };
+});
+
+vi.mock('../../../../../src/features/prospecting/services/news.service.js', () => ({
+    searchCompanyNews: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../../../../src/config/prospecting-integrations.js', () => ({

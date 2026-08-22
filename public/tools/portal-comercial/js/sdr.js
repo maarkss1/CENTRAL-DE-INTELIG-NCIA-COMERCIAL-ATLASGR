@@ -55,6 +55,63 @@ function encontrarUsuariosPorNomeConfigurado(nomeConfigurado) {
   return candidatos.filter((x) => x.norm.includes(alvo) || alvo.includes(x.norm));
 }
 
+// v26 — helpers compartilhados por Diário SDR e Análise SDR: nome do
+// contato, atividade realizada (resumo em texto) e próxima atividade
+// agendada (COMPLETED=N) por Lead/negócio — pedido explícito nos
+// relatórios de SDR (contato, empresa, atividade realizada e próxima
+// atividade agendada).
+function nomeContatoObjeto(c) {
+  if (!c) return "";
+  return `${c.NAME || ""} ${c.LAST_NAME || ""}`.trim();
+}
+
+function textoAtividadeResumo(a) {
+  if (!a) return "";
+  const tipo = TIPOS_ATIVIDADE_BITRIX[String(a.TYPE_ID)] || canalAtividadeSDR(a) || "Atividade";
+  const assunto = a.SUBJECT ? ` — ${a.SUBJECT}` : "";
+  const dataTxt = formatarDataHoraBR(a.END_TIME || a.START_TIME || a.DEADLINE || "");
+  return `${tipo}${assunto}${dataTxt ? ` (${dataTxt})` : ""}`;
+}
+
+// Busca atividades concluídas (completado="Y") ou pendentes (completado="N")
+// vinculadas via OWNER_TYPE_ID/OWNER_ID a uma lista de Leads (1) ou negócios
+// (2), em lotes — mesmo padrão de paginação/lote já usado no resto do
+// arquivo (ver buscarDealsPorLeadIdsAnaliseSDR).
+async function buscarAtividadesPorOwner(webhook, ownerTypeId, ids, completado, campos, order, textoStatus) {
+  const todos = [];
+  const vistos = new Set();
+  const listaIds = [...new Set((ids || []).map(String).filter((x) => x && x !== "0"))];
+  if (!listaIds.length) return todos;
+
+  for (const lote of dividirEmLotes(listaIds, 75)) {
+    const resp = await listarCompletoRelatorio(
+      webhook, "crm.activity.list", campos,
+      { "OWNER_TYPE_ID": String(ownerTypeId), "@OWNER_ID": lote, "COMPLETED": completado },
+      order, textoStatus
+    );
+    resp.dados.forEach((a) => {
+      const k = String(a.ID);
+      if (!vistos.has(k)) { vistos.add(k); todos.push(a); }
+    });
+    await aguardar(ATRASO_ENTRE_PAGINAS_MS);
+  }
+  return todos;
+}
+
+// A partir de uma lista de atividades pendentes (COMPLETED=N), acha a mais
+// próxima (menor START_TIME/DEADLINE) por OWNER_ID.
+function mapaProximaAtividadePorOwner(lista) {
+  const mapa = {};
+  (lista || []).forEach((a) => {
+    const id = String(a.OWNER_ID || "");
+    const data = a.START_TIME || a.DEADLINE || "";
+    if (!id || !data) return;
+    if (!mapa[id] || data < mapa[id].DATA) {
+      mapa[id] = { DATA: data, TEXTO: textoAtividadeResumo(a) };
+    }
+  });
+  return mapa;
+}
 
 // ----------------------- Análise SDR semanal e mensal ----------------------
 
@@ -397,6 +454,26 @@ async function extrairAnaliseSDR(webhook) {
 
     const dealIdsRelacionados = dealsRelacionados.map((d) => String(d.ID)).filter(Boolean);
 
+    // v26 — próxima atividade agendada (COMPLETED=N) por Lead/negócio da
+    // jornada, pedido explícito nos relatórios de SDR (contato, empresa,
+    // atividade realizada e próxima atividade agendada).
+    atualizarStatus("Análise SDR: buscando próximas atividades agendadas...");
+    const idsLeadsProximaAtividade = [...new Set([...idsJornadaLista, ...leadsAtribuidos.map((l) => String(l.ID))])];
+    const [pendentesLeadsSdr, pendentesDealsSdr] = await Promise.all([
+      buscarAtividadesPorOwner(
+        webhook, 1, idsLeadsProximaAtividade, "N",
+        ["ID", "OWNER_ID", "TYPE_ID", "SUBJECT", "START_TIME", "DEADLINE"], { DEADLINE: "ASC" },
+        "Análise SDR: próximas atividades (Leads)..."
+      ),
+      buscarAtividadesPorOwner(
+        webhook, 2, dealIdsRelacionados, "N",
+        ["ID", "OWNER_ID", "TYPE_ID", "SUBJECT", "START_TIME", "DEADLINE"], { DEADLINE: "ASC" },
+        "Análise SDR: próximas atividades (Negócios)..."
+      )
+    ]);
+    const proximaPorLeadSdr = mapaProximaAtividadePorOwner(pendentesLeadsSdr);
+    const proximaPorDealSdr = mapaProximaAtividadePorOwner(pendentesDealsSdr);
+
     const todosDealsMap = { ...dealsTocadosMap };
     dealsRelacionados.forEach((d) => { todosDealsMap[String(d.ID)] = d; });
 
@@ -674,9 +751,21 @@ async function extrairAnaliseSDR(webhook) {
       const ganhosLead = dealsLead.filter((d) => ["s", "success"].includes(String(d.STAGE_SEMANTIC_ID || "").toLowerCase())).length;
       const perdasLead = dealsLead.filter((d) => ["f", "failure"].includes(String(d.STAGE_SEMANTIC_ID || "").toLowerCase())).length;
 
+      // v26 — contato, empresa, atividade realizada e próxima atividade
+      // agendada (pedido explícito nos relatórios de SDR).
+      const ultimaAtividadeLead = acts.slice().sort((a, b) => String(a.END_TIME).localeCompare(String(b.END_TIME)));
+      const proxLead = proximaPorLeadSdr[String(leadId)];
+      const proxDeal = dealsLead
+        .map((d) => proximaPorDealSdr[String(d.ID)])
+        .filter(Boolean)
+        .sort((a, b) => a.DATA.localeCompare(b.DATA))[0];
+      const proxima = [proxLead, proxDeal].filter(Boolean).sort((a, b) => a.DATA.localeCompare(b.DATA))[0];
+
       linhasJornada.push({
         LEAD_ID: leadId,
         CLIENTE: lead.COMPANY_TITLE || `${lead.NAME || ""} ${lead.LAST_NAME || ""}`.trim() || lead.TITLE || "",
+        CONTATO: `${lead.NAME || ""} ${lead.LAST_NAME || ""}`.trim(),
+        EMPRESA: idBitrixValido(lead.COMPANY_ID) ? (empresasSdrMap[idBitrixString(lead.COMPANY_ID)]?.TITLE || lead.COMPANY_TITLE || "") : (lead.COMPANY_TITLE || ""),
         TITULO_LEAD: lead.TITLE || "",
         STATUS_ATUAL: labelStatusLead(mapaStatusLead, lead.STATUS_ID),
         RESPONSAVEL_ATUAL: nomeUsuario(lead.ASSIGNED_BY_ID),
@@ -687,6 +776,8 @@ async function extrairAnaliseSDR(webhook) {
         OPORTUNIDADES: dealsLead.length,
         GANHOS: ganhosLead,
         PERDAS: perdasLead,
+        ATIVIDADE_REALIZADA: textoAtividadeResumo(ultimaAtividadeLead[ultimaAtividadeLead.length - 1]),
+        PROXIMA_ATIVIDADE: proxima ? proxima.TEXTO : "",
         JORNADA: routeText
       });
     }
@@ -719,15 +810,19 @@ async function extrairAnaliseSDR(webhook) {
         const b = new Date(`${referencia}T12:00:00`);
         diasSem = Math.max(0, Math.floor((b - a) / 86400000));
       }
+      const proxBacklog = proximaPorLeadSdr[String(l.ID)];
       return {
         LEAD_ID: l.ID,
         CLIENTE: l.COMPANY_TITLE || `${l.NAME || ""} ${l.LAST_NAME || ""}`.trim() || l.TITLE || "",
+        CONTATO: `${l.NAME || ""} ${l.LAST_NAME || ""}`.trim(),
+        EMPRESA: idBitrixValido(l.COMPANY_ID) ? (empresasSdrMap[idBitrixString(l.COMPANY_ID)]?.TITLE || l.COMPANY_TITLE || "") : (l.COMPANY_TITLE || ""),
         TITULO: l.TITLE || "",
         STATUS: labelStatusLead(mapaStatusLead, l.STATUS_ID),
         DATE_CREATE: parteDataISO(l.DATE_CREATE),
         LAST_ACTIVITY_TIME: l.LAST_ACTIVITY_TIME || "",
         DIAS_SEM_ATIVIDADE: diasSem,
         ATIVIDADE_NO_MES: leadIdsTocadosMes.has(String(l.ID)) ? "S" : "N",
+        PROXIMA_ATIVIDADE: proxBacklog ? proxBacklog.TEXTO : "",
         CRITICO: diasSem === "" ? "SEM DATA" : (Number(diasSem) >= diasCritico ? "S" : "N")
       };
     }).sort((a, b) => {
@@ -855,9 +950,7 @@ function renderizarAnaliseSDR() {
     ["Reuniões", obj.REUNIOES],
     ["Oportunidades criadas", obj.OPORTUNIDADES_CRIADAS],
     ["Lead → Oportunidade", `${obj.TAXA_LEAD_OPORTUNIDADE}%`]
-  ].map(([rotulo, valor]) =>
-    `<div class="relatorio-especial-kpi"><span class="valor">${escapeHtmlRelatorio(valor)}</span><span class="rotulo">${escapeHtmlRelatorio(rotulo)}</span></div>`
-  ).join("");
+  ].map(([rotulo, valor]) => kpiCardHtml(rotulo, valor, "analiseSdrDiarioTabela")).join("");
 
   document.getElementById("analiseSdrSemanaKpis").innerHTML = montarKpis(semana);
   document.getElementById("analiseSdrMesKpis").innerHTML = montarKpis(mes);
@@ -917,23 +1010,30 @@ function renderizarAnaliseSDR() {
   document.getElementById("analiseSdrLeadsTabela").innerHTML = tabelaRelatorio([
     { label: "Lead", valor: "LEAD_ID" },
     { label: "Cliente", valor: "CLIENTE" },
+    { label: "Contato", valor: "CONTATO" },
+    { label: "Empresa", valor: "EMPRESA" },
     { label: "Status atual", valor: "STATUS_ATUAL" },
     { label: "Ativ. semana", valor: "ATIVIDADES_SEMANA" },
     { label: "Ativ. mês", valor: "ATIVIDADES_MES" },
     { label: "Reuniões mês", valor: "REUNIOES_MES" },
     { label: "Oportunidades", valor: "OPORTUNIDADES" },
     { label: "Ganhos", valor: "GANHOS" },
+    { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" },
+    { label: "Próxima atividade", valor: (x) => x.PROXIMA_ATIVIDADE || "—" },
     { label: "Jornada", valor: "JORNADA" }
   ], r.jornada_leads, 250);
 
   document.getElementById("analiseSdrBacklogTabela").innerHTML = tabelaRelatorio([
     { label: "Lead", valor: "LEAD_ID" },
     { label: "Cliente", valor: "CLIENTE" },
+    { label: "Contato", valor: "CONTATO" },
+    { label: "Empresa", valor: "EMPRESA" },
     { label: "Status", valor: "STATUS" },
     { label: "Criado em", valor: (x) => formatarDataBR(x.DATE_CREATE) },
     { label: "Última atividade", valor: (x) => formatarDataHoraBR(x.LAST_ACTIVITY_TIME) },
     { label: "Dias sem atividade", valor: "DIAS_SEM_ATIVIDADE" },
     { label: "Atividade no mês", valor: (x) => x.ATIVIDADE_NO_MES === "S" ? '<span class="badge-relatorio ok">Sim</span>' : '<span class="badge-relatorio alerta">Não</span>', html: true },
+    { label: "Próxima atividade", valor: (x) => x.PROXIMA_ATIVIDADE || "—" },
     { label: "Crítico", valor: (x) => x.CRITICO === "N" ? "" : `<span class="badge-relatorio alerta">${escapeHtmlRelatorio(x.CRITICO)}</span>`, html: true }
   ], r.backlog, 250);
 }
@@ -965,8 +1065,9 @@ function gerarHTMLRelatorioJoao(){
     {label:"Última atividade",valor:(x)=>formatarDataHoraBR(x.LAST_ACTIVITY_TIME)},{label:"Dias sem atividade",valor:(x)=>x.DIAS_SEM_ATIVIDADE},{label:"Crítico",valor:(x)=>x.CRITICO}
   ],(r.backlog||[]).slice(0,120));
   const rotas=tabelaModelo([{label:"Rota",valor:(x)=>x.ROTA},{label:"Leads",valor:(x)=>x.LEADS}],(r.rotas||[]).slice(0,50));
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Análise SDR — ${escapeHtmlRelatorio(r.meta.sdr_nome)} · Atlas</title><style>${MODELO_EXECUTIVO_CSS}</style></head><body>`+
-  `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${MODELO_EXECUTIVO_LOGO}<div class="letterhead-divider"></div><div class="letterhead-tagline">Gerenciamento de Risco em Processos Logísticos</div></div><div class="letterhead-ref"><strong>Relatório SDR</strong><br>Extraído do Bitrix24 em ${formatarDataBR(formatarDataISO(new Date()))}</div></div></div>`+
+  const marca=marcaAtiva();
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Análise SDR — ${escapeHtmlRelatorio(r.meta.sdr_nome)} · ${escapeHtmlRelatorio(marca.nome)}</title><style>${modeloExecutivoCssParaMarca(marca)}</style></head><body>`+
+  `<div class="letterhead"><div class="letterhead-inner"><div class="letterhead-brand">${marca.logoSvg}<div class="letterhead-divider"></div><div class="letterhead-tagline">${escapeHtmlRelatorio(marca.tagline)}</div></div><div class="letterhead-ref"><strong>Relatório SDR</strong><br>Extraído do Bitrix24 em ${formatarDataBR(formatarDataISO(new Date()))}</div></div></div>`+
   `<header class="hero"><div class="hero-inner"><p class="eyebrow">Inteligência Comercial · SDR</p><h1>Análise SDR — ${escapeHtmlRelatorio(r.meta.sdr_nome)}</h1><p class="subtitle">Produção diária, clientes diferentes, jornada e taxas de conversão. Semana ${formatarDataBR(r.meta.semana_inicio)} a ${formatarDataBR(r.meta.semana_fim)} · Mês ${formatarDataBR(r.meta.mes_inicio)} a ${formatarDataBR(r.meta.mes_fim)}.</p></div></header>`+
   `<div class="wrap"><div class="overview-panel" id="visao-geral"><h2 class="section" style="margin-top:0;">Visão geral</h2><div class="kpis">`+
   `<div class="kpi accent"><div class="label">Atividades no mês</div><div class="value">${m.ATIVIDADES}</div><div class="small">${m.CLIENTES_UNICOS} clientes únicos</div></div>`+
@@ -980,9 +1081,9 @@ function gerarHTMLRelatorioJoao(){
   `<details class="vcard section-card"><summary><span class="vcard-name">📌 Backlog atual</span><span class="vcard-stats">${r.resumo.backlog_atual} Leads · ${r.resumo.backlog_criticos} críticos</span><span class="vcard-chevron">▾</span></summary><div class="vcard-body">${backlog}</div></details></div>`+
   `<h2 class="section">Atividades por cliente</h2><p class="section-sub">Mostra se o volume veio de clientes diferentes ou de várias atividades repetidas no mesmo cliente.</p><div class="cgrid">${cards||'<p class="small-note">Sem clientes trabalhados.</p>'}</div>`+
   `<h2 class="section">Taxas de conversão</h2>${conv}<h2 class="section">Jornadas mais frequentes</h2>${rotas}`+
-  `<footer><div class="footer-brand">${MODELO_EXECUTIVO_LOGO}<span>Atlas</span></div>Atlas · Análise SDR · ${escapeHtmlRelatorio(r.meta.sdr_nome)}</footer></div></body></html>`;
+  `<footer><div class="footer-brand">${marca.logoSvg}<span>${escapeHtmlRelatorio(marca.nome)}</span></div>${escapeHtmlRelatorio(marca.nome)} · Análise SDR · ${escapeHtmlRelatorio(r.meta.sdr_nome)}</footer></div></body></html>`;
 }
-function abrirRelatorioVisualJoao(){const h=gerarHTMLRelatorioJoao();if(h)abrirHtmlEmNovaAba(h);}
+function abrirRelatorioVisualJoao(){const h=gerarHTMLRelatorioJoao();if(h)mostrarRelatorioVisualInline(h,"Análise SDR — João Reis");}
 function baixarHTMLRelatorioJoao(){const h=gerarHTMLRelatorioJoao();if(h)baixarArquivo(h,`analise_sdr_joao_modelo_atlas_${dataHoje()}.html`,"text/html;charset=utf-8;");}
 
 async function extrairDiarioSDR(webhook) {
@@ -1102,18 +1203,60 @@ async function extrairDiarioSDR(webhook) {
       ]
     );
 
-    const idsEmpresaDeals = [...new Set(
-      dealsPotenciaisBrutos.map((d) => d.COMPANY_ID).filter(idBitrixValido).map(idBitrixString)
-    )];
+    // v26 — nome do contato, nome da empresa, atividade realizada e próxima
+    // atividade agendada (pedido explícito nos relatórios de SDR). Para isso
+    // busca também os negócios tocados por atividade no período (não só os
+    // "potenciais" do funil Comercial/SDR), os contatos/empresas vinculados
+    // direta ou indiretamente, e as atividades ainda não concluídas
+    // (COMPLETED=N) dos mesmos Leads/negócios.
+    const dealsTocadosMap = await buscarEntidadesPorIds(
+      webhook, "crm.deal.list", [...dealIdsAtendidos],
+      ["ID", "TITLE", "COMPANY_ID", "CONTACT_ID"]
+    );
+    const contactIdsDiretos = setIdsVinculadosAtividades(atividades, "3");
+    const companyIdsDiretos = setIdsVinculadosAtividades(atividades, "4");
+    const idsContatosDiario = [...new Set([
+      ...contactIdsDiretos,
+      ...dealsPotenciaisBrutos.map((d) => d.CONTACT_ID),
+      ...Object.values(dealsTocadosMap).map((d) => d.CONTACT_ID)
+    ].filter(idBitrixValido).map(idBitrixString))];
+    const contatosDiarioMap = await buscarEntidadesPorIds(webhook, "crm.contact.list", idsContatosDiario, ["ID", "NAME", "LAST_NAME", "COMPANY_ID"]);
+    const idsEmpresaDeals = [...new Set([
+      ...companyIdsDiretos,
+      ...dealsPotenciaisBrutos.map((d) => d.COMPANY_ID),
+      ...Object.values(dealsTocadosMap).map((d) => d.COMPANY_ID),
+      ...Object.values(contatosDiarioMap).map((c) => c.COMPANY_ID)
+    ].filter(idBitrixValido).map(idBitrixString))];
     const empresasDeals = await buscarEntidadesPorIds(webhook, "crm.company.list", idsEmpresaDeals, ["ID", "TITLE"]);
 
     const potenciaisLeadsBase = statusSdrIds.length
       ? leadsAtivos.filter((l) => statusSdrIds.includes(String(l.STATUS_ID)))
       : leadsAtivos;
 
+    atualizarStatus("Diário SDR: buscando próximas atividades agendadas...");
+    const [pendentesLeads, pendentesDeals] = await Promise.all([
+      buscarAtividadesPorOwner(
+        webhook, 1, [...new Set([...leadIdsAtendidos, ...potenciaisLeadsBase.map((l) => String(l.ID))])],
+        "N", ["ID", "OWNER_ID", "TYPE_ID", "SUBJECT", "START_TIME", "DEADLINE"], { DEADLINE: "ASC" },
+        "Diário SDR: próximas atividades (Leads)..."
+      ),
+      buscarAtividadesPorOwner(
+        webhook, 2, [...new Set([...dealIdsAtendidos, ...dealsPotenciaisBrutos.map((d) => String(d.ID))])],
+        "N", ["ID", "OWNER_ID", "TYPE_ID", "SUBJECT", "START_TIME", "DEADLINE"], { DEADLINE: "ASC" },
+        "Diário SDR: próximas atividades (Negócios)..."
+      )
+    ]);
+    const proximaPorLead = mapaProximaAtividadePorOwner(pendentesLeads);
+    const proximaPorDeal = mapaProximaAtividadePorOwner(pendentesDeals);
+    const ultimaAtividadeTexto = (mapaPorId, id) => {
+      const acts = (mapaPorId[String(id)] || []).slice().sort((a, b) => String(a.END_TIME).localeCompare(String(b.END_TIME)));
+      return textoAtividadeResumo(acts[acts.length - 1]);
+    };
+
     const potenciaisLeads = potenciaisLeadsBase.map((l) => {
       const acts = atividadePorLead[String(l.ID)] || [];
       const canais = [...new Set(acts.map(canalAtividadeSDR))];
+      const prox = proximaPorLead[String(l.ID)];
       return {
         LEAD_ID: l.ID,
         TITULO: l.TITLE || "",
@@ -1129,7 +1272,9 @@ async function extrairDiarioSDR(webhook) {
         LAST_ACTIVITY_TIME: l.LAST_ACTIVITY_TIME || "",
         ATENDIDO_NO_PERIODO: acts.length ? "S" : "N",
         ATIVIDADES_NO_PERIODO: acts.length,
-        CANAIS_NO_PERIODO: canais.join(" | ")
+        CANAIS_NO_PERIODO: canais.join(" | "),
+        ATIVIDADE_REALIZADA: ultimaAtividadeTexto(atividadePorLead, l.ID),
+        PROXIMA_ATIVIDADE: prox ? prox.TEXTO : ""
       };
     });
 
@@ -1140,9 +1285,11 @@ async function extrairDiarioSDR(webhook) {
       const cliente = idBitrixValido(d.COMPANY_ID)
         ? (empresasDeals[idBitrixString(d.COMPANY_ID)]?.TITLE || d.TITLE || "")
         : (d.TITLE || "");
+      const prox = proximaPorDeal[String(d.ID)];
       return {
         DEAL_ID: d.ID,
         CLIENTE: cliente,
+        CONTATO: nomeContatoObjeto(contatosDiarioMap[idBitrixString(d.CONTACT_ID)]),
         TITULO: d.TITLE || "",
         PIPELINE: nomeFunilSemCodigo(meta.categorias?.[cat] || `Categoria ${cat}`),
         ESTAGIO: stageMeta.label || d.STAGE_ID || "",
@@ -1154,12 +1301,15 @@ async function extrairDiarioSDR(webhook) {
         LAST_ACTIVITY_TIME: d.LAST_ACTIVITY_TIME || "",
         ATENDIDO_NO_PERIODO: acts.length ? "S" : "N",
         ATIVIDADES_NO_PERIODO: acts.length,
-        CANAIS_NO_PERIODO: [...new Set(acts.map(canalAtividadeSDR))].join(" | ")
+        CANAIS_NO_PERIODO: [...new Set(acts.map(canalAtividadeSDR))].join(" | "),
+        ATIVIDADE_REALIZADA: ultimaAtividadeTexto(atividadePorDeal, d.ID),
+        PROXIMA_ATIVIDADE: prox ? prox.TEXTO : ""
       };
     });
 
     const leadsAtendidos = Object.values(leadsAtendidosMap).map((l) => {
       const acts = atividadePorLead[String(l.ID)] || [];
+      const prox = proximaPorLead[String(l.ID)];
       return {
         LEAD_ID: l.ID,
         TITULO: l.TITLE || "",
@@ -1170,7 +1320,9 @@ async function extrairDiarioSDR(webhook) {
         SOURCE_ID: l.SOURCE_ID || "",
         ATIVIDADES_NO_PERIODO: acts.length,
         CANAIS: [...new Set(acts.map(canalAtividadeSDR))].join(" | "),
-        LAST_ACTIVITY_TIME: l.LAST_ACTIVITY_TIME || ""
+        LAST_ACTIVITY_TIME: l.LAST_ACTIVITY_TIME || "",
+        ATIVIDADE_REALIZADA: ultimaAtividadeTexto(atividadePorLead, l.ID),
+        PROXIMA_ATIVIDADE: prox ? prox.TEXTO : ""
       };
     }).sort((a, b) => b.ATIVIDADES_NO_PERIODO - a.ATIVIDADES_NO_PERIODO);
 
@@ -1182,6 +1334,46 @@ async function extrairDiarioSDR(webhook) {
       ...potenciaisNegocios.map((x) => String(x.RESPONSAVEL_ID || "")).filter(Boolean),
       ...usuariosSdrConfigurados.map((x) => String(x.id))
     ]);
+
+    // v26 — contato e empresa do vínculo principal da atividade (Lead, Negócio,
+    // Contato ou Empresa), na ordem em que aparecem em BINDINGS.
+    const contatoPorBindings = (binds) => {
+      for (const b of binds) {
+        if (b.OWNER_TYPE_ID === "3") {
+          const nome = nomeContatoObjeto(contatosDiarioMap[String(b.OWNER_ID)]);
+          if (nome) return nome;
+        }
+        if (b.OWNER_TYPE_ID === "1") {
+          const lead = leadsAtendidosMap[String(b.OWNER_ID)];
+          const nome = lead ? `${lead.NAME || ""} ${lead.LAST_NAME || ""}`.trim() : "";
+          if (nome) return nome;
+        }
+        if (b.OWNER_TYPE_ID === "2") {
+          const deal = dealsTocadosMap[String(b.OWNER_ID)];
+          const nome = deal ? nomeContatoObjeto(contatosDiarioMap[idBitrixString(deal.CONTACT_ID)]) : "";
+          if (nome) return nome;
+        }
+      }
+      return "";
+    };
+    const empresaPorBindings = (binds) => {
+      for (const b of binds) {
+        if (b.OWNER_TYPE_ID === "4") {
+          const nome = empresasDeals[String(b.OWNER_ID)]?.TITLE || "";
+          if (nome) return nome;
+        }
+        if (b.OWNER_TYPE_ID === "1") {
+          const lead = leadsAtendidosMap[String(b.OWNER_ID)];
+          if (lead?.COMPANY_TITLE) return lead.COMPANY_TITLE;
+        }
+        if (b.OWNER_TYPE_ID === "2") {
+          const deal = dealsTocadosMap[String(b.OWNER_ID)];
+          const nome = deal ? (empresasDeals[idBitrixString(deal.COMPANY_ID)]?.TITLE || "") : "";
+          if (nome) return nome;
+        }
+      }
+      return "";
+    };
 
     const atividadesEnriquecidas = atividades.map((a) => {
       const binds = bindingsDaAtividade(a);
@@ -1195,6 +1387,8 @@ async function extrairDiarioSDR(webhook) {
         CANAL: canalAtividadeSDR(a),
         ASSUNTO: a.SUBJECT || "",
         DIRECAO: String(a.DIRECTION) === "1" ? "Entrada" : (String(a.DIRECTION) === "2" ? "Saída" : ""),
+        CONTATO: contatoPorBindings(binds),
+        EMPRESA: empresaPorBindings(binds),
         VINCULOS: binds.map((b) => `${nomeTipoEntidadeCRM(b.OWNER_TYPE_ID)}:${b.OWNER_ID}`).join(" | "),
         EH_RESPONSAVEL_SDR_COMERCIAL: sdrUserIds.has(idBitrixString(a.RESPONSIBLE_ID)) ? "S" : "N"
       };
@@ -1344,18 +1538,16 @@ function renderizarDiarioSDR() {
     `Pipelines potenciais: ${escapeHtmlRelatorio(r.meta.funis_potenciais.join(", ") || "nenhum")}.`;
 
   const kpis = [
-    ["Atividades CRM", r.resumo.ATIVIDADES_CRM_REALIZADAS],
-    ["Atividades SDR/Comercial", r.resumo.ATIVIDADES_SDR_COMERCIAL],
-    ["Leads atendidos", r.resumo.LEADS_ATENDIDOS],
-    ["Negócios atendidos", r.resumo.NEGOCIOS_ATENDIDOS],
-    ["Potenciais Leads SDR", r.resumo.POTENCIAIS_LEADS_SDR],
-    ["Potenciais Comercial/SDR", r.resumo.POTENCIAIS_NEGOCIOS_COMERCIAL_SDR],
-    ["Potenciais sem atividade", r.resumo.POTENCIAIS_SEM_ATIVIDADE],
-    ["Responsáveis", r.resumo.RESPONSAVEIS_MONITORADOS]
+    ["Atividades CRM", r.resumo.ATIVIDADES_CRM_REALIZADAS, "diarioSdrAtividadesTabela"],
+    ["Atividades SDR/Comercial", r.resumo.ATIVIDADES_SDR_COMERCIAL, "diarioSdrAtividadesTabela"],
+    ["Leads atendidos", r.resumo.LEADS_ATENDIDOS, "diarioSdrLeadsAtendidosTabela"],
+    ["Negócios atendidos", r.resumo.NEGOCIOS_ATENDIDOS, "diarioSdrPotenciaisNegociosTabela"],
+    ["Potenciais Leads SDR", r.resumo.POTENCIAIS_LEADS_SDR, "diarioSdrPotenciaisLeadsTabela"],
+    ["Potenciais Comercial/SDR", r.resumo.POTENCIAIS_NEGOCIOS_COMERCIAL_SDR, "diarioSdrPotenciaisNegociosTabela"],
+    ["Potenciais sem atividade", r.resumo.POTENCIAIS_SEM_ATIVIDADE, "diarioSdrResponsaveisTabela"],
+    ["Responsáveis", r.resumo.RESPONSAVEIS_MONITORADOS, "diarioSdrResponsaveisTabela"]
   ];
-  document.getElementById("diarioSdrKpis").innerHTML = kpis.map(([rotulo, valor]) =>
-    `<div class="relatorio-especial-kpi"><span class="valor">${escapeHtmlRelatorio(valor)}</span><span class="rotulo">${escapeHtmlRelatorio(rotulo)}</span></div>`
-  ).join("");
+  document.getElementById("diarioSdrKpis").innerHTML = kpis.map(([rotulo, valor, alvo]) => kpiCardHtml(rotulo, valor, alvo)).join("");
 
   document.getElementById("diarioSdrResponsaveisTabela").innerHTML = tabelaRelatorio([
     { label: "Responsável", valor: "RESPONSAVEL" },
@@ -1378,6 +1570,8 @@ function renderizarDiarioSDR() {
     { label: "Canal", valor: "CANAL" },
     { label: "Tipo", valor: "TIPO" },
     { label: "Assunto", valor: "ASSUNTO" },
+    { label: "Contato", valor: "CONTATO" },
+    { label: "Empresa", valor: "EMPRESA" },
     { label: "Direção", valor: "DIRECAO" },
     { label: "Vínculos", valor: "VINCULOS" }
   ], r.atividades_sdr);
@@ -1385,32 +1579,41 @@ function renderizarDiarioSDR() {
   document.getElementById("diarioSdrLeadsAtendidosTabela").innerHTML = tabelaRelatorio([
     { label: "Lead", valor: "LEAD_ID" },
     { label: "Título", valor: "TITULO" },
+    { label: "Contato", valor: "CONTATO" },
     { label: "Empresa", valor: "EMPRESA" },
     { label: "Status", valor: "STATUS" },
     { label: "Responsável", valor: "RESPONSAVEL" },
     { label: "Atividades", valor: "ATIVIDADES_NO_PERIODO" },
-    { label: "Canais", valor: "CANAIS" }
+    { label: "Canais", valor: "CANAIS" },
+    { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" },
+    { label: "Próxima atividade", valor: (x) => x.PROXIMA_ATIVIDADE || "—" }
   ], r.leads_atendidos);
 
   document.getElementById("diarioSdrPotenciaisLeadsTabela").innerHTML = tabelaRelatorio([
     { label: "Lead", valor: "LEAD_ID" },
     { label: "Título", valor: "TITULO" },
+    { label: "Contato", valor: "CONTATO" },
     { label: "Empresa", valor: "EMPRESA" },
     { label: "Etapa", valor: "STATUS" },
     { label: "Responsável", valor: "RESPONSAVEL" },
     { label: "Atendido", valor: (x) => x.ATENDIDO_NO_PERIODO === "S" ? '<span class="badge-relatorio ok">Sim</span>' : '<span class="badge-relatorio alerta">Não</span>', html: true },
-    { label: "Última atividade", valor: "LAST_ACTIVITY_TIME" }
+    { label: "Última atividade", valor: "LAST_ACTIVITY_TIME" },
+    { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" },
+    { label: "Próxima atividade", valor: (x) => x.PROXIMA_ATIVIDADE || "—" }
   ], r.potenciais_leads);
 
   document.getElementById("diarioSdrPotenciaisNegociosTabela").innerHTML = tabelaRelatorio([
     { label: "Deal", valor: "DEAL_ID" },
     { label: "Cliente", valor: "CLIENTE" },
+    { label: "Contato", valor: "CONTATO" },
     { label: "Pipeline", valor: "PIPELINE" },
     { label: "Etapa", valor: "ESTAGIO" },
     { label: "Responsável", valor: "RESPONSAVEL" },
     { label: "Valor", valor: (x) => moedaRelatorio(x.OPPORTUNITY), html: true },
     { label: "Atendido", valor: (x) => x.ATENDIDO_NO_PERIODO === "S" ? '<span class="badge-relatorio ok">Sim</span>' : '<span class="badge-relatorio alerta">Não</span>', html: true },
-    { label: "Última atividade", valor: "LAST_ACTIVITY_TIME" }
+    { label: "Última atividade", valor: "LAST_ACTIVITY_TIME" },
+    { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" },
+    { label: "Próxima atividade", valor: (x) => x.PROXIMA_ATIVIDADE || "—" }
   ], r.potenciais_negocios);
 }
 
@@ -1431,13 +1634,13 @@ function montarResultadoVisualDiarioSDR() {
     ],
     tabelas: [
       { titulo: "Resumo por SDR / responsável", dados: r.responsaveis, colunas: [{ label: "Responsável", valor: "RESPONSAVEL" }, { label: "Atividades", valor: "ATIVIDADES" }, { label: "Leads atendidos", valor: "LEADS_ATENDIDOS" }, { label: "Negócios atendidos", valor: "NEGOCIOS_ATENDIDOS" }, { label: "Potenciais Leads", valor: "POTENCIAIS_LEADS" }, { label: "Potenciais negócios", valor: "POTENCIAIS_NEGOCIOS" }] },
-      { titulo: "Leads atendidos no dia", dados: r.leads_atendidos, colunas: [{ label: "Lead", valor: "LEAD_ID" }, { label: "Empresa", valor: "EMPRESA" }, { label: "Status", valor: "STATUS" }, { label: "Responsável", valor: "RESPONSAVEL" }] },
-      { titulo: "Potenciais Leads na esteira SDR", dados: r.potenciais_leads, colunas: [{ label: "Lead", valor: "LEAD_ID" }, { label: "Empresa", valor: "EMPRESA" }, { label: "Etapa", valor: "STATUS" }, { label: "Responsável", valor: "RESPONSAVEL" }] }
+      { titulo: "Leads atendidos no dia", dados: r.leads_atendidos, colunas: [{ label: "Lead", valor: "LEAD_ID" }, { label: "Contato", valor: "CONTATO" }, { label: "Empresa", valor: "EMPRESA" }, { label: "Status", valor: "STATUS" }, { label: "Responsável", valor: "RESPONSAVEL" }, { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" }, { label: "Próxima atividade", valor: "PROXIMA_ATIVIDADE" }] },
+      { titulo: "Potenciais Leads na esteira SDR", dados: r.potenciais_leads, colunas: [{ label: "Lead", valor: "LEAD_ID" }, { label: "Contato", valor: "CONTATO" }, { label: "Empresa", valor: "EMPRESA" }, { label: "Etapa", valor: "STATUS" }, { label: "Responsável", valor: "RESPONSAVEL" }, { label: "Atividade realizada", valor: "ATIVIDADE_REALIZADA" }, { label: "Próxima atividade", valor: "PROXIMA_ATIVIDADE" }] }
     ],
     nota: "Atividade realizada = COMPLETED=Y com END_TIME no período. Lead atendido exige vínculo da atividade ao Lead CRM."
   };
 }
-function abrirRelatorioVisualDiarioSDR() { const h = gerarHTMLRelatorioVisualGenerico(montarResultadoVisualDiarioSDR()); if (h) abrirHtmlEmNovaAba(h); }
+function abrirRelatorioVisualDiarioSDR() { const h = gerarHTMLRelatorioVisualGenerico(montarResultadoVisualDiarioSDR()); if (h) mostrarRelatorioVisualInline(h,"Diário SDR"); }
 function baixarHTMLRelatorioVisualDiarioSDR() { const h = gerarHTMLRelatorioVisualGenerico(montarResultadoVisualDiarioSDR()); if (h) baixarArquivo(h, `diario_sdr_modelo_atlas_${dataHoje()}.html`, "text/html;charset=utf-8;"); }
 
 

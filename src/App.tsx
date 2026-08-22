@@ -51,7 +51,7 @@ const SelectionScreen = lazy(() => import('./features/auth/components/SelectionS
 const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(m => ({ default: m.MarketIntelligence })));
 const Account360 = lazy(() => import('./features/market-intelligence/components/Account360').then(m => ({ default: m.Account360 })));
 const LeadApprovalDeck = lazy(() => import('./features/market-intelligence/components/LeadApprovalDeck').then(m => ({ default: m.LeadApprovalDeck })));
-const Propostas = lazy(() => import('./pages/Propostas').then(m => ({ default: m.Propostas })));
+const PropostasList = lazy(() => import('./features/crm360/components/PropostasList').then(m => ({ default: m.PropostasList })));
 
 function PageFallback() {
   return (
@@ -118,7 +118,7 @@ function AppLayout() {
           <Route path="market-intelligence" element={<MarketIntelligence />} />
           <Route path="market-intelligence/accounts/:id" element={<Account360 />} />
           <Route path="market-intelligence/deck" element={<LeadApprovalDeck />} />
-          <Route path="propostas" element={<Propostas />} />
+          <Route path="propostas" element={<PropostasList />} />
           {/* Comercial Inteligente — módulo executivo restrito. RequireRole bloqueia acesso
               direto por URL (não só o item de menu); a autorização real (que nunca confia no
               frontend) está em requireRole no backend — ver commercialIntelligence.routes.ts. */}

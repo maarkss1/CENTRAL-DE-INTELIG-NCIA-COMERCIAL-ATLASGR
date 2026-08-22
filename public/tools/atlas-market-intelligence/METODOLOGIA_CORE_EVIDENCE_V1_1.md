@@ -1,155 +1,172 @@
-# Atlas Market Intelligence — Metodologia national-v1.1-core-evidence
+# METODOLOGIA CORE EVIDENCE v1.1 + FINAL DECISION GATE
 
-## Objetivo
+**Status:** metodologia exploratória nacional ativa  
+**Atualizado em:** 22/08/2026  
+**Identificador:** `national-v1.1-core-evidence-final-gate`
 
-Responder de forma reproduzível à pergunta **"onde a Atlas GR deve contratar o próximo vendedor?"** mesmo quando a pesquisa competitiva nacional ainda não atingiu o padrão de `CENSO_COMPLETO`, sem transformar ausência de evidência em ausência de concorrência.
+## 1. Papel desta metodologia
 
-A versão anterior travava todo o ranking porque `White Space` e `territorialEfficiency` eram componentes obrigatórios do Opportunity Score. Isso fazia dados nacionais já disponíveis e rastreáveis (CNPJ/ICP, RNTRC, CIOT e Sinesp) não produzirem nenhuma recomendação operacional.
+O Core Evidence existe para responder:
 
-A v1.1 separa duas perguntas que não devem ser confundidas:
+> Quais áreas do Brasil merecem investigação comercial prioritária com os dados nacionais reproduzíveis já disponíveis?
 
-1. **Prioridade territorial baseada em evidência nacional disponível:** pode ser calculada agora.
-2. **White Space competitivo / saturação local:** continua indisponível onde o censo é parcial.
+Ele **não** responde sozinho:
 
-## Core Evidence Score
+> Onde a Atlas GR deve contratar definitivamente o Vendedor 01?
 
-O score-base usa apenas componentes com cobertura nacional reproduzível:
+A resposta final exige White Space competitivo, qualidade da cidade-hub e unit economics aprovados.
 
-| Componente | Peso | Fonte | Geografia | Confiança de origem |
+## 2. Componentes atuais
+
+| Componente | Peso | Fonte | Geografia | Estado |
 | --- | ---: | --- | --- | --- |
-| ICP / demanda | 35% | Receita Federal CNPJ + taxonomia ICP Atlas | Município | 0,90 |
-| Presença logística | 25% | ANTT RNTRC | Município | 0,90 |
-| Fluxo logístico | 20% | ANTT CIOT, proxy documentado de fluxo MDF-e | Origem + destino municipal | 0,85 |
-| Need / risco | 20% | MJSP Sinesp VDE | PROXY_UF | 0,50 |
-| White Space | 0% | Censo competitivo | Fora do Core enquanto parcial | não aplicável |
-| Eficiência territorial | 0% | Malha/tempo de deslocamento | Fora do Core até modelo aprovado | não aplicável |
+| ICP / demanda | 35% | Receita Federal CNPJ + taxonomia Atlas | Município | OBSERVADO + regra de modelo |
+| Presença logística | 25% | ANTT RNTRC | Município | OBSERVADO |
+| Fluxo logístico | 20% | ANTT CIOT | Origem/destino municipal | OBSERVADO como CIOT, proxy documentado de MDF-e |
+| Need / risco | 20% | MJSP Sinesp VDE | UF | PROXY_UF |
+| White Space | 0% | Censo competitivo | Município/território | NAO_DISPONIVEL enquanto parcial |
+| Eficiência territorial | 0% | Malha/tempo/custo | Território | NAO_DISPONIVEL |
 
-Os pesos ativos somam 100%. Componentes de peso zero **não recebem valor zero**: permanecem `NAO_DISPONIVEL` nas estruturas e telas correspondentes.
+Componentes com peso zero **não recebem valor zero**. Permanecem indisponíveis até possuírem evidência suficiente.
 
-## Need v1
+## 3. Score bruto e ajustado
 
-`Need` não é uma nova observação. Na v1.1 ele é definido como o **percentil de risco Sinesp já calculado por UF**, carregando a mesma confiança `0,50` e disponibilidade `PROXY`.
+```text
+CoreRaw = Σ(componentScore × weight)
+CoreAdjusted = CoreRaw × ConfidenceAggregate
+```
 
-Isso significa:
+Se um componente obrigatório da versão Core não existe, o score fica bloqueado.
+
+A confiança nunca transforma ausência de evidência em evidência positiva.
+
+## 4. Need v1
+
+Need v1 deriva do percentil de risco Sinesp já disponível por UF, carregando disponibilidade `PROXY` e confiança reduzida.
+
+Portanto:
 
 - não existe alegação de risco municipal observado;
-- todos os municípios de uma mesma UF recebem o mesmo sinal de risco enquanto a fonte oficial não oferecer granularidade mais fina;
-- o ajuste por confiança reduz automaticamente o peso efetivo dessa dimensão no score final.
+- municípios da mesma UF compartilham o proxy quando a fonte oficial não oferece granularidade mais fina;
+- a incerteza entra explicitamente no score ajustado.
 
-## Score bruto e score ajustado por confiança
+## 5. White Space continua bloqueado
 
-O cálculo reutiliza `calculateOpportunityScore`.
+```text
+if competition.censusStatus != CENSO_COMPLETO:
+    whiteSpace = null
+```
 
-- **Raw/Core Score:** média ponderada dos quatro componentes ativos.
-- **Confidence Adjusted Score:** Core Score multiplicado pela confiança agregada geométrica.
+Ausência de concorrentes encontrados não equivale a concorrência zero.
 
-Dessa forma, uma praça não sobe no ranking apenas porque um proxy incerto tem valor alto.
+## 6. Territory Optimizer exploratório
 
-## Concorrência
+O domínio gera candidatos em raios:
 
-A regra anterior de White Space continua válida: `calculateWhiteSpace` só libera o componente quando o município possui `CENSO_COMPLETO`.
+```text
+100 / 150 / 200 / 250 / 300 / 400 km
+```
 
-Enquanto a pesquisa estiver `PESQUISA_PARCIAL` ou `NAO_PESQUISADO`:
+A publicação Core conservadora limita a 200 km enquanto não houver modelo aprovado de conectividade real.
 
-- `competitionPressure` permanece não disponível;
-- `whiteSpace` permanece não disponível;
-- ausência de concorrente encontrado nunca vira pressão competitiva igual a zero;
-- o Core Evidence Score continua calculável porque estes componentes têm peso zero nesta versão.
+Para múltiplos vendedores, o otimizador penaliza sobreposição e maximiza valor incremental.
 
-Quando o censo competitivo evoluir, uma metodologia posterior poderá recolocar White Space no score final sem alterar os dados históricos da v1.1.
+### Limitação da cidade-base
 
-## Territórios
+O snapshot atual demonstrou que uma cidade pode aparecer como base por estar geometricamente bem posicionada dentro de um grande mercado, sem ser o melhor hub comercial para residência ou início de rota.
 
-O ranking territorial é calculado a partir dos municípios com Core Evidence Score válido usando o `territoryOptimizer` existente.
+Por isso a versão final precisa incorporar `Hub Suitability` com:
 
-O otimizador técnico continua capaz de construir raios de **100, 150, 200, 250, 300 e 400 km** para exploração. A camada decisória, porém, aplica guardrails adicionais porque `territorialEfficiency` ainda não possui malha viária/tempo de deslocamento validado:
+```text
+materialidade própria da base
++ RNTRC/frota próprios
++ centralidade comercial
++ malha rodoviária
++ tempo de deslocamento
++ aeroportos quando relevantes
++ custo operacional
++ cidades satélites
+```
 
-- **raio automático máximo de 200 km** para a recomendação de lotação do próximo vendedor;
-- a **cidade-base precisa estar no quartil superior nacional de contas ICP**, recalculado a cada snapshot, evitando que uma cidade pequena vença apenas por ocupar o centro geométrico de um círculo enorme;
-- para cada cidade-base é mantido o raio elegível com maior Opportunity Score, priorizando confiança e, em empate, o menor raio;
-- candidatos com mais de **65% de sobreposição municipal** em relação a um candidato melhor ranqueado são suprimidos, para que o Top 5 represente alternativas territoriais reais em vez de cinco pinos vizinhos sobre a mesma praça;
-- distância geométrica continua sendo Haversine;
-- contas ICP continuam sendo a massa comercial usada na agregação;
-- nenhuma coordenada é inferida quando o município não possui centroide válido.
+Até essa camada existir, a cidade-base Core é um **candidato geométrico/comercial**, não recomendação definitiva de lotação.
 
-Esses guardrails são deliberadamente conservadores. Raios acima de 200 km voltam a ser elegíveis para decisão automática somente quando houver uma camada aprovada de tempo de deslocamento/malha viária ou outra evidência operacional equivalente.
+## 7. Dois gates distintos
 
-## Visão materializada e caminho rápido da UI
+### Exploration Ready
 
-O Quality Gate executa o ranking contra os snapshots nacionais e materializa `public/tools/atlas-market-intelligence/data/territorios.json`.
+Existe quando ICP + RNTRC + fluxo + Need possuem cobertura suficiente para ordenar áreas de investigação.
 
-Quando esse arquivo está publicado no manifest:
+### Final Decision Ready
 
-- o frontend carrega diretamente os territórios materializados;
-- `municipios_scored.json` deixa de ser baixado e recalculado no caminho crítico do Board;
-- a tela abre com uma visão territorial já validada pelo CI;
-- o cálculo client-side permanece apenas como fallback de compatibilidade para publicações antigas sem `territorios.json`.
+Somente existe quando, além do Core:
 
-A materialização é uma otimização de entrega, não um atalho metodológico: o arquivo só é aceito depois de passar pelos mesmos guardrails e pelo smoke test com snapshots reais.
+```text
+concorrência dos finalistas = CENSO_COMPLETO
++ White Space disponível
++ Hub Suitability validado
++ SAM disponível
++ MRR potencial disponível
++ break-even disponível
++ QA aprovado
+```
 
-## Validação fail-closed em runtime
+No contrato atual, `manifest.decisionReady` representa **somente Final Decision Ready**.
 
-O manifest publicado pode declarar `decisionReady=true`, mas o frontend revalida a prontidão a cada carregamento.
+## 8. Estado em 22/08/2026
 
-A decisão volta automaticamente a `false` quando:
+```text
+Exploration Ready: SIM
+Final Decision Ready: NÃO
+```
 
-- o snapshot CIOT de origem ou de destino obrigatório não está disponível em runtime;
-- no fallback sem `territorios.json`, menos de 1.000 municípios possuem Core Evidence Score válido; ou
-- nenhum território elegível está disponível.
+Bloqueios finais:
 
-Assim, um ranking materializado não mantém a interface artificialmente verde se uma evidência Core obrigatória desaparecer. No caminho materializado, a cobertura municipal pesada é garantida pelo Quality Gate; no fallback, ela também é recalculada em runtime.
+- concorrência nacional parcial;
+- White Space final indisponível;
+- Hub Suitability incompleto;
+- SAM/MRR/break-even territorial sem regras/premissas Atlas aprovadas.
 
-## Unit economics
+## 9. Visão materializada
 
-Ticket, margem, salário, encargos, win rate, churn e demais premissas continuam sendo entradas próprias do **Simulador Econômico**. Elas não são inventadas para produzir o ranking geográfico.
+O Quality Gate materializa `data/territorios.json` a partir dos snapshots nacionais para evitar baixar `municipios_scored.json` no caminho crítico da Board.
 
-Por isso `potentialMrr`, `breakEvenContracts` e campos econômicos territoriais podem permanecer `null` até calibração. A prontidão territorial e a autorização econômica são camadas diferentes.
+Essa materialização é otimização de entrega, não autorização executiva.
 
-## Significado de `decisionReady`
+Interpretação correta:
 
-Na metodologia `national-v1.1-core-evidence`, `decisionReady=true` significa:
+> Top candidatos de Core Evidence para investigação.
 
-> existe evidência nacional suficiente para produzir e ordenar territórios candidatos com score ajustado por confiança e os guardrails territoriais da v1.1 foram satisfeitos.
+Interpretação proibida enquanto `decisionReady=false`:
 
-Não significa:
+> Ordem final de contratação Atlas GR.
 
-- censo competitivo completo;
-- garantia de ausência de concorrência;
-- aprovação automática de contratação;
-- ROI aprovado sem premissas econômicas;
-- risco municipal observado quando a fonte é somente UF;
-- validação de eficiência viária para raios acima de 200 km.
+## 10. Fail-closed em runtime
 
-## Gate com snapshots publicados
+A aplicação revalida o gate mesmo que um manifest antigo declare prontidão. A decisão final volta a `false` quando faltam evidências obrigatórias, incluindo:
 
-O workflow `Market Intelligence - Quality Gate` roda também em pull requests que alteram o módulo. Além de fixtures, typecheck, testes e build, ele executa `scripts/market-intelligence-core-evidence-smoke.ts --write` contra os próprios arquivos nacionais versionados e publica o `territorios.json` gerado como artefato de CI.
+- CIOT origem/destino;
+- territórios válidos;
+- dataset competitivo final;
+- `CENSO_COMPLETO` comparável nos finalistas;
+- SAM;
+- MRR potencial;
+- break-even.
 
-O gate falha se:
+Assim um snapshot parcial não consegue deixar a interface artificialmente verde.
 
-- houver menos de 5.000 municípios no snapshot-base;
-- CIOT origem ou destino estiver ausente;
-- menos de 1.000 municípios forem pontuáveis;
-- houver menos de cinco territórios candidatos;
-- surgir território sem Opportunity Score;
-- algum território decisório ultrapassar 200 km;
-- o ranking não estiver ordenado por Opportunity Score decrescente.
+## 11. Unit economics
 
-## Fontes atualmente materializadas
+Ticket, margem, salário, encargos, win rate, churn e demais parâmetros econômicos não entram como números inventados.
 
-- IBGE / BCIM: geografia municipal e centroides;
-- Receita Federal CNPJ: população ICP por município;
-- ANTT RNTRC: transportadores ativos;
-- SENATRAN: frota de carga;
-- ANTT CIOT Jul/2026: fluxo origem-destino, explicitamente como proxy de MDF-e;
-- MJSP Sinesp Jan-Jul/2026: risco em nível UF;
-- concorrência: pesquisa parcial, preservada como parcial.
+Eles são `PREMISSA_EDITAVEL` ou calibração interna aprovada. Enquanto não preenchidos, `potentialMrr`, `breakEvenContracts` e métricas relacionadas permanecem `null`.
 
-## Critérios para uma v1.2 ou v2
+## 12. Próxima versão metodológica
 
-A metodologia deve ser revisada quando houver pelo menos um destes avanços:
+A v1.2/v2 deve ser liberada somente após avanços materiais como:
 
-1. censo competitivo suficientemente completo e comparável entre praças;
-2. fonte oficial de risco com granularidade municipal para os indicadores relevantes;
-3. modelo validado de eficiência territorial baseado em tempo/malha viária;
-4. calibração dos pesos contra ganhos/perdas reais da Atlas;
-5. premissas econômicas padronizadas e aprovadas para cálculo automático de ROI por território.
+1. censo competitivo comparável dos finalistas;
+2. White Space recalculado;
+3. Hub Suitability com conectividade real;
+4. análise de sensibilidade dos pesos finais;
+5. calibração de ICP/pesos contra ganhos e perdas Atlas;
+6. economics padronizado para ROI territorial.

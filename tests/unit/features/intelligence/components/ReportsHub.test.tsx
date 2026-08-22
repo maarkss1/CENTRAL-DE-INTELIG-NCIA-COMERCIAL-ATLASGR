@@ -104,6 +104,15 @@ describe('ReportsHub', () => {
         expect(screen.getByRole('button', { name: /Interpretar Dados com IA/ })).toBeDisabled();
     });
 
+    it('distingue falha ao buscar a série mensal de uma série real vazia', async () => {
+        getMock.mockRejectedValue(new Error('timeout na API de analytics'));
+        render(<ReportsHub />);
+
+        expect(await screen.findByText('timeout na API de analytics')).toBeInTheDocument();
+        expect(screen.getByText('Não foi possível carregar a série mensal.')).toBeInTheDocument();
+        expect(screen.queryByText('Sem dados suficientes ainda.')).not.toBeInTheDocument();
+    });
+
     it('gera o relatório de IA a partir das métricas carregadas (streaming)', async () => {
         fetchMock.mockResolvedValue(sseResponse([
             `event: delta\ndata: ${JSON.stringify({ delta: '# Diagnóstico\n' })}\n\n`,

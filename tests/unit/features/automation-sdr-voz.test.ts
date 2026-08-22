@@ -2,7 +2,7 @@
  * Cobre a ação "Ligar via SDR de Voz" do motor de automações — o gatilho que faz a IA ligar
  * sozinha para todo lead novo.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/lib/prisma', () => ({
     prisma: {
@@ -23,6 +23,19 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('@/features/integrations/birth-voice/birthVoice.service', () => ({
     callLead: vi.fn(),
     SuppressedNumberError: class SuppressedNumberError extends Error {},
+}));
+
+// O motor também checa a janela comercial de ligação (`isWithinCallWindow`/`callWindowFromEnv`,
+// ver automation.engine.ts) antes de discar — sem mockar isso, o teste dependia da hora real do
+// relógio de quem roda a suíte (passava em horário comercial de SP em dia útil, falhava fora
+// disso). A lógica de janela em si já tem cobertura determinística própria em
+// coldCall.policy.test.ts; aqui só precisamos que ela sempre deixe passar. callWindowFromEnv só é
+// repassado como argumento pro isWithinCallWindow já mockado acima, então seu retorno não importa.
+vi.mock('@/features/integrations/birth-voice/coldCall.policy', () => ({
+    isWithinCallWindow: vi.fn(() => true),
+}));
+vi.mock('@/features/integrations/birth-voice/coldCall.service', () => ({
+    callWindowFromEnv: vi.fn(() => ({})),
 }));
 
 import { prisma } from '@/lib/prisma';
@@ -62,9 +75,18 @@ function regraLigar(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    // A ação "Ligar via SDR de Voz" só liga dentro da janela comercial (9h-18h, dias úteis, em
+    // America/Sao_Paulo — ver coldCall.policy.ts). Sem congelar o relógio, este teste passa ou
+    // falha dependendo da hora em que o CI roda; terça-feira 13h local está sempre dentro da
+    // janela padrão.
+    vi.setSystemTime(new Date('2026-01-06T16:00:00Z'));
     automationMock.update.mockResolvedValue({});
     auditLogMock.create.mockResolvedValue({});
     mockCallLead.mockResolvedValue({ sessionId: 'sess-1', callSid: 'CA1', status: 'queued' });
+});
+
+afterEach(() => {
+    vi.useRealTimers();
 });
 
 describe('Automação "Ligar via SDR de Voz"', () => {

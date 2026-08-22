@@ -144,7 +144,7 @@ function gerarPromptIA() {
     aviso = `⚠️ Os dados extraídos são grandes demais para caber inteiros neste prompt — foram cortados em ${LIMITE_CARACTERES_PROMPT.toLocaleString("pt-BR")} caracteres. Para uma análise sobre a base completa, baixe o(s) arquivo(s) JSON/CSV no passo 6 e anexe-os na conversa com a IA em vez de colar só este texto.`;
   }
 
-  const prompt = `Você está analisando dados extraídos do CRM Bitrix24 da AtlasGR (${pacote.modo}).
+  const prompt = `Você está analisando dados extraídos do CRM Bitrix24 da ${marcaAtiva().nome} (${pacote.modo}).
 
 O que eu quero que você faça com esses dados:
 ${pergunta}
@@ -183,11 +183,11 @@ function gerarCodigoPython(webhook, method, campos, filtro) {
 
   const codigo = `import os, json, csv, time, urllib.request, urllib.parse, urllib.error
 
-WEBHOOK_URL = os.environ.get("BITRIX24_WEBHOOK_URL", "").rstrip("/")
+WEBHOOK_URL = os.environ.get("BITRIX_WEBHOOK_URL", "").rstrip("/")
 if not WEBHOOK_URL:
-    raise SystemExit("Defina BITRIX24_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
+    raise SystemExit("Defina BITRIX_WEBHOOK_URL antes de rodar (nunca cole o webhook aqui no código).")
 if "/rest/" not in WEBHOOK_URL:
-    raise SystemExit("BITRIX24_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
+    raise SystemExit("BITRIX_WEBHOOK_URL não parece um webhook de entrada do Bitrix24 (deveria conter \\"/rest/\\").")
 
 METHOD = "${method}"
 SELECT = [${camposPy}]

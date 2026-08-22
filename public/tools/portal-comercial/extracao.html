@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-empresa="atlasgr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -24,7 +24,20 @@
 </script>
 <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="aguardando-login">
+
+<div class="login-gate" id="loginGate">
+  <div class="login-gate-card">
+    <div class="login-gate-icone">🔒</div>
+    <h1>Portal Comercial AtlasGR</h1>
+    <p>Acesso restrito. Digite a senha para continuar.</p>
+    <form id="loginGateForm" autocomplete="off">
+      <input type="password" id="loginGateSenha" placeholder="Senha" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+    </form>
+    <p class="login-gate-erro oculto" id="loginGateErro" role="alert"></p>
+  </div>
+</div>
 
 <div class="letterhead">
   <div class="letterhead-inner">
@@ -63,7 +76,7 @@
 
 <nav class="quick-nav" aria-label="Navegação do portal">
   <div class="quick-nav-inner"><div class="quick-nav-shell">
-    <span class="quick-nav-grupo">🏠 Portal</span><a href="index.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a>
+    <span class="quick-nav-grupo">🏠 Portal</span><a href="home.html">Início</a><a href="cockpit.html">Cockpit Executivo</a><a href="forecast.html">Relatórios Comerciais</a><a href="sdr.html">SDR &amp; Operação</a><a href="extracao.html">Extração &amp; Diagnóstico</a><a href="evolucao.html">Evolução</a><a href="index.html" title="Trocar de empresa (AtlasGR / Total Trac)">🔀 Trocar empresa</a><a href="#" onclick="sairDoPortal();return false;" title="Sair e pedir a senha novamente">🔒 Sair</a>
     <span class="quick-nav-grupo">Nesta página</span><a href="#conexao">Conexão</a><a href="#configuracao">Escolher</a><a href="#bloco-periodo">Período</a><a href="#card-campos">Campos</a><a href="#execucao">Executar</a><a href="#card-sincronizacao">Sincronizar</a><a href="#bloco-resultado">Resultados</a><a href="#central-inteligencia-v10">Central v10 ✨</a><a href="#analise-ia">IA</a>
   </div></div>
 </nav>
@@ -79,34 +92,30 @@
     <input type="text" id="buscaAtalhosRelatorios" placeholder="Ex: forecast, SDR, pipeline, aging, clientes..." oninput="filtrarAtalhosRelatorios()">
     <div id="atalhosRelatoriosGrupos"></div>
     <p class="rodape-nota oculto" id="atalhosRelatoriosSemResultado">Nenhum relatório encontrado para esta busca.</p>
+    <div class="row" style="margin-top:14px;">
+      <button type="button" class="secundario" onclick="revelarFluxoExtracaoManual()">⚙️ Configurar extração manual (sem relatório pronto)</button>
+    </div>
     <div class="config-summary" id="resumoConfiguracaoTopo"></div>
   </section>
 
-  <div id="fluxo-extracao">
+  <div class="oculto" id="fluxo-extracao">
+  <div class="row" style="margin-bottom:14px;">
+    <button type="button" class="secundario" onclick="voltarParaRelatorios()">← Voltar para os relatórios</button>
+  </div>
   <div class="card" id="conexao">
     <h2><span class="num">1</span> Conexão com o Bitrix</h2>
     <div class="aviso">
-      O webhook <strong>nunca vem embutido neste HTML</strong>. Por padrão ele existe somente
-      nesta aba. Se este computador for pessoal e confiável, você pode clicar em
-      <strong>Salvar webhook</strong>: a URL fica no <code>localStorage</code> deste navegador
-      (com uma ofuscação leve, não uma criptografia real) e será carregada automaticamente nas
-      próximas aberturas.
-      <strong>Risco real:</strong> qualquer pessoa com acesso a este navegador — DevTools, uma
-      extensão instalada, ou um backup do perfil do navegador — consegue extrair o webhook salvo.
-      Como esta ferramenta não tem servidor próprio, não existe forma de eliminar esse risco por
-      completo dentro do navegador. <strong>Não salve o webhook em computador compartilhado</strong>;
-      nessas máquinas, cole a URL a cada sessão e clique em <strong>Esquecer webhook</strong> ao
-      terminar.
+      Webhook fixo da AtlasGR configurado como padrão. Se necessário, você pode alterar a URL acima ou salvar um webhook alternativo no navegador.
     </div>
     <div class="label-line"><label for="webhook">URL do webhook de entrada</label><button type="button" class="info-btn" onclick="abrirAjuda('webhook')">?</button></div>
-    <input type="password" id="webhook" value="" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/xxxxxxxxxxxx/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
+    <input type="password" id="webhook" value="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" autocomplete="off" placeholder="https://atlasgr.bitrix24.com.br/rest/450/gr94fas79p1nizci/" oninput="marcarConexaoPendente(); atualizarStatusWebhookSalvo();">
     <div class="row" style="margin-top:9px;align-items:center;">
       <div class="webhook-actions">
         <button type="button" class="toggle-eye" onclick="alternarVisibilidadeWebhook()">mostrar/ocultar</button>
         <button type="button" class="secundario" onclick="testarConexaoBitrix()">Testar conexão agora</button>
         <button type="button" class="secundario" onclick="salvarWebhookNoNavegador()">💾 Salvar webhook</button>
-        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Esquecer webhook</button>
-        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook não salvo</span></span>
+        <button type="button" class="secundario" onclick="esquecerWebhookSalvo()">🗑️ Restaurar padrão</button>
+        <span class="webhook-save-status" id="statusWebhookSalvo"><span class="dot"></span><span id="statusWebhookSalvoTexto">Webhook fixo ativo</span></span>
       </div>
     </div>
   </div>
@@ -388,6 +397,13 @@
       <label for="syncConfirmacao">Confirmação</label><input type="text" id="syncConfirmacao" placeholder="Digite SINCRONIZAR" oninput="atualizarBotaoSync()">
       <div class="row" style="margin-top:10px;"><button type="button" id="btnExecutarSync" onclick="executarSyncBitrix()" disabled>Sincronizar alterações</button></div>
       <div class="sync-log" id="syncLog">Modo leitura ativo. Nenhuma alteração foi enviada ao Bitrix.</div>
+    </div>
+    <div class="sync-auditoria">
+      <div class="row" style="justify-content:space-between;align-items:center;margin-top:14px;">
+        <strong style="font-size:12px;">Histórico de sincronizações (auditoria, neste navegador)</strong>
+        <button type="button" class="secundario" onclick="limparAuditoriaSync()">Limpar histórico</button>
+      </div>
+      <div class="sync-preview" id="syncAuditoriaLista"><div class="rodape-nota" style="padding:12px;">Nenhuma sincronização registrada neste navegador ainda.</div></div>
     </div>
   </div>
 
@@ -720,6 +736,26 @@
 
   </div>
 
+  <div class="relatorio-modal-overlay oculto" id="relatorioVisualInlineCard" onclick="if(event.target===this)fecharRelatorioVisualInline()">
+    <div class="relatorio-modal-sheet">
+      <div class="relatorio-modal-head">
+        <h2 id="relatorioModalTitulo">📊 Modelo visual do relatório</h2>
+        <div class="relatorio-modal-acoes">
+          <button type="button" class="secundario" onclick="alternarPainelRelatoriosSalvos()" title="Ver relatórios salvos neste navegador">📂 Salvos</button>
+          <button type="button" class="secundario" onclick="salvarRelatorioVisualAtual()" title="Salvar este relatório neste navegador">💾 Salvar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualAtual()" title="Baixar como arquivo .html">⬇️ Baixar</button>
+          <button type="button" class="secundario" onclick="baixarRelatorioVisualPDF()" title="Imprimir ou salvar como PDF">🖨️ PDF</button>
+          <button type="button" class="secundario" onclick="abrirRelatorioVisualEmNovaAba()" title="Abrir em uma aba nova">🌐 Abrir em nova aba</button>
+          <button type="button" class="relatorio-modal-fechar" onclick="fecharRelatorioVisualInline()" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+      <div class="relatorio-salvos-painel oculto" id="relatorioSalvosPainel">
+        <div id="relatorioSalvosLista"></div>
+      </div>
+      <iframe id="relatorioVisualInlineFrame" class="relatorio-visual-inline-frame" title="Modelo visual do relatório"></iframe>
+    </div>
+  </div>
+
 </main>
 
 
@@ -743,6 +779,7 @@
   </div>
 </div>
 
+<script src="js/auth.js"></script>
 <script src="js/config.js"></script>
 <script src="js/bitrix-api.js"></script>
 <script src="js/extrator.js"></script>
@@ -779,3 +816,4 @@
 
 </body>
 </html>
+
