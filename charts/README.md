@@ -48,6 +48,12 @@ ativado. Nesta rodada:
   I/O (chamadas de IA, Bitrix, WhatsApp). `templates/worker-deployment.yaml` foi ajustado para
   omitir `replicas` fixo quando esse HPA está ligado, evitando que cada `helm upgrade` reverta o
   scale-out do HPA.
+- O processo web recebe `ENABLE_EMBEDDED_WORKERS=false` explicitamente e o Deployment dedicado
+  recebe `ENABLE_QUEUES=true`; reinícios/escala das réplicas HTTP não criam outro conjunto de
+  processadores dentro de `server.ts`. O worker expõe a porta interna `3006` e só fica Ready
+  quando `/health/ready` confirma Redis e Postgres. Seus probes tornam falhas observáveis pelo
+  Kubernetes; o grace period de 35 s supera o timeout de shutdown de 25 s do processo e permite
+  fechar os BullMQ Workers antes de o pod antigo ser encerrado.
 - Segurança/capacidade que já estavam corretas e não precisaram de mudança: `securityContext`
   (non-root, `drop: [ALL]`), `resources.limits`/`requests` definidos em app e worker, `secrets:`
   vazio por padrão (nunca populado com valor real neste arquivo versionado), health/readiness

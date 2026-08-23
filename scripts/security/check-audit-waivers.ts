@@ -22,6 +22,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const WAIVERS_PATH = path.resolve(process.cwd(), 'docs/security/AUDIT_WAIVERS.md');
@@ -33,8 +34,32 @@ type AuditVulnerability = {
 };
 
 type AuditReport = {
+    auditReportVersion?: number;
     vulnerabilities?: Record<string, AuditVulnerability>;
+    metadata?: unknown;
+    error?: unknown;
 };
+
+export function parseAuditReport(stdout: string): AuditReport {
+    const parsed = JSON.parse(stdout) as AuditReport;
+
+    // Falhas do registry também são JSON e podem sair em stdout (por exemplo E403). Tratar esse
+    // payload como relatório vazio faria o gate declarar "nenhum achado" sem ter auditado nada.
+    if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        parsed.error != null ||
+        parsed.auditReportVersion !== 2 ||
+        parsed.vulnerabilities == null ||
+        typeof parsed.vulnerabilities !== 'object' ||
+        parsed.metadata == null ||
+        typeof parsed.metadata !== 'object'
+    ) {
+        throw new Error('`npm audit` did not return a valid audit report; refusing to pass open.');
+    }
+
+    return parsed;
+}
 
 function runAudit(): AuditReport {
     try {
@@ -44,16 +69,16 @@ function runAudit(): AuditReport {
             // falha de execução do comando em si, então não deixamos o child_process lançar.
             maxBuffer: 20 * 1024 * 1024,
         });
-        return JSON.parse(stdout) as AuditReport;
+        return parseAuditReport(stdout);
     } catch (err) {
         // execFileSync lança quando o processo sai com código != 0 (o caso comum aqui: achou
         // vulnerabilidade). O JSON completo ainda vem em err.stdout.
         const stdout = (err as { stdout?: string }).stdout;
         if (typeof stdout === 'string' && stdout.trim().length > 0) {
             try {
-                return JSON.parse(stdout) as AuditReport;
+                return parseAuditReport(stdout);
             } catch (parseErr) {
-                console.error('❌ Não foi possível parsear a saída JSON de `npm audit`.');
+                console.error('❌ `npm audit` não produziu um relatório de auditoria válido.');
                 console.error(stdout.slice(0, 2000));
                 throw parseErr;
             }
@@ -183,4 +208,6 @@ function main(): void {
     );
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    main();
+}

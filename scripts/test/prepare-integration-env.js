@@ -52,6 +52,18 @@ if (!isCI) {
   // para todos os agentes da onda) — então, se os três já estão rodando (de qualquer projeto
   // compose), reusar em vez de tentar recriar é o comportamento correto, não um workaround.
   const running = spawnSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf-8' });
+  if (running.error?.code === 'ENOENT') {
+    console.error(
+      'Docker CLI não encontrado no PATH. Os testes de integração/E2E exigem Postgres, Redis e ' +
+      'Meilisearch reais; instale/provisione Docker ou execute no job de CI com service containers. ' +
+      'O gate foi interrompido (não é PASS nem skip).'
+    );
+    process.exit(1);
+  }
+  if (running.status !== 0) {
+    console.error(running.stderr || 'Falha ao consultar containers pelo Docker CLI.');
+    process.exit(running.status || 1);
+  }
   const runningNames = new Set((running.stdout || '').split('\n').map((s) => s.trim()).filter(Boolean));
   const allRunning = REQUIRED_CONTAINERS.every((name) => runningNames.has(name));
 
