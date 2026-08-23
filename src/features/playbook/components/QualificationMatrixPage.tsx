@@ -66,6 +66,7 @@ export function QualificationMatrixPage() {
                         />
                     </div>
                     <select
+                        aria-label="Filtrar por segmento"
                         value={selectedSegment}
                         onChange={(e) => setSelectedSegment(e.target.value)}
                         className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
@@ -74,6 +75,7 @@ export function QualificationMatrixPage() {
                         {segments.map((seg) => <option key={seg} value={seg}>{seg}</option>)}
                     </select>
                     <select
+                        aria-label="Filtrar por persona"
                         value={selectedPersona}
                         onChange={(e) => setSelectedPersona(e.target.value)}
                         className="px-3 py-2 rounded-xl bg-surface-2 text-ink text-xs font-semibold border border-line focus:outline-none focus:ring-1 focus:ring-brand"
