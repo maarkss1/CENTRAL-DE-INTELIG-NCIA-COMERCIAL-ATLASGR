@@ -136,6 +136,12 @@ affinity: {}
 env:
   NODE_ENV: "production"
   PORT: "3000"
+  # O processo web apenas publica jobs. Processadores existem exclusivamente no Deployment
+  # dedicado abaixo; manter isto explícito evita que um upgrade/restart passe a executar cada
+  # fila também nas réplicas HTTP.
+  ENABLE_QUEUES: "true"
+  ENABLE_EMBEDDED_WORKERS: "false"
+  WORKER_HEALTH_PORT: "3006"
   LITELLM_URL: "http://prospector-atlas-litellm:4000"
 
 secrets:
