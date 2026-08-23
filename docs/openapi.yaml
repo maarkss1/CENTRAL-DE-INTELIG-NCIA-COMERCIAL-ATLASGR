@@ -109,6 +109,10 @@ tags:
     description: Integração com o PABX 3CX (discagem e eventos de chamada)
   - name: Mesa de Tratamento
     description: Fila de tratamento de leads do Bitrix24 com ranqueamento por prioridade e temperatura
+  - name: Playbook
+    description: >-
+      Matriz de Qualificação (SPIN/BANT/MEDDPICC) e Matriz de Objeções, editáveis por
+      organização — consumidas pelas telas do Playbook e pelo Chatbook (assistente, roleplay)
   - name: Webhooks
     description: >-
       Endpoints de entrada de provedores externos, montados ANTES do `express.json()` global —
@@ -2592,6 +2596,133 @@ paths:
               schema: { $ref: '#/components/schemas/DataEnvelope' }
         '404':
           description: Token inexistente ou documento excluído
+
+  # ───────────────────────────── Playbook (Matrizes) ─────────────────────────────
+  # Fase 4 do roadmap de melhorias: Matriz de Qualificação/Objeções saíram do arquivo estático
+  # brandMatrices.ts pro banco (QualificationMatrixItem/ObjectionMatrixItem), com CRUD real.
+  /playbook/qualification-matrix:
+    get:
+      tags: [Playbook]
+      summary: Lista as perguntas de qualificação (SPIN/BANT/MEDDPICC) da organização
+      parameters:
+        - name: brand
+          in: query
+          schema: { type: string, enum: [atlasgr, totaltrac] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    post:
+      tags: [Playbook]
+      summary: Cria uma pergunta de qualificação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brand, segment, persona, framework, questionCategory, questionText, idealAnswer]
+              properties:
+                brand: { type: string, enum: [atlasgr, totaltrac] }
+                segment: { type: string }
+                persona: { type: string }
+                framework: { type: string, enum: [SPIN, BANT, MEDDPICC, SNAP, CHALLENGER] }
+                questionCategory: { type: string, enum: ['Situação', 'Problema', 'Implicação/Custo', 'Necessidade/ROI'] }
+                questionText: { type: string }
+                idealAnswer: { type: string }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /playbook/qualification-matrix/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Playbook]
+      summary: Atualiza parcialmente uma pergunta de qualificação
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    delete:
+      tags: [Playbook]
+      summary: Remove uma pergunta de qualificação (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /playbook/objection-matrix:
+    get:
+      tags: [Playbook]
+      summary: Lista as objeções mapeadas da organização
+      parameters:
+        - name: brand
+          in: query
+          schema: { type: string, enum: [atlasgr, totaltrac] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    post:
+      tags: [Playbook]
+      summary: Cria uma objeção
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brand, segment, persona, objectionTitle, objectionText, responseScript, keyDifferentiator]
+              properties:
+                brand: { type: string, enum: [atlasgr, totaltrac] }
+                segment: { type: string }
+                persona: { type: string }
+                objectionTitle: { type: string }
+                objectionText: { type: string }
+                responseScript: { type: string }
+                keyDifferentiator: { type: string }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /playbook/objection-matrix/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    put:
+      tags: [Playbook]
+      summary: Atualiza parcialmente uma objeção
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DataEnvelope' }
+    delete:
+      tags: [Playbook]
+      summary: Remove uma objeção (somente ADMIN/GESTOR)
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   # ─────────────────────── Comercial Inteligente (BI executivo) ───────────────────────
   # Router inteiro restrito a ADMIN/GESTOR (COMMERCIAL_INTELLIGENCE_ROLES), reforçado tanto no

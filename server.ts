@@ -34,6 +34,8 @@ import { contactRoutes } from './src/features/contacts/routes/contact.routes.js'
 import { leadRoutes } from './src/features/crm/routes/lead.routes.js';
 import { crm360Routes } from './src/features/crm360/routes/crm360.routes.js';
 import { crm360PublicRoutes } from './src/features/crm360/routes/crm360Public.routes.js';
+import { qualificationMatrixRoutes } from './src/features/playbook/qualification-matrix/routes/qualification-matrix.routes.js';
+import { objectionMatrixRoutes } from './src/features/playbook/objection-matrix/routes/objection-matrix.routes.js';
 import { emailReplyWebhookRoutes } from './src/features/integrations/email/emailReply.webhook.js';
 import { signatureStatusWebhookRoutes } from './src/features/integrations/signature/signatureStatus.webhook.js';
 import { activityRoutes } from './src/features/activities/routes/activity.routes.js';
@@ -424,6 +426,8 @@ async function startServer() {
     app.use('/api/contacts', authenticateToken, requireTenant, contactRoutes);
     app.use('/api/leads', authenticateToken, requireTenant, leadRoutes);
     app.use('/api/crm', authenticateToken, requireTenant, crm360Routes);
+    app.use('/api/playbook/qualification-matrix', authenticateToken, requireTenant, qualificationMatrixRoutes);
+    app.use('/api/playbook/objection-matrix', authenticateToken, requireTenant, objectionMatrixRoutes);
     app.use('/api/leads/:leadId/notes', authenticateToken, requireTenant, noteRoutes);
     app.use('/api/activities', authenticateToken, requireTenant, activityRoutes);
     app.use('/api/mesa-tratamento', authenticateToken, requireTenant, mesaTratamentoRoutes);

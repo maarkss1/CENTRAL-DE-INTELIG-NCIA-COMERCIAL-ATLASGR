@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
-import { BRAND_OBJECTIONS } from '../features/chatbook/constants/brandMatrices';
+import type { ObjectionMatrixItem } from '../features/playbook/playbook.api';
 import type { BrandInfo } from '../contexts/BrandContext';
 
 export interface RoleplayMessage {
@@ -13,9 +13,10 @@ export type RoleplayPersona = 'skeptical_cfo' | 'strict_buyer' | 'tech_director'
 /**
  * Estado/ações do simulador de roleplay (aba "Roleplay Simulator") do FloatingChatbook —
  * extraído em FRONT-006. `selectedBrand` vem do componente (compartilhado com o assistente e o
- * filtro de matrizes).
+ * filtro de matrizes). `objections` vem de `usePlaybookMatrixData` (Fase 4: antes vinha do
+ * arquivo estático `brandMatrices.ts`).
  */
-export function useRoleplaySimulator(brandInfo: BrandInfo, selectedBrand: 'atlasgr' | 'totaltrac') {
+export function useRoleplaySimulator(brandInfo: BrandInfo, selectedBrand: 'atlasgr' | 'totaltrac', objections: ObjectionMatrixItem[]) {
     const [roleplayPersona, setRoleplayPersona] = useState<RoleplayPersona>('skeptical_cfo');
     const [roleplayActive, setRoleplayActive] = useState(false);
     const [roleplayMessages, setRoleplayMessages] = useState<RoleplayMessage[]>([]);
@@ -32,9 +33,14 @@ export function useRoleplaySimulator(brandInfo: BrandInfo, selectedBrand: 'atlas
         setRoleplayFeedback('');
         setRoleplayError('');
 
-        // Pega objeções da marca selecionada na base de 100
-        const brandObjs = BRAND_OBJECTIONS.filter(o => o.brand === selectedBrand);
-        const randomObj = brandObjs[Math.floor(Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) * brandObjs.length)];
+        // Pega objeções da marca selecionada na Matriz de Objeções (banco, Fase 4).
+        const brandObjs = objections.filter(o => o.brand === selectedBrand);
+        // Org/marca sem nenhuma objeção cadastrada ainda: cai num cenário genérico em vez de
+        // travar o roleplay — melhor que um erro, e some assim que alguém cadastrar uma objeção
+        // real na tela de Matriz de Objeções.
+        const randomObj = brandObjs.length > 0
+            ? brandObjs[Math.floor(Number(`0.${crypto.getRandomValues(new Uint32Array(1))[0]}`) * brandObjs.length)]
+            : { segment: 'sua operação', persona: 'comprador', objectionText: 'ainda não avaliamos uma mudança de fornecedor.' };
         const objectionText = randomObj.objectionText.replace(/[.!?]+$/, '');
 
         let initialGreeting = '';
@@ -61,7 +67,7 @@ export function useRoleplaySimulator(brandInfo: BrandInfo, selectedBrand: 'atlas
         setRoleplayMessages(transcript);
         setIsRoleplayThinking(true);
 
-        const playbookContext = BRAND_OBJECTIONS
+        const playbookContext = objections
             .filter((item) => item.brand === selectedBrand)
             .slice(0, 3)
             .map((item) => JSON.stringify({
