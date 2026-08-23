@@ -19,9 +19,10 @@ const buttonVariants = cva(
         // em globals.css não tem o prefixo `--color-` que o Tailwind 4 exige pra virar classe — hover
         // era um no-op silencioso. `--color-brand-2`/`--brand-2` já existem, já são atualizados
         // dinamicamente na troca de marca (BrandContext.tsx) e já geram `bg-brand-2` de verdade.
-        // O glow em hover usa color-mix(var(--brand)) em vez de rgba(255,86,24,...) cru pelo mesmo
-        // motivo — reage à troca de marca em vez de ficar preso ao laranja da AtlasGR.
-        default: "bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-[0_4px_12px_color-mix(in_srgb,var(--brand)_20%,transparent)]",
+        // O glow em hover usa o token `shadow-brand-sm` (color-mix com var(--brand)) em vez de
+        // rgba(255,86,24,...) cru pelo mesmo motivo — reage à troca de marca em vez de ficar preso
+        // ao laranja da AtlasGR.
+        default: "bg-brand-active text-white hover:bg-brand-2 hover:scale-[1.02] hover:shadow-brand-sm",
         destructive: "bg-red-500 text-white shadow-sm hover:bg-red-600 hover:scale-[1.02]",
         outline: "border border-gray-300 bg-transparent text-ink hover:bg-gray-100",
         secondary: "bg-surface-2 text-ink hover:bg-gray-200 hover:scale-[1.02]",
