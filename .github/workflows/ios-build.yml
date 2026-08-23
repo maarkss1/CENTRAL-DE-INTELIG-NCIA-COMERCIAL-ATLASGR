@@ -1,18 +1,12 @@
 name: Build iOS App
 
 on:
-  # Só sob demanda: runner macos-latest custa 10x mais minutos de Actions que ubuntu-latest, e
-  # esse job rodava em TODO push pra main — cada merge disparava um build iOS caro mesmo sem
-  # ninguém precisar do artefato naquele momento. Some com um push comum de main e o gate de
-  # qualidade real (lint/typecheck/testes) continua rodando via ci.yml/qualidade-ci.yml/
-  # playwright-ci.yml, que não usam macOS.
+  # Mobile é artefato sob demanda. O gate automático canônico vive em ci.yml.
   workflow_dispatch:
 
 jobs:
-  # Fase Final 1 (Gate Único de Release): antes deste job, o xcarchive era gerado sem rodar
-  # typecheck/lint/unit — mesmo padrão aplicado a deploy-pages.yml/android-build.yml. Roda em
-  # ubuntu (mais barato/rápido que macos-latest) já que só valida código TS/JS, não empacota iOS.
   gate:
+    name: iOS / quality gate
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
@@ -25,7 +19,7 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      run: npm ci
 
     - name: Generate Prisma Client
       run: npx prisma generate
@@ -39,7 +33,8 @@ jobs:
     - name: Run Unit Tests
       run: npm run test:unit
 
-  build:
+  ios-build:
+    name: iOS / archive
     runs-on: macos-latest
     needs: gate
 
@@ -54,7 +49,7 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm install --legacy-peer-deps
+      run: npm ci
 
     - name: Build Web App
       run: npm run build
