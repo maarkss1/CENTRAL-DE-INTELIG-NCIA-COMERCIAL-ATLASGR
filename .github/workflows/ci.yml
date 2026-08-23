@@ -1,6 +1,6 @@
-# Este e o unico workflow que publica o check canonico de release da aplicacao.
-# ETLs de Market Intelligence, builds mobile, deploys e scans agendados possuem
-# ciclos proprios e nao devem ser configurados como required checks da main.
+# Workflow canônico de release da aplicação.
+# A proteção da main exige o contexto GitHub Actions `build`; por isso esse nome é
+# reservado exclusivamente ao agregador final deste workflow.
 name: Central AtlasGR Release
 
 on:
@@ -8,9 +8,6 @@ on:
     branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
-  # Só usado pelo job `visual-baselines` abaixo — disparo manual único para gerar as baselines
-  # *-chromium-linux.png. Não afeta push/pull_request (job tem `if: github.event_name ==
-  # 'workflow_dispatch'`, então em qualquer outro trigger ele simplesmente não roda).
   workflow_dispatch:
 
 permissions:
@@ -21,13 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Varredura de segredo versionado no diff do push/PR. Este repositório já teve credenciais reais
-  # e PII versionadas por engano (ver commit 40a99c31 "fix(seguranca): expurga credenciais reais e
-  # PII versionadas no repositorio") — este job existe para que isso não aconteça de novo em
-  # silêncio. gitleaks-action@v2 funciona sem licença para repositórios de conta pessoal/
-  # organização gratuita (o Enterprise/licença só é exigido para o dashboard "gitleaks Enterprise",
-  # não para rodar o scanner em CI). Ver AGENTS.md → "Segurança e higiene" (varredura de segredo
-  # obrigatória antes de finalizar qualquer onda).
   secret-scan:
     name: Central AtlasGR / secret scan
     runs-on: ubuntu-latest
@@ -44,16 +34,7 @@ jobs:
   build-and-test:
     name: Central AtlasGR / application gate
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    # Fase Final 1 (Gate Único de Release): dependência explícita no próprio arquivo, não só
-    # "os dois jobs existem" — sem isso, secret-scan e build-and-test rodam em paralelo e um
-    # secret-scan que falha não impede build/test/publish de prosseguir. Ver .agents/runs/final-fase-1.md.
     needs: secret-scan
-    # O job completo (lint+typecheck+unit+integration+e2e+build) normalmente termina em ~10-15min.
-    # Sem este limite, um runner degradado deixa o passo "Run E2E Tests" (que roda em série,
-    # workers: 1, ver tests/e2e/helpers.ts) travado por horas em vez de falhar rápido — já
-    # observado indo a 2h30 antes do timeout padrão do GitHub Actions (6h) finalmente encerrar o
-    # job. 30min dá margem de ~2-3x o tempo normal sem deixar um travamento consumir CI por horas.
     timeout-minutes: 30
 
     services:
@@ -83,30 +64,17 @@ jobs:
 
     env:
       NODE_ENV: test
-      # Papel NOSUPERUSER — nunca o superusuário de bootstrap (prospector) — pra que os testes de
-      # integração de RLS (tests/integration/tenant-isolation-db001.test.ts e afins) rodem sob as
-      # mesmas condições de produção. Ver N1 em docs/auditoria-divida-tecnica/08-PLANO-DE-SEGURANCA.md.
       DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-test-jwt-secret-not-for-production
       MEILI_HOST: http://localhost:7700
       MEILI_MASTER_KEY: ci-test-meili-key
       PORT: 3000
-      # better-auth precisa disto pra assinar cookie de sessão; test:e2e sobe o servidor Express
-      # real (ver TEST-002/playwright.config.ts) e faz login de verdade contra ele.
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
-      # tests/e2e cria uma conta real por teste (ver tests/e2e/helpers.ts) e todos os 29 specs
-      # rodam sequencialmente a partir do mesmo IP — o default de produção (20 POSTs/15min em
-      # /api/auth, ver server.ts authLimiter) derrubava os testes depois dos ~19 primeiros com
-      # 429, sem nenhuma falha de asserção real por trás (só timeout esperando a navegação pro
-      # /app que o 429 nunca deixava acontecer).
       AUTH_RATE_LIMIT_MAX: 500
-      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
       PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
-      # Golden Dataset live: secrets são opcionais. Sem provedor configurado, o gate semântico é
-      # pulado, mas o scorer/threshold determinístico continua obrigatório via suíte unitária.
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -128,10 +96,6 @@ jobs:
           APP_DB_PASSWORD: ci_app_test_pass
         run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
 
-      # SEC-005 (Sprint 01/Onda 13): substitui o `continue-on-error: true` solto, que suprimia
-      # falha do step inteiro (não só do advisory waivado), por um script que cruza o achado real
-      # do `npm audit` com docs/security/AUDIT_WAIVERS.md advisory por advisory. Um HIGH/CRITICAL
-      # novo, sem waiver correspondente, falha o gate de verdade — sem exceção genérica.
       - name: Audit for vulnerabilities (waiver-aware)
         run: npm run security:audit-waivers
 
@@ -144,15 +108,12 @@ jobs:
       - name: Run Type Check
         run: npx tsc --noEmit
 
-      - name: Verificar deriva de OpenAPI (docs/openapi.yaml vs server.ts)
+      - name: Verificar deriva de OpenAPI
         run: npm run verify:openapi-drift
 
       - name: Run Unit Tests
         run: npm run test:unit -- --coverage
 
-      # O scorer/threshold determinístico do Golden Dataset roda sempre na suíte unitária acima.
-      # Quando ao menos um provedor real está configurado, executa também as 24 capacidades reais
-      # e o LLM judge. Qualquer regressão acima dos thresholds encerra a CLI com exit code 1.
       - name: Golden Dataset live regression gate
         if: ${{ env.GROQ_API_KEY != '' || env.OPENAI_API_KEY != '' }}
         env:
@@ -162,11 +123,6 @@ jobs:
       - name: Run Migrations (para testes de integração)
         run: npx prisma migrate deploy
 
-      # vitest.integration.config.ts e o pretest:integration (dotenv -e .env.test) esperam este
-      # arquivo — sem ele, localmente cai pro .env.test.example versionado, mas no CI não há
-      # fallback, então escrevemos aqui com os valores reais do job (ver TEST-003 em
-      # docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md). scripts/test/prepare-integration-env.js
-      # pula o docker-compose up no CI porque os service containers acima já ocupam essas portas.
       - name: Criar .env.test para os testes de integração e E2E
         run: |
           cat > .env.test <<EOF
@@ -182,18 +138,12 @@ jobs:
           PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
           EOF
 
-      # Esta suite inclui as regressoes de autenticacao, RBAC e isolamento de tenant. Ela usa o
-      # papel NOSUPERUSER criado acima; um banco superuser tornaria os testes de RLS falsamente
-      # verdes.
       - name: Run Integration Tests (auth, RBAC and tenant isolation)
         run: npm run test:integration -- --coverage
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # TEST-002 (docs/auditoria-divida-tecnica/07-PLANO-DE-TESTES.md): playwright.config.ts agora
-      # sobe o servidor Express real (start:e2e) em vez do `vite preview` estático — os specs fazem
-      # cadastro/login reais contra better-auth e CRUD real contra /api/leads.
       - name: Run E2E Tests
         run: npm run test:e2e
 
@@ -210,19 +160,20 @@ jobs:
           name: coverage-reports
           path: coverage/
         if: always()
+
       - name: Run Build
         run: npm run build
 
-  # Contexto estavel para branch protection: somente este job representa o veredito do codigo da
-  # Central AtlasGR. Nunca substituir por checks de ETL, deploy, mobile ou servico externo. O `if`
-  # garante que uma dependencia falha/cancelada produza FAIL explicito em vez de check ausente.
-  release-gate:
-    name: Central AtlasGR / release gate
+  # Este é o único job que deve publicar o contexto `build` exigido pela branch protection.
+  # O if: always() transforma falha/cancelamento das dependências em FAIL explícito em vez de
+  # deixar o required check ausente.
+  build:
+    name: build
     if: always() && github.event_name != 'workflow_dispatch'
     needs: [secret-scan, build-and-test]
     runs-on: ubuntu-latest
     steps:
-      - name: Consolidar veredito do repositorio
+      - name: Consolidar veredito do repositório
         env:
           SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
           APPLICATION_GATE_RESULT: ${{ needs.build-and-test.result }}
@@ -233,29 +184,12 @@ jobs:
           test "$SECRET_SCAN_RESULT" = success
           test "$APPLICATION_GATE_RESULT" = success
 
-  # Job manual, único — gera as baselines de regressão visual *-chromium-linux.png que faltam em
-  # tests/e2e/visual.spec.ts-snapshots/ (só existem as *-chromium-win32.png, geradas no Windows;
-  # Playwright inclui a plataforma no nome do arquivo, então o CI ubuntu-latest nunca as encontra).
-  # Handoff: .agents/handoffs/onda-6/14-para-08-baselines-visuais-linux.md.
-  #
-  # NÃO gera baseline em todo push/PR de propósito — só quando disparado manualmente via
-  # Actions → CI → "Run workflow". Depois de rodar:
-  #   1. baixe o artifact `visual-snapshots-linux` deste job;
-  #   2. extraia o conteúdo em tests/e2e/visual.spec.ts-snapshots/ (mantendo os PNGs
-  #      *-chromium-win32.png já commitados — não descarte a baseline Windows);
-  #   3. remova `.skip` de `test.describe.skip('Regressão visual', ...)` em
-  #      tests/e2e/visual.spec.ts (o comentário acima do describe explica o porquê do skip);
-  #   4. commite os PNGs novos junto com a remoção do skip — a partir daí o job `build-and-test`
-  #      acima volta a rodar `tests/e2e/visual.spec.ts` normalmente via `npm run test:e2e`.
+  # Geração manual de baselines Linux. Não participa do required check `build`.
   visual-baselines:
     name: "Gerar baselines visuais Linux (manual)"
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
-    # Mesma stack de serviços do job build-and-test acima (postgres/redis) — visual.spec.ts não
-    # depende de busca (Meilisearch), então não sobe um container dedicado, igual ao job normal de
-    # e2e (que também não sobe Meilisearch como service container, apesar de MEILI_HOST/
-    # MEILI_MASTER_KEY estarem no env — ver comentário do job build-and-test).
     services:
       postgres:
         image: pgvector/pgvector:pg17
@@ -293,7 +227,6 @@ jobs:
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
       AUTH_RATE_LIMIT_MAX: 500
-      # SEC-001/SEC-002 (Sprint 01/Onda 13): necessário para tests/integration/sec001-bullboard-access.test.ts
       PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
@@ -335,11 +268,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # tests/e2e/visual.spec.ts está em describe.skip (baseline Linux nunca existiu — ver
-      # comentário no topo do arquivo). --update-snapshots ainda respeita .skip (um teste pulado
-      # não gera nem compara snapshot), então removemos o .skip só neste job, só neste checkout
-      # efêmero — o arquivo do repositório não é alterado (nenhum commit sai daqui).
-      - name: Remover describe.skip temporariamente (só para esta execução)
+      - name: Remover describe.skip temporariamente
         run: sed -i "s/test\.describe\.skip('Regressão visual'/test.describe('Regressão visual'/" tests/e2e/visual.spec.ts
 
       - name: Gerar baselines *-chromium-linux.png

@@ -1,10 +1,9 @@
 name: Code Quality (Lint & Unit Tests)
 
+# Diagnóstico sob demanda. O workflow canônico ci.yml já executa typecheck, lint e unit tests
+# automaticamente em push/PR, portanto disparar esta mesma suíte em paralelo só duplica minutos.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -20,11 +19,11 @@ jobs:
         node-version: 22
         cache: 'npm'
 
-    # O lockfile já é a fonte canônica da árvore de dependências. `npm install --legacy-peer-deps`
-    # fazia este gate resolver uma árvore diferente dos demais workflows e, sob Node 20, gerava um
-    # Prisma Client incompatível com os tipos produzidos no CI/Market Intelligence em Node 22.
     - name: Install dependencies
       run: npm ci
+
+    - name: Generate Prisma Client
+      run: npx prisma generate
 
     - name: Type Check
       run: npx tsc --noEmit

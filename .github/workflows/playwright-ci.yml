@@ -1,23 +1,14 @@
 name: E2E Playwright Tests
 
+# Diagnóstico sob demanda. O gate canônico ci.yml já executa esta suíte E2E completa em push/PR.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   e2e-tests:
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
-    # Réplica exata do setup de serviços/credenciais do job "CI" (ci.yml), que já roda esta mesma
-    # suíte com sucesso. Este workflow historicamente usava `docker compose up -d` (docker-compose.yml
-    # de dev) com DATABASE_URL apontando pra localhost:5432/postgres:postgres/atlasgr_test — nada
-    # disso existe nesse compose (que expõe 5434, usuário "prospector", banco "prospectordb"), então
-    # todo run falhava em "Can't reach database server at localhost:5432" antes mesmo dos testes
-    # começarem. Trocado pra containers de serviço nativos do Actions (mesma imagem/porta/credenciais
-    # do ci.yml) em vez de tentar concertar o docker-compose só pra CI.
     services:
       postgres:
         image: pgvector/pgvector:pg17
@@ -53,9 +44,8 @@ jobs:
       BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
       ALLOW_DEV_AUTH_BYPASS: true
       ALLOWED_ORIGINS: http://localhost:3000
-      # Ver comentário equivalente em ci.yml: os 29 specs de tests/e2e rodam sequencialmente contra
-      # o mesmo authLimiter de produção e batem no limite default (20 POSTs/15min) bem antes do fim.
       AUTH_RATE_LIMIT_MAX: 500
+      PLATFORM_OPERATOR_TOKEN: ci-test-operator-token-not-for-production
 
     steps:
     - name: Checkout repository
@@ -82,8 +72,6 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps chromium
 
-    # vitest.integration.config.ts e o pretest:e2e (dotenv -e .env.test) esperam este arquivo — ver
-    # comentário equivalente em ci.yml.
     - name: Criar .env.test para o E2E
       run: |
         cat > .env.test <<EOF
@@ -96,6 +84,7 @@ jobs:
         BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
         ALLOWED_ORIGINS=$ALLOWED_ORIGINS
         AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+        PLATFORM_OPERATOR_TOKEN=$PLATFORM_OPERATOR_TOKEN
         EOF
 
     - name: Run E2E Tests
