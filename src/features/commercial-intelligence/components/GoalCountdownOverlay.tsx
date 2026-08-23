@@ -141,7 +141,10 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                         {/* Batido / Progresso */}
                         <div className="space-y-4">
                             <h2 className="text-2xl text-white/60 font-semibold flex items-center gap-2 uppercase tracking-widest">
-                                {isGoalHit ? <Trophy className="text-yellow-400 w-6 h-6" /> : <Target className="text-brand w-6 h-6" />}
+                                {/* text-brand-2 (não text-brand): sobre bg-zinc-950, --brand sólido da Total
+                                    Trac (azul-marinho) mede só 2.41:1, abaixo até do mínimo de 3:1 pra ícone
+                                    (WCAG 1.4.11) — mesmo problema do contador abaixo. */}
+                                {isGoalHit ? <Trophy className="text-yellow-400 w-6 h-6" /> : <Target className="text-brand-2 w-6 h-6" />}
                                 Fechado até agora
                             </h2>
                             <div className="text-7xl md:text-9xl font-black tracking-tighter text-white drop-shadow-lg tabular-nums">
@@ -204,19 +207,26 @@ export function GoalCountdownOverlay({ isOpen, onClose, period, goalAmount, clos
                             <div className="grid grid-cols-4 gap-2 text-center">
                                 <div className="flex flex-col">
                                     <span className="text-4xl md:text-5xl font-black text-white tabular-nums">{String(daysRemaining).padStart(2, '0')}</span>
-                                    <span className="text-xs text-white/40 font-bold uppercase mt-1">Dias</span>
+                                    {/* text-white/40 media só 3.74:1 sobre bg-zinc-950 (fixo, não reage a tema) —
+                                        abaixo do mínimo AA 4.5:1 pra texto normal. /70 mede 9.71:1. */}
+                                    <span className="text-xs text-white/70 font-bold uppercase mt-1">Dias</span>
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-4xl md:text-5xl font-black text-white tabular-nums">{String(hoursRemaining).padStart(2, '0')}</span>
-                                    <span className="text-xs text-white/40 font-bold uppercase mt-1">Hrs</span>
+                                    <span className="text-xs text-white/70 font-bold uppercase mt-1">Hrs</span>
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-4xl md:text-5xl font-black text-white tabular-nums">{String(minutesRemaining).padStart(2, '0')}</span>
-                                    <span className="text-xs text-white/40 font-bold uppercase mt-1">Min</span>
+                                    <span className="text-xs text-white/70 font-bold uppercase mt-1">Min</span>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-4xl md:text-5xl font-black text-brand tabular-nums">{String(secondsRemaining).padStart(2, '0')}</span>
-                                    <span className="text-xs text-brand/60 font-bold uppercase mt-1">Seg</span>
+                                    {/* text-brand (não text-brand-2) sobre bg-zinc-950 (fundo fixo, sem reagir a
+                                        tema/dark:) só passa 4.5:1 na marca AtlasGR (6.25:1) — na Total Trac,
+                                        --brand é um azul-marinho escuro demais pra esse fundo quase preto (2.41:1,
+                                        falha grave). text-brand-2 (o tom mais claro de cada marca) resolve as
+                                        duas: Atlas 7.9:1, Total Trac 5.51:1 sólido / 4.65:1 em /90. */}
+                                    <span className="text-4xl md:text-5xl font-black text-brand-2 tabular-nums">{String(secondsRemaining).padStart(2, '0')}</span>
+                                    <span className="text-xs text-brand-2/90 font-bold uppercase mt-1">Seg</span>
                                 </div>
                             </div>
                         </motion.div>
