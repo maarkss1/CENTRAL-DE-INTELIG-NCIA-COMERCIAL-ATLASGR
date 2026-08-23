@@ -1,8 +1,11 @@
 name: Build iOS App
 
 on:
-  push:
-    branches: [ main ]
+  # Só sob demanda: runner macos-latest custa 10x mais minutos de Actions que ubuntu-latest, e
+  # esse job rodava em TODO push pra main — cada merge disparava um build iOS caro mesmo sem
+  # ninguém precisar do artefato naquele momento. Some com um push comum de main e o gate de
+  # qualidade real (lint/typecheck/testes) continua rodando via ci.yml/qualidade-ci.yml/
+  # playwright-ci.yml, que não usam macOS.
   workflow_dispatch:
 
 jobs:

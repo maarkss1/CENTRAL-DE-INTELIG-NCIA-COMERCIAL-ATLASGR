@@ -1,8 +1,9 @@
 name: Build Android APK
 
 on:
-  push:
-    branches: [ main ]
+  # Só sob demanda: esse job rodava em TODO push pra main mesmo sem ninguém precisar do APK
+  # naquele momento — some com o consumo automático de minutos de Actions. O gate de qualidade
+  # real (lint/typecheck/testes) continua rodando via ci.yml/qualidade-ci.yml/playwright-ci.yml.
   workflow_dispatch:
 
 jobs:
