@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Pause, Play, Plus, RefreshCw, Repeat, ShieldOff, Square, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Pause, Play, Plus, RefreshCw, Repeat, ShieldOff, Square, Trash2, Sparkles } from 'lucide-react';
 import { Card } from '../../../components/ui/Card';
 import { Badge, type BadgeProps } from '../../../components/ui/Badge';
 import { Skeleton } from '../../../components/ui/Skeleton';
@@ -7,6 +7,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import { Button } from '../../../components/ui/Button';
 import { Dialog } from '../../../components/ui/Dialog';
 import { toast } from '../../../lib/toast';
+import { CADENCE_JOURNEY_TEMPLATES } from '../domain/cadenceTemplates';
 import {
     cadenceApi,
     type CadenceChannel,
@@ -726,12 +727,108 @@ function StartRunDialog({ isOpen, onClose, onStarted }: { isOpen: boolean; onClo
     );
 }
 
+function JourneyTemplatesDialog({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: () => void }) {
+    const [instantiating, setInstantiating] = useState<string | null>(null);
+    const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null);
+
+    const handleUseTemplate = async (templateId: string) => {
+        setInstantiating(templateId);
+        try {
+            await cadenceApi.createSequenceFromTemplate(templateId);
+            toast.success('Sequência de jornada criada com sucesso!');
+            onCreated();
+            onClose();
+        } catch (err) {
+            toast.error((err as Error).message || 'Falha ao criar sequência a partir do modelo');
+        } finally {
+            setInstantiating(null);
+        }
+    };
+
+    return (
+        <Dialog
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Modelos de Jornada do Cliente (AtlasGR & TotalTrac)"
+            maxWidth="max-w-3xl"
+        >
+            <div className="space-y-4">
+                <p className="text-xs text-ink-2">
+                    Sequências multicanais desenhadas sob medida para as jornadas de decisão de gestores de frota pesada, logística e segurança veicular:
+                </p>
+
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+                    {CADENCE_JOURNEY_TEMPLATES.map((tpl) => {
+                        const isExpanded = expandedTemplate === tpl.id;
+                        return (
+                            <div key={tpl.id} className="rounded-2xl border border-line bg-surface-2/40 p-4 space-y-3 transition-colors">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-extrabold text-sm text-ink">{tpl.name}</span>
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand/10 text-brand">
+                                                {tpl.category}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-ink-2">{tpl.description}</p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setExpandedTemplate(isExpanded ? null : tpl.id)}
+                                        >
+                                            {isExpanded ? 'Ocultar' : `Ver ${tpl.touches.length} Toques`}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={instantiating === tpl.id}
+                                            onClick={() => handleUseTemplate(tpl.id)}
+                                        >
+                                            {instantiating === tpl.id ? 'Criando…' : 'Usar Modelo'}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {isExpanded && (
+                                    <div className="space-y-2 pt-2 border-t border-line">
+                                        <span className="text-[11px] font-bold uppercase text-ink-2">Roteiro de Toques da Jornada:</span>
+                                        <div className="space-y-1.5">
+                                            {tpl.touches.map((t) => (
+                                                <div key={t.order} className="p-2.5 rounded-xl bg-surface border border-line text-xs space-y-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-ink">
+                                                            Toque {t.order}: {t.stepTitle} ({CHANNEL_LABEL[t.channel]})
+                                                        </span>
+                                                        <span className="text-[10px] text-ink-2 font-mono">
+                                                            +{t.delayHoursFromPrevious}h
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[11px] text-ink-2 whitespace-pre-wrap">{t.templateRef}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </Dialog>
+    );
+}
+
 // ── Página ───────────────────────────────────────────────────────────────
 
 export function CadenceHub() {
     const [runsKey, setRunsKey] = useState(0);
     const [newSequenceOpen, setNewSequenceOpen] = useState(false);
     const [startRunOpen, setStartRunOpen] = useState(false);
+    const [journeyTemplatesOpen, setJourneyTemplatesOpen] = useState(false);
 
     return (
         <div className="flex-1 overflow-y-auto bg-bg text-ink p-6 md:p-8 space-y-6">
@@ -743,11 +840,13 @@ export function CadenceHub() {
                             Cadência & Ciclo de Receita
                         </h1>
                         <p className="text-sm text-ink-2 max-w-2xl">
-                            Opt-outs unificados por lead/canal e o estado real de cada sequência multicanal em
-                            andamento — nada aqui é inferido, é o que os canais confirmaram de verdade.
+                            Opt-outs unificados por lead/canal, detecção inteligente de resposta (Reply Tracking) e o estado real de cada sequência multicanal em andamento.
                         </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                        <Button type="button" variant="secondary" size="sm" onClick={() => setJourneyTemplatesOpen(true)}>
+                            <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-500" aria-hidden="true" /> Modelos de Jornada
+                        </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => setNewSequenceOpen(true)}>
                             <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Nova sequência
                         </Button>
@@ -759,19 +858,9 @@ export function CadenceHub() {
 
                 <CadenceRunsSection key={runsKey} />
                 <OptOutsSection />
-
-                <Card padding="sm" variant="outline" className="border-dashed">
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-ink-2 mb-1.5">Em breve nesta tela</h2>
-                    <p className="text-xs text-ink-2 leading-relaxed">
-                        Reply-tracking de e-mail, agendamento no Google Calendar e proposta/assinatura/fechamento
-                        (entregas 3–5 do ciclo de receita) já têm API real, mas ainda não têm seção própria nesta
-                        tela — hoje aparecem em outros pontos do CRM (ex.: ações de documento comercial). Quando
-                        ganharem uma visão dedicada de cadência, entram aqui. Esta nota é só um aviso honesto do
-                        escopo atual, não um espaço reservado com dado de exemplo.
-                    </p>
-                </Card>
             </div>
 
+            <JourneyTemplatesDialog isOpen={journeyTemplatesOpen} onClose={() => setJourneyTemplatesOpen(false)} onCreated={() => setRunsKey((k) => k + 1)} />
             <NewSequenceDialog isOpen={newSequenceOpen} onClose={() => setNewSequenceOpen(false)} onCreated={() => setRunsKey((k) => k + 1)} />
             <StartRunDialog isOpen={startRunOpen} onClose={() => setStartRunOpen(false)} onStarted={() => setRunsKey((k) => k + 1)} />
         </div>

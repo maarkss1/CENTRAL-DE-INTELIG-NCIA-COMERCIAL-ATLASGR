@@ -21,6 +21,7 @@ router.post('/export/bitrix24', managementRoles, (req, res, next) => container.r
 router.post('/import/bitrix24', managementRoles, (req, res, next) => container.resolve<LeadController>('LeadController').importFromBitrix24(req, res, next));
 router.post('/enrich-batch', managementRoles, (req, res, next) => container.resolve<LeadController>('LeadController').enrichBatch(req, res, next));
 router.get('/:id', (req, res, next) => container.resolve<LeadController>('LeadController').getLeadById(req, res, next));
+router.post('/batch-update', writeRoles, (req, res, next) => container.resolve<LeadController>('LeadController').batchUpdate(req, res, next));
 router.post('/', writeRoles, validateRequest(leadSchema), (req, res, next) => container.resolve<LeadController>('LeadController').createLead(req, res, next));
 router.put('/:id', writeRoles, ownLeadOnly, validateRequest(leadSchema.partial()), (req, res, next) => container.resolve<LeadController>('LeadController').updateLead(req, res, next));
 

@@ -1,11 +1,13 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download, WifiOff, Sparkles } from 'lucide-react';
+import { Download, WifiOff, Sparkles, CheckSquare, Send, X, Loader2 } from 'lucide-react';
 import { Lead, LeadStatus } from '../types';
 import { KanbanColumn } from '../features/crm/components/KanbanColumn';
 import { KanbanCard } from '../features/crm/components/KanbanCard';
 import { LeadDetailDrawer } from '../features/crm/components/LeadDetailDrawer';
-import { leadsDB } from '../lib/db';
+import { BitrixImportModal } from '../features/crm/components/BitrixImportModal';
+import { bitrixApi } from '../features/integrations/bitrix/bitrix.api';
+import { api } from '../lib/api';
 import { ContextualTip } from './ui/ContextualTip';
 import { EmptyState } from './ui/EmptyState';
 import { Button } from './ui/Button';
@@ -63,20 +65,26 @@ interface CrmBoardProps {
 
 export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps) {
     const { brandInfo } = useBrand();
-    // Funil vem da prop quando informada explicitamente (uso embutido/composição futura) ou da
-    // URL (?funnel=Negocio) na rota /app/crm — sem prop e sem query param, cai no padrão 'Lead'.
-    // Antes desta correção não existia nenhum jeito de o usuário alcançar o funil "Negocio" (com
-    // os 12 estágios de negócio, incluindo os 7 estágios "Piloto"): a prop nunca era passada pela
-    // única rota que monta este componente (src/App.tsx: <Route path="crm" element={<CrmBoard />} />).
     const [searchParams, setSearchParams] = useSearchParams();
     const funnel: 'Lead' | 'Negocio' = funnelProp ?? (searchParams.get('funnel') === 'Negocio' ? 'Negocio' : 'Lead');
     const columns = funnel === 'Lead' ? LEAD_COLUMNS : DEAL_COLUMNS;
-    const { leads, setLeads, loading, error, fetchLeads, handleConvert, handleImportBitrix, handleCardEnrich, handleBatchEnrich } = useCrmBoardController(funnel);
+    const { leads, setLeads, loading, error, fetchLeads, handleConvert, handleCardEnrich, handleBatchEnrich } = useCrmBoardController(funnel);
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [activeLead, setActiveLead] = useState<Lead | null>(null);
-    /** "Cursor" virtual do drag por teclado — avança/recua com ArrowRight/ArrowLeft, independente
-        de `leads`. Ver comentário do coordinateGetter abaixo pra explicação completa. */
     const keyboardDragStatusRef = useRef<LeadStatus | null>(null);
+
+    // Multi-seleção e ações em lote
+    const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+    const [selectionMode, setSelectionMode] = useState(false);
+    const [isBitrixModalOpen, setIsBitrixModalOpen] = useState(false);
+    const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+    const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        api.get<{ id: string; name: string }[]>('/api/users')
+            .then(setUsers)
+            .catch(() => setUsers([]));
+    }, []);
 
     useEffect(() => {
         const eventSource = new EventSource('/api/notifications/stream', { withCredentials: true });
@@ -202,7 +210,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
             setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, status: targetStatus } : lead));
 
             try {
-                await leadsDB.updateStatus(leadId as string, targetStatus);
+                await api.patch(`/api/leads/${leadId}`, { status: targetStatus });
             } catch (error) {
                 clientLogger.error({ err: error }, 'Error updating lead status');
                 toast.error(`Não foi possível mover ${leadLabel(currentLead)} — a alteração foi desfeita.`);
@@ -245,12 +253,103 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     }), [leads, leadLabel, resolveStatusFromOverId]);
 
     const handleCardClick = useCallback((lead: Lead) => {
+        if (selectionMode) {
+            handleToggleSelect(lead.id);
+            return;
+        }
         setSelectedLeadId(lead.id);
+    }, [selectionMode]);
+
+    const handleToggleSelect = useCallback((leadId: string) => {
+        setSelectedLeadIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(leadId)) next.delete(leadId);
+            else next.add(leadId);
+            return next;
+        });
     }, []);
+
+    const handleSelectAll = useCallback(() => {
+        if (selectedLeadIds.size === leads.length) {
+            setSelectedLeadIds(new Set());
+        } else {
+            setSelectedLeadIds(new Set(leads.map((l) => l.id)));
+        }
+    }, [leads, selectedLeadIds.size]);
+
+    const handleClearSelection = useCallback(() => {
+        setSelectedLeadIds(new Set());
+        setSelectionMode(false);
+    }, []);
+
+    const handleBatchMoveStage = async (newStatus: string) => {
+        if (selectedLeadIds.size === 0 || !newStatus) return;
+        setIsBatchUpdating(true);
+        try {
+            await api.post('/api/leads/batch-update', {
+                leadIds: Array.from(selectedLeadIds),
+                updates: { status: newStatus },
+            });
+            toast.success(`${selectedLeadIds.size} leads movidos para "${newStatus}"!`);
+            fetchLeads();
+            setSelectedLeadIds(new Set());
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Falha ao mover leads em lote.');
+        } finally {
+            setIsBatchUpdating(false);
+        }
+    };
+
+    const handleBatchReassignOwner = async (ownerId: string) => {
+        if (selectedLeadIds.size === 0) return;
+        const ownerUser = users.find((u) => u.id === ownerId);
+        const ownerName = ownerUser?.name || ownerId;
+        setIsBatchUpdating(true);
+        try {
+            await api.post('/api/leads/batch-update', {
+                leadIds: Array.from(selectedLeadIds),
+                updates: { owner: ownerName },
+            });
+            toast.success(`${selectedLeadIds.size} leads reatribuídos para "${ownerName}"!`);
+            fetchLeads();
+            setSelectedLeadIds(new Set());
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Falha ao reatribuir leads.');
+        } finally {
+            setIsBatchUpdating(false);
+        }
+    };
+
+    const handleBatchExportBitrix = async () => {
+        if (selectedLeadIds.size === 0) {
+            // Se nenhum lead selecionado, pergunta se deseja exportar todos
+            try {
+                const res = await bitrixApi.exportLeadsBatch();
+                toast.success(`Exportação concluída: ${res.data.exportedCount} leads enviados para o Bitrix24!`);
+                fetchLeads();
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : 'Falha ao exportar para Bitrix24.');
+            }
+            return;
+        }
+
+        setIsBatchUpdating(true);
+        try {
+            const res = await bitrixApi.exportLeadsBatch(Array.from(selectedLeadIds));
+            toast.success(`${res.data.exportedCount} leads enviados com sucesso para o Bitrix24!`);
+            fetchLeads();
+            setSelectedLeadIds(new Set());
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Falha ao exportar para Bitrix24.');
+        } finally {
+            setIsBatchUpdating(false);
+        }
+    };
 
     const handleFunnelChange = useCallback((next: 'Lead' | 'Negocio') => {
         if (funnelProp) return; // funil fixado por prop — toggle não se aplica
         setSelectedLeadId(null); // evita abrir o drawer de um lead que já não está no funil visível
+        setSelectedLeadIds(new Set());
         setSearchParams(next === 'Lead' ? {} : { funnel: next }, { replace: true });
     }, [funnelProp, setSearchParams]);
 
@@ -270,7 +369,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
             link.click();
             link.parentNode?.removeChild(link);
             window.URL.revokeObjectURL(url);
-        } catch (err) {
+        } catch {
             toast.error('Erro ao exportar leads. Tente novamente.');
         }
     };
@@ -286,7 +385,7 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     }, [leads, columns]);
 
     return (
-        <div className={`flex-1 flex flex-col bg-bg text-ink animate-in fade-in duration-500 overflow-hidden ${embedded ? 'min-h-[680px] h-full' : 'h-full'}`}>
+        <div className={`flex-1 flex flex-col bg-bg text-ink animate-in fade-in duration-500 overflow-hidden relative ${embedded ? 'min-h-[680px] h-full' : 'h-full'}`}>
             {/* Header com estilo moderno */}
             <div className="p-6 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between bg-surface/75 backdrop-blur-xl shrink-0 gap-4">
                 <div>
@@ -298,12 +397,6 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                             ? 'Qualifique, nutra e converta os leads prontos para o pipeline de negócios.'
                             : `Gerencie propostas, pilotos e receita do ${brandInfo.name} em um funil separado.`}
                     </p>
-                    {/* Único jeito de alcançar o funil "Negocio" (12 estágios, incluindo os 7
-                        estágios "Piloto") — antes desta correção não havia rota, aba ou link para
-                        ele; o board só sabia renderizá-lo se recebesse a prop `funnel`, que nunca
-                        era passada por nenhuma tela real. bg-brand-active/text-white é o mesmo
-                        padrão já validado em AA (5.28:1 AtlasGR / 11.26:1 Total Trac) usado no
-                        toggle de PIC em LeadDetailDrawer.tsx. */}
                     {!funnelProp && (
                         <div className="inline-flex items-center gap-1 p-1 mt-3 bg-surface-2 rounded-lg border border-line" role="group" aria-label="Funil do pipeline">
                             <button
@@ -325,47 +418,63 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                         </div>
                     )}
                 </div>
-                {/* Em 390px os dois botões, com o label completo, não cabiam lado a lado (medido:
-                    "Exportar CSV" terminava em ~377px, 2px além do viewport de 375px) — ação
-                    ficava presente no DOM mas inalcançável. Grid de 2 colunas full-width + label
-                    curto abaixo do breakpoint sm resolve sem esconder nenhuma ação nem criar menu
-                    "...". A partir de sm volta ao layout original (flex, largura de conteúdo). */}
-                <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:w-auto sm:items-center sm:gap-3">
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    {/* Botão de Modo de Seleção Múltipla */}
+                    <Button
+                        onClick={() => {
+                            setSelectionMode(!selectionMode);
+                            if (selectionMode) setSelectedLeadIds(new Set());
+                        }}
+                        variant={selectionMode ? 'default' : 'secondary'}
+                        className="text-xs"
+                        title="Ativar seleção múltipla de cards no Kanban"
+                    >
+                        <CheckSquare className="w-4 h-4 shrink-0" />
+                        <span>{selectionMode ? 'Cancelar Seleção' : 'Seleção em Lote'}</span>
+                    </Button>
+
+                    {/* Botão Receber do Bitrix (Modal Manual) */}
+                    <Button
+                        onClick={() => setIsBitrixModalOpen(true)}
+                        variant="secondary"
+                        className="text-xs"
+                        title="Abrir painel para buscar e receber leads do Bitrix24"
+                    >
+                        <Download className="w-4 h-4 rotate-180 shrink-0 text-sky-500" />
+                        <span>📥 Receber do Bitrix</span>
+                    </Button>
+
+                    {/* Botão Enviar para Bitrix (Manual) */}
+                    <Button
+                        onClick={handleBatchExportBitrix}
+                        variant="secondary"
+                        className="text-xs"
+                        title="Enviar leads para o portal Bitrix24"
+                    >
+                        <Send className="w-4 h-4 shrink-0 text-sky-500" />
+                        <span>📤 Enviar para Bitrix</span>
+                    </Button>
+
                     <Button
                         onClick={handleBatchEnrich}
                         disabled={loading}
                         variant="secondary"
-                        className="text-xs w-full sm:w-auto"
+                        className="text-xs"
                         title="Enriquecer leads não enriquecidos em lote"
                     >
                         <Sparkles className="w-4 h-4 shrink-0 text-yellow-500" />
-                        <span className="sm:hidden">Enriquecer</span>
                         <span className="hidden sm:inline">✨ Enriquecer Lote</span>
                     </Button>
-                    <Button
-                        onClick={handleImportBitrix}
-                        disabled={loading}
-                        variant="secondary"
-                        className="text-xs w-full sm:w-auto"
-                        title="Importar leads recentes do Bitrix24"
-                    >
-                        <Download className="w-4 h-4 rotate-180 shrink-0" />
-                        {loading ? 'Importando...' : (
-                            <>
-                                <span className="sm:hidden">📥 Bitrix24</span>
-                                <span className="hidden sm:inline">📥 Sincronizar Bitrix24</span>
-                            </>
-                        )}
-                    </Button>
+
                     <Button
                         onClick={handleExportCsv}
                         variant="secondary"
-                        className="text-xs w-full sm:w-auto"
+                        className="text-xs"
                         title="Exportar todos os leads para uma planilha CSV"
                     >
                         <Download className="w-4 h-4 shrink-0" />
-                        <span className="sm:hidden">💾 CSV</span>
-                        <span className="hidden sm:inline">💾 Exportar CSV</span>
+                        <span className="hidden sm:inline">💾 CSV</span>
                     </Button>
                 </div>
             </div>
@@ -375,22 +484,16 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                 <ContextualTip
                     id="tip-crm-pipeline"
                     title="💡 Dica de Gestão de Funil CRM"
-                    description="Passe o cursor sobre os cards para ver as ferramentas da empresa e o score de engajamento antes de agendar a próxima call comercial!"
+                    description="Passe o cursor sobre os cards para ver o tempo de estagnação e tecnologias. Use 'Seleção em Lote' para mover dezenas de leads simultaneamente ou exportá-los para o Bitrix24!"
                 />
             </div>}
 
-            {/* Região com scroll horizontal precisa estar no tab order pra ser rolável via teclado
-                (axe-core: scrollable-region-focusable). jsx-a11y trata todo tabIndex em <div> como
-                suspeito por padrão, mas essa é a correção recomendada pelas ARIA Authoring Practices
-                pra containers de scroll não-interativos — daí o disable pontual logo abaixo. */}
+            {/* Região com scroll horizontal do Kanban */}
             {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-bg" tabIndex={0} aria-label="Colunas do pipeline — role o conteúdo horizontalmente">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar bg-bg pb-24" tabIndex={0} aria-label="Colunas do pipeline — role o conteúdo horizontalmente">
                 {loading ? (
                     <div className="h-full flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3">
-                            {/* dark:border-brand-2 pelo mesmo motivo do drop target/hover do card:
-                                --brand cru da Total Trac (#374898) só dá 2.25:1 sobre superfície
-                                escura — ver relato da Rodada B pra matriz completa. */}
                             <div className="w-8 h-8 border-4 border-brand dark:border-brand-2 border-t-transparent rounded-full animate-spin" />
                             <p className="text-ink-2 font-medium text-sm">Carregando pipeline comercial...</p>
                         </div>
@@ -421,6 +524,9 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                                     onCardClick={handleCardClick}
                                     onCardEnrich={handleCardEnrich}
                                     onConvert={funnel === 'Lead' && status === 'Convertido em Oportunidade' ? handleConvert : undefined}
+                                    selectedLeadIds={selectedLeadIds}
+                                    onToggleSelect={handleToggleSelect}
+                                    selectionMode={selectionMode}
                                 />
                             ))}
                         </div>
@@ -434,6 +540,88 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
                     </DndContext>
                 )}
             </div>
+
+            {/* Barra Flutuante de Ações em Lote (Fixa na parte inferior quando há leads selecionados) */}
+            {selectedLeadIds.size > 0 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 bg-surface/95 backdrop-blur-xl border border-line shadow-2xl rounded-3xl p-3 px-5 flex flex-wrap items-center gap-3 animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="flex items-center gap-2 pr-3 border-r border-line">
+                        <span className="w-6 h-6 rounded-full bg-brand text-white text-xs font-black flex items-center justify-center">
+                            {selectedLeadIds.size}
+                        </span>
+                        <span className="text-xs font-bold text-ink">selecionado(s)</span>
+                        <button
+                            type="button"
+                            onClick={handleSelectAll}
+                            className="text-[11px] font-bold text-brand hover:underline ml-1"
+                        >
+                            {selectedLeadIds.size === leads.length ? 'Desmarcar Todos' : 'Todos'}
+                        </button>
+                    </div>
+
+                    {/* Mover Etapa em Massa */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-ink-2">Etapa:</span>
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) handleBatchMoveStage(e.target.value);
+                            }}
+                            disabled={isBatchUpdating}
+                            defaultValue=""
+                            className="px-2.5 py-1.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink focus:outline-none focus:border-brand"
+                        >
+                            <option value="" disabled>Mover para...</option>
+                            {columns.map((col) => (
+                                <option key={col} value={col}>{col}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Reatribuir Vendedor */}
+                    <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-ink-2">Dono:</span>
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) handleBatchReassignOwner(e.target.value);
+                            }}
+                            disabled={isBatchUpdating}
+                            defaultValue=""
+                            className="px-2.5 py-1.5 bg-surface-2 border border-line rounded-xl text-xs font-bold text-ink focus:outline-none focus:border-brand"
+                        >
+                            <option value="" disabled>Atribuir a...</option>
+                            {users.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Enviar Selecionados para Bitrix */}
+                    <button
+                        type="button"
+                        onClick={handleBatchExportBitrix}
+                        disabled={isBatchUpdating}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                    >
+                        {isBatchUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        Enviar ao Bitrix24
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleClearSelection}
+                        className="p-1.5 rounded-xl hover:bg-surface-2 text-ink-2 hover:text-ink transition-colors"
+                        title="Desmarcar todos"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* Modal de Importação Bitrix24 */}
+            <BitrixImportModal
+                isOpen={isBitrixModalOpen}
+                onClose={() => setIsBitrixModalOpen(false)}
+                onImportSuccess={fetchLeads}
+            />
 
             {selectedLeadId && (
                 <LeadDetailDrawer

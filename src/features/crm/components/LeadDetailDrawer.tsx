@@ -20,6 +20,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 // de duplicar lógica de polling/envio; CRM só decide QUANDO oferecer a ação, não COMO ela funciona.
 import { WhatsAppChatPanel } from '../../integrations/whatsapp/components/WhatsAppChatPanel';
 
+import { bitrixApi } from '../../integrations/bitrix/bitrix.api';
+
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
 const LEAD_STATUSES: LeadStatus[] = [...LEAD_STATUS];
@@ -61,6 +63,21 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     const [whatsappOpen, setWhatsappOpen] = useState(false);
     const [owners, setOwners] = useState<{ id: string; name: string }[]>([]);
     const [savingOwner, setSavingOwner] = useState(false);
+    const [exportingBitrix, setExportingBitrix] = useState(false);
+
+    const handleExportToBitrix = async () => {
+        setExportingBitrix(true);
+        try {
+            const res = await bitrixApi.exportLead(leadId);
+            toast.success(`Lead sincronizado com sucesso no Bitrix24 (ID #${res.data.bitrixLeadId})!`);
+            fetchLead();
+            onChanged();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Falha ao exportar para Bitrix24');
+        } finally {
+            setExportingBitrix(false);
+        }
+    };
     const fetchLead = useCallback(async () => {
         try {
             setLoading(true);
@@ -522,6 +539,50 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                     />
                                 </section>
                             )}
+
+                            {/* Seção de Ação Bitrix24 */}
+                            <section className="space-y-4">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-ink-2 flex items-center gap-2">
+                                    <Globe className="w-4 h-4 text-sky-500" /> Integração Bitrix24
+                                </h3>
+                                <div className="bg-surface-2/40 p-4 rounded-2xl border border-line space-y-3">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div>
+                                            <span className="text-[10px] text-ink-2 font-bold uppercase block">Status no Portal</span>
+                                            {lead.bitrixLeadId || lead.bitrixDealId ? (
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300">
+                                                        🌐 Sincronizado (#{lead.bitrixLeadId || lead.bitrixDealId})
+                                                    </span>
+                                                    {lead.bitrixSyncedAt && (
+                                                        <span className="text-[10px] text-ink-2">
+                                                            · {new Date(lead.bitrixSyncedAt).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium text-ink-2 bg-surface border border-line mt-0.5">
+                                                    Não sincronizado no Bitrix
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleExportToBitrix}
+                                            disabled={exportingBitrix}
+                                            className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
+                                        >
+                                            {exportingBitrix ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                                            {lead.bitrixLeadId || lead.bitrixDealId ? 'Reenviar ao Bitrix' : 'Enviar para o Bitrix24'}
+                                        </button>
+                                    </div>
+                                    {lead.bitrixSyncError && (
+                                        <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs">
+                                            ⚠️ Falha na sincronização: {lead.bitrixSyncError}
+                                        </div>
+                                    )}
+                                </div>
+                            </section>
                         </div>
 
                         <div className="p-4 border-t border-line bg-surface-2/50 shrink-0 flex items-center justify-end">
