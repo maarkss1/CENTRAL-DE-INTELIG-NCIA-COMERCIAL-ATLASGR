@@ -87,7 +87,7 @@
     "axios": "^1.19.0",
     "bcrypt": "^6.0.0",
     "better-auth": "^1.6.23",
-    "bullmq": "^6.0.9",
+    "bullmq": "^6.1.2",
     "cheerio": "^1.2.0",
     "chromadb": "^3.5.0",
     "class-variance-authority": "^0.7.1",
