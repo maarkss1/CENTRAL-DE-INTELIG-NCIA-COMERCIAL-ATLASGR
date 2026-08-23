@@ -694,6 +694,8 @@ model Organization {
   aiGuardrailEvents             AIGuardrailEvent[]
   reports                       Report[]
   assistantMessages             AssistantMessage[]
+  qualificationMatrixItems      QualificationMatrixItem[]
+  objectionMatrixItems          ObjectionMatrixItem[]
   aiPendingActions              AIPendingAction[]
   knowledgeChunks               KnowledgeChunk[]
   prompts                       Prompt[]
@@ -1458,6 +1460,44 @@ model AssistantMessage {
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, userId, brand, createdAt])
+}
+
+/// Fase 4 do roadmap de melhorias: a Matriz de Qualificação vivia só em memória
+/// (src/features/chatbook/constants/brandMatrices.ts), somente leitura — sem CRUD, sem persistir
+/// edição alguma. Escopado por organização (cada org edita seu próprio playbook), não por usuário.
+model QualificationMatrixItem {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand            String // 'atlasgr' | 'totaltrac'
+  segment          String
+  persona          String
+  framework        String // 'SPIN' | 'BANT' | 'MEDDPICC' | 'SNAP' | 'CHALLENGER'
+  questionCategory String // 'Situação' | 'Problema' | 'Implicação/Custo' | 'Necessidade/ROI'
+  questionText     String       @db.Text
+  idealAnswer      String       @db.Text
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([organizationId, brand])
+}
+
+/// Mesma motivação de QualificationMatrixItem, para a Matriz de Objeções.
+model ObjectionMatrixItem {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand             String
+  segment           String
+  persona           String
+  objectionTitle    String
+  objectionText     String       @db.Text
+  responseScript    String       @db.Text
+  keyDifferentiator String       @db.Text
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([organizationId, brand])
 }
 
 /// Severidade da notificação — define o ícone e a cor de status na interface.

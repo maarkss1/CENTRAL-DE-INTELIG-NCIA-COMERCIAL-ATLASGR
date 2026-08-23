@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { readSseStream, sseRequestInit } from '../lib/sse';
-import { BRAND_OBJECTIONS, BRAND_QUALIFICATIONS } from '../features/chatbook/constants/brandMatrices';
+import type { ObjectionMatrixItem, QualificationMatrixItem } from '../features/playbook/playbook.api';
 import type { BrandInfo } from '../contexts/BrandContext';
 import { useActiveRecord } from '../contexts/ActiveRecordContext';
 import { buildAssistantLocalContext, getAssistantRouteContext, type AssistantContextSource } from './assistantContext';
@@ -50,8 +50,16 @@ function greeting(brandInfo: BrandInfo, activeRecordLabel?: string): ChatMessage
  * Estado/ações do assistente conversacional (aba "Assistente IA") do FloatingChatbook —
  * extraído em FRONT-006. `selectedBrand`/`activeBrand` vêm do componente porque também são usados
  * pelo simulador de roleplay e pelo filtro de matrizes (não são exclusivos deste hook).
+ * `objections`/`qualifications` vêm de `usePlaybookMatrixData` (Fase 4: antes vinham do arquivo
+ * estático `brandMatrices.ts`).
  */
-export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, selectedBrand: 'atlasgr' | 'totaltrac') {
+export function useAssistantChat(
+    activeBrand: string,
+    brandInfo: BrandInfo,
+    selectedBrand: 'atlasgr' | 'totaltrac',
+    objections: ObjectionMatrixItem[],
+    qualifications: QualificationMatrixItem[],
+) {
     const { activeRecord } = useActiveRecord();
     const location = useLocation();
     const [messages, setMessages] = useState<ChatMessage[]>([greeting(brandInfo, activeRecord?.label)]);
@@ -113,7 +121,7 @@ export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, sele
 
         const queryLower = userText.toLowerCase();
 
-        const matchedObjection = BRAND_OBJECTIONS.find((o) =>
+        const matchedObjection = objections.find((o) =>
             o.brand === selectedBrand && (
                 queryLower.includes(o.segment.toLowerCase()) ||
                 queryLower.includes(o.persona.toLowerCase()) ||
@@ -125,7 +133,7 @@ export function useAssistantChat(activeBrand: string, brandInfo: BrandInfo, sele
             )
         );
 
-        const matchedQual = BRAND_QUALIFICATIONS.find((q) =>
+        const matchedQual = qualifications.find((q) =>
             q.brand === selectedBrand && (
                 queryLower.includes(q.framework.toLowerCase()) ||
                 queryLower.includes('qualificar') ||

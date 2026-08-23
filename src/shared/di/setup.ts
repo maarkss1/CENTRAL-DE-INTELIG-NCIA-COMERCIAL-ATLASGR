@@ -12,6 +12,8 @@ import { PrismaAnalyticsRepository } from '../../features/analytics/infra/Prisma
 import { PrismaCommercialIntelligenceRepository } from '../../features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository';
 import { CommercialIntelligenceAiService } from '../../features/commercial-intelligence/infra/CommercialIntelligenceAiService';
 import { PrismaCrm360Repository } from '../../features/crm360/infra/PrismaCrm360Repository';
+import { PrismaQualificationMatrixRepository } from '../../features/playbook/qualification-matrix/infra/PrismaQualificationMatrixRepository';
+import { PrismaObjectionMatrixRepository } from '../../features/playbook/objection-matrix/infra/PrismaObjectionMatrixRepository';
 
 // Use Cases
 import { NoteUseCases } from '../../features/notes/application/NoteUseCases';
@@ -23,6 +25,8 @@ import { AutomationUseCases } from '../../features/automations/application/Autom
 import { AnalyticsUseCases } from '../../features/analytics/application/AnalyticsUseCases';
 import { CommercialIntelligenceUseCases } from '../../features/commercial-intelligence/application/CommercialIntelligenceUseCases';
 import { Crm360UseCases } from '../../features/crm360/application/Crm360UseCases';
+import { QualificationMatrixUseCases } from '../../features/playbook/qualification-matrix/application/QualificationMatrixUseCases';
+import { ObjectionMatrixUseCases } from '../../features/playbook/objection-matrix/application/ObjectionMatrixUseCases';
 
 // Controllers
 import { NoteController } from '../../features/notes/presentation/NoteController';
@@ -34,6 +38,8 @@ import { AutomationController } from '../../features/automations/presentation/Au
 import { AnalyticsController } from '../../features/analytics/presentation/AnalyticsController';
 import { CommercialIntelligenceController } from '../../features/commercial-intelligence/presentation/CommercialIntelligenceController';
 import { Crm360Controller } from '../../features/crm360/presentation/Crm360Controller';
+import { QualificationMatrixController } from '../../features/playbook/qualification-matrix/presentation/QualificationMatrixController';
+import { ObjectionMatrixController } from '../../features/playbook/objection-matrix/presentation/ObjectionMatrixController';
 
 export function setupDI() {
     // 1. Shared
@@ -50,6 +56,8 @@ export function setupDI() {
     const analyticsRepository = new PrismaAnalyticsRepository();
     const commercialIntelligenceRepository = new PrismaCommercialIntelligenceRepository();
     const crm360Repository = new PrismaCrm360Repository();
+    const qualificationMatrixRepository = new PrismaQualificationMatrixRepository();
+    const objectionMatrixRepository = new PrismaObjectionMatrixRepository();
 
     container.register('NoteRepository', noteRepository);
     container.register('ActivityRepository', activityRepository);
@@ -60,6 +68,8 @@ export function setupDI() {
     container.register('AnalyticsRepository', analyticsRepository);
     container.register('CommercialIntelligenceRepository', commercialIntelligenceRepository);
     container.register('Crm360Repository', crm360Repository);
+    container.register('QualificationMatrixRepository', qualificationMatrixRepository);
+    container.register('ObjectionMatrixRepository', objectionMatrixRepository);
 
     // 3. Use Cases
     const noteUseCases = new NoteUseCases(noteRepository);
@@ -72,6 +82,8 @@ export function setupDI() {
     const commercialIntelligenceUseCases = new CommercialIntelligenceUseCases(commercialIntelligenceRepository);
     const commercialIntelligenceAiService = new CommercialIntelligenceAiService(commercialIntelligenceUseCases);
     const crm360UseCases = new Crm360UseCases(crm360Repository);
+    const qualificationMatrixUseCases = new QualificationMatrixUseCases(qualificationMatrixRepository);
+    const objectionMatrixUseCases = new ObjectionMatrixUseCases(objectionMatrixRepository);
 
     container.register('NoteUseCases', noteUseCases);
     container.register('ActivityUseCases', activityUseCases);
@@ -82,6 +94,8 @@ export function setupDI() {
     container.register('AnalyticsUseCases', analyticsUseCases);
     container.register('CommercialIntelligenceUseCases', commercialIntelligenceUseCases);
     container.register('Crm360UseCases', crm360UseCases);
+    container.register('QualificationMatrixUseCases', qualificationMatrixUseCases);
+    container.register('ObjectionMatrixUseCases', objectionMatrixUseCases);
 
     // 4. Controllers
     container.register('NoteController', new NoteController(noteUseCases));
@@ -93,4 +107,6 @@ export function setupDI() {
     container.register('AnalyticsController', new AnalyticsController(analyticsUseCases));
     container.register('CommercialIntelligenceController', new CommercialIntelligenceController(commercialIntelligenceUseCases, commercialIntelligenceAiService));
     container.register('Crm360Controller', new Crm360Controller(crm360UseCases));
+    container.register('QualificationMatrixController', new QualificationMatrixController(qualificationMatrixUseCases));
+    container.register('ObjectionMatrixController', new ObjectionMatrixController(objectionMatrixUseCases));
 }

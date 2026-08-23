@@ -11,6 +11,7 @@ import { Button } from '../../../components/ui/Button';
 import { useAssistantChat } from '../../../hooks/useAssistantChat';
 import { useRoleplaySimulator } from '../../../hooks/useRoleplaySimulator';
 import { usePlaybookMatrixFilters } from '../../../hooks/usePlaybookMatrixFilters';
+import { usePlaybookMatrixData } from '../../../hooks/usePlaybookMatrixData';
 
 interface FloatingChatbookProps {
   isOpen: boolean;
@@ -36,21 +37,26 @@ export function FloatingChatbook({ isOpen, onClose }: FloatingChatbookProps) {
     setSelectedBrand(activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr');
   }, [activeBrand]);
 
+  // Fase 4: Matriz de Qualificação/Objeções saíram do arquivo estático brandMatrices.ts pro
+  // banco — busca uma vez aqui, os 3 hooks abaixo recebem os arrays já prontos em vez de
+  // importar o arquivo estático cada um por conta própria.
+  const { objections, qualifications } = usePlaybookMatrixData(selectedBrand);
+
   const {
     messages, inputQuery, setInputQuery, isSearching, searchMode, setSearchMode, handleSendMessage,
-  } = useAssistantChat(activeBrand, brandInfo, selectedBrand);
+  } = useAssistantChat(activeBrand, brandInfo, selectedBrand, objections, qualifications);
 
   const {
     roleplayPersona, setRoleplayPersona, roleplayActive, setRoleplayActive, roleplayMessages,
     roleplayInput, setRoleplayInput, roleplayScore, roleplayFeedback, roleplayError,
     isRoleplayThinking, startRoleplay, handleRoleplaySubmit,
-  } = useRoleplaySimulator(brandInfo, selectedBrand);
+  } = useRoleplaySimulator(brandInfo, selectedBrand, objections);
 
   const {
     selectedSegment, setSelectedSegment, selectedPersona, setSelectedPersona,
     playbookView, setPlaybookView, copiedKey, handleCopy,
     filteredObjections, filteredQualifications,
-  } = usePlaybookMatrixFilters(selectedBrand);
+  } = usePlaybookMatrixFilters(selectedBrand, objections, qualifications);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

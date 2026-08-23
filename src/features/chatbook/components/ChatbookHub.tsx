@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Bot, Database, Globe, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAssistantChat } from '../../../hooks/useAssistantChat';
+import { usePlaybookMatrixData } from '../../../hooks/usePlaybookMatrixData';
 
 /**
  * Página cheia (`/app/chatbook`) do mesmo copiloto do drawer flutuante global
@@ -15,9 +16,10 @@ import { useAssistantChat } from '../../../hooks/useAssistantChat';
 export function ChatbookHub() {
     const { activeBrand, brandInfo } = useBrand();
     const selectedBrand = activeBrand === 'totaltrac' ? 'totaltrac' : 'atlasgr';
+    const { objections, qualifications } = usePlaybookMatrixData(selectedBrand);
     const {
         messages, inputQuery, setInputQuery, isSearching, searchMode, setSearchMode, handleSendMessage,
-    } = useAssistantChat(activeBrand, brandInfo, selectedBrand);
+    } = useAssistantChat(activeBrand, brandInfo, selectedBrand, objections, qualifications);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
