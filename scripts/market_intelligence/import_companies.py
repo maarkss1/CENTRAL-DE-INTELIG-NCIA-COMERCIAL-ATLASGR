@@ -90,7 +90,8 @@ class Psql:
 
     def scalar(self, sql: str) -> str:
         output = self.run("SET app.bypass_rls='on';\n" + sql, tuples_only=True)
-        return output.splitlines()[-1].strip() if output else ""
+        lines = [line.strip() for line in output.splitlines() if line.strip() and line.strip() != "SET"]
+        return lines[-1] if lines else ""
 
 
 def validate_manifest(manifest_path: Path) -> dict[str, Any]:
@@ -153,7 +154,11 @@ def company_select_expression(column: str) -> str:
         return f"CASE WHEN {source}='' THEN NULL WHEN upper({source}) IN ('TRUE','T','1','SIM') THEN true ELSE false END"
     if column in ENUM_COLUMNS:
         return f"{nullable}::{chr(34)}{ENUM_COLUMNS[column]}{chr(34)}"
-    if column in {"cnpj", "cnpjBasico", "cnpjOrdem", "cnpjDv", "razaoSocial", "razaoSocialSearch", "competencia"}:
+    if column in {"razaoSocial", "razaoSocialSearch"}:
+        # COPY em formato CSV interpreta campo vazio nao citado como NULL; essas colunas sao
+        # NOT NULL no schema, entao um vazio real deve virar string vazia, nao NULL.
+        return f"coalesce({source}, '')"
+    if column in {"cnpj", "cnpjBasico", "cnpjOrdem", "cnpjDv", "competencia"}:
         return source
     return nullable
 
