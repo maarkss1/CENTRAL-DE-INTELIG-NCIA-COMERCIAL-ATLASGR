@@ -20,6 +20,18 @@ router.put('/:id', writeRoles, validateRequest(activitySchema.partial()), (req, 
     container.resolve<ActivityController>('ActivityController').updateActivity(req, res, next)
 );
 
+router.get('/templates', (req, res, next) =>
+    container.resolve<ActivityController>('ActivityController').getTemplates(req, res, next)
+);
+
+router.get('/feed.ics', (req, res, next) =>
+    container.resolve<ActivityController>('ActivityController').getIcalFeed(req, res, next)
+);
+
+router.post('/:id/snooze', writeRoles, (req, res, next) =>
+    container.resolve<ActivityController>('ActivityController').snoozeActivity(req, res, next)
+);
+
 router.delete('/:id', requireRole(['ADMIN', 'GESTOR']), (req, res, next) =>
     container.resolve<ActivityController>('ActivityController').deleteActivity(req, res, next)
 );

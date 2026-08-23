@@ -673,6 +673,7 @@ model User {
   sessions           Session[]
   accounts           Account[]
   assistantMessages  AssistantMessage[]
+  publicBookingLinks PublicBookingLink[]
 
   @@index([organizationId])
   @@map("user")
@@ -741,6 +742,7 @@ model Organization {
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
   threeCXCallEvents             ThreeCXCallEvent[]
+  publicBookingLinks            PublicBookingLink[]
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -2523,4 +2525,22 @@ model ThreeCXCallEvent {
 
   @@unique([organizationId, callId, eventType])
   @@index([organizationId, createdAt])
+}
+
+model PublicBookingLink {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  title          String
+  description    String?
+  durationMin    Int          @default(30)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, userId])
+  @@index([slug])
 }

@@ -6,12 +6,14 @@ import {
 } from '@dnd-kit/core';
 import {
     CalendarDays, ChevronLeft, ChevronRight, Loader2, AlertTriangle, Check, X,
+    Link2, Download,
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { useBrandAccent } from '../../../hooks/useBrandAccent';
 import { toast } from '../../../lib/toast';
+import { BookingLinksModal } from './BookingLinksModal';
 import {
     calendarApi, activitySubject,
     type CalendarActivity, type ActivityStatus,
@@ -129,6 +131,7 @@ export function Calendar() {
     const [error, setError] = useState<string | null>(null);
     const [dragged, setDragged] = useState<CalendarActivity | null>(null);
     const [selected, setSelected] = useState<CalendarActivity | null>(null);
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
     // Distância mínima antes de virar arrasto: sem isso, um clique simples no card já
     // iniciaria drag e o usuário nunca conseguiria abrir o detalhe.
@@ -158,43 +161,43 @@ export function Calendar() {
     }, [activities]);
 
     const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-        const activity = dragged;
+        const { active, over } = event;
         setDragged(null);
-        if (!activity || !event.over) return;
+        if (!over) return;
 
-        const targetKey = String(event.over.id);
-        if (dayKey(new Date(activity.date)) === targetKey) return;
+        const activity = activities.find((a) => a.id === active.id);
+        if (!activity) return;
 
+        const targetKey = String(over.id);
         const novaData = moveToDay(activity.date, targetKey);
-        const anterior = activities;
+        const anterior = [...activities];
 
-        // Otimista: o card salta para o novo dia imediatamente e volta se a API recusar.
-        setActivities((prev) => prev.map((a) =>
-            a.id === activity.id ? { ...a, date: novaData.toISOString() } : a,
-        ));
+        setActivities((lista) =>
+            lista.map((item) => (item.id === activity.id ? { ...item, date: novaData.toISOString() } : item)),
+        );
 
         try {
             await calendarApi.update(activity.id, { date: novaData.toISOString() });
-            toast.success(`${activity.type} remarcada para ${novaData.toLocaleDateString('pt-BR')}.`);
+            toast.success('Atividade remarcada.');
         } catch (err) {
             setActivities(anterior);
-            toast.error(`Não foi possível remarcar: ${(err as Error).message}`);
+            toast.error((err as Error).message);
         }
-    }, [dragged, activities]);
+    }, [activities]);
 
     const changeStatus = useCallback(async (activity: CalendarActivity, status: ActivityStatus) => {
-        const anterior = activities;
         const statusAnterior = activity.status;
+        const anterior = [...activities];
 
-        setActivities((prev) => prev.map((a) => (a.id === activity.id ? { ...a, status } : a)));
+        setActivities((lista) =>
+            lista.map((item) => (item.id === activity.id ? { ...item, status } : item)),
+        );
         setSelected((s) => (s && s.id === activity.id ? { ...s, status } : s));
 
         try {
             await calendarApi.update(activity.id, { status });
-            toast.success(`Atividade marcada como "${status}".`);
+            toast.success(`Status atualizado para ${status}.`);
         } catch (err) {
-            // Reverte os DOIS: a grade e o diálogo aberto. Reverter só a grade deixaria o detalhe
-            // afirmando um status que o servidor recusou.
             setActivities(anterior);
             setSelected((s) => (s && s.id === activity.id ? { ...s, status: statusAnterior } : s));
             toast.error((err as Error).message);
@@ -206,7 +209,7 @@ export function Calendar() {
     return (
         <div className="flex-1 overflow-y-auto bg-transparent p-8">
             <div className="max-w-6xl mx-auto space-y-6">
-                <div className="flex items-center justify-between gap-4 border-b border-line pb-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-6">
                     <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent.bgSoft} ${accent.text}`}>
                             <CalendarDays className="w-6 h-6" />
@@ -221,14 +224,40 @@ export function Calendar() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setReference((r) => addMonths(r, -1))} aria-label="Mês anterior">
-                            <ChevronLeft className="w-4 h-4" />
+                    <div className="flex flex-wrap items-center gap-2">
+                        {/* Botão Links de Agendamento (Calendly) */}
+                        <Button
+                            variant="secondary"
+                            onClick={() => setIsBookingModalOpen(true)}
+                            className="text-xs"
+                            title="Gerenciar links públicos de agendamento estilo Calendly"
+                        >
+                            <Link2 className="w-4 h-4 mr-1.5 text-brand" /> Links de Agendamento
                         </Button>
-                        <Button variant="outline" onClick={() => setReference(new Date())}>Hoje</Button>
-                        <Button variant="outline" onClick={() => setReference((r) => addMonths(r, 1))} aria-label="Próximo mês">
-                            <ChevronRight className="w-4 h-4" />
+
+                        {/* Botão Sincronizar Calendário iCal */}
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                const icsUrl = `${window.location.origin}/api/activities/feed.ics`;
+                                navigator.clipboard.writeText(icsUrl);
+                                toast.success('Link do feed iCal copiado! Cole no Google Calendar / Apple Calendar.');
+                            }}
+                            className="text-xs"
+                            title="Sincronizar com Google Agenda / Apple Calendar"
+                        >
+                            <Download className="w-4 h-4 mr-1.5 text-sky-500" /> Sincronizar Google Agenda
                         </Button>
+
+                        <div className="flex items-center gap-1 pl-2 border-l border-line">
+                            <Button variant="outline" onClick={() => setReference((r) => addMonths(r, -1))} aria-label="Mês anterior">
+                                <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button variant="outline" onClick={() => setReference(new Date())}>Hoje</Button>
+                            <Button variant="outline" onClick={() => setReference((r) => addMonths(r, 1))} aria-label="Próximo mês">
+                                <ChevronRight className="w-4 h-4" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
@@ -348,6 +377,12 @@ export function Calendar() {
                     </Card>
                 </div>
             )}
+
+            {/* Modal de Gestão de Links de Agendamento */}
+            <BookingLinksModal
+                isOpen={isBookingModalOpen}
+                onClose={() => setIsBookingModalOpen(false)}
+            />
 
             {loading && activities.length === 0 && !error && (
                 <div className="fixed bottom-8 right-8 flex items-center gap-2 text-sm text-ink-2 bg-surface border border-line rounded-xl px-4 py-2">

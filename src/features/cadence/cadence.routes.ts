@@ -100,6 +100,40 @@ router.get('/runs', async (req: Request, res: Response, next: NextFunction): Pro
     }
 });
 
+import { CADENCE_JOURNEY_TEMPLATES } from './domain/cadenceTemplates.js';
+
+router.get('/templates', (_req: Request, res: Response): void => {
+    res.json({ success: true, data: CADENCE_JOURNEY_TEMPLATES });
+});
+
+router.post('/sequences/from-template/:templateId', writeRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId, id: userId } = (req as AuthRequest).user;
+        const template = CADENCE_JOURNEY_TEMPLATES.find((t) => t.id === req.params.templateId);
+        if (!template) {
+            throw new AppError('Modelo de jornada não encontrado.', 404);
+        }
+
+        const sequence = await prisma.cadenceSequence.create({
+            data: {
+                organizationId,
+                name: template.name,
+                touches: template.touches.map((t) => ({
+                    order: t.order,
+                    channel: t.channel,
+                    delayHoursFromPrevious: t.delayHoursFromPrevious,
+                    templateRef: t.templateRef,
+                    maxAttempts: t.maxAttempts || 1,
+                })),
+                createdBy: userId,
+            },
+        });
+        res.status(201).json({ success: true, data: sequence });
+    } catch (error) {
+        next(error);
+    }
+});
+
 router.get('/sequences', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { organizationId } = (req as AuthRequest).user;
@@ -119,8 +153,6 @@ router.post('/sequences', writeRoles, validateRequest(createSequenceSchema), asy
         const { organizationId, id: userId } = (req as AuthRequest).user;
         const { name, touches } = req.body as z.infer<typeof createSequenceSchema>;
 
-        // Mesma validação estrutural que o worker exige antes de rodar (`parseCadenceSequenceDefinition`)
-        // — checada aqui, na criação, para nunca deixar uma sequência inválida entrar no banco.
         const errors = validateSequence({ id: 'draft', name, touches });
         if (errors.length > 0) {
             throw new AppError(`Sequência inválida: ${errors.join('; ')}`, 400);

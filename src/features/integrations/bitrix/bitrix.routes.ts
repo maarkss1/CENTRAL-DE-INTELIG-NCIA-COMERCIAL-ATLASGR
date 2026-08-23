@@ -22,6 +22,7 @@ import {
     getEntityFields,
     getConnectionWebhookUrl,
     postCommentToBitrix,
+    exportLeadToBitrixNow,
     resolveOwnBitrixUserId,
     createExtractionRun,
     listExtractionRuns,
@@ -334,6 +335,51 @@ router.post('/leads/:leadId/comment', managementRoles, async (req: Request, res:
             return;
         }
         const result = await postCommentToBitrix(organizationId, req.params.leadId, comment.trim());
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Exporta/atualiza um lead individual para o Bitrix24 manualmente sob demanda (botão "Enviar para o Bitrix")
+router.post('/leads/:leadId/export', importRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { connectionId, statusId, assignedById } = req.body as {
+            connectionId?: unknown; statusId?: unknown; assignedById?: unknown;
+        };
+        const result = await exportLeadToBitrixNow(organizationId, req.params.leadId, typeof connectionId === 'string' ? connectionId : undefined, {
+            statusId: typeof statusId === 'string' ? statusId : undefined,
+            assignedById: typeof assignedById === 'string' ? assignedById : undefined,
+        });
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Exporta leads em lote para o Bitrix24 sob demanda
+router.post('/leads/export-batch', importRoles, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { leadIds, connectionId } = req.body as { leadIds?: unknown; connectionId?: unknown };
+        if (Array.isArray(leadIds) && leadIds.length > 0) {
+            let exportedCount = 0;
+            let skippedCount = 0;
+            for (const id of leadIds) {
+                if (typeof id === 'string') {
+                    try {
+                        await exportLeadToBitrixNow(organizationId, id, typeof connectionId === 'string' ? connectionId : undefined);
+                        exportedCount++;
+                    } catch {
+                        skippedCount++;
+                    }
+                }
+            }
+            res.json({ success: true, data: { exportedCount, skippedCount, total: leadIds.length } });
+            return;
+        }
+        const result = await exportLeadToBitrixNow(organizationId, 'all', typeof connectionId === 'string' ? connectionId : undefined);
         res.json({ success: true, data: result });
     } catch (error) {
         next(error);

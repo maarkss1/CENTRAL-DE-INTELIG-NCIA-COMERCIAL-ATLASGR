@@ -368,4 +368,69 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
 
         return { enqueued: leadsToEnrich.length, enfileirado: true as const };
     }
+
+    async batchUpdateLeads(
+        organizationId: string,
+        leadIds: string[],
+        updates: { status?: string; owner?: string; tags?: string[]; addTags?: string[]; removeTags?: string[] },
+        actorUserId?: string,
+    ) {
+        if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+            throw new AppError('Nenhum lead informado para atualização.', 400);
+        }
+        const { prisma } = await import('../../../lib/prisma.js');
+        const leads = await prisma.lead.findMany({
+            where: { id: { in: leadIds }, organizationId, deletedAt: null },
+            select: { id: true, status: true, customFields: true, owner: true },
+        });
+
+        let updatedCount = 0;
+        for (const lead of leads) {
+            const dataToUpdate: Record<string, unknown> = {};
+            if (updates.status && updates.status !== lead.status) {
+                dataToUpdate.status = updates.status;
+            }
+            if (updates.owner !== undefined) {
+                dataToUpdate.owner = updates.owner;
+            }
+            const customFieldsObj = (lead.customFields && typeof lead.customFields === 'object' && !Array.isArray(lead.customFields))
+                ? { ...(lead.customFields as Record<string, unknown>) }
+                : {};
+
+            if (updates.tags) {
+                customFieldsObj.tags = updates.tags;
+                dataToUpdate.customFields = customFieldsObj;
+            } else if (updates.addTags || updates.removeTags) {
+                let currentTags = Array.isArray(customFieldsObj.tags) ? [...(customFieldsObj.tags as string[])] : [];
+                if (updates.addTags) {
+                    for (const tag of updates.addTags) {
+                        if (!currentTags.includes(tag)) currentTags.push(tag);
+                    }
+                }
+                if (updates.removeTags) {
+                    currentTags = currentTags.filter((t) => !updates.removeTags!.includes(t));
+                }
+                customFieldsObj.tags = currentTags;
+                dataToUpdate.customFields = customFieldsObj;
+            }
+
+            if (Object.keys(dataToUpdate).length > 0) {
+                await prisma.lead.update({
+                    where: { id: lead.id },
+                    data: dataToUpdate,
+                });
+                if (dataToUpdate.status) {
+                    await prisma.leadStageHistory.create({
+                        data: {
+                            leadId: lead.id,
+                            organizationId,
+                            stageName: String(dataToUpdate.status),
+                        }
+                    }).catch(() => {});
+                }
+                updatedCount++;
+            }
+        }
+        return { updatedCount, total: leads.length };
+    }
 }

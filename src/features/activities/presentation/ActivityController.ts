@@ -70,4 +70,39 @@ export class ActivityController {
             next(error);
         }
     };
+
+    snoozeActivity = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId } = (req as AuthRequest).user;
+            const { duration } = req.body as { duration: '2h' | 'tomorrow' | 'next_week' };
+            const activity = await this.activityUseCases.snoozeActivity(orgId, req.params.id, duration || 'tomorrow');
+            res.json({ success: true, data: activity });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getTemplates = async (_req: Request, res: Response, next: NextFunction) => {
+        try {
+            const templates = this.activityUseCases.getFollowUpTemplates();
+            res.json({ success: true, data: templates });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    getIcalFeed = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const user = (req as AuthRequest).user;
+            const orgId = user.organizationId;
+            const userName = (user as unknown as { name?: string }).name || user.email;
+            const { owner } = req.query as { owner?: string };
+            const ics = await this.activityUseCases.generateIcalFeed(orgId, owner || userName);
+            res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="agenda.ics"');
+            res.send(ics);
+        } catch (error) {
+            next(error);
+        }
+    };
 }

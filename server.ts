@@ -60,6 +60,7 @@ import { notificationRoutes } from './src/features/notifications/notification.ro
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { cadenceRoutes } from './src/features/cadence/cadence.routes.js';
+import { publicBookingRouter, privateBookingRouter } from './src/features/calendar/routes/booking.routes.js';
 import { marketIntelligenceRoutes } from './src/features/market-intelligence/server/marketIntelligence.routes.js';
 import { accountIntelligenceRoutes } from './src/features/market-intelligence/server/accountIntelligence.routes.js';
 import { sseService } from './src/features/notifications/sse.service.js';
@@ -468,6 +469,8 @@ async function startServer() {
     app.use('/api/auth-extra', authenticateToken, requireTenant, authExtraRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
     app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
+    app.use('/api/calendar/booking-links', privateBookingRouter);
+    app.use('/api/calendar/book', publicBookingRouter);
     app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
     // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
     // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
