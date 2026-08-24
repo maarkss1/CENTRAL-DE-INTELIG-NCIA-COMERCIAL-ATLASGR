@@ -176,9 +176,44 @@ export const KanbanCard = React.memo(function KanbanCard({
                             Sem empresa <span className="not-italic">· dados incompletos</span>
                         </h4>
                     )}
-                    {lead.score && (
-                        <span className={`shrink-0 text-xs font-extrabold border px-2 py-0.5 rounded-lg ${lead.temperature ? (SCORE_BADGE_CLASS[lead.temperature] ?? DEFAULT_SCORE_BADGE_CLASS) : DEFAULT_SCORE_BADGE_CLASS}`}>
-                            {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : ''}{lead.score}
+                    {(lead.score !== undefined && lead.score !== null) ? (
+                        <span className={`shrink-0 text-xs font-black border px-2 py-0.5 rounded-lg flex items-center gap-1 ${
+                            lead.score >= 70 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' :
+                            lead.score >= 40 ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400' :
+                            'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                        }`}>
+                            {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : '🎯 '}{lead.score}
+                        </span>
+                    ) : lead.temperature ? (
+                        <span className={`shrink-0 text-xs font-extrabold border px-2 py-0.5 rounded-lg ${SCORE_BADGE_CLASS[lead.temperature] ?? DEFAULT_SCORE_BADGE_CLASS}`}>
+                            {TEMPERATURE_EMOJI[lead.temperature]} {lead.temperature}
+                        </span>
+                    ) : null}
+                </div>
+
+                {/* Badges Informativas: Estagnação, Bitrix e Voz */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {/* Indicador Visual de Estagnação (Verde < 3d, Amarelo 3-7d, Vermelho > 7d) */}
+                    <span
+                        title={`Última atividade: ${new Date(lastActivityDate || '').toLocaleDateString('pt-BR')}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] border ${stagnation.className}`}
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${stagnation.dot}`} />
+                        {stagnation.label}
+                    </span>
+
+                    {isBitrixSynced && (
+                        <span
+                            title={`Sincronizado no Bitrix24 (ID #${lead.bitrixLeadId || lead.bitrixDealId})`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300"
+                        >
+                            🌐 Bitrix #{lead.bitrixLeadId || lead.bitrixDealId}
+                        </span>
+                    )}
+
+                    {Boolean(lead.customFields?.voiceQualified) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                            🎤 Voz Qualificada
                         </span>
                     )}
                 </div>

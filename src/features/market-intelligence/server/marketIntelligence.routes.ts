@@ -28,6 +28,16 @@ router.get('/companies/:cnpj', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+router.post('/companies/:cnpj/approve-to-pipeline', async (req: any, res, next) => {
+    try {
+        const { cnpj } = companyCnpjParamsSchema.parse(req.params);
+        const organizationId = req.user?.organizationId;
+        const userId = req.user?.id;
+        const result = await marketIntelligenceService.approveToPipeline(organizationId, cnpj, userId);
+        res.status(201).json({ success: true, data: result });
+    } catch (error) { next(error); }
+});
+
 router.get('/territories', async (req, res, next) => {
     try {
         res.json({ success: true, data: await marketIntelligenceService.territories(territoriesQuerySchema.parse(req.query)) });

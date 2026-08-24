@@ -177,4 +177,130 @@ router.post('/cold-email', requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']), as
     }
 });
 
+// ───────────────────── Enriquecimento em Cascata (Apollo ➔ Hunter ➔ Google Places) ─────────────────────
+import { runEnrichmentCascade } from '../services/enrichmentCascade.service.js';
+import { enrichmentCascadeQueue } from '../../../lib/queue/enrichmentCascade.worker.js';
+import { prisma } from '../../../lib/prisma.js';
+
+router.post('/companies/:id/enrich-cascade', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { id: companyId } = req.params;
+        const { async: isAsync, ...options } = req.body || {};
+
+        if (isAsync && enrichmentCascadeQueue) {
+            const job = await enrichmentCascadeQueue.add('enrich-cascade-job', {
+                companyId,
+                organizationId,
+                options,
+            });
+            res.status(202).json({ success: true, message: 'Enriquecimento em cascata enfileirado', jobId: job.id });
+            return;
+        }
+
+        const result = await runEnrichmentCascade(organizationId, companyId, options);
+        res.json({ success: true, data: result });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// ───────────────────── Listas Salvas de Prospecção & Agendamento ─────────────────────
+router.get('/saved-searches', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const items = await prisma.savedSearch.findMany({
+            where: { organizationId },
+            orderBy: { createdAt: 'desc' },
+        });
+        res.json({ success: true, data: items });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/saved-searches', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { name, criteria, schedule } = req.body || {};
+
+        if (!name || typeof name !== 'string') {
+            res.status(400).json({ success: false, error: 'name é obrigatório' });
+            return;
+        }
+
+        const nextRunAt = schedule === 'daily'
+            ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+            : schedule === 'weekly'
+            ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            : null;
+
+        const created = await prisma.savedSearch.create({
+            data: {
+                name,
+                criteria: criteria || {},
+                schedule: schedule || null,
+                nextRunAt,
+                organizationId,
+            },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.delete('/saved-searches/:id', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { id } = req.params;
+
+        await prisma.savedSearch.deleteMany({
+            where: { id, organizationId },
+        });
+
+        res.json({ success: true, message: 'Busca salva removida' });
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.post('/saved-searches/:id/run', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { id } = req.params;
+
+        const savedSearch = await prisma.savedSearch.findFirst({
+            where: { id, organizationId },
+        });
+
+        if (!savedSearch) {
+            res.status(404).json({ success: false, error: 'Busca salva não encontrada' });
+            return;
+        }
+
+        const criteria = (savedSearch.criteria as any) || {};
+        const result = await discoverCandidates(criteria, organizationId);
+        const count = result?.candidates?.length || 0;
+
+        const updated = await prisma.savedSearch.update({
+            where: { id },
+            data: {
+                lastRunAt: new Date(),
+                leadsDiscovered: { increment: count },
+                nextRunAt: savedSearch.schedule === 'daily'
+                    ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+                    : savedSearch.schedule === 'weekly'
+                    ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                    : savedSearch.nextRunAt,
+            },
+        });
+
+        res.json({ success: true, data: { savedSearch: updated, candidates: result?.candidates || [], count } });
+    } catch (error) {
+        next(error);
+    }
+});
+
 export const prospectingRoutes = router;
