@@ -29,6 +29,12 @@ export function RoleplayHub() {
         total: number;
         feedback: string;
     }>>([]);
+    
+    // Novas states para Gravação de Áudio e Timestamps da Onda 3
+    const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<BlobPart[]>([]);
+    const [timestamps, setTimestamps] = useState<Array<{ sender: string, timeSeconds: number, text: string }>>([]);
 
     const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
@@ -112,12 +118,40 @@ export function RoleplayHub() {
         }
     };
 
-    const startCall = () => {
+    const startCall = async () => {
         setCallActive(true);
         setIsFinished(false);
         setAnalysisResult(null);
         setTurnEvaluations([]);
         setCallDuration(0);
+        setAudioBlobUrl(null);
+        setTimestamps([]);
+        audioChunksRef.current = [];
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const url = URL.createObjectURL(audioBlob);
+                setAudioBlobUrl(url);
+                // Parar as faixas do microfone
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+        } catch (err) {
+            console.error('Erro ao acessar microfone para gravação', err);
+            alert('Não foi possível iniciar a gravação. Verifique as permissões do microfone.');
+        }
 
         const initialGreeting = activeBrand === 'totaltrac'
             ? 'Alô? Aqui é da frota. Recebi seu contato sobre soluções de rastreamento e telemetria. O que exatamente a TotalTrac oferece que é diferente do mercado?'
@@ -129,6 +163,7 @@ export function RoleplayHub() {
             text: initialGreeting,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }]);
+        setTimestamps([{ sender: 'bot', timeSeconds: 0, text: initialGreeting }]);
         speakText(initialGreeting);
     };
 
@@ -145,6 +180,7 @@ export function RoleplayHub() {
         const text = inputMessage.trim();
         const nextMessages = [...messages, userMsg];
         setMessages(nextMessages);
+        setTimestamps(prev => [...prev, { sender: 'sdr', timeSeconds: callDuration, text: text }]);
         setInputMessage('');
         setIsThinking(true);
 
@@ -192,6 +228,7 @@ export function RoleplayHub() {
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             };
             setMessages(prev => [...prev, botMessage]);
+            setTimestamps(prev => [...prev, { sender: 'bot', timeSeconds: callDuration, text: response.result.reply }]);
             setTurnEvaluations(prev => [...prev, {
                 clarity: response.result.clarity,
                 objectionHandling: response.result.objectionHandling,
@@ -219,6 +256,10 @@ export function RoleplayHub() {
         if (recognitionRef.current && isListening) {
             recognitionRef.current.stop();
             setIsListening(false);
+        }
+        
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
         }
 
         const average = (field: 'clarity' | 'objectionHandling' | 'total') =>
@@ -296,7 +337,12 @@ export function RoleplayHub() {
                 )}
 
                 {isFinished && analysisResult && (
-                    <CallAnalysisReport analysisResult={analysisResult} onRestart={startCall} />
+                    <CallAnalysisReport 
+                        analysisResult={analysisResult} 
+                        onRestart={startCall}
+                        audioBlobUrl={audioBlobUrl}
+                        timestamps={timestamps}
+                    />
                 )}
             </div>
         </div>
