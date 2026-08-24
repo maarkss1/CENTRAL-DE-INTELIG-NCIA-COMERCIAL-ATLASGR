@@ -44,4 +44,28 @@ export class AnalyticsController {
             next(error);
         }
     };
+
+    getCohort = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            // Fake data just for the prototype
+            const cohorts = [
+                { month: '2026-05', total: 120, month1: 85, month2: 70 },
+                { month: '2026-06', total: 150, month1: 88, month2: 75 },
+                { month: '2026-07', total: 200, month1: 90, month2: 80 }
+            ];
+            res.json({ success: true, cohorts });
+        } catch (error) {
+            next(error);
+        }
+    };
+
+    exportPdf = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="relatorio-cohort.pdf"');
+            res.send(Buffer.from('PDF_FAKE_CONTENT_FOR_NOW'));
+        } catch (error) {
+            next(error);
+        }
+    };
 }

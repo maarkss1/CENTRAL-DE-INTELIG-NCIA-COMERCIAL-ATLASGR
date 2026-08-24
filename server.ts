@@ -44,6 +44,7 @@ import { prospectingRoutes } from './src/features/prospecting/routes/prospecting
 import { prospectingToolsRoutes } from './src/features/prospecting/routes/prospecting-tools.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
+import { eventsRoutes } from './src/features/analytics/routes/events.routes.js';
 import { commercialIntelligenceRoutes } from './src/features/commercial-intelligence/routes/commercialIntelligence.routes.js';
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthVoice.routes.js';
@@ -439,6 +440,7 @@ async function startServer() {
     app.use('/api/intelligence', requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+    app.use('/api/events', authenticateToken, requireTenant, eventsRoutes);
     // Comercial Inteligente — módulo executivo restrito (ver AGENTS.md/CLAUDE.md e
     // src/lib/auth/authorization.ts). `requireRole` aqui é defesa em profundidade: o router em
     // commercialIntelligence.routes.ts já se protege sozinho (router.use(requireRole(...))), mas

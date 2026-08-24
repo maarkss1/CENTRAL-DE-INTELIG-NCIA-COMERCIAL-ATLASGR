@@ -39,14 +39,26 @@ export const KanbanColumn = React.memo(function KanbanColumn({
             ref={setNodeRef}
             className={`flex flex-col bg-surface rounded-2xl min-w-[320px] max-w-[320px] max-h-full shrink-0 border transition-colors duration-200 shadow-sm ${isOver ? 'border-brand dark:border-brand-2 bg-soft' : 'border-line'}`}
         >
-            <div className="p-4 border-b border-line bg-surface-2/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex justify-between items-center gap-2">
-                <h3 className="text-sm font-bold text-ink-2 flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs opacity-60 shrink-0" aria-hidden="true">{STATUS_EMOJI[status] || '📌'}</span>
-                    <span className="line-clamp-2 leading-tight">{status}</span>
-                </h3>
-                <span className="bg-surface-2 text-ink-2 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
-                    {leads.length}
-                </span>
+            <div className="p-4 border-b border-line bg-surface-2/80 rounded-t-2xl sticky top-0 backdrop-blur-sm z-10 flex flex-col gap-1">
+                <div className="flex justify-between items-center gap-2">
+                    <h3 className="text-sm font-bold text-ink-2 flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs opacity-60 shrink-0" aria-hidden="true">{STATUS_EMOJI[status] || '📌'}</span>
+                        <span className="line-clamp-2 leading-tight">{status}</span>
+                    </h3>
+                    <span className="bg-surface-2 text-ink-2 text-xs font-bold px-2.5 py-1 rounded-full shrink-0">
+                        {leads.length}
+                    </span>
+                </div>
+                <div className="text-xs text-brand/80 font-medium">
+                    Forecast: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                        leads.reduce((acc, lead) => {
+                            const val = typeof lead.amount === 'number' ? lead.amount : 0;
+                            const prob = typeof lead.probability === 'number' ? lead.probability : 0;
+                            const probMultiplier = prob > 1 ? prob / 100 : prob;
+                            return acc + (val * probMultiplier);
+                        }, 0)
+                    )}
+                </div>
             </div>
 
             <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[150px] custom-scrollbar">

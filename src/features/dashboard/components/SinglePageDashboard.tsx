@@ -10,6 +10,7 @@ import { LiveStatsWidget } from '../../../components/ui/LiveStatsWidget';
 import { useBrand } from '../../../contexts/BrandContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAnalytics, useActivities } from '../../../hooks/useDatabase';
+import { RealtimeFeed } from './RealtimeFeed';
 
 const TYPE_ICONS: Record<string, React.JSX.Element> = {
     'ligação': <Phone className="w-4 h-4" />,
@@ -128,6 +129,8 @@ export function SinglePageDashboard() {
                         ))}
                     </div>
                 )}
+
+                <RealtimeFeed />
 
                 {/* Agenda de hoje */}
                 <div className="p-6 rounded-card-lg border border-line bg-surface shadow-card">
