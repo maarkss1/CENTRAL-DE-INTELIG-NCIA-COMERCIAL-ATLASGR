@@ -87,4 +87,25 @@ export const sseService = {
             deliverLocally(payload);
         });
     },
+
+    async closeAll() {
+        for (const client of clients) {
+            try {
+                client.res.write('event: shutdown\ndata: {"message":"Server is shutting down"}\n\n');
+                client.res.end();
+            } catch {
+                // Ignore errors on closing socket
+            }
+        }
+        clients.clear();
+
+        if (subscriber) {
+            try {
+                await subscriber.quit().catch(() => subscriber.disconnect());
+            } catch {
+                // Ignore subscriber quit error
+            }
+        }
+    },
 };
+

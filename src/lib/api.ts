@@ -28,7 +28,13 @@ export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions)
     try {
         const requestOptions = { ...(options || {}) };
         delete requestOptions.timeoutMs;
-        response = await fetch(endpoint, {
+        const baseUrl = typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('about')
+            ? window.location.origin
+            : 'http://localhost';
+        const targetUrl = endpoint.startsWith('http://') || endpoint.startsWith('https://')
+            ? endpoint
+            : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+        response = await fetch(targetUrl, {
             ...requestOptions,
             signal,
             credentials: 'include',
@@ -37,7 +43,7 @@ export async function apiFetch<T>(endpoint: string, options?: ApiRequestOptions)
                 ...requestOptions.headers,
             }
         });
-    } catch {
+    } catch (err) {
         if (controller.signal.aborted) {
             throw new Error('A API demorou demais para responder. Tente novamente.');
         }
