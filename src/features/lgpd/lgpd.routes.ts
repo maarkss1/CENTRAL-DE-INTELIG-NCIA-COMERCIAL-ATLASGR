@@ -37,3 +37,28 @@ lgpdRouter.get('/titular/:contactId/export', (req: Request, res: Response, next:
         res.json(data);
     })().catch(next);
 });
+
+// Listagem de Logs de Auditoria de Segurança & LGPD
+lgpdRouter.get('/audit-logs', requireRole(['ADMIN', 'GESTOR']), (req: Request, res: Response, next: NextFunction): void => {
+    (async () => {
+        const { organizationId } = (req as AuthRequest).user;
+        const limit = Math.min(Number(req.query.limit) || 50, 100);
+        const { prisma } = await import('../../lib/prisma.js');
+
+        const logs = await prisma.auditLog.findMany({
+            where: {
+                tenantId: organizationId,
+            },
+            orderBy: {
+                timestamp: 'desc',
+            },
+            take: limit,
+        });
+
+        res.json({
+            success: true,
+            logs,
+        });
+    })().catch(next);
+});
+
