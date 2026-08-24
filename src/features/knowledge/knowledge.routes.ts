@@ -9,6 +9,7 @@ import { logger } from '../../lib/logger.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../shared/middlewares/requireRole.js';
 import { getAiModel } from '../../lib/ai/gateway.js';
+import { HumanMessage } from '@langchain/core/messages';
 
 const router = Router();
 const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
@@ -280,7 +281,7 @@ router.post('/editor-assist', writeRoles, validateRequest(editorAssistSchema), a
         }
 
         const model = getAiModel('groq-llama3-70b', 0.7, 'knowledge-editor');
-        const aiResponse = await model.invoke(prompt);
+        const aiResponse = await model.invoke([new HumanMessage(prompt)]);
 
         res.json({ success: true, result: aiResponse.content });
     } catch (error) {
@@ -312,7 +313,7 @@ Formate a resposta em Markdown claro, com "## Pergunta" e o texto da resposta ab
 Texto do Documento:
 ${document.content.substring(0, 15000)} // Limite de segurança de contexto
 `;
-        const aiResponse = await model.invoke(prompt);
+        const aiResponse = await model.invoke([new HumanMessage(prompt)]);
 
         res.json({ success: true, result: aiResponse.content });
     } catch (error) {
