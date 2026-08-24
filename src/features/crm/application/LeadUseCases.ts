@@ -7,8 +7,9 @@ import { fromPrismaLeadStatus } from '../../../lib/enumMap';
 import type { LeadFunnel } from '@prisma/client';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 import { AppError } from '../../../shared/middlewares/errorHandler';
-import { ensureManualDealClosureAllowed } from './dealClosureGate';
-import { prismaDealClosureGate } from '../infra/PrismaDealClosureGate';
+import { ensureManualDealClosureAllowed } from './dealClosureGate.js';
+import { prismaDealClosureGate } from '../infra/PrismaDealClosureGate.js';
+import { broadcastEvent } from '../../../lib/eventsBus.js';
 
 /** Mesmo rótulo usado em `LEAD_STATUS_TO_PRISMA`/`LEAD_CLOSING_STATUSES` (src/lib/enumMap.ts) — único status que exige o gate de fechamento determinístico (CYC-007). */
 const WON_STATUS_LABEL = 'Negócios Ganhos';
@@ -114,7 +115,14 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
             await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
         }
-        return this.update(organizationId, id, data);
+        const updated = await this.update(organizationId, id, data);
+        
+        if (data.status === WON_STATUS_LABEL) {
+            broadcastEvent({ type: 'DEAL_WON', organizationId, payload: { leadId: id } });
+        } else if (data.status && (data.status.toLowerCase().includes('perdido') || data.status.toLowerCase().includes('desqualificad'))) {
+            broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
+        }
+        return updated;
     }
 
     async updateLeadStatus(organizationId: string, id: string, newStatus: string, actorUserId?: string) {
@@ -122,7 +130,14 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
             await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
         }
-        return this.repository.updateStatus(organizationId, id, newStatus);
+        const updated = await this.repository.updateStatus(organizationId, id, newStatus);
+        
+        if (newStatus === WON_STATUS_LABEL) {
+            broadcastEvent({ type: 'DEAL_WON', organizationId, payload: { leadId: id } });
+        } else if (newStatus.toLowerCase().includes('perdido') || newStatus.toLowerCase().includes('desqualificad')) {
+            broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
+        }
+        return updated;
     }
 
     async deleteLead(organizationId: string, id: string) {

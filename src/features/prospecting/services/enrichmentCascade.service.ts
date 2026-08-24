@@ -54,7 +54,7 @@ export async function runEnrichmentCascade(
         throw new AppError('Empresa não encontrada para enriquecimento.', 404);
     }
 
-    let cnpj = options.cnpj || company.cnpj || undefined;
+    const cnpj = options.cnpj || company.cnpj || undefined;
     let companyName = options.companyName || company.tradeName || company.legalName || 'Empresa';
     let website = company.website || undefined;
     let city = options.city || company.city || undefined;
