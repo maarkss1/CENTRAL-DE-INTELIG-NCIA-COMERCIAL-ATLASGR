@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Database, Search, Upload, FileText, Trash2, Loader2, X,
-    AlertTriangle, Sparkles, Type, RefreshCw,
+    AlertTriangle, Sparkles, Type, RefreshCw, FileQuestion
 } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
@@ -12,6 +12,7 @@ import {
     knowledgeApi, fileToBase64, ACCEPTED_EXTENSIONS,
     type KnowledgeDocumentSummary, type KnowledgeSearchResponse,
 } from '../knowledge.api';
+import { EditorIA } from './EditorIA';
 
 /** Realça no trecho os termos que o usuário digitou, para ele achar o ponto sem reler tudo. */
 function Highlighted({ text, query }: { text: string; query: string }) {
@@ -196,6 +197,33 @@ export function Base() {
         }
     }, []);
 
+    const handleGenerateFaq = useCallback(async (doc: KnowledgeDocumentSummary) => {
+        setBusyDocId(doc.id);
+        toast.info(`Gerando FAQ para "${doc.title}"... Isso pode levar alguns instantes.`);
+        try {
+            const response = await fetch('/api/knowledge/generate-faq', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId: doc.id })
+            });
+            if (!response.ok) throw new Error('Falha ao gerar FAQ');
+            const data = await response.json();
+            
+            if (data.success && data.result) {
+                toast.success('FAQ gerado com sucesso!');
+                setPasteTitle(`FAQ: ${doc.title}`);
+                setPasteContent(data.result);
+                setPasteOpen(true);
+            } else {
+                throw new Error(data.error || 'Erro desconhecido');
+            }
+        } catch (err) {
+            toast.error((err as Error).message);
+        } finally {
+            setBusyDocId(null);
+        }
+    }, []);
+
     const totalChunks = useMemo(
         () => documents.reduce((sum, d) => sum + d.chunkCount, 0),
         [documents],
@@ -335,8 +363,13 @@ export function Base() {
                     </div>
                 )}
 
+                {/* Editor IA */}
+                <div className="pt-2">
+                    <EditorIA />
+                </div>
+
                 {/* Documentos */}
-                <div className="space-y-3">
+                <div className="space-y-3 pt-6 border-t border-line">
                     <h2 className="text-sm font-semibold text-ink-2">Documentos</h2>
 
                     {loadingDocs && (
@@ -388,6 +421,16 @@ export function Base() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={() => void handleGenerateFaq(doc)}
+                                    disabled={busyDocId === doc.id}
+                                    title="Gerar FAQ Automático com IA"
+                                    className="p-2 rounded-lg text-ink-2 hover:text-brand hover:bg-brand/10 transition-colors disabled:opacity-40"
+                                >
+                                    {busyDocId === doc.id
+                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                        : <FileQuestion className="w-4 h-4" />}
+                                </button>
                                 <button
                                     onClick={() => void handleReembed(doc)}
                                     disabled={busyDocId === doc.id}

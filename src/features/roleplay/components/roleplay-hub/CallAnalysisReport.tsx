@@ -9,10 +9,12 @@ function scoreColor(score: number): string {
 }
 
 export function CallAnalysisReport({
-    analysisResult, onRestart,
+    analysisResult, onRestart, audioBlobUrl, timestamps,
 }: {
     analysisResult: CallAnalysisResult;
     onRestart: () => void;
+    audioBlobUrl?: string | null;
+    timestamps?: Array<{ sender: string, timeSeconds: number, text: string }>;
 }) {
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-surface/90 backdrop-blur-2xl rounded-[3rem] p-10 border border-line shadow-[0_30px_60px_rgba(0,0,0,0.08)] space-y-10 relative overflow-hidden">
@@ -39,6 +41,32 @@ export function CallAnalysisReport({
                     </div>
                 </div>
             </div>
+
+            {audioBlobUrl && timestamps && timestamps.length > 0 && (
+                <div className="bg-white/50 border border-line p-8 rounded-[2rem] space-y-6 relative z-10">
+                    <h3 className="font-black text-xl text-ink tracking-tight mb-4">Gravação e Feedback do Gestor</h3>
+                    <audio controls className="w-full h-12" src={audioBlobUrl} />
+                    
+                    <div className="mt-6 space-y-4 max-h-64 overflow-y-auto pr-2">
+                        <h4 className="text-sm font-bold text-ink-2 uppercase tracking-wider mb-2">Timestamps da Ligação</h4>
+                        {timestamps.map((t, idx) => (
+                            <div key={idx} className="flex gap-4 items-start text-sm">
+                                <span className="font-mono text-brand font-bold shrink-0">
+                                    {Math.floor(t.timeSeconds / 60).toString().padStart(2, '0')}:{(t.timeSeconds % 60).toString().padStart(2, '0')}
+                                </span>
+                                <div className={`flex flex-col gap-1 ${t.sender === 'sdr' ? 'items-start' : 'items-end'} w-full`}>
+                                    <span className={`px-3 py-2 rounded-2xl ${t.sender === 'sdr' ? 'bg-brand/10 text-ink' : 'bg-surface-2 text-ink-2'} max-w-[85%] leading-relaxed inline-block`}>
+                                        <span className="font-bold text-[10px] uppercase block mb-1 opacity-70">
+                                            {t.sender === 'sdr' ? 'Você (SDR)' : 'Comprador (IA)'}
+                                        </span>
+                                        {t.text}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative z-10">
                 <div className="bg-emerald-50/50 p-8 rounded-[2rem] border border-emerald-100 space-y-6">

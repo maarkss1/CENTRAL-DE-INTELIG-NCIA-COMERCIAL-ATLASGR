@@ -8,6 +8,7 @@ import { validateRequest } from '../../shared/middlewares/validateRequest.js';
 import { logger } from '../../lib/logger.js';
 import type { AuthRequest } from '../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../shared/middlewares/requireRole.js';
+import { getAiModel } from '../../lib/ai/gateway.js';
 
 const router = Router();
 const writeRoles = requireRole(['ADMIN', 'GESTOR', 'CLOSER', 'SDR']);
@@ -255,6 +256,65 @@ router.delete('/:id', requireRole(['ADMIN', 'GESTOR']), async (req: Request, res
         }
         logger.info({ documentId: req.params.id }, 'Documento removido da Base de Conhecimento');
         res.status(204).send();
+    } catch (error) {
+        next(error);
+    }
+});
+
+const editorAssistSchema = z.object({
+    action: z.enum(['expand', 'concise', 'pain']),
+    text: z.string().trim().min(1)
+});
+
+/** POST /api/knowledge/editor-assist — assistente de redação IA */
+router.post('/editor-assist', writeRoles, validateRequest(editorAssistSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { action, text } = req.body as z.infer<typeof editorAssistSchema>;
+        let prompt = '';
+        if (action === 'expand') {
+            prompt = `Expanda o seguinte argumento, deixando-o mais detalhado, persuasivo e rico em contexto para vendas:\n\n"${text}"`;
+        } else if (action === 'concise') {
+            prompt = `Reescreva o seguinte texto deixando-o mais conciso, direto e objetivo para comunicação rápida de vendas:\n\n"${text}"`;
+        } else if (action === 'pain') {
+            prompt = `Reescreva o seguinte texto focando nas DORES do cliente, usando a metodologia SPIN Selling (Situação, Problema, Implicação, Necessidade de solução):\n\n"${text}"`;
+        }
+
+        const model = getAiModel('groq-llama3-70b', 0.7, 'knowledge-editor');
+        const aiResponse = await model.invoke(prompt);
+
+        res.json({ success: true, result: aiResponse.content });
+    } catch (error) {
+        next(error);
+    }
+});
+
+const generateFaqSchema = z.object({
+    documentId: z.string().uuid()
+});
+
+/** POST /api/knowledge/generate-faq — gera FAQ a partir de um doc */
+router.post('/generate-faq', writeRoles, validateRequest(generateFaqSchema), async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const { documentId } = req.body as z.infer<typeof generateFaqSchema>;
+
+        const document = await ingestionService.get(organizationId, documentId);
+        if (!document) {
+            res.status(404).json({ success: false, error: 'Documento não encontrado.' });
+            return;
+        }
+
+        const model = getAiModel('groq-llama3-70b', 0.3, 'knowledge-faq');
+        const prompt = `Você é um assistente criador de FAQs para time de vendas.
+Baseado EXCLUSIVAMENTE no texto abaixo (extraído do documento "${document.title}"), gere um FAQ (Perguntas e Respostas Frequentes) cobrindo os pontos mais importantes, principais dúvidas, preços, requisitos ou features citadas.
+Formate a resposta em Markdown claro, com "## Pergunta" e o texto da resposta abaixo.
+
+Texto do Documento:
+${document.content.substring(0, 15000)} // Limite de segurança de contexto
+`;
+        const aiResponse = await model.invoke(prompt);
+
+        res.json({ success: true, result: aiResponse.content });
     } catch (error) {
         next(error);
     }
