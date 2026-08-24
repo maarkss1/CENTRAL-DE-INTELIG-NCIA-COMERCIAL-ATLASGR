@@ -13,6 +13,8 @@ import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+import { WebhookMonitor } from './WebhookMonitor';
+import { Activity } from 'lucide-react';
 
 type IntegrationCapabilityStatus = 'connected' | 'read' | 'write' | 'stub' | 'error' | 'pending';
 
@@ -77,7 +79,7 @@ export function Integrations() {
         threecxLoading, handle3CXConnect, handle3CXDisconnect, handle3CXTest,
     } = use3CXIntegration();
 
-    type Tab = 'whatsapp' | 'google' | 'bitrix' | '3cx';
+    type Tab = 'whatsapp' | 'google' | 'bitrix' | '3cx' | 'webhooks';
     const [activeTab, setActiveTab] = useState<Tab>('whatsapp');
 
     return (
@@ -126,6 +128,12 @@ export function Integrations() {
                         className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('webhooks')}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Activity className="w-4 h-4 text-brand" /> Webhooks & Monitor
                     </button>
                 </nav>
             </div>
@@ -622,6 +630,10 @@ export function Integrations() {
                             </div>
                         </div>
                     </Card>
+                    )}
+
+                    {activeTab === 'webhooks' && (
+                        <WebhookMonitor />
                     )}
                 </div>
             </div>

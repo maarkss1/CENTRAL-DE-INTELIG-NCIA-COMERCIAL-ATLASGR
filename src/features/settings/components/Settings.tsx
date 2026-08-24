@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sun, Moon, Check, User, Users, Puzzle, Flag } from 'lucide-react';
+import { Sun, Moon, Check, User, Users, Puzzle, Flag, Shield } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../../components/ui/Card';
 import { Logo } from '../../../components/Logo';
 import { TotalTrackLogo } from '../../../components/TotalTrackLogo';
@@ -10,6 +10,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { FeatureFlagsPanel } from '../../feature-flags/components/FeatureFlagsPanel';
 import { Team } from '../../team/components/Team';
 import { Integrations } from '../../integrations/components/Integrations';
+import { AuditLogs } from '../../lgpd/components/AuditLogs';
 
 const BRAND_OPTIONS: Brand[] = ['atlasgr', 'totaltrac'];
 
@@ -18,7 +19,7 @@ export function Settings() {
     const { activeBrand, setActiveBrand } = useBrand();
     const { currentUser, isAdmin } = useAuth();
 
-    const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'integrations' | 'featureFlags'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'integrations' | 'featureFlags' | 'audit'>('profile');
 
     return (
         <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden">
@@ -84,6 +85,19 @@ export function Settings() {
                                 <Flag size={16} /> Feature Flags
                             </button>
                         )}
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('audit')}
+                                className={`flex items-center gap-2 pb-3 border-b-2 font-bold text-sm transition-colors whitespace-nowrap cursor-pointer ${
+                                    activeTab === 'audit'
+                                        ? 'border-brand text-brand-active dark:text-brand-2'
+                                        : 'border-transparent text-ink-2 hover:text-ink hover:border-line'
+                                }`}
+                            >
+                                <Shield size={16} /> Auditoria & LGPD
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -98,78 +112,88 @@ export function Settings() {
                                     <CardTitle>Perfil</CardTitle>
                                     <CardDescription>Dados da conta autenticada — somente leitura.</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <dt className="text-xs font-bold uppercase tracking-wide text-ink-2">Nome</dt>
-                                            <dd className="text-sm text-ink mt-1">{currentUser?.name ?? '—'}</dd>
+                                <CardContent className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-full bg-surface-2 border border-line flex items-center justify-center text-ink font-bold text-lg">
+                                            {currentUser?.name?.slice(0, 2).toUpperCase() || 'US'}
                                         </div>
                                         <div>
-                                            <dt className="text-xs font-bold uppercase tracking-wide text-ink-2">E-mail</dt>
-                                            <dd className="text-sm text-ink mt-1">{currentUser?.email ?? '—'}</dd>
+                                            <p className="font-bold text-ink text-base">{currentUser?.name || 'Usuário'}</p>
+                                            <p className="text-xs text-ink-2">{currentUser?.email || 'email@exemplo.com'}</p>
+                                            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-brand/10 text-brand">
+                                                {currentUser?.role || 'USUÁRIO'}
+                                            </span>
                                         </div>
-                                        <div>
-                                            <dt className="text-xs font-bold uppercase tracking-wide text-ink-2">Função</dt>
-                                            <dd className="text-sm text-ink mt-1">{currentUser?.roleTitle ?? '—'}</dd>
-                                        </div>
-                                    </dl>
+                                    </div>
                                 </CardContent>
                             </Card>
 
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Aparência</CardTitle>
-                                    <CardDescription>Tema da interface e marca comercial ativa.</CardDescription>
+                                    <CardTitle>Aparência e Tema</CardTitle>
+                                    <CardDescription>Escolha o tema visual e a marca da interface.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-5">
-                                    <div className="flex items-center justify-between gap-4 p-4 rounded-card border border-line bg-surface-2">
-                                        <div>
-                                            <p className="text-sm font-bold text-ink">Tema</p>
-                                            <p className="text-xs text-ink-2 mt-0.5">
-                                                {theme === 'dark' ? 'Escuro' : 'Claro'} — muda em toda a plataforma.
-                                            </p>
+                                <CardContent className="space-y-6">
+                                    <div>
+                                        <label className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                                            Tema
+                                        </label>
+                                        <div className="flex gap-4">
+                                            <button
+                                                type="button"
+                                                onClick={toggleTheme}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
+                                                    theme === 'dark'
+                                                        ? 'border-brand bg-brand/10 text-ink'
+                                                        : 'border-line bg-surface-2 text-ink-2 hover:text-ink'
+                                                }`}
+                                            >
+                                                <Moon size={18} /> Modo Escuro
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={toggleTheme}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl border font-bold text-sm transition-all ${
+                                                    theme === 'light'
+                                                        ? 'border-brand bg-brand/10 text-ink'
+                                                        : 'border-line bg-surface-2 text-ink-2 hover:text-ink'
+                                                }`}
+                                            >
+                                                <Sun size={18} /> Modo Claro
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={toggleTheme}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-line bg-surface text-ink text-sm font-bold hover:bg-surface-2 transition-colors cursor-pointer"
-                                        >
-                                            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                                            Mudar para {theme === 'dark' ? 'claro' : 'escuro'}
-                                        </button>
                                     </div>
 
                                     <div>
-                                        <p className="text-sm font-bold text-ink mb-2">Marca ativa</p>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {BRAND_OPTIONS.map((brand) => {
-                                                const info = BRAND_CONFIGS[brand];
-                                                const isActive = activeBrand === brand;
-                                                return (
-                                                    <button
-                                                        key={brand}
-                                                        type="button"
-                                                        onClick={() => setActiveBrand(brand)}
-                                                        aria-pressed={isActive}
-                                                        className={`relative flex items-center gap-3 p-4 rounded-card border text-left transition-all cursor-pointer ${
-                                                            isActive
-                                                                ? 'border-brand bg-brand/10'
-                                                                : 'border-line bg-surface hover:bg-surface-2'
-                                                        }`}
-                                                    >
-                                                        {brand === 'atlasgr'
-                                                            ? <Logo variant="symbol" className="h-8 w-8 shrink-0" />
-                                                            : <TotalTrackLogo variant="symbol" className="h-8 w-8 shrink-0" />}
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-black text-ink">{info.name}</p>
-                                                            <p className="text-xs text-ink-2 truncate">{info.operatingSystemName}</p>
+                                        <label className="text-xs font-bold text-ink-2 uppercase tracking-wider block mb-3">
+                                            Marca Ativa
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {BRAND_OPTIONS.map((brand) => (
+                                                <button
+                                                    key={brand}
+                                                    type="button"
+                                                    onClick={() => setActiveBrand(brand)}
+                                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all text-left ${
+                                                        activeBrand === brand
+                                                            ? 'border-brand bg-brand/5 shadow-sm'
+                                                            : 'border-line bg-surface-2/40 hover:bg-surface-2 text-ink-2 hover:text-ink'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        {brand === 'atlasgr' ? <Logo className="h-6 w-auto" /> : <TotalTrackLogo className="h-6 w-auto" />}
+                                                        <div>
+                                                            <p className="font-bold text-sm text-ink">{BRAND_CONFIGS[brand].name}</p>
+                                                            <p className="text-xs text-ink-2">{BRAND_CONFIGS[brand].operatingSystemName}</p>
                                                         </div>
-                                                        {isActive && (
-                                                            <Check className="w-4 h-4 text-brand ml-auto shrink-0" aria-hidden="true" />
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
+                                                    </div>
+                                                    {activeBrand === brand && (
+                                                        <div className="w-5 h-5 rounded-full bg-brand text-white flex items-center justify-center">
+                                                            <Check size={12} />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -194,6 +218,14 @@ export function Settings() {
                     <div className="p-6 sm:p-8">
                         <div className="max-w-4xl mx-auto">
                             <FeatureFlagsPanel />
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'audit' && isAdmin && (
+                    <div className="p-6 sm:p-8">
+                        <div className="max-w-5xl mx-auto">
+                            <AuditLogs />
                         </div>
                     </div>
                 )}
