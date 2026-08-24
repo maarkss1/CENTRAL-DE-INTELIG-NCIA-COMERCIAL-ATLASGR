@@ -124,7 +124,9 @@ export interface CompanyFilters {
     matrizFilial?: string;
     rntrc?: string;
     simples?: string;
-    mei?: string;
+    lat?: number;
+    lng?: number;
+    radiusKm?: number;
 }
 
 function queryString(values: Record<string, string | number | undefined>): string {
@@ -142,6 +144,8 @@ export const marketIntelligenceApi = {
         api.get<MarketCompanyListResult>(`${BASE}/companies?${queryString({ ...filters, page, pageSize })}`, { signal }),
     company: (cnpj: string, signal?: AbortSignal) =>
         api.get<MarketCompanyDetail>(`${BASE}/companies/${encodeURIComponent(cnpj)}`, { signal }),
+    approveToPipeline: (cnpj: string) =>
+        api.post<{ company: any; lead: any; message: string }>(`${BASE}/companies/${encodeURIComponent(cnpj)}/approve-to-pipeline`, {}),
     territories: (uf?: string, signal?: AbortSignal) =>
         api.get<{ hierarchy: string; data: MarketTerritory[]; metadata: MarketDatasetMetadata }>(
             `${BASE}/territories?${queryString({ uf })}`, { signal },

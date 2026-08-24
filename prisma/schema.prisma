@@ -743,6 +743,7 @@ model Organization {
   updatedAt                     DateTime                       @updatedAt
   threeCXCallEvents             ThreeCXCallEvent[]
   publicBookingLinks            PublicBookingLink[]
+  savedSearches                 SavedSearch[]
 }
 
 // ─── Comercial Inteligente (Revenue Command Center) ────────────────────────
@@ -2544,3 +2545,20 @@ model PublicBookingLink {
   @@index([organizationId, userId])
   @@index([slug])
 }
+
+model SavedSearch {
+  id              String       @id @default(cuid())
+  name            String
+  criteria        Json         // { segment, location, fleetSizeMin, keywords, radiusKm, lat, lng }
+  schedule        String?      // "daily" | "weekly" | null
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  leadsDiscovered Int          @default(0)
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
