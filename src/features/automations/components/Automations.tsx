@@ -118,10 +118,10 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
 
                 <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
                     <div className="mb-6">
-                        <label className={labelClass} htmlFor="auto-nome">Nome da Regra</label>
+                        <label className={labelClass} htmlFor="auto-nome">Nome</label>
                         <input
                             id="auto-nome" value={name} onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Avisar time quando lead chegar em Proposta"
+                            placeholder="Ex: Avisar em Proposta Enviada"
                             className={inputClass}
                             autoFocus
                         />
@@ -129,7 +129,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
 
                     <div className="pt-2">
                         <VisualNode icon={Play} title="Gatilho" subtitle="O que dispara esta automação?">
+                            <label className={labelClass} htmlFor="auto-trigger">Quando</label>
                             <select
+                                id="auto-trigger"
                                 value={trigger}
                                 onChange={(e) => {
                                     const novoGatilho = e.target.value as AutomationTrigger;
@@ -147,8 +149,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                         {permiteCondicaoStatus && (
                             <VisualNode icon={Filter} title="Condições" subtitle="Filtros adicionais (opcional)">
                                 <div>
-                                    <label className={labelClass}>Somente na etapa</label>
+                                    <label className={labelClass} htmlFor="auto-status">Somente na etapa</label>
                                     <select
+                                        id="auto-status"
                                         value={statusCondition}
                                         onChange={(e) => setStatusCondition(e.target.value)}
                                         className={inputClass}
@@ -158,10 +161,11 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                                     </select>
                                 </div>
                                 <div className="mt-3">
-                                    <label className={labelClass}>
-                                        Reavaliar se ficar parado por (dias)
+                                    <label className={labelClass} htmlFor="auto-stagnation">
+                                        Reavaliar todo dia se ficar parado por (dias)
                                     </label>
                                     <input
+                                        id="auto-stagnation"
                                         type="number" min="1" value={stagnationDays}
                                         onChange={(e) => setStagnationDays(e.target.value)}
                                         placeholder="Ex: 3"
@@ -197,7 +201,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                                             className={inputClass}
                                         />
                                     </div>
-                                    <label className="flex items-center gap-2 text-xs text-ink-2 select-none">
+                                    <label className="flex items-center gap-2 text-xs text-ink-2 select-none cursor-pointer">
                                         <input
                                             type="checkbox" checked={emailChannel}
                                             onChange={(e) => setEmailChannel(e.target.checked)}
@@ -207,7 +211,9 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                                     </label>
                                     {emailChannel && (
                                         <div>
+                                            <label className={labelClass} htmlFor="auto-email-to">Enviar para (e-mail)</label>
                                             <input
+                                                id="auto-email-to"
                                                 type="email" value={emailTo}
                                                 onChange={(e) => setEmailTo(e.target.value)}
                                                 placeholder="gestor@atlasgr.com.br"
@@ -238,7 +244,7 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                     <Button variant="outline" onClick={onCancel} disabled={saving}>Cancelar</Button>
                     <Button onClick={() => void submit()} disabled={saving}>
                         {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Salvar Automação
+                        Criar
                     </Button>
                 </div>
             </div>

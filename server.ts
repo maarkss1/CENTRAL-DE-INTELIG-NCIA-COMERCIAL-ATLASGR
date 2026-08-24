@@ -606,6 +606,8 @@ async function startServer() {
             });
         });
 
+        await sseService.closeAll();
+
         await leadsWorker?.close();
         await agentWorker?.close();
         await searchWorker?.close();
