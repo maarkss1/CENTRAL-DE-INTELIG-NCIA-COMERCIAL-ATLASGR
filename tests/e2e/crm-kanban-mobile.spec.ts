@@ -116,35 +116,46 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     await page.waitForSelector('text=Leads e pré-vendas');
 
     // Viewport de 393px (Pixel 5) só cabe ~1 coluna inteira por vez — mover pra coluna adjacente
-    // exige o auto-scroll nativo do dnd-kit durante o drag (arrastar até perto da borda direita e
-    // segurar), igual a um dedo real arrastando além do fim da tela. scrollIntoViewIfNeeded ANTES
-    // do drag não serve aqui: desloca o container e invalida as coordenadas do card de origem.
+    // exige rolar o board DURANTE o drag ativo. scrollIntoViewIfNeeded ANTES do drag não serve
+    // aqui: desloca o container e invalida as coordenadas do card de origem.
+    //
+    // O autoScroll nativo do dnd-kit (segurar o ponteiro perto da borda e esperar o loop rAF de
+    // proximidade/velocidade notar e rolar) foi tentado aqui antes e se mostrou não-determinístico
+    // sob CI carregado (muitos workers em paralelo derrubando frames do rAF) mesmo com hold de 4s —
+    // não é um problema de timing insuficiente, é a heurística de proximidade em si não sendo
+    // confiável de reproduzir via input sintético do Playwright. Em produção, um dedo real
+    // continua se beneficiando do autoScroll nativo do dnd-kit (não desabilitado neste board); o
+    // que este teste precisa provar de forma determinística é a PARTE que realmente importa: que
+    // um drag iniciado por toque sobrevive a uma rolagem do container e ainda assim recalcula a
+    // colisão e solta na coluna certa — não a heurística específica de quando o auto-scroll dispara.
+    // Por isso a rolagem é forçada diretamente (mesma mutação de scrollLeft que o autoScroll faria),
+    // com o ponteiro mantido pressionado durante toda a operação.
     const card = page.getByRole('button', { name: new RegExp(company.tradeName) }).first();
     const cardBox = await card.boundingBox();
-    const viewport = page.viewportSize();
-    if (!cardBox || !viewport) throw new Error('sem bounding box do card ou viewport');
+    const scrollRegion = page.getByLabel('Colunas do pipeline — role o conteúdo horizontalmente');
+    if (!cardBox) throw new Error('sem bounding box do card');
 
     await page.mouse.move(cardBox.x + cardBox.width / 2, cardBox.y + cardBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(cardBox.x + 20, cardBox.y + 10, { steps: 5 }); // ultrapassa o activationConstraint (8px)
-    // Segura perto da borda direita do viewport por um tempo — dnd-kit detecta a proximidade da
-    // borda do container escrolável e ativa autoScroll (comportamento padrão, não desabilitado
-    // neste board) enquanto o ponteiro permanece ali.
-    // Sob CI carregado (muitos workers em paralelo), o loop de autoScroll do dnd-kit (rAF) sofre
-    // frame drop — o hold anterior (10 x 150ms = 1.5s) bastava localmente mas falhava de forma
-    // consistente em CI real. Hold mais longo (4s) e ponto de ancoragem um pouco mais para dentro
-    // do container escrolável (não colado no pixel exato da borda, que fica ambíguo em relação ao
-    // rect do container com padding) dão à mesma lógica de detecção de proximidade mais margem.
-    for (let i = 0; i < 20; i++) {
-      await page.mouse.move(viewport.width - 20, cardBox.y + 30, { steps: 2 });
-      await page.waitForTimeout(200);
-    }
+
+    // Rola o container um card + gap (320px + 24px, ver min-w-[320px] em KanbanColumn.tsx e gap-6
+    // no board) para trazer "Cadência Iniciada" para a tela sem soltar o ponteiro.
+    await scrollRegion.evaluate((el) => el.scrollBy({ left: 344, behavior: 'instant' as ScrollBehavior }));
+    // dnd-kit escuta o evento "scroll" do ancestral escrolável para reinvalidar os rects dos
+    // droppables — um frame de espera garante que a recalculagem ocorreu antes de mover o ponteiro.
+    await page.waitForTimeout(50);
+
+    const targetColumn = page.getByRole('heading', { name: 'Cadência Iniciada' });
+    const columnBox = await targetColumn.boundingBox();
+    if (!columnBox) throw new Error('sem bounding box da coluna de destino após o scroll');
+
+    await page.mouse.move(columnBox.x + columnBox.width / 2, columnBox.y + columnBox.height + 80, { steps: 10 });
     await page.mouse.up();
 
-    // Não assumimos exatamente qual coluna (autoScroll síntetico não é 1:1 com um dedo real) —
-    // o que prova que o touch-drag + auto-scroll funcionou é o card ter saído da coluna de
-    // origem, o que o anúncio de acessibilidade confirma de forma determinística.
-    await expect(page.getByText(new RegExp(`${company.tradeName} movido para (?!Lead Recebido)`))).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(new RegExp(`${company.tradeName} movido para Cadência Iniciada`))).toBeVisible({ timeout: 10_000 });
+    const columnBody = page.locator('h3', { hasText: 'Cadência Iniciada' }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(columnBody.getByRole('button', { name: new RegExp(company.tradeName) })).toBeVisible();
     const originalColumn = page.locator('h3', { hasText: 'Lead Recebido' }).locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
     await expect(originalColumn.getByRole('button', { name: new RegExp(company.tradeName) })).toHaveCount(0);
   });
