@@ -158,8 +158,17 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
     }))).rejects.toThrow();
   });
 
-  it('guardrail do banco rejeita telefone/e-mail mesmo quando o importador usa bypass RLS', async () => {
-    await expect(withRlsBypass(() => prisma.marketIntelligenceCompany.create({
+  // Até 20260818190000_market_intelligence_catalog_guardrails, um CHECK constraint
+  // (MarketIntelligenceCompany_global_contact_redaction_check) rejeitava telefone/e-mail na
+  // tabela mesmo com bypass RLS. 20260822220000_market_intelligence_company_contact_allowed
+  // removeu esse CHECK de propósito (decisão de produto AtlasGR de 2026-08-22): o catálogo passa
+  // a persistir o contato cadastral da Receita Federal na tabela global. O que continua garantido
+  // — e é o que este teste verifica agora — é que a API pública (listMarketIntelligenceCompanies/
+  // getMarketIntelligenceCompany) nunca expõe esse contato: LIST_SELECT/DETAIL_SELECT em
+  // marketIntelligenceCompany.service.ts nunca incluem email/telefone1/fax, então a redação
+  // continua acontecendo na camada de leitura mesmo a linha existindo com contato preenchido.
+  it('telefone/e-mail cadastral é aceito no catálogo (bypass RLS) mas continua redigido na leitura pública', async () => {
+    await withRlsBypass(() => prisma.marketIntelligenceCompany.create({
       data: {
         ...activeRibeirao,
         id: 'mic-etapa2-contact-guard',
@@ -169,6 +178,18 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
         email: 'contato@fixture.invalid',
         telefone1: '30000000',
       },
-    }))).rejects.toThrow();
+    }));
+
+    const detail = await withTenant(TENANT_A, () => getMarketIntelligenceCompany('C2345678000193'));
+    expect(detail.company).not.toBeNull();
+    expect(detail.company).not.toHaveProperty('email');
+    expect(detail.company).not.toHaveProperty('telefone1');
+    expect(detail.company?.provenance).toMatchObject({ publicContact: 'REDACTED_GLOBAL_CATALOG' });
+
+    const list = await withTenant(TENANT_A, () => listMarketIntelligenceCompanies(
+      parseCompanyCatalogQuery({ cnpj: 'C2345678000193' }),
+    ));
+    expect(list.data[0]).not.toHaveProperty('email');
+    expect(list.data[0]).not.toHaveProperty('telefone1');
   });
 });
