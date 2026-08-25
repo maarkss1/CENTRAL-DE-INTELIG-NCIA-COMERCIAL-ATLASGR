@@ -130,9 +130,14 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     // Segura perto da borda direita do viewport por um tempo — dnd-kit detecta a proximidade da
     // borda do container escrolável e ativa autoScroll (comportamento padrão, não desabilitado
     // neste board) enquanto o ponteiro permanece ali.
-    for (let i = 0; i < 10; i++) {
-      await page.mouse.move(viewport.width - 10, cardBox.y + 30, { steps: 2 });
-      await page.waitForTimeout(150);
+    // Sob CI carregado (muitos workers em paralelo), o loop de autoScroll do dnd-kit (rAF) sofre
+    // frame drop — o hold anterior (10 x 150ms = 1.5s) bastava localmente mas falhava de forma
+    // consistente em CI real. Hold mais longo (4s) e ponto de ancoragem um pouco mais para dentro
+    // do container escrolável (não colado no pixel exato da borda, que fica ambíguo em relação ao
+    // rect do container com padding) dão à mesma lógica de detecção de proximidade mais margem.
+    for (let i = 0; i < 20; i++) {
+      await page.mouse.move(viewport.width - 20, cardBox.y + 30, { steps: 2 });
+      await page.waitForTimeout(200);
     }
     await page.mouse.up();
 
