@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [ validation/onda-2.5-base ]
 
+permissions:
+  contents: read
+
 jobs:
   gate:
     runs-on: ubuntu-latest
