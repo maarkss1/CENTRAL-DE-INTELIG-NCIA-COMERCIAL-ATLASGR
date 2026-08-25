@@ -7,27 +7,29 @@
 > estado real do código. Eles não foram apagados porque preservam contexto histórico útil,
 > mas **não devem ser tratados como fonte de verdade**.
 >
-> A fonte de verdade **atual** sobre dívida técnica, arquitetura, segurança e roadmap é
-> **[`docs/auditoria-divida-tecnica/`](../auditoria-divida-tecnica/)**, em especial:
-> - [`03-MATRIZ-DIVIDA-TECNICA.md`](../auditoria-divida-tecnica/03-MATRIZ-DIVIDA-TECNICA.md) — matriz consolidada de itens de dívida técnica
-> - [`04-ROADMAP-CORRECAO.md`](../auditoria-divida-tecnica/04-ROADMAP-CORRECAO.md) — roadmap de correção priorizado
-> - [`00-RESUMO-EXECUTIVO.md`](../auditoria-divida-tecnica/00-RESUMO-EXECUTIVO.md) — resumo executivo e Technical Health Score
+> A fonte de verdade **atual** sobre dívida técnica de arquitetura é
+> **[`docs/auditoria-divida-tecnica/`](../auditoria-divida-tecnica/)**, em especial
+> [`10-DIAGNOSTICO-ARQUITETURA.md`](../auditoria-divida-tecnica/10-DIAGNOSTICO-ARQUITETURA.md).
+> Esta nota citava anteriormente `00-RESUMO-EXECUTIVO.md`, `03-MATRIZ-DIVIDA-TECNICA.md` e
+> `04-ROADMAP-CORRECAO.md` como os documentos centrais dessa pasta — **esses três arquivos nunca
+> existiram no histórico do git deste repositório** (corrigido em 25/08/2026, ITEM-14; não é uma
+> remoção, a referência nunca foi válida). Ver [`docs/REMOVED-DOCS.md`](../REMOVED-DOCS.md) para o
+> inventário completo do que foi de fato removido do controle de versão.
 >
 > Este README apenas indexa e agrupa os relatórios abaixo por tema para facilitar a
 > navegação — não é uma consolidação de conteúdo nem uma reavaliação do que ainda é válido.
 
-Este diretório reúne ~28 relatórios produzidos em diferentes ciclos de trabalho do
+Este diretório reúne relatórios produzidos em diferentes ciclos de trabalho do
 projeto (auditorias, migrações de arquitetura, QA, segurança, etc.). Abaixo eles estão
-agrupados por tema.
+agrupados por tema — só os que ainda existem neste diretório; seis relatórios que apareciam
+aqui (`EXECUTIVE_MATRIX_ROADMAP.md`, `FINAL_FORENSIC_AUDIT.md`, `RELATORIO_TECHNICAL_DEBT.md`,
+`RELATORIO_UX_USABILIDADE_DIVIDA_TECNICA.md`, `Sprint0-Audit.md`,
+`TECHNICAL_DEBT_50_50_ANALYSIS.md`) foram removidos do controle de versão em 22/08/2026 por
+pedido explícito do usuário — ver [`docs/REMOVED-DOCS.md`](../REMOVED-DOCS.md).
 
 ## Auditorias gerais e roadmap enterprise
 
 - [`AUDIT_REPORT.md`](AUDIT_REPORT.md) — Auditoria enterprise por pilares (banco de dados, performance) visando evolução para SaaS B2B Enterprise.
-- [`FINAL_FORENSIC_AUDIT.md`](FINAL_FORENSIC_AUDIT.md) — Auditoria forense completa (estática e dinâmica) de código, dependências, testes e arquitetura.
-- [`EXECUTIVE_MATRIX_ROADMAP.md`](EXECUTIVE_MATRIX_ROADMAP.md) — Roadmap executivo e matriz de evolução enterprise (NexusOne OS), com itens priorizados por janela de execução.
-- [`TECHNICAL_DEBT_50_50_ANALYSIS.md`](TECHNICAL_DEBT_50_50_ANALYSIS.md) — Análise estrutural com 50 itens de dívida técnica/refatoração + 50 itens de roadmap/funcionalidades.
-- [`RELATORIO_TECHNICAL_DEBT.md`](RELATORIO_TECHNICAL_DEBT.md) — Inventário pontual de dívidas técnicas (tipagens `any`, cobertura de testes, warnings de hooks).
-- [`Sprint0-Audit.md`](Sprint0-Audit.md) — Auditoria do Sprint 0 do Lead Enrichment Engine: duplicação entre implementação monolítica e adapters de Clean Architecture.
 
 ## CRM e migração SDR/BDR
 
@@ -66,5 +68,12 @@ agrupados por tema.
 
 ## UX e organização do repositório
 
-- [`RELATORIO_UX_USABILIDADE_DIVIDA_TECNICA.md`](RELATORIO_UX_USABILIDADE_DIVIDA_TECNICA.md) — Auditoria de dívida técnica de UX/UI (posicionamento absoluto, alturas fixas, fragmentação de bibliotecas de animação).
 - [`REPOSITORY_CLEANUP_REPORT.md`](REPOSITORY_CLEANUP_REPORT.md) — Reorganização e limpeza do repositório (remoção de scripts corrompidos e duplicatas na raiz).
+
+## Product Adoption & Commercial Intelligence
+
+- [`PRODUCT_ADOPTION_INTELLIGENCE_ATLASGR.md`](PRODUCT_ADOPTION_INTELLIGENCE_ATLASGR.md) —
+  diagnóstico de maturidade de produto e blueprint de instrumentação de adoção (07/08/2026);
+  movido para cá em 25/08/2026 (ITEM-14) — vivia solto na raiz do repositório, sem nenhuma
+  referência de outros documentos, com o mesmo perfil (auditoria pontual e não atualizada
+  retroativamente) dos demais relatórios listados aqui.
