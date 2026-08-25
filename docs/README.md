@@ -51,6 +51,12 @@
 
 - [Matriz de compliance](compliance/COMPLIANCE_MATRIX.md)
 
+## Performance
+
+- [Budgets de performance — bundle, tamanho e latência](development/PERFORMANCE_BUDGETS.md) —
+  limites mensuráveis de tamanho de bundle frontend e latência de endpoints críticos, e como o CI
+  os verifica (`npm run check:bundle-budget`, `tests/load/k6-api.js`).
+
 ## Relatórios
 
 Consulte o [índice de relatórios](reports/README.md) — registros históricos de sessões
