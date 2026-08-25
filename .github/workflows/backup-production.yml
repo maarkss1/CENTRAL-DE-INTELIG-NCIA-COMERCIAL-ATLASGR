@@ -9,6 +9,8 @@ name: Backup de produção (ativação pendente)
 on:
   workflow_dispatch: {}
 
+permissions: {}
+
 jobs:
   backup:
     name: Dump + upload criptografado
