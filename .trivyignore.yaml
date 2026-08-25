@@ -15,3 +15,15 @@ vulnerabilities:
       temporariamente porque o único fix automático rebaixaria o Prisma de uma major para outra.
       Ver docs/security/AUDIT_WAIVERS.md para o detalhamento completo e o dono do waiver.
     expired_at: 2026-09-16
+  # Mesma vulnerabilidade que GHSA-ggr8-5vv4-36mx acima (mesmo pacote deepmerge-ts, mesma cadeia
+  # via prisma/@prisma/config, mesmo texto de advisory "stack exhaustion when merging recursive
+  # object graphs") — só indexada por ID diferente na base do Trivy (CVE, não GHSA). Confirmado
+  # rodando `trivy fs` localmente contra este repositório em 2026-08-25 (ver PR #269): sem esta
+  # entrada, o Trivy reporta HIGH em package-lock.json mesmo com o waiver GHSA já presente acima,
+  # porque o Trivy casa por ID exato, não por pacote/descrição.
+  - id: CVE-2026-40345
+    statement: >-
+      Mesma vulnerabilidade de GHSA-ggr8-5vv4-36mx (deepmerge-ts <8.0.0 via prisma/@prisma/config),
+      só sob o ID que o Trivy usa para ela. Ver docs/security/AUDIT_WAIVERS.md para o
+      detalhamento completo e o dono do waiver.
+    expired_at: 2026-09-16
