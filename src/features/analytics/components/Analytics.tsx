@@ -159,7 +159,7 @@ export function Analytics() {
                                 </button>
                             ))}
                         </div>
-                        <Button variant="outline" onClick={() => void load(months)} disabled={loading}>
+                        <Button variant="outline" onClick={() => void load(months)} disabled={loading} title="Atualizar dados" aria-label="Atualizar dados">
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         </Button>
                     </div>
