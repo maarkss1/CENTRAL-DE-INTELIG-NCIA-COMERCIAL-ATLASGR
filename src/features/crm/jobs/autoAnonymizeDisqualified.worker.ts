@@ -32,6 +32,18 @@ export async function runAutoAnonymizeSweep(): Promise<{ anonymizedCount: number
         // cross-tenant (aqui, "quais leads em QUALQUER organização são elegíveis"); cada
         // anonimização em si já roda escopada ao tenant certo dentro de `eraseDataSubject`
         // (`requestContext.run({ tenantId: ... })`, ver dataSubjectErasure.service.ts).
+        //
+        // ITEM-02 (remediação de dívida técnica P0): a descoberta cross-tenant NÃO filtra mais por
+        // `contact: { name: { not: ANONYMIZED } }` aqui — esse filtro fazia o Prisma gerar um JOIN
+        // contra `Contact`, e `Contact` (dado pessoal do titular) deliberadamente NÃO está no
+        // allowlist de bypass (`BYPASS_RLS_ALLOWED_MODELS`, src/lib/prisma.ts) precisamente por ser
+        // uma das tabelas mais sensíveis do produto — com a RLS de `Contact` fechada para bypass
+        // (migration 20260825120000_scope_rls_bypass_to_bootstrap_allowlist), esse JOIN cross-tenant
+        // sob bypass sempre devolvia zero linhas (a varredura silenciosamente parava de anonimizar
+        // qualquer lead de novo). A elegibilidade "contato ainda não anonimizado" agora é checada
+        // abaixo, DEPOIS de resolver o tenant de cada lead (`contact` lido dentro do próprio
+        // `requestContext.run({ tenantId })`, RLS real de tenant, sem bypass nenhum) — `Lead` segue
+        // sendo a única leitura cross-tenant sob bypass, exatamente como antes.
         const leadsToAnonymize = await requestContext.run({ bypassRls: true }, () =>
             // IMPORTANTE: `await` a query AQUI DENTRO do callback do run(), não fora — Prisma
             // devolve um PrismaPromise "lazy" que só dispara (e só enxerga o AsyncLocalStorage
@@ -41,9 +53,6 @@ export async function runAutoAnonymizeSweep(): Promise<{ anonymizedCount: number
                 where: {
                     status: { in: ['Negocios_Perdidos'] },
                     updatedAt: { lte: ninetyDaysAgo },
-                    contact: {
-                        name: { not: '[titular anonimizado — LGPD]' }
-                    }
                 },
                 select: {
                     id: true,
@@ -56,13 +65,21 @@ export async function runAutoAnonymizeSweep(): Promise<{ anonymizedCount: number
 
         let anonymizedCount = 0;
         for (const lead of leadsToAnonymize) {
-            if (lead.contactId && lead.organizationId) {
-                await eraseDataSubject({
-                    organizationId: lead.organizationId,
-                    contactId: lead.contactId
-                });
-                anonymizedCount++;
-            }
+            if (!lead.contactId || !lead.organizationId) continue;
+
+            const alreadyAnonymized = await requestContext.run({ tenantId: lead.organizationId }, () =>
+                prisma.contact.findFirst({
+                    where: { id: lead.contactId!, name: '[titular anonimizado — LGPD]' },
+                    select: { id: true },
+                }),
+            );
+            if (alreadyAnonymized) continue;
+
+            await eraseDataSubject({
+                organizationId: lead.organizationId,
+                contactId: lead.contactId
+            });
+            anonymizedCount++;
         }
 
         logger.info({ anonymizedCount }, 'Anonimização automática de leads concluída');
