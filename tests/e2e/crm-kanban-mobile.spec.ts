@@ -142,15 +142,32 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     // Rola o container um card + gap (320px + 24px, ver min-w-[320px] em KanbanColumn.tsx e gap-6
     // no board) para trazer "Cadência Iniciada" para a tela sem soltar o ponteiro.
     await scrollRegion.evaluate((el) => el.scrollBy({ left: 344, behavior: 'instant' as ScrollBehavior }));
-    // dnd-kit escuta o evento "scroll" do ancestral escrolável para reinvalidar os rects dos
-    // droppables — um frame de espera garante que a recalculagem ocorreu antes de mover o ponteiro.
-    await page.waitForTimeout(50);
+    // Espera o scrollLeft de fato assentar em vez de um timeout fixo — mais robusto a qualquer
+    // atraso de reflow/scroll assíncrono sob CI carregado.
+    await scrollRegion.evaluate((el) => new Promise<void>((resolve) => {
+      const check = () => (el.scrollLeft >= 340 ? resolve() : requestAnimationFrame(check));
+      check();
+    }));
 
     const targetColumn = page.getByRole('heading', { name: 'Cadência Iniciada' });
     const columnBox = await targetColumn.boundingBox();
     if (!columnBox) throw new Error('sem bounding box da coluna de destino após o scroll');
 
-    await page.mouse.move(columnBox.x + columnBox.width / 2, columnBox.y + columnBox.height + 80, { steps: 10 });
+    // Movimento em duas etapas (posição intermediária + posição final) em vez de um único salto —
+    // dnd-kit recalcula colisão a cada pointermove; múltiplos eventos dão à recalculagem baseada em
+    // scroll (MeasuringStrategy.WhileDragging) mais chances de já estar com os rects atualizados
+    // quando o ponteiro chega ao alvo final.
+    const dropX = columnBox.x + columnBox.width / 2;
+    const dropY = columnBox.y + columnBox.height + 80;
+    await page.mouse.move(dropX - 30, dropY - 30, { steps: 5 });
+    await page.mouse.move(dropX, dropY, { steps: 5 });
+
+    // Confirma visualmente que o dnd-kit reconheceu "Cadência Iniciada" como alvo de drop (mesmo
+    // destaque usado pelo teste de mouse desktop) ANTES de soltar — se isso falhar, o erro aponta
+    // direto para a detecção de colisão pós-scroll, não para um sintoma tardio no toast/anúncio.
+    const targetColumnBody = targetColumn.locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    await expect(targetColumnBody).toHaveClass(/border-brand/, { timeout: 5_000 });
+
     await page.mouse.up();
 
     await expect(page.getByText(new RegExp(`${company.tradeName} movido para Cadência Iniciada`))).toBeVisible({ timeout: 10_000 });
