@@ -33,10 +33,14 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 
 ## Waivers ativos
 
-### `GHSA-ggr8-5vv4-36mx` — `deepmerge-ts` (stack exhaustion) via `@prisma/config`/`prisma`
+### `GHSA-ggr8-5vv4-36mx` / `CVE-2026-40345` — `deepmerge-ts` (stack exhaustion) via `@prisma/config`/`prisma`
 
 - **Advisory:** https://github.com/advisories/GHSA-ggr8-5vv4-36mx — `deepmerge-ts <8.0.0` tem
-  esgotamento de pilha (DoS) ao mesclar grafos de objeto recursivos.
+  esgotamento de pilha (DoS) ao mesclar grafos de objeto recursivos. **Mesma vulnerabilidade**
+  aparece na base do Trivy sob `CVE-2026-40345` (confirmado em 2026-08-25 rodando `trivy fs`
+  localmente contra este repositório, PR #269 do ITEM-10 — texto do advisory idêntico, mesmo
+  pacote, mesma cadeia). `npm audit`/GitHub Advisory Database indexam por GHSA ID; o Trivy indexa
+  por CVE ID para este achado — os dois IDs são o mesmo waiver, não dois achados diferentes.
 - **Severidade reportada pelo `npm audit`:** high (propaga para `@prisma/config` e `prisma`, ambos
   marcados high por dependerem transitivamente de `deepmerge-ts`).
 - **Cadeia:** `prisma@7.8.0` → `@prisma/config@7.8.0` → `deepmerge-ts<8.0.0`.
@@ -49,11 +53,15 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
   em runtime da aplicação — risco de exploração em produção é baixo.
 - **Dono:** Agente 00 / dono do repositório — reavaliar quando o Prisma publicar uma versão `7.x`
   que atualize `deepmerge-ts` para `>=8.0.0`, ou ao planejar a próxima major do Prisma.
-  Verificar com `npm audit --audit-level=high` a cada reavaliação.
+  Verificar com `npm audit --audit-level=high` **e** `trivy fs --severity HIGH,CRITICAL` a cada
+  reavaliação — as duas ferramentas precisam ficar limpas (ou com este waiver renovado nas duas)
+  antes de considerar o achado resolvido.
 - **Data de registro:** 2026-08-17. **Reavaliar em:** próxima atualização de `prisma`/`@prisma/config`
-  ou em 30 dias, o que vier primeiro.
-- **Escopo do waiver:** só este advisory ID, só via esta cadeia de dependência. Qualquer outro
-  achado `HIGH`/`CRITICAL` novo continua bloqueando o gate normalmente.
+  ou em 30 dias, o que vier primeiro (`expired_at: 2026-09-16` em `.trivyignore.yaml` para as duas
+  entradas — reavaliar as duas juntas, mesmo prazo).
+- **Escopo do waiver:** só estes dois advisory IDs (mesmo achado, dois catálogos), só via esta
+  cadeia de dependência. Qualquer outro achado `HIGH`/`CRITICAL` novo continua bloqueando o gate
+  normalmente.
 
 ## Débito conhecido, fora do escopo deste waiver (severidade abaixo do gate)
 
@@ -65,6 +73,16 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
 
 ## Histórico
 
+- 2026-08-25 — ITEM-10, correção pós-CI real (PR #269): o job `trivy-fs-pr-gate` novo (descrito
+  na entrada abaixo) falhou na primeira execução real em CI — `trivy fs` reportou HIGH em
+  `package-lock.json` mesmo com o waiver `GHSA-ggr8-5vv4-36mx` já em `.trivyignore.yaml`.
+  Investigado rodando `trivy fs --severity HIGH,CRITICAL --ignorefile .trivyignore.yaml --format
+  table` localmente (via `docker run --network host` com a CA/proxy do ambiente de agente — o
+  mesmo achado, não um achado novo): o Trivy indexa esta vulnerabilidade por `CVE-2026-40345`, não
+  pelo GHSA ID que `npm audit` usa. Adicionado `CVE-2026-40345` como segunda entrada em
+  `.trivyignore.yaml`, mesmo `expired_at`, e a entrada do waiver acima atualizada para citar os
+  dois IDs — não é um waiver novo, é o mesmo risco aceito, só reconhecido sob o ID que a
+  ferramenta usa.
 - 2026-08-25 — ITEM-10 (Onda 2, CodeQL/Trivy/Dependency Review bloqueantes): três gates novos
   passaram a checar vulnerabilidade de dependência em PR, além do `npm audit` já bloqueante em
   `ci.yml`/`production.yaml`/`cd-homolog.yml`: CodeQL (`.github/workflows/codeql.yml`,
