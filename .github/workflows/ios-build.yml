@@ -4,6 +4,9 @@ on:
   # Mobile é artefato sob demanda. O gate automático canônico vive em ci.yml.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   gate:
     name: iOS / quality gate
