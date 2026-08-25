@@ -4,6 +4,9 @@ on:
   # Mobile é artefato sob demanda. O gate automático canônico vive em ci.yml.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   gate:
     name: Android / quality gate
@@ -28,7 +31,7 @@ jobs:
       run: npx tsc --noEmit
 
     - name: Run Lint
-      run: npm run lint
+      run: npm run lint:ci
 
     - name: Run Unit Tests
       run: npm run test:unit
