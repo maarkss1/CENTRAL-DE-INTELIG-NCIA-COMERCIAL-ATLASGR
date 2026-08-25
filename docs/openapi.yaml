@@ -1597,6 +1597,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /events:
+    get:
+      tags: [Analytics]
+      summary: >-
+        Stream Server-Sent Events de eventos comerciais (crm_event) em tempo real do tenant
+        autenticado — não segue o envelope `{success,data}` padrão, é um stream contínuo
+        `text/event-stream`.
+      responses:
+        '200':
+          description: Stream de eventos SSE, uma conexão por sessão de usuário
+          content:
+            text/event-stream:
+              schema: { type: string }
+
   # ───────────────────────────── Knowledge ─────────────────────────────
   /knowledge:
     get:
