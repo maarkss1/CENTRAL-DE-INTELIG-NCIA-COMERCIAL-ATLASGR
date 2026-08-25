@@ -567,7 +567,7 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
                                         </div>
 
                                         {Object.keys(lead.qualification || {}).length === 0 ? (
-                                            <p className="text-xs text-ink-2 italic">Nenhuma resposta BANT registrada ainda. Clique em "Editar BANT" para qualificar.</p>
+                                            <p className="text-xs text-ink-2 italic">Nenhuma resposta BANT registrada ainda. Clique em &quot;Editar BANT&quot; para qualificar.</p>
                                         ) : (
                                             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line/50">
                                                 {Object.entries(lead.qualification || {}).map(([k, v]) => (

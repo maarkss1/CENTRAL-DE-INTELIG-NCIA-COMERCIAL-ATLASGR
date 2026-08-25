@@ -6,6 +6,9 @@ name: Production CI/CD
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -93,7 +96,7 @@ jobs:
         run: npm run security:audit-waivers
 
       - name: Run Lint
-        run: npm run lint
+        run: npm run lint:ci
 
       - name: Run Type Check
         run: npx tsc --noEmit
