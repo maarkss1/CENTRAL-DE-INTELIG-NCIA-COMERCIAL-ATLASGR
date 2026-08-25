@@ -194,4 +194,26 @@ export class LeadController {
             next(error);
         }
     };
+
+    batchUpdate = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { organizationId: orgId, id: actorUserId } = (req as AuthRequest).user;
+            const { leadIds, updates } = req.body as {
+                leadIds?: string[];
+                updates?: { status?: string; owner?: string; tags?: string[]; addTags?: string[]; removeTags?: string[] };
+            };
+            if (!Array.isArray(leadIds) || leadIds.length === 0) {
+                res.status(400).json({ success: false, error: 'leadIds é obrigatório e deve conter ao menos um id.' });
+                return;
+            }
+            if (!updates || typeof updates !== 'object') {
+                res.status(400).json({ success: false, error: 'updates deve ser um objeto com as alterações desejadas.' });
+                return;
+            }
+            const result = await this.leadUseCases.batchUpdateLeads(orgId, leadIds, updates, actorUserId);
+            res.json({ success: true, data: result });
+        } catch (error) {
+            next(error);
+        }
+    };
 }

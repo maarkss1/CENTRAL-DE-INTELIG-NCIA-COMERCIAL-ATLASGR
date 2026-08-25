@@ -44,6 +44,7 @@ import { prospectingRoutes } from './src/features/prospecting/routes/prospecting
 import { prospectingToolsRoutes } from './src/features/prospecting/routes/prospecting-tools.routes.js';
 import { noteRoutes } from './src/features/notes/routes/note.routes.js';
 import { analyticsRoutes } from './src/features/analytics/routes/analytics.routes.js';
+import { eventsRoutes } from './src/features/analytics/routes/events.routes.js';
 import { commercialIntelligenceRoutes } from './src/features/commercial-intelligence/routes/commercialIntelligence.routes.js';
 import { whatsappRoutes } from './src/features/integrations/whatsapp/whatsapp.routes.js';
 import { birthVoiceRoutes } from './src/features/integrations/birth-voice/birthVoice.routes.js';
@@ -60,6 +61,7 @@ import { notificationRoutes } from './src/features/notifications/notification.ro
 import { automationRoutes } from './src/features/automations/routes/automation.routes.js';
 import { usageRoutes } from './src/features/billing/usage.routes.js';
 import { cadenceRoutes } from './src/features/cadence/cadence.routes.js';
+import { publicBookingRouter, privateBookingRouter } from './src/features/calendar/routes/booking.routes.js';
 import { marketIntelligenceRoutes } from './src/features/market-intelligence/server/marketIntelligence.routes.js';
 import { accountIntelligenceRoutes } from './src/features/market-intelligence/server/accountIntelligence.routes.js';
 import { sseService } from './src/features/notifications/sse.service.js';
@@ -438,6 +440,7 @@ async function startServer() {
     app.use('/api/intelligence', requireTenant, intelligenceRoutes);
     app.use('/api/prompts', authenticateToken, requireTenant, promptRoutes);
     app.use('/api/analytics', authenticateToken, requireTenant, analyticsRoutes);
+    app.use('/api/events', authenticateToken, requireTenant, eventsRoutes);
     // Comercial Inteligente — módulo executivo restrito (ver AGENTS.md/CLAUDE.md e
     // src/lib/auth/authorization.ts). `requireRole` aqui é defesa em profundidade: o router em
     // commercialIntelligence.routes.ts já se protege sozinho (router.use(requireRole(...))), mas
@@ -468,6 +471,8 @@ async function startServer() {
     app.use('/api/auth-extra', authenticateToken, requireTenant, authExtraRoutes);
     app.use('/api/agent', requireTenant, agentRoutes);
     app.use('/api/cadence', authenticateToken, requireTenant, cadenceRoutes);
+    app.use('/api/calendar/booking-links', privateBookingRouter);
+    app.use('/api/calendar/book', publicBookingRouter);
     app.use('/api/market-intelligence', authenticateToken, requireTenant, marketIntelligenceRoutes);
     // Rotas de inteligência de conta (/accounts/...) — router separado, com sua própria checagem
     // de papel (requireRole dentro do próprio router). Ver comentário em marketIntelligence.routes.ts.
@@ -600,6 +605,8 @@ async function startServer() {
                 resolve();
             });
         });
+
+        await sseService.closeAll();
 
         await leadsWorker?.close();
         await agentWorker?.close();

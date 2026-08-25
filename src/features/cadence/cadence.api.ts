@@ -112,4 +112,7 @@ export const cadenceApi = {
     pauseRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/pause`, {}),
     resumeRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/resume`, {}),
     stopRun: (id: string) => api.post<CadenceRunDTO>(`/api/cadence/runs/${id}/stop`, {}),
+    templates: () => api.get<any[]>('/api/cadence/templates'),
+    createSequenceFromTemplate: (templateId: string) =>
+        api.post<CadenceSequenceDTO>(`/api/cadence/sequences/from-template/${templateId}`, {}),
 };

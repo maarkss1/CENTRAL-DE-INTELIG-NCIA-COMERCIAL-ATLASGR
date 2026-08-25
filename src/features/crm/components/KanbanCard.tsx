@@ -1,19 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Lead } from '../../../types';
-import { Building2, User, Calendar, Sparkles, Loader2, ArrowRightCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Building2, User, Calendar, Sparkles, Loader2, ArrowRightCircle, CheckSquare, Square } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { TechToolLogo } from '../../../components/ui/TechToolLogo';
+import { Lead } from '../../../types';
 
 const TEMPERATURE_EMOJI: Record<string, string> = { Quente: '🔥', Morno: '🌤️', Frio: '❄️' };
 
-// Hierarquia visual do badge de score — usa o campo `temperature` já existente (categórico:
-// Quente/Morno/Frio), sem inventar threshold novo em cima do número de `score`. Emoji + número
-// continuam sempre presentes (cor nunca é o único sinal); o que varia entre os 3 níveis é só o
-// "peso" do badge — preenchimento mais forte pra Quente, neutro/sem preenchimento pra Frio — pra
-// dar hierarquia sem virar semáforo, arco-íris ou glow. Frio usa bg-surface (transparente sobre o
-// card) porque text-ink-2 sobre bg-surface-2 fica em 4.24:1, abaixo de AA — sobre bg-surface (o
-// fundo real do card) dá 4.77:1.
 const SCORE_BADGE_CLASS: Record<string, string> = {
     Quente: 'bg-blue-500/30 border-blue-500/50 text-blue-700 dark:text-blue-300',
     Morno: 'bg-blue-500/20 border-blue-500/30 text-blue-700 dark:text-blue-300',
@@ -21,15 +14,47 @@ const SCORE_BADGE_CLASS: Record<string, string> = {
 };
 const DEFAULT_SCORE_BADGE_CLASS = SCORE_BADGE_CLASS.Morno;
 
+function getStagnationBadge(days: number) {
+    if (days <= 2) {
+        return {
+            label: `${days === 0 ? 'Hoje' : `${days}d`} sem parada`,
+            className: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300',
+            dot: 'bg-emerald-500',
+        };
+    }
+    if (days <= 7) {
+        return {
+            label: `${days}d parado`,
+            className: 'bg-amber-500/15 border-amber-500/30 text-amber-700 dark:text-amber-300',
+            dot: 'bg-amber-500',
+        };
+    }
+    return {
+        label: `${days}d estagnado`,
+        className: 'bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300 font-bold',
+        dot: 'bg-rose-500 animate-pulse',
+    };
+}
+
 interface KanbanCardProps {
     lead: Lead;
     onClick: (lead: Lead) => void;
     onEnrich?: (leadId: string) => Promise<void>;
-    /** Só passado na coluna "Convertido em Oportunidade" — move o card pro funil de Negócios. */
     onConvert?: (leadId: string) => Promise<void>;
+    isSelected?: boolean;
+    onToggleSelect?: (leadId: string) => void;
+    selectionMode?: boolean;
 }
 
-export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnrich, onConvert }: KanbanCardProps) {
+export const KanbanCard = React.memo(function KanbanCard({
+    lead,
+    onClick,
+    onEnrich,
+    onConvert,
+    isSelected = false,
+    onToggleSelect,
+    selectionMode = false,
+}: KanbanCardProps) {
     const [enriching, setEnriching] = useState(false);
     const [converting, setConverting] = useState(false);
     const techRowRef = useRef<HTMLDivElement>(null);
@@ -59,14 +84,18 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
     const companyName = lead.company?.tradeName || lead.company?.legalName || '';
     const hasCompanyName = companyName.length > 0;
 
-    // TechToolLogo (fora do escopo de edição desta rodada) sempre renderiza um <button> real,
-    // mesmo sem onClick. Aqui os logos são puramente informativos, então ficam fora do Tab/da
-    // árvore de acessibilidade pra não sobrar preso dentro do role="button" do card
-    // (nested-interactive confirmado pelo axe-core). O nome das tecnologias continua disponível
-    // pra leitor de tela via texto sr-only logo abaixo, pra não perder a informação.
+    // Cálculo de tempo de estagnação (dias sem interação/atualização)
+    const lastActivityDate = lead.lastInteraction || lead.updatedAt || lead.createdAt;
+    const daysStale = lastActivityDate
+        ? Math.max(0, Math.floor((Date.now() - new Date(lastActivityDate).getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
+    const stagnation = getStagnationBadge(daysStale);
+
+    const isBitrixSynced = Boolean(lead.bitrixLeadId || lead.bitrixDealId);
+
     useEffect(() => {
         const buttons = techRowRef.current?.querySelectorAll('button');
-        buttons?.forEach((btn) => {
+        buttons?.forEach((btn: HTMLButtonElement) => {
             btn.tabIndex = -1;
         });
     }, [companyTech.length]);
@@ -93,52 +122,51 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
         }
     };
 
+    const handleCheckboxClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onToggleSelect?.(lead.id);
+    };
+
     return (
         <div
             ref={setNodeRef}
             style={style}
-            // border-brand/ring-brand sozinhos falham o mínimo de contraste não-textual (3:1) da
-            // Total Trac em dark mode: --brand da Total Trac é #374898 (navy), só 2.25:1 contra a
-            // superfície escura — confirmado por cálculo real (getComputedStyle + fórmula WCAG),
-            // não "parece diferente". dark:hover:border-brand-2 / dark:ring-brand-2 trocam pro azul
-            // de acento mais claro (#008FCE) só no tema escuro, que dá 5.15:1; a AtlasGR passa nos
-            // dois casos com qualquer um dos dois tokens.
-            className={`bg-surface rounded-2xl border border-line shadow-md hover:border-brand/50 dark:hover:border-brand-2/50 hover:shadow-xl transition-all group ${isDragging ? 'shadow-2xl ring-2 ring-brand dark:ring-brand-2 z-50 bg-surface-2' : ''}`}
+            className={`bg-surface rounded-2xl border transition-all group relative ${
+                isSelected
+                    ? 'border-brand ring-2 ring-brand shadow-lg bg-surface-2/70'
+                    : 'border-line shadow-md hover:border-brand/50 dark:hover:border-brand-2/50 hover:shadow-xl'
+            } ${isDragging ? 'shadow-2xl ring-2 ring-brand dark:ring-brand-2 z-50 bg-surface-2' : ''}`}
         >
-            {/* Região arrastável/clicável — role="button" e o keydown do dnd-kit vêm de
-                attributes/listeners. Os botões de ação (abaixo) ficam FORA desta div de propósito:
-                um controle interativo real dentro de um elemento role="button" é nested-interactive
-                (violação confirmada pelo axe-core), e o dnd-kit precisa que pointer+teclado do drag
-                fiquem no mesmo nó pra preservar "arrastar segurando em qualquer parte do card" — não
-                dá pra isolar um drag handle sem mudar esse comportamento de mouse. Ver relato da
-                Rodada A pra essa limitação estrutural do dnd-kit. */}
+            {/* Checkbox de seleção múltipla (visível no hover ou quando selectionMode está ativo) */}
+            {(selectionMode || isSelected) && (
+                <button
+                    type="button"
+                    onClick={handleCheckboxClick}
+                    aria-label={isSelected ? `Desmarcar ${companyName}` : `Selecionar ${companyName}`}
+                    className="absolute top-3 left-3 z-20 p-1 rounded-lg bg-surface border border-line text-brand hover:scale-110 transition-transform shadow-sm"
+                >
+                    {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-brand fill-brand/20" />
+                    ) : (
+                        <Square className="w-4 h-4 text-ink-2" />
+                    )}
+                </button>
+            )}
+
             <div
                 {...attributes}
                 {...listeners}
                 role="button"
                 tabIndex={0}
                 onClick={() => onClick(lead)}
-                // BUG real (causava as 3 falhas E2E de "drag por teclado"): um `onKeyDown` literal
-                // depois do spread de `{...listeners}` SUBSTITUI por completo o onKeyDown do
-                // dnd-kit (mesma prop, a última declaração ganha em JSX) — não só pro Space do
-                // pickup, mas TAMBÉM pras setas de movimento e o Escape de cancelamento, porque
-                // tudo isso chega pelo mesmo handler de teclado do KeyboardSensor. O card nunca
-                // recebia nenhum evento de teclado do dnd-kit; aria-pressed nunca virava "true".
-                // Chamar `listeners.onKeyDown` primeiro devolve o comportamento de drag (Space
-                // pickup/drop, setas, Escape); só depois tratamos Enter pra abrir o drawer — Space
-                // nunca chamava `onClick` aqui mesmo antes (só Enter tinha essa finalidade real).
                 onKeyDown={(e) => {
                     listeners?.onKeyDown?.(e);
                     if (e.key === 'Enter') onClick(lead);
                 }}
-                className="p-4 pb-0 cursor-grab active:cursor-grabbing"
+                className={`p-4 pb-0 cursor-grab active:cursor-grabbing ${selectionMode || isSelected ? 'pl-9' : ''}`}
             >
+                {/* Cabeçalho do Card: Empresa, Temperatura e Score */}
                 <div className="flex justify-between items-start gap-2 mb-2">
-                    {/* line-clamp-2 (em vez de 1 linha truncada ou altura livre) evita que um nome
-                        muito longo estoure o card sem esconder o nome inteiro; title nativo dá
-                        acesso ao nome completo sem popover novo. Sem empresa vinculada é tratado
-                        como dado incompleto — itálico/tom secundário em vez do mesmo peso de um
-                        nome real, sem novo componente/alerta. */}
                     {hasCompanyName ? (
                         <h4 title={companyName} className="font-bold text-ink group-hover:text-brand-active dark:group-hover:text-brand-2 transition-colors text-sm line-clamp-2 leading-snug">
                             {companyName}
@@ -148,22 +176,76 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                             Sem empresa <span className="not-italic">· dados incompletos</span>
                         </h4>
                     )}
-                    {lead.score && (
-                        <span className={`shrink-0 text-xs font-extrabold border px-2 py-0.5 rounded-lg ${lead.temperature ? (SCORE_BADGE_CLASS[lead.temperature] ?? DEFAULT_SCORE_BADGE_CLASS) : DEFAULT_SCORE_BADGE_CLASS}`}>
-                            {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : ''}{lead.score}
+                    {(lead.score !== undefined && lead.score !== null) ? (
+                        <span className={`shrink-0 text-xs font-black border px-2 py-0.5 rounded-lg flex items-center gap-1 ${
+                            lead.score >= 70 ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' :
+                            lead.score >= 40 ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400' :
+                            'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                        }`}>
+                            {lead.temperature ? `${TEMPERATURE_EMOJI[lead.temperature] || ''} ` : '🎯 '}{lead.score}
+                        </span>
+                    ) : lead.temperature ? (
+                        <span className={`shrink-0 text-xs font-extrabold border px-2 py-0.5 rounded-lg ${SCORE_BADGE_CLASS[lead.temperature] ?? DEFAULT_SCORE_BADGE_CLASS}`}>
+                            {TEMPERATURE_EMOJI[lead.temperature]} {lead.temperature}
+                        </span>
+                    ) : null}
+                </div>
+
+                {/* Badges Informativas: Estagnação, Bitrix e Voz */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {/* Indicador Visual de Estagnação (Verde < 3d, Amarelo 3-7d, Vermelho > 7d) */}
+                    <span
+                        title={`Última atividade: ${new Date(lastActivityDate || '').toLocaleDateString('pt-BR')}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] border ${stagnation.className}`}
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${stagnation.dot}`} />
+                        {stagnation.label}
+                    </span>
+
+                    {isBitrixSynced && (
+                        <span
+                            title={`Sincronizado no Bitrix24 (ID #${lead.bitrixLeadId || lead.bitrixDealId})`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300"
+                        >
+                            🌐 Bitrix #{lead.bitrixLeadId || lead.bitrixDealId}
+                        </span>
+                    )}
+
+                    {Boolean(lead.customFields?.voiceQualified) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                            🎤 Voz Qualificada
                         </span>
                     )}
                 </div>
-                
-                {Boolean(lead.customFields?.voiceQualified) && (
-                    <div className="mb-2">
-                        <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+
+                {/* Badges Informativas: Estagnação, Bitrix e Voz */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {/* Indicador Visual de Estagnação (Verde < 3d, Amarelo 3-7d, Vermelho > 7d) */}
+                    <span
+                        title={`Última atividade: ${new Date(lastActivityDate || '').toLocaleDateString('pt-BR')}`}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] border ${stagnation.className}`}
+                    >
+                        <span className={`w-1.5 h-1.5 rounded-full ${stagnation.dot}`} />
+                        {stagnation.label}
+                    </span>
+
+                    {isBitrixSynced && (
+                        <span
+                            title={`Sincronizado no Bitrix24 (ID #${lead.bitrixLeadId || lead.bitrixDealId})`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-sky-500/15 border border-sky-500/30 text-sky-700 dark:text-sky-300"
+                        >
+                            🌐 Bitrix #{lead.bitrixLeadId || lead.bitrixDealId}
+                        </span>
+                    )}
+
+                    {Boolean(lead.customFields?.voiceQualified) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
                             🎤 Voz Qualificada
                         </span>
-                    </div>
-                )}
+                    )}
+                </div>
 
-                <div className="space-y-2 mt-2 text-xs text-ink-2">
+                <div className="space-y-1.5 mt-2 text-xs text-ink-2">
                     {lead.contact && (
                         <div className="flex items-center gap-1.5 text-ink-2">
                             <User className="w-3.5 h-3.5 text-ink-2" />
@@ -177,13 +259,10 @@ export const KanbanCard = React.memo(function KanbanCard({ lead, onClick, onEnri
                         </div>
                     )}
 
-                    {/* Logos das Ferramentas no Card CRM — meramente informativos aqui, não entram
-                        no Tab (ver useEffect acima); o nome de cada tecnologia segue acessível via
-                        o span sr-only logo abaixo. */}
                     {companyTech.length > 0 && (
                         <>
                             <div ref={techRowRef} aria-hidden="true" className="flex flex-wrap gap-1 pt-1">
-                                {companyTech.slice(0, 3).map((tech, i) => (
+                                {companyTech.slice(0, 3).map((tech: string, i: number) => (
                                     <TechToolLogo key={i} techName={tech} size="sm" />
                                 ))}
                             </div>

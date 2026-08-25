@@ -25,6 +25,7 @@ import { createLeadsWorker } from './src/lib/queue/index.js';
 import { createAgentWorker } from './src/lib/queue/agent.worker.js';
 import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
 import { createSearchWorker } from './src/lib/queue/search.queue.js';
+import { dailyReportWorker } from './src/lib/queue/dailyReport.worker.js';
 import { initMeiliIndexes } from './src/lib/search/index.js';
 import { createColdCallWorker, scheduleColdCallCampaigns } from './src/lib/queue/coldCall.worker.js';
 import { createWhatsAppSignalWorker } from './src/lib/queue/whatsappSignal.worker.js';
@@ -131,6 +132,7 @@ async function startWorkerProcess() {
         { name: 'cold-leads-scanner-queue', worker: coldLeadsScannerWorker },
         { name: 'stagnation-scanner-queue', worker: stagnationScannerWorker },
         { name: 'cadence-run-scanner', worker: cadenceRunWorker },
+        { name: 'daily-report', worker: dailyReportWorker },
     ];
 
     for (const { name, worker } of registeredWorkers) {

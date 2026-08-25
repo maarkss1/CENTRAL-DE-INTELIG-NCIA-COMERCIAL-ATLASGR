@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { CohortAnalysis } from './CohortAnalysis';
 import {
     analyticsApi, formatMonthLabel, PERIOD_OPTIONS,
     type AnalyticsDashboard,
@@ -383,6 +384,8 @@ export function Analytics() {
                                 <LostReasonsWidget data={data.lostReasons} />
                             </Card>
                         </div>
+
+                        <CohortAnalysis />
                     </motion.div>
                 )}
             </div>

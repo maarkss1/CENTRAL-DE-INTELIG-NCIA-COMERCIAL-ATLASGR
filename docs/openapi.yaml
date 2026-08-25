@@ -736,6 +736,99 @@ paths:
         '204':
           description: Removida
 
+  # ───────────────────────────── Calendar & Booking ─────────────────────────────
+  /calendar/booking-links:
+    get:
+      tags: [Activities]
+      summary: Lista todos os links de agendamento público da organização
+      responses:
+        '200':
+          description: Lista de links de agendamento
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    post:
+      tags: [Activities]
+      summary: Cria um novo link público de agendamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, title]
+              properties:
+                slug:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                durationMin:
+                  type: integer
+      responses:
+        '201':
+          description: Link criado
+
+  /calendar/booking-links/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    delete:
+      tags: [Activities]
+      summary: Desativa ou remove um link de agendamento
+      responses:
+        '200':
+          description: Removido
+
+  /calendar/book/{slug}:
+    parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Activities]
+      summary: Retorna detalhes públicos de um link de agendamento (host, horários disponíveis)
+      responses:
+        '200':
+          description: Detalhes do link de agendamento
+    post:
+      tags: [Activities]
+      summary: Realiza um agendamento público de reunião com o consultor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, phone, date, time]
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                phone:
+                  type: string
+                company:
+                  type: string
+                date:
+                  type: string
+                time:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Reunião agendada com sucesso
+
   # ───────────────────────────── Prospecting ─────────────────────────────
   /prospecting/apollo/reconnect:
     post:

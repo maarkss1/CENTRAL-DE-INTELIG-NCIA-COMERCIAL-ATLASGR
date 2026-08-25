@@ -8,6 +8,8 @@ import { Building2, AlertCircle, Loader2, ArrowLeft, Target, TrendingUp, Zap, Us
 import { api } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
 import { useActiveRecord } from '../../../contexts/ActiveRecordContext.js';
+import { VisualOrgChart } from './VisualOrgChart.js';
+import { CompanyBranchesView } from './CompanyBranchesView.js';
 
 interface AccountIntelligenceSummary {
     account: { id: string; legalName: string; tradeName: string | null };
@@ -280,7 +282,31 @@ export function Account360() {
                     </div>
                 )}
 
-                {activeTab !== 'overview' && !currentTab?.loading && !currentTab?.error && (currentTab?.result?.items.length ?? 0) === 0 && (
+                {activeTab === 'decision-makers' && !currentTab?.loading && !currentTab?.error && (
+                    <VisualOrgChart
+                        contacts={(currentTab?.result?.items || []).map((i: any) => ({
+                            id: i.id || i.contactId,
+                            name: i.name || i.contactName || 'Decisor',
+                            role: i.title || i.role || i.contactRole,
+                            seniority: i.seniority,
+                            email: i.email,
+                            phone: i.phone,
+                            whatsapp: i.phone,
+                            linkedin: i.linkedinUrl || i.linkedin,
+                            source: i.source,
+                        }))}
+                        companyName={intelligence?.account.tradeName || intelligence?.account.legalName}
+                    />
+                )}
+
+                {activeTab === 'economic-group' && !currentTab?.loading && !currentTab?.error && (
+                    <CompanyBranchesView
+                        cnpj={(intelligence?.account as any)?.cnpj || ''}
+                        companyName={intelligence?.account.tradeName || intelligence?.account.legalName || ''}
+                    />
+                )}
+
+                {activeTab !== 'overview' && activeTab !== 'decision-makers' && activeTab !== 'economic-group' && !currentTab?.loading && !currentTab?.error && (currentTab?.result?.items.length ?? 0) === 0 && (
                     <EmptyState
                         icon={<AlertCircle className="w-8 h-8 text-amber-400" />}
                         title="Sem dados"
@@ -288,7 +314,7 @@ export function Account360() {
                     />
                 )}
 
-                {activeTab !== 'overview' && !currentTab?.loading && !currentTab?.error && (currentTab?.result?.items.length ?? 0) > 0 && (
+                {activeTab !== 'overview' && activeTab !== 'decision-makers' && activeTab !== 'economic-group' && !currentTab?.loading && !currentTab?.error && (currentTab?.result?.items.length ?? 0) > 0 && (
                     <div className="space-y-3">
                         {currentTab!.result!.items.map((item, index) => (
                             <AccountRecordCard
