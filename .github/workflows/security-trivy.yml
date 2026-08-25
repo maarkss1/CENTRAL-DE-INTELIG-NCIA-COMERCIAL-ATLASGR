@@ -23,6 +23,9 @@ on:
   # esperar a próxima segunda-feira — útil logo depois de adicionar uma dependência nova.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   trivy-fs-scan:
     name: "Trivy — scan de filesystem/dependências (HIGH/CRITICAL)"
