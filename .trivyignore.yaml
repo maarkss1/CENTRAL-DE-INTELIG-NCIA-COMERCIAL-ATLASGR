@@ -1,0 +1,17 @@
+# Waivers para o gate de PR do Trivy (.github/workflows/security-trivy.yml, job
+# `trivy-fs-pr-gate`) e para o scan de imagem em produção (.github/workflows/production.yaml).
+#
+# Fonte de verdade única de POR QUÊ um advisory é aceito, dono e data de reavaliação:
+# docs/security/AUDIT_WAIVERS.md ("## Waivers ativos"). Este arquivo só espelha o(s) mesmo(s)
+# advisory ID(s) no formato que o Trivy entende, com o `expired_at` correspondente — quando
+# `docs/security/AUDIT_WAIVERS.md` mudar (nova entrada, expiração, remoção), atualize este arquivo
+# na mesma alteração. `expired_at` vencido faz o Trivy voltar a reportar o achado normalmente
+# (fail-closed automático, não depende de revisão manual notar a data vencida).
+vulnerabilities:
+  - id: GHSA-ggr8-5vv4-36mx
+    statement: >-
+      deepmerge-ts <8.0.0 via prisma/@prisma/config (carregamento de prisma.config.ts, ferramenta
+      de build/CLI — não processa entrada não confiável em runtime da aplicação). Aceito
+      temporariamente porque o único fix automático rebaixaria o Prisma de uma major para outra.
+      Ver docs/security/AUDIT_WAIVERS.md para o detalhamento completo e o dono do waiver.
+    expired_at: 2026-09-16
