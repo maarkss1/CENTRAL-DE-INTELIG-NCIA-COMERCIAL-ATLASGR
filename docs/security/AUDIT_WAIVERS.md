@@ -2,6 +2,18 @@
 
 Criado na Fase Final 1 (Gate Único de Release, ver `.agents/runs/final-fase-1.md`).
 
+**Fonte de verdade única** para dono, motivo e data de reavaliação de qualquer waiver de
+vulnerabilidade de dependência neste repositório — inclusive as duas outras ferramentas que também
+checam vulnerabilidade de dependência em PR (ITEM-10, Onda 2):
+
+- `.trivyignore.yaml` — waivers do gate de PR do Trivy (`.github/workflows/security-trivy.yml`,
+  job `trivy-fs-pr-gate`) e do scan de imagem em produção (`.github/workflows/production.yaml`).
+- `allow-ghsas` em `.github/workflows/dependency-review.yml` — waivers do Dependency Review.
+
+Os dois arquivos acima só espelham o(s) mesmo(s) advisory ID(s) já registrados aqui embaixo, no
+formato que cada ferramenta entende. Ao registrar, expirar ou remover um waiver **neste** arquivo,
+atualize os outros dois na mesma alteração — eles não leem este arquivo automaticamente.
+
 ## Regra
 
 `npm audit --audit-level=high` roda como gate obrigatório (sem `continue-on-error`) em todo
@@ -52,6 +64,20 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
   `exceljs`.
 
 ## Histórico
+
+- 2026-08-25 — ITEM-10 (Onda 2, CodeQL/Trivy/Dependency Review bloqueantes): três gates novos
+  passaram a checar vulnerabilidade de dependência em PR, além do `npm audit` já bloqueante em
+  `ci.yml`/`production.yaml`/`cd-homolog.yml`: CodeQL (`.github/workflows/codeql.yml`,
+  javascript-typescript + python, com gate real de `level: error` em
+  `scripts/security/check-codeql-sarif.ts` — `codeql-action/analyze` sozinho não falha o
+  workflow), Dependency Review (`.github/workflows/dependency-review.yml`, `fail-on-severity:
+  high` no diff de manifests do PR) e Trivy passando a rodar também em PR de forma bloqueante
+  (`.github/workflows/security-trivy.yml`, job `trivy-fs-pr-gate` — o scan semanal existente
+  continua não-bloqueante, agora só nos eventos `schedule`/`workflow_dispatch`). O scan de imagem
+  Docker (`production.yaml`, job `publish`) também passou a rodar Trivy antes do `docker push`,
+  bloqueando o release se a imagem tiver achado `HIGH`/`CRITICAL` com fix disponível sem waiver. O
+  waiver `GHSA-ggr8-5vv4-36mx` acima passou a ser espelhado em `.trivyignore.yaml` (Trivy) e em
+  `allow-ghsas` (Dependency Review) — ver nota no topo deste arquivo.
 
 - 2026-08-16 — Fase Final 1: removido `continue-on-error: true` do step de audit em `ci.yml` e
   `production.yaml`. O comentário anterior ("known issue with better-auth pending upstream

@@ -296,10 +296,15 @@ load — `tests/`), estendida para os dois módulos novos:
 
 Processo já existente, não recriado:
 
-- **CI (todo PR)**: gitleaks (segredo versionado), `npm audit --audit-level=high` (com
-  `continue-on-error`, risco aceito e documentado em `docs/ADR/ADR-001-BetterAuth-Vulnerability.md`),
-  lint, typecheck, testes unit/integration/e2e.
-- **Agendado**: Trivy semanal (dependências + filesystem), SonarQube em push/PR.
+- **CI (todo PR)**: gitleaks (segredo versionado), `npm audit --audit-level=high` (waiver-aware,
+  `scripts/security/check-audit-waivers.ts` — bloqueante, ver `docs/security/AUDIT_WAIVERS.md`),
+  lint, typecheck, testes unit/integration/e2e. **Desde o ITEM-10 (Onda 2, 2026-08-25)**, também
+  bloqueantes em todo PR: CodeQL (`.github/workflows/codeql.yml`, javascript-typescript + python),
+  Dependency Review (`.github/workflows/dependency-review.yml`) e Trivy fs/dependências
+  (`.github/workflows/security-trivy.yml`, job `trivy-fs-pr-gate`).
+- **Agendado**: Trivy semanal (dependências + filesystem, não bloqueante, job `trivy-fs-scan`),
+  SonarQube em push/PR. Scan de imagem Docker Trivy (bloqueante) roda em `production.yaml` antes
+  do `docker push`.
 - **Manual, pré-produção**: ZAP contra staging (`docs/deploy/RELEASE_CHECKLIST.md`), relatórios de
   pentest já produzidos em `docs/reports/PENTEST_REPORT.md`.
 - **Gap de frescor documental, não de processo** (fora de escopo desta mudança, registrado aqui

@@ -1,31 +1,81 @@
-name: Security - Trivy (agendado)
+name: Security - Trivy
 
-# Job SEMANAL, não roda em push/pull_request — não bloqueia PR. Decisão registrada no handoff
-# .agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md: `security:trivy` (scan de
-# filesystem/dependências, `npm run security:trivy` → `docker compose --profile tools run trivy`)
-# só falhou localmente por causa do proxy TLS deste ambiente de agente
-# (`mirror.gcr.io/aquasec/trivy-db`, "certificate signed by unknown authority") — o runner
-# hospedado do GitHub Actions tem rede irrestrita e não tem esse problema. Baixar o banco de
-# vulnerabilidades do Trivy em todo PR seria caro (minutos + rede) sem ganho real — CVE novo não
-# aparece a cada commit, então uma vez por semana é suficiente para não deixar findings HIGH/
-# CRITICAL não descobertos por muito tempo.
+# ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes) tornou o Trivy um gate real de PR,
+# além do scan semanal amplo que já existia. Dois jobs, cadências e propósitos diferentes:
 #
-# `security:zap` (scan dinâmico, precisa de app rodando) NÃO entra aqui de propósito — só faz
-# sentido contra um alvo vivo (staging real). Ver docs/deploy/RELEASE_CHECKLIST.md para o runbook
-# manual de pré-release.
+# - `trivy-fs-pr-gate` (evento `pull_request`, branches main/master): scan de filesystem/
+#   dependências (HIGH/CRITICAL) do diff proposto, **bloqueante** — sem `continue-on-error`.
+#   Usa a GitHub Action oficial (`aquasecurity/trivy-action`, binário + banco de vulnerabilidades
+#   via cache do runner), não o `docker compose --profile tools run trivy` usado localmente —
+#   mais rápido que subir a stack docker-compose inteira, e sem depender de rede irrestrita além
+#   do necessário para instalar o binário e o banco.
+# - `trivy-fs-scan` (agendado, toda segunda 06:00 UTC + `workflow_dispatch`): mantém o comportamento
+#   histórico — `npm run security:trivy` (docker compose, ver package.json), scan mais amplo de
+#   filesystem via container, não bloqueia (é um scan de monitoramento periódico independente do
+#   merge, decisão original registrada em
+#   .agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md). Continua útil como scan mais amplo e
+#   como cobertura para findings que só apareçam depois de um PR já mergeado (CVE novo publicado
+#   sem nenhum código ter mudado).
+#
+# Achado aceito por política (não corrigível sem breaking change fora do escopo deste gate) vai em
+# .trivyignore.yaml, com `expired_at` e referência a docs/security/AUDIT_WAIVERS.md — nunca por
+# `continue-on-error` solto ou por rebaixar a severidade globalmente.
 
 on:
+  pull_request:
+    branches: [ main, master ]
   schedule:
     # Toda segunda-feira, 06:00 UTC (03:00 America/Sao_Paulo) — fora do horário comercial, não
     # compete por runner com os jobs de push/PR do ci.yml.
     - cron: '0 6 * * 1'
-  # Permite rodar sob demanda (Actions → "Security - Trivy (agendado)" → Run workflow) sem
-  # esperar a próxima segunda-feira — útil logo depois de adicionar uma dependência nova.
+  # Permite rodar sob demanda (Actions → "Security - Trivy" → Run workflow) sem esperar o próximo
+  # gatilho — útil logo depois de adicionar uma dependência nova.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  trivy-fs-pr-gate:
+    name: "Trivy — gate de PR (fs/dependências, HIGH/CRITICAL, bloqueante)"
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Rodar Trivy (fs scan, HIGH/CRITICAL, bloqueante)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: sarif
+          output: trivy-fs-results.sarif
+          trivyignores: .trivyignore.yaml
+
+      - name: Upload SARIF para a aba Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@42947a340483f03ba47bb1a039b2c519aab3df85 # v3.37.8
+        with:
+          sarif_file: trivy-fs-results.sarif
+          category: trivy-fs
+
+      - name: Upload SARIF como artefato (auditoria/retenção)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-fs-pr-gate-sarif
+          path: trivy-fs-results.sarif
+          retention-days: 30
+          if-no-files-found: warn
+
   trivy-fs-scan:
-    name: "Trivy — scan de filesystem/dependências (HIGH/CRITICAL)"
+    name: "Trivy — scan semanal de filesystem/dependências (HIGH/CRITICAL, não bloqueante)"
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -35,9 +85,8 @@ jobs:
       # docker compose. O runner ubuntu-latest já vem com Docker e Docker Compose v2 instalados.
       - name: Rodar Trivy (fs scan, HIGH/CRITICAL)
         id: trivy
-        # NÃO bloqueia — reporta. Ver decisão no handoff citado acima: gate de PR normal já cobre
-        # `npm audit --audit-level=high` (ci.yml); este scan é mais amplo (imagem base, binários,
-        # não só o grafo do npm) e roda numa cadência própria, sem travar merge.
+        # NÃO bloqueia — reporta. Este job é o scan de monitoramento periódico independente do
+        # merge; o gate real de PR é o job `trivy-fs-pr-gate` acima.
         continue-on-error: true
         run: npm run security:trivy
 
@@ -50,6 +99,7 @@ jobs:
             echo "### Trivy encontrou vulnerabilidade(s) HIGH/CRITICAL" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "Ver o log do step \"Rodar Trivy\" acima para a lista completa. Este job não" >> "$GITHUB_STEP_SUMMARY"
-            echo "bloqueia PR/merge (é um scan agendado, reporta, não bloqueia) — triagem manual" >> "$GITHUB_STEP_SUMMARY"
-            echo "necessária: abrir handoff/issue se algum achado for novo e relevante." >> "$GITHUB_STEP_SUMMARY"
+            echo "bloqueia PR/merge (é um scan agendado, reporta, não bloqueia — o gate real de PR" >> "$GITHUB_STEP_SUMMARY"
+            echo "é o job trivy-fs-pr-gate) — triagem manual necessária: abrir handoff/issue se" >> "$GITHUB_STEP_SUMMARY"
+            echo "algum achado for novo e relevante." >> "$GITHUB_STEP_SUMMARY"
           fi
