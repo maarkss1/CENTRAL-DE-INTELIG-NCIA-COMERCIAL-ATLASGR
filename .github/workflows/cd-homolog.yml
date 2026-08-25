@@ -91,7 +91,7 @@ jobs:
         run: npm run security:audit-waivers
 
       - name: Run Lint
-        run: npm run lint
+        run: npm run lint:ci
 
       - name: Run Type Check
         run: npx tsc --noEmit
