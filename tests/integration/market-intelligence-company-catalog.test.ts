@@ -158,8 +158,13 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
     }))).rejects.toThrow();
   });
 
-  it('guardrail do banco rejeita telefone/e-mail mesmo quando o importador usa bypass RLS', async () => {
-    await expect(withRlsBypass(() => prisma.marketIntelligenceCompany.create({
+  it('persiste telefone/e-mail cadastral no catálogo global (decisão de produto 2026-08-22), mas o catálogo de leitura nunca os expõe', async () => {
+    // A migration 20260822220000_market_intelligence_company_contact_allowed removeu o CHECK que
+    // antes rejeitava esses campos no banco — o contato cadastral da Receita agora é persistido
+    // (rotulado "DADO_CADASTRAL_PUBLICO_NAO_VALIDADO"), e a garantia de não vazamento passou a ser
+    // a allowlist de campos em LIST_SELECT/DETAIL_SELECT (marketIntelligenceCompany.service.ts),
+    // não mais um invariante do banco. Este teste substitui o antigo guardrail de rejeição.
+    await withRlsBypass(() => prisma.marketIntelligenceCompany.create({
       data: {
         ...activeRibeirao,
         id: 'mic-etapa2-contact-guard',
@@ -169,6 +174,11 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
         email: 'contato@fixture.invalid',
         telefone1: '30000000',
       },
-    }))).rejects.toThrow();
+    }));
+
+    const result = await withTenant(TENANT_A, () => getMarketIntelligenceCompany('C2345678000193'));
+    expect(result.company).not.toBeNull();
+    expect(result.company).not.toHaveProperty('email');
+    expect(result.company).not.toHaveProperty('telefone1');
   });
 });
