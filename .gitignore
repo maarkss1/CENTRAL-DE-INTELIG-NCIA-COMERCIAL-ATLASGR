@@ -57,3 +57,8 @@ public/tools/atlas-market-intelligence/*.sqlite
 # ETL localmente — nunca esteve coberto, achado ao validar as correções de MI-004/MI-005.
 __pycache__/
 *.pyc
+
+# ITEM-11: SBOM gerado por `npm run security:sbom` (CycloneDX, a partir de package-lock.json).
+# Publicado como artefato do workflow run de cada release real (production.yaml/cd-homolog.yml),
+# não versionado — ver docs/security/DEPENDENCY_POLICY.md para o porquê.
+/sbom.cdx.json
