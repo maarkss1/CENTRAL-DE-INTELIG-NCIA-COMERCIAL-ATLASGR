@@ -49,7 +49,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                         {leads.length}
                     </span>
                 </div>
-                <div className="text-xs text-brand/80 font-medium">
+                <div className="text-xs text-brand-active dark:text-brand-2 font-medium">
                     Forecast: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
                         leads.reduce((acc, lead) => {
                             const val = typeof lead.amount === 'number' ? lead.amount : 0;

@@ -61,7 +61,7 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     await page.waitForSelector('text=Leads e pré-vendas');
 
     const targets = [
-      page.getByTitle('Importar leads recentes do Bitrix24'),
+      page.getByTitle('Abrir painel para buscar e receber leads do Bitrix24'),
       page.getByTitle('Exportar todos os leads para uma planilha CSV'),
     ];
     for (const t of targets) {
