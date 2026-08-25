@@ -32,6 +32,7 @@
     "security:codeql-sarif": "tsx scripts/security/check-codeql-sarif.ts",
     "clean": "rm -rf dist server.js",
     "lint": "eslint src --fix",
+    "lint:ci": "eslint src",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "vitest run -c vitest.unit.config.ts --passWithNoTests",
     "pretest:integration": "node scripts/test/prepare-integration-env.js && npx dotenv-cli -e .env.test -- npx prisma migrate deploy",
