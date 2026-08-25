@@ -1,7 +1,7 @@
 import type { MetricDefinition } from '../domain/CommercialIntelligence';
 import { STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
 import { FORECAST_RULES } from './forecastEngine';
-import { COVERAGE_PROTECTION_FALLBACK_HEALTHY, COVERAGE_PROTECTION_FALLBACK_WARNING } from './CommercialIntelligenceUseCases';
+import { COVERAGE_PROTECTION_FALLBACK_HEALTHY, COVERAGE_PROTECTION_FALLBACK_WARNING } from './coverageProtection';
 import { DATA_READINESS_OPEN_FIELD_WEIGHTS, DATA_READINESS_LOSS_FIELD_WEIGHT } from './dataReadiness';
 
 /**
