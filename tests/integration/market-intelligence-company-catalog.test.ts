@@ -158,8 +158,20 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
     }))).rejects.toThrow();
   });
 
-  it('guardrail do banco rejeita telefone/e-mail mesmo quando o importador usa bypass RLS', async () => {
-    await expect(withRlsBypass(() => prisma.marketIntelligenceCompany.create({
+  // Decisão de produto (AtlasGR, 2026-08-22, prisma/migrations/20260822220000_market_intelligence_
+  // company_contact_allowed/migration.sql): o catálogo global de empresas passou a persistir
+  // telefone/fax/e-mail cadastrais da Receita Federal, revertendo o CHECK constraint adicionado em
+  // 20260818190000_market_intelligence_catalog_guardrails. Esse contato continua rotulado
+  // "DADO_CADASTRAL_PUBLICO_NAO_VALIDADO" (ver MarketIntelligenceCompany.dataOrigin e
+  // docs/market-intelligence/ETAPA-2-BASE-EMPRESARIAL.md) — só a obrigatoriedade de redação no
+  // banco foi removida. A garantia de não vazamento para o tenant não é mais um invariante de
+  // schema: passou a ser a allowlist de campos em LIST_SELECT/DETAIL_SELECT
+  // (marketIntelligenceCompany.service.ts), já coberta pelos três primeiros testes deste arquivo
+  // (`not.toHaveProperty('email'/'telefone1'/'fax')` na listagem e no detalhe). Este teste
+  // substitui o guardrail de rejeição no banco, que deixou de existir por decisão de produto, e
+  // confirma que o dado pode ser persistido sem vazar pela leitura pública do catálogo.
+  it('persiste telefone/e-mail cadastral no catálogo global (decisão de produto 2026-08-22), mas a leitura pública nunca os expõe', async () => {
+    await withRlsBypass(() => prisma.marketIntelligenceCompany.create({
       data: {
         ...activeRibeirao,
         id: 'mic-etapa2-contact-guard',
@@ -169,6 +181,12 @@ describe('Market Intelligence empresarial — PostgreSQL/RLS real', () => {
         email: 'contato@fixture.invalid',
         telefone1: '30000000',
       },
-    }))).rejects.toThrow();
+    }));
+
+    const result = await withTenant(TENANT_A, () => getMarketIntelligenceCompany('C2345678000193'));
+    expect(result.company).not.toBeNull();
+    expect(result.company).not.toHaveProperty('email');
+    expect(result.company).not.toHaveProperty('telefone1');
+    expect(result.company).not.toHaveProperty('fax');
   });
 });
