@@ -105,6 +105,20 @@ jobs:
       - name: Run Lint
         run: npm run lint
 
+      - name: Verificar working tree limpa após os gates de verificação
+        # Nenhum gate de CI (lint, geração do Prisma Client, etc.) deve alterar
+        # arquivos versionados. Autofix é um comando local explícito
+        # (`npm run lint:fix`), nunca implícito no pipeline. Este passo é uma
+        # rede de segurança: se algum gate futuro reintroduzir --fix/autofix (ou
+        # outro efeito colateral que escreva no working tree), o CI falha aqui em
+        # vez de mascarar a mudança silenciosamente.
+        run: |
+          if ! git diff --quiet -- . ':!node_modules'; then
+            echo "::error::Os gates de verificação alteraram arquivos versionados. O CI deve apenas verificar, nunca corrigir automaticamente. Rode 'npm run lint:fix' localmente e commite o resultado."
+            git diff --stat -- . ':!node_modules'
+            exit 1
+          fi
+
       - name: Run Type Check
         run: npx tsc --noEmit
 
