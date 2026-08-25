@@ -1,5 +1,12 @@
 # Changelog — Melhorias nos Agentes
 
+> **Registro histórico (marcado em 25/08/2026, ITEM-14 de consolidação de documentação).**
+> Descreve uma única rodada de revisão do pacote original de agentes (10 especialistas, Ondas
+> 0-4), no momento em que foi instalado neste repositório. O roster de agentes evoluiu bastante
+> desde então (18 agentes hoje, ver `/AGENTS.md`); este changelog não foi nem será atualizado
+> retroativamente para cobrir essa evolução — mantido só como registro do que motivou as regras
+> descritas aqui na época.
+
 Resumo do que foi revisado e reforçado nesta versão do pacote de agentes. Nenhuma regra de segurança/qualidade pré-existente foi enfraquecida — tudo abaixo é adição ou tornou algo implícito em explícito.
 
 ## 1. Isolamento de execução (git worktree/branch)

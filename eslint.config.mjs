@@ -33,7 +33,8 @@ export default tseslint.config(
       // ocorrências espalhadas por telas de negócio e exigem revisão caso a caso (adicionar
       // role/tabIndex/onKeyDown a um <div> com onClick pode mudar comportamento de interação;
       // associar <label> a um controle às vezes exige reestruturar o campo, não só adicionar
-      // htmlFor). Ver DESIGN_QA_CENTRAL_ATLASGR.md pro backlog de correção incremental.
+      // htmlFor). DESIGN_QA_CENTRAL_ATLASGR.md, que rastreava o backlog de correção incremental,
+      // foi removido do controle de versão em 22/08/2026 — ver docs/REMOVED-DOCS.md.
       'jsx-a11y/label-has-associated-control': 'warn',
       'jsx-a11y/click-events-have-key-events': 'warn',
       'jsx-a11y/no-static-element-interactions': 'warn',

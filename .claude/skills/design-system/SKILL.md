@@ -34,9 +34,10 @@ de feature usam classes estáticas por marca (`atlas-orange`/`totaltrack-blue`, 
 ternário `isAtlas ? ... : ...`) de propósito — um padrão de branding diferente e coexistente com o
 token dinâmico, usado em contextos onde a cor **não** deve reagir à marca ativa (ex.: telas de
 pré-seleção mostrando as duas marcas lado a lado). Transformar `--color-atlas-orange` num alias
-cego de `--brand` quebraria esse padrão. Se uma tarefa pedir "consolidar tokens de cor", leia
-`DESIGN_QA_CENTRAL_ATLASGR.md` seção "Nota importante sobre consolidação de tokens de cor
-(DQA-10)" antes de tocar nisso — é uma decisão de arquitetura de branding, não uma limpeza de CSS.
+cego de `--brand` quebraria esse padrão. Se uma tarefa pedir "consolidar tokens de cor", trate como
+uma decisão de arquitetura de branding, não uma limpeza de CSS — a nota original sobre isso
+(`DESIGN_QA_CENTRAL_ATLASGR.md`, DQA-10) foi removida do controle de versão em 22/08/2026 (ver
+`docs/REMOVED-DOCS.md`); o raciocínio que importa está resumido no parágrafo acima.
 
 ## Radius — convergir, não fragmentar mais
 
