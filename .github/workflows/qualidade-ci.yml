@@ -31,5 +31,8 @@ jobs:
     - name: Run Linter
       run: npm run lint
 
+    - name: Architecture tests (fronteiras de dependência e hotspots)
+      run: npm run test:architecture
+
     - name: Run Unit Tests
       run: npm run test:unit
