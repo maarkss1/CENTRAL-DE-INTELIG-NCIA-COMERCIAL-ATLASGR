@@ -96,6 +96,30 @@ export interface ClosedLead {
     status: string;
 }
 
+/** Uma linha crua de lead para o cálculo de cohort — `closedAt`/`status` só importam quando ganho. */
+export interface CohortLeadRow {
+    createdAt: Date;
+    closedAt: Date | null;
+    status: string;
+}
+
+/**
+ * Uma linha do relatório de cohort: leads criados no mês `month`, e quantos desse mesmo grupo
+ * fecharam como ganho (`Negocios_Ganhos`) dentro de 30/60 dias da criação. Fundamentado em
+ * `Lead.createdAt`/`Lead.closedAt` reais — nunca fabricado (ver AGENTS.md do módulo, "Não pode:
+ * Não fabricar KPI").
+ */
+export interface CohortRow {
+    /** Mês de criação do cohort, "YYYY-MM". */
+    month: string;
+    /** Quantos leads foram criados neste mês. */
+    total: number;
+    /** Quantos desses leads fecharam como ganho em até 30 dias da criação. */
+    won30d: number;
+    /** Quantos desses leads fecharam como ganho em até 60 dias da criação. */
+    won60d: number;
+}
+
 /**
  * Camada de acesso a dado para as métricas de Analytics — ao contrário de company/contact/lead/
  * activity/note (entidades CRUD), Analytics não tem uma "entidade" própria: é leitura agregada
@@ -144,4 +168,6 @@ export interface AnalyticsRepository {
     groupLostLeadsByReason(organizationId: string): Promise<GroupCount[]>;
     /** `createdAt` de toda atividade do tipo "Ligação" — usado para montar o heatmap de ligações. */
     findCallActivityTimestamps(organizationId: string): Promise<Date[]>;
+    /** Leads criados desde `since` com `closedAt`/`status`, base real do relatório de cohort. */
+    findLeadsForCohort(organizationId: string, since: Date): Promise<CohortLeadRow[]>;
 }

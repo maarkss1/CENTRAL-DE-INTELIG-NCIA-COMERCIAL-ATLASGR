@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AnalyticsUseCases } from '@/features/analytics/application/AnalyticsUseCases';
-import type { AnalyticsRepository, ClosedLead, GroupCount } from '@/features/analytics/domain/Analytics';
+import { AnalyticsUseCases, buildCohortCsv } from '@/features/analytics/application/AnalyticsUseCases';
+import type { AnalyticsRepository, ClosedLead, CohortLeadRow, GroupCount } from '@/features/analytics/domain/Analytics';
 
 // Auditoria de forecast/BI (Onda 7, Agente 04): prova, no nível da camada realmente conectada à
 // rota `/api/analytics/dashboard` (AnalyticsUseCases + PrismaAnalyticsRepository via DI, ver
@@ -32,6 +32,7 @@ function buildFakeRepository(overrides: Partial<AnalyticsRepository> = {}): Anal
         groupActivitiesByStatus: vi.fn().mockResolvedValue([] as GroupCount[]),
         groupLostLeadsByReason: vi.fn().mockResolvedValue([] as GroupCount[]),
         findCallActivityTimestamps: vi.fn().mockResolvedValue([]),
+        findLeadsForCohort: vi.fn().mockResolvedValue([] as CohortLeadRow[]),
     };
     return { ...base, ...overrides };
 }
@@ -135,5 +136,59 @@ describe('AnalyticsUseCases.dashboard — widgets antes hardcoded para vazio ago
         const dashboard = await useCases.dashboard(ORG);
 
         expect(dashboard.performanceReport[0].agent).toBe('Sem Dono');
+    });
+});
+
+// Onda 2 (Agente 04): `getCohort`/`exportPdf` devolviam 3 linhas fixas no código-fonte ("Fake
+// data just for the prototype") e um buffer de PDF inválido, para QUALQUER organização — nunca
+// rastreável a um dado real (ver AGENTS.md do módulo, "Não pode: Não fabricar KPI"). Substituído
+// por cálculo real sobre `Lead.createdAt`/`closedAt`/`status`.
+describe('AnalyticsUseCases.cohortAnalysis — nunca fabricado', () => {
+    const NOW = new Date('2026-08-15T12:00:00Z');
+
+    it('conta um lead ganho em até 30 dias em won30d e won60d; um ganho em 45 dias só em won60d', async () => {
+        const rows: CohortLeadRow[] = [
+            { createdAt: new Date('2026-07-01T00:00:00Z'), closedAt: new Date('2026-07-20T00:00:00Z'), status: 'Negocios_Ganhos' }, // 19 dias
+            { createdAt: new Date('2026-07-01T00:00:00Z'), closedAt: new Date('2026-08-15T00:00:00Z'), status: 'Negocios_Ganhos' }, // 45 dias
+            { createdAt: new Date('2026-07-01T00:00:00Z'), closedAt: null, status: 'Negocios_Perdidos' },
+        ];
+        const repo = buildFakeRepository({ findLeadsForCohort: vi.fn().mockResolvedValue(rows) });
+        const useCases = new AnalyticsUseCases(repo);
+
+        const cohorts = await useCases.cohortAnalysis(ORG, 3, NOW);
+        const july = cohorts.find((c) => c.month === '2026-07');
+
+        expect(july).toEqual({ month: '2026-07', total: 3, won30d: 1, won60d: 2 });
+    });
+
+    it('mês sem nenhum lead criado é omitido — nunca aparece como 0 fabricado', async () => {
+        const repo = buildFakeRepository({ findLeadsForCohort: vi.fn().mockResolvedValue([]) });
+        const useCases = new AnalyticsUseCases(repo);
+
+        const cohorts = await useCases.cohortAnalysis(ORG, 3, NOW);
+
+        expect(cohorts).toEqual([]);
+    });
+
+    it('busca só desde o início da janela de meses pedida', async () => {
+        const findLeadsForCohort = vi.fn().mockResolvedValue([]);
+        const repo = buildFakeRepository({ findLeadsForCohort });
+        const useCases = new AnalyticsUseCases(repo);
+
+        await useCases.cohortAnalysis(ORG, 3, NOW);
+
+        expect(findLeadsForCohort).toHaveBeenCalledWith(ORG, new Date('2026-06-01T00:00:00Z'));
+    });
+});
+
+describe('buildCohortCsv', () => {
+    it('serializa as linhas já calculadas, sem recalcular nada', () => {
+        const csv = buildCohortCsv([{ month: '2026-07', total: 3, won30d: 1, won60d: 2 }]);
+
+        expect(csv).toBe('Mes,Total de Leads,Ganhos em 30 dias,Ganhos em 60 dias\n2026-07,3,1,2');
+    });
+
+    it('sem nenhuma linha, devolve só o cabeçalho', () => {
+        expect(buildCohortCsv([])).toBe('Mes,Total de Leads,Ganhos em 30 dias,Ganhos em 60 dias');
     });
 });
