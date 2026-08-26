@@ -1,6 +1,6 @@
 /**
  * Verificação estática de deriva estrutural entre `docs/openapi.yaml` e as rotas de negócio
- * realmente montadas em `server.ts`.
+ * realmente montadas no composition root da aplicação.
  *
  * Contexto (Onda 8, Agente 18 — Contratos, API e Documentação Viva): antes desta verificação,
  * nada checava se o documento OpenAPI ainda descrevia as rotas reais — a deriva medida no início
@@ -15,7 +15,7 @@
  * `.agents/handoffs/onda-8/18-para-08-ci-openapi-drift.md`). Esta verificação estática não precisa
  * de servidor/Postgres/Redis, então roda em qualquer CI só com o checkout do repositório.
  *
- * Como funciona: extrai de `server.ts` todo mount HTTP de path literal (`app.use`/`app.get`/
+ * Como funciona: extrai do código-fonte todo mount HTTP de path literal (`app.use`/`app.get`/
  * `app.post`/... com uma string começando por `/`), filtra para os que começam com `/api`, e
  * calcula para cada um um "prefixo de recurso" (os segmentos do path até o primeiro segmento de
  * parâmetro, ex.: `/api/leads/:leadId/notes` → `leads`). Do lado do documento, cada `path:` do
@@ -23,7 +23,39 @@
  * (`/leads/{id}/enrich` → `leads`). Um prefixo de servidor sem NENHUM path documentado que o tenha
  * como prefixo de segmento é reportado como não documentado; um path documentado sem NENHUM
  * prefixo de servidor correspondente é reportado como documentação fantasma.
+ *
+ * ITEM-07 (modularização de `server.ts`): os mounts HTTP não vivem mais só em `server.ts` — a
+ * maior parte foi extraída para `src/bootstrap/*.ts` (ver `mountFeatureRoutes` em
+ * `src/bootstrap/routes.ts` e `mountPreJsonWebhooks` em `src/bootstrap/webhooks.ts`). Esta
+ * verificação continua funcionando sobre uma única string de código-fonte (`extractMountedRoutes`/
+ * `computeOpenApiDrift` não sabem nem precisam saber de onde ela veio) — quem muda é o que os
+ * chamadores (o CLI e o teste "repositório real" abaixo) passam como fonte: a concatenação de
+ * `server.ts` com todo `src/bootstrap/*.ts`, via `collectCompositionRootSource`.
  */
+
+import { readFileSync, readdirSync } from 'fs';
+import path from 'path';
+
+/**
+ * Concatena `server.ts` com todo `src/bootstrap/*.ts` — o composition root da aplicação depois do
+ * ITEM-07, hoje espalhado entre esses arquivos. Usada tanto pelo CLI (`scripts/verify-openapi-
+ * drift.ts`) quanto pelo teste que roda contra o repositório real, para as duas ficarem lendo
+ * exatamente a mesma definição de "onde uma rota pode estar montada" — em vez de cada chamador
+ * reimplementar a lista de arquivos e arriscar divergir silenciosamente dela.
+ */
+export function collectCompositionRootSource(repoRoot: string): string {
+    const bootstrapDir = path.join(repoRoot, 'src', 'bootstrap');
+    const bootstrapFiles = readdirSync(bootstrapDir)
+        .filter((file) => file.endsWith('.ts'))
+        .sort();
+
+    const sources = [
+        readFileSync(path.join(repoRoot, 'server.ts'), 'utf-8'),
+        ...bootstrapFiles.map((file) => readFileSync(path.join(bootstrapDir, file), 'utf-8')),
+    ];
+
+    return sources.join('\n');
+}
 
 export interface MountedRoute {
     /** Path literal exatamente como aparece no código-fonte, ex.: '/api/leads/:leadId/notes'. */
