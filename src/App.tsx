@@ -96,6 +96,15 @@ function AppLayout() {
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route index element={<SinglePageDashboard />} />
+          {/* Alias explícito para /app/dashboard: TabType inclui 'dashboard' e Sidebar/
+              CommandPalette navegam para `/app/${tab}` para TODO TabType (useNavigationBusBridge é
+              a única exceção, com mapeamento especial só ali — ver comentário nesse hook). Sem esta
+              rota, "/app/dashboard" batia no catch-all "*" abaixo e re-navegava silenciosamente
+              para "/app", um redirect a mais e um histórico de navegação sujo para quem clicou em
+              "Painel Central" na Sidebar ou no Command Palette (achado real desta auditoria, não
+              coberto pelo teste de useNavigationBusBridge porque aquele hook já tinha o
+              contorno certo só para o comando de voz). */}
+          <Route path="dashboard" element={<SinglePageDashboard />} />
           <Route path="prospect" element={<ProspectingHub />} />
           <Route path="crm" element={<CrmBoard />} />
           <Route path="crm360" element={<CrmOverview onNavigate={handleCrmOverviewNavigate} />} />
