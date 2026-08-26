@@ -118,6 +118,7 @@ export function VoiceCommandWidget() {
     <div className="fixed bottom-6 right-24 z-[900]">
       <div className="relative group">
         <button
+          type="button"
           onClick={toggleListening}
           aria-label="Comando de Voz por Microfone"
           className={`flex items-center justify-center w-14 h-14 rounded-2xl text-white shadow-2xl transition-all duration-300 border border-line cursor-pointer ${
@@ -153,7 +154,7 @@ export function VoiceCommandWidget() {
               <span className="font-extrabold text-brand flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-brand animate-pulse" /> Assistente de Voz B2B
               </span>
-              <button onClick={() => { setTranscript(''); setLastAction(null); }} className="text-[10px] text-ink-2 hover:text-ink">
+              <button type="button" onClick={() => { setTranscript(''); setLastAction(null); }} className="text-[10px] text-ink-2 hover:text-ink">
                 Limpar
               </button>
             </div>
