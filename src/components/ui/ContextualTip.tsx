@@ -53,16 +53,21 @@ export const ContextualTip: React.FC<ContextualTipProps> = ({
 
                 <div className="flex items-center gap-1 shrink-0">
                     <button
+                        type="button"
                         onClick={() => setExpanded(!expanded)}
                         className="text-xs text-ink-2 hover:text-amber-400 p-1 rounded-lg hover:bg-surface-2 transition-colors"
                         title={expanded ? "Recolher dica" : "Expandir dica"}
+                        aria-label={expanded ? "Recolher dica" : "Expandir dica"}
+                        aria-expanded={expanded}
                     >
                         <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
                     </button>
                     <button
+                        type="button"
                         onClick={() => setDismissed(true)}
                         className="text-xs text-ink-2 hover:text-red-400 p-1 rounded-lg hover:bg-surface-2 transition-colors"
                         title="Fechar dica"
+                        aria-label="Fechar dica"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -72,6 +77,7 @@ export const ContextualTip: React.FC<ContextualTipProps> = ({
             {expanded && actionLabel && onAction && (
                 <div className="mt-3 pt-2 border-t border-amber-500/10 flex justify-end">
                     <button
+                        type="button"
                         onClick={onAction}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-xl border border-amber-500/30 cursor-pointer"
                     >

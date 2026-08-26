@@ -76,6 +76,7 @@ export function BugReportButton() {
                 já convive com o board sem esse problema. */}
             <div className="fixed bottom-24 right-6 z-[900]">
                 <button
+                    type="button"
                     onClick={() => setIsOpen(true)}
                     aria-label="Reportar um problema"
                     className="group relative flex items-center justify-center w-12 h-12 rounded-2xl bg-surface text-ink-2 hover:text-ink hover:scale-110 active:scale-95 transition-all duration-300 border border-line shadow-card cursor-pointer"

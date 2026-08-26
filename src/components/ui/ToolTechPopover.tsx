@@ -90,6 +90,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                     </div>
 
                     <button
+                        type="button"
                         ref={closeButtonRef}
                         onClick={onClose}
                         aria-label="Fechar"
@@ -108,6 +109,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                 <div className="flex items-center gap-3 pt-2">
                     {onFilterByTool && (
                         <button
+                            type="button"
                             onClick={() => {
                                 onFilterByTool(info.name);
                                 onClose();
@@ -119,6 +121,7 @@ export const ToolTechPopover: React.FC<ToolTechPopoverProps> = ({
                         </button>
                     )}
                     <button
+                        type="button"
                         onClick={onClose}
                         className="px-4 py-2.5 bg-surface-2 hover:bg-line text-ink-2 rounded-xl font-medium transition-colors"
                     >
