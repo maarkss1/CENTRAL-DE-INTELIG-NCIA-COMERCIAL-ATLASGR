@@ -122,6 +122,9 @@ jobs:
       - name: Run Type Check
         run: npx tsc --noEmit
 
+      - name: Architecture tests (fronteiras de dependência e hotspots)
+        run: npm run test:architecture
+
       - name: Verificar deriva de OpenAPI
         run: npm run verify:openapi-drift
 
