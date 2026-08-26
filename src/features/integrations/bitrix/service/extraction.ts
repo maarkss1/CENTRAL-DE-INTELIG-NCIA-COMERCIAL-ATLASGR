@@ -332,13 +332,10 @@ export async function executeExtractionRun(organizationId: string, runId: string
         return; // cancelExtractionRun já gravou status='cancelled'/cancelledAt — nada a sobrescrever aqui
     }
 
-    // Sem um valor de enum "partial" no schema (BitrixExtractionStatus é propriedade exclusiva do
-    // Agente 01 — ver /AGENTS.md → "Propriedade exclusiva de arquivos"), o sinal de incompletude
-    // vai no `errorMessage` já existente na linha: o front (BitrixExtractionPanel) distingue
-    // "Concluída" de "Concluída (parcial)" por `status === 'completed' && errorMessage != null`, em
-    // vez de tratar silenciosamente como sucesso pleno. Ver handoff
-    // `.agents/handoffs/roadmap-v2-onda-1/06-para-01-status-extracao-parcial.md` para promover isto
-    // a um valor de enum de verdade quando o Agente 01 puder editar o schema.
+    // status='completed_partial' (valor de enum próprio — ver handoff
+    // `.agents/handoffs/roadmap-v2-onda-1/06-para-01-status-extracao-parcial.md`, resolvido) sinaliza
+    // que a extração terminou e gerou arquivo utilizável, mas não esgotou o portal para ao menos uma
+    // entidade. `errorMessage` continua preenchido com o texto legível exibido na tela.
     const partialWarning = incompleteEntities.length > 0
         ? `Extração concluída, mas PARCIAL: ${incompleteEntities.map((e) => EXTRACTION_ENTITY_SPECS[e as BitrixExtractionEntity].label).join(', ')} atingiu o teto de segurança de páginas (${PAGE_SAFETY_CAP}) antes de esgotar o portal — pode haver mais registros no Bitrix24 além dos capturados nesta execução. Rode uma nova extração com um filtro de período mais estreito para cobrir o restante.`
         : null;
@@ -348,7 +345,7 @@ export async function executeExtractionRun(organizationId: string, runId: string
         await prisma.bitrixExtractionRun.update({
             where: { id: runId },
             data: {
-                status: 'completed',
+                status: partialWarning ? 'completed_partial' : 'completed',
                 completedAt: new Date(),
                 totalCount,
                 countByEntity: countByEntity as unknown as Prisma.InputJsonValue,
@@ -465,7 +462,7 @@ export async function downloadExtractionFile(
 ): Promise<{ buffer: Buffer; filename: string; contentType: string }> {
     const run = await prisma.bitrixExtractionRun.findFirst({ where: { id: runId, organizationId } });
     if (!run) throw new AppError('Extração não encontrada.', 404);
-    if (run.status !== 'completed') {
+    if (run.status !== 'completed' && run.status !== 'completed_partial') {
         throw new AppError('Esta extração ainda não foi concluída — não há arquivo para baixar.', 400);
     }
 

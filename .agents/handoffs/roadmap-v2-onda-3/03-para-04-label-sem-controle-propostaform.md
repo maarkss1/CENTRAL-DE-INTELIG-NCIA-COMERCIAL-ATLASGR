@@ -1,7 +1,7 @@
 - De: 03 — Design e Acessibilidade
 - Para: 04 — CRM e BI
 - Onda: roadmap-v2-onda-3
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -43,3 +43,10 @@ config), não quebra o gate. Fora do escopo do Agente 03 nesta onda porque o arq
 `src/features/crm360/` (fora de `src/components/ui/`/`src/styles/`), e o próprio `Label.tsx` (owned
 by 03) não precisa de mudança — ele é intencionalmente genérico (usado 40x no repo, exige `htmlFor`
 por instância, não pelo componente).
+
+## Resolução (Coordenador, 00)
+Aplicada a alternativa mais leve sugerida: `<Label>Itens *</Label>` virou um `<span id="proposta-
+itens-heading">` com as mesmas classes visuais, e o container que renderiza `fields.map(...)` ganhou
+`role="group" aria-labelledby="proposta-itens-heading"`. Não usei `<fieldset>`/`<legend>` para não
+arriscar a estilização do layout flex atual, como o próprio handoff antecipava como alternativa
+válida.
