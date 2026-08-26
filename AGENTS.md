@@ -329,11 +329,20 @@ A onda não termina sem:
 ```bash
 npx tsc --noEmit
 npm run lint
+npm run test:architecture
 npm run test:unit
 npm run test:integration
 npm run test:e2e
 npm run build
 ```
+
+`npm run test:architecture` (ITEM-13, dívida técnica) roda `dependency-cruiser` (fronteiras entre
+`src/bootstrap/`, `src/lib/ai/gateway/`, `src/features/*`, `src/shared/`, e detecção de ciclo — ver
+`docs/architecture/DEPENDENCY_RULES.md`) + o gate de arquivo excessivamente grande
+(`docs/architecture/HOTSPOT_EXCEPTIONS.md`). Dívida de import cross-feature/ciclo já existente
+antes deste gate está grandfathered em `.dependency-cruiser-known-violations.json`
+(`docs/architecture/KNOWN_VIOLATIONS.md`, com dono e checkpoint de reavaliação por grupo) — só uma
+violação **nova**, fora dessa baseline, quebra o gate.
 
 Quando aplicável:
 ```bash

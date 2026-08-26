@@ -312,8 +312,9 @@
   --radius-nav-item: var(--radius-nav-item-value);
 
   /* Escala de tipografia responsiva (H1-H6), única fonte de verdade — antes só H1-H3 existiam,
-     hardcoded direto no seletor de elemento em @layer base (débito documentado em
-     DESIGN_QA_CENTRAL_ATLASGR.md, "Typography 68"). H1-H3 mantêm exatamente os mesmos valores
+     hardcoded direto no seletor de elemento em @layer base (débito documentado, à época, em
+     DESIGN_QA_CENTRAL_ATLASGR.md, "Typography 68" — arquivo removido do controle de versão em
+     22/08/2026, ver docs/REMOVED-DOCS.md). H1-H3 mantêm exatamente os mesmos valores
      clamp() de antes (nenhuma mudança visual); H4-H6 são novos, seguindo a mesma progressão —
      antes ficavam sem tamanho definido (herdavam o default do navegador, fora da escala da marca).
      Expostos aqui (namespace --text-* do Tailwind 4) para também gerarem utilitários

@@ -108,14 +108,22 @@ afterEach(async () => {
         confidence: 0.9,
         raw: {},
     });
-    await withRlsBypass(async () => {
-        await prisma.conversationSignal.deleteMany({ where: { organizationId: { in: [ORG, ORG_B] } } });
-        await prisma.timelineEvent.deleteMany({ where: { lead: { organizationId: { in: [ORG, ORG_B] } } } });
-        await prisma.emailMessage.deleteMany({ where: { organizationId: { in: [ORG, ORG_B] } } });
-        await prisma.lead.deleteMany({ where: { organizationId: { in: [ORG, ORG_B] } } });
-        await prisma.contact.deleteMany({ where: { organizationId: { in: [ORG, ORG_B] } } });
-        await prisma.company.deleteMany({ where: { organizationId: { in: [ORG, ORG_B] } } });
-    });
+    // ConversationSignal/TimelineEvent/EmailMessage/Contact/Company não estão no allowlist de
+    // bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) — ITEM-02 fechou a RLS dessas tabelas
+    // pra bypass (leitura E escrita). Um `deleteMany` sob bypass nelas agora afeta 0 linhas
+    // silenciosamente (RLS nega, sem lançar erro), deixando lixo entre testes — por isso cada
+    // tabela é limpa dentro do contexto do próprio tenant. `Lead` continua no allowlist, mas roda
+    // no mesmo padrão por tenant para não depender de dois caminhos diferentes.
+    for (const org of [ORG, ORG_B]) {
+        await asOrg(org, async () => {
+            await prisma.conversationSignal.deleteMany({ where: { organizationId: org } });
+            await prisma.timelineEvent.deleteMany({ where: { lead: { organizationId: org } } });
+            await prisma.emailMessage.deleteMany({ where: { organizationId: org } });
+            await prisma.lead.deleteMany({ where: { organizationId: org } });
+            await prisma.contact.deleteMany({ where: { organizationId: org } });
+            await prisma.company.deleteMany({ where: { organizationId: org } });
+        });
+    }
 });
 
 afterAll(async () => {
@@ -241,7 +249,8 @@ describe('CYC-003 — webhook de e-mail de entrada (stub de transporte) contra P
         expect(res.body).toMatchObject({ success: true, outcome: 'lead-not-found' });
         expect(classify).not.toHaveBeenCalled();
 
-        const persisted = await withRlsBypass(() => prisma.emailMessage.findFirst({ where: { organizationId: ORG, fromEmail: 'ninguem-cadastrado@empresa.com' } }));
+        // EmailMessage não está no allowlist de bypass (ITEM-02) — lê no contexto do próprio tenant.
+        const persisted = await asOrg(ORG, () => prisma.emailMessage.findFirst({ where: { organizationId: ORG, fromEmail: 'ninguem-cadastrado@empresa.com' } }));
         expect(persisted).not.toBeNull();
         expect(persisted?.leadId).toBeNull();
     });

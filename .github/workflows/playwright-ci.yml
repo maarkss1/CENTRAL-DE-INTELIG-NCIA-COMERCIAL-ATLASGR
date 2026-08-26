@@ -4,6 +4,9 @@ name: E2E Playwright Tests
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   e2e-tests:
     timeout-minutes: 60

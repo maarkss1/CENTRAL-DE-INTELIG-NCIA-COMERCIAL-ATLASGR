@@ -1,0 +1,72 @@
+name: Frontend Bundle Budget
+
+# ITEM-15 (remediacao de divida tecnica): impede regressao silenciosa de tamanho do bundle JS/CSS
+# que o navegador baixa para carregar a aplicacao React. Complementar ao ITEM-05
+# (.github/workflows/public-assets-budget.yml), que cobre datasets/assets estaticos em `public/`
+# — este workflow cobre o que o Vite realmente processa e faz code-split em `dist/assets/`.
+# Ver scripts/ci/check-bundle-budget.mjs e docs/development/PERFORMANCE_BUDGETS.md.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/ci/check-bundle-budget.mjs'
+      - '.github/workflows/frontend-bundle-budget.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/ci/check-bundle-budget.mjs'
+      - '.github/workflows/frontend-bundle-budget.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-bundle-budget-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  budget:
+    name: Frontend bundle budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Build frontend
+        run: npx vite build
+
+      - name: Check bundle size budget
+        run: npm run check:bundle-budget | tee bundle-budget-report.json
+
+      - name: Upload bundle size trend
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bundle-budget-trend-${{ github.sha }}
+          path: bundle-budget-report.json
+          retention-days: 90

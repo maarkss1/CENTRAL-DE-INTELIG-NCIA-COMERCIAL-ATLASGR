@@ -69,10 +69,12 @@ reflow) e opacidade reduzida o suficiente para não competir com o conteúdo.
 - CSS puro: `globals.css` já tem um `@media (prefers-reduced-motion: reduce)` global cobrindo
   keyframes customizados e `transition-all`. Não precisa reescrever isso, mas não adicione
   `animation`/`transition` fora do que esse bloco cobre sem verificar que ainda é pego por ele.
-- Framer Motion: o root já deve estar envolvido em `<MotionConfig reducedMotion="user">` (ver
-  `DESIGN_QA_CENTRAL_ATLASGR.md`, item de acessibilidade do segundo lote). Qualquer `motion.div`
-  novo herda esse comportamento automaticamente — não precisa de tratamento manual, exceto em
-  hooks customizados como `useTilt`/`useMagnetic`, que checam `useReducedMotion()` explicitamente
+- Framer Motion: o root já deve estar envolvido em `<MotionConfig reducedMotion="user">` (verifique
+  em `src/App.tsx` — a correção original está documentada, à época, em
+  `DESIGN_QA_CENTRAL_ATLASGR.md`, item de acessibilidade do segundo lote, arquivo removido do
+  controle de versão; ver `docs/REMOVED-DOCS.md`). Qualquer `motion.div` novo herda esse
+  comportamento automaticamente — não precisa de tratamento manual, exceto em hooks customizados
+  como `useTilt`/`useMagnetic`, que checam `useReducedMotion()` explicitamente
   porque manipulam `MotionValue` fora do fluxo declarativo do `motion.*`.
 - **Como verificar de fato, não só supor**: com Playwright, abra um `context` com
   `reducedMotion: 'reduce'` e confira `getComputedStyle(el).animationName`/`transitionDuration` do

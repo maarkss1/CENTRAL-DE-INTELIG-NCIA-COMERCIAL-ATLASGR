@@ -1,8 +1,11 @@
 # CREATIVE SYSTEM 01 — AtlasGR Revenue OS
 
 Primeira entrega obrigatória do `PROMPT MASTER 2.0` (Seção 53), construída sobre o
-`PRODUCT_VISUAL_TRUTH_MAP.md`. Este documento é o sistema criativo reutilizável — toda peça futura
-(filme, social, evento, apresentação) deriva daqui, não é reinventada peça a peça.
+`PRODUCT_VISUAL_TRUTH_MAP.md` (removido do controle de versão em 22/08/2026 — ver
+`docs/REMOVED-DOCS.md`; o conteúdo abaixo continua válido como sistema criativo, mas a
+rastreabilidade original com o Truth Map não é mais verificável no repositório). Este documento é
+o sistema criativo reutilizável — toda peça futura (filme, social, evento, apresentação) deriva
+daqui, não é reinventada peça a peça.
 
 ---
 

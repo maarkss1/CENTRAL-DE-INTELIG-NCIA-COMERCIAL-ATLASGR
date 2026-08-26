@@ -5,6 +5,9 @@ name: Code Quality (Lint & Unit Tests)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -29,7 +32,10 @@ jobs:
       run: npx tsc --noEmit
 
     - name: Run Linter
-      run: npm run lint
+      run: npm run lint:ci
+
+    - name: Architecture tests (fronteiras de dependência e hotspots)
+      run: npm run test:architecture
 
     - name: Run Unit Tests
       run: npm run test:unit
