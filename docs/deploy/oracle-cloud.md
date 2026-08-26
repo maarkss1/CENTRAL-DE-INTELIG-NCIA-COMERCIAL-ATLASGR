@@ -1,5 +1,11 @@
 # Guia de Deploy no Oracle Cloud Infrastructure (OCI)
 
+> **Status real (ITEM-12, 2026-08-25): caminho alternativo, não implantado ativamente hoje.** O
+> projeto está em modo local-first (`docs/development/LOCAL_FIRST.md`); nenhum ambiente cloud
+> (OCI incluído) está recebendo deploy no momento. Este guia continua correto como procedimento
+> para quando este caminho for escolhido. Ver [`docs/deploy/README.md`](README.md) para o
+> inventário completo de caminhos e o canônico atual.
+
 Este guia orienta o provisionamento, configuração e deploy da **Central de Inteligência Comercial AtlasGR** em uma instância de computação no **Oracle Cloud Infrastructure (OCI)**, compatível com instâncias Always Free quando disponíveis e com instâncias dedicadas.
 
 ---

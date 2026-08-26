@@ -52,6 +52,7 @@ const MarketIntelligence = lazy(() => import('./pages/MarketIntelligence').then(
 const Account360 = lazy(() => import('./features/market-intelligence/components/Account360').then(m => ({ default: m.Account360 })));
 const LeadApprovalDeck = lazy(() => import('./features/market-intelligence/components/LeadApprovalDeck').then(m => ({ default: m.LeadApprovalDeck })));
 const PropostasList = lazy(() => import('./features/crm360/components/PropostasList').then(m => ({ default: m.PropostasList })));
+const PublicBookingPage = lazy(() => import('./features/calendar/components/PublicBookingPage').then(m => ({ default: m.PublicBookingPage })));
 
 function PageFallback() {
   return (
@@ -169,6 +170,7 @@ export default function App() {
               <Route path="/select-brand" element={<SelectionScreen />} />
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/reset-password" element={<ResetPasswordScreen />} />
+              <Route path="/book/:slug" element={<PublicBookingPage />} />
               <Route
                 path="/app/*"
                 element={

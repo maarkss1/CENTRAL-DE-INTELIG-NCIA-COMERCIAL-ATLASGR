@@ -13,6 +13,8 @@ import { use3CXIntegration } from '../../../hooks/use3CXIntegration';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRequiredRole } from '../../../lib/auth/authorization';
 import { IntegrationStatusBadge } from './IntegrationStatusBadge';
+import { WebhookMonitor } from './WebhookMonitor';
+import { Activity } from 'lucide-react';
 
 type IntegrationCapabilityStatus = 'connected' | 'read' | 'write' | 'stub' | 'error' | 'pending';
 
@@ -77,7 +79,7 @@ export function Integrations() {
         threecxLoading, handle3CXConnect, handle3CXDisconnect, handle3CXTest,
     } = use3CXIntegration();
 
-    type Tab = 'whatsapp' | 'google' | 'bitrix' | '3cx';
+    type Tab = 'whatsapp' | 'google' | 'bitrix' | '3cx' | 'webhooks';
     const [activeTab, setActiveTab] = useState<Tab>('whatsapp');
 
     return (
@@ -126,6 +128,12 @@ export function Integrations() {
                         className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === '3cx' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <IconWrench className="w-4 h-4 text-sky-500" /> PABX 3CX
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('webhooks')}
+                        className={`shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'webhooks' ? 'bg-orange-50 text-orange-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Activity className="w-4 h-4 text-brand" /> Webhooks & Monitor
                     </button>
                 </nav>
             </div>
@@ -204,7 +212,10 @@ export function Integrations() {
                                         onClick={handleConnect}
                                         disabled={loading || !canManage}
                                         title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        // bg-ok-active (não bg-green-600) — texto branco direto sobre verde-600 só
+                                        // atinge ~3.2:1 (WCAG AA exige 4.5:1 pra texto normal); mesmo padrão já
+                                        // usado em bg-brand-active (Button.tsx) pra texto branco sobre cor sólida.
+                                        className="w-full py-2 bg-ok-active hover:brightness-110 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
                                         {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
                                     </button>
@@ -213,7 +224,9 @@ export function Integrations() {
                                         persistente pra sobreviver ao ciclo de hibernação). Sem este aviso, "estava
                                         conectado ontem e hoje pede QR de novo" parece bug em vez de comportamento
                                         esperado do plano atual. */}
-                                    <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                                    {/* text-ink-2 (não text-gray-400) — 2.6:1 contra fundo claro, abaixo do
+                                        mínimo AA de 4.5:1 pra texto normal (axe-core color-contrast). */}
+                                    <p className="text-xs text-ink-2 text-center">
                                         Se já conectou antes e caiu sozinho, é o servidor gratuito hibernando por inatividade — basta escanear o QR de novo.
                                     </p>
                                 </div>
@@ -622,6 +635,10 @@ export function Integrations() {
                             </div>
                         </div>
                     </Card>
+                    )}
+
+                    {activeTab === 'webhooks' && (
+                        <WebhookMonitor />
                     )}
                 </div>
             </div>

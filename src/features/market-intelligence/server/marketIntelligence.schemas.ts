@@ -58,6 +58,9 @@ export const companyListQuerySchema = z.object({
     mei: z.enum(['SIM', 'NAO', 'NAO_INFORMADO']).optional(),
     capitalSocialMin: z.coerce.number().nonnegative().optional(),
     capitalSocialMax: z.coerce.number().nonnegative().optional(),
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    radiusKm: z.coerce.number().positive().max(1000).optional(),
     sort: z.enum(['razaoSocial', 'nomeFantasia', 'capitalSocial', 'icpScore', 'dataInicioAtividade']).default('razaoSocial'),
     order: z.enum(['asc', 'desc']).default('asc'),
 }).superRefine((query, context) => {

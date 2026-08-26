@@ -44,16 +44,31 @@ import { requestContext } from '../../src/lib/async-context';
 const withRlsBypass = <T>(fn: () => Promise<T>): Promise<T> =>
   requestContext.run({ bypassRls: true }, fn);
 
-// Real database cleanup for integration tests
-const cleanDatabase = async () => withRlsBypass(async () => {
-  // Use a transaction or specific deletion order if needed
-  await prisma.timelineEvent.deleteMany();
-  await prisma.activity.deleteMany();
-  await prisma.note.deleteMany();
-  await prisma.lead.deleteMany();
-  await prisma.contact.deleteMany();
-  await prisma.company.deleteMany();
-});
+// Real database cleanup for integration tests.
+//
+// ITEM-02 (remediação de dívida técnica P0): Company/Contact/Activity/Note/TimelineEvent NÃO estão
+// no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) — a RLS real dessas tabelas
+// fechou pra bypass, tanto leitura quanto escrita (migration
+// 20260825120000_scope_rls_bypass_to_bootstrap_allowlist). Um `deleteMany()` sob bypass, sem
+// `where`, agora afeta 0 linhas silenciosamente nessas tabelas (RLS nega por falta de tenant), o
+// que quebraria a limpeza global entre testes de toda a suíte. `Lead` continua no allowlist, mas
+// roda no mesmo laço por tenant por consistência (evita depender de dois caminhos diferentes).
+// `Organization` continua no allowlist — usada aqui só para descobrir QUAIS tenants existem no
+// banco de teste no momento (a mesma descoberta cross-tenant já legítima em outros bootstraps,
+// ver src/lib/prisma.ts), nunca para ler/escrever dado de negócio de um tenant.
+const cleanDatabase = async () => {
+  const orgs = await withRlsBypass(() => prisma.organization.findMany({ select: { id: true } }));
+  for (const { id: tenantId } of orgs) {
+    await requestContext.run({ tenantId }, async () => {
+      await prisma.timelineEvent.deleteMany();
+      await prisma.activity.deleteMany();
+      await prisma.note.deleteMany();
+      await prisma.lead.deleteMany();
+      await prisma.contact.deleteMany();
+      await prisma.company.deleteMany();
+    });
+  }
+};
 
 const seedDatabase = async () => withRlsBypass(async () => {
     // Add default test organization to resolve foreign key constraints

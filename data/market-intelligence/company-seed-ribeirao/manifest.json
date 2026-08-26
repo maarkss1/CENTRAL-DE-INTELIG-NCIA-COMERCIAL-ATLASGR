@@ -1,0 +1,119 @@
+{
+  "dataset": "CNPJ_COMPANIES_SEED",
+  "scope": "RIBEIRAO_PRETO_OPERATIONAL_BOOTSTRAP",
+  "source": "RECEITA_FEDERAL_CNPJ",
+  "sourceUrl": "https://arquivos.receitafederal.gov.br/index.php/s/gn672Ad4CF8N6TK",
+  "sourceVersion": "2026-08",
+  "competencia": "2026-08",
+  "pipelineVersion": "market-intelligence-company-seed-v1",
+  "sourcePipelineVersion": "market-intelligence-companies-v2",
+  "sourceDatasetHash": "0ca6f0104ef847a9dbd84afe3dda29bc0e6bf9843ddc5b8e6acd08e18f5aac82",
+  "seedHash": "23f034a2badeb3d68d1e7c1ff557e264287699f51dac02afe2cbc6523f3d571f",
+  "generatedAt": "2026-08-26T13:34:03.341490+00:00",
+  "filters": {
+    "uf": "SP",
+    "municipioIbge": "3543402",
+    "municipioNome": "Ribeirao Preto"
+  },
+  "records": 381212,
+  "activeRecords": 156199,
+  "parts": [
+    {
+      "path": "part-0001.ndjson.gz",
+      "sha256": "d2dbfffbb2b96b22a4336dc29fbc3b74cf7cfd78046ced38d845cc567a8812ef",
+      "records": 25000
+    },
+    {
+      "path": "part-0002.ndjson.gz",
+      "sha256": "76c647e1604090cbff1b1968a211b27d35530ff62ed91bd954cef9bc7097b578",
+      "records": 25000
+    },
+    {
+      "path": "part-0003.ndjson.gz",
+      "sha256": "ca7a2cc8209ce620bd92909b27622b4b4461815322d4a5974a7338295e87456a",
+      "records": 25000
+    },
+    {
+      "path": "part-0004.ndjson.gz",
+      "sha256": "368080f49169249ddf2eac2729023ce1f3c53d6e95e356a9ad1627ea60476484",
+      "records": 25000
+    },
+    {
+      "path": "part-0005.ndjson.gz",
+      "sha256": "34fd30420c018d84ce9b4dac8feac8f9c2abebc2f749e580e2062c4165964ea0",
+      "records": 25000
+    },
+    {
+      "path": "part-0006.ndjson.gz",
+      "sha256": "d85d486918991c05b7c45e89e3d48d1d5712c4ec74cf21548789423a4623db51",
+      "records": 25000
+    },
+    {
+      "path": "part-0007.ndjson.gz",
+      "sha256": "1393bdcb0015e46c3a4c0af0bc07838a6bd09b6d1d0c6b601213adc0a429c13c",
+      "records": 25000
+    },
+    {
+      "path": "part-0008.ndjson.gz",
+      "sha256": "13c8782f6fb10b61a4a87894b6017663658d2bd648dfc56f69fed7eb3a49c665",
+      "records": 25000
+    },
+    {
+      "path": "part-0009.ndjson.gz",
+      "sha256": "e4e278373dba722a06b67c6cad0f270cab77864e337d443d43980c14743c916b",
+      "records": 25000
+    },
+    {
+      "path": "part-0010.ndjson.gz",
+      "sha256": "68ce1743331aa2af16dd02c1e97c7667b9fd73056160a3064382af0b1ce7bc72",
+      "records": 25000
+    },
+    {
+      "path": "part-0011.ndjson.gz",
+      "sha256": "29dccf6ae55996bce533fd046a31b1aa4c6255e0afc227d9806a823063d40cd4",
+      "records": 25000
+    },
+    {
+      "path": "part-0012.ndjson.gz",
+      "sha256": "67dda9980c892e66fd0f68b7ce32cf398879964fe2afbdcc9de0e2d4d8ad47fe",
+      "records": 25000
+    },
+    {
+      "path": "part-0013.ndjson.gz",
+      "sha256": "1ebfba3d85fe35e816bd64f0db600d3b58de6ab52c670d0890c980055e7c07e1",
+      "records": 25000
+    },
+    {
+      "path": "part-0014.ndjson.gz",
+      "sha256": "c35438a24b6fae146e4a90a6e8f85f37ab621121734236cbedb4821db9e9c403",
+      "records": 25000
+    },
+    {
+      "path": "part-0015.ndjson.gz",
+      "sha256": "fe44b4c133fb5827dfafb1c7ebda101b860732a36aee6f7b42bdcebdb865221a",
+      "records": 25000
+    },
+    {
+      "path": "part-0016.ndjson.gz",
+      "sha256": "3fe4f2090b1e8d5feae8e1f3a8a55baba2b72b7554b70e052487767eaf8ac3c2",
+      "records": 6212
+    }
+  ],
+  "redaction": {
+    "contactFieldsRemoved": [
+      "ddd1",
+      "ddd2",
+      "dddFax",
+      "email",
+      "fax",
+      "telefone1",
+      "telefone2"
+    ],
+    "policy": "CATALOGO_GLOBAL_SEM_CONTATOS"
+  },
+  "dataOrigin": "OBSERVED",
+  "limitations": [
+    "ICP individual permanece NOT_AVAILABLE ate classificacao empresarial versionada.",
+    "RNTRC individual permanece NOT_AVAILABLE; indicador municipal nao e atribuido ao CNPJ."
+  ]
+}

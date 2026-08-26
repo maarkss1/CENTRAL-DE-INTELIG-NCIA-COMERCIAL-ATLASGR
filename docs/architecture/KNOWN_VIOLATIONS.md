@@ -1,0 +1,85 @@
+# Baseline de violações conhecidas — `dependency-cruiser` (ITEM-13)
+
+Este documento é a contraparte legível-por-humano de
+`.dependency-cruiser-known-violations.json` (a baseline consumida por
+`npm run lint:architecture` via `--ignore-known`). Ver
+`docs/architecture/DEPENDENCY_RULES.md` para o mecanismo completo — resumo: toda entrada listada
+aqui é dívida **existente antes do ITEM-13**, aceita explicitamente para o gate nascer executável
+sem bloquear o repositório inteiro; qualquer violação **nova**, não coberta por este arquivo,
+quebra `npm run lint:architecture` (e portanto o CI) normalmente.
+
+**Data de registro:** 2026-08-25 (criação do gate, ITEM-13).
+**Total na baseline:** 113 violações (95 `no-cross-feature-imports` + 18 `no-circular`).
+**Checkpoint de reavaliação:** 2026-11-30 — não é prazo para zerar a baseline (113 violações não
+somem numa wave), é a data em que o dono de cada grupo abaixo revisita se o número do seu grupo
+caiu, ficou igual, ou precisa de uma exceção formal renovada. Ver "Como reavaliar" no fim.
+
+## `no-circular` — 18 ciclos pré-existentes
+
+| Grupo (arquivos no ciclo) | Nº ciclos | Dono | Observação |
+| --- | --- | --- | --- |
+| `src/shared/domain/specifications/{Specification,CompositeSpecification,AndSpecification,OrSpecification,NotSpecification}.ts` | 6 | Agente 01 — Plataforma, Segurança e Dados (`src/shared/AGENTS.md`) | Padrão Composite Specification com import circular entre a classe base e as composições — comum em implementações ingênuas desse padrão; correção real é a base não importar as subclasses (usar injeção/registro em vez de import direto). |
+| `src/lib/prisma.ts` ↔ `src/lib/queue/{search.queue.ts,deadLetter.ts}` / `src/lib/audit/audit.service.ts` | 2 | Agente 16 — Runtime, Workers e Escala (filas BullMQ) + Agente 01 (Prisma/dados) | `prisma.ts` é importado por praticamente todo o backend; o ciclo aparece porque algo em `lib/queue`/`lib/audit` é importado de volta por `prisma.ts` (provavelmente hook de auditoria/dead-letter no client). Requer decidir qual lado depende de uma interface em vez do módulo concreto. |
+| `src/features/prospecting/services/{enrichment.service.ts,apollo.service.ts,apollo/*.ts,prospecting.service.ts}` | 6 | Agente 05 — Prospecção | `apollo.service.ts`/`apollo/*` e `prospecting.service.ts` se importam mutuamente através de `apollo/types.ts`. Padrão clássico de tipos compartilhados que deveriam viver num módulo `types.ts` sem importar de volta o serviço. |
+| `src/features/integrations/whatsapp/whatsapp.service.ts` ↔ `src/lib/queue/whatsappCommand.queue.ts` | 1 | Agente 06 — Integrações e Bitrix | Fila de comando importa o serviço para despachar, serviço importa a fila para enfileirar — inversão de dependência (interface de fila) resolveria. |
+| `src/features/integrations/bitrix/service/{deals.ts,userMapping.ts}` | 1 | Agente 06 — Integrações e Bitrix | Dois módulos de serviço do Bitrix se referenciam mutuamente. |
+
+## `no-cross-feature-imports` — 95 imports pré-existentes
+
+Agrupado por feature de origem (`from`). "Dono" vem do `## Dono` declarado no `AGENTS.md` da
+própria pasta quando existe; onde a pasta não tem `AGENTS.md` de governança (só documentação de
+produto, ou nenhuma), isso está marcado explicitamente — não foi inventado um dono para preencher a
+tabela.
+
+| Feature de origem | Nº imports | Dono declarado (`AGENTS.md`) | Principais alvos |
+| --- | ---: | --- | --- |
+| `intelligence` | 31 | Agente 07 — IA e Automações | `knowledge` (6), `integrations` (4), `activities` (4), `analytics` (3), `chatbook` (2), `commercial-intelligence`, `cadence`, `contacts`, `dashboard`, `document-editor`, `gamification`, `lgpd`, `mesa-tratamento`, `notes`, `playbook`, `roleplay`, `automations` (1 cada) |
+| `integrations` | 12 | Agente 06 — Integrações e Bitrix | `cadence` (12) |
+| `crm` | 10 | Agente 04 — CRM e BI | `integrations` (5), `cadence` (2), `prospecting`, `analytics`, `automations` (1 cada) |
+| `prospecting` | 8 | Agente 05 — Prospecção | `integrations` (3), `intelligence` (3), `cadence` (2) |
+| `crm360` | 7 | **Sem `AGENTS.md` de governança na pasta** — tratado como adjacente a Agente 04 (CRM e BI) por conteúdo (`Crm360UseCases`/`PrismaCrm360Repository` operam sobre `Lead`/pipeline, mesmo domínio de `crm`) | `cadence` (4), `crm` (2), `commercial-intelligence` (1) |
+| `automations` | 5 | Agente 07 — IA e Automações | `integrations` (3), `intelligence` (2) |
+| `market-intelligence` | 4 | **Sem `AGENTS.md` de governança na pasta** — dono não declarado formalmente | `commercial-intelligence` (3), `integrations` (1) |
+| `settings` | 4 | Agente 02 — Produto e UX | `feature-flags`, `integrations`, `lgpd`, `team` (1 cada) |
+| `cadence` | 3 | Agente 17 — Cadência Multicanal e Ciclo de Receita | `integrations` (3) |
+| `commercial-intelligence` | 3 | Agente 04 — CRM e BI | `integrations` (2), `intelligence` (1) |
+| `companies` | 2 | Agente 04 — CRM e BI | `prospecting`, `market-intelligence` (1 cada) |
+| `contacts` | 2 | Agente 04 — CRM e BI | `prospecting` (2) |
+| `activities` | 1 | Agente 04 — CRM e BI | `automations` (1) |
+| `document-editor` | 1 | **Sem `AGENTS.md` de governança na pasta** — dono não declarado formalmente | `knowledge` (1) |
+| `mesa-tratamento` | 1 | **`AGENTS.md` presente mas é doc de produto/MVP, sem seção `## Dono`** — funcionalmente é mesa de trabalho SDR sobre leads do Bitrix, adjacente a Agente 04/06 | `integrations` (1) |
+| `roleplay` | 1 | Agente 07 — IA e Automações | `chatbook` (1) |
+
+**Leitura do padrão dominante:** `intelligence` sozinho responde por quase 1/3 da baseline (31/95).
+Isso não é ruído aleatório — `intelligence` é o hub de IA/copiloto do produto e hoje importa
+serviço de negócio de praticamente toda feature para dar contexto às respostas da IA (mesmo padrão
+já viola AGENTS.md dela? Não — `src/features/intelligence/AGENTS.md` autoriza "providers, gateway,
+fallback, tool calling" mas não faz uma promessa de isolamento de import; é dívida real, não
+contradição de outro documento). Qualquer refatoração futura que valha a pena aqui provavelmente
+passa por extrair um contrato/porta em `src/shared/` que `intelligence` consome, em vez de importar
+o serviço concreto de 15 features diferentes — mas isso é um item de dívida técnica **derivado**,
+fora do escopo do ITEM-13 (que é travar o crescimento, não pagar a dívida existente).
+
+## Como adicionar uma exceção nova (crescer a baseline deliberadamente)
+
+Só em dois casos:
+
+1. **Um refactor movimenta código entre features e o import "novo" já existia antes, só mudou de
+   nome de arquivo** — nesse caso, rode `npm run lint:architecture:baseline` para regenerar o
+   arquivo automaticamente (o número total não deve subir; se subir, é uma violação nova de
+   verdade, não um rename).
+2. **Uma decisão de arquitetura real e deliberada introduz um novo cross-feature import** (ex.:
+   uma feature nova precisa genuinamente compor outra) — quem propõe adiciona a entrada
+   manualmente ao `.dependency-cruiser-known-violations.json` **e** uma linha nova na tabela acima
+   com dono e justificativa, no mesmo PR. Não é aceitável rodar
+   `lint:architecture:baseline` só para "fazer o CI passar" sem registrar o motivo aqui.
+
+## Como reavaliar (checkpoint 2026-11-30)
+
+Cada dono de linha da tabela `no-cross-feature-imports` confirma, até a data acima:
+- o número da sua linha não cresceu sem uma entrada nova documentada (ver seção anterior);
+- se o número caiu (dívida paga), atualizar esta tabela e a baseline para refletir a contagem real.
+
+Não há compromisso formal de redução nesta wave — o objetivo do ITEM-13 é congelar o número, não
+zerá-lo. Reduzir é trabalho de um item de dívida técnica futuro e dedicado por feature, priorizado
+fora deste item.

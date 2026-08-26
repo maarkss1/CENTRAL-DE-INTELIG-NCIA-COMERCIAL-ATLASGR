@@ -8,12 +8,16 @@ Evidência no próprio conteúdo: `imagePullPolicy: Never # using local docker i
 (`api-deployment.yaml`, `migration-job.yaml`) e `host: prospector.local` (`ingress.yaml`) só fazem
 sentido contra um cluster minikube local, nunca contra um domínio público real.
 
-O deploy ativo em produção é **Render** (`render.yaml` na raiz) + **Vercel**/estático servido pelo
-próprio Render — ver `docs/deploy/producao.md`. O caminho Kubernetes "oficial"/versionado para um
-cluster real (se algum dia for ativado) é `charts/prospector-atlas/` via ArgoCD
-(`argocd/application-*.yaml`), não estes manifests avulsos — ver `charts/README.md` e
-`argocd/README.md` para o mesmo aviso do lado deles. Estes manifests aqui existem para
-desenvolvimento/teste local contra um minikube, não para produção.
+**Correção (ITEM-12, 2026-08-25):** nenhum caminho cloud está ativo hoje — o projeto está em modo
+local-first (`docs/development/LOCAL_FIRST.md`). **Render** (`render.yaml` na raiz) foi a última
+arquitetura de produção real, mas está **congelado** (`autoDeployTrigger: off`) desde a migração
+para local-first; não há Vercel neste projeto (`vercel.json` tem `git.deploymentEnabled: false` e
+nunca serviu produção). Ver [`docs/deploy/README.md`](../docs/deploy/README.md) para o caminho
+canônico atual por ambiente. O caminho Kubernetes "oficial"/versionado para um cluster real (se
+algum dia for ativado) é `charts/prospector-atlas/` via ArgoCD (`argocd/application-*.yaml`), não
+estes manifests avulsos — ver `charts/README.md` e `argocd/README.md` para o mesmo aviso do lado
+deles. Estes manifests aqui existem para desenvolvimento/teste local contra um minikube, não para
+produção.
 
 ## Ordem de aplicação (migração antes do app)
 

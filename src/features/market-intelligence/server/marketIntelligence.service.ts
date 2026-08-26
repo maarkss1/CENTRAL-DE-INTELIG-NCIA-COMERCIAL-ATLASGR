@@ -305,4 +305,68 @@ export const marketIntelligenceService = {
             startedAt: null, finishedAt: null, activatedAt: null, dataOrigin: rntrc.metadata.dataOrigin,
         }] };
     },
+
+    async approveToPipeline(organizationId: string, cnpj: string, userId?: string) {
+        const normalized = cnpj.replace(/\D/g, '');
+        const dataset = await activeDataset();
+        const rows = await withRlsContext((tx) => tx.$queryRaw<Array<Record<string, any>>>(Prisma.sql`
+            SELECT c.* FROM "MarketIntelligenceCompany" c
+            WHERE c."datasetId"=${dataset.id} AND c."cnpj"=${normalized} LIMIT 1
+        `));
+        const row = rows[0];
+        if (!row) throw new AppError('Empresa não encontrada no catálogo de inteligência.', 404);
+
+        const { prisma } = await import('../../../lib/prisma.js');
+
+        // Verifica se a empresa já existe no CRM
+        let company = await prisma.company.findFirst({
+            where: { cnpj: formatCnpj(normalized), organizationId, deletedAt: null },
+            include: { leads: true },
+        });
+
+        if (!company) {
+            company = await prisma.company.create({
+                data: {
+                    organizationId,
+                    legalName: row.razaoSocial || 'Empresa sem Razão Social',
+                    tradeName: row.nomeFantasia || row.razaoSocial || 'Empresa',
+                    cnpj: formatCnpj(normalized),
+                    segment: row.cnaePrincipalDescricao || undefined,
+                    cnae: row.cnaePrincipal || undefined,
+                    city: row.municipioNome || undefined,
+                    state: row.uf || undefined,
+                    zipCode: row.cep || undefined,
+                    capitalSocial: moneyValue(row.capitalSocial),
+                    status: 'Ativo',
+                    enrichmentStatus: 'Enriquecido',
+                    enrichmentSource: 'MarketIntelligenceCatalog',
+                },
+                include: { leads: true },
+            });
+        }
+
+        // Se o lead ainda não existir, cria o lead no funil
+        let lead = company.leads[0];
+        if (!lead) {
+            lead = await prisma.lead.create({
+                data: {
+                    organizationId,
+                    companyId: company.id,
+                    title: `${company.tradeName} - Prospecção Inteligente`,
+                    status: 'Lead_Recebido',
+                    source: 'Market Intelligence (Aprovação 1-Clique)',
+                    temperature: row.icpTier === 'MUITO_ALTO' || row.icpTier === 'ALTO' ? 'Quente' : 'Morno',
+                    owner: 'SDR',
+                },
+            });
+        }
+
+        logger.info({ organizationId, cnpj: normalized, companyId: company.id, leadId: lead.id }, 'Conta aprovada com 1-clique para o Pipeline');
+
+        return {
+            company,
+            lead,
+            message: 'Empresa e Lead aprovados com sucesso para o Pipeline CRM!',
+        };
+    },
 };

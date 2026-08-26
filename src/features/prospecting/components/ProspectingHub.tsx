@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Landmark, Sparkles, Camera, Wrench } from 'lucide-react';
+import { Database, Landmark, Sparkles, Camera, Wrench, Bookmark } from 'lucide-react';
 import { api } from '../../../lib/api';
 import type { CnpjLookupResult, FitScoreResult } from '../services/enrichment.service';
 import type { ProspectCandidate, ProspectCriteria, DiscoverResult } from '../services/prospecting.service';
@@ -13,6 +13,7 @@ import { DiscoveryFilterPanel } from './prospecting-hub/DiscoveryFilterPanel';
 import { DiscoveryResultsPanel } from './prospecting-hub/DiscoveryResultsPanel';
 import { OcrCapturePanel } from './prospecting-hub/OcrCapturePanel';
 import { ProspectingToolsHub } from './prospecting-hub/ProspectingToolsHub';
+import { SavedSearchesModal } from './SavedSearchesModal';
 
 export { DecisionMakerSearch } from './prospecting-hub/DecisionMakerSearch';
 
@@ -55,6 +56,7 @@ export function ProspectingHub() {
     const { activeBrand, brandInfo } = useBrand();
     const accent = useBrandAccent();
     const [tab, setTab] = useState<HubTab>('cnpj');
+    const [isSavedSearchesOpen, setIsSavedSearchesOpen] = useState(false);
 
     const activeSegments = activeBrand === 'totaltrac' ? TOTALTRAC_SEGMENTO_OPTIONS : SEGMENTO_OPTIONS;
     const activePersonaOptions = activeBrand === 'totaltrac' ? TOTALTRAC_PERSONA_OPTIONS : ATLAS_PERSONA_OPTIONS;
@@ -444,30 +446,39 @@ export function ProspectingHub() {
                     <GamificationWidget />
                 </motion.div>
 
-                <div className="flex gap-3 bg-surface/75 backdrop-blur-xl p-2 rounded-2xl border border-line shadow-card w-fit relative z-10">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex gap-3 bg-surface/75 backdrop-blur-xl p-2 rounded-2xl border border-line shadow-card w-fit relative z-10">
+                        <button
+                            onClick={() => setTab('cnpj')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-ink text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                        >
+                            <Landmark size={18} /> Busca Direta (CNPJ/Nome)
+                        </button>
+                        <button
+                            onClick={() => setTab('discovery')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-brand-active text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                        >
+                            <Database size={18} /> Radar Discovery (Fontes abertas)
+                        </button>
+                        <button
+                            onClick={() => setTab('ocr')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'ocr' ? 'bg-info-base text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                        >
+                            <Camera size={18} /> Cadastrar por Foto (OCR)
+                        </button>
+                        <button
+                            onClick={() => setTab('tools')}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'tools' ? 'bg-info text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                        >
+                            <Wrench size={18} /> Ferramentas
+                        </button>
+                    </div>
+
                     <button
-                        onClick={() => setTab('cnpj')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-[2rem] font-bold text-sm transition-all duration-300 ${tab === 'cnpj' ? 'bg-ink text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
+                        onClick={() => setIsSavedSearchesOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-surface border border-line hover:border-brand/40 rounded-2xl text-xs font-bold text-ink hover:text-brand transition-all shadow-sm active:scale-95"
                     >
-                        <Landmark size={18} /> Busca Direta (CNPJ/Nome)
-                    </button>
-                    <button
-                        onClick={() => setTab('discovery')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'discovery' ? 'bg-brand-active text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
-                    >
-                        <Database size={18} /> Radar Discovery (Fontes abertas)
-                    </button>
-                    <button
-                        onClick={() => setTab('ocr')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'ocr' ? 'bg-info-base text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
-                    >
-                        <Camera size={18} /> Cadastrar por Foto (OCR)
-                    </button>
-                    <button
-                        onClick={() => setTab('tools')}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${tab === 'tools' ? 'bg-info text-white shadow-sm scale-100' : 'text-ink-2 hover:bg-surface-2/50 scale-95 hover:scale-100'}`}
-                    >
-                        <Wrench size={18} /> Ferramentas
+                        <Bookmark size={16} className="text-brand" /> Listas Salvas & Agendamentos
                     </button>
                 </div>
 
@@ -530,6 +541,20 @@ export function ProspectingHub() {
                 {tab === 'ocr' && <OcrCapturePanel />}
 
                 {tab === 'tools' && <ProspectingToolsHub />}
+
+                <SavedSearchesModal
+                    isOpen={isSavedSearchesOpen}
+                    onClose={() => setIsSavedSearchesOpen(false)}
+                    currentCriteria={criteria}
+                    onApplyCriteria={(savedCrit) => {
+                        setCriteria(savedCrit as any);
+                        setTab('discovery');
+                        setTimeout(() => {
+                            const btn = document.getElementById('btn-discover');
+                            if (btn) btn.click();
+                        }, 100);
+                    }}
+                />
             </div>
         </div>
     );

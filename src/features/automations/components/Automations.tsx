@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Cpu, Plus, Trash2, Loader2, AlertTriangle, X, Zap } from 'lucide-react';
+import { Cpu, Plus, Trash2, Loader2, AlertTriangle, X, Zap, Play, Filter, ZapIcon } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -23,12 +23,32 @@ const ACTIONS_INDISPONIVEIS_POR_GATILHO: Partial<Record<AutomationTrigger, Autom
     'Atividade concluída': ['Ligar via SDR de Voz'],
 };
 
+function VisualNode({ icon: Icon, title, subtitle, children, isLast }: { icon: any; title: string; subtitle?: string; children?: React.ReactNode; isLast?: boolean }) {
+    return (
+        <div className="relative">
+            {!isLast && (
+                <div className="absolute left-6 top-12 bottom-[-16px] w-px bg-brand/30 border-l border-dashed border-brand/40" />
+            )}
+            <div className="flex gap-4 items-start relative z-10">
+                <div className="w-12 h-12 rounded-full bg-surface-2 border border-brand/20 flex items-center justify-center shrink-0 shadow-sm z-10">
+                    <Icon className="w-5 h-5 text-brand" />
+                </div>
+                <div className="flex-1 bg-surface-2 border border-line rounded-2xl p-4 shadow-sm mb-4">
+                    <h4 className="text-sm font-bold text-ink mb-1">{title}</h4>
+                    {subtitle && <p className="text-[11px] text-ink-2 mb-3">{subtitle}</p>}
+                    <div className="space-y-3">
+                        {children}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: () => void }) {
     const [name, setName] = useState('');
     const [trigger, setTrigger] = useState<AutomationTrigger>('Lead mudou de status');
     const [statusCondition, setStatusCondition] = useState('');
-    // Gatilho de estagnação (Onda 7): reavaliado diariamente por stagnation-scanner.service.ts, não
-    // em tempo real — vazio = regra normal, só orientada a evento (ver automation.engine.ts).
     const [stagnationDays, setStagnationDays] = useState('');
     const [action, setAction] = useState<AutomationAction>('Notificar equipe');
     const acoesDisponiveis = ACTIONS.filter((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[trigger]?.includes(a));
@@ -39,7 +59,6 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
     const [dueInDays, setDueInDays] = useState('1');
     const [saving, setSaving] = useState(false);
 
-    // O filtro por etapa e a regra de estagnação só fazem sentido para o gatilho de mudança de status.
     const permiteCondicaoStatus = trigger === 'Lead mudou de status';
 
     const submit = useCallback(async () => {
@@ -74,8 +93,6 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
                         kind: 'Info',
                         ...(emailChannel ? { channel: 'email', to: emailTo.trim() } : {}),
                     }
-                    // A ligação não tem parâmetro: o agente e o número saem da configuração do
-                    // ambiente e do cadastro do lead, não da regra.
                     : action === 'Ligar via SDR de Voz'
                         ? {}
                         : { dueInDays: Number(dueInDays) || 1, type: 'Follow_up' },
@@ -90,150 +107,147 @@ function AutomationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: 
     }, [name, trigger, action, statusCondition, stagnationDays, title, body, emailChannel, emailTo, dueInDays, permiteCondicaoStatus, onSaved]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6">
-            <Card className="w-full max-w-lg" accentBar>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-ink">Nova automação</h2>
-                    <button onClick={onCancel} aria-label="Fechar" className="p-1 rounded-lg text-ink-2 hover:text-ink hover:bg-surface-2">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6 overflow-y-auto">
+            <div className="w-full max-w-2xl bg-surface rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto max-h-full">
+                <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2/50">
+                    <h2 className="text-lg font-bold text-ink">Construtor de Automação</h2>
+                    <button onClick={onCancel} aria-label="Fechar" className="p-1.5 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="space-y-3">
-                    <div>
+                <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+                    <div className="mb-6">
                         <label className={labelClass} htmlFor="auto-nome">Nome</label>
                         <input
                             id="auto-nome" value={name} onChange={(e) => setName(e.target.value)}
-                            placeholder="Ex: Avisar time quando lead chegar em Proposta"
+                            placeholder="Ex: Avisar em Proposta Enviada"
                             className={inputClass}
+                            autoFocus
                         />
                     </div>
 
-                    <div>
-                        <label className={labelClass} htmlFor="auto-gatilho">Quando</label>
-                        <select
-                            id="auto-gatilho" value={trigger}
-                            onChange={(e) => {
-                                const novoGatilho = e.target.value as AutomationTrigger;
-                                setTrigger(novoGatilho);
-                                // Evita deixar selecionada uma ação que não se aplica mais ao novo gatilho.
-                                if (ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(action)) {
-                                    setAction(ACTIONS.find((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(a)) ?? 'Notificar equipe');
-                                }
-                            }}
-                            className={inputClass}
-                        >
-                            {TRIGGERS.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                    </div>
-
-                    {permiteCondicaoStatus && (
-                        <div>
-                            <label className={labelClass} htmlFor="auto-status">Somente na etapa (opcional)</label>
+                    <div className="pt-2">
+                        <VisualNode icon={Play} title="Gatilho" subtitle="O que dispara esta automação?">
+                            <label className={labelClass} htmlFor="auto-trigger">Quando</label>
                             <select
-                                id="auto-status" value={statusCondition}
-                                onChange={(e) => setStatusCondition(e.target.value)}
+                                id="auto-trigger"
+                                value={trigger}
+                                onChange={(e) => {
+                                    const novoGatilho = e.target.value as AutomationTrigger;
+                                    setTrigger(novoGatilho);
+                                    if (ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(action)) {
+                                        setAction(ACTIONS.find((a) => !ACTIONS_INDISPONIVEIS_POR_GATILHO[novoGatilho]?.includes(a)) ?? 'Notificar equipe');
+                                    }
+                                }}
                                 className={inputClass}
                             >
-                                <option value="">Qualquer etapa</option>
-                                {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                {TRIGGERS.map((t) => <option key={t} value={t}>{t}</option>)}
                             </select>
-                        </div>
-                    )}
+                        </VisualNode>
 
-                    {permiteCondicaoStatus && (
-                        <div>
-                            <label className={labelClass} htmlFor="auto-estagnacao">
-                                Também reavaliar todo dia se ficar parado, sem interação, por (dias — opcional)
-                            </label>
-                            <input
-                                id="auto-estagnacao" type="number" min="1" value={stagnationDays}
-                                onChange={(e) => setStagnationDays(e.target.value)}
-                                placeholder="Ex: 3 — vira uma regra tipo &quot;Proposta enviada sem resposta&quot;"
-                                className={inputClass}
-                            />
-                            <p className="text-[11px] text-ink-2 mt-1">
-                                Sem preencher, a regra só dispara na transição de etapa (comportamento normal).
-                                Preenchendo, ela também é reavaliada uma vez por dia enquanto o lead permanecer
-                                parado — dispara uma única vez por período de estagnação, não todo dia.
-                            </p>
-                        </div>
-                    )}
-
-                    <div>
-                        <label className={labelClass} htmlFor="auto-acao">Então</label>
-                        <select
-                            id="auto-acao" value={action}
-                            onChange={(e) => setAction(e.target.value as AutomationAction)}
-                            className={inputClass}
-                        >
-                            {acoesDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
-                        </select>
-                    </div>
-
-                    {action === 'Notificar equipe' ? (
-                        <>
-                            <div>
-                                <label className={labelClass} htmlFor="auto-titulo">Título do aviso</label>
-                                <input
-                                    id="auto-titulo" value={title} onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Use {{status}} e {{owner}} para inserir dados do lead"
-                                    className={inputClass}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass} htmlFor="auto-corpo">Detalhe (opcional)</label>
-                                <input
-                                    id="auto-corpo" value={body} onChange={(e) => setBody(e.target.value)}
-                                    className={inputClass}
-                                />
-                            </div>
-                            <label className="flex items-center gap-2 text-xs text-ink-2 select-none">
-                                <input
-                                    type="checkbox" checked={emailChannel}
-                                    onChange={(e) => setEmailChannel(e.target.checked)}
-                                    className="rounded border-line"
-                                />
-                                Também enviar por e-mail (além do sino de notificações)
-                            </label>
-                            {emailChannel && (
+                        {permiteCondicaoStatus && (
+                            <VisualNode icon={Filter} title="Condições" subtitle="Filtros adicionais (opcional)">
                                 <div>
-                                    <label className={labelClass} htmlFor="auto-email-to">Enviar para (e-mail)</label>
+                                    <label className={labelClass} htmlFor="auto-status">Somente na etapa</label>
+                                    <select
+                                        id="auto-status"
+                                        value={statusCondition}
+                                        onChange={(e) => setStatusCondition(e.target.value)}
+                                        className={inputClass}
+                                    >
+                                        <option value="">Qualquer etapa</option>
+                                        {LEAD_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </div>
+                                <div className="mt-3">
+                                    <label className={labelClass} htmlFor="auto-stagnation">
+                                        Reavaliar todo dia se ficar parado por (dias)
+                                    </label>
                                     <input
-                                        id="auto-email-to" type="email" value={emailTo}
-                                        onChange={(e) => setEmailTo(e.target.value)}
-                                        placeholder="gestor@atlasgr.com.br"
+                                        id="auto-stagnation"
+                                        type="number" min="1" value={stagnationDays}
+                                        onChange={(e) => setStagnationDays(e.target.value)}
+                                        placeholder="Ex: 3"
+                                        className={inputClass}
+                                    />
+                                </div>
+                            </VisualNode>
+                        )}
+
+                        <VisualNode icon={ZapIcon} title="Ação" subtitle="O que acontece depois?" isLast>
+                            <select
+                                value={action}
+                                onChange={(e) => setAction(e.target.value as AutomationAction)}
+                                className={inputClass}
+                            >
+                                {acoesDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
+                            </select>
+
+                            {action === 'Notificar equipe' ? (
+                                <div className="space-y-3 mt-3 p-3 bg-soft rounded-xl border border-line">
+                                    <div>
+                                        <label className={labelClass}>Título do aviso</label>
+                                        <input
+                                            value={title} onChange={(e) => setTitle(e.target.value)}
+                                            placeholder="Ex: Novo lead quente!"
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Detalhe (opcional)</label>
+                                        <input
+                                            value={body} onChange={(e) => setBody(e.target.value)}
+                                            className={inputClass}
+                                        />
+                                    </div>
+                                    <label className="flex items-center gap-2 text-xs text-ink-2 select-none cursor-pointer">
+                                        <input
+                                            type="checkbox" checked={emailChannel}
+                                            onChange={(e) => setEmailChannel(e.target.checked)}
+                                            className="rounded border-line"
+                                        />
+                                        Também enviar por e-mail
+                                    </label>
+                                    {emailChannel && (
+                                        <div>
+                                            <label className={labelClass} htmlFor="auto-email-to">Enviar para (e-mail)</label>
+                                            <input
+                                                id="auto-email-to"
+                                                type="email" value={emailTo}
+                                                onChange={(e) => setEmailTo(e.target.value)}
+                                                placeholder="gestor@atlasgr.com.br"
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ) : action === 'Ligar via SDR de Voz' ? (
+                                <p className="text-xs text-ink-2 mt-2 bg-surface-2 p-2 rounded-lg border border-line">
+                                    A IA de voz assumirá o fluxo de ligação automaticamente se o contato possuir telefone.
+                                </p>
+                            ) : (
+                                <div className="mt-3 p-3 bg-soft rounded-xl border border-line">
+                                    <label className={labelClass}>Criar follow-up em (dias)</label>
+                                    <input
+                                        type="number" min="1" value={dueInDays}
+                                        onChange={(e) => setDueInDays(e.target.value)}
                                         className={inputClass}
                                     />
                                 </div>
                             )}
-                        </>
-                    ) : action === 'Ligar via SDR de Voz' ? (
-                        <p className="text-xs text-ink-2 bg-surface-2 rounded-lg p-3">
-                            O SDR de voz liga para o telefone do contato do lead (ou, na falta dele, o da
-                            empresa) e registra o resultado da chamada como atividade. Leads sem telefone
-                            discável são ignorados.
-                        </p>
-                    ) : (
-                        <div>
-                            <label className={labelClass} htmlFor="auto-prazo">Criar follow-up em (dias)</label>
-                            <input
-                                id="auto-prazo" type="number" min="1" value={dueInDays}
-                                onChange={(e) => setDueInDays(e.target.value)}
-                                className={inputClass}
-                            />
-                        </div>
-                    )}
+                        </VisualNode>
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-line">
+                <div className="px-6 py-4 bg-surface-2/30 border-t border-line flex items-center justify-end gap-3">
                     <Button variant="outline" onClick={onCancel} disabled={saving}>Cancelar</Button>
                     <Button onClick={() => void submit()} disabled={saving}>
                         {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                         Criar
                     </Button>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }

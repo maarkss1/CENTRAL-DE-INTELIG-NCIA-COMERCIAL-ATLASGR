@@ -7,8 +7,9 @@ import { fromPrismaLeadStatus } from '../../../lib/enumMap';
 import type { LeadFunnel } from '@prisma/client';
 import { BaseUseCases } from '../../../shared/application/BaseUseCases';
 import { AppError } from '../../../shared/middlewares/errorHandler';
-import { ensureManualDealClosureAllowed } from './dealClosureGate';
-import { prismaDealClosureGate } from '../infra/PrismaDealClosureGate';
+import { ensureManualDealClosureAllowed } from './dealClosureGate.js';
+import { prismaDealClosureGate } from '../infra/PrismaDealClosureGate.js';
+import { broadcastEvent } from '../../../lib/eventsBus.js';
 
 /** Mesmo rótulo usado em `LEAD_STATUS_TO_PRISMA`/`LEAD_CLOSING_STATUSES` (src/lib/enumMap.ts) — único status que exige o gate de fechamento determinístico (CYC-007). */
 const WON_STATUS_LABEL = 'Negócios Ganhos';
@@ -114,7 +115,14 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
             await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
         }
-        return this.update(organizationId, id, data);
+        const updated = await this.update(organizationId, id, data);
+        
+        if (data.status === WON_STATUS_LABEL) {
+            broadcastEvent({ type: 'DEAL_WON', organizationId, payload: { leadId: id } });
+        } else if (data.status && (data.status.toLowerCase().includes('perdido') || data.status.toLowerCase().includes('desqualificad'))) {
+            broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
+        }
+        return updated;
     }
 
     async updateLeadStatus(organizationId: string, id: string, newStatus: string, actorUserId?: string) {
@@ -122,7 +130,14 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
             if (!actorUserId) throw new AppError('Fechar um negócio exige um usuário autenticado identificado.', 401);
             await ensureManualDealClosureAllowed(prismaDealClosureGate, { organizationId, leadId: id, actorUserId });
         }
-        return this.repository.updateStatus(organizationId, id, newStatus);
+        const updated = await this.repository.updateStatus(organizationId, id, newStatus);
+        
+        if (newStatus === WON_STATUS_LABEL) {
+            broadcastEvent({ type: 'DEAL_WON', organizationId, payload: { leadId: id } });
+        } else if (newStatus.toLowerCase().includes('perdido') || newStatus.toLowerCase().includes('desqualificad')) {
+            broadcastEvent({ type: 'DEAL_LOST', organizationId, payload: { leadId: id } });
+        }
+        return updated;
     }
 
     async deleteLead(organizationId: string, id: string) {
@@ -367,5 +382,70 @@ export class LeadUseCases extends BaseUseCases<Lead, LeadRepository> {
         });
 
         return { enqueued: leadsToEnrich.length, enfileirado: true as const };
+    }
+
+    async batchUpdateLeads(
+        organizationId: string,
+        leadIds: string[],
+        updates: { status?: string; owner?: string; tags?: string[]; addTags?: string[]; removeTags?: string[] },
+        actorUserId?: string,
+    ) {
+        if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+            throw new AppError('Nenhum lead informado para atualização.', 400);
+        }
+        const { prisma } = await import('../../../lib/prisma.js');
+        const leads = await prisma.lead.findMany({
+            where: { id: { in: leadIds }, organizationId, deletedAt: null },
+            select: { id: true, status: true, customFields: true, owner: true },
+        });
+
+        let updatedCount = 0;
+        for (const lead of leads) {
+            const dataToUpdate: Record<string, unknown> = {};
+            if (updates.status && updates.status !== lead.status) {
+                dataToUpdate.status = updates.status;
+            }
+            if (updates.owner !== undefined) {
+                dataToUpdate.owner = updates.owner;
+            }
+            const customFieldsObj = (lead.customFields && typeof lead.customFields === 'object' && !Array.isArray(lead.customFields))
+                ? { ...(lead.customFields as Record<string, unknown>) }
+                : {};
+
+            if (updates.tags) {
+                customFieldsObj.tags = updates.tags;
+                dataToUpdate.customFields = customFieldsObj;
+            } else if (updates.addTags || updates.removeTags) {
+                let currentTags = Array.isArray(customFieldsObj.tags) ? [...(customFieldsObj.tags as string[])] : [];
+                if (updates.addTags) {
+                    for (const tag of updates.addTags) {
+                        if (!currentTags.includes(tag)) currentTags.push(tag);
+                    }
+                }
+                if (updates.removeTags) {
+                    currentTags = currentTags.filter((t) => !updates.removeTags!.includes(t));
+                }
+                customFieldsObj.tags = currentTags;
+                dataToUpdate.customFields = customFieldsObj;
+            }
+
+            if (Object.keys(dataToUpdate).length > 0) {
+                await prisma.lead.update({
+                    where: { id: lead.id },
+                    data: dataToUpdate,
+                });
+                if (dataToUpdate.status) {
+                    await prisma.leadStageHistory.create({
+                        data: {
+                            leadId: lead.id,
+                            organizationId,
+                            stageName: String(dataToUpdate.status),
+                        }
+                    }).catch(() => {});
+                }
+                updatedCount++;
+            }
+        }
+        return { updatedCount, total: leads.length };
     }
 }

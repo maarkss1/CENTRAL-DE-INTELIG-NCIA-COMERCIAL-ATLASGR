@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
+import { CohortAnalysis } from './CohortAnalysis';
 import {
     analyticsApi, formatMonthLabel, PERIOD_OPTIONS,
     type AnalyticsDashboard,
@@ -158,7 +159,13 @@ export function Analytics() {
                                 </button>
                             ))}
                         </div>
-                        <Button variant="outline" onClick={() => void load(months)} disabled={loading}>
+                        <Button
+                            variant="outline"
+                            onClick={() => void load(months)}
+                            disabled={loading}
+                            aria-label="Atualizar métricas"
+                            title="Atualizar métricas"
+                        >
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         </Button>
                     </div>
@@ -383,6 +390,8 @@ export function Analytics() {
                                 <LostReasonsWidget data={data.lostReasons} />
                             </Card>
                         </div>
+
+                        <CohortAnalysis />
                     </motion.div>
                 )}
             </div>
