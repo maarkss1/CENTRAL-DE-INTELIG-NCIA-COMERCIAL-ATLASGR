@@ -8,56 +8,20 @@ import { queuesEnabled } from './queue/redis.js';
 import { logger } from './logger.js';
 import { requestContext } from './async-context.js';
 import { env } from '../config/env.js';
-import { encryptField, decryptField } from './crypto/secretFields.js';
+import {
+  ENCRYPTED_MODEL_FIELDS as ENCRYPTED_FIELDS,
+  encryptSensitiveFields,
+  decryptSensitiveResult,
+} from './crypto/piiFields.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 
-// Campos de credencial de integração que são cifrados em repouso (AES-256-GCM, ver
-// src/lib/crypto/secretFields.ts) — cifra ao gravar/decifra ao ler, de forma transparente para
-// todo o resto do código (services de Bitrix/Google continuam lendo texto puro em memória; só o
-// valor persistido no Postgres é cifrado).
-const ENCRYPTED_FIELDS: Record<string, readonly string[]> = {
-  GoogleWorkspaceConnection: ['accessToken', 'refreshToken'],
-  BitrixConnection: ['webhookUrl', 'webhookSecret'],
-  // Credencial de PABX 3CX (Call Control API) — mesmo tratamento das duas linhas acima. Ver
-  // .agents/handoffs/onda-5/01-para-06-persistencia-3cx-implementada.md.
-  ThreeCXConnection: ['apiKey', 'apiSecret'],
-  // Tokens OAuth de login social (Google/Microsoft via Better Auth, gravados por
-  // prismaAdapter em src/lib/auth.ts) — mesma classe de credencial de terceiro das linhas
-  // acima. Ver .agents/handoffs/roadmap-v2-onda-1/01-para-00-account-oauth-tokens-sem-cifra.md.
-  Account: ['accessToken', 'refreshToken', 'idToken'],
-};
-
-function encryptSensitiveFields(model: string, data: Record<string, unknown>): Record<string, unknown> {
-  const fields = ENCRYPTED_FIELDS[model];
-  if (!fields) return data;
-  const out = { ...data };
-  for (const field of fields) {
-    if (typeof out[field] === 'string' && out[field]) {
-      out[field] = encryptField(out[field] as string);
-    }
-  }
-  return out;
-}
-
-function decryptSensitiveRecord<T>(model: string, record: T): T {
-  const fields = ENCRYPTED_FIELDS[model];
-  if (!fields || !record || typeof record !== 'object') return record;
-  const out = record as Record<string, unknown>;
-  for (const field of fields) {
-    if (typeof out[field] === 'string' && out[field]) {
-      out[field] = decryptField(out[field] as string);
-    }
-  }
-  return out as T;
-}
-
-function decryptSensitiveResult<T>(model: string, result: T): T {
-  if (!ENCRYPTED_FIELDS[model] || !result) return result;
-  if (Array.isArray(result)) {
-    return result.map((item) => decryptSensitiveRecord(model, item)) as unknown as T;
-  }
-  return decryptSensitiveRecord(model, result);
-}
+// Campos de credencial de integração e de PII de Contact que são cifrados em repouso
+// (AES-256-GCM, ver src/lib/crypto/secretFields.ts) — cifra ao gravar/decifra ao ler, de forma
+// transparente para todo o resto do código (services continuam lendo texto puro em memória; só o
+// valor persistido no Postgres é cifrado). Config e helpers movidos para
+// src/lib/crypto/piiFields.ts (ver ali o mapa completo de models/campos e o comentário sobre o
+// impacto conhecido em busca por contains/groupBy em Contact) — mantido apenas o mesmo nome local
+// `ENCRYPTED_FIELDS` abaixo para não alterar o resto deste arquivo.
 
 // Production-ready connection pool configuration
 const pool = new Pool({
