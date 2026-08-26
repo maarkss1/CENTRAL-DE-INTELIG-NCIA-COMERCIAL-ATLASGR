@@ -228,7 +228,7 @@ describe('executeExtractionRun — paginação, progresso, cancelamento e resili
         }));
     });
 
-    it('respeita o teto de segurança de páginas em vez de rodar para sempre quando o Bitrix nunca devolve next=null, e marca a extração como PARCIAL (bloqueador #12 — incompleta não pode virar "completed" silencioso)', async () => {
+    it('respeita o teto de segurança de páginas em vez de rodar para sempre quando o Bitrix nunca devolve next=null, e marca a extração como completed_partial (bloqueador #12 — incompleta não pode virar "completed" silencioso)', async () => {
         prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue(baseRun({ entities: ['lead'] }));
         let call = 0;
         clientMock.callBitrix.mockImplementation(async () => {
@@ -241,15 +241,13 @@ describe('executeExtractionRun — paginação, progresso, cancelamento e resili
         await executeExtractionRun('org-1', 'run-1');
 
         expect(clientMock.callBitrix).toHaveBeenCalledTimes(500); // PAGE_SAFETY_CAP
-        // Mesmo tendo batido no teto (não esgotou o portal), a execução ainda finaliza como
-        // "completed" com o que conseguiu — não trava a linha em "running" para sempre. Mas
-        // "completed" sozinho não basta: sem um valor de enum "partial" no schema (dono exclusivo
-        // do Agente 01), o sinal de incompletude precisa ir para `errorMessage` — sem isto, esta
-        // extração de 500 páginas ficaria indistinguível na tela de uma que de fato esgotou o
-        // portal em 1 página, apresentando um recurso parcial como se fosse final.
+        // Mesmo tendo batido no teto (não esgotou o portal), a execução ainda finaliza com o que
+        // conseguiu — não trava a linha em "running" para sempre. status='completed_partial' (valor
+        // de enum próprio) distingue esta extração de 500 páginas de uma que de fato esgotou o
+        // portal em 1 página — não fica mais escondido só em errorMessage.
         expect(prismaMock.bitrixExtractionRun.update).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
-                status: 'completed',
+                status: 'completed_partial',
                 totalCount: 500,
                 errorMessage: expect.stringMatching(/PARCIAL/),
             }),
@@ -376,6 +374,14 @@ describe('downloadExtractionFile — nunca serve arquivo sem checar tenant/statu
         prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue({ status: 'running', files: null });
         const { downloadExtractionFile } = await import('../extraction.js');
         await expect(downloadExtractionFile('org-1', 'run-x', 'csv', 'lead')).rejects.toMatchObject({ statusCode: 400 });
+    });
+
+    it('permite download de uma extração completed_partial (gerou arquivo utilizável, só não esgotou o portal)', async () => {
+        prismaMock.bitrixExtractionRun.findFirst.mockResolvedValue({ status: 'completed_partial', files: [{ format: 'csv', entity: 'lead', filename: 'lead.csv' }] });
+        filesMock.readExtractionFile.mockResolvedValue(Buffer.from('conteudo'));
+        const { downloadExtractionFile } = await import('../extraction.js');
+        const result = await downloadExtractionFile('org-1', 'run-x', 'csv', 'lead');
+        expect(result.filename).toBe('lead.csv');
     });
 
     it('CSV sem "entity" informado devolve 400 pedindo a entidade', async () => {

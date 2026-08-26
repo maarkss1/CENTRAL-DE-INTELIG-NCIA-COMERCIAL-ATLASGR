@@ -1849,6 +1849,11 @@ enum BitrixExtractionStatus {
   queued
   running
   completed
+  /// Extração terminou e gerou arquivo utilizável, mas atingiu PAGE_SAFETY_CAP (teto de segurança
+  /// de páginas) para ao menos uma entidade antes de esgotar o portal Bitrix24 — distinto de
+  /// `completed` (esgotou o portal) e de `failed` (não gerou arquivo nenhum). Ver handoff
+  /// `.agents/handoffs/roadmap-v2-onda-1/06-para-01-status-extracao-parcial.md`.
+  completed_partial
   failed
   cancelled
 }

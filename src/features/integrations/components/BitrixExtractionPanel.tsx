@@ -8,7 +8,7 @@ import { toast } from '../../../lib/toast';
 
 type ExtractionEntity = 'lead' | 'deal' | 'company' | 'contact' | 'activity' | 'user';
 type ExtractionPeriod = 'today' | 'last7days' | 'thisMonth' | 'thisQuarter' | 'thisSemester' | 'all' | 'custom';
-type ExtractionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+type ExtractionStatus = 'queued' | 'running' | 'completed' | 'completed_partial' | 'failed' | 'cancelled';
 
 const ENTITY_OPTIONS: { value: ExtractionEntity; label: string }[] = [
     { value: 'lead', label: 'Leads' },
@@ -58,24 +58,22 @@ interface ExtractionRun {
 
 const ENTITY_LABEL = new Map<string, string>(ENTITY_OPTIONS.map((e) => [e.value, e.label]));
 
+/**
+ * "completed_partial" = extração terminou e gerou arquivo utilizável, mas atingiu o teto de
+ * segurança de páginas (`PAGE_SAFETY_CAP`/`incompleteEntities` em `service/extraction.ts`) para ao
+ * menos uma entidade antes de esgotar o portal — bloqueador #12 de `/AGENTS.md` ("Extrações Bitrix
+ * incompletas tratadas como recurso final"). Valor de enum próprio desde a resolução do handoff
+ * `.agents/handoffs/roadmap-v2-onda-1/06-para-01-status-extracao-parcial.md` — antes disso o sinal
+ * vinha só de `errorMessage` não-nulo com status="completed".
+ */
 const STATUS_BADGE: Record<ExtractionStatus, { label: string; className: string; icon: typeof Clock }> = {
     queued: { label: 'Na fila', className: 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300', icon: Clock },
     running: { label: 'Em andamento', className: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300', icon: Loader2 },
     completed: { label: 'Concluída', className: 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-300', icon: CheckCircle2 },
+    completed_partial: { label: 'Concluída (parcial)', className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20', icon: AlertTriangle },
     failed: { label: 'Falhou', className: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300', icon: AlertTriangle },
     cancelled: { label: 'Cancelada', className: 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300', icon: Ban },
 };
-
-/**
- * Extração que terminou com status "completed" mas atingiu o teto de segurança de páginas para ao
- * menos uma entidade (ver `PAGE_SAFETY_CAP`/`incompleteEntities` em `service/extraction.ts`) —
- * bloqueador #12 de `/AGENTS.md` ("Extrações Bitrix incompletas tratadas como recurso final").
- * Sem um valor de enum "partial" próprio no schema (`BitrixExtractionStatus` é propriedade
- * exclusiva do Agente 01), o backend sinaliza isso via `errorMessage` não-nulo mesmo com
- * status="completed" — este badge substitui o "Concluída" verde padrão por um aviso âmbar em vez
- * de deixar a extração parcial parecer idêntica a uma que de fato esgotou o portal.
- */
-const PARTIAL_BADGE = { label: 'Concluída (parcial)', className: 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20', icon: AlertTriangle };
 
 function downloadUrl(runId: string, format: 'csv' | 'xlsx' | 'json', entity?: string | null): string {
     const params = new URLSearchParams({ format });
@@ -301,12 +299,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
             ) : (
                 <div className="space-y-2">
                     {runs.map((run) => {
-                        // "completed" + errorMessage não-nulo = extração parcial (teto de segurança
-                        // de páginas atingido para ao menos uma entidade, ver service/extraction.ts)
-                        // — nunca renderiza como o "Concluída" verde normal, que afirmaria
-                        // implicitamente que o portal foi esgotado.
-                        const isPartial = run.status === 'completed' && !!run.errorMessage;
-                        const badge = isPartial ? PARTIAL_BADGE : STATUS_BADGE[run.status];
+                        const badge = STATUS_BADGE[run.status];
                         const BadgeIcon = badge.icon;
                         const csvFiles = (run.files || []).filter((f) => f.format === 'csv');
                         const hasJson = (run.files || []).some((f) => f.format === 'json');
@@ -357,7 +350,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                                     </div>
                                 )}
 
-                                {run.status === 'completed' && (
+                                {(run.status === 'completed' || run.status === 'completed_partial') && (
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-xs font-bold text-gray-700 dark:text-gray-300">{run.totalCount} registro(s)</span>
                                         {csvFiles.map((f) => (
@@ -395,7 +388,7 @@ export function BitrixExtractionPanel({ connectionId, canManage }: BitrixExtract
                                     </p>
                                 )}
 
-                                {isPartial && (
+                                {run.status === 'completed_partial' && run.errorMessage && (
                                     <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
                                         <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {run.errorMessage}
                                     </p>

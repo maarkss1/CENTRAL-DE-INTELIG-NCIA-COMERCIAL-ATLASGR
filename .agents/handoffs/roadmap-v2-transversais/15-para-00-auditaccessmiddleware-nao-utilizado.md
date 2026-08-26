@@ -1,7 +1,7 @@
 - De: Agente 15 — Segurança Aplicada e Rotação de Segredos
 - Para: Agente 00 — Coordenador
 - Onda: roadmap-v2-transversais
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -67,3 +67,40 @@ Achado durante auditoria de `src/lib/security/` desta onda (roadmap-v2-transvers
 bloqueador da lista "Bloqueadores prioritários" do `/AGENTS.md` (não é RBAC ausente nem rota sem
 autorização — é lacuna de trilha de auditoria, não de controle de acesso), por isso classifiquei
 como prioridade normal, não bloqueador.
+
+## Resolução (Coordenador, 00)
+Escolhida a Opção 1 (montar de fato), aplicada de forma restrita ao gap mais claro: `GET
+/api/leads/export/csv` (`src/features/crm/routes/lead.routes.ts`) — dump completo de nome/telefone/
+e-mail de todos os leads do tenant, já marcado no próprio código como "sensível (LGPD)", e sem
+NENHUMA chamada a `AuditService.log` em todo `src/features/crm/` (confirmado via grep). Agora usa
+`auditAccessMiddleware('Lead')` depois de `managementRoles`. Não estendi a outras rotas/domínios —
+isso continua sendo decisão de cada dono de feature, não algo para eu resolver de uma vez de forma
+genérica.
+
+Não escolhi a Opção 2 (remover) porque o middleware tem lógica correta, teste próprio, e havia pelo
+menos um gap real e concreto para ele cobrir — descartar o utilitário só porque nada o usava ainda
+teria sido remover uma correção real, não um código morto de fato.
+
+Teste novo: `tests/integration/lead-export-audit.test.ts` (sessão/RLS reais) — ADMIN gera AuditLog
+`action:'EXPORT', entity:'Lead'` com `actorId`/`tenantId` corretos; SDR (fora de `managementRoles`)
+recebe 403 e não grava nada.
+
+## Achado adicional ao validar em CI (não estático — só apareceu ao rodar contra Postgres real)
+Montar o middleware revelou dois problemas reais, nunca detectados porque a rota nunca tinha sido
+exercitada contra RLS real:
+
+1. **`auditAccessMiddleware` (produção)**: o INSERT roda dentro de `res.on('finish')`, que dispara
+   depois que a cadeia síncrona de middlewares já retornou. Endureci o código para reabrir o
+   `requestContext` explicitamente (`requestContext.run({ tenantId }, ...)`) dentro do próprio
+   callback de `finish`, em vez de depender de propagação implícita através do listener do
+   EventEmitter — defesa em profundidade, ainda que logging de diagnóstico em CI (revertido depois)
+   tenha mostrado que a propagação implícita já funcionava neste caso específico (Node 22). Ver
+   commit `bb17b23`.
+2. **Causa raiz real do teste ainda falhando após o item 1** (`tests/integration/
+   lead-export-audit.test.ts`): a mesma migration `20260825120000_scope_rls_bypass_to_bootstrap_
+   allowlist` (ITEM-02) removeu a cláusula `OR bypass_rls='on'` também do `USING` da policy de
+   `AuditLog`, não só do `WITH CHECK` — `withRlsBypass()` (helper de teste) não tem mais nenhum
+   efeito de leitura nessa tabela: a escrita acontecia com o `tenantId` correto (confirmado via
+   logging de diagnóstico), mas a query de leitura sob bypass sempre devolvia 0 linhas, sem erro
+   nenhum (RLS filtra silenciosamente no SELECT). Corrigido trocando `withRlsBypass` por
+   `withTenant(tenantId, ...)` nas leituras/limpeza do teste. Ver commit (fix final).
