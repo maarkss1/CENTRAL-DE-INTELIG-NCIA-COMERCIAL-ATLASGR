@@ -1,9 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { startCadenceRun, type CadenceSequenceDefinition, type CadenceTouch, type CadenceRunState } from '../domain/cadence';
-import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type CadenceRunRepository, type LeadSubjectResolver } from '../application/cadenceService';
+import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type CadenceRunRepository, type CadenceRateLimitPort, type LeadSubjectResolver } from '../application/cadenceService';
 import { InMemoryCadenceRunRepository } from '../infra/InMemoryCadenceRunRepository';
 import { InMemoryOptOutRepository } from '../infra/InMemoryOptOutRepository';
 import { recordOptOut } from '../application/optOutService';
+
+/** Rate limit sempre liberado — o comportamento real do rate limit é coberto à parte, em `rateLimitService.test.ts`. */
+function noopRateLimit(): CadenceRateLimitPort {
+    return {
+        async countSentTouchesForContact() { return 0; },
+        async countDistinctEmailRecipientsForDomain() { return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false }; },
+    };
+}
 
 const ORG = 'org-1';
 const LEAD = 'lead-1';
@@ -61,6 +69,7 @@ describe('advanceCadenceRun', () => {
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -88,6 +97,7 @@ describe('advanceCadenceRun', () => {
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -121,6 +131,7 @@ describe('advanceCadenceRun', () => {
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -148,6 +159,7 @@ describe('advanceCadenceRun', () => {
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => true,
             },
@@ -173,6 +185,7 @@ describe('advanceCadenceRun', () => {
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => false,
                 hasLeadReplied: async () => false,
             },
@@ -199,6 +212,7 @@ describe('advanceCadenceRun', () => {
                     subjectResolver: alwaysResolveSubject(),
                     dispatcher: new ScriptedDispatcher({ result: 'sent' }),
                     lock: noopLock(),
+                    rateLimit: noopRateLimit(),
                     isWithinBusinessWindow: () => true,
                     hasLeadReplied: async () => false,
                 },
@@ -249,6 +263,7 @@ describe('advanceCadenceRun — persistência do resultado após envio real conf
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: noopLock(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -278,6 +293,7 @@ describe('advanceCadenceRun — persistência do resultado após envio real conf
                     subjectResolver: alwaysResolveSubject(),
                     dispatcher,
                     lock: noopLock(),
+                    rateLimit: noopRateLimit(),
                     isWithinBusinessWindow: () => true,
                     hasLeadReplied: async () => false,
                 },
