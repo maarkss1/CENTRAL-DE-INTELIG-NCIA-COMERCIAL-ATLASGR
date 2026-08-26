@@ -76,9 +76,9 @@ autoscaling:
 # `npx prisma migrate deploy` antes de qualquer Deployment/Rollout novo ser aplicado. Se o Job
 # falhar, o release inteiro (helm upgrade / sync do ArgoCD) é abortado — nenhuma versão nova do
 # app inicia contra um schema desatualizado ou uma migração quebrada (mesma garantia que
-# render.yaml já tem no deploy real via Render). Ver o comentário no topo do template para o
-# caveat conhecido: a imagem publicada hoje pelo Dockerfile da raiz não contém a CLI `prisma`
-# (só @prisma/client) — handoff aberto para o Agente 08 em
+# render.yaml já tem no deploy real via Render). A imagem publicada hoje pelo Dockerfile da raiz
+# reinstala a CLI `prisma` no estágio final após o prune de devDependencies — ver o comentário no
+# topo do template e o handoff (resolvido) em
 # .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md.
 migrations:
   enabled: true
