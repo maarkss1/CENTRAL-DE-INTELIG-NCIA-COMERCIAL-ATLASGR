@@ -1,7 +1,7 @@
 - De: Agente 15 — Segurança Aplicada e Rotação de Segredos
 - Para: Agente 00 — Coordenador
 - Onda: roadmap-v2-transversais
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -67,3 +67,20 @@ Achado durante auditoria de `src/lib/security/` desta onda (roadmap-v2-transvers
 bloqueador da lista "Bloqueadores prioritários" do `/AGENTS.md` (não é RBAC ausente nem rota sem
 autorização — é lacuna de trilha de auditoria, não de controle de acesso), por isso classifiquei
 como prioridade normal, não bloqueador.
+
+## Resolução (Coordenador, 00)
+Escolhida a Opção 1 (montar de fato), aplicada de forma restrita ao gap mais claro: `GET
+/api/leads/export/csv` (`src/features/crm/routes/lead.routes.ts`) — dump completo de nome/telefone/
+e-mail de todos os leads do tenant, já marcado no próprio código como "sensível (LGPD)", e sem
+NENHUMA chamada a `AuditService.log` em todo `src/features/crm/` (confirmado via grep). Agora usa
+`auditAccessMiddleware('Lead')` depois de `managementRoles`. Não estendi a outras rotas/domínios —
+isso continua sendo decisão de cada dono de feature, não algo para eu resolver de uma vez de forma
+genérica.
+
+Não escolhi a Opção 2 (remover) porque o middleware tem lógica correta, teste próprio, e havia pelo
+menos um gap real e concreto para ele cobrir — descartar o utilitário só porque nada o usava ainda
+teria sido remover uma correção real, não um código morto de fato.
+
+Teste novo: `tests/integration/lead-export-audit.test.ts` (sessão/RLS reais) — ADMIN gera AuditLog
+`action:'EXPORT', entity:'Lead'` com `actorId`/`tenantId` corretos; SDR (fora de `managementRoles`)
+recebe 403 e não grava nada.

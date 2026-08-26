@@ -259,13 +259,17 @@ export function PropostaForm({ document, onClose, onSave }: PropostaFormProps) {
 
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label>Itens *</Label>
+                        {/* Rotula um grupo de campos (useFieldArray), não um único controle — <Label>
+                            com htmlFor não se aplica aqui (jsx-a11y/label-has-associated-control).
+                            role="group" + aria-labelledby no container abaixo é o padrão correto para
+                            "nome de um grupo de campos". */}
+                        <span id="proposta-itens-heading" className="text-[10px] font-bold text-ink-2 uppercase tracking-wider mb-1.5 block">Itens *</span>
                         <Button type="button" variant="ghost" onClick={() => append(emptyItem)} className="text-xs h-8">
                             <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar item
                         </Button>
                     </div>
                     {errors.lineItems?.root && <p className="text-xs text-danger">{errors.lineItems.root.message}</p>}
-                    <div className="space-y-3">
+                    <div className="space-y-3" role="group" aria-labelledby="proposta-itens-heading">
                         {fields.map((field, index) => (
                             <div key={field.id} className="rounded-xl border border-line bg-surface-2 p-3 space-y-2">
                                 <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-start">
