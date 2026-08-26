@@ -1,5 +1,13 @@
 # Manifesto de Arquivos
 
+> **Registro histórico (marcado em 25/08/2026, ITEM-14 de consolidação de documentação).** Esta é
+> a lista de arquivos do pacote original de agentes no momento em que foi instalado neste
+> repositório. Não é atualizada retroativamente e **não reflete a estrutura atual**: o roster real
+> hoje vai até o Agente 18 (`.agents/prompts/12-*` a `18-*` não aparecem aqui), e vários `AGENTS.md`
+> locais foram criados depois (ex.: `src/features/cadence`, `mesa-tratamento`,
+> `commercial-intelligence`). Para o roster e a estrutura de agentes atuais, use `/AGENTS.md`
+> (raiz) e `find . -iname AGENTS.md`, não esta lista.
+
 - `.agents/README.md`
 - `.agents/COMO-CHAMAR-OS-AGENTES.md`
 - `.agents/runs/` (pasta de execução, criada em runtime pelo Coordenador; ver `.agents/README.md`)

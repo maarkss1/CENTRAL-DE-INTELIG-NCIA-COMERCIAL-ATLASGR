@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
-// Cobre a migração de ContactForm/CompanyForm pra ui/Dialog (Tier 2 do DESIGN_QA_CENTRAL_ATLASGR.md
-// — "Fase G"). Pontos que a migração precisava preservar e que estes testes verificam de ponta a
+// Cobre a migração de ContactForm/CompanyForm pra ui/Dialog (Tier 2 do "DESIGN_QA_CENTRAL_ATLASGR.md
+// — Fase G", arquivo removido do controle de versão em 22/08/2026, ver docs/REMOVED-DOCS.md).
+// Pontos que a migração precisava preservar e que estes testes verificam de ponta a
 // ponta contra o servidor real: o botão de submit fica fora da tag <form> (ligado via atributo
 // `form="..."`), o campo UF continua forçando maiúsculas, validação de campo obrigatório continua
 // aparecendo, e o toast de sucesso/erro (novo nesta migração) aparece nos dois fluxos.
