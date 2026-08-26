@@ -40,8 +40,12 @@ function buildApp(organizationId = ORG) {
     return app;
 }
 
+// AgentMemory não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS em src/lib/prisma.ts) —
+// ITEM-02 (remediação de dívida técnica P0) fechou a RLS real dessa tabela pra leitura E escrita
+// sem exceção de bypass (ver migration 20260825120000_scope_rls_bypass_to_bootstrap_allowlist).
+// Toda leitura/escrita de AgentMemory neste arquivo roda no contexto do próprio tenant (`asOrg`).
 async function cleanupAgentMemory() {
-    await withRlsBypass(() =>
+    await asOrg(ORG, () =>
         prisma.agentMemory.deleteMany({ where: { organizationId: ORG } }),
     );
 }
@@ -75,7 +79,7 @@ describe('agentMemory.store — upsert atômico (Postgres real)', () => {
             ),
         );
 
-        const rows = await withRlsBypass(() =>
+        const rows = await asOrg(ORG, () =>
             prisma.agentMemory.findMany({ where: { sessionId, agentType: 'SDR', organizationId: ORG } }),
         );
         expect(rows).toHaveLength(1);
@@ -100,7 +104,7 @@ describe('agentMemory.store — upsert atômico (Postgres real)', () => {
         expect(memory?.errorMessage).toBeNull();
         expect(memory?.messages).toEqual([{ role: 'assistant', content: 'sucesso na segunda tentativa' }]);
 
-        const rows = await withRlsBypass(() =>
+        const rows = await asOrg(ORG, () =>
             prisma.agentMemory.findMany({ where: { sessionId, agentType: 'SDR', organizationId: ORG } }),
         );
         expect(rows).toHaveLength(1);
@@ -204,7 +208,7 @@ describe('GET /api/intelligence/agents/sdr/status/:sessionId — contrato de 3 e
             expect(res.status).toBe(202);
             expect(res.body).toMatchObject({ status: 'pending', sessionId });
         } finally {
-            await withRlsBypass(() => prisma.agentMemory.deleteMany({ where: { organizationId: otherOrg } }));
+            await asOrg(otherOrg, () => prisma.agentMemory.deleteMany({ where: { organizationId: otherOrg } }));
             await withRlsBypass(() => prisma.organization.deleteMany({ where: { id: otherOrg } }));
         }
     });

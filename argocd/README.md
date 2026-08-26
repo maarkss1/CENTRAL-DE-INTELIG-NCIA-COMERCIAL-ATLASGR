@@ -3,9 +3,14 @@
 Estes manifests ArgoCD (`application-production.yaml`, `application-homolog.yaml`) são
 **aspiracionais/legados**, não são o caminho de deploy ativo hoje.
 
-O deploy ativo é **Render** (`render.yaml` na raiz do repositório) + **Vercel**
-(`vercel.json` na raiz). Ver `docs/deploy/producao.md` para a arquitetura real (Render +
-Supabase + Cloudflare) e o fluxo de deploy automático a cada push.
+**Correção (ITEM-12, 2026-08-25):** nenhum caminho cloud está ativo hoje — o projeto está em modo
+local-first (`docs/development/LOCAL_FIRST.md`). **Render** (`render.yaml` na raiz do
+repositório) foi a última arquitetura de produção real, mas está **congelado**
+(`autoDeployTrigger: off`) desde a migração para local-first; não há Vercel neste projeto
+(`vercel.json` tem `git.deploymentEnabled: false` e nunca serviu produção). Ver
+[`docs/deploy/README.md`](../docs/deploy/README.md) para o caminho canônico atual por ambiente e
+`docs/deploy/producao.md` para a arquitetura Render + Supabase + Cloudflare como candidata
+congelada.
 
 Estes `Application` do ArgoCD apontam para o chart em `charts/prospector-atlas` (ver
 `charts/README.md` para o mesmo aviso) e assumem um cluster Kubernetes com ArgoCD instalado

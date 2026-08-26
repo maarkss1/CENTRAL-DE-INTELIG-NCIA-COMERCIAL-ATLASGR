@@ -23,11 +23,15 @@ const ORG_A = `test-cs-tenant-org-a-${suffix}`;
 const ORG_B = `test-cs-tenant-org-b-${suffix}`;
 
 describe('ConversationSignal — isolamento de tenant (integração real, RLS real)', () => {
-  afterAll(async () => withBypass(async () => {
-    await prisma.conversationSignal.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.lead.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } });
-  }));
+  afterAll(async () => {
+    // ConversationSignal não está no allowlist de bypass (ITEM-02) — limpa por tenant.
+    await withTenant(ORG_A, () => prisma.conversationSignal.deleteMany({ where: { organizationId: ORG_A } }));
+    await withTenant(ORG_B, () => prisma.conversationSignal.deleteMany({ where: { organizationId: ORG_B } }));
+    await withBypass(async () => {
+      await prisma.lead.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
+      await prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } });
+    });
+  });
 
   it('1. isolamento básico de leitura: signal criado em A não aparece em listagem no contexto de B', async () => {
     await withBypass(async () => {
@@ -112,7 +116,10 @@ describe('ConversationSignal — isolamento de tenant (integração real, RLS re
     );
     expect(updateAttempt.count).toBe(0);
 
-    const untouched = await withBypass(async () =>
+    // ConversationSignal não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+    // src/lib/prisma.ts) — ITEM-02 fechou a RLS dessa tabela pra bypass. Confirma no contexto do
+    // próprio tenant A.
+    const untouched = await withTenant(ORG_A, async () =>
       prisma.conversationSignal.findUniqueOrThrow({ where: { id: signalA.id } }),
     );
     expect(untouched.summary).toBe('Sinal sensível de A, item 2');
@@ -123,18 +130,18 @@ describe('ConversationSignal — isolamento de tenant (integração real, RLS re
       prisma.lead.create({ data: { organizationId: ORG_A, title: 'Negócio A (item 3)' } }),
     );
 
-    // A policy de RLS de ConversationSignal (ver prisma/migrations/20260807100000_enable_rls_
-    // remaining_tables/migration.sql) usa `WITH CHECK (true)` — ao contrário de AILog
-    // (ailog-rls.test.ts), o INSERT em si não é bloqueado pela cláusula WITH CHECK isoladamente.
-    // Confirmado via psql direto (INSERT sem RETURNING passa). O bloqueio real acontece porque
-    // `prisma.conversationSignal.create()` sempre gera um `INSERT ... RETURNING *`, e o Postgres
-    // aplica a policy de SELECT (USING) sobre a linha retornada por um INSERT/UPDATE com
-    // RETURNING — como a linha fabricada tem organizationId=ORG_B mas o tenant ativo é ORG_A, ela
-    // não passa no USING, e o Postgres rejeita a operação inteira com "new row violates row-level
-    // security policy". Na prática (todo o código de produção usa o client Prisma, nunca INSERT
-    // cru sem RETURNING), a escrita cross-tenant é bloqueada de fato — mas por essa combinação
-    // WITH CHECK permissivo + checagem de SELECT no RETURNING, não por um WITH CHECK restritivo
-    // isolado como em AILog.
+    // Até o ITEM-02 (remediação de dívida técnica P0), a policy de RLS de ConversationSignal (ver
+    // prisma/migrations/20260807100000_enable_rls_remaining_tables/migration.sql) usava
+    // `WITH CHECK (true)` — o INSERT cross-tenant só era barrado indiretamente, porque
+    // `prisma.conversationSignal.create()` gera um `INSERT ... RETURNING *`, e o Postgres aplica a
+    // policy de SELECT (USING) sobre a linha retornada; como a linha fabricada tinha
+    // organizationId=ORG_B mas o tenant ativo era ORG_A, ela não passava no USING. Confirmado à
+    // época via psql direto (um INSERT cru SEM RETURNING passava, apesar de organizationId
+    // divergente) — ou seja, a proteção real dependia do RETURNING implícito do Prisma, não de um
+    // WITH CHECK restritivo. A migration 20260825120000_scope_rls_bypass_to_bootstrap_allowlist
+    // fechou isso na origem: WITH CHECK agora exige o mesmo match de tenant do USING, então o
+    // INSERT cross-tenant é rejeitado diretamente pelo próprio WITH CHECK, sem depender do
+    // RETURNING. A asserção abaixo (mensagem "row-level security") continua válida nos dois casos.
     await expect(
       withTenant(ORG_A, async () =>
         prisma.conversationSignal.create({
@@ -148,10 +155,16 @@ describe('ConversationSignal — isolamento de tenant (integração real, RLS re
       ),
     ).rejects.toThrow(/row-level security/i);
 
-    // Nenhuma linha vaza para nenhum dos dois tenants como resultado da tentativa.
-    const leaked = await withBypass(async () =>
+    // Nenhuma linha vaza para nenhum dos dois tenants como resultado da tentativa. ConversationSignal
+    // não está no allowlist de bypass (ITEM-02) — checar em cada tenant real (não bypass, que
+    // devolveria [] de qualquer forma sob RLS fechada, dando falsa confiança) é a prova real.
+    const leakedAsA = await withTenant(ORG_A, async () =>
       prisma.conversationSignal.findMany({ where: { leadId: leadA.id } }),
     );
-    expect(leaked).toEqual([]);
+    expect(leakedAsA).toEqual([]);
+    const leakedAsB = await withTenant(ORG_B, async () =>
+      prisma.conversationSignal.findMany({ where: { leadId: leadA.id } }),
+    );
+    expect(leakedAsB).toEqual([]);
   });
 });
