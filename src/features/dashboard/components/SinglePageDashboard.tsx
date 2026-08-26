@@ -79,7 +79,19 @@ export function SinglePageDashboard() {
                     <div data-testid="dashboard-greeting">
                         <p className="text-[11px] font-black uppercase tracking-widest text-brand mb-1">{todayLabel}</p>
                         <h1 className="text-2xl font-black text-ink">{greeting()}, {currentUser?.name?.split(' ')[0] || 'Usuário'}</h1>
-                        <p className="text-sm text-ink-2 mt-1">Resumo da operação {isAtlas ? 'AtlasGR' : 'Total Trac'} de hoje.</p>
+                        {/* "Marca ativa: X", não "resumo da operação X" — os KPIs abaixo (leads,
+                            conversão, atividades, fechamentos) vêm de /api/analytics/overview,
+                            que agrega por organizationId sem nenhum filtro de marca (schema Prisma
+                            não tem coluna `brand` em Lead/Company/Activity, só em conteúdo de
+                            IA/playbook como QualificationMatrixItem). A frase antiga prometia um
+                            resumo "da operação AtlasGR" (ou Total Trac) como se os números
+                            mudassem ao trocar de marca — não mudam: é a mesma organização, mesmo
+                            pipeline, só a identidade visual troca. Achado desta auditoria
+                            (bloqueador prioritário nº 10 do AGENTS.md, por analogia — não há
+                            vazamento de dado entre marcas porque não existe segmentação por marca
+                            nenhuma nestes dados, mas o texto anterior alegava uma separação que o
+                            código não entrega). */}
+                        <p className="text-sm text-ink-2 mt-1">Resumo comercial de hoje · marca ativa: {isAtlas ? 'AtlasGR' : 'Total Trac'}.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
