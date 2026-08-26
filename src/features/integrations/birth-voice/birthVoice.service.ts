@@ -112,7 +112,18 @@ export async function callLead(organizationId: string, leadId: string, agentType
     const companyName = company?.tradeName ?? company?.legalName ?? null;
     const contactName = (lead.contact as LeadContactish | null)?.name ?? null;
 
-    const isBland = config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY;
+    // BUG DE ROTEAMENTO (achado de auditoria, onda 12): a condição usava
+    // `config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY` — ou seja, bastava a env
+    // BLAND_API_KEY existir no processo (documentada em `.env.example` como "usada quando o baseUrl
+    // for bland.ai", nunca como um interruptor global) para TODA ligação passar a ser disparada
+    // contra a Bland AI, mesmo com BIRTH_VOICES_URL configurado para o Hub real do cliente. Isso é
+    // exatamente a classe de risco do bloqueador #7 (AGENTS.md): a organização configura um
+    // provedor, o sistema silenciosamente usa outro, sem erro nem aviso — a ligação até acontece de
+    // verdade, só que pelo provedor errado, com o agente/voz/prompt errados e sem o
+    // `callbackUrl`/contexto que o Birth Voices Hub esperaria. A escolha de provedor agora depende
+    // só do que foi configurado explicitamente em BIRTH_VOICES_URL, como o contrato documentado
+    // sempre descreveu.
+    const isBland = config.baseUrl.includes('bland.ai');
     const endpoint = isBland ? 'https://api.bland.ai/v1/calls' : `${config.baseUrl}/api/voice/outbound`;
     const apiKeyHeader = isBland ? (process.env.BLAND_API_KEY || config.apiKey) : `Bearer ${config.apiKey}`;
     
