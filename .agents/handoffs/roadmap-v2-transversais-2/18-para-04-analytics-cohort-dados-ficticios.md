@@ -1,7 +1,7 @@
 - De: 18
 - Para: 04
 - Onda: roadmap-v2-transversais-2
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -57,3 +57,13 @@ nem abre num leitor de PDF).
 Achado durante a auditoria de contratos/OpenAPI da onda `roadmap-v2-transversais-2` (Agente 18).
 Ver `docs/openapi.yaml` → `/analytics/cohort` e `/analytics/export/pdf` para o contrato atual
 documentado (com a ressalva de dado fictício escrita no próprio YAML).
+
+## Resolução (Coordenador, 00)
+Já resolvido em paralelo — a Onda 2/Roadmap v2 (Agente 04) implementou exatamente esta correção,
+sem conhecer este handoff (as duas ondas rodaram em paralelo a partir de bases diferentes):
+`AnalyticsUseCases.cohortAnalysis` agrega retenção real por mês de criação × fechamento do `Lead`,
+tenant-scoped; o export virou `/analytics/export/csv` (CSV real via `buildCohortCsv`, já que não
+há biblioteca de PDF aprovada no projeto — mesma decisão que este handoff já cogitava como
+alternativa). `docs/openapi.yaml` reconciliado para refletir o contrato real pós-merge das duas
+ondas (`/analytics/cohort` → `{success,data:{cohorts}}`; `/analytics/export/pdf` → renomeado para
+`/analytics/export/csv`).
