@@ -21,13 +21,19 @@ const ORG_A = `test-wa-tenant-org-a-${suffix}`;
 const ORG_B = `test-wa-tenant-org-b-${suffix}`;
 
 describe('WhatsAppMessage — isolamento de tenant (integração real, RLS real)', () => {
-  afterAll(async () => withBypass(async () => {
-    await prisma.whatsAppMessage.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.lead.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.contact.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.company.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } });
-  }));
+  // WhatsAppMessage/Contact/Company não estão no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+  // src/lib/prisma.ts) — ITEM-02 fechou a RLS dessas tabelas pra bypass. Limpa por tenant.
+  afterAll(async () => {
+    for (const org of [ORG_A, ORG_B]) {
+      await withTenant(org, async () => {
+        await prisma.whatsAppMessage.deleteMany({ where: { organizationId: org } });
+        await prisma.lead.deleteMany({ where: { organizationId: org } });
+        await prisma.contact.deleteMany({ where: { organizationId: org } });
+        await prisma.company.deleteMany({ where: { organizationId: org } });
+      });
+    }
+    await withBypass(() => prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } }));
+  });
 
   it('1. isolamento básico: mensagem criada em A não aparece em listagem/busca no contexto de B', async () => {
     await withBypass(async () => {
@@ -147,7 +153,8 @@ describe('WhatsAppMessage — isolamento de tenant (integração real, RLS real)
     );
     expect(updateAttempt.count).toBe(0);
 
-    const untouched = await withBypass(async () =>
+    // WhatsAppMessage não está no allowlist de bypass (ITEM-02) — confirma no contexto do tenant A.
+    const untouched = await withTenant(ORG_A, async () =>
       prisma.whatsAppMessage.findUniqueOrThrow({ where: { id: messageA.id } }),
     );
     expect(untouched.body).toBe('Mensagem sensível de A, item 2');

@@ -60,6 +60,7 @@ const ORG_ID = 'swarm-e2e-org';
 const NOW = new Date('2026-08-15T12:00:00Z'); // segunda-feira, 09:00 em São Paulo
 
 const withRlsBypass = <T>(fn: () => Promise<T>): Promise<T> => requestContext.run({ bypassRls: true }, fn);
+const withTenant = <T>(tenantId: string, fn: () => Promise<T>): Promise<T> => requestContext.run({ tenantId }, fn);
 
 let leadId: string;
 
@@ -70,7 +71,13 @@ beforeAll(async () => {
             update: {},
             create: { id: ORG_ID, name: 'Swarm E2E Org' },
         });
+    });
 
+    // Company/Contact não estão no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+    // src/lib/prisma.ts) — ITEM-02 fechou a RLS dessas tabelas pra bypass. Lead está no allowlist,
+    // mas roda no mesmo contexto de tenant por consistência (e porque referencia company/contact
+    // já resolvidos ali).
+    await withTenant(ORG_ID, async () => {
         const company = await prisma.company.create({
             data: {
                 organizationId: ORG_ID,
@@ -110,11 +117,13 @@ afterAll(async () => {
         await prisma.aIPendingAction.deleteMany({ where: { organizationId: ORG_ID } });
         await prisma.agentMemory.deleteMany({ where: { organizationId: ORG_ID } });
         await prisma.aILog.deleteMany({ where: { organizationId: ORG_ID } });
+    });
+    await withTenant(ORG_ID, async () => {
         await prisma.lead.deleteMany({ where: { organizationId: ORG_ID } });
         await prisma.contact.deleteMany({ where: { organizationId: ORG_ID } });
         await prisma.company.deleteMany({ where: { organizationId: ORG_ID } });
-        await prisma.organization.deleteMany({ where: { id: ORG_ID } });
     });
+    await withRlsBypass(() => prisma.organization.deleteMany({ where: { id: ORG_ID } }));
 });
 
 afterEach(() => {
@@ -130,7 +139,14 @@ describe('Missão real do enxame, ponta a ponta (scheduler autônomo → CRM →
     // conexão que não enxerga o commit anterior — mesmo com o commit confirmado (linha retornada
     // pelo `create()`). Aninhar em vez de encadear evita o problema; times de plataforma (Agente 01)
     // devem investigar a causa raiz em `executeWithRls`/pool à parte (ver handoff correspondente).
-    it('detecta o follow-up vencido, roteia para o CRM, executa com o modelo e persiste o traço completo', async () => withRlsBypass(async () => {
+    // ITEM-02: o wrapper de nível superior mudou de `withRlsBypass` para `withTenant(ORG_ID, ...)`
+    // — AgentMemory não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts),
+    // e a leitura de `memories` abaixo (organizationId: ORG_ID) precisa de RLS real de tenant, não
+    // bypass. AILog/AIPendingAction continuam no allowlist, então funcionam igual sob qualquer um
+    // dos dois — e `runSwarmScheduler`/`getSwarmSloSnapshot` seguem abrindo seus próprios
+    // `.run({tenantId})` aninhados por dentro (mesmo padrão da nota acima sobre visibilidade de
+    // pool), então nada muda ali.
+    it('detecta o follow-up vencido, roteia para o CRM, executa com o modelo e persiste o traço completo', async () => withTenant(ORG_ID, async () => {
         const result = await runSwarmScheduler(ORG_ID, NOW);
 
         // 1) Roteamento: o lead vencido foi detectado e roteado para o papel correto.
