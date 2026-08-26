@@ -39,9 +39,15 @@
 
 ## Deploy / Produção / Release
 
-- [Guia de produção completo](deploy/producao.md) — Supabase, Render, Cloudflare, CI/CD, checklist e roadmap
+- [Índice operacional de infraestrutura/deploy](deploy/README.md) — **leia primeiro**: qual
+  caminho é canônico por ambiente hoje, e o status real (ativo/congelado/aspiracional) de cada um
+  dos quatro caminhos documentados
+- [Modo local-first](development/LOCAL_FIRST.md) — ambiente ativo hoje (única fase em execução)
+- [Guia de produção completo](deploy/producao.md) — Supabase, Render, Cloudflare, CI/CD e
+  checklist da arquitetura de produção **congelada** durante a fase local-first (ver índice acima)
 - [Deploy no Render](deploy/render.md)
-- [Checklist de release](deploy/RELEASE_CHECKLIST.md)
+- Checklist de validação pós-deploy: `deploy/producao.md` §7 (`deploy/RELEASE_CHECKLIST.md`
+  referenciado anteriormente aqui nunca existiu neste repositório — link corrigido)
 - [Plano Diretor de 100 Passos — encerramento](ROADMAP-100-STEPS-COMPLETE.md) — registro
   histórico de 12/08/2026; leia a partir da seção "Ressalva de 2026-08-15" antes de tratar
   `1.0.0-RELEASE-APPROVED` como status atual. O estado de release vivo é
