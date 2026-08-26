@@ -103,7 +103,7 @@ jobs:
         run: npx prisma generate
 
       - name: Run Lint
-        run: npm run lint
+        run: npm run lint:ci
 
       - name: Verificar working tree limpa após os gates de verificação
         # Nenhum gate de CI (lint, geração do Prisma Client, etc.) deve alterar

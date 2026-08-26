@@ -5,6 +5,12 @@
  * O seed versionado nunca contem telefone/fax/e-mail. A publicacao respeita a mesma semantica
  * do loader nacional pesado: dataset versionado, validacao antes da troca e slot CNPJ_ACTIVE
  * alterado dentro de uma unica transacao. Se o seed ainda nao existir no checkout, sai com 0.
+ *
+ * O seed vive em data/market-intelligence/company-seed-ribeirao/ (fora de public/) porque este
+ * script le o arquivo direto do disco no deploy (render.yaml startCommand) — nunca via HTTP/fetch
+ * do navegador. Ficar em public/ so fazia o build empacotar/servir ~56MB de registros
+ * empresariais sem necessidade e sem autenticacao (ITEM-05, remediacao de divida tecnica). Ver
+ * data/market-intelligence/README.md.
  */
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync } from 'node:fs';
@@ -16,7 +22,7 @@ import pg from 'pg';
 
 const { Client } = pg;
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const DEFAULT_SEED_DIR = join(ROOT, 'public/tools/atlas-market-intelligence/data/company-seed-ribeirao');
+const DEFAULT_SEED_DIR = join(ROOT, 'data/market-intelligence/company-seed-ribeirao');
 const CNPJ_RE = /^[A-Z0-9]{12}[0-9]{2}$/;
 const CONTACT_FIELDS = ['ddd1', 'telefone1', 'ddd2', 'telefone2', 'dddFax', 'fax', 'email'];
 
