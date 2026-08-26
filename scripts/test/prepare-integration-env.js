@@ -37,6 +37,13 @@ const TEST_DB_NAME = 'prospectordb_test';
 const APP_ROLE_PASSWORD = 'prospector_app_pass';
 
 const REQUIRED_CONTAINERS = ['atlas_postgres', 'atlas_redis', 'atlas_meilisearch'];
+// container_name (docker-compose.yml) -> nome do serviço compose correspondente. Usado para pedir
+// ao `docker compose up` só o que falta (ver bug reproduzido abaixo).
+const SERVICE_BY_CONTAINER = {
+  atlas_postgres: 'postgres',
+  atlas_redis: 'redis',
+  atlas_meilisearch: 'meilisearch',
+};
 
 if (!isCI) {
   // `docker-compose.yml` fixa `container_name` (atlas_postgres/atlas_redis/atlas_meilisearch) —
@@ -73,17 +80,32 @@ if (!isCI) {
       'worktrees) — pulando `docker compose up` para evitar conflito de container_name fixo.'
     );
   } else {
-    // Sobe só o que os testes precisam (postgres/redis/meilisearch) — o serviço litellm do mesmo
-    // compose não é dependência de teste. Um stub `{ status: 0 }` chegou a substituir este spawn e
-    // o script passou a EXIGIR os containers já de pé sem nunca subi-los, contradizendo o próprio
-    // comentário do topo ("local, continuamos subindo a stack normalmente").
-    const result = spawnSync('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'meilisearch'], {
+    // Sobe só o que falta — não os três incondicionalmente. Bug real reproduzido nesta auditoria
+    // (Agente 14, roadmap-v2-transversais): com redis/meilisearch já rodando (compartilhados de um
+    // projeto compose de OUTRO worktree, ver comentário acima) e só o postgres deste worktree
+    // ausente, pedir `docker compose up -d postgres redis meilisearch` faz o compose tentar criar
+    // TAMBÉM redis/meilisearch sob o projeto deste worktree — e como `container_name` é fixo, isso
+    // colide com os containers que já existem sob o projeto alheio ("Conflict. The container name
+    // ... is already in use"), derrubando o script mesmo sem nenhuma ação destrutiva necessária.
+    // Pedindo só os serviços cujo container ainda não está rodando, o compose nunca toca nos que já
+    // existem por fora do seu próprio projeto.
+    //
+    // Um stub `{ status: 0 }` chegou a substituir este spawn e o script passou a EXIGIR os
+    // containers já de pé sem nunca subi-los, contradizendo o próprio comentário do topo ("local,
+    // continuamos subindo a stack normalmente").
+    const missingContainers = REQUIRED_CONTAINERS.filter((name) => !runningNames.has(name));
+    const missingServices = missingContainers.map((name) => SERVICE_BY_CONTAINER[name]);
+    console.log(
+      `Containers ausentes: ${missingContainers.join(', ')} — subindo só ${missingServices.join(', ')} ` +
+      '(os demais já em execução são reaproveitados, não recriados).'
+    );
+    const result = spawnSync('docker', ['compose', 'up', '-d', ...missingServices], {
       stdio: 'inherit',
     });
     if (result.status !== 0) {
       console.error(
-        'Falha ao subir docker-compose (postgres/redis/meilisearch). Se o erro for "container name ' +
-        'already in use", outro worktree já subiu esses containers sob um projeto compose diferente — ' +
+        `Falha ao subir docker-compose (${missingServices.join(', ')}). Se o erro for "container name ` +
+        'already in use", outro worktree já subiu esse container sob um projeto compose diferente — ' +
         'defina COMPOSE_PROJECT_NAME igual ao worktree que os criou primeiro, ou pare-os ' +
         '(`docker stop atlas_postgres atlas_redis atlas_meilisearch`) antes de tentar de novo. Veja a ' +
         'saída acima para o erro exato.'
