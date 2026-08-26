@@ -112,6 +112,11 @@ territorios.json
 
 Bases brutas CNPJ/RNTRC/fluxo nunca entram no bundle web.
 
+O recorte empresarial sanitizado de Ribeirão Preto (`company-seed-ribeirao`) também não entra no
+bundle web — ele é consumido só pelo backend no deploy (`fs`, nunca `fetch`) e vive em
+`data/market-intelligence/company-seed-ribeirao/`, fora de `public/`. Ver
+`data/market-intelligence/README.md` para o porquê e a rotina de atualização.
+
 ---
 
 ## ETLs principais

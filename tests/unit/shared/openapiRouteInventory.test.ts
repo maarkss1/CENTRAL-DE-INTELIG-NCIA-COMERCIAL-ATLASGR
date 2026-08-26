@@ -2,25 +2,31 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
-import { computeOpenApiDrift, extractMountedRoutes } from '../../../src/shared/contracts/openapiRouteInventory.js';
+import {
+    computeOpenApiDrift,
+    extractMountedRoutes,
+    collectCompositionRootSource,
+} from '../../../src/shared/contracts/openapiRouteInventory.js';
 
 /**
- * Testes da verificação estática de deriva entre `docs/openapi.yaml` e `server.ts`
- * (Onda 8, Agente 18 — Contratos, API e Documentação Viva).
+ * Testes da verificação estática de deriva entre `docs/openapi.yaml` e o composition root da
+ * aplicação (Onda 8, Agente 18 — Contratos, API e Documentação Viva).
  *
  * O primeiro teste roda contra o repositório real e prova que a verificação passa hoje (depois da
- * correção da deriva medida no início da onda). Os demais usam fixtures sintéticas — nunca editam
- * `server.ts` de verdade (fora do escopo do Agente 18) — para provar que a verificação FALHA
- * quando deveria: critério verificável explícito da missão desta onda ("introduzir uma rota nova
- * sem documentar faz a verificação falhar").
+ * correção da deriva medida no início da onda). Desde o ITEM-07 (modularização de `server.ts`),
+ * "o composition root" deixou de ser um único arquivo — é `server.ts` + `src/bootstrap/*.ts`, daí
+ * `collectCompositionRootSource` em vez de ler só `server.ts`. Os demais testes usam fixtures
+ * sintéticas — nunca editam os arquivos reais (fora do escopo do Agente 18) — para provar que a
+ * verificação FALHA quando deveria: critério verificável explícito da missão desta onda
+ * ("introduzir uma rota nova sem documentar faz a verificação falhar").
  */
 describe('computeOpenApiDrift', () => {
-    it('não encontra deriva estrutural no repositório real (server.ts vs docs/openapi.yaml)', () => {
+    it('não encontra deriva estrutural no repositório real (composition root vs docs/openapi.yaml)', () => {
         const repoRoot = path.resolve(__dirname, '../../..');
-        const serverTsSource = readFileSync(path.join(repoRoot, 'server.ts'), 'utf-8');
+        const compositionRootSource = collectCompositionRootSource(repoRoot);
         const openapiDocument = parseYaml(readFileSync(path.join(repoRoot, 'docs', 'openapi.yaml'), 'utf-8'));
 
-        const result = computeOpenApiDrift(serverTsSource, openapiDocument.paths ?? {});
+        const result = computeOpenApiDrift(compositionRootSource, openapiDocument.paths ?? {});
 
         expect(result.undocumentedPrefixes).toEqual([]);
         expect(result.phantomDocumentedPaths).toEqual([]);

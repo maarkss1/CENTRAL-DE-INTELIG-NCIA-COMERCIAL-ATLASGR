@@ -19,6 +19,17 @@ export const FOLLOWUP_QUEUE_NAME = 'whatsapp-followup-queue';
  * linhas em produção (Lead tem FORCE ROW LEVEL SECURITY) — o follow-up automático nunca disparava
  * para ninguém, silenciosamente. A partir daqui, cada lead é processado com o tenant real
  * escopado — nunca com bypass.
+ *
+ * ITEM-02 (remediação de dívida técnica P0): a descoberta cross-tenant NÃO usa mais
+ * `include: { contact: true }` dentro do bloco de bypass — isso gerava um JOIN contra `Contact`
+ * (dado pessoal do lead), e `Contact` deliberadamente NÃO está no allowlist de bypass
+ * (`BYPASS_RLS_ALLOWED_MODELS`, src/lib/prisma.ts) por ser uma das tabelas mais sensíveis do
+ * produto. Com a RLS de `Contact` fechada para bypass (migration
+ * 20260825120000_scope_rls_bypass_to_bootstrap_allowlist), esse JOIN cross-tenant sob bypass
+ * sempre devolvia `contact: null`/zero linhas — o follow-up automático parava de encontrar
+ * telefone de novo, silenciosamente. O contato agora é lido abaixo, DEPOIS de resolver o tenant de
+ * cada lead (dentro do próprio `requestContext.run({ tenantId })`, RLS real de tenant, sem
+ * bypass) — `Lead` segue sendo a única leitura cross-tenant sob bypass, exatamente como antes.
  */
 export async function runDailyFollowUpScan(): Promise<{ eligible: number; sentCount: number }> {
     logger.info('Iniciando job de follow-up diário do WhatsApp');
@@ -32,21 +43,20 @@ export async function runDailyFollowUpScan(): Promise<{ eligible: number; sentCo
                 lte: oneDayAgo
             }
         },
-        include: {
-            contact: true
-        }
     }));
 
     let sentCount = 0;
     for (const lead of leadsToFollowUp) {
         const customFields = (lead.customFields as Record<string, unknown>) || {};
         if (customFields.optOutWhatsApp) continue;
-
-        const phone = lead.contact?.whatsapp || lead.contact?.phone;
-        if (!phone || !lead.organizationId) continue;
+        if (!lead.contactId || !lead.organizationId) continue;
 
         try {
             await requestContext.run({ tenantId: lead.organizationId }, async () => {
+                const contact = await prisma.contact.findUnique({ where: { id: lead.contactId! } });
+                const phone = contact?.whatsapp || contact?.phone;
+                if (!phone) return;
+
                 await sendWhatsAppMessage(
                     lead.organizationId!,
                     phone,
@@ -60,9 +70,9 @@ export async function runDailyFollowUpScan(): Promise<{ eligible: number; sentCo
                         lastInteraction: new Date()
                     }
                 });
-            });
 
-            sentCount++;
+                sentCount++;
+            });
         } catch (err) {
             logger.warn({ err, leadId: lead.id }, 'Falha ao enviar follow-up de WhatsApp');
         }

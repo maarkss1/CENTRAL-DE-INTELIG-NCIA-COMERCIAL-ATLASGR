@@ -1,0 +1,34 @@
+# Configuração compartilhada do CodeQL (ITEM-10, Onda 2). Usada por .github/workflows/codeql.yml
+# para as duas linguagens analisadas (javascript-typescript, python).
+#
+# `security-extended` cobre os achados padrão de `security-and-quality` mais queries de menor
+# confiança/mais amplas — escolhido porque `scripts/security/check-codeql-sarif.ts` só bloqueia o
+# PR em resultado `level: error` (achado de alta confiança); as queries extras de
+# `security-extended` que saem como `warning`/`note` ficam visíveis na aba Security sem travar o
+# gate, então não há custo de falso-positivo bloqueante em usar o suite mais amplo.
+name: "Central AtlasGR — CodeQL"
+
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  - node_modules
+  - dist
+  - build
+  - coverage
+  - playwright-report
+  - android/**/build
+  - "**/*.min.js"
+  - identidade-visual/**
+  - public/tools/atlas-market-intelligence/**/*.json
+  - public/tools/atlas-market-intelligence/**/*.csv
+
+# Política de falso positivo (ver scripts/security/check-codeql-sarif.ts e ITEM-10): uma regra
+# específica só pode ser excluída aqui com um comentário acima citando dono, data e motivo — nunca
+# como desativação silenciosa. Nenhuma exclusão registrada até o momento.
+#
+# Exemplo (não ativo):
+# query-filters:
+#   - exclude:
+#       id: js/example-rule-id
+#       # Dono: <nome>. Data: AAAA-MM-DD. Motivo: <por que é falso positivo neste repo>.

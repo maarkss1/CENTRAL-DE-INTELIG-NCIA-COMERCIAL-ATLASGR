@@ -1,5 +1,6 @@
 /**
- * CLI da verificação estática de deriva entre `docs/openapi.yaml` e as rotas reais de `server.ts`.
+ * CLI da verificação estática de deriva entre `docs/openapi.yaml` e as rotas reais montadas no
+ * composition root da aplicação (`server.ts` + `src/bootstrap/*.ts`, ver ITEM-07).
  * Não precisa de servidor rodando nem de Postgres/Redis — só do checkout do repositório, por isso
  * pode rodar em qualquer job de CI (ver handoff `.agents/handoffs/onda-8/
  * 18-para-08-ci-openapi-drift.md` pedindo para o Agente 08 conectar isto ao workflow de CI).
@@ -14,19 +15,18 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 import { parse as parseYaml } from 'yaml';
-import { computeOpenApiDrift } from '../src/shared/contracts/openapiRouteInventory.js';
+import { computeOpenApiDrift, collectCompositionRootSource } from '../src/shared/contracts/openapiRouteInventory.js';
 
 function main(): void {
     const repoRoot = process.cwd();
-    const serverTsPath = path.join(repoRoot, 'server.ts');
     const openapiYamlPath = path.join(repoRoot, 'docs', 'openapi.yaml');
 
-    const serverTsSource = readFileSync(serverTsPath, 'utf-8');
+    const compositionRootSource = collectCompositionRootSource(repoRoot);
     const openapiDocument = parseYaml(readFileSync(openapiYamlPath, 'utf-8'));
 
-    const result = computeOpenApiDrift(serverTsSource, openapiDocument.paths ?? {});
+    const result = computeOpenApiDrift(compositionRootSource, openapiDocument.paths ?? {});
 
-    console.log(`Prefixos de rota montados em server.ts: ${result.allMountedPrefixes.length}`);
+    console.log(`Prefixos de rota montados no composition root: ${result.allMountedPrefixes.length}`);
     console.log(`Paths documentados em docs/openapi.yaml: ${result.allDocumentedPaths.length}`);
     console.log('');
 
@@ -43,7 +43,7 @@ function main(): void {
 
     if (result.phantomDocumentedPaths.length > 0) {
         hasDrift = true;
-        console.error('❌ Paths documentados em docs/openapi.yaml SEM rota real montada em server.ts:');
+        console.error('❌ Paths documentados em docs/openapi.yaml SEM rota real montada no composition root:');
         for (const docPath of result.phantomDocumentedPaths) {
             console.error(`   - ${docPath}`);
         }
@@ -60,7 +60,7 @@ function main(): void {
         return;
     }
 
-    console.log('✅ Nenhuma deriva estrutural encontrada entre docs/openapi.yaml e server.ts.');
+    console.log('✅ Nenhuma deriva estrutural encontrada entre docs/openapi.yaml e o composition root.');
 }
 
 main();
