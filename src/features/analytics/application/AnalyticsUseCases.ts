@@ -14,6 +14,7 @@ import {
     type AnalyticsDashboard,
     type AnalyticsRepository,
     type GroupCount,
+    type CohortRow,
 } from '../domain/Analytics';
 
 function startOfCurrentMonth(now: Date): Date {
@@ -46,6 +47,13 @@ function toDistribution(
             count: row.count,
         }))
         .sort((a, b) => b.count - a.count);
+}
+
+/** Serializa o relatório de cohort em CSV (mesmo dado de `cohortAnalysis`, nunca recalculado aqui). */
+export function buildCohortCsv(rows: CohortRow[]): string {
+    const header = 'Mes,Total de Leads,Ganhos em 30 dias,Ganhos em 60 dias';
+    const lines = rows.map((row) => `${row.month},${row.total},${row.won30d},${row.won60d}`);
+    return [header, ...lines].join('\n');
 }
 
 /** Agrupa timestamps de ligação em (dia da semana, hora), omitindo células sem nenhuma ligação. */
@@ -210,6 +218,42 @@ export class AnalyticsUseCases {
         }
 
         return [...buckets.values()];
+    }
+
+    /**
+     * Cohort de conversão: leads agrupados pelo mês de criação, e quantos desse mesmo grupo
+     * fecharam como ganho em até 30/60 dias da criação. Substitui uma versão anterior que devolvia
+     * números fixos no código ("Fake data just for the prototype") — ver AGENTS.md do módulo, "Não
+     * pode: Não fabricar KPI". "Retenção" (linguagem de produto recorrente) não se aplica a um
+     * funil de venda B2B de ciclo único; "conversão por cohort" é o equivalente comercial real e
+     * fica calculado sobre `Lead.createdAt`/`Lead.closedAt`/`Lead.status` de verdade. Meses sem
+     * nenhum lead criado são omitidos (nunca 0 fabricado para preencher a tabela).
+     */
+    async cohortAnalysis(organizationId: string, monthsBack = 6, now = new Date()): Promise<CohortRow[]> {
+        const since = startOfMonthsAgo(now, monthsBack - 1);
+        const leads = await this.repository.findLeadsForCohort(organizationId, since);
+
+        const buckets = new Map<string, { total: number; won30d: number; won60d: number }>();
+        for (let i = monthsBack - 1; i >= 0; i--) {
+            buckets.set(monthKey(startOfMonthsAgo(now, i)), { total: 0, won30d: 0, won60d: 0 });
+        }
+
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        for (const lead of leads) {
+            const bucket = buckets.get(monthKey(lead.createdAt));
+            if (!bucket) continue;
+            bucket.total++;
+            if (lead.status === WON && lead.closedAt) {
+                const daysToClose = (lead.closedAt.getTime() - lead.createdAt.getTime()) / DAY_MS;
+                if (daysToClose <= 30) bucket.won30d++;
+                if (daysToClose <= 60) bucket.won60d++;
+            }
+        }
+
+        // Só meses com pelo menos um lead real criado — um mês vazio não é um cohort.
+        return [...buckets.entries()]
+            .filter(([, bucket]) => bucket.total > 0)
+            .map(([month, bucket]) => ({ month, ...bucket }));
     }
 
     /** Monta o dashboard inteiro. Uma chamada só, para a tela não fazer 8 requisições. */
