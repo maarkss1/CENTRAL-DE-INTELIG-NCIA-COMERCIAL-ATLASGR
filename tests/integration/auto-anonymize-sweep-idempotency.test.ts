@@ -39,12 +39,14 @@ const suffix = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 const ORG = `test-auto-anonymize-org-${suffix}`;
 
 describe('runAutoAnonymizeSweep — idempotência real (Postgres real)', () => {
-  afterAll(async () => withBypass(async () => {
-    await prisma.lead.deleteMany({ where: { organizationId: ORG } });
-    await prisma.contact.deleteMany({ where: { organizationId: ORG } });
-    await prisma.company.deleteMany({ where: { organizationId: ORG } });
-    await prisma.organization.deleteMany({ where: { id: ORG } });
-  }));
+  afterAll(async () => {
+    // Lead está no allowlist de bypass; Contact/Company não (ITEM-02) — cada um roda no contexto
+    // certo pra RLS real não bloquear a limpeza.
+    await withTenant(ORG, () => prisma.lead.deleteMany({ where: { organizationId: ORG } }));
+    await withTenant(ORG, () => prisma.contact.deleteMany({ where: { organizationId: ORG } }));
+    await withTenant(ORG, () => prisma.company.deleteMany({ where: { organizationId: ORG } }));
+    await withBypass(() => prisma.organization.deleteMany({ where: { id: ORG } }));
+  });
 
   it('anonimiza um lead Negócios Perdidos há mais de 90 dias, e uma segunda rodada não reprocessa nem falha', async () => {
     await withBypass(async () => {
@@ -105,7 +107,10 @@ describe('runAutoAnonymizeSweep — idempotência real (Postgres real)', () => {
     const firstRun = await runAutoAnonymizeSweep();
     expect(firstRun.anonymizedCount).toBeGreaterThanOrEqual(1);
 
-    const contactAfterFirstRun = await withBypass(async () =>
+    // Contact não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) —
+    // ITEM-02 fechou a RLS dessa tabela pra bypass (é dado pessoal do titular). Lida no contexto do
+    // próprio tenant, RLS real de tenant, sem bypass.
+    const contactAfterFirstRun = await withTenant(ORG, async () =>
       prisma.contact.findUniqueOrThrow({ where: { id: contact.id } }),
     );
     expect(contactAfterFirstRun.name).toBe(ANONYMIZED_CONTACT_NAME);
@@ -116,10 +121,11 @@ describe('runAutoAnonymizeSweep — idempotência real (Postgres real)', () => {
     expect(contactAfterFirstRun.observations).toBeNull();
     expect(contactAfterFirstRun.customFields).toEqual({});
 
-    // O lead deixa de ser elegível para a varredura (o filtro `contact.name != ANONYMIZED_CONTACT_NAME`
-    // já deveria excluí-lo) — confirma isso direto na query de elegibilidade do sweep, não só no
-    // efeito colateral do Contact.
-    const stillEligibleAfterFirstRun = await withBypass(async () =>
+    // O lead deixa de ser elegível para a varredura (o contato já está anonimizado) — confirma isso
+    // direto na query de elegibilidade do sweep (`autoAnonymizeDisqualified.worker.ts` agora checa
+    // isso já resolvido pro tenant certo, não mais via JOIN cross-tenant contra Contact sob bypass —
+    // ver comentário na mesma função), não só no efeito colateral do Contact.
+    const stillEligibleAfterFirstRun = await withTenant(ORG, async () =>
       prisma.lead.findMany({
         where: {
           id: lead.id,
@@ -141,14 +147,14 @@ describe('runAutoAnonymizeSweep — idempotência real (Postgres real)', () => {
     // robusta) — a asserção robusta é reconsultar o Contact/Lead específicos que criamos.
     await expect(runAutoAnonymizeSweep()).resolves.not.toThrow();
 
-    const contactAfterSecondRun = await withBypass(async () =>
+    const contactAfterSecondRun = await withTenant(ORG, async () =>
       prisma.contact.findUniqueOrThrow({ where: { id: contact.id } }),
     );
     expect(contactAfterSecondRun.name).toBe(ANONYMIZED_CONTACT_NAME);
     expect(contactAfterSecondRun.phone).toBeNull();
     expect(contactAfterSecondRun.email).toBeNull();
 
-    const stillEligibleAfterSecondRun = await withBypass(async () =>
+    const stillEligibleAfterSecondRun = await withTenant(ORG, async () =>
       prisma.lead.findMany({
         where: {
           id: lead.id,
