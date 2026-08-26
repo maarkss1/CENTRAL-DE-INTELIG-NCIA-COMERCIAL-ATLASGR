@@ -46,3 +46,22 @@ export const bitrixExtractionFailuresTotal =
         help: 'Total de falhas do serviço de Extrações Bitrix (BitrixExtractionRun), por organização (tenant) e entidade.',
         labelNames: ['tenant', 'entity'] as const,
     });
+
+/**
+ * Extrações que terminaram com status "completed" mas NÃO esgotaram o portal para pelo menos uma
+ * entidade (teto de segurança de páginas atingido, ver `PAGE_SAFETY_CAP` em extraction.ts) —
+ * bloqueador #12 de `/AGENTS.md`: "Extrações Bitrix incompletas tratadas como recurso final". Antes
+ * desta métrica, esse caso só existia como `logger.warn` (achado real desta auditoria — a linha
+ * `BitrixExtractionRun.status` e a tela ficavam idênticas a uma extração de fato completa, sem
+ * nenhum sinal agregado/acionável). Separada de `bitrix_extraction_failures_total` de propósito: não
+ * é uma falha (a extração terminou com sucesso, gerou arquivo, é utilizável), é um recorte parcial —
+ * misturar as duas séries faria `BitrixExtractionFailuresHigh"` (se existir) alarmar para um caso que
+ * não é falha.
+ */
+export const bitrixExtractionPartialTotal =
+    (client.register.getSingleMetric('bitrix_extraction_partial_total') as client.Counter<'tenant' | 'entity'> | undefined) ??
+    new client.Counter({
+        name: 'bitrix_extraction_partial_total',
+        help: 'Total de extrações concluídas de forma PARCIAL (teto de segurança de páginas atingido para ao menos uma entidade), por organização (tenant) e entidade.',
+        labelNames: ['tenant', 'entity'] as const,
+    });
