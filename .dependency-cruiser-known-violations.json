@@ -1,0 +1,1450 @@
+[
+  {
+    "type": "dependency",
+    "from": "src/features/activities/services/activity.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/automations/automation.engine.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/application/cold-leads-scanner.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/swarmScheduler.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/application/cold-leads-scanner.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/vector-search.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation.engine.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/birthVoice.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation.engine.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.policy.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/automations/automation.engine.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/cadence/infra/dispatchers/CadenceDispatchers.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/whatsapp.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/cadence/infra/PrismaCalendarSchedulerPort.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/google/google.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/cadence/jobs/cadenceRun.worker.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.policy.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/commercial-intelligence/components/CrmQualityTab.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/components/BitrixImportPanel.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/commercial-intelligence/components/CrmQualityTab.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/components/BitrixSyncRulesPanel.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/commercial-intelligence/infra/CommercialIntelligenceAiService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/guardrails.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/companies/application/CompanyUseCases.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/enrichment.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/companies/routes/company.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/market-intelligence/server/marketIntelligenceCompany.routes.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/contacts/application/ContactUseCases.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/enrichment.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/contacts/services/contact.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/enrichment.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/application/dealClosureGate.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/dealClosure.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/application/LeadUseCases.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrix.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/application/LeadUseCases.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/enrichment.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/components/BitrixImportModal.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrix.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/components/LeadDetailDrawer.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrix.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/components/LeadDetailDrawer.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/components/WhatsAppChatPanel.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/infra/PrismaDealClosureGate.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/dealClosure.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/jobs/followUp.worker.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/whatsapp.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/jobs/weeklyPdfReport.worker.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/analytics.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm/presentation/LeadController.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/automations/automation.engine.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/documentSignature.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/proposal.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/GovBrSignatureProviderPort.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaSignatureRequestRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/commercial-intelligence/infra/stageHistory.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/crm/application/dealClosureGate.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/crm360/infra/PrismaCrm360Repository.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/crm/infra/PrismaDealClosureGate.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/document-editor/components/Editor.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/knowledge.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/birth-voice/callSuppression.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/optOutService.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/birth-voice/callSuppression.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaOptOutRepository.ts"
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/integrations/bitrix/service/deals.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/service/userMapping.ts",
+    "cycle": [
+      {
+        "name": "src/features/integrations/bitrix/service/userMapping.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/integrations/bitrix/service/deals.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/email/emailReply.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/replyTracking.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/email/emailReply.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/emailIntentClassifier.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/email/emailReply.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaConversationSignalPort.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/signature/signatureStatus.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/documentSignature.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/signature/signatureStatus.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/domain/signature.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/signature/signatureStatus.webhook.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaSignatureRequestRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/whatsapp/whatsapp.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/optOutService.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/whatsapp/whatsapp.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaOptOutRepository.ts"
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/integrations/whatsapp/whatsapp.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/lib/queue/whatsappCommand.queue.ts",
+    "cycle": [
+      {
+        "name": "src/lib/queue/whatsappCommand.queue.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/integrations/whatsapp/whatsapp.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/whatsapp/whatsappMessage.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/optOutService.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/integrations/whatsapp/whatsappMessage.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaOptOutRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/BitrixGuideHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/commercial-intelligence/application/pipelineEligibility.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/BitrixGuideHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrixFieldMap.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/IntelligenceHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/dashboard/components/AIConfigCenter.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/IntelligenceHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/knowledge.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/ReportsHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/analytics.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/components/ReportsHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/components/GlowChart.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/evaluation/goldenDataset.runner.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/activities/services/next-best-action.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/evaluation/goldenDataset.runner.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/chatbook/services/meeting-synthesis.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/evaluation/goldenDataset.runner.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/services/knowledge-copilot.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/routes/ai-suite.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/search.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/aiPendingAction.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/activities/services/activity.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/aiPendingAction.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/notes/application/NoteUseCases.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/activities/services/next-best-action.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/analytics/services/churn-prediction.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/automations/services/smart-lead-router.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/services/cadence-ai.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/chatbook/services/meeting-synthesis.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/contacts/services/decision-committee.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/document-editor/services/proposal-ai.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/gamification/services/seller-coaching.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/services/bitrix-data-hygiene.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/conversation-intelligence.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/services/knowledge-copilot.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/lgpd/services/lgpd-sanitizer.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/mesa-tratamento/services/mesa-triage.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/playbook/services/playbook-ai.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/CentralAISuiteService.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/roleplay/services/roleplay-ai.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/swarmScheduler.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/birth-voice/coldCall.policy.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/vector-search.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/search.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/services/vector.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/knowledge/search.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/intelligence/tools/opsTools.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/activities/services/activity.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/components/TerritoryEconomicSimulator.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/commercial-intelligence/commercialIntelligence.api.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/actionExecutor.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/service/client.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/economicScenario.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/commercial-intelligence/application/CommercialIntelligenceUseCases.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/market-intelligence/server/economicScenario.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/commercial-intelligence/infra/PrismaCommercialIntelligenceRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/mesa-tratamento/routes/mesaTratamento.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrix.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/components/prospecting-hub/CandidateCard.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/components/WhatsAppChatPanel.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/routes/prospecting.routes.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/IcebreakerService.ts"
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/organizationEnrich.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/organizationEnrich.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/types.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/organizationSearch.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/organizationSearch.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/people.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/people.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/types.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/types.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "export"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo/organizationSearch.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/people.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/people.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/organizationSearch.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo/organizationSearch.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/types.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/types.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/organizationSearch.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/apollo/people.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo/types.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo/types.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/people.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/cold-email.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/application/optOutService.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/cold-email.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/cadence/infra/PrismaOptOutRepository.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/enrichment.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/IcebreakerService.ts"
+  },
+  {
+    "type": "cycle",
+    "from": "src/features/prospecting/services/enrichment.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/features/prospecting/services/apollo.service.ts",
+    "cycle": [
+      {
+        "name": "src/features/prospecting/services/apollo.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/organizationEnrich.ts",
+        "dependencyTypes": [
+          "local",
+          "export"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/apollo/types.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/prospecting.service.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/features/prospecting/services/enrichment.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/ocr.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/intelligence/services/studio.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/prospecting.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/bitrix/bitrix.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/prospecting/services/whatsapp.service.ts",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/whatsapp/whatsapp.service.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/roleplay/components/RoleplayHub.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/chatbook/components/chatbook-hub/playbookData.ts"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/settings/components/Settings.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/feature-flags/components/FeatureFlagsPanel.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/settings/components/Settings.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/integrations/components/Integrations.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/settings/components/Settings.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/lgpd/components/AuditLogs.tsx"
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/settings/components/Settings.tsx",
+    "rule": {
+      "name": "no-cross-feature-imports",
+      "severity": "error"
+    },
+    "to": "src/features/team/components/Team.tsx"
+  },
+  {
+    "type": "cycle",
+    "from": "src/lib/audit/audit.service.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/lib/prisma.ts",
+    "cycle": [
+      {
+        "name": "src/lib/prisma.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/lib/audit/audit.service.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/lib/prisma.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/lib/queue/search.queue.ts",
+    "cycle": [
+      {
+        "name": "src/lib/queue/search.queue.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/lib/queue/deadLetter.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/lib/prisma.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/AndSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/CompositeSpecification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/CompositeSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/AndSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/AndSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/Specification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/AndSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/NotSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/CompositeSpecification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/CompositeSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/NotSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/NotSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/Specification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/NotSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/OrSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/CompositeSpecification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/CompositeSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/OrSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  },
+  {
+    "type": "cycle",
+    "from": "src/shared/domain/specifications/OrSpecification.ts",
+    "rule": {
+      "name": "no-circular",
+      "severity": "error"
+    },
+    "to": "src/shared/domain/specifications/Specification.ts",
+    "cycle": [
+      {
+        "name": "src/shared/domain/specifications/Specification.ts",
+        "dependencyTypes": [
+          "local",
+          "type-only",
+          "import"
+        ]
+      },
+      {
+        "name": "src/shared/domain/specifications/OrSpecification.ts",
+        "dependencyTypes": [
+          "local",
+          "import"
+        ]
+      }
+    ]
+  }
+]
