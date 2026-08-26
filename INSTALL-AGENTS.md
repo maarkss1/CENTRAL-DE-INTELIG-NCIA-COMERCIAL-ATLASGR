@@ -1,5 +1,12 @@
 # Instalação do Pacote de Agentes
 
+> **Registro histórico (marcado em 25/08/2026, ITEM-14 de consolidação de documentação).**
+> Instruções de instalação de um pacote de agentes num repositório novo — já executadas neste
+> repositório. O "achado de segurança conhecido" citado abaixo (`backups/prospector-*.dump`
+> versionado) já foi corrigido: o arquivo não está mais rastreado pelo git (confirmado em
+> 25/08/2026 via `git ls-files backups/`, que só retorna `backups/AGENTS.md`). Mantido como
+> referência de como o pacote foi originalmente instalado, não como checklist a repetir.
+
 ## Destino
 Extraia/copiei o conteúdo deste pacote diretamente na raiz do repositório:
 
