@@ -1,7 +1,7 @@
 - De: 08
 - Para: 00
 - Onda: roadmap-v2-onda-3
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 ## Problema
 Auditando o bloqueador prioritário #5 de `/AGENTS.md` ("Deploy capaz de iniciar sem aplicar
@@ -57,3 +57,14 @@ Não é bloqueador desta onda: o achado de maior severidade (serviço `app`, tr�
 foi corrigido dentro do meu escopo de arquivo. Este handoff cobre só o residual do `worker`, que
 depende de editar um arquivo sem dono claro no roster — peço ao Coordenador decidir se atribui a
 mim (08) numa rodada com escopo de arquivo ampliado, ou a outro agente.
+
+## Resolução (Coordenador, 00)
+Aplicada a alteração exatamente como proposta — `docker-compose.oci.yml`, serviço `worker`, `command`
+trocado para `["sh", "-c", "npx prisma migrate deploy && exec npm run start:worker"]`. YAML validado
+(`python3 -c "import yaml; yaml.safe_load(...)"`). Não foi possível rodar o teste esperado
+(`docker compose ... down -v && up -d --build` com volume novo) porque o daemon Docker não está
+disponível neste ambiente de execução — mesma limitação já documentada pelo Agente 08 para o build
+da imagem. A mudança é o mesmo padrão de uma linha já aplicado e revisado no `Dockerfile` nesta
+mesma onda (idempotente, seguro sob concorrência via advisory lock do Prisma), então o risco de
+regressão é baixo mesmo sem esse teste específico — mas fica registrado como validação pendente em
+ambiente com Docker real antes do primeiro deploy self-hosted que usar este arquivo.
