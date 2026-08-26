@@ -150,10 +150,37 @@ jobs:
     permissions:
       contents: read
       packages: write
+      # ITEM-10 (Onda 2): upload do SARIF do scan de imagem (job abaixo) para a aba Security.
+      security-events: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # ITEM-11 (Onda 3 — SBOM e governança de dependências): todo release real produz um SBOM
+      # CycloneDX correlacionável ao commit publicado. Ver docs/security/DEPENDENCY_POLICY.md.
+      - name: Use Node.js 22 (para gerar o SBOM)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (para o SBOM)
+        run: npm ci --no-audit --no-fund
+
+      - name: Gerar SBOM (CycloneDX)
+        run: npm run security:sbom
+
+      - name: Nomear artefato do SBOM com o SHA curto do release
+        id: sbom_name
+        run: echo "name=sbom-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload do SBOM como artefato do release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.sbom_name.outputs.name }}
+          path: sbom.cdx.json
+          retention-days: 90
 
       - name: Log in to the Container registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -161,6 +188,11 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Necessário para `cache-from`/`cache-to: type=gha` abaixo — o driver "docker" padrão (sem
+      # este passo) não suporta o backend de cache remoto do GitHub Actions.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -171,10 +203,64 @@ jobs:
             type=sha,format=short
             type=raw,value=latest
 
-      - name: Build and push Docker image
+      # ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes): a imagem é construída e
+      # carregada localmente (push: false, load: true) para ser escaneada ANTES de publicar no
+      # registry — um achado HIGH/CRITICAL sem waiver impede o push, em vez de publicar primeiro e
+      # descobrir depois. cache-from/cache-to (GitHub Actions cache) evitam pagar o build duas
+      # vezes: o push abaixo reaproveita as camadas já construídas aqui.
+      - name: Build Docker image (local, para scan antes do push)
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Selecionar tag primária para o scan
+        id: primary_tag
+        run: echo "tag=$(echo '${{ steps.meta.outputs.tags }}' | head -n1)" >> "$GITHUB_OUTPUT"
+
+      # `ignore-unfixed: true` só aqui (não no gate de PR de filesystem) — política deliberada:
+      # imagens base (node/debian) frequentemente carregam CVE de pacote de SO sem fix upstream
+      # disponível ainda; bloquear todo release por isso não é acionável. Achado com fix
+      # disponível continua bloqueando normalmente. Ver .trivyignore.yaml para waivers explícitos
+      # por advisory ID (não por severidade rebaixada globalmente).
+      - name: Trivy — scan da imagem (HIGH/CRITICAL, bloqueante antes do push)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.primary_tag.outputs.tag }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image-results.sarif
+          trivyignores: .trivyignore.yaml
+
+      - name: Upload SARIF do scan de imagem para a aba Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@42947a340483f03ba47bb1a039b2c519aab3df85 # v3.37.8
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
+
+      - name: Upload SARIF do scan de imagem como artefato (auditoria/retenção)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-image-sarif
+          path: trivy-image-results.sarif
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Só roda se o scan acima passou — o step de scan falha (exit-code 1) e interrompe o job
+      # antes de chegar aqui quando há achado HIGH/CRITICAL sem waiver.
+      - name: Push Docker image (imagem já escaneada)
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker push "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"

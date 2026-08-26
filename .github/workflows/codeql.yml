@@ -1,0 +1,90 @@
+name: Security - CodeQL
+
+# ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes). Roda análise estática de
+# segurança (SAST) nas linguagens com superfície real de aplicação neste repositório:
+#   - javascript-typescript: frontend React + backend Express (src/, server.ts, worker.ts).
+#   - python: scripts de ETL de inteligência de mercado que processam dado externo
+#     (public/tools/atlas-market-intelligence/, scripts/market-intelligence/,
+#     scripts/market_intelligence/).
+# `android/` só tem boilerplate de teste do Capacitor (2 arquivos .java de exemplo, sem lógica
+# própria) — não entrou como linguagem própria por não ter superfície de segurança real hoje.
+#
+# CodeQL sozinho (github/codeql-action/analyze) NÃO falha o workflow por achado — só publica SARIF
+# na aba Security. O gate real que faz "PR com vulnerabilidade proibida falha" (critério de aceite
+# do ITEM-10) é o passo seguinte, `security:codeql-sarif`
+# (scripts/security/check-codeql-sarif.ts), que lê o SARIF gravado localmente e falha em qualquer
+# achado `level: error` (achado de alta confiança dos suites padrão do CodeQL).
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+  schedule:
+    # Quarta-feira, 06:00 UTC — deslocado do agendamento semanal do Trivy (segunda, 06:00 UTC) em
+    # security-trivy.yml para não competir por runner no mesmo horário.
+    - cron: '0 6 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: "CodeQL / ${{ matrix.language }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      # Necessário em repositórios privados para o CodeQL determinar automaticamente a
+      # linguagem/branch base; inofensivo em repositório público.
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@42947a340483f03ba47bb1a039b2c519aab3df85 # v3.37.8
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@42947a340483f03ba47bb1a039b2c519aab3df85 # v3.37.8
+        with:
+          category: "/language:${{ matrix.language }}"
+          output: results
+          upload: always
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      # `npm ci` (instala as ~1600 dependências da aplicação) não é necessário aqui — este job só
+      # roda um script de gate sem dependências de app, `npx tsx` traz só o runtime TS (bem mais
+      # rápido). O script é coberto por teste unitário próprio
+      # (tests/unit/security-codeql-sarif.test.ts), rodado no job de aplicação normal (ci.yml).
+      - name: "Gate: falhar em achado CodeQL error-level"
+        run: npx --yes tsx scripts/security/check-codeql-sarif.ts results
+
+      - name: Upload SARIF como artefato (auditoria/retenção)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: results/*.sarif
+          retention-days: 30
+          if-no-files-found: warn

@@ -51,17 +51,36 @@ do controle de versão em 22/08/2026; ver [`docs/REMOVED-DOCS.md`](REMOVED-DOCS.
 
 ## Deploy / Produção / Release
 
-- [Guia de produção completo](deploy/producao.md) — Supabase, Render, Cloudflare, CI/CD, checklist e roadmap
+- [Índice operacional de infraestrutura/deploy](deploy/README.md) — **leia primeiro**: qual
+  caminho é canônico por ambiente hoje, e o status real (ativo/congelado/aspiracional) de cada um
+  dos quatro caminhos documentados
+- [Modo local-first](development/LOCAL_FIRST.md) — ambiente ativo hoje (única fase em execução)
+- [Guia de produção completo](deploy/producao.md) — Supabase, Render, Cloudflare, CI/CD e
+  checklist da arquitetura de produção **congelada** durante a fase local-first (ver índice acima)
 - [Deploy no Render](deploy/render.md)
-- [Checklist de release](deploy/RELEASE_CHECKLIST.md)
+- Checklist de validação pós-deploy: `deploy/producao.md` §7 (`deploy/RELEASE_CHECKLIST.md`
+  referenciado anteriormente aqui nunca existiu neste repositório — link corrigido)
 - ~~Plano Diretor de 100 Passos — encerramento~~ — `docs/ROADMAP-100-STEPS-COMPLETE.md` (registro
   histórico de 12/08/2026 que declarava `1.0.0-RELEASE-APPROVED`) foi removido do controle de
   versão em 22/08/2026 (ver [`docs/REMOVED-DOCS.md`](REMOVED-DOCS.md)). O estado de release vivo
   continua sendo `.agents/completion/01-bloqueadores.md`.
 
+## Desenvolvimento
+
+- [Política de assets públicos e datasets](development/PUBLIC_ASSETS_AND_DATASETS.md) — o que
+  pertence a `public/` vs. `data/` vs. object storage, e o budget de tamanho que impede
+  reincidência (ITEM-05).
+- [Local-first](development/LOCAL_FIRST.md)
+
 ## Compliance
 
 - [Matriz de compliance](compliance/COMPLIANCE_MATRIX.md)
+
+## Performance
+
+- [Budgets de performance — bundle, tamanho e latência](development/PERFORMANCE_BUDGETS.md) —
+  limites mensuráveis de tamanho de bundle frontend e latência de endpoints críticos, e como o CI
+  os verifica (`npm run check:bundle-budget`, `tests/load/k6-api.js`).
 
 ## Relatórios
 
