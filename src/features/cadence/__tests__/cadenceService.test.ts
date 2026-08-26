@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { startCadenceRun, type CadenceSequenceDefinition, type CadenceTouch, type CadenceRunState } from '../domain/cadence';
-import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type LeadSubjectResolver } from '../application/cadenceService';
+import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type CadenceRunRepository, type LeadSubjectResolver } from '../application/cadenceService';
 import { InMemoryCadenceRunRepository } from '../infra/InMemoryCadenceRunRepository';
 import { InMemoryOptOutRepository } from '../infra/InMemoryOptOutRepository';
 import { recordOptOut } from '../application/optOutService';
@@ -209,4 +209,87 @@ describe('advanceCadenceRun', () => {
             ),
         ).rejects.toThrow();
     });
+});
+
+// Achado de auditoria (Onda transversal — Agente 17): o envio real ao canal (`dispatcher.dispatch`)
+// e a gravação do resultado (`runRepo.save`) não são uma operação atômica. Se o canal confirma o
+// envio mas a gravação falha (blip de banco), o run persistido continua no mesmo `currentTouchOrder`
+// — sem alguma proteção, o próximo ciclo do scheduler leria esse mesmo estado e despacharia de novo
+// para o MESMO lead, duplicando a mensagem real. `advanceCadenceRun` agora tenta regravar (retry
+// curto) antes de desistir; estes testes provam que (1) um blip transitório se recupera sem exigir
+// um segundo envio, e (2) uma falha persistente ainda propaga o erro (nunca finge sucesso).
+describe('advanceCadenceRun — persistência do resultado após envio real confirmado', () => {
+    function repoThatFailsSaveNTimes(seeded: CadenceRunState, failCount: number): CadenceRunRepository {
+        const inner = new InMemoryCadenceRunRepository();
+        inner.seed(seeded);
+        let failuresLeft = failCount;
+        return {
+            async save(run) {
+                if (failuresLeft > 0) {
+                    failuresLeft--;
+                    throw new Error('Postgres indisponível momentaneamente');
+                }
+                await inner.save(run);
+            },
+            findById: (organizationId, id) => inner.findById(organizationId, id),
+            listByOrganization: (organizationId, filter) => inner.listByOrganization(organizationId, filter),
+        };
+    }
+
+    it('blip transitório na gravação (1 falha) se recupera via retry sem despachar duas vezes', async () => {
+        const run = startCadenceRun({ id: 'run-1', organizationId: ORG, leadId: LEAD, sequenceId: 'seq-1', startedAt: NOW });
+        const runRepo = repoThatFailsSaveNTimes(run, 1);
+        const optOutRepo = new InMemoryOptOutRepository();
+        const dispatcher = new ScriptedDispatcher({ result: 'sent' });
+
+        const { run: updated, decision } = await advanceCadenceRun(
+            {
+                runRepo,
+                optOutRepo,
+                subjectResolver: alwaysResolveSubject(),
+                dispatcher,
+                lock: noopLock(),
+                isWithinBusinessWindow: () => true,
+                hasLeadReplied: async () => false,
+            },
+            ORG,
+            'run-1',
+            SEQUENCE,
+            NOW,
+        );
+
+        expect(decision.type).toBe('dispatch');
+        expect(dispatcher.calls).toHaveLength(1); // o canal real só foi chamado UMA vez, mesmo com o blip de gravação
+        expect(updated.currentTouchOrder).toBe(2);
+        expect(updated.attempts[0].result).toBe('sent');
+    }, 10_000);
+
+    it('falha persistente na gravação (excede o retry) propaga o erro em vez de fingir sucesso', async () => {
+        const run = startCadenceRun({ id: 'run-1', organizationId: ORG, leadId: LEAD, sequenceId: 'seq-1', startedAt: NOW });
+        const runRepo = repoThatFailsSaveNTimes(run, 10); // mais falhas do que o retry tenta
+        const optOutRepo = new InMemoryOptOutRepository();
+        const dispatcher = new ScriptedDispatcher({ result: 'sent' });
+
+        await expect(
+            advanceCadenceRun(
+                {
+                    runRepo,
+                    optOutRepo,
+                    subjectResolver: alwaysResolveSubject(),
+                    dispatcher,
+                    lock: noopLock(),
+                    isWithinBusinessWindow: () => true,
+                    hasLeadReplied: async () => false,
+                },
+                ORG,
+                'run-1',
+                SEQUENCE,
+                NOW,
+            ),
+        ).rejects.toThrow('Postgres indisponível momentaneamente');
+
+        // O canal real foi chamado (o envio já aconteceu de verdade) — a falha é só de gravação,
+        // e continua sendo reportada como falha de ciclo (nunca sucesso silencioso).
+        expect(dispatcher.calls).toHaveLength(1);
+    }, 10_000);
 });
