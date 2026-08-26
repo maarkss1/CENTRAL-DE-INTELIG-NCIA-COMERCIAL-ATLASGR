@@ -67,7 +67,12 @@ export function BitrixGuideHub() {
             <p className="text-xs text-ink-2 font-medium">Guia oficial de uso, automação, mapeamento de campos e regras do Bitrix24</p>
           </div>
         </div>
-        <span className={`px-3 py-1 ${accent.bgSofter} ${accent.text} text-xs font-black rounded-full border ${accent.borderSoft}`}>
+        {/* accent.text (cor crua da marca) sobre accent.bgSofter cai a 2.x:1 — mesma classe de
+            achado do axe-core já documentada em useBrandAccent.ts para bg/solidBg. Aqui é texto,
+            não fundo sólido, então a correção é local (text-*-active), não no hook compartilhado
+            (accent.text também vira ícone em ~30 outros lugares, onde SVG fill não tem o mesmo
+            requisito de contraste de texto). */}
+        <span className={`px-3 py-1 ${accent.bgSofter} ${accent.isAtlas ? 'text-atlas-orange-active' : 'text-totaltrack-blue-active'} text-xs font-black rounded-full border ${accent.borderSoft}`}>
           Bitrix24 Certified Standard
         </span>
       </div>
