@@ -7,18 +7,33 @@
 A plataforma visa atuar como um sistema central para times de vendas B2B (SDRs, Executivos, Gestores), consolidando em um único lugar a busca por novos leads, o acompanhamento do funil de vendas, a agenda de interações e o auxílio de IA generativa para treinamento e análise de dados.
 
 ## 3. Estrutura da navegação
-A aplicação conta com um Menu Principal (Sidebar lateral) segmentado da seguinte forma (conferido
-contra `src/components/layout/Sidebar.tsx` em 14/08/2026 — ver detalhamento completo em
-`/inventario/mapa-de-navegacao.md`):
-- **Core Modules:** Painel Central (Dashboard), Prospecção, Pipeline CRM, Cockpit CRM, Decisores, Empresas, Agenda, Analytics, Win/Loss, Calendário, Notificações, Configurações.
-- **Executivo** (só Gestor/Admin): Comercial Inteligente.
-- **Inteligência:** Roleplay ("Dojo de Vendas"), Matriz de Qualificação, Matriz de Objeções, Chatbook, Hub de IA, Market Intelligence, Academy, Bitrix24 (Integração), Integrações, Relatórios IA, Base de Conhecimento, Editor de Documentos, Automações, Consumo de IA.
-- **Ferramentas:** Extrator Bitrix24 (link externo, fora da SPA).
-- **Administração** (só papel administrativo): Equipe.
+A aplicação conta com um Menu Principal (Sidebar lateral) organizado pela jornada comercial
+(conferido contra `src/components/layout/Sidebar.tsx` em 26/08/2026 — ver detalhamento completo,
+incluindo observações de divergência já corrigidas, em `/inventario/mapa-de-navegacao.md`):
+- **Visão Geral:** Painel Central (Dashboard).
+- **Captar:** Prospecção, Market Intelligence.
+- **Qualificar:** Empresas, Decisores, Mesa de Tratamento, Matriz de Qualificação.
+- **Relacionar:** Agenda, Calendário, Cadência.
+- **Fechar:** Pipeline CRM, Cockpit CRM, Propostas.
+- **Analisar:** Comercial Inteligente (só Gestor/Admin), Analytics, Win/Loss, Relatórios IA.
+- **IA & Capacitação:** Hub de IA, Chatbook, Roleplay, Matriz de Objeções, Academy, Base de Conhecimento, Editor de Documentos.
+- **Administração:** Notificações, Guia Bitrix24 e Configurações (todos os papéis); Integrações, Automações, Consumo de IA e Equipe (só papel `ADMIN`).
+
+A ordem dos grupos acima muda por papel do usuário (Closer, Gestor/Admin, Visualizador e SDR/padrão
+têm prioridades diferentes de jornada), mas os grupos e itens são os mesmos — nenhum item some por
+reordenação, só pelo RBAC já indicado acima. O antigo grupo "Ferramentas" (link externo para o
+Portal Comercial Bitrix24) não existe mais no menu principal — ver observação em
+`/inventario/mapa-de-navegacao.md`.
+
 Há também configurações globais como alternância de temas, comandos de voz e um chat bot persistente flutuante.
 
 ## 4. Inventário de telas
-(Consultar a planilha CSV em `/inventario/inventario-de-telas.csv`).
+Não existe hoje uma planilha CSV de inventário de telas nesta pasta (`/inventario/` contém apenas
+`mapa-de-navegacao.md`). Uma versão anterior deste briefing apontava para
+`/inventario/inventario-de-telas.csv`, que nunca chegou a ser produzida — corrigido nesta revisão
+para não prometer um arquivo inexistente. Até que essa planilha seja produzida, use
+`/inventario/mapa-de-navegacao.md` (a lista completa de módulos por grupo) como inventário textual
+equivalente.
 
 ## 5. Descrição dos módulos
 - **Painel Central (Dashboard):** Objetivo: Visão gerencial. Público: Toda a equipe. Apresenta: KPIs, próximos compromissos e gráficos. Conecta-se diretamente com Agenda e Analytics.
@@ -59,13 +74,23 @@ A aplicação oferece uma navegação extremamente rápida, de fácil aprendizad
 (Consultar *atualizacoes-futuras.md*).
 
 ## 11. Sugestão de roadmap
-(Consultar *roadmap.md*).
+Não existe um arquivo `roadmap.md` nesta pasta hoje — uma versão anterior deste briefing apontava
+para ele, mas o arquivo nunca foi produzido. Corrigido nesta revisão para não prometer um documento
+inexistente. Para prioridades de produto reais e já registradas, ver
+`AUTONOMIA_COMERCIAL_24X7.md`/`PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md` na raiz do repositório (fora
+desta pasta) e `atualizacoes-futuras.md` (item 10 acima), que já cobre sugestões pontuais por
+módulo.
 
 ## 12. Arquivos produzidos
-- `/briefing/` (briefing-completo.md, resumo-executivo.md, atualizacoes-futuras.md, roadmap.md)
-- `/imagens/` (Categorias 01 a 06 com imagens da plataforma)
+- `/briefing/` (briefing-completo.md, resumo-executivo.md, atualizacoes-futuras.md — não existe
+  `roadmap.md` nesta pasta, ver item 11 acima)
+- `/imagens/` (Categorias 01 a 06 com imagens da plataforma — capturadas antes da reorganização da
+  Sidebar por jornada comercial registrada no item 3; refletem a estrutura de menu anterior
+  "Core Modules/Inteligência", não a atual. Recomenda-se recapturar numa próxima rodada com acesso a
+  ambiente autenticado real.)
 - `/videos/` (apresentacao-completa.mp4 — único vídeo gravado hoje; `roteiro-apresentacao.md` e
   `roteiro-demonstracao.md` referenciam este mesmo material bruto até que uma gravação dedicada ao
   roteiro de demonstração de fluxos exista — ver nota nos próprios roteiros)
 - `/roteiros/` (roteiro-apresentacao.md, roteiro-demonstracao.md)
-- `/inventario/` (inventario-de-telas.csv, mapa-de-navegacao.md)
+- `/inventario/` (mapa-de-navegacao.md — não existe `inventario-de-telas.csv` nesta pasta, ver item
+  4 acima)

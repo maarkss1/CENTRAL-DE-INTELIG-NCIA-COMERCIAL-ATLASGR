@@ -13,3 +13,8 @@ spec:
       name: http
   selector:
     {{- include "prospector-atlas.selectorLabels" . | nindent 4 }}
+    # Ver deployment.yaml/rollout.yaml — sem isto o Service também elegeria pods do worker
+    # (que só expõem a porta "health", não "http"; o Endpoint ficaria sem esse pod para esta
+    # porta, mas o selector continuaria semanticamente errado e o pod apareceria nos Endpoints
+    # do Service sem porta correspondente).
+    app.kubernetes.io/component: web

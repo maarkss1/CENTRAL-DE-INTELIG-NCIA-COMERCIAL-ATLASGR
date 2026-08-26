@@ -4,4 +4,6 @@
     <string name="title_activity_main">AtlasGR Prospector</string>
     <string name="package_name">br.com.atlasgr.prospector</string>
     <string name="custom_url_scheme">br.com.atlasgr.prospector</string>
+    <string name="deep_link_invalid_title">Link inválido</string>
+    <string name="deep_link_invalid_message">Não foi possível abrir este link no AtlasGR Prospector: %1$s</string>
 </resources>
