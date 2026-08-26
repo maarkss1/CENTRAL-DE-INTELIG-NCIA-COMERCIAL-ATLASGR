@@ -12,6 +12,12 @@ spec:
   selector:
     matchLabels:
       {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+      # Sem este componente, o selector (só nome+instance) também bate com os pods do worker
+      # (que carregam esses mesmos dois labels + component:worker) — isso poluía o cálculo de
+      # CPU/memória do HPA principal (hpa.yaml lê o selector via scale subresource deste
+      # recurso) e o Service/PDB abaixo com pods do worker. Ver worker-deployment.yaml, que já
+      # usa component:worker para o mesmo propósito do lado dele.
+      app.kubernetes.io/component: web
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -20,6 +26,7 @@ spec:
       {{- end }}
       labels:
         {{- include "prospector-atlas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

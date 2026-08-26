@@ -14,6 +14,12 @@ spec:
   selector:
     matchLabels:
       {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+      # Sem isto, este PDB também contava pods do worker no total de "pods que casam com o
+      # selector" (nome+instance é subconjunto dos labels do worker) — um drain de nó podia
+      # evictar as duas réplicas do app principal (minAvailable:1 satisfeito só com réplicas
+      # do worker de pé) sem violar este PDB, esvaziando a capacidade HTTP real enquanto o
+      # Kubernetes considerava a política de disrupção respeitada.
+      app.kubernetes.io/component: web
 {{- end }}
 {{- if and .Values.podDisruptionBudget.enabled .Values.worker.enabled }}
 ---

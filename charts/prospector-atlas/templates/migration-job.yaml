@@ -8,16 +8,15 @@
 # (`startCommand: npx prisma migrate deploy && npm run start`) — ver
 # /AGENTS.md → bloqueador #5 ("Deploy capaz de iniciar sem aplicar migrações").
 #
-# CAVEAT CONHECIDO (ver handoff .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md):
-# a imagem publicada por `.github/workflows/cd-homolog.yml`/`production.yaml` é construída a
-# partir do `Dockerfile` da raiz, cujo estágio final roda `npm prune --omit=dev` — isso remove o
-# pacote `prisma` (a CLI, hoje em devDependencies) da imagem, deixando só `@prisma/client`
-# (runtime). `npx prisma migrate deploy` neste Job só funciona se a imagem consumida aqui
-# contiver a CLI `prisma`. Enquanto esse gap não for resolvido por quem é dono do Dockerfile
-# (Agente 08), este Job falhará em qualquer cluster real que sincronizar este chart — o que hoje
-# não acontece porque nenhum cluster real está registrado (ver charts/README.md). O manifest é
-# entregue correto/completo desde já para não represar a correção quando o caminho k8s/Helm for
-# ativado de fato.
+# CLI do prisma na imagem: RESOLVIDO (ver handoff
+# .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md, Status: resolvido). O estágio
+# final do `Dockerfile` da raiz roda `npm prune --omit=dev` (remove `prisma`, a CLI, de
+# devDependencies), mas logo em seguida reinstala só a CLI (`npm install --no-save prisma@...`,
+# mesma versão fixada em devDependencies) antes de copiar `node_modules` para o estágio runner —
+# confirmado lendo o Dockerfile atual. `npx prisma migrate deploy` neste Job funciona com a
+# imagem publicada por `.github/workflows/cd-homolog.yml`/`production.yaml`. Nenhum cluster real
+# sincroniza este chart hoje (ver charts/README.md) — o manifest é mantido correto/completo para
+# quando o caminho k8s/Helm for ativado de fato.
 apiVersion: batch/v1
 kind: Job
 metadata:
