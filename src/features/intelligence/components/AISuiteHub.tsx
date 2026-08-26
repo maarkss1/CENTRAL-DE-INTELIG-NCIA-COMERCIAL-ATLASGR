@@ -65,7 +65,12 @@ const CAPABILITIES: AICapability[] = [
         title: 'Inteligência de WhatsApp',
         category: 'sales',
         icon: MessageSquare,
-        endpoint: '/api/intelligence/suite/meeting-synthesis',
+        // AI-011: rota corrigida — apontava para '/suite/meeting-synthesis' (404, nunca existiu).
+        // O backend real usa a mesma síntese de transcrição do motor #16
+        // (`aiSuiteRouter.post('/meeting/synthesize', ...)`), cujo payload (`meetingTitle`/
+        // `participants`/`rawTranscript`) já é exatamente o formato usado no `samplePayload`
+        // abaixo — confirma que a intenção original era esta rota, só com o path errado.
+        endpoint: '/api/intelligence/suite/meeting/synthesize',
         description: 'Mede sentimento de conversas, identifica objeções ocultas e sugere réplicas imediatas.',
         modelDefault: 'llama3.1:8b',
         samplePayload: { meetingTitle: 'Alinhamento WhatsApp', participants: ['Vendedor Atlas', 'Cliente'], rawTranscript: 'Cliente: O valor mensal ficou acima do meu orçamento atual. Vendedor: Entendo, podemos ajustar a taxa de instalação.' },
