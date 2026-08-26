@@ -47,6 +47,13 @@
   `1.0.0-RELEASE-APPROVED` como status atual. O estado de release vivo é
   `.agents/completion/01-bloqueadores.md`.
 
+## Desenvolvimento
+
+- [Política de assets públicos e datasets](development/PUBLIC_ASSETS_AND_DATASETS.md) — o que
+  pertence a `public/` vs. `data/` vs. object storage, e o budget de tamanho que impede
+  reincidência (ITEM-05).
+- [Local-first](development/LOCAL_FIRST.md)
+
 ## Compliance
 
 - [Matriz de compliance](compliance/COMPLIANCE_MATRIX.md)
