@@ -97,4 +97,27 @@ describe('callLead', () => {
         expect(mockIsSuppressed).not.toHaveBeenCalled();
         expect(fetch).not.toHaveBeenCalled();
     });
+
+    // Achado de auditoria (onda 12): a detecção de provedor Bland era
+    // `config.baseUrl.includes('bland.ai') || process.env.BLAND_API_KEY` — a presença incidental
+    // dessa env (documentada em `.env.example` como só usada quando o baseUrl for bland.ai) fazia
+    // TODA ligação ser roteada para a Bland AI mesmo com o Hub real configurado em BIRTH_VOICES_URL.
+    // Este teste prova que o Hub configurado é sempre respeitado, independente de BLAND_API_KEY
+    // estar presente no processo.
+    it('sempre disca contra o Hub configurado (BIRTH_VOICES_URL), mesmo com BLAND_API_KEY presente no processo', async () => {
+        leadMock.findFirst.mockResolvedValue(leadComTelefone());
+        process.env.BLAND_API_KEY = 'chave-bland-de-outra-integracao';
+
+        try {
+            await callLead(ORG, 'lead-9');
+
+            expect(fetch).toHaveBeenCalledOnce();
+            const [calledUrl, options] = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
+            expect(calledUrl).toBe('http://hub.local/api/voice/outbound');
+            expect(calledUrl).not.toContain('bland.ai');
+            expect((options as { headers: Record<string, string> }).headers.Authorization).toBe('Bearer chave');
+        } finally {
+            delete process.env.BLAND_API_KEY;
+        }
+    });
 });

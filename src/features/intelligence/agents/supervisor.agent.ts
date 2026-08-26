@@ -11,6 +11,7 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
+import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 // Lazy + memoizado: monta o cliente só no primeiro uso real, nunca na carga do módulo —
 // process.env.GROQ_API_KEY lido numa const de topo de arquivo ficava congelado como vazio se este
@@ -548,6 +549,16 @@ export class SwarmOrchestrator {
         const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
+            // AI-007 (parte 3): mesmo gate fail-closed já em vigor em base.agent.ts/
+            // sdrQualification.agent.ts/ops.agent.ts — até esta correção, o próprio Supervisor
+            // (supervisorNode/finishNode, abaixo) enviava `mission` em texto livre (que chega cru do
+            // corpo de POST /swarm/mission, digitado por um operador humano, e pode conter PII de um
+            // titular real) direto a um provedor de IA externo (getSupervisorLlm/getAiModel), sem
+            // passar pela mesma checagem de base legal LGPD que os especialistas do enxame (sdrNode
+            // etc.) já aplicam individualmente. Checado uma vez aqui, antes do grafo começar a rodar
+            // — os nodes dos especialistas mantêm suas próprias checagens (defesa em profundidade,
+            // e cobrem o caminho em que são chamados fora deste orquestrador).
+            assertPiiExternalConsent(getTenantId());
             // AI-002 (onda 32): garante que as tabelas do checkpointer Postgres existam antes da
             // primeira invocação real deste processo — memoizado.
             await ensureCheckpointerReady();
@@ -565,6 +576,9 @@ export class SwarmOrchestrator {
         const config = { configurable: { thread_id: `${getTenantId() ?? 'unknown-tenant'}:${sid}` }, recursionLimit: 25 };
 
         try {
+            // Mesmo gate de executeMission acima — a variante em streaming passa pelo mesmo
+            // supervisorNode/finishNode e precisa da mesma checagem antes de começar a emitir chunks.
+            assertPiiExternalConsent(getTenantId());
             await ensureCheckpointerReady();
             const stream = await swarmApp.stream({ messages: [new HumanMessage(mission)], mission, leadId: leadId || '' }, config);
 

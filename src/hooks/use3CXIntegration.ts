@@ -72,10 +72,15 @@ export function use3CXIntegration() {
         try {
             const res = await fetch(`/api/integrations/3cx/disconnect/${id}`, { method: 'POST' });
             const data = await res.json();
-            if (data.success) {
-                toast.success('PABX 3CX desconectado.');
-                fetchThreeCXConnections();
+            if (!res.ok || !data.success) {
+                // Achado de auditoria (onda 12): quando a rota respondia erro (ex.: conexão de
+                // outro tenant, falha no banco), o hook não mostrava nada — o usuário via o botão
+                // "Desconectar" não fazer nada, sem saber se deu certo ou não.
+                toast.error(data.error || 'Erro ao desconectar 3CX.');
+                return;
             }
+            toast.success('PABX 3CX desconectado.');
+            fetchThreeCXConnections();
         } catch {
             toast.error('Erro ao desconectar 3CX.');
         } finally {
@@ -87,8 +92,23 @@ export function use3CXIntegration() {
         try {
             const res = await fetch(`/api/integrations/3cx/connections/${id}/test`, { method: 'POST' });
             const data = await res.json();
-            if (data.success) {
+            if (!res.ok || !data.success) {
+                toast.error(data.error || 'Não foi possível testar a comunicação com o 3CX.');
+                return;
+            }
+            // BUG DE AUDITORIA (onda 12, mesma classe do bloqueador #7 do AGENTS.md — "afirma que
+            // fez/confirmou algo sem confirmar de verdade"): `data.success` é só o envelope HTTP da
+            // rota (sempre `true` quando a requisição foi processada, mesmo que o PABX não tenha
+            // respondido). O resultado REAL do healthcheck é `data.data.success`
+            // (`test3CXConnection`, threecx.service.ts) — o código antigo ignorava esse campo e
+            // sempre mostrava um toast de SUCESSO com `data.data.message`, inclusive quando a
+            // mensagem era literalmente "Servidor 3CX respondeu com erro" ou "Tempo limite
+            // esgotado": o vendedor via uma confirmação verde de que o PABX estava pronto para
+            // ligar, exatamente quando ele não estava.
+            if (data.data?.success) {
                 toast.success(data.data.message || 'PABX 3CX pronto para chamadas!');
+            } else {
+                toast.error(data.data?.message || 'PABX 3CX não respondeu ao teste de comunicação.');
             }
         } catch {
             toast.error('Não foi possível testar a comunicação com o 3CX.');
