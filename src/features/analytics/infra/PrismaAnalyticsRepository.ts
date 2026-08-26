@@ -1,5 +1,5 @@
 import { prisma } from '../../../lib/prisma.js';
-import type { AnalyticsRepository, GroupCount, ClosedLead } from '../domain/Analytics';
+import type { AnalyticsRepository, GroupCount, ClosedLead, CohortLeadRow } from '../domain/Analytics';
 import { CLOSED_STATUSES } from '../domain/Analytics';
 
 export class PrismaAnalyticsRepository implements AnalyticsRepository {
@@ -186,5 +186,13 @@ export class PrismaAnalyticsRepository implements AnalyticsRepository {
             select: { createdAt: true },
         });
         return rows.map((row) => row.createdAt);
+    }
+
+    async findLeadsForCohort(organizationId: string, since: Date): Promise<CohortLeadRow[]> {
+        const rows = await prisma.lead.findMany({
+            where: { organizationId, deletedAt: null, createdAt: { gte: since } },
+            select: { createdAt: true, closedAt: true, status: true },
+        });
+        return rows.map((row) => ({ createdAt: row.createdAt, closedAt: row.closedAt, status: row.status }));
     }
 }

@@ -77,6 +77,34 @@ export interface AdvanceCadenceRunResult {
 }
 
 /**
+ * Grava o resultado do ciclo com algumas tentativas de retry (backoff curto). Existe só para o
+ * caminho pós-dispatch: quando `dispatcher.dispatch` já confirmou um envio real (`result: 'sent'`
+ * ou `'failed'`) e a gravação em seguida falha por um blip transitório de banco, o run fica
+ * `currentTouchOrder` inalterado — o próximo ciclo do scheduler leria o mesmo estado, decidiria
+ * `dispatch` de novo e chamaria o canal real uma SEGUNDA vez para o mesmo toque, duplicando a
+ * mensagem enviada ao lead. Isso não é hipotético: nada entre `dispatcher.dispatch` e
+ * `runRepo.save` é transacional (o envio real e a gravação local não são a mesma operação
+ * atômica). Um retry curto cobre o caso comum (blip de conexão); se mesmo assim falhar, o erro é
+ * relançado — quem chama loga em nível crítico distinto (ver `advanceCadenceRun`) para que uma
+ * falha persistente vire alerta operacional, não silêncio.
+ */
+async function saveWithRetry(runRepo: CadenceRunRepository, run: CadenceRunState, attempts = 3): Promise<void> {
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            await runRepo.save(run);
+            return;
+        } catch (err) {
+            lastErr = err;
+            if (attempt < attempts) {
+                await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+            }
+        }
+    }
+    throw lastErr;
+}
+
+/**
  * Roda um ciclo de avaliação/despacho para um run existente. Idempotente de chamar mais de uma
  * vez no mesmo instante quando a decisão é `wait`/`stop` (nada é escrito além do estado já
  * persistido); quando a decisão é `dispatch`, o resultado real do canal é sempre gravado, nunca
@@ -143,7 +171,20 @@ export async function advanceCadenceRun(
             error: outcome.error ?? null,
             providerMessageId: outcome.providerMessageId ?? null,
         });
-        await deps.runRepo.save(updated);
+        try {
+            await saveWithRetry(deps.runRepo, updated);
+        } catch (persistErr) {
+            // O canal já foi chamado de verdade (outcome já existe) — a gravação é que não
+            // confirmou mesmo após retry. Log distinto e de alta severidade: sem isto, o próximo
+            // ciclo simplesmente re-despacharia o mesmo toque para o mesmo lead, e ninguém saberia
+            // por quê. Continua propagando o erro (não finge sucesso) para o chamador tratar como
+            // falha de ciclo, mas o log abaixo é o que torna o risco de duplicidade observável.
+            logger.error(
+                { err: persistErr, organizationId, runId, leadId: run.leadId, touchOrder: decision.touch.order, channel: decision.touch.channel, dispatchResult: outcome.result },
+                'Toque de cadência despachado ao canal real, mas não foi possível persistir o resultado após retry — risco de reenvio duplicado no próximo ciclo. Requer verificação manual.',
+            );
+            throw persistErr;
+        }
 
         logger.info(
             { organizationId, runId, leadId: run.leadId, touchOrder: decision.touch.order, channel: decision.touch.channel, result: outcome.result },

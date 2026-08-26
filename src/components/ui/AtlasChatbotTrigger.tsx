@@ -26,6 +26,7 @@ export function AtlasChatbotTrigger() {
       {/* Botão Flutuante Omnipresente no Canto Inferior Direito */}
       <div className="fixed bottom-6 right-6 z-[900]">
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           aria-label={`Abrir copiloto comercial da ${brandInfo.name}`}
           className={`group relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${accent.gradient} text-white ${accent.glow} hover:scale-110 active:scale-95 transition-all duration-300 border border-line cursor-pointer`}

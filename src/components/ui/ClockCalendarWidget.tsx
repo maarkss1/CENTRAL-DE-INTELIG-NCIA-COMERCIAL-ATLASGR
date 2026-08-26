@@ -119,7 +119,7 @@ export function ClockCalendarWidget() {
             <div className="flex items-center gap-2 text-xs text-red-300">
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Não foi possível carregar a agenda do mês.
             </div>
-            <button onClick={() => refetchEvents()} className="text-[10px] font-bold text-red-300 hover:underline cursor-pointer shrink-0">
+            <button type="button" onClick={() => refetchEvents()} className="text-[10px] font-bold text-red-300 hover:underline cursor-pointer shrink-0">
               Tentar novamente
             </button>
           </div>

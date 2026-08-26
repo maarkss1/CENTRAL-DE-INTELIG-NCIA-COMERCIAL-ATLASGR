@@ -3,6 +3,8 @@ import { enrichCompany, isEnrichmentFresh } from '@/features/prospecting/service
 import { AppError } from '@/shared/middlewares/errorHandler';
 import { prisma } from '@/lib/prisma';
 import { enrichOrganizationWithContacts, enrichOrganizationByDomain } from '@/features/prospecting/services/apollo.service';
+import { isValidCnpj } from '@/features/prospecting/services/cnpj.util';
+import { fetchCnpjData } from '@/features/prospecting/services/enrichment/cnpjLookup.js';
 
 // PC-010: mesma classe de bug do PC-005, numa camada mais funda — enrichCompany lançava `Error`
 // genérico para "empresa não encontrada", o que o errorHandler global tratava como 500 e mascarava
@@ -175,6 +177,76 @@ describe('enrichCompany', () => {
             await enrichCompany('org-1', 'comp-1', {});
 
             expect(prisma.contact.createMany).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('proveniência (dataOrigin/appliedToCompany) — LGPD/Onda 2 (05): rotulagem inferido vs. confirmado', () => {
+        function logDataFor(source: string) {
+            const call = vi.mocked(prisma.enrichmentLog.create).mock.calls.find(
+                ([arg]) => (arg as { data: { source: string } }).data.source === source
+            );
+            return call?.[0] as { data: Record<string, unknown> } | undefined;
+        }
+
+        it('grava dataOrigin "confirmado" e appliedToCompany:true quando a Receita Federal (BrasilAPI-CNPJ) encontra o CNPJ', async () => {
+            vi.mocked(isValidCnpj).mockReturnValue(true);
+            vi.mocked(fetchCnpjData).mockResolvedValue({
+                found: true,
+                cnpj: '12.345.678/0001-90',
+                source: 'BrasilAPI-CNPJ',
+                data: {
+                    legalName: 'Transportadora Exemplo LTDA',
+                    tradeName: 'Transportadora Exemplo',
+                    situacaoCadastral: 'ATIVA',
+                    naturezaJuridica: 'LTDA',
+                    capitalSocial: 100000,
+                    dataAbertura: '2010-01-01',
+                    cnae: '4930-2/02',
+                    cnaeDescription: 'Transporte rodoviário de cargas',
+                    size: 'DEMAIS',
+                    employeeCountEstimate: 25,
+                    address: 'Rua Exemplo, 100',
+                    city: 'São Paulo',
+                    state: 'SP',
+                    zipCode: '01000-000',
+                    phones: [],
+                    emails: [],
+                    qsa: [],
+                },
+            } as never);
+            vi.mocked(prisma.company.findFirst).mockResolvedValue({ ...baseCompany, cnpj: '12345678000190' } as never);
+
+            await enrichCompany('org-1', 'comp-1', {});
+
+            expect(logDataFor('BrasilAPI-CNPJ')?.data).toMatchObject({ dataOrigin: 'confirmado', appliedToCompany: true });
+            vi.mocked(isValidCnpj).mockReturnValue(false);
+        });
+
+        it('grava dataOrigin null quando o CNPJ não é encontrado — nunca "confirmado" para dado que não veio', async () => {
+            vi.mocked(isValidCnpj).mockReturnValue(true);
+            vi.mocked(fetchCnpjData).mockResolvedValue({
+                found: false,
+                cnpj: '12.345.678/0001-90',
+                source: 'BrasilAPI-CNPJ',
+                error: 'not_found',
+            } as never);
+            vi.mocked(prisma.company.findFirst).mockResolvedValue({ ...baseCompany, cnpj: '12345678000190' } as never);
+
+            await enrichCompany('org-1', 'comp-1', {});
+
+            expect(logDataFor('BrasilAPI-CNPJ')?.data).toMatchObject({ dataOrigin: null, appliedToCompany: false });
+            vi.mocked(isValidCnpj).mockReturnValue(false);
+        });
+
+        it('appliedToCompany:false no log de website quando a empresa já tinha site — achado do handoff onda-7/05-para-01: "success" no log não pode significar "gravei" quando o dado nunca foi escrito', async () => {
+            // baseCompany.website já é truthy ("https://empresa.com.br") — o domínio conhecido não
+            // deve ser reaplicado, então appliedToCompany precisa refletir isso mesmo com status "success".
+            vi.mocked(prisma.company.findFirst).mockResolvedValue({ ...baseCompany } as never);
+
+            await enrichCompany('org-1', 'comp-1', {});
+
+            const websiteLog = logDataFor('Website-Conhecido');
+            expect(websiteLog?.data).toMatchObject({ dataOrigin: 'confirmado', appliedToCompany: false });
         });
     });
 });
