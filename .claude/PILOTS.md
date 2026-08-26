@@ -439,7 +439,8 @@ entrada nova.
   no próprio arquivo. Nenhuma mudança feita — só verificado em navegador real (mobile, off-canvas,
   grupos corretos, sem overflow) para confirmar que continua correto depois dos outros 3 itens.
 - **Tipografia**: H1-H3 já eram responsivos (`clamp()`) mas hardcoded direto no seletor de elemento
-  em `@layer base` (débito documentado em `DESIGN_QA_CENTRAL_ATLASGR.md`, "Typography 68") — sem
+  em `@layer base` (débito documentado, à época, em `DESIGN_QA_CENTRAL_ATLASGR.md`, "Typography
+  68" — arquivo removido do controle de versão em 22/08/2026, ver `docs/REMOVED-DOCS.md`) — sem
   token reutilizável, e H4-H6 não tinham tamanho definido (herdavam o default do navegador).
   Tokenizados em `--text-h1`..`--text-h6` (namespace `--text-*` do Tailwind 4, mesmos valores de
   clamp() de antes pra H1-H3 — zero mudança visual — e H4-H6 novos seguindo a mesma progressão).

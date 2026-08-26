@@ -1,8 +1,9 @@
 # FILME HERO 01 — DO SINAL À AÇÃO (Corte 30 segundos)
 
-Roteiro e storyboard construídos sobre `CREATIVE_SYSTEM_01.md` e `PRODUCT_VISUAL_TRUTH_MAP.md`.
-Toda cena de produto abaixo está rastreada na tabela D do Truth Map — nenhuma tela, número ou
-funcionalidade nova foi inventada aqui.
+Roteiro e storyboard construídos sobre `CREATIVE_SYSTEM_01.md` e `PRODUCT_VISUAL_TRUTH_MAP.md`
+(este último removido do controle de versão em 22/08/2026 — ver `docs/REMOVED-DOCS.md`; a tabela D
+citada abaixo não é mais verificável no repositório). Toda cena de produto abaixo está rastreada na
+tabela D do Truth Map — nenhuma tela, número ou funcionalidade nova foi inventada aqui.
 
 ## 1. Objetivo estratégico
 

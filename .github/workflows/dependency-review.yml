@@ -1,0 +1,48 @@
+name: Security - Dependency Review
+
+# ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes). Compara o diff de dependências
+# (package-lock.json e outros manifests reconhecidos) entre a base e o head do PR e falha quando
+# a mudança introduz uma dependência nova com vulnerabilidade conhecida de severidade alta/crítica
+# — cobre o caso que `npm audit` sozinho (ci.yml) não cobre bem: feedback direto no diff do PR,
+# antes mesmo do merge, específico à mudança de dependência proposta.
+#
+# `fail-on-severity: high` alinhado ao mesmo limiar já usado por `npm run security:audit-waivers`
+# (`npm audit --audit-level=high`), para manter uma única política de severidade bloqueante no
+# repositório em vez de dois limiares divergentes.
+#
+# `allow-ghsas` replica o único waiver ativo hoje em docs/security/AUDIT_WAIVERS.md
+# (GHSA-ggr8-5vv4-36mx — deepmerge-ts via prisma/@prisma/config). AUDIT_WAIVERS.md é a fonte de
+# verdade única para dono/motivo/data de reavaliação desse waiver — qualquer mudança nele (nova
+# entrada, expiração, remoção) precisa ser refletida aqui na mesma alteração, senão este action
+# volta a bloquear PRs que só tocam uma dependência já aceita, ou passa a aceitar silenciosamente
+# um waiver que já expirou lá.
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Só usado para postar o resumo como comentário no PR em caso de falha
+      # (`comment-summary-in-pr: on-failure`) — sem isso a permissão não teria efeito nenhum.
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+          # Ver comentário no topo do arquivo — mantido em sincronia manual com
+          # docs/security/AUDIT_WAIVERS.md ("## Waivers ativos").
+          allow-ghsas: GHSA-ggr8-5vv4-36mx

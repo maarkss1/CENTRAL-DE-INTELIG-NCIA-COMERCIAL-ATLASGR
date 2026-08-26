@@ -1,5 +1,14 @@
 # Guia de Produção — AtlasGR / Prospector-Atlas
 
+> **Status real (ITEM-12, 2026-08-25): esta arquitetura está CONGELADA.** O projeto está em modo
+> local-first (`docs/development/LOCAL_FIRST.md`) desde o commit `53c55ac` — `render.yaml` tem
+> `autoDeployTrigger: off` e é marcado `LEGACY/FROZEN` no próprio arquivo. Não há deploy automático
+> nem ambiente cloud ativo hoje. Este guia continua correto como descrição da arquitetura de
+> produção **candidata** (preservada para rollback/migração de dados), mas não é o estado atual do
+> sistema. Ver [`docs/deploy/README.md`](README.md) para o caminho canônico por ambiente hoje, e
+> `docs/development/LOCAL_FIRST.md` ("Critério para voltar à produção") para quando este guia volta
+> a ser executável.
+
 Este documento é o guia único para colocar (ou manter) a aplicação em produção. Ele assume a
 decisão arquitetural tomada nesta rodada: **monólito único no Render** (o mesmo serviço Express
 serve a API e o build estático do frontend Vite — ver `server.ts`), **Postgres + Storage no

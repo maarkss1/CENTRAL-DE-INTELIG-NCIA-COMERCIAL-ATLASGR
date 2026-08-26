@@ -91,7 +91,7 @@ jobs:
         run: npm run security:audit-waivers
 
       - name: Run Lint
-        run: npm run lint
+        run: npm run lint:ci
 
       - name: Run Type Check
         run: npx tsc --noEmit
@@ -139,11 +139,37 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     needs: gate
+    permissions:
+      contents: write
+      packages: write
+      # ITEM-10 (Onda 2): upload do SARIF do scan de imagem (Trivy, abaixo) para a aba Security.
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+
+      # ITEM-11 (Onda 3 — SBOM e governança de dependências): todo release real produz um SBOM
+      # CycloneDX correlacionável ao commit publicado. Ver docs/security/DEPENDENCY_POLICY.md.
+      - name: Use Node.js 22 (para gerar o SBOM)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (para o SBOM)
+        run: npm ci --no-audit --no-fund
+
+      - name: Gerar SBOM (CycloneDX)
+        run: npm run security:sbom
+
+      - name: Upload do SBOM como artefato do release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
 
       - name: Log in to the Container registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -161,15 +187,50 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
 
-      - name: Build and push Docker image
+      # ITEM-10 (Onda 2 — CodeQL/Trivy/Dependency Review bloqueantes): mesma política do job
+      # `publish` de production.yaml — build local (sem push), scan Trivy bloqueante, só então
+      # push. Ver comentários equivalentes em production.yaml para o raciocínio completo.
+      - name: Build Docker image (local, para scan antes do push)
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy — scan da imagem (HIGH/CRITICAL, bloqueante antes do push)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-image-results.sarif
+          trivyignores: .trivyignore.yaml
+
+      - name: Upload SARIF do scan de imagem para a aba Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@42947a340483f03ba47bb1a039b2c519aab3df85 # v3.37.8
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image-homolog
+
+      - name: Upload SARIF do scan de imagem como artefato (auditoria/retenção)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: trivy-image-sarif-homolog
+          path: trivy-image-results.sarif
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Push Docker image (imagem já escaneada)
+        run: docker push "ghcr.io/${{ github.repository }}:${{ github.sha }}"
 
       - name: Update Helm values.yaml with new image tag
         run: |

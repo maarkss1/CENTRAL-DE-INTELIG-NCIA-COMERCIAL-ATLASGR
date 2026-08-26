@@ -36,11 +36,12 @@ exemplo.
 ## Antes de editar
 
 Esta skill é **auditoria por padrão**, não implementação. Comece sempre em modo leitura:
-`DESIGN_QA_CENTRAL_ATLASGR.md` (débito visual já mapeado — não é o escopo desta skill, mas evita
-reportar um problema visual como se fosse funcional), `BITRIX24-LEAD-FLOW-AUDIT.md` (auditoria real
-já feita da integração Bitrix24, com achados classificados `P0`-`P4` e evidência `arquivo:linha` —
-não reaudite Bitrix do zero, leia esse documento primeiro e só adicione o que mudou desde
-2026-08-09), `PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md` (gaps de UX/produto já identificados),
+`DESIGN_QA_CENTRAL_ATLASGR.md` e `BITRIX24-LEAD-FLOW-AUDIT.md` foram removidos do controle de
+versão em 22/08/2026 (pedido explícito do usuário — ver `docs/REMOVED-DOCS.md`); não existe hoje
+substituto versionado para nenhum dos dois, então não assuma que débito visual ou a integração
+Bitrix24 já foram auditados — trate como não auditado e reaudite quando o escopo exigir, em vez de
+tentar ler um arquivo que não existe. `PRODUCT_EXPERIENCE_CENTRAL_ATLASGR.md` (gaps de UX/produto
+já identificados),
 `REMEDIACAO_FINAL_PROSPECTOR_ATLASGR.md` (o que já foi corrigido — não reporte como bloqueador algo
 já remediado ali; verifique o estado atual antes de citar). Só edite código se o usuário pedir
 explicitamente uma correção pontual depois do relatório — a entrega padrão desta skill é o
@@ -170,13 +171,14 @@ corrigido.
   prova ausência de regressão sintática, não completude funcional. Exigir ao menos uma passada de
   `functional-completeness`/`end-to-end-flow-validator` no(s) módulo(s) em escopo antes do
   veredito.
-- Não reabra uma investigação já feita em `BITRIX24-LEAD-FLOW-AUDIT.md` do zero — leia, confirme o
-  que mudou, complemente.
+- `BITRIX24-LEAD-FLOW-AUDIT.md` foi removido do controle de versão (ver `docs/REMOVED-DOCS.md`) —
+  não existe mais uma investigação prévia versionada para reaproveitar; audite a integração Bitrix24
+  do zero se o escopo exigir.
 - Não corrija bloqueadores nesta mesma passada sem que o usuário peça — o padrão desta skill é
   relatório, não PR.
-- Não misture débito visual (`DESIGN_QA_CENTRAL_ATLASGR.md`, skills de Design Engineering) com
-  bloqueador funcional — são eixos diferentes; cite ambos se relevante, mas não classifique um como
-  o outro.
+- Não misture débito visual (skills de Design Engineering — `DESIGN_QA_CENTRAL_ATLASGR.md` foi
+  removido, ver `docs/REMOVED-DOCS.md`) com bloqueador funcional — são eixos diferentes; cite ambos
+  se relevante, mas não classifique um como o outro.
 
 ## Quando parar e pedir aprovação de escopo/Git
 
