@@ -2018,14 +2018,10 @@ paths:
     get:
       tags: [Analytics]
       summary: >-
-        Análise de retenção por cohort mensal (Agente 18, achado de auditoria de contrato:
-        endpoint real, existia no código sem nenhuma entrada aqui). **Dado fictício**: o handler
-        (`AnalyticsController.getCohort`) devolve hoje uma lista fixa com 3 meses de exemplo
-        (comentário no próprio código: "Fake data just for the prototype"), não uma agregação real
-        do banco — documentado como está agora, não como deveria estar; ver
-        `.agents/handoffs/roadmap-v2-transversais-2/18-para-04-analytics-cohort-dados-ficticios.md`
-        para o handoff ao dono do domínio (Agente 04) sobre a violação do bloqueador #6
-        (dado fictício em dashboard).
+        Análise de retenção por cohort mensal, tenant-scoped (`AnalyticsUseCases.cohortAnalysis`).
+        Corrigido na Onda 2/Roadmap v2 (Agente 04) — antes devolvia uma lista fixa de exemplo
+        ("Fake data just for the prototype"); ver
+        `.agents/runs/roadmap-v2-onda-2.md`.
       responses:
         '200':
           description: OK
@@ -2033,35 +2029,39 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success, cohorts]
+                required: [success, data]
                 properties:
                   success: { type: boolean, example: true }
-                  cohorts:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        month: { type: string, example: '2026-07' }
-                        total: { type: integer, example: 200 }
-                        month1: { type: integer, example: 90 }
-                        month2: { type: integer, example: 80 }
+                  data:
+                    type: object
+                    required: [cohorts]
+                    properties:
+                      cohorts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string, example: '2026-07' }
+                            total: { type: integer, example: 200 }
+                            month1: { type: integer, example: 90 }
+                            month2: { type: integer, example: 80 }
 
-  /analytics/export/pdf:
+  /analytics/export/csv:
     get:
       tags: [Analytics]
       summary: >-
-        Exporta o relatório de cohort em PDF (Agente 18, achado de auditoria de contrato: endpoint
-        real, existia no código sem nenhuma entrada aqui). **Stub**: o handler
-        (`AnalyticsController.exportPdf`) hoje devolve um `Buffer` com o texto fixo
-        `PDF_FAKE_CONTENT_FOR_NOW` sob `Content-Type: application/pdf` — não é um PDF real gerado a
-        partir de dados; documentado como está agora, ver mesmo handoff do endpoint acima.
+        Exporta o mesmo relatório de cohort (`/analytics/cohort`) em CSV real. Renomeado de
+        `/analytics/export/pdf` na Onda 2/Roadmap v2 (Agente 04) — a rota antiga devolvia um
+        `Buffer` fixo (`PDF_FAKE_CONTENT_FOR_NOW`) sob `Content-Type: application/pdf`, nunca um
+        PDF válido; CSV é o formato honesto já usado pelo mesmo padrão de export em
+        `commercial-intelligence` (sem biblioteca de geração de PDF disponível no projeto). Ver
+        `.agents/runs/roadmap-v2-onda-2.md`.
       responses:
         '200':
-          description: >-
-            "PDF" (conteúdo fixo de placeholder, não um PDF válido de verdade — ver resumo)
+          description: Arquivo CSV (`text/csv`) com o mesmo conteúdo de `/analytics/cohort`
           content:
-            application/pdf:
-              schema: { type: string, format: binary }
+            text/csv:
+              schema: { type: string }
 
   # ───────────────────────────── Knowledge ─────────────────────────────
   /knowledge:
@@ -4076,6 +4076,20 @@ paths:
       responses:
         '204': { description: Removida }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/sync-logs:
+    get:
+      tags: [Bitrix24]
+      summary: >-
+        Histórico real de sincronização Bitrix24 (webhook de entrada + push/pull automático ou
+        manual), tenant-scoped. Backing real do Monitor de Webhooks — corrigido na Onda 1/Roadmap
+        v2 (Agente 06); antes o painel chamava um endpoint inexistente e caía para eventos
+        fabricados. Ver `.agents/runs/roadmap-v2-onda-1.md`.
+      parameters:
+        - name: take
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
   /bitrix/extractions:
     get:
       tags: [Bitrix24]
