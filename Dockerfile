@@ -51,4 +51,24 @@ USER nodejs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+# `prisma migrate deploy` roda a cada boot do container, antes do processo Node começar a
+# aceitar tráfego — mesma garantia que render.yaml já tem no startCommand real
+# (`npx prisma migrate deploy && ... && npm run start`), agora também no nível da imagem, para
+# qualquer caminho que consuma este Dockerfile diretamente sem repetir esse comando (ver
+# AGENTS.md bloqueador #5: "Deploy capaz de iniciar sem aplicar migrações").
+#
+# Achado real corrigido nesta rodada: `docker-compose.oci.yml` (caminho self-hosted OCI) usava o
+# CMD desta imagem sem prefixo de migração — `scripts/deploy-oci.sh` sobe o container `app` via
+# `docker compose up -d` e só roda `prisma migrate deploy` DEPOIS, num `docker exec` separado
+# (linha ~174). Entre o container ficar "up" (o healthcheck de /health/live só verifica processo
+# vivo, não schema migrado) e esse `docker exec` terminar, a aplicação já podia responder tráfego
+# contra um schema desatualizado ou, num volume novo, sem tabelas. Idempotente (`migrate deploy`
+# sem pendência é rápido/no-op) e seguro sob múltiplas réplicas (Prisma usa advisory lock —
+# instâncias concorrentes serializam em vez de corromper o schema), então não introduz problema
+# novo no caminho k8s/Helm (que também tem o Job dedicado em
+# charts/prospector-atlas/templates/migration-job.yaml como pre-install/pre-upgrade hook; esta
+# camada aqui é defesa adicional, não substitui aquele hook). Render não é afetado — usa
+# `buildCommand`/`startCommand` próprios e nunca passa por este Dockerfile (ver render.yaml).
+# `exec` no fim troca o shell pelo processo Node como PID 1 do container, preservando o
+# encaminhamento correto de sinais (SIGTERM) para desligamento gracioso.
+CMD ["sh", "-c", "npx prisma migrate deploy && exec npm run start"]
