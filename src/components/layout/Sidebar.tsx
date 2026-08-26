@@ -2,6 +2,7 @@ import { ChevronRight, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBrand } from '../../contexts/BrandContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasRequiredRole } from '../../lib/auth/authorization';
 import { Logo } from '../Logo';
 import { TotalTrackLogo } from '../TotalTrackLogo';
 import { TAB_META, type TabType } from './tabMeta';
@@ -22,6 +23,18 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     const { currentUser, isAdmin, canAccessCommercialIntelligence, logout } = useAuth();
     const isAtlas = activeBrand === 'atlasgr';
     const navigate = useNavigate();
+    // Automações e Integrações: o backend trata ambas como configuração administrativa liberada a
+    // ADMIN e GESTOR (ver automation.routes.ts `managementRoles` e o `canManage` espelhado em
+    // Integrations.tsx), não só a ADMIN. Antes desta correção, a Sidebar só revelava os dois itens
+    // para isAdmin — um GESTOR com permissão real de gerenciar (criar/editar/excluir automação,
+    // conectar/desconectar integração) não tinha nenhum caminho de navegação até essas telas
+    // (achado real desta auditoria: promessa de RBAC do backend sem rota de descoberta no
+    // frontend). 'team' continua ADMIN-only porque o backend também é ADMIN-only ali
+    // (team.routes.ts). 'usage' permanece ADMIN-only aqui de propósito — o endpoint
+    // correspondente (GET /api/usage) hoje não tem checagem de papel nenhuma no backend, o que é
+    // o problema oposto (rota administrativa sem autorização real, não frontend escondendo um
+    // acesso que existe) e foi encaminhado para o Agente 01 em vez de resolvido aqui.
+    const canManageOperations = !!currentUser && hasRequiredRole(currentUser.role, ['ADMIN', 'GESTOR']);
 
     const selectTab = (tab: TabType) => {
         navigate(`/app/${tab}`);
@@ -38,7 +51,8 @@ export function Sidebar({ activeTab, mobileOpen = false, onCloseMobile }: Sideba
     const administrationItems: TabType[] = [
         'notifications',
         'bitrix',
-        ...(isAdmin ? (['integrations', 'automations', 'usage', 'team'] as TabType[]) : []),
+        ...(canManageOperations ? (['integrations', 'automations'] as TabType[]) : []),
+        ...(isAdmin ? (['usage', 'team'] as TabType[]) : []),
         'settings',
     ];
 
