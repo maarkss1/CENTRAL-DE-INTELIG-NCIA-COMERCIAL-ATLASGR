@@ -86,12 +86,21 @@ Teste novo: `tests/integration/lead-export-audit.test.ts` (sessão/RLS reais) �
 recebe 403 e não grava nada.
 
 ## Achado adicional ao validar em CI (não estático — só apareceu ao rodar contra Postgres real)
-Montar o middleware revelou um bug real e pré-existente na própria lógica dele, nunca detectado
-porque nunca tinha sido exercitado contra RLS real: `AuditLog` tem FORCE ROW LEVEL SECURITY com
-`WITH CHECK` exigindo `app.current_tenant_id = tenantId` sem bypass (migration
-`20260825120000_scope_rls_bypass_to_bootstrap_allowlist`, ITEM-02 desta campanha). O INSERT roda
-dentro de `res.on('finish')`, que dispara depois que a cadeia síncrona de middlewares já retornou —
-a store do `requestContext` (AsyncLocalStorage) não estava mais disponível nesse momento, e o
-INSERT rodava sem tenant nenhum. Corrigido reabrindo o contexto explicitamente
-(`requestContext.run({ tenantId }, ...)`) dentro do próprio callback de `finish`, em vez de depender
-de propagação implícita através do listener do EventEmitter. Ver commit `bb17b23`.
+Montar o middleware revelou dois problemas reais, nunca detectados porque a rota nunca tinha sido
+exercitada contra RLS real:
+
+1. **`auditAccessMiddleware` (produção)**: o INSERT roda dentro de `res.on('finish')`, que dispara
+   depois que a cadeia síncrona de middlewares já retornou. Endureci o código para reabrir o
+   `requestContext` explicitamente (`requestContext.run({ tenantId }, ...)`) dentro do próprio
+   callback de `finish`, em vez de depender de propagação implícita através do listener do
+   EventEmitter — defesa em profundidade, ainda que logging de diagnóstico em CI (revertido depois)
+   tenha mostrado que a propagação implícita já funcionava neste caso específico (Node 22). Ver
+   commit `bb17b23`.
+2. **Causa raiz real do teste ainda falhando após o item 1** (`tests/integration/
+   lead-export-audit.test.ts`): a mesma migration `20260825120000_scope_rls_bypass_to_bootstrap_
+   allowlist` (ITEM-02) removeu a cláusula `OR bypass_rls='on'` também do `USING` da policy de
+   `AuditLog`, não só do `WITH CHECK` — `withRlsBypass()` (helper de teste) não tem mais nenhum
+   efeito de leitura nessa tabela: a escrita acontecia com o `tenantId` correto (confirmado via
+   logging de diagnóstico), mas a query de leitura sob bypass sempre devolvia 0 linhas, sem erro
+   nenhum (RLS filtra silenciosamente no SELECT). Corrigido trocando `withRlsBypass` por
+   `withTenant(tenantId, ...)` nas leituras/limpeza do teste. Ver commit (fix final).
