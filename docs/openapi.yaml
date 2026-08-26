@@ -4603,9 +4603,55 @@ components:
   schemas:
     ErrorResponse:
       type: object
+      description: |
+        Envelope de erro padrão, emitido pelo middleware global
+        `src/shared/middlewares/errorHandler.ts` (último middleware da cadeia — ver `server.ts`).
+        `success`/`error` existem desde a primeira versão da API; `code`, `requestId` e `retryable`
+        foram adicionados depois como extensão aditiva (nenhum campo antigo foi removido) para
+        cobrir o checklist de contratos do produto. `details` só aparece em alguns casos
+        (ex.: `issues` do Zod em erro de validação).
+      required: [success, error]
       properties:
         success: { type: boolean, example: false }
-        error: { type: string }
+        error: { type: string, description: 'Mensagem de erro legível, já existente antes da extensão de contrato.' }
+        message: { type: string, description: 'Reservado no envelope de resposta; não é populado hoje por `errorHandler.ts`.' }
+        details:
+          description: 'Detalhe estruturado do erro quando disponível (ex.: `issues` do ZodError).'
+        code:
+          type: string
+          description: |
+            Código estável de erro, derivado do status HTTP e do tipo de erro já lançado no
+            código (ZodError, `AppError`, `Prisma.PrismaClientKnownRequestError`). Pensado para o
+            consumidor decidir programaticamente sem parsear `error`.
+          enum:
+            - VALIDATION_ERROR
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - METHOD_NOT_ALLOWED
+            - CONFLICT
+            - GONE
+            - UNSUPPORTED_MEDIA_TYPE
+            - UNPROCESSABLE_ENTITY
+            - RATE_LIMITED
+            - INTERNAL_ERROR
+            - BAD_GATEWAY
+            - SERVICE_UNAVAILABLE
+            - TIMEOUT
+            - BAD_REQUEST
+        requestId:
+          type: string
+          description: |
+            Mesmo id de correlação devolvido no header `x-request-id` (ver
+            `src/shared/middlewares/observability.ts`) — não é gerado de novo aqui, é o mesmo
+            valor reaproveitado. Ausente quando o erro ocorre antes de `observabilityMiddleware`
+            rodar na cadeia de middlewares (ex.: falha em rota de auth/webhook montada antes dele).
+        retryable:
+          type: boolean
+          description: |
+            `true` para 5xx e timeouts (408/504) — falha transitória do servidor/upstream, repetir
+            a mesma requisição pode funcionar. `false` para os demais 4xx (validação, autenticação,
+            autorização, conflito, não encontrado) — o pedido em si precisa mudar antes de repetir.
 
     DataEnvelope:
       type: object
