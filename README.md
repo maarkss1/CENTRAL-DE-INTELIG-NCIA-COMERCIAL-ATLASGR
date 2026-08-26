@@ -58,7 +58,12 @@ O blueprint `render.yaml` declara o serviço web, o banco PostgreSQL e as variá
 ## Scripts Disponíveis
 - `npm run dev`: Inicia o servidor backend (que injeta o Vite para HMR/middleware).
 - `npm run build`: Compila tanto a parte de client (Vite) quanto o server (esbuild).
-- `npm run lint`: Roda o ESLint validando toda a pasta `src/`.
+- `npm run lint`: Roda o ESLint validando toda a pasta `src/` **sem alterar arquivos**. É o comando
+  usado pelo CI (`.github/workflows/ci.yml` e demais gates) — deve sempre terminar com a working
+  tree limpa.
+- `npm run lint:fix`: Roda o ESLint com `--fix`, aplicando correções automáticas localmente. Use
+  este comando (não `npm run lint`) quando quiser que o ESLint corrija o código por você antes de
+  commitar.
 - `npm run start`: Inicia o servidor compilado.
 
 ## Convenções Adotadas
