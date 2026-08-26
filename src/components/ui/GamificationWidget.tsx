@@ -85,6 +85,7 @@ export function GamificationWidget({
 
         {/* Action Button */}
         <button
+          type="button"
           onClick={() => setShowMissions(!showMissions)}
           className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-xl bg-surface-2 hover:bg-line text-ink-2 border border-line transition-all active:scale-95 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
           aria-label="Ver Missões Diárias"
@@ -121,34 +122,36 @@ export function GamificationWidget({
               <span className="text-atlas-yellow">Recompensas +XP</span>
             </div>
             {missions.map((mission) => (
-              <div
+              // <button> real (não <div role="button"> + onKeyDown manual) — semântica HTML
+              // antes de role/aria-* (CLAUDE.md §10): navegação Tab, ativação por Enter/Espaço e
+              // nome acessível vêm nativamente do elemento, sem reimplementar teclado à mão.
+              <button
                 key={mission.id}
-                role="button"
-                tabIndex={0}
+                type="button"
+                aria-pressed={mission.done}
                 onClick={() => toggleMission(mission.id)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleMission(mission.id); }}
-                className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs text-left cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   mission.done
                     ? 'bg-success/10 border-success/30 text-ink-2'
                     : 'bg-surface-2 border-line hover:border-line text-ink'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <div
+                <span className="flex items-center gap-2.5">
+                  <span
                     className={`w-4 h-4 rounded flex items-center justify-center border ${
                       mission.done ? 'bg-success border-success text-slate-950 font-bold' : 'border-gray-500'
                     }`}
                   >
                     {mission.done && <Check className="w-3 h-3 stroke-[3]" />}
-                  </div>
+                  </span>
                   <span className={mission.done ? 'line-through text-ink-2 font-medium' : 'font-semibold'}>
                     {mission.title}
                   </span>
-                </div>
+                </span>
                 <span className="font-extrabold text-atlas-yellow flex items-center gap-1">
                   <Award className="w-3.5 h-3.5" /> +{mission.xp} XP
                 </span>
-              </div>
+              </button>
             ))}
           </motion.div>
         )}
