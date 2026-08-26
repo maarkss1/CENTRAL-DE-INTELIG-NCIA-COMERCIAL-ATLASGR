@@ -27,13 +27,19 @@ import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from 
 // antes da escrita no Postgres ter necessariamente concluído — poll curto e limitado em vez de uma
 // race condition contra o banco (tests/unit/lib/security/auditLog.middleware.test.ts usa só um
 // `setImmediate` porque lá AuditService é mockado; aqui é uma escrita real).
-async function waitForAuditLog(where: Parameters<typeof prisma.auditLog.findMany>[0]['where']) {
+//
+// Usa withTenant (não withRlsBypass) para ler: a migration 20260825120000_scope_rls_bypass_to_
+// bootstrap_allowlist removeu a cláusula "OR bypass_rls='on'" também do USING de AuditLog, não só
+// do WITH CHECK — bypassRls não tem mais nenhum efeito de leitura nessa tabela (achado real, via
+// CI: a escrita confirmadamente aconteceu com o tenantId correto, mas a query sob bypass sempre
+// devolvia 0 linhas, sem nenhum erro — RLS filtra silenciosamente no SELECT).
+async function waitForAuditLog(tenantId: string, where: Parameters<typeof prisma.auditLog.findMany>[0]['where']) {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const logs = await withRlsBypass(() => prisma.auditLog.findMany({ where }));
+    const logs = await withTenant(tenantId, () => prisma.auditLog.findMany({ where }));
     if (logs.length > 0) return logs;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  return withRlsBypass(() => prisma.auditLog.findMany({ where }));
+  return withTenant(tenantId, () => prisma.auditLog.findMany({ where }));
 }
 
 function buildLeadApp(): Express {
@@ -73,8 +79,12 @@ describe('GET /api/leads/export/csv — trilha de auditoria (Etapa handoff 15)',
   }, 30_000);
 
   afterAll(async () => {
+    // AuditLog não aceita mais bypass de RLS nem para leitura/limpeza (ver comentário em
+    // waitForAuditLog) — apaga por tenant, um de cada vez.
+    for (const orgId of createdOrgIds) {
+      await withTenant(orgId, () => prisma.auditLog.deleteMany({ where: { tenantId: orgId } }));
+    }
     await withRlsBypass(async () => {
-      await prisma.auditLog.deleteMany({ where: { tenantId: { in: createdOrgIds } } });
       await prisma.lead.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
       await prisma.organization.deleteMany({ where: { id: { in: createdOrgIds } } });
@@ -88,14 +98,14 @@ describe('GET /api/leads/export/csv — trilha de auditoria (Etapa handoff 15)',
 
     expect(res.status).toBe(200);
 
-    const logs = await waitForAuditLog({ tenantId: adminA.organizationId, entity: 'Lead', action: 'EXPORT' });
+    const logs = await waitForAuditLog(adminA.organizationId, { tenantId: adminA.organizationId, entity: 'Lead', action: 'EXPORT' });
     expect(logs.length).toBeGreaterThanOrEqual(1);
     expect(logs[0].actorId).toBe(adminA.userId);
     expect(logs[0].tenantId).toBe(adminA.organizationId);
   });
 
   it('SDR (fora de managementRoles): 403 do requireRole real, sem AuditLog gravado', async () => {
-    const before = await withRlsBypass(() =>
+    const before = await withTenant(vendedorA.organizationId, () =>
       prisma.auditLog.count({ where: { tenantId: vendedorA.organizationId, entity: 'Lead', action: 'EXPORT' } })
     );
 
@@ -105,7 +115,7 @@ describe('GET /api/leads/export/csv — trilha de auditoria (Etapa handoff 15)',
 
     expect(res.status).toBe(403);
 
-    const after = await withRlsBypass(() =>
+    const after = await withTenant(vendedorA.organizationId, () =>
       prisma.auditLog.count({ where: { tenantId: vendedorA.organizationId, entity: 'Lead', action: 'EXPORT' } })
     );
     // auditAccessMiddleware só está depois de managementRoles na cadeia — um 403 do requireRole
