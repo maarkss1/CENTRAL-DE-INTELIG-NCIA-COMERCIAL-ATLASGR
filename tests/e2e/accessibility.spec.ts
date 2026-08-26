@@ -4,8 +4,10 @@ import { signUp, uniqueTestEmail, waitForAppReady } from './helpers';
 
 // Varredura automática de acessibilidade (axe-core) nas telas principais. Não bloqueia em toda e
 // qualquer violação — o app tem um backlog conhecido de achados `moderate`/`minor` (ver
-// eslint.config.mjs e DESIGN_QA_CENTRAL_ATLASGR.md, ex.: jsx-a11y/label-has-associated-control em
-// vários formulários) que ainda não foi corrigido. Este teste falha só em `critical`/`serious`, que
+// eslint.config.mjs, ex.: jsx-a11y/label-has-associated-control em vários formulários — o
+// DESIGN_QA_CENTRAL_ATLASGR.md que documentava esse backlog em detalhe foi removido do controle de
+// versão em 22/08/2026, ver docs/REMOVED-DOCS.md) que ainda não foi corrigido. Este teste falha só
+// em `critical`/`serious`, que
 // são os que realmente impedem uso por teclado/leitor de tela — o resto fica visível no relatório
 // HTML do Playwright (`attachment`) para triagem incremental, sem travar o CI hoje.
 const BLOCKING_IMPACTS = ['critical', 'serious'];

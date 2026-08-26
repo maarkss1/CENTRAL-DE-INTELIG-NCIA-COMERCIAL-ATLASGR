@@ -1,5 +1,10 @@
 # PRODUCT ADOPTION & COMMERCIAL INTELLIGENCE — CENTRAL ATLASGR
 
+> **Registro histórico.** Movido da raiz do repositório para `docs/reports/` em 25/08/2026
+> (ITEM-14, consolidação de documentação) — não é atualizado retroativamente e não deve ser
+> tratado como fonte de verdade sobre o estado atual do produto ou do banco de dados. Ver
+> [`docs/reports/README.md`](README.md) para a nota geral sobre esta pasta.
+
 **Data da análise:** 07/08/2026
 **Método:** auditoria de código (5 varreduras dirigidas: frontend/`src/features`, schema Prisma, telemetria existente, IA/roleplay/automação, integração Bitrix24) + inspeção ao vivo do banco de produção (Supabase, projeto `atlasgr-prospector-production`).
 **Aviso metodológico central:** o banco de produção foi migrado para Supabase **hoje** e está com **0 registros em todas as tabelas de negócio** (Lead, Company, Contact, Activity, User, etc.). Não existe, portanto, nenhum dado de uso real para calcular métricas de adoção, funil ou velocidade hoje. Este relatório é consequentemente um **diagnóstico de capacidade + blueprint de instrumentação**: para cada seção, digo o que já é computável a partir do que existe no código/schema, o que está ausente, e o que precisa ser construído antes que os números da Fase 1–10 do prompt original possam existir de verdade.

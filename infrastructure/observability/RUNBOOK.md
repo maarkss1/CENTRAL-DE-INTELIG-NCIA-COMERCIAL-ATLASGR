@@ -4,12 +4,20 @@ Runbook de resposta a incidentes e de go-live para os cenários já mapeados com
 `/AGENTS.md` e para migração/rollback (missão do Agente 10 — ver
 `.agents/prompts/10-infraestrutura-sre.md`).
 
-**Antes de tudo: qual é o deploy ativo?** Verifique o ambiente real antes de agir — este projeto
-tem dois caminhos de deploy documentados e só um está de fato ativo hoje:
+**Antes de tudo: qual é o deploy ativo?** Verifique o ambiente real antes de agir.
 
-| Caminho | Status | Onde |
+> **Correção (ITEM-12, 2026-08-25): a tabela abaixo ficou desatualizada.** Ela foi escrita antes
+> do commit `53c55ac` ("chore(infra): move a Central para modo local-first (#180)"), que congelou
+> o Render (`render.yaml` → `autoDeployTrigger: off`, marcado `LEGACY/FROZEN` no próprio arquivo).
+> **Hoje não há nenhum deploy cloud ativo** — o projeto está em modo local-first
+> (`docs/development/LOCAL_FIRST.md`). Ver [`docs/deploy/README.md`](../../docs/deploy/README.md)
+> para o caminho canônico atual. O conteúdo abaixo (go-live, rollback, procedimentos Render/k8s)
+> permanece correto como **procedimento** para quando cada caminho for reativado — só a coluna
+> "Status" está desatualizada.
+
+| Caminho | Status (histórico, ver correção acima) | Onde |
 | --- | --- | --- |
-| Render (monólito Express: API + estático do Vite) + Supabase (Postgres/Storage) + Cloudflare (DNS/CDN) | **Ativo em produção** | `render.yaml`, `docs/deploy/producao.md` |
+| Render (monólito Express: API + estático do Vite) + Supabase (Postgres/Storage) + Cloudflare (DNS/CDN) | Foi ativo em produção; **congelado** desde a migração local-first | `render.yaml`, `docs/deploy/producao.md` |
 | Kubernetes/Helm/ArgoCD (`k8s/`, `charts/`, `argocd/`) | Aspiracional/legado, nenhum cluster real registrado | `charts/README.md`, `argocd/README.md`, `k8s/README.md` |
 
 > **Correção de registro (Onda 8):** a missão desta rodada citava "Render+Vercel" como caminho

@@ -87,12 +87,16 @@ async function seedEligibleLead(orgId: string, phone: string, overrides: { statu
 
 afterEach(async () => {
     if (createdOrgIds.length > 0) {
-        await withRlsBypass(async () => {
-            await prisma.lead.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
-            await prisma.contact.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
-            await prisma.company.deleteMany({ where: { organizationId: { in: createdOrgIds } } });
-            await prisma.organization.deleteMany({ where: { id: { in: createdOrgIds } } });
-        });
+        // Contact/Company não estão no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+        // src/lib/prisma.ts) — ITEM-02 fechou a RLS dessas tabelas pra bypass. Limpa por tenant.
+        for (const org of createdOrgIds) {
+            await asOrg(org, async () => {
+                await prisma.lead.deleteMany({ where: { organizationId: org } });
+                await prisma.contact.deleteMany({ where: { organizationId: org } });
+                await prisma.company.deleteMany({ where: { organizationId: org } });
+            });
+        }
+        await withRlsBypass(() => prisma.organization.deleteMany({ where: { id: { in: createdOrgIds } } }));
     }
     createdOrgIds.length = 0;
     vi.clearAllMocks();

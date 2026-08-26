@@ -6,9 +6,10 @@ description: Use depois de qualquer mudança visual, antes de reportar a tarefa 
 # Visual QA — Central de Inteligência Comercial ATLASGR
 
 Este projeto já tem infraestrutura de QA visual e de acessibilidade real — use-a antes de declarar
-qualquer mudança de UI como concluída. Não é opcional nem redundante: `DESIGN_QA_CENTRAL_ATLASGR.md`
-documenta bugs reais (contraste insuficiente, área não navegável por teclado, primitivo
-100%-light-only) que só foram encontrados porque essa infraestrutura existe.
+qualquer mudança de UI como concluída. Não é opcional nem redundante: à época,
+`DESIGN_QA_CENTRAL_ATLASGR.md` (removido do controle de versão em 22/08/2026 — ver
+`docs/REMOVED-DOCS.md`) documentava bugs reais (contraste insuficiente, área não navegável por
+teclado, primitivo 100%-light-only) que só foram encontrados porque essa infraestrutura existe.
 
 ## Ordem de verificação recomendada
 
@@ -56,8 +57,9 @@ decide a ação, não a palavra "warning" em si.
 ## Quando não há navegador interativo ou suíte oficial disponível
 
 Sessões anteriores deste projeto já documentaram rodadas inteiras de QA sem acesso a navegador
-interativo (ver seção "Verificação" de `DESIGN_QA_CENTRAL_ATLASGR.md`) e o Piloto 001 encontrou o
-mesmo bloqueio (sem Docker/Postgres/Redis para o servidor Express que os specs oficiais exigem — ver
+interativo (ver seção "Verificação" de `DESIGN_QA_CENTRAL_ATLASGR.md`, arquivo removido do controle
+de versão — ver `docs/REMOVED-DOCS.md`) e o Piloto 001 encontrou o mesmo bloqueio (sem
+Docker/Postgres/Redis para o servidor Express que os specs oficiais exigem — ver
 `.claude/PILOTS.md`). Quando a suíte oficial não puder rodar por limitação real de ambiente, siga
 este protocolo:
 

@@ -23,8 +23,8 @@ aprendizado incorporado aqui e um registro curto em `.claude/PILOTS.md`. Ver Pil
   reescreve os tokens de cor via `document.documentElement.style.setProperty`.
 - **Stack:** React 19 + TypeScript + Vite 6 + React Router 7 + Express/Prisma no backend.
   Tailwind CSS 4 **CSS-first** (sem `tailwind.config.*`, tudo via `@theme` em
-  `src/styles/globals.css`). Framer Motion para animação. `@dnd-kit`/`@hello-pangea/dnd` para
-  drag-and-drop (Kanban do CRM). `recharts` para gráficos. `lucide-react` para ícones.
+  `src/styles/globals.css`). Framer Motion para animação. `@dnd-kit` para drag-and-drop (Kanban do
+  CRM). `recharts` para gráficos. `lucide-react` para ícones.
   `@react-three/fiber` + `drei` + `three` já são dependências reais, usadas hoje só num widget de
   gamificação decorativo (`src/features/gamification/components/SpaceGame.tsx`) e no
   `AtlasOrb.tsx`.
@@ -49,9 +49,11 @@ Não recrie o que já existe. Nesta ordem:
 3. **`identidade-visual/atlasgr/` e `identidade-visual/totaltrac/`** — logos, ícones, tokens
    (`.css`/`.ts`/`.json`) e `preview.html` de cada marca. Abra o `preview.html` antes de supor uma
    cor de marca.
-4. **`DESIGN_QA_CENTRAL_ATLASGR.md`** — auditoria de design já feita neste repo (scores por
-   categoria, débito técnico visual conhecido, o que já foi corrigido e o que ainda falta). Antes
-   de "descobrir" um problema de design, confira se ele já está documentado ali.
+4. **`DESIGN_QA_CENTRAL_ATLASGR.md` foi removido do controle de versão em 22/08/2026** (pedido
+   explícito do usuário — ver `docs/REMOVED-DOCS.md`). Não existe hoje um substituto versionado com
+   scores por categoria; os sinais vivos mais próximos de débito visual/a11y conhecido são
+   `eslint.config.mjs` (regras `jsx-a11y` comentadas) e `.claude/PILOTS.md`. Antes de "descobrir" um
+   problema de design, confira esses dois antes de supor que é inédito.
 5. **`src/lib/motion.ts`** — variantes e hooks de animação já padronizados (`fadeInUp`,
    `staggerContainer`, `useTilt`, `useMagnetic`, easings `EASE_PREMIUM`/`SPRING_SOFT`). Reuse antes
    de inventar uma curva de easing nova.
@@ -240,9 +242,10 @@ Não negociável em nenhum componente novo ou editado:
 
 1. **Audite antes de implementar**: leia os arquivos de "fontes de verdade" (seção 2) relevantes à
    tela/componente em questão.
-2. **Verifique débito técnico conhecido**: consulte `DESIGN_QA_CENTRAL_ATLASGR.md` e
-   `.claude/PILOTS.md` para não reintroduzir um problema já corrigido, nem "descobrir" de novo algo
-   já documentado.
+2. **Verifique débito técnico conhecido**: consulte `.claude/PILOTS.md` (e, se precisar do
+   contexto de por que `DESIGN_QA_CENTRAL_ATLASGR.md` é citado em outros lugares deste repo,
+   `docs/REMOVED-DOCS.md` — o arquivo foi removido do controle de versão) para não reintroduzir um
+   problema já corrigido, nem "descobrir" de novo algo já documentado.
 3. **Componha a partir do que existe**: tokens, primitivos `ui/`, variantes de `src/lib/motion.ts`.
 4. **Implemente** seguindo as regras visuais (seção 4), a regra de exceção (seção 5), a preservação
    de conteúdo/funcionalidade (seção 6) e a direção de arte (seção 7).
