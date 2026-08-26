@@ -1,7 +1,7 @@
 - De: Agente 12 (Voz e Telefonia — Birthub Voices/3CX)
 - Para: Agente 00 (Coordenador)
 - Onda: roadmap-v2-transversais-2
-- Status: aberto
+- Status: resolvido (parcial — ver Resolução)
 - Prioridade: normal
 
 ## Problema
@@ -54,3 +54,17 @@ revisão porque combina dois sinais do "Segurança e higiene"/LGPD de `/AGENTS.m
 pessoal de lead fora de um destino governado, e um caminho de disparo de chamada real que não
 passa por nenhuma das travas (`isSuppressed`, janela de discagem, `SDR_COLD_CALL_*`) que
 `birthVoice.service.ts`/`coldCall.service.ts` exigem para qualquer ligação de produção.
+
+## Resolução (Coordenador, 00)
+Removido do working tree (`git rm scratch_call.ts`) — script solto na raiz sem dono, disparando
+chamada real de produção sem nenhuma das travas de opt-out/tenant/janela que o resto do domínio de
+voz exige, exatamente o padrão de risco descrito acima. Nenhum outro arquivo do repositório o
+referenciava (`grep` confirmou).
+
+**Não resolvido, decisão humana explícita conforme `/AGENTS.md` → "Segurança e higiene"**: o
+conteúdo permanece recuperável no histórico do git (commit `9a186bc`, 2026-08-21), incluindo o
+nome/telefone/empresa hardcoded que podem ser dado real de um lead. Reescrever histórico
+(`git filter-repo`/BFG) para remover isso definitivamente exige coordenação com o dono do
+repositório (reescreve hashes de commit, afeta qualquer PR/branch que dependa desse histórico) —
+mesma ressalva já registrada para o caso do dump em `backups/**`. Fica pendente como decisão do
+usuário, não resolvida automaticamente por este ciclo.
