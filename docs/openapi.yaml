@@ -3685,6 +3685,20 @@ paths:
             text/event-stream:
               schema: { type: string }
 
+  /events:
+    get:
+      tags: [Analytics]
+      summary: >-
+        Stream Server-Sent Events de eventos comerciais em tempo real do tenant autenticado
+        (ADMIN, GESTOR, CLOSER, SDR) — não segue o envelope `{success,data}` padrão, é um stream
+        contínuo `text/event-stream` filtrado por `organizationId`.
+      responses:
+        '200':
+          description: Stream de eventos SSE, uma conexão por sessão de usuário
+          content:
+            text/event-stream:
+              schema: { type: string }
+
   /automations/stagnation-scan:
     post:
       tags: [Automations]
