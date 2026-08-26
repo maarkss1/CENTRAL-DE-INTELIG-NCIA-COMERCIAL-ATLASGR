@@ -212,7 +212,10 @@ export function Integrations() {
                                         onClick={handleConnect}
                                         disabled={loading || !canManage}
                                         title={canManage ? undefined : 'Requer permissão de Gestor ou Administrador'}
-                                        className="w-full py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        // bg-ok-active (não bg-green-600) — texto branco direto sobre verde-600 só
+                                        // atinge ~3.2:1 (WCAG AA exige 4.5:1 pra texto normal); mesmo padrão já
+                                        // usado em bg-brand-active (Button.tsx) pra texto branco sobre cor sólida.
+                                        className="w-full py-2 bg-ok-active hover:brightness-110 text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
                                         {loading ? 'Iniciando...' : 'Conectar WhatsApp'}
                                     </button>
@@ -221,7 +224,9 @@ export function Integrations() {
                                         persistente pra sobreviver ao ciclo de hibernação). Sem este aviso, "estava
                                         conectado ontem e hoje pede QR de novo" parece bug em vez de comportamento
                                         esperado do plano atual. */}
-                                    <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                                    {/* text-ink-2 (não text-gray-400) — 2.6:1 contra fundo claro, abaixo do
+                                        mínimo AA de 4.5:1 pra texto normal (axe-core color-contrast). */}
+                                    <p className="text-xs text-ink-2 text-center">
                                         Se já conectou antes e caiu sozinho, é o servidor gratuito hibernando por inatividade — basta escanear o QR de novo.
                                     </p>
                                 </div>
