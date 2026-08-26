@@ -133,8 +133,10 @@ export function LeadDetailDrawer({ leadId, onClose, onChanged }: LeadDetailDrawe
     useEffect(() => {
         previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
         fetchLead();
-        api.get<{ id: string; name: string }[]>('/api/users')
-            .then(setOwners)
+        // /api/users nunca existiu como rota (404 silencioso todo carregamento) — endpoint real é
+        // /api/team/assignable (ver team.routes.ts e o mesmo achado em CrmBoard.tsx).
+        api.get<{ owners: { id: string; name: string }[] }>('/api/team/assignable')
+            .then((res) => setOwners(res.owners))
             .catch(() => setOwners([]));
         return () => {
             if (previouslyFocusedRef.current?.focus) {
