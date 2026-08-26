@@ -3,10 +3,15 @@
 Estes manifests Helm (`prospector-atlas/`) são **aspiracionais/legados**, não são o caminho de
 deploy ativo hoje.
 
-O deploy ativo em produção é **Render** (`render.yaml` na raiz do repositório) para o backend
-Express/API + frontend estático servido pelo mesmo processo, com **Vercel** (`vercel.json` na
-raiz) como caminho alternativo/complementar para o frontend. Ver `docs/deploy/producao.md` para a
-arquitetura real (Render + Supabase + Cloudflare) e o fluxo de deploy automático.
+**Correção (ITEM-12, 2026-08-25):** nenhum caminho cloud está ativo hoje — o projeto está em modo
+local-first (`docs/development/LOCAL_FIRST.md`). Render (`render.yaml`) foi a última arquitetura
+de produção real, mas está **congelado** (`autoDeployTrigger: off`, marcado `LEGACY/FROZEN` no
+próprio arquivo) desde a migração para local-first; não há Vercel neste projeto (`vercel.json` tem
+`git.deploymentEnabled: false` e nunca serviu produção — ver
+`infrastructure/observability/RUNBOOK.md`, correção de registro da Onda 8). Ver
+[`docs/deploy/README.md`](../docs/deploy/README.md) para o inventário completo dos caminhos e o
+canônico atual. `docs/deploy/producao.md` continua descrevendo a arquitetura Render + Supabase +
+Cloudflare como candidata congelada, não como estado atual.
 
 Este chart existe para um caminho de deploy Kubernetes/Helm/ArgoCD que não está em uso ativo —
 `.github/workflows/cd-homolog.yml` publica a imagem em `ghcr.io` e atualiza `values.yaml`, e
