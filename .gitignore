@@ -58,6 +58,11 @@ public/tools/atlas-market-intelligence/*.sqlite
 __pycache__/
 *.pyc
 
+# ITEM-11: SBOM gerado por `npm run security:sbom` (CycloneDX, a partir de package-lock.json).
+# Publicado como artefato do workflow run de cada release real (production.yaml/cd-homolog.yml),
+# não versionado — ver docs/security/DEPENDENCY_POLICY.md para o porquê.
+/sbom.cdx.json
+
 # Worktrees isoladas criadas pelo harness do Claude Code para agentes em background
 # (isolation: "worktree") — estado de trabalho local, nunca conteúdo do repositório.
 .claude/worktrees/

@@ -150,6 +150,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      # ITEM-11 (Onda 3 — SBOM e governança de dependências): todo release real produz um SBOM
+      # CycloneDX correlacionável ao commit publicado. Ver docs/security/DEPENDENCY_POLICY.md.
+      - name: Use Node.js 22 (para gerar o SBOM)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (para o SBOM)
+        run: npm ci --no-audit --no-fund
+
+      - name: Gerar SBOM (CycloneDX)
+        run: npm run security:sbom
+
+      - name: Upload do SBOM como artefato do release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90
+
       - name: Log in to the Container registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:

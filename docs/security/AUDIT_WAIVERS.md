@@ -121,3 +121,18 @@ Se um achado `HIGH`/`CRITICAL` precisar ser aceito temporariamente (ex.: sem fix
   `npm audit`/`npm install` falharem com `EOVERRIDE` **antes** de produzir qualquer relatório,
   e o `continue-on-error: true` antigo mascarava esse erro estrutural junto com o achado real de
   vulnerabilidade. Override alinhado para `^14.0.1`, igual à dependência direta.
+- 2026-08-25 — ITEM-11 (SBOM e governança de dependências, Onda 3): removidas 11 dependências de
+  produção e 1 devDependency sem uso real no repositório (`@langchain/community` — também
+  deprecated pelo mantenedor —, `langchain`, `@hello-pangea/dnd`, `@react-oauth/google`,
+  `@tanstack/react-query`, `@tanstack/react-table`, `axios`, `cheerio`, `chromadb`,
+  `duck-duck-scrape`, `eslint-config-prettier`), reduzindo a superfície auditada por
+  `npm run security:audit-waivers`/CodeQL/Trivy/Dependency Review sem trocar nenhum comportamento
+  coberto por teste. Nenhuma delas tinha achado `HIGH`/`CRITICAL` aberto no momento da remoção —
+  não é um waiver novo nem fecha um waiver existente, só reduz o que precisa ser auditado daqui
+  para frente. Adicionada geração de SBOM (CycloneDX, `npm run security:sbom`) por release real e
+  um inventário de dependências RC/beta/deprecated
+  (`docs/security/DEPENDENCY_INVENTORY.md`, `npm run security:dependency-inventory`). Detalhe
+  completo, incluindo a justificativa de `@whiskeysockets/baileys@rc` (única dependência direta de
+  produção em pré-release) e a política de atualização, em `docs/security/DEPENDENCY_POLICY.md` —
+  este arquivo (`AUDIT_WAIVERS.md`) continua sendo a única fonte de verdade para waiver de
+  vulnerabilidade conhecida (CVE/GHSA); `DEPENDENCY_POLICY.md` não duplica isso, só referencia.
