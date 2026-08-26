@@ -19,12 +19,12 @@ description: Use ao adicionar dependência, animação contínua, uso de 3D/Thre
 
 ## Antes de adicionar uma dependência nova
 
-Pergunte, nesta ordem: `framer-motion`, `recharts`, `lucide-react`, `@dnd-kit`/
-`@hello-pangea/dnd`, `three`/`@react-three/fiber`/`drei` já resolvem isso? Este projeto já carrega
-duas libs de drag-and-drop (`@dnd-kit` e `@hello-pangea/dnd`) coexistindo por histórico — não
-adicione uma terceira. Da mesma forma, não adicione uma segunda lib de animação (GSAP, anime.js,
-react-spring) quando `framer-motion` + `src/lib/motion.ts` já cobre o caso — ver
-`motion-design/SKILL.md`.
+Pergunte, nesta ordem: `framer-motion`, `recharts`, `lucide-react`, `@dnd-kit`,
+`three`/`@react-three/fiber`/`drei` já resolvem isso? O Kanban do CRM usa só `@dnd-kit`
+(`@hello-pangea/dnd` foi removido no ITEM-11 por não ter nenhum uso real no repositório — não
+reintroduza uma segunda lib de drag-and-drop sem necessidade concreta). Da mesma forma, não
+adicione uma segunda lib de animação (GSAP, anime.js, react-spring) quando `framer-motion` +
+`src/lib/motion.ts` já cobre o caso — ver `motion-design/SKILL.md`.
 
 ## 3D (`@react-three/fiber`/`three`) — custo real, não é grátis
 

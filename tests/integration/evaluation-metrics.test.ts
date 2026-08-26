@@ -25,10 +25,17 @@ describe('AI-006: AIGuardrailEvent + evaluationMetrics.service (Postgres real, R
     });
 
     afterEach(async () => {
-        await requestContext.run({ bypassRls: true }, async () => {
-            await prisma.aIGuardrailEvent.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-            await prisma.aILog.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-        });
+        // AIGuardrailEvent não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS,
+        // src/lib/prisma.ts) — ITEM-02 fechou a RLS dessa tabela pra bypass. Um `deleteMany` sob
+        // bypass aqui agora afeta 0 linhas silenciosamente, deixando eventos de PII acumularem
+        // entre testes (causa real de "numerator: 3" em vez de 1 num teste anterior desta suíte).
+        // AILog continua no allowlist, mas roda no mesmo padrão por tenant por consistência.
+        for (const org of [ORG_A, ORG_B]) {
+            await requestContext.run({ tenantId: org }, async () => {
+                await prisma.aIGuardrailEvent.deleteMany({ where: { organizationId: org } });
+                await prisma.aILog.deleteMany({ where: { organizationId: org } });
+            });
+        }
     });
 
     afterAll(async () => {

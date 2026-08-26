@@ -52,10 +52,17 @@ describe('RAG (Base de Conhecimento): isolamento de tenant na busca híbrida', (
     });
 
     afterEach(async () => {
-        await requestContext.run({ bypassRls: true }, async () => {
-            await prisma.document.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-            await prisma.organization.deleteMany({ where: { id: ORG_B } });
-        });
+        // Document não está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts)
+        // — ITEM-02 fechou a RLS dessa tabela pra bypass. Um `deleteMany` sob bypass aqui agora
+        // afeta 0 linhas silenciosamente, deixando documentos/chunks de execuções anteriores
+        // acumularem entre testes (causa real de resultados de busca "vazando" doc antigo do mesmo
+        // tenant, não do outro tenant). Limpa dentro do contexto de cada tenant.
+        await requestContext.run({ tenantId: ORG_A }, () =>
+            prisma.document.deleteMany({ where: { organizationId: ORG_A } }));
+        await requestContext.run({ tenantId: ORG_B }, () =>
+            prisma.document.deleteMany({ where: { organizationId: ORG_B } }));
+        await requestContext.run({ bypassRls: true }, () =>
+            prisma.organization.deleteMany({ where: { id: ORG_B } }));
     });
 
     it('busca do tenant A nunca retorna trecho do documento do tenant B, mesmo com termos quase idênticos', async () => {

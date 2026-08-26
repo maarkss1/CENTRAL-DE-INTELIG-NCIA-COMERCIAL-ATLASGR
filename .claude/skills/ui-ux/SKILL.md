@@ -40,7 +40,8 @@ Um componente não está pronto sem definir explicitamente:
   em vez de estado manual de formulário.
 - Modais de formulário usam `src/components/ui/Dialog.tsx` (suporta `maxWidth`, `footer`,
   `preventClose`) — não reimplemente um modal hand-rolled; isso já foi um débito real do projeto
-  (`DESIGN_QA_CENTRAL_ATLASGR.md`, DQA-12) e a migração para `ui/Dialog` já está em andamento.
+  (documentado à época em `DESIGN_QA_CENTRAL_ATLASGR.md`, DQA-12 — arquivo removido do controle de
+  versão, ver `docs/REMOVED-DOCS.md`) e a migração para `ui/Dialog` já está em andamento.
 - Botão de submit pode ficar fora da tag `<form>` ligado via atributo `form="id"` dentro do
   `footer` do `Dialog` — padrão já usado, preserve-o ao editar formulários existentes.
 
