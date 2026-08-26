@@ -31,6 +31,11 @@ vi.mock('@/features/activities/services/activity.service', () => ({
     activityService: { create: (...args: unknown[]) => activityCreateMock(...args) },
 }));
 
+const notificationCreateMock = vi.fn();
+vi.mock('@/features/notifications/notification.service', () => ({
+    notificationService: { create: (...args: unknown[]) => notificationCreateMock(...args) },
+}));
+
 import { prisma } from '@/lib/prisma';
 import { executeAction, executeAndRecord } from '../aiPendingAction.service';
 
@@ -40,6 +45,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     updateMock.update.mockResolvedValue({});
     leadFindFirstMock.mockResolvedValue(null);
+    notificationCreateMock.mockReset();
 });
 
 const emailAction = {
@@ -225,5 +231,54 @@ describe('executeAndRecord', () => {
                 attempts: { increment: 1 },
             }),
         });
+    });
+
+    // GOV-13 (Agente 13): contraparte de execução do `notify_team` proposto pelo OpsAgent
+    // (`agents/opsPendingActions.tool.ts`) — o OpsAgent não chama mais `notificationService.create`
+    // direto do tool-calling; a notificação só sai de fato quando um humano aprova esta ação.
+    it('notifica a equipe quando aprovado, com payload tipado', async () => {
+        notificationCreateMock.mockResolvedValue({ id: 'notif-1' });
+
+        const result = await executeAction({
+            id: 'act-9',
+            action: 'notify_team',
+            organizationId: 'org-1',
+            payload: { title: 'Risco de churn detectado', body: 'Cliente sem contato há 20 dias.', kind: 'Alerta', leadId: 'lead-1' },
+        });
+
+        expect(result).toEqual({ sent: true });
+        expect(notificationCreateMock).toHaveBeenCalledWith({
+            organizationId: 'org-1',
+            title: 'Risco de churn detectado',
+            body: 'Cliente sem contato há 20 dias.',
+            kind: 'Alerta',
+            entity: 'Lead',
+            entityId: 'lead-1',
+        });
+    });
+
+    it('rejeita notify_team sem título', async () => {
+        const result = await executeAction({
+            id: 'act-10',
+            action: 'notify_team',
+            organizationId: 'org-1',
+            payload: { body: 'sem título' },
+        });
+
+        expect(result).toEqual({ sent: false, reason: 'unsupported_action' });
+        expect(notificationCreateMock).not.toHaveBeenCalled();
+    });
+
+    it('reporta send_failed quando notificationService.create falha silenciosamente (retorna null)', async () => {
+        notificationCreateMock.mockResolvedValue(null);
+
+        const result = await executeAction({
+            id: 'act-11',
+            action: 'notify_team',
+            organizationId: 'org-1',
+            payload: { title: 'Alerta' },
+        });
+
+        expect(result).toEqual({ sent: false, reason: 'send_failed' });
     });
 });
