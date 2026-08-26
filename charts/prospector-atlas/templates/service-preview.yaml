@@ -14,4 +14,7 @@ spec:
       name: http
   selector:
     {{- include "prospector-atlas.selectorLabels" . | nindent 4 }}
+    # Ver deployment.yaml/rollout.yaml/service.yaml — mesmo motivo, evita que o selector
+    # também bata com pods do worker.
+    app.kubernetes.io/component: web
 {{- end }}

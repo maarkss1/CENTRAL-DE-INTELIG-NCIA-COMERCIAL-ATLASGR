@@ -12,6 +12,10 @@ spec:
   selector:
     matchLabels:
       {{- include "prospector-atlas.selectorLabels" . | nindent 6 }}
+      # Mesmo motivo do deployment.yaml: sem isto o selector também bate com os pods do worker
+      # (nome+instance é subconjunto dos labels do worker), poluindo o HPA (que lê o selector
+      # deste Rollout via scale subresource) e o Service/PDB principais com pods do worker.
+      app.kubernetes.io/component: web
   strategy:
     blueGreen:
       activeService: {{ include "prospector-atlas.fullname" . }}
@@ -26,6 +30,7 @@ spec:
       {{- end }}
       labels:
         {{- include "prospector-atlas.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
