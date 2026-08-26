@@ -1,58 +1,88 @@
 # Mapa de Navegação da Aplicação
 
 Estrutura real do menu lateral (`src/components/layout/Sidebar.tsx` / `tabMeta.ts`), conferida em
-14/08/2026. Atualize este arquivo sempre que um módulo for adicionado, renomeado ou removido do
-menu — ele é a fonte de verdade textual para quem produz roteiro/inventário institucional.
+26/08/2026 (Roadmap v2, Onda 4). Atualize este arquivo sempre que um módulo for adicionado,
+renomeado ou removido do menu — ele é a fonte de verdade textual para quem produz
+roteiro/inventário institucional.
+
+A Sidebar não é mais organizada por área técnica ("Core Modules" / "Inteligência" / "Ferramentas").
+Desde a reorganização registrada em `Sidebar.tsx`, os grupos seguem a **jornada comercial**
+(Captar → Qualificar → Relacionar → Fechar → Analisar), e a ordem dos grupos muda por papel do
+usuário (Closer, Gestor/Admin, Visualizador e SDR/padrão têm ordens diferentes — os mesmos grupos,
+sem nenhum item escondido por reordenação; só o RBAC dos itens condicionais abaixo esconde item de
+verdade).
 
 - **/login** (Tela de Acesso)
 - **/app** (Interface Principal Autenticada)
-  - **Core Modules**
+  - **Visão Geral**
     - Painel Central (Dashboard)
+  - **Captar**
     - Prospecção
+    - Market Intelligence
+  - **Qualificar**
+    - Empresas
+    - Decisores
+    - Mesa de Tratamento
+    - Matriz de Qualificação
+  - **Relacionar**
+    - Agenda
+    - Calendário
+    - Cadência
+  - **Fechar**
     - Pipeline CRM
     - Cockpit CRM
-    - Decisores
-    - Empresas
-    - Agenda
+    - Propostas
+  - **Analisar**
+    - Comercial Inteligente — visível apenas para papéis Gestor/Admin (`canAccessCommercialIntelligence`)
     - Analytics
     - Win/Loss
-    - Calendário
-    - Notificações
-    - Configurações
-  - **Executivo** — visível apenas para papéis Gestor/Admin (`canAccessCommercialIntelligence`)
-    - Comercial Inteligente
-  - **Inteligência**
-    - Roleplay (nome de produto: "Dojo de Vendas")
-    - Matriz de Qualificação
-    - Matriz de Objeções
-    - Chatbook
-    - Hub de IA
-    - Market Intelligence
-    - Academy
-    - Guia Bitrix24
-    - Integrações
     - Relatórios IA
+  - **IA & Capacitação**
+    - Hub de IA
+    - Chatbook
+    - Roleplay (rótulo atual do código; capturas de tela e roteiros mais antigos desta pasta ainda
+      chamam o módulo de "Dojo de Vendas" — ver observação abaixo)
+    - Matriz de Objeções
+    - Academy
     - Base de Conhecimento
     - Editor de Documentos
-    - Automações
-    - Consumo de IA
-  - **Ferramentas** — link externo, fora da SPA
-    - Portal Comercial Bitrix24 (`/tools/portal-comercial/index.html`, abre em nova aba — portal
-      multi-página com Home, Cockpit Executivo, Extrator, Forecast Semanal e SDR; substitui o
-      antigo `extrator-bitrix.html` de página única)
-  - **Administração** — visível apenas para papel administrativo
-    - Equipe
+  - **Administração** — visível a todos os papéis; quatro itens (Integrações, Automações, Consumo
+    de IA, Equipe) só aparecem para o papel `ADMIN`
+    - Notificações
+    - Guia Bitrix24
+    - Integrações — só `ADMIN`
+    - Automações — só `ADMIN`
+    - Consumo de IA — só `ADMIN`
+    - Equipe — só `ADMIN`
+    - Configurações
 
-## Observação — divergência conhecida (ver handoff)
+## Observações de conteúdo
 
-Ao conferir este mapa contra `src/App.tsx`, `Sidebar.tsx` e `tabMeta.ts` (14/08/2026), encontramos
-um item do menu sem rota correspondente: **Cockpit CRM (`crm360`)** aparece em `coreTools`
-(Sidebar) e em `TAB_META`, mas não existe `<Route path="crm360">` dentro de `/app/*` em
-`src/App.tsx` — o clique cai no catch-all (`path="*"`) e redireciona de volta ao Dashboard sem
-aviso. Registrado em `.agents/handoffs/onda-4/11-para-02-crm360-rota-ausente.md` (Agente 02, dono
-de `src/App.tsx`/Sidebar) em vez de corrigido aqui, pois está fora do escopo deste diretório.
-
-Os identificadores `enrich` (rótulo "Enriquecer") e `prompts` (rótulo "Commercial OS") têm entrada
-em `TAB_META` (`tabMeta.ts`) só porque o tipo `Record<TabType, ...>` exige uma entrada para cada
-`TabType` — mas nenhum dos dois tem item de menu na Sidebar nem `<Route>` em `src/App.tsx`; não são
-alcançáveis pelo usuário hoje. Não os trate como módulos existentes ao escrever roteiro/briefing.
+- **Rótulo "Dojo de Vendas" está desatualizado.** As imagens `imagens/03-modulos/10-dojo-vendas.png`
+  e o roteiro `roteiros/roteiro-apresentacao.md`/`roteiro-demonstracao.md` chamam o módulo de
+  simulação de vendas por voz de "Dojo de Vendas". No código atual (`tabMeta.ts`), o rótulo exibido
+  ao usuário é **"Roleplay"**. Não é uma funcionalidade removida — é o mesmo módulo (`roleplay`,
+  ícone `PhoneCall`) com rótulo renomeado em algum ponto depois da última captura de tela. Mantido
+  como observação em vez de renomear a imagem/roteiro (fora do escopo de uma auditoria de tokens de
+  marca decidir se a imagem deve ser recapturada) — quem produzir uma nova rodada de screenshots
+  deve atualizar o nome do arquivo e o texto junto.
+- **Não existe mais item "Ferramentas" com link externo na Sidebar.** Uma versão anterior deste
+  mapa documentava um grupo "Ferramentas" com "Portal Comercial Bitrix24"
+  (`/tools/portal-comercial/index.html`) como link externo fora da SPA. Esse grupo não existe mais
+  em `Sidebar.tsx` — `grep` em `src/` não encontra nenhuma referência a `tools/portal-comercial` fora
+  dos arquivos de integração Bitrix (`bitrixFieldMap.ts`, `extractionEntities.ts`, que só citam o
+  caminho como comentário de referência). O material estático em
+  `public/tools/portal-comercial/**` continua existindo no repositório (fora do escopo deste
+  diretório — pertence a quem for dono de `public/**`), mas não está mais acessível a partir do menu
+  principal. Não recriar esse item aqui como se ainda existisse.
+- **Divergência "Cockpit CRM sem rota" já foi corrigida.** Uma observação anterior deste arquivo
+  descrevia `crm360` (Cockpit CRM) como item de menu sem `<Route>` correspondente em `src/App.tsx`
+  (handoff `.agents/handoffs/onda-4/11-para-02-crm360-rota-ausente.md`, Onda 4 histórica). Conferido
+  nesta revisão: `src/App.tsx` já registra `<Route path="crm360" element={<CrmOverview ... />} />` e
+  `TAB_ROUTE_SET` em `src/lib/navigationBus.ts` já inclui `crm360: true`. O handoff está com
+  `Status: resolvido` e a resolução está documentada nele mesmo — não é mais uma divergência aberta,
+  não recriar o alerta em auditorias futuras sem antes checar o código.
+- Os identificadores `enrich` e `prompts`, citados numa revisão anterior deste arquivo como "código
+  morto sem rota", já foram removidos de `tabMeta.ts` (ver comentário no topo daquele arquivo,
+  "removidos por não corresponderem a nenhuma tela real" — Onda 10). Não existem mais como
+  `TabType`; não há nada a observar sobre eles hoje.
