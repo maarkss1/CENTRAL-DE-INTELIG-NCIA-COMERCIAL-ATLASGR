@@ -119,6 +119,7 @@ export function Drawer({
                 {subtitle && <p className="text-xs text-ink-2 mt-0.5">{subtitle}</p>}
               </div>
               <button
+                type="button"
                 ref={closeButtonRef}
                 onClick={onClose}
                 aria-label="Fechar gaveta"

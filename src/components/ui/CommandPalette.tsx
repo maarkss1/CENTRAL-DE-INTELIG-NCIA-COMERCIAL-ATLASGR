@@ -21,6 +21,11 @@ type ResultItem = {
 
 const DIACRITICS_PATTERN = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
 
+// Mesmo seletor/estratégia de trap de foco já usada em Drawer.tsx (não compartilhado entre os
+// dois arquivos — cada primitivo de overlay já mantinha sua própria cópia antes desta correção).
+const FOCUSABLE_SELECTOR =
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 function normalize(value: string): string {
     return value.normalize('NFD').replace(DIACRITICS_PATTERN, '').toLowerCase();
 }
@@ -41,6 +46,8 @@ export function CommandPalette() {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [entityLoading, setEntityLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    const previouslyFocused = useRef<HTMLElement | null>(null);
 
     const close = useCallback(() => {
         setIsOpen(false);
@@ -72,11 +79,44 @@ export function CommandPalette() {
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
+            previouslyFocused.current = document.activeElement as HTMLElement | null;
             requestAnimationFrame(() => inputRef.current?.focus());
         } else {
             document.body.style.overflow = '';
+            previouslyFocused.current?.focus();
         }
         return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
+
+    // Trap de foco (bug real de acessibilidade corrigido, Onda 3/Agente 03): o painel já tinha
+    // role="dialog"/aria-modal="true", mas nada impedia Tab de sair dele para o conteúdo por trás
+    // do backdrop — quem navega só por teclado conseguia "perder" o foco atrás de uma camada
+    // visualmente inacessível. Mesma estratégia (Tab/Shift+Tab cíclico dentro do painel) já usada
+    // em Drawer.tsx.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleTabTrap = (event: KeyboardEvent) => {
+            if (event.key !== 'Tab' || !panelRef.current) return;
+
+            const focusable = panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+            if (focusable.length === 0) return;
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement;
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        document.addEventListener('keydown', handleTabTrap);
+        return () => document.removeEventListener('keydown', handleTabTrap);
     }, [isOpen]);
 
     // Busca real de empresas/decisores (debounced) — usa o mesmo endpoint que Empresas/Contatos.
@@ -197,7 +237,7 @@ export function CommandPalette() {
             onClick={(e) => { if (e.target === e.currentTarget) close(); }}
             onKeyDown={(e) => { if (e.key === 'Escape') close(); }}
         >
-            <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
+            <div ref={panelRef} className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl">
                 <div className="flex items-center gap-3 border-b border-line px-4 py-3.5">
                     <Search className="h-5 w-5 shrink-0 text-ink-2" />
                     <input
