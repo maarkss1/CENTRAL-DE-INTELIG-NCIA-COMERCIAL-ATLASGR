@@ -1,7 +1,7 @@
 - De: Agente 06 — Integrações e Bitrix
 - Para: Agente 01 — Plataforma, Segurança e Dados
 - Onda: roadmap-v2-onda-1
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -64,3 +64,15 @@ Achado real desta auditoria (Onda 1 — Fundação, Roadmap v2), não teórico:
 comunicava sobre a incompletude — só que ela virava `status: 'completed'` como qualquer outra. A
 correção desta onda fechou a lacuna sem mexer no schema; este handoff é só para a evolução de modelo
 de dados, não para o comportamento em si (que já está corrigido).
+
+## Resolução (Coordenador, 00)
+Adicionado `completed_partial` a `BitrixExtractionStatus` (migration
+`20260826180000_bitrix_extraction_status_completed_partial`, `ALTER TYPE ... ADD VALUE IF NOT
+EXISTS`, aditiva/não-destrutiva). `service/extraction.ts` agora grava
+`status: partialWarning ? 'completed_partial' : 'completed'` em vez de sobrecarregar `errorMessage`
+como único sinal. `BitrixExtractionPanel.tsx` lê o status diretamente (badge própria no
+`STATUS_BADGE`, sem mais o computed `isPartial`). Achado extra corrigido no mesmo lugar:
+`downloadExtractionFile` só aceitava `status === 'completed'` — sem o ajuste, o botão de download
+que passou a aparecer para `completed_partial` no front quebraria com 400 no backend. Testes
+atualizados em `service/__tests__/extraction.test.ts` (status esperado + novo caso de download de
+extração parcial).

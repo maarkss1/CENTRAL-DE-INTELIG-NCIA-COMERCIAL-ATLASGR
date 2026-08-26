@@ -1,7 +1,7 @@
 - De: 11 (Marca e Ativos Institucionais)
 - Para: 03 (Design e Acessibilidade)
 - Onda: roadmap-v2-onda-4
-- Status: aberto
+- Status: resolvido
 - Prioridade: normal
 
 ## Problema
@@ -64,3 +64,9 @@ comparar `identidade-visual/atlasgr/tokens/*` contra o que `globals.css` e `Bran
 realmente consomem, conforme escopo da missão desta onda. Não é bloqueador: os dois tons pertencem à
 mesma paleta oficial documentada, o problema é qual dos dois é "o" `--brand-2`, não uma cor fora da
 marca.
+
+## Resolução (Coordenador, 00)
+Opção A aplicada: `--brand-2` default em `globals.css` mudou de `#FF8008` para `#FF6B10`, igualando
+o accent que `BrandContext.tsx` já aplica em runtime para AtlasGR. O próprio comentário existente em
+`globals.css` (linha ~286, sobre `--color-brand-2-active`) já citava `#FF6B10` como o valor "real"
+da AtlasGR, então a mudança também alinha o CSS à documentação inline que já existia no arquivo.
