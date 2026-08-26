@@ -120,7 +120,7 @@ export function Settings() {
                                         <div>
                                             <p className="font-bold text-ink text-base">{currentUser?.name || 'Usuário'}</p>
                                             <p className="text-xs text-ink-2">{currentUser?.email || 'email@exemplo.com'}</p>
-                                            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-brand/10 text-brand">
+                                            <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-brand/10 text-brand-active dark:text-brand-2">
                                                 {currentUser?.role || 'USUÁRIO'}
                                             </span>
                                         </div>
