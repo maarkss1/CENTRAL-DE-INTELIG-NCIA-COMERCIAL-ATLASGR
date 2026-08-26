@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildInventory,
+  escapeMarkdownTableCell,
   parseDeprecatedFromLog,
   PRERELEASE_PATTERN,
   type PackageLock,
@@ -113,5 +114,25 @@ describe('dependency inventory — parsing de `npm warn deprecated`', () => {
   it('retorna lista vazia quando o log não tem nenhum aviso de deprecated', () => {
     const log = '> react-example@0.0.1 postinstall\nadded 1585 packages in 2m';
     expect(parseDeprecatedFromLog(log)).toEqual([]);
+  });
+});
+
+describe('dependency inventory — escape de célula Markdown', () => {
+  it('escapa pipe literal para não quebrar a tabela', () => {
+    expect(escapeMarkdownTableCell('use a | b instead')).toBe('use a \\| b instead');
+  });
+
+  it('escapa barra invertida antes do pipe, sem criar um escape ambíguo', () => {
+    // Uma mensagem que já contém `\|` (ex.: caminho Windows seguido de pipe) não pode virar um
+    // pipe "escapado por acaso" — a barra original precisa ficar visivelmente escapada também.
+    expect(escapeMarkdownTableCell('C:\\path\\to\\pkg | see docs')).toBe(
+      'C:\\\\path\\\\to\\\\pkg \\| see docs'
+    );
+  });
+
+  it('mantém texto sem caracteres especiais inalterado', () => {
+    expect(escapeMarkdownTableCell('This package is no longer supported.')).toBe(
+      'This package is no longer supported.'
+    );
   });
 });
