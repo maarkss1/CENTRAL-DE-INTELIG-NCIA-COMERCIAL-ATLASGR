@@ -22,7 +22,11 @@ Este arquivo governa esta pasta e todas as subpastas.
 ## Definição de pronto local
 - `prisma validate` e `prisma generate` passam.
 - migração é reproduzível.
-- rollback/compatibilidade foi considerada.
+- rollback/compatibilidade foi considerada — siga o processo real em
+  `docs/security/runbooks/MIGRATION_ROLLBACK.md` (classificação aditiva/destrutiva, down manual +
+  `prisma migrate resolve --rolled-back`, e o que fazer quando não há solução mágica: restore de
+  backup). Migration nova classificada como destrutiva ganha um bloco `-- ROLLBACK:` comentado no
+  próprio `migration.sql` (ver Passo 4 do runbook).
 - testes de tenant/RBAC/dados relevantes passam.
 
 ## Gate mínimo
