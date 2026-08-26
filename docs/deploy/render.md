@@ -1,5 +1,11 @@
 # Deploy no Render
 
+> **Status real (ITEM-12, 2026-08-25): CONGELADO.** `render.yaml` está marcado `LEGACY/FROZEN`
+> (`autoDeployTrigger: off`) desde a migração para modo local-first
+> (`docs/development/LOCAL_FIRST.md`). O passo a passo abaixo descreve a arquitetura candidata
+> preservada para rollback, não um deploy que acontece hoje. Ver
+> [`docs/deploy/README.md`](README.md) para o caminho canônico atual.
+>
 > Guia completo (Supabase + Render + Cloudflare + CI/CD + checklist): ver
 > [`docs/deploy/producao.md`](producao.md). Este arquivo cobre só a parte específica do Render.
 
