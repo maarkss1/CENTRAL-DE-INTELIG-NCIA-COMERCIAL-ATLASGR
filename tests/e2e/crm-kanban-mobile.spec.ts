@@ -115,9 +115,8 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     await page.goto('/app/crm');
     await page.waitForSelector('text=Leads e pré-vendas');
 
-    // Viewport de 393px (Pixel 5) só cabe ~1 coluna inteira por vez — mover pra coluna adjacente
-    // exige rolar o board DURANTE o drag ativo. scrollIntoViewIfNeeded ANTES do drag não serve
-    // aqui: desloca o container e invalida as coordenadas do card de origem.
+    // Viewport de 393x727 (Pixel 5) só cabe ~1 coluna inteira por vez — mover pra coluna adjacente
+    // exige rolar o board DURANTE o drag ativo.
     //
     // O autoScroll nativo do dnd-kit (segurar o ponteiro perto da borda e esperar o loop rAF de
     // proximidade/velocidade notar e rolar) foi tentado aqui antes e se mostrou não-determinístico
@@ -128,9 +127,20 @@ test.describe('Mobile Android (Pixel 5 emulado, touch real via Chromium)', () =>
     // que este teste precisa provar de forma determinística é a PARTE que realmente importa: que
     // um drag iniciado por toque sobrevive a uma rolagem do container e ainda assim recalcula a
     // colisão e solta na coluna certa — não a heurística específica de quando o auto-scroll dispara.
-    // Por isso a rolagem é forçada diretamente (mesma mutação de scrollLeft que o autoScroll faria),
-    // com o ponteiro mantido pressionado durante toda a operação.
+    // Por isso a rolagem HORIZONTAL é forçada diretamente (mesma mutação de scrollLeft que o
+    // autoScroll faria), com o ponteiro mantido pressionado durante toda a operação.
     const card = page.getByRole('button', { name: new RegExp(company.tradeName) }).first();
+    // scrollIntoViewIfNeeded (rolagem VERTICAL da página, não da região horizontal do board) é
+    // necessário aqui: o primeiro card de "Lead Recebido" fica abaixo da dobra em 727px de altura
+    // (toolbar + banner de dica + cabeçalho da coluna já ocupam mais que isso) — sem rolar a
+    // página primeiro, boundingBox() ainda devolve coordenadas "válidas" (getBoundingClientRect
+    // não sabe nem se importa com o viewport atual), mas o ponto fica fora da área visível: os
+    // pointerdown/pointermove sintéticos do Playwright acertam o <html> vazio abaixo do conteúdo
+    // real, não o card, e o PointerSensor do dnd-kit nunca ativa (aria-pressed nunca fica "true").
+    // Achado real via instrumentação direta de pointerdown/elementFromPoint neste sandbox — não é
+    // teoria. Isso não conflita com a rolagem horizontal forçada abaixo: são scrolls de eixos e
+    // containers diferentes, e o cardBox é recalculado depois deste scroll.
+    await card.scrollIntoViewIfNeeded();
     const cardBox = await card.boundingBox();
     const scrollRegion = page.getByLabel('Colunas do pipeline — role o conteúdo horizontalmente');
     if (!cardBox) throw new Error('sem bounding box do card');
