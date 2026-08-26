@@ -7,6 +7,7 @@ import { authenticateToken } from '../../src/shared/middlewares/authenticateToke
 import { requireTenant } from '../../src/shared/middlewares/authorization';
 import { leadRoutes } from '../../src/features/crm/routes/lead.routes';
 import { errorHandler } from '../../src/shared/middlewares/errorHandler';
+import { applyRateLimiters } from '../../src/bootstrap/rateLimiters';
 import { setupDI } from '../../src/shared/di/setup';
 import { LeadFactory } from '../helpers/factories';
 import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from '../helpers/rbac-e2e-helpers';
@@ -23,6 +24,11 @@ import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from 
 function buildLeadApp(): Express {
   const app = express();
   app.use(express.json());
+  // Mesmo apiLimiter que o composition root real aplica em '/api' antes de qualquer rota de
+  // feature (ver src/bootstrap/rateLimiters.ts) — sem isto, este harness isolado de supertest não
+  // reflete a topologia real e o CodeQL sinaliza (corretamente, para o app aqui montado) a rota
+  // como sem rate limiting.
+  applyRateLimiters(app);
   app.use('/api/leads', authenticateToken, requireTenant, leadRoutes);
   app.use(errorHandler);
   return app;
