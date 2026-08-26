@@ -21,100 +21,88 @@ beforeEach(() => {
     _resetKeyCacheForTests();
 });
 
-describe('piiFields — cifra em repouso de PII de Contact (CPI item 1)', () => {
-    it('lista os campos String de Contact cifrados e mantém birthDate (DateTime) de fora', () => {
-        expect(ENCRYPTED_MODEL_FIELDS.Contact).toEqual([
-            'name',
-            'phone',
-            'whatsapp',
-            'email',
-            'linkedin',
-            'observations',
-        ]);
-        expect(ENCRYPTED_MODEL_FIELDS.Contact).not.toContain('birthDate');
-    });
-
-    it('não regride as credenciais de integração já cifradas antes desta mudança', () => {
+describe('piiFields — cifra em repouso de credenciais de integração', () => {
+    it('não regride as credenciais de integração já cifradas', () => {
         expect(ENCRYPTED_MODEL_FIELDS.GoogleWorkspaceConnection).toEqual(['accessToken', 'refreshToken']);
         expect(ENCRYPTED_MODEL_FIELDS.BitrixConnection).toEqual(['webhookUrl', 'webhookSecret']);
         expect(ENCRYPTED_MODEL_FIELDS.ThreeCXConnection).toEqual(['apiKey', 'apiSecret']);
         expect(ENCRYPTED_MODEL_FIELDS.Account).toEqual(['accessToken', 'refreshToken', 'idToken']);
     });
 
-    it('encryptSensitiveFields(Contact) cifra name/phone/whatsapp/email/linkedin/observations, e decryptSensitiveRecord devolve o roundtrip exato (write→read)', () => {
+    // Guard de regressão intencional: `Contact` chegou a entrar neste mapa nesta mesma rodada e
+    // foi revertido porque quebrou (confirmado contra Postgres real em CI, não só suposição) a
+    // busca/leitura por e-mail/telefone em pelo menos 4 fluxos reais (ver comentário em
+    // piiFields.ts e o handoff onda-39/01-para-00-pii-contact-revertida-quebra-integration.md).
+    // Não readicionar sem antes resolver busca por igualdade sobre coluna cifrada.
+    it('Contact permanece FORA do mapa até existir solução de busca compatível com ciphertext não-determinístico', () => {
+        expect(ENCRYPTED_MODEL_FIELDS.Contact).toBeUndefined();
+    });
+
+    it('encryptSensitiveFields cifra só os campos listados do model, e decryptSensitiveRecord devolve o roundtrip exato (write→read)', () => {
         const plaintext = {
-            id: 'contact-1',
-            name: 'Ana Souza',
-            phone: '+55 11 98888-7777',
-            whatsapp: '+55 11 98888-7777',
-            email: 'ana.souza@example.com',
-            linkedin: 'https://linkedin.com/in/anasouza',
-            observations: 'Prefere contato só depois das 14h.',
-            role: 'Diretora de Operações', // não cifrado — não está na lista de campos
-            companyId: 'company-1',
-            birthDate: null,
+            id: 'conn-1',
+            webhookUrl: 'https://example.bitrix24.com.br/rest/1/abc123/',
+            webhookSecret: 'super-secret-value',
+            organizationId: 'org-1', // não cifrado — não está na lista de campos deste model
         };
 
-        const encrypted = encryptSensitiveFields('Contact', plaintext);
+        const encrypted = encryptSensitiveFields('BitrixConnection', plaintext);
 
-        for (const field of ENCRYPTED_MODEL_FIELDS.Contact) {
+        for (const field of ENCRYPTED_MODEL_FIELDS.BitrixConnection) {
             expect(encrypted[field]).not.toBe((plaintext as Record<string, unknown>)[field]);
             expect(String(encrypted[field])).toMatch(/^enc:v1:/);
         }
         // Campos fora da lista permanecem intocados.
-        expect(encrypted.role).toBe(plaintext.role);
-        expect(encrypted.companyId).toBe(plaintext.companyId);
+        expect(encrypted.organizationId).toBe(plaintext.organizationId);
         expect(encrypted.id).toBe(plaintext.id);
 
-        const decrypted = decryptSensitiveRecord('Contact', encrypted);
+        const decrypted = decryptSensitiveRecord('BitrixConnection', encrypted);
         expect(decrypted).toEqual(plaintext);
     });
 
-    it('duas cifragens do mesmo e-mail produzem ciphertexts diferentes (IV aleatório por valor) — ambas decifram para o mesmo texto', () => {
-        const a = encryptSensitiveFields('Contact', { email: 'mesmo@example.com' });
-        const b = encryptSensitiveFields('Contact', { email: 'mesmo@example.com' });
+    it('duas cifragens do mesmo valor produzem ciphertexts diferentes (IV aleatório por valor) — ambas decifram para o mesmo texto', () => {
+        const a = encryptSensitiveFields('BitrixConnection', { webhookSecret: 'mesmo-segredo' });
+        const b = encryptSensitiveFields('BitrixConnection', { webhookSecret: 'mesmo-segredo' });
 
-        expect(a.email).not.toBe(b.email);
-        expect(decryptSensitiveRecord('Contact', a).email).toBe('mesmo@example.com');
-        expect(decryptSensitiveRecord('Contact', b).email).toBe('mesmo@example.com');
+        expect(a.webhookSecret).not.toBe(b.webhookSecret);
+        expect(decryptSensitiveRecord('BitrixConnection', a).webhookSecret).toBe('mesmo-segredo');
+        expect(decryptSensitiveRecord('BitrixConnection', b).webhookSecret).toBe('mesmo-segredo');
     });
 
     it('campos vazios/undefined não quebram e não viram ciphertext (evita cifrar string vazia ou tentar decifrar null)', () => {
-        const encrypted = encryptSensitiveFields('Contact', { name: 'X', email: '', whatsapp: undefined });
-        expect(encrypted.email).toBe('');
-        expect(encrypted.whatsapp).toBeUndefined();
+        const encrypted = encryptSensitiveFields('BitrixConnection', { webhookUrl: 'https://x', webhookSecret: '' });
+        expect(encrypted.webhookSecret).toBe('');
 
-        const decrypted = decryptSensitiveRecord('Contact', { name: encrypted.name, email: '', phone: null });
-        expect(decrypted.email).toBe('');
-        expect(decrypted.phone).toBeNull();
+        const decrypted = decryptSensitiveRecord('BitrixConnection', { webhookUrl: encrypted.webhookUrl, webhookSecret: '' });
+        expect(decrypted.webhookSecret).toBe('');
     });
 
     it('decryptSensitiveResult aplica o roundtrip em array de resultados (findMany) e em objeto único (findFirst)', () => {
         const rows = [
-            encryptSensitiveFields('Contact', { id: '1', name: 'Ana', email: 'ana@example.com' }),
-            encryptSensitiveFields('Contact', { id: '2', name: 'Bruno', email: 'bruno@example.com' }),
+            encryptSensitiveFields('BitrixConnection', { id: '1', webhookSecret: 'a' }),
+            encryptSensitiveFields('BitrixConnection', { id: '2', webhookSecret: 'b' }),
         ];
 
-        const decryptedMany = decryptSensitiveResult('Contact', rows);
+        const decryptedMany = decryptSensitiveResult('BitrixConnection', rows);
         expect(decryptedMany).toEqual([
-            { id: '1', name: 'Ana', email: 'ana@example.com' },
-            { id: '2', name: 'Bruno', email: 'bruno@example.com' },
+            { id: '1', webhookSecret: 'a' },
+            { id: '2', webhookSecret: 'b' },
         ]);
 
-        const single = encryptSensitiveFields('Contact', { id: '3', name: 'Carla', email: 'carla@example.com' });
-        expect(decryptSensitiveResult('Contact', single)).toEqual({ id: '3', name: 'Carla', email: 'carla@example.com' });
+        const single = encryptSensitiveFields('BitrixConnection', { id: '3', webhookSecret: 'c' });
+        expect(decryptSensitiveResult('BitrixConnection', single)).toEqual({ id: '3', webhookSecret: 'c' });
     });
 
-    it('modelos fora do mapa (ex.: Lead, que não tem PII direta própria — apenas via Contact) passam intocados', () => {
-        const data = { id: 'lead-1', title: 'Oportunidade X', status: 'Lead_Recebido' };
-        expect(encryptSensitiveFields('Lead', data)).toEqual(data);
-        expect(decryptSensitiveResult('Lead', data)).toEqual(data);
+    it('modelos fora do mapa (ex.: Contact, Lead) passam intocados', () => {
+        const data = { id: 'contact-1', name: 'Ana Souza', email: 'ana@example.com' };
+        expect(encryptSensitiveFields('Contact', data)).toEqual(data);
+        expect(decryptSensitiveResult('Contact', data)).toEqual(data);
     });
 
-    it('ciphertext de Contact adulterado falha ao decifrar (fail-closed, mesmo comportamento de secretFields)', () => {
-        const encrypted = encryptSensitiveFields('Contact', { email: 'ana@example.com' });
-        const tampered = { email: `${String(encrypted.email).slice(0, -4)}XXXX` };
+    it('ciphertext adulterado falha ao decifrar (fail-closed, mesmo comportamento de secretFields)', () => {
+        const encrypted = encryptSensitiveFields('BitrixConnection', { webhookSecret: 'abc' });
+        const tampered = { webhookSecret: `${String(encrypted.webhookSecret).slice(0, -4)}XXXX` };
 
-        expect(() => decryptSensitiveRecord('Contact', tampered)).toThrow(/Falha ao decifrar/);
+        expect(() => decryptSensitiveRecord('BitrixConnection', tampered)).toThrow(/Falha ao decifrar/);
     });
 });
