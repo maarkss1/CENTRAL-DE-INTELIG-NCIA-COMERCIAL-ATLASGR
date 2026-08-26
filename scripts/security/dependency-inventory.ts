@@ -112,6 +112,15 @@ function readDirectDependencyNames(pkg: {
   ]);
 }
 
+/**
+ * Escapa uma célula de tabela Markdown com segurança: a barra invertida precisa ser escapada
+ * *antes* do pipe, senão uma mensagem que já contém `\` na entrada (ex.: caminho Windows num aviso
+ * do npm) produziria uma sequência de escape ambígua/incorreta no Markdown renderizado.
+ */
+export function escapeMarkdownTableCell(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\|/g, '\\|');
+}
+
 function renderMarkdown(
   prereleaseRows: InventoryRow[],
   deprecatedRows: DeprecatedRow[],
@@ -164,7 +173,7 @@ function renderMarkdown(
     lines.push('| Pacote | Versão | Aviso do npm |');
     lines.push('|---|---|---|');
     for (const row of deprecatedRows) {
-      lines.push(`| \`${row.name}\` | \`${row.version}\` | ${row.message.replace(/\|/g, '\\|')} |`);
+      lines.push(`| \`${row.name}\` | \`${row.version}\` | ${escapeMarkdownTableCell(row.message)} |`);
     }
   }
   lines.push('');
