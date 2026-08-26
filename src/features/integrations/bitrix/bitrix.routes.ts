@@ -24,6 +24,7 @@ import {
     postCommentToBitrix,
     exportLeadToBitrixNow,
     resolveOwnBitrixUserId,
+    listRecentBitrixSyncLogs,
     createExtractionRun,
     listExtractionRuns,
     getExtractionRun,
@@ -461,6 +462,23 @@ router.delete('/sync-rules/:id', managementRoles, async (req: Request, res: Resp
         const { organizationId } = (req as AuthRequest).user;
         await deleteSyncRule(organizationId, req.params.id);
         res.json({ success: true });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Histórico real de sincronização Bitrix24 (webhook de entrada + push/pull automático/manual) —
+// única fonte real por trás da tela "Webhooks & Monitor" (ver WebhookMonitor.tsx e o achado da
+// Onda 1/Roadmap v2 no comentário de topo de service/syncLogs.ts sobre a telemetria fabricada que
+// existia aqui antes). Aberta a qualquer papel autenticado, mesmo padrão de leitura de status das
+// outras integrações (ver `canManage` em Integrations.tsx: qualquer usuário pode VER status, só
+// conectar/desconectar/testar exige Gestor/Admin).
+router.get('/sync-logs', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const { organizationId } = (req as AuthRequest).user;
+        const take = req.query.take ? Number(req.query.take) : undefined;
+        const result = await listRecentBitrixSyncLogs(organizationId, take);
+        res.json({ success: true, data: result });
     } catch (error) {
         next(error);
     }

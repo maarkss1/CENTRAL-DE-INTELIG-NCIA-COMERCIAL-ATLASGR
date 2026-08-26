@@ -5,7 +5,7 @@ import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
-import { bitrixExtractionFailuresTotal } from './metrics.js';
+import { bitrixExtractionFailuresTotal, bitrixExtractionPartialTotal } from './metrics.js';
 import {
     ALL_EXTRACTION_ENTITIES, EXTRACTION_ENTITY_SPECS, isExtractionEntity,
     type BitrixExtractionEntity,
@@ -275,6 +275,12 @@ export async function executeExtractionRun(organizationId: string, runId: string
     }));
     let totalCount = 0;
     let wasCancelled = false;
+    // Entidades que pararam de paginar por causa do teto de segurança (`PAGE_SAFETY_CAP`), não por
+    // terem esgotado o portal — bloqueador #12 de /AGENTS.md ("Extrações Bitrix incompletas
+    // tratadas como recurso final"). Antes desta correção, isso só virava `logger.warn` (achado real
+    // desta auditoria): a linha terminava com `status: 'completed'` idêntico a uma extração que de
+    // fato esgotou o portal, sem nenhum sinal na tela nem métrica agregada.
+    const incompleteEntities: string[] = [];
 
     for (const entity of entities) {
         if (await isCancelled(organizationId, runId)) { wasCancelled = true; break; }
@@ -307,6 +313,8 @@ export async function executeExtractionRun(organizationId: string, runId: string
             await persistProgress(organizationId, runId, progressEntities, totalCount, countByEntity);
 
             if (!pagesExhausted && !cancelled) {
+                incompleteEntities.push(entity);
+                bitrixExtractionPartialTotal.inc({ tenant: organizationId, entity });
                 logger.warn({ organizationId, runId, entity, pagesScanned }, '[bitrix] Extração atingiu o teto de segurança de páginas antes de esgotar o portal — contagem desta entidade é parcial');
             }
             if (cancelled) { wasCancelled = true; break; }
@@ -324,6 +332,17 @@ export async function executeExtractionRun(organizationId: string, runId: string
         return; // cancelExtractionRun já gravou status='cancelled'/cancelledAt — nada a sobrescrever aqui
     }
 
+    // Sem um valor de enum "partial" no schema (BitrixExtractionStatus é propriedade exclusiva do
+    // Agente 01 — ver /AGENTS.md → "Propriedade exclusiva de arquivos"), o sinal de incompletude
+    // vai no `errorMessage` já existente na linha: o front (BitrixExtractionPanel) distingue
+    // "Concluída" de "Concluída (parcial)" por `status === 'completed' && errorMessage != null`, em
+    // vez de tratar silenciosamente como sucesso pleno. Ver handoff
+    // `.agents/handoffs/roadmap-v2-onda-1/06-para-01-status-extracao-parcial.md` para promover isto
+    // a um valor de enum de verdade quando o Agente 01 puder editar o schema.
+    const partialWarning = incompleteEntities.length > 0
+        ? `Extração concluída, mas PARCIAL: ${incompleteEntities.map((e) => EXTRACTION_ENTITY_SPECS[e as BitrixExtractionEntity].label).join(', ')} atingiu o teto de segurança de páginas (${PAGE_SAFETY_CAP}) antes de esgotar o portal — pode haver mais registros no Bitrix24 além dos capturados nesta execução. Rode uma nova extração com um filtro de período mais estreito para cobrir o restante.`
+        : null;
+
     try {
         const files = await generateFiles(organizationId, runId, datasets);
         await prisma.bitrixExtractionRun.update({
@@ -335,9 +354,14 @@ export async function executeExtractionRun(organizationId: string, runId: string
                 countByEntity: countByEntity as unknown as Prisma.InputJsonValue,
                 progress: { entities: progressEntities } as unknown as Prisma.InputJsonValue,
                 files: files as unknown as Prisma.InputJsonValue,
+                errorMessage: partialWarning,
             },
         });
-        logger.info({ organizationId, runId, correlationId, totalCount }, '[bitrix] Extração concluída');
+        if (partialWarning) {
+            logger.warn({ organizationId, runId, correlationId, totalCount, incompleteEntities }, '[bitrix] Extração concluída de forma PARCIAL — registrado em errorMessage para ficar visível na tela');
+        } else {
+            logger.info({ organizationId, runId, correlationId, totalCount }, '[bitrix] Extração concluída');
+        }
     } catch (err) {
         await failRun(organizationId, runId, err instanceof Error ? err.message : String(err), 'run');
     }
