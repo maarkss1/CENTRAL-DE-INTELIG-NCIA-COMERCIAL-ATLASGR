@@ -21,6 +21,21 @@ import { withRlsBypass, withTenant, signUpRealUser, type RealSessionUser } from 
 //
 // Requer Postgres real via `.env.test` (ver tests/helpers/integration-setup.ts).
 
+// auditAccessMiddleware grava o AuditLog num listener de `res.on('finish')` sem aguardar a Promise
+// (fire-and-forget, mesmo padrão de todo outro chamador de AuditService.log no projeto — não
+// bloqueia a resposta HTTP por causa da auditoria). supertest resolve assim que a resposta termina,
+// antes da escrita no Postgres ter necessariamente concluído — poll curto e limitado em vez de uma
+// race condition contra o banco (tests/unit/lib/security/auditLog.middleware.test.ts usa só um
+// `setImmediate` porque lá AuditService é mockado; aqui é uma escrita real).
+async function waitForAuditLog(where: Parameters<typeof prisma.auditLog.findMany>[0]['where']) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const logs = await withRlsBypass(() => prisma.auditLog.findMany({ where }));
+    if (logs.length > 0) return logs;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return withRlsBypass(() => prisma.auditLog.findMany({ where }));
+}
+
 function buildLeadApp(): Express {
   const app = express();
   app.use(express.json());
@@ -73,9 +88,7 @@ describe('GET /api/leads/export/csv — trilha de auditoria (Etapa handoff 15)',
 
     expect(res.status).toBe(200);
 
-    const logs = await withRlsBypass(() =>
-      prisma.auditLog.findMany({ where: { tenantId: adminA.organizationId, entity: 'Lead', action: 'EXPORT' } })
-    );
+    const logs = await waitForAuditLog({ tenantId: adminA.organizationId, entity: 'Lead', action: 'EXPORT' });
     expect(logs.length).toBeGreaterThanOrEqual(1);
     expect(logs[0].actorId).toBe(adminA.userId);
     expect(logs[0].tenantId).toBe(adminA.organizationId);
