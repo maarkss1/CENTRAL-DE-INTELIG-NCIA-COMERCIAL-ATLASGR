@@ -1,0 +1,47 @@
+name: Public Assets Budget
+
+# ITEM-05 (remediacao de divida tecnica): tudo em public/ e copiado verbatim para dist/ pelo
+# `vite build` e servido sem autenticacao por express.static(dist) em producao (server.ts). Este
+# workflow existe para pegar cedo uma reincidencia do que motivou o item — um dataset pesado
+# (~56MB, seed empresarial de CNPJ) foi commitado em public/tools/atlas-market-intelligence/data/
+# sem nunca ser buscado pelo navegador, so pelo backend no deploy. Ver
+# scripts/ci/check-public-budget.mjs e data/market-intelligence/README.md.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public/**'
+      - 'scripts/ci/check-public-budget.mjs'
+      - '.github/workflows/public-assets-budget.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'public/**'
+      - 'scripts/ci/check-public-budget.mjs'
+      - '.github/workflows/public-assets-budget.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-assets-budget-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  budget:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Check public/ size budget
+        run: node scripts/ci/check-public-budget.mjs
