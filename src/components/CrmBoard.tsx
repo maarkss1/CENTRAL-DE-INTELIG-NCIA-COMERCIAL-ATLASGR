@@ -81,8 +81,11 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
     const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
-        api.get<{ id: string; name: string }[]>('/api/users')
-            .then(setUsers)
+        // /api/users nunca existiu como rota (404 silencioso todo carregamento — achado do teste
+        // de console limpo em crm.spec.ts) — o endpoint real de nome/id de usuários da organização
+        // pra reatribuição é /api/team/assignable (ver team.routes.ts).
+        api.get<{ owners: { id: string; name: string }[] }>('/api/team/assignable')
+            .then((res) => setUsers(res.owners))
             .catch(() => setUsers([]));
     }, []);
 
@@ -210,7 +213,11 @@ export function CrmBoard({ funnel: funnelProp, embedded = false }: CrmBoardProps
             setLeads(prev => prev.map(lead => lead.id === leadId ? { ...lead, status: targetStatus } : lead));
 
             try {
-                await api.patch(`/api/leads/${leadId}`, { status: targetStatus });
+                // /api/leads/:id só existe como PUT (lead.routes.ts) — api.patch mandava PATCH,
+                // que o backend nunca registrou (404 silencioso engolido pelo catch abaixo).
+                // Resultado real: mover um card no Kanban nunca persistia, sempre revertia com o
+                // toast "a alteração foi desfeita" (achado do teste E2E de drag-and-drop).
+                await api.put(`/api/leads/${leadId}`, { status: targetStatus });
             } catch (error) {
                 clientLogger.error({ err: error }, 'Error updating lead status');
                 toast.error(`Não foi possível mover ${leadLabel(currentLead)} — a alteração foi desfeita.`);
