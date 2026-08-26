@@ -57,3 +57,7 @@ public/tools/atlas-market-intelligence/*.sqlite
 # ETL localmente — nunca esteve coberto, achado ao validar as correções de MI-004/MI-005.
 __pycache__/
 *.pyc
+
+# Worktrees isoladas criadas pelo harness do Claude Code para agentes em background
+# (isolation: "worktree") — estado de trabalho local, nunca conteúdo do repositório.
+.claude/worktrees/

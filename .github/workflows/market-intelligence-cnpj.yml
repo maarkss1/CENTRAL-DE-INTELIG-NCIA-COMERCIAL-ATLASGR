@@ -63,7 +63,7 @@ jobs:
           SNAPSHOT_DIR="$(dirname "$SNAPSHOT_MANIFEST")"
           python3 scripts/market-intelligence/build_company_seed.py \
             --snapshot-dir "$SNAPSHOT_DIR" \
-            --output-dir public/tools/atlas-market-intelligence/data/company-seed-ribeirao \
+            --output-dir data/market-intelligence/company-seed-ribeirao \
             --municipality-ibge 3543402
 
       - name: Validar seed empresarial sanitizado
@@ -75,7 +75,7 @@ jobs:
           import re
           from pathlib import Path
 
-          root = Path('public/tools/atlas-market-intelligence/data/company-seed-ribeirao')
+          root = Path('data/market-intelligence/company-seed-ribeirao')
           manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
           if manifest.get('dataset') != 'CNPJ_COMPANIES_SEED':
               raise SystemExit('manifest empresarial inesperado')
@@ -218,7 +218,7 @@ jobs:
             public/tools/atlas-market-intelligence/data/icp_municipios.json \
             public/tools/atlas-market-intelligence/data/icp_municipios.metadata.json \
             public/tools/atlas-market-intelligence/data/manifest.json \
-            public/tools/atlas-market-intelligence/data/company-seed-ribeirao/
+            data/market-intelligence/company-seed-ribeirao/
           if git diff --cached --quiet; then
             echo "No derived-data changes to commit."
             exit 0
