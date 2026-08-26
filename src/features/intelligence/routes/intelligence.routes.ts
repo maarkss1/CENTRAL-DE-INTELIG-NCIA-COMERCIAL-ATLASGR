@@ -39,7 +39,7 @@ import { getAiModel, logAiUsage } from '../../../lib/ai/gateway.js';
 import { studioGenerationSchema, assistantRequestSchema, studioService, type StudioGenerationRequest } from '../services/studio.service.js';
 import { SYSTEM_RULES, streamText } from '../services/studio/shared.js';
 import { generateAssistantStream } from '../services/studio/generators/assistant.js';
-import { redactAndTrackPiiLeak } from '../services/guardrails.service.js';
+import { redactAndTrackPiiLeak, assertPiiExternalConsent, PiiConsentRequiredError } from '../services/guardrails.service.js';
 import { listAssistantHistory, appendAssistantTurn } from '../services/assistant-history.service.js';
 import type { AuthRequest } from '../../../shared/middlewares/authenticateToken.js';
 import { requireRole } from '../../../shared/middlewares/requireRole.js';
@@ -544,6 +544,26 @@ function normalizePiiValues(raw: unknown): PiiValue[] {
 router.post('/toolkit/execute', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { functionName, args, piiValues } = req.body as { functionName?: unknown; args?: unknown; piiValues?: unknown };
+
+        // LGPD (AI-007, mesmo gate de base.agent.ts/sdrQualification.agent.ts/ops.agent.ts): os
+        // `args` aqui são texto livre digitado/colado por um operador humano (ex.: "Resumir
+        // Anotações de Reunião", "Rascunho de E-mail") — pode conter nome/telefone/e-mail reais de
+        // um titular, exatamente a mesma classe de risco que motivou o gate em base.agent.ts
+        // ("texto livre da missão... pode conter PII de um titular real"). Faltava aqui: este
+        // endpoint despachava para o gateway de IA externo sem nenhuma checagem de base legal.
+        // `piiValues`/`minimizePii` (features.ts) só troca o valor por um token reversível — ainda é
+        // tratamento de dado pessoal do titular, e continua exigindo a mesma base legal (ver
+        // guardrails.service.ts:hasPiiExternalConsent).
+        const organizationId = (req as AuthRequest).user?.organizationId ?? null;
+        try {
+            assertPiiExternalConsent(organizationId);
+        } catch (error) {
+            if (error instanceof PiiConsentRequiredError) {
+                res.status(403).json({ success: false, error: error.message });
+                return;
+            }
+            throw error;
+        }
 
         if (typeof functionName !== 'string' || !aiToolkitFunctions[functionName]) {
             res.status(400).json({ error: 'Function not found in AI Toolkit' });

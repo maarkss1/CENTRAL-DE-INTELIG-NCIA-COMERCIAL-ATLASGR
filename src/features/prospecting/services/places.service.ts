@@ -95,15 +95,29 @@ export interface PlaceSearchResult {
     error?: string;
 }
 
-export async function searchGooglePlace(
+export interface PlaceSearchOutcome {
+    place: PlaceSearchResult | null;
+    /** Preenchido só quando a chamada de fato falhou (HTTP não-ok após retry, timeout, rede) —
+     * distingue "provider respondeu que não existe esse lugar" de "provider quebrou/não respondeu",
+     * que `searchGooglePlace` (mantido por compatibilidade com os chamadores existentes) não
+     * consegue expressar porque devolve `null` nos dois casos. */
+    error?: string;
+}
+
+/**
+ * Mesma busca de `searchGooglePlace`, mas nunca faz o chamador confundir "não achamos esse lugar"
+ * com "a Google Places quebrou" — usado por `enrichmentCascade.service.ts`, que precisa registrar
+ * essa diferença no `EnrichmentLog` em vez de tratar as duas como sucesso silencioso.
+ */
+export async function searchGooglePlaceDetailed(
     companyName: string,
     locationStr: string
-): Promise<PlaceSearchResult | null> {
+): Promise<PlaceSearchOutcome> {
     const apiKey = getPaidProspectingKey('GOOGLE_MAPS_API_KEY');
-    if (!apiKey) return null;
+    if (!apiKey) return { place: null };
 
     const query = `${companyName} ${locationStr}`.trim();
-    if (!query) return null;
+    if (!query) return { place: null };
 
     try {
         const res = await fetchWithProviderRetry('https://places.googleapis.com/v1/places:searchText', {
@@ -120,32 +134,49 @@ export async function searchGooglePlace(
         }, { timeoutMs: 12_000, providerName: 'GooglePlaces-Search', billable: true });
 
         if (!res.ok) {
-            logger.error({ status: res.status, body: await res.text() }, 'Google Places API error');
-            return null;
+            const text = await res.text().catch(() => '');
+            logger.error({ status: res.status, body: text }, 'Google Places API error');
+            return { place: null, error: `Google Places respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
 
         const data = await res.json();
         const places = data.places || [];
-        
+
         if (places.length === 0) {
-            return null;
+            return { place: null };
         }
 
         // Retorna o primeiro resultado (maior relevância)
         const p = places[0];
-        
+
         return {
-            id: p.id,
-            displayName: p.displayName?.text || companyName,
-            formattedAddress: p.formattedAddress,
-            rating: p.rating,
-            userRatingCount: p.userRatingCount,
-            nationalPhoneNumber: p.nationalPhoneNumber,
-            websiteUri: p.websiteUri,
-            businessHours: p.regularOpeningHours
+            place: {
+                id: p.id,
+                displayName: p.displayName?.text || companyName,
+                formattedAddress: p.formattedAddress,
+                rating: p.rating,
+                userRatingCount: p.userRatingCount,
+                nationalPhoneNumber: p.nationalPhoneNumber,
+                websiteUri: p.websiteUri,
+                businessHours: p.regularOpeningHours
+            },
         };
     } catch (error) {
         logger.error({ err: error, companyName, locationStr }, 'Error fetching Google Place');
-        return null;
+        return {
+            place: null,
+            error: error instanceof Error ? error.message : 'Falha ao consultar Google Places',
+        };
     }
+}
+
+/** Mantido para os chamadores existentes (`enrichment.service.ts`) que só precisam do resultado
+ * (não distinguem "não achou" de "provider falhou") — ver `searchGooglePlaceDetailed` acima para
+ * quem precisa dessa distinção. */
+export async function searchGooglePlace(
+    companyName: string,
+    locationStr: string
+): Promise<PlaceSearchResult | null> {
+    const { place } = await searchGooglePlaceDetailed(companyName, locationStr);
+    return place;
 }
