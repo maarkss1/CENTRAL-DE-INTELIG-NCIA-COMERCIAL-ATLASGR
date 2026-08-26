@@ -1,8 +1,9 @@
 import type { MetricDefinition } from '../domain/CommercialIntelligence';
 import { STAGE_AGING_CRITICAL_DAYS } from './pipelineEligibility';
-import { FORECAST_RULES } from './forecastEngine';
+import { FORECAST_RULES, FORECAST_RULES_VERSION } from './forecastEngine';
 import { COVERAGE_PROTECTION_FALLBACK_HEALTHY, COVERAGE_PROTECTION_FALLBACK_WARNING } from './coverageProtection';
 import { DATA_READINESS_OPEN_FIELD_WEIGHTS, DATA_READINESS_LOSS_FIELD_WEIGHT } from './dataReadiness';
+import { HEALTH_SCORE_RULES } from './healthScore';
 
 /**
  * Dicionário de métricas (seção 39 do prompt de produto) — fonte única de nome/fórmula/fonte/
@@ -300,5 +301,35 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         period: 'Mês anterior ao filtro selecionado',
         inclusionRules: 'Só populado quando o mês anterior tem ao menos um negócio fechado (ganho ou perdido) no escopo do filtro.',
         exclusionRules: 'Sem amostra suficiente no mês anterior, retorna "Não disponível" — nunca compara contra um período vazio.',
+    },
+    {
+        key: 'forecast_snapshot',
+        name: 'Snapshot do Forecast (backtest)',
+        description: 'Registro append-only do que o Forecast previa para um período em um instante específico — base para medir o erro real do motor depois que o período fecha.',
+        formula: `Copia Commit/Best Case/Forecast de ExecutiveOverview no momento do snapshot, junto da versão das regras do motor (rulesVersion = "${FORECAST_RULES_VERSION}").`,
+        source: 'application/forecastSnapshot.ts (persistência real pendente de handoff de schema para o Agente 01 — hoje só há um repositório em memória para teste, application/infra/InMemoryForecastSnapshotStore.ts)',
+        period: 'Instantâneo, um registro por (organização, período previsto, momento do snapshot)',
+        inclusionRules: 'Nunca sobrescrito — cada snapshot é um registro novo, mesmo para o mesmo período (permite comparar como a previsão evoluiu até o fechamento).',
+        exclusionRules: '—',
+    },
+    {
+        key: 'forecast_erro_historico',
+        name: 'Erro Histórico do Forecast',
+        description: 'Compara o Forecast previsto por um snapshot antigo com o valor realmente fechado, depois que o período de referência já encerrou — "o motor costuma acertar quanto?".',
+        formula: 'Erro = Forecast previsto (snapshot) − Fechado realizado. Erro % = |Erro| / Fechado realizado × 100. Erro Percentual Absoluto Médio = média do Erro % entre os períodos já fechados com snapshot disponível.',
+        source: 'application/forecastAccuracy.ts',
+        period: 'Só períodos (meses) já encerrados',
+        inclusionRules: 'Precisa das 3 condições: período já fechado, snapshot existente daquele período, e valor realizado conhecido.',
+        exclusionRules: 'Faltando qualquer uma das 3 condições, retorna explicitamente "sem histórico suficiente" — nunca um erro fabricado. Logo após esta implementação, é o resultado esperado até existir snapshot antigo o bastante para ter fechado.',
+    },
+    {
+        key: 'health_score',
+        name: 'Health Score composto',
+        description: 'Agrega, em 6 pilares nomeados (Pipeline, Conversão, Produtividade, Qualidade do CRM, Follow-up, Confiabilidade de Forecast), métricas que já existem em outros relatórios — nunca um cálculo paralelo/duplicado.',
+        formula: `Pipeline = Coverage do mês / Coverage recomendado (ou ${COVERAGE_PROTECTION_FALLBACK_HEALTHY}x sem Win Rate ainda). Conversão = Win Rate do período. Produtividade = média da razão (semana atual / média móvel 4 semanas) dos Leading Indicators. Qualidade do CRM = Confiabilidade dos Dados (dataReadiness.overallScore). Follow-up = % do pipeline aberto fora do aging crítico (${STAGE_AGING_CRITICAL_DAYS} dias). Confiabilidade de Forecast = 100 − Erro Percentual Absoluto Médio (forecast_erro_historico). Score geral = média simples dos pilares com dado disponível.`,
+        source: 'application/healthScore.ts',
+        period: 'Mesmo período do filtro do Cockpit (mensal)',
+        inclusionRules: `Limiares por pilar documentados em HEALTH_SCORE_RULES (ex.: Conversão saudável ≥${HEALTH_SCORE_RULES.WIN_RATE_HEALTHY_PCT}%, atenção ≥${HEALTH_SCORE_RULES.WIN_RATE_WARNING_PCT}%).`,
+        exclusionRules: 'Pilar sem dado suficiente retorna "Não disponível" individualmente (nunca um score fabricado) e fica fora da média do Score geral — o Score geral só fica "Não disponível" se NENHUM pilar tiver dado.',
     },
 ];
