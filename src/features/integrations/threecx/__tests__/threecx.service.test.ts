@@ -8,11 +8,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const prismaMock = {
     threeCXConnection: {
         findMany: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
         deleteMany: vi.fn(),
     },
+    threeCXCallEvent: {
+        findFirst: vi.fn(),
+        create: vi.fn(),
+    },
+    organization: {
+        findMany: vi.fn(),
+    },
+    lead: {
+        findFirst: vi.fn(),
+    },
     activity: {
         create: vi.fn(),
+        findFirst: vi.fn(),
     },
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
@@ -26,6 +38,12 @@ const isSuppressedMock = vi.fn().mockResolvedValue(false);
 vi.mock('@/features/integrations/birth-voice/callSuppression.service', () => ({
     isSuppressed: (...args: unknown[]) => isSuppressedMock(...args),
 }));
+
+// Logger real (pino + pino-pretty transport) grava em stdout via worker thread — trocado por um
+// double simples para os testes de idempotência/tenant poderem espiar o que foi logado, e para o
+// teste de "nunca loga o telefone completo" conseguir inspecionar os argumentos reais.
+const loggerMock = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+vi.mock('@/lib/logger', () => ({ logger: loggerMock }));
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -261,5 +279,177 @@ describe('make3CXCall', () => {
         );
 
         vi.unstubAllGlobals();
+    });
+});
+
+describe('process3CXWebhook', () => {
+    const CONN_ORG_A = {
+        id: 'conn-1',
+        organizationId: 'org-a',
+        label: '3CX Ramal 101',
+        pbxUrl: 'https://pbx.example.com',
+        extension: '101',
+        apiKey: null,
+        apiSecret: null,
+        autoDialEnabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+
+    const CONN_ORG_B = { ...CONN_ORG_A, id: 'conn-2', organizationId: 'org-b' };
+
+    const FULL_PAYLOAD = {
+        event: 'call.ended',
+        extension: '101',
+        callId: 'call-1',
+        disposition: 'answered',
+        duration: 42,
+        to: '5511999998888',
+    };
+
+    it('resolve a organização certa a partir do ramal e grava a Activity real no lead correspondente', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toMatchObject({ status: 'processed', organizationId: 'org-a', leadId: 'lead-1' });
+
+        // O rastro de auditoria (ThreeCXCallEvent) é gravado escopado à organização resolvida.
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    organizationId: 'org-a',
+                    connectionId: 'conn-1',
+                    callId: 'call-1',
+                    eventType: 'call.ended',
+                }),
+            }),
+        );
+
+        // A Activity reflete o resultado real (disposition/duração/estado), nunca inventado.
+        expect(prismaMock.activity.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    organizationId: 'org-a',
+                    leadId: 'lead-1',
+                    type: 'Ligacao',
+                    status: 'Concluida', // 'answered' + 42s -> classifyCallOutcome = 'completed'
+                    observations: expect.stringContaining('[call:call-1]'),
+                }),
+            }),
+        );
+        expect(prismaMock.activity.create.mock.calls[0][0].data.observations).toContain('answered');
+    });
+
+    it('reentrega do mesmo call_id não duplica a nota (idempotência por ThreeCXCallEvent)', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+
+        // Primeira entrega: nenhum evento gravado ainda.
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValueOnce(null);
+        const first = await process3CXWebhook(FULL_PAYLOAD);
+        expect(first.status).toBe('processed');
+        expect(first.duplicate).toBeFalsy();
+
+        // Segunda entrega (reentrega do PABX): o evento já existe.
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValueOnce({ id: 'evt-1' });
+        const second = await process3CXWebhook(FULL_PAYLOAD);
+        expect(second).toMatchObject({ status: 'processed', duplicate: true, organizationId: 'org-a' });
+
+        // Nem o rastro de auditoria nem a Activity são duplicados na reentrega.
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledTimes(1);
+        expect(prismaMock.activity.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('nunca adivinha o tenant quando o ramal é ambíguo entre duas organizações — descarta', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }, { id: 'org-b' }]);
+        prismaMock.threeCXConnection.findFirst
+            .mockResolvedValueOnce(CONN_ORG_A)
+            .mockResolvedValueOnce(CONN_ORG_B);
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toEqual({ status: 'discarded', reason: 'ramal-ambiguo' });
+        expect(prismaMock.threeCXCallEvent.create).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+    });
+
+    it('descarta (não persiste nada) quando nenhuma organização tem esse ramal cadastrado', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(null);
+
+        const result = await process3CXWebhook(FULL_PAYLOAD);
+
+        expect(result).toEqual({ status: 'discarded', reason: 'ramal-desconhecido' });
+        expect(prismaMock.threeCXCallEvent.create).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+    });
+
+    it('payload mínimo sem número reconhecível grava o rastro de auditoria mas não inventa um lead', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        // Mesmo shape mínimo já coberto por tests/unit/features/integrations/threecx/threecx.routes.test.ts.
+        const minimalPayload = { event: 'call.ended', extension: '101', callId: 'call-abc' };
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+
+        const result = await process3CXWebhook(minimalPayload);
+
+        expect(result).toMatchObject({ status: 'processed', organizationId: 'org-a', leadId: null });
+        expect(prismaMock.lead.findFirst).not.toHaveBeenCalled();
+        expect(prismaMock.activity.create).not.toHaveBeenCalled();
+        expect(prismaMock.threeCXCallEvent.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('nunca loga o número de telefone completo — só ids (callId/organizationId/leadId/connectionId)', async () => {
+        const { process3CXWebhook } = await import('../threecx.service.js');
+
+        prismaMock.organization.findMany.mockResolvedValue([{ id: 'org-a' }]);
+        prismaMock.threeCXConnection.findFirst.mockResolvedValue(CONN_ORG_A);
+        prismaMock.threeCXCallEvent.findFirst.mockResolvedValue(null);
+        prismaMock.threeCXCallEvent.create.mockResolvedValue({});
+        prismaMock.lead.findFirst.mockResolvedValue({
+            id: 'lead-1',
+            contact: { phone: '5511999998888', whatsapp: null },
+        });
+        prismaMock.activity.findFirst.mockResolvedValue(null);
+        prismaMock.activity.create.mockResolvedValue({});
+
+        await process3CXWebhook(FULL_PAYLOAD);
+
+        const phoneDigits = '5511999998888';
+        const allLogCalls = [...loggerMock.info.mock.calls, ...loggerMock.warn.mock.calls, ...loggerMock.error.mock.calls];
+        expect(allLogCalls.length).toBeGreaterThan(0);
+        for (const call of allLogCalls) {
+            const serialized = JSON.stringify(call);
+            expect(serialized).not.toContain(phoneDigits);
+            expect(serialized).not.toContain('999998888'); // sufixo também não pode vazar
+        }
     });
 });
