@@ -61,13 +61,25 @@ Decisão implementada pelo Agente 08 (Onda 6, remediação) a partir da proposta
 `.agents/handoffs/onda-6/15-para-08-zap-trivy-gate.md`:
 
 - **`npm run security:trivy`** (scan de filesystem/dependências, não precisa da aplicação
-  rodando) — agora roda **automaticamente toda semana** via
-  `.github/workflows/security-trivy.yml` (`workflow_dispatch` também disponível para rodar sob
-  demanda), num runner hospedado do GitHub Actions com rede irrestrita — o erro de TLS ao baixar
-  `mirror.gcr.io/aquasec/trivy-db` visto em ambientes de agente com proxy restritivo não se aplica
-  lá. **Não bloqueia PR** — é um job agendado independente de `ci.yml`, reporta no Job Summary da
-  execução. Rodar localmente continua funcionando do mesmo jeito para depuração pontual, mas
-  requer rede sem proxy TLS restritivo para o primeiro download do banco de vulnerabilidades.
+  rodando) — roda **automaticamente toda semana** via `.github/workflows/security-trivy.yml`
+  (`workflow_dispatch` também disponível para rodar sob demanda), num runner hospedado do GitHub
+  Actions com rede irrestrita — o erro de TLS ao baixar `mirror.gcr.io/aquasec/trivy-db` visto em
+  ambientes de agente com proxy restritivo não se aplica lá. Esse job agendado continua **não
+  bloqueando PR** (reporta no Job Summary da execução). Rodar localmente continua funcionando do
+  mesmo jeito para depuração pontual, mas requer rede sem proxy TLS restritivo para o primeiro
+  download do banco de vulnerabilidades.
+  **Atualizado no ITEM-10 (Onda 2, 2026-08-25):** o mesmo workflow ganhou um segundo job,
+  `trivy-fs-pr-gate`, que roda em todo PR (via `aquasecurity/trivy-action`, não via
+  docker-compose) e **falha o check** em achado `HIGH`/`CRITICAL` sem waiver ativo em
+  `.trivyignore.yaml` (o mesmo vale para CodeQL e Dependency Review, ver
+  `.github/workflows/codeql.yml` e `.github/workflows/dependency-review.yml`). Bloquear
+  efetivamente o botão de merge exige marcar esses três checks como obrigatórios na proteção da
+  branch `main` — mesma configuração manual, fora deste repositório, já usada hoje para o
+  contexto `build` de `ci.yml` (ver comentário no topo desse arquivo). `production.yaml` e
+  `cd-homolog.yml` (jobs `publish`/`build-and-push`) também passaram a escanear a imagem Docker
+  com Trivy antes do `docker push`, esses sim bloqueantes de verdade porque interrompem o próprio
+  job de release. Ver `docs/security/AUDIT_WAIVERS.md` (topo do arquivo) para a política de waiver
+  compartilhada entre `npm audit`, Trivy e Dependency Review.
 - **`npm run security:zap`** (scan dinâmico de API, exige a aplicação já no ar) — **não** entra em
   CI automático (não existe alvo efêmero vivo em nenhum job de push/PR deste projeto) — continua
   manual, mas agora como passo obrigatório do runbook de pré-release, rodado contra staging:
