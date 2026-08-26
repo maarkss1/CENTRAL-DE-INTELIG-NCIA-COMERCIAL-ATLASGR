@@ -230,9 +230,9 @@ async function saveDecisionMakersAsContacts(
     organizationId: string | null,
     candidates: DecisionMakerLike[],
     sourceLabel: 'Apollo' | 'Hunter'
-): Promise<void> {
+): Promise<number> {
     const validCandidates = candidates.filter((c) => c.name && c.name !== 'Sem Nome');
-    if (validCandidates.length === 0) return;
+    if (validCandidates.length === 0) return 0;
 
     const existingContacts = await prisma.contact.findMany({
         where: { companyId },
@@ -247,7 +247,7 @@ async function saveDecisionMakersAsContacts(
             'saveDecisionMakersAsContacts: contato(s) já existente(s) ignorado(s) (dedupe por e-mail/telefone normalizado)'
         );
     }
-    if (newContacts.length === 0) return;
+    if (newContacts.length === 0) return 0;
 
     const contactsData = await Promise.all(newContacts.map(async (c) => ({
         name: c.name,
@@ -262,6 +262,7 @@ async function saveDecisionMakersAsContacts(
         organizationId,
     })));
     await prisma.contact.createMany({ data: contactsData });
+    return contactsData.length;
 }
 
 async function runEnrichment(
@@ -291,6 +292,10 @@ async function runEnrichment(
                 source: 'BrasilAPI-CNPJ',
                 field: 'dados-cadastrais',
                 status: lookup.found ? 'success' : lookup.error === 'not_found' ? 'not_found' : 'failed',
+                // Dado direto da Receita Federal (fonte oficial) — "confirmado", nunca uma estimativa
+                // nossa. Ver handoff onda-7/05-para-01-enrichmentlog-provenance-fields.md.
+                dataOrigin: lookup.found ? 'confirmado' : null,
+                appliedToCompany: lookup.found && !!lookup.data,
                 rawData: lookup.raw ? JSON.parse(JSON.stringify(lookup.raw)) : undefined,
             },
         });
@@ -330,17 +335,29 @@ async function runEnrichment(
         ? { domain: knownDomain, verified: true, emails: [`contato@${knownDomain}`, `comercial@${knownDomain}`, `atendimento@${knownDomain}`] }
         : await guessDomainAndEmails(company.tradeName || company.legalName);
 
+    // Calculado antes do log para o campo `appliedToCompany` refletir com precisão se o domínio
+    // encontrado virou de fato `Company.website` nesta execução (ver bug documentado no handoff
+    // onda-7/05-para-01-enrichmentlog-provenance-fields.md: um domínio podia aparecer como
+    // "success" no log mesmo quando a empresa já tinha site e o valor nunca era escrito).
+    const websiteWillBeApplied = !!(domainGuess.domain && !company.website);
+
     await prisma.enrichmentLog.create({
         data: {
             companyId,
             source: knownDomain ? 'Website-Conhecido' : 'Domain-Heuristic',
             field: 'website-e-emails',
             status: domainGuess.domain ? (domainGuess.verified ? 'success' : 'not_found') : 'failed',
+            // "confirmado" só quando o domínio já era conhecido (website já cadastrado na Company,
+            // não uma adivinhação); "inferido" quando veio da heurística de nome + verificação HTTP
+            // (a verificação HTTP confirma que o domínio responde, não que é o domínio certo da
+            // empresa — continua sendo uma hipótese, não um dado confirmado).
+            dataOrigin: domainGuess.domain ? (knownDomain ? 'confirmado' : 'inferido') : null,
+            appliedToCompany: websiteWillBeApplied,
             rawData: JSON.parse(JSON.stringify(domainGuess)),
         },
     });
 
-    if (domainGuess.domain && !company.website) {
+    if (websiteWillBeApplied) {
         updateData.website = domainGuess.verified
             ? `https://${domainGuess.domain}`
             : `https://${domainGuess.domain} (não verificado)`;
@@ -393,6 +410,10 @@ async function runEnrichment(
                 source: placeSource,
                 field: 'reputacao-local',
                 status: 'success',
+                // Dado devolvido nominalmente pelo provider (Google Places/OpenStreetMap) para este
+                // lugar específico — "confirmado", não uma estimativa nossa.
+                dataOrigin: 'confirmado',
+                appliedToCompany: true,
                 rawData: JSON.parse(JSON.stringify(place)),
             }
         });
@@ -409,6 +430,10 @@ async function runEnrichment(
             source: 'GDELT-News',
             field: 'noticias',
             status: newsMentions.length > 0 ? 'success' : 'not_found',
+            // Sinal best-effort com risco documentado de falso positivo (nome parecido) — "inferido",
+            // nunca apresentado como confirmação de que a notícia é sobre esta empresa.
+            dataOrigin: newsMentions.length > 0 ? 'inferido' : null,
+            appliedToCompany: newsMentions.length > 0,
             rawData: newsMentions.length > 0 ? JSON.parse(JSON.stringify(newsMentions)) : undefined,
         },
     });
@@ -426,6 +451,13 @@ async function runEnrichment(
                 source: 'Apollo-Organization',
                 field: 'firmographics',
                 status: orgEnrich.organization ? 'success' : orgEnrich.error ? 'failed' : 'not_found',
+                // Registro devolvido nominalmente pela Apollo para este domínio (tecnologias,
+                // keywords, redes sociais) — "confirmado". Exceção conhecida e documentada abaixo:
+                // `estimated_num_employees` é uma estimativa da própria Apollo, não rastreada nesta
+                // granularidade de log (ver handoff onda-7/05-para-01-enrichmentlog-provenance-fields.md,
+                // item 1 — mistura reconhecida, não resolvida por uma segunda coluna neste ciclo).
+                dataOrigin: orgEnrich.organization ? 'confirmado' : null,
+                appliedToCompany: !!orgEnrich.organization,
                 rawData: orgEnrich.organization ? JSON.parse(JSON.stringify(orgEnrich.organization)) : undefined,
             },
         });
@@ -465,17 +497,23 @@ async function runEnrichment(
         contactsSource = options.preFetchedDecisionMakers.some((dm) => dm.emailSource === 'hunter') ? 'hunter' : 'apollo';
         enrichmentSourceLabel += ' + Decisores pré-buscados na descoberta';
 
+        // Persiste antes de logar: `appliedToCompany` precisa refletir se algum decisor virou
+        // Contact de fato (o dedupe por e-mail/telefone dentro de `saveDecisionMakersAsContacts`
+        // pode descartar todos quando já existem — "success" no log não deve dizer "apliquei" nesse caso).
+        const createdCount = await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, 'Apollo');
+
         await prisma.enrichmentLog.create({
             data: {
                 companyId,
                 source: 'Discovery-PreFetched',
                 field: 'contatos-decisores',
                 status: 'success',
+                // Decisores retornados nominalmente pela Apollo/Hunter na tela de Descoberta — "confirmado".
+                dataOrigin: 'confirmado',
+                appliedToCompany: createdCount > 0,
                 rawData: JSON.parse(JSON.stringify(apolloContacts)),
             }
         });
-
-        await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, 'Apollo');
     } else if (domainGuess.verified && domainGuess.domain) {
         const apolloRes = await enrichOrganizationWithContacts(domainGuess.domain);
         if (apolloRes.contacts.length > 0) {
@@ -484,18 +522,21 @@ async function runEnrichment(
             const sourceLabel = contactsSource === 'hunter' ? 'Hunter.io (Domain Search)' : 'Apollo (People Search)';
             enrichmentSourceLabel += ` + ${sourceLabel}`;
 
+            // Mesmo motivo do bloco Discovery-PreFetched acima: persiste antes de logar para que
+            // `appliedToCompany` reflita o resultado real do dedupe, não só "a Apollo/Hunter respondeu".
+            const createdCount = await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, contactsSource === 'hunter' ? 'Hunter' : 'Apollo');
+
             await prisma.enrichmentLog.create({
                 data: {
                     companyId,
                     source: contactsSource === 'hunter' ? 'Hunter-DomainSearch' : 'Apollo-People',
                     field: 'contatos-decisores',
                     status: 'success',
+                    dataOrigin: 'confirmado',
+                    appliedToCompany: createdCount > 0,
                     rawData: JSON.parse(JSON.stringify(apolloContacts)),
                 }
             });
-
-            // Save contacts to CRM
-            await saveDecisionMakersAsContacts(companyId, company.organizationId, apolloContacts, contactsSource === 'hunter' ? 'Hunter' : 'Apollo');
         }
     }
 
@@ -524,6 +565,10 @@ async function runEnrichment(
             source: 'Lookalike-PgVector',
             field: 'similaridade-com-ganhos',
             status: lookalike ? 'success' : 'not_found',
+            // Scoring/estimativa (distância de cosseno entre embeddings) — "inferido", nunca um dado
+            // que a empresa ou um provider confirmou diretamente.
+            dataOrigin: lookalike ? 'inferido' : null,
+            appliedToCompany: !!lookalike,
             rawData: lookalike ? JSON.parse(JSON.stringify(lookalike)) : undefined,
         },
     });

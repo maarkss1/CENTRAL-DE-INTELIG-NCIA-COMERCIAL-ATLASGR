@@ -5,6 +5,10 @@ import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js
 export interface HunterEmailResult {
     email: string | null;
     score?: number;
+    /** Preenchido só quando a chamada de fato falhou (HTTP não-ok, rede, timeout) — sem isso,
+     * "Hunter não tem esse e-mail" e "Hunter quebrou" chegavam ao chamador como o mesmo
+     * `{ email: null }`, e um provider fora do ar virava silenciosamente "sem resultado". */
+    error?: string;
 }
 
 export interface HunterPersonContact {
@@ -52,12 +56,16 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
             api_key: apiKey,
         });
         const res = await fetchWithProviderRetry(`https://api.hunter.io/v2/email-finder?${params.toString()}`, {}, { timeoutMs: 12_000, providerName: 'Hunter-EmailFinder', billable: true });
-        if (!res.ok) return { email: null };
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            logger.error({ status: res.status, domain }, 'Hunter.io Email Finder respondeu erro');
+            return { email: null, error: `Hunter Email Finder respondeu ${res.status}: ${text.slice(0, 150)}` };
+        }
         const data = await res.json() as HunterEmailFinderResponse;
         return { email: data?.data?.email || null, score: data?.data?.score };
     } catch (error) {
         logger.error({ err: error, domain }, 'Error querying Hunter.io');
-        return { email: null };
+        return { email: null, error: error instanceof Error ? error.message : 'Falha ao consultar Hunter.io Email Finder' };
     }
 }
 
