@@ -27,8 +27,8 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 text-red-500 bg-black min-h-screen z-50 fixed inset-0">
-          <h1 className="text-2xl font-bold">Ops, ocorreu um erro inesperado.</h1>
+        <div className="p-8 bg-black min-h-screen z-50 fixed inset-0">
+          <h1 className="text-2xl font-bold text-red-400">Ops, ocorreu um erro inesperado.</h1>
           <pre className="mt-4 text-xs whitespace-pre-wrap text-white">
             {this.state.error?.message}
           </pre>
