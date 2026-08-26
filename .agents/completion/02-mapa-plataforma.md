@@ -4,9 +4,11 @@
 - Método: leitura direta do código (`src/`, `server.ts`, `prisma/schema.prisma`, `.agents/`, `docs/`),
   não reaproveitamento de auditoria anterior. Onde um documento anterior já cobre o assunto, a
   referência está citada em vez de reescrita.
-- Escopo: inventário estrutural. Não é auditoria de qualidade — para isso ver
-  `.agents/completion/00-inventario.md`, `01-bloqueadores.md`, `PLATFORM_COMPLETION_REPORT.md`,
-  `BITRIX24-LEAD-FLOW-AUDIT.md` e `DESIGN_QA_CENTRAL_ATLASGR.md`.
+- Escopo: inventário estrutural. Não é auditoria de qualidade — para isso ver `01-bloqueadores.md`.
+  `00-inventario.md`, `PLATFORM_COMPLETION_REPORT.md`, `BITRIX24-LEAD-FLOW-AUDIT.md` e
+  `DESIGN_QA_CENTRAL_ATLASGR.md` foram removidos do controle de versão em 22/08/2026 (pedido
+  explícito do usuário) — ver `docs/REMOVED-DOCS.md` para o que, se algo, assumiu o papel de cada
+  um (correção registrada em 25/08/2026, ITEM-14).
 
 ---
 

@@ -43,14 +43,17 @@ beforeAll(async () => withRlsBypass(async () => {
     });
 }));
 
-afterEach(async () => withRlsBypass(async () => {
-    await prisma.threeCXConnection.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-}));
+// ThreeCXConnection não está no allowlist de bypass (ITEM-02) — limpa por tenant.
+afterEach(async () => {
+    await asOrg(ORG_A, () => prisma.threeCXConnection.deleteMany({ where: { organizationId: ORG_A } }));
+    await asOrg(ORG_B, () => prisma.threeCXConnection.deleteMany({ where: { organizationId: ORG_B } }));
+});
 
-afterAll(async () => withRlsBypass(async () => {
-    await prisma.threeCXConnection.deleteMany({ where: { organizationId: { in: [ORG_A, ORG_B] } } });
-    await prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } });
-}));
+afterAll(async () => {
+    await asOrg(ORG_A, () => prisma.threeCXConnection.deleteMany({ where: { organizationId: ORG_A } }));
+    await asOrg(ORG_B, () => prisma.threeCXConnection.deleteMany({ where: { organizationId: ORG_B } }));
+    await withRlsBypass(() => prisma.organization.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } }));
+});
 
 describe('Persistência de ThreeCXConnection contra Postgres real', () => {
     it('sobrevive a uma leitura nova (não é mais um Map em memória perdido a cada instância)', async () => {
@@ -88,13 +91,16 @@ describe('Persistência de ThreeCXConnection contra Postgres real', () => {
         // $queryRaw ignora a extensão de decrypt do client Prisma — é a única forma de ver o que
         // está fisicamente gravado na coluna. IMPORTANTE: `$queryRaw`/`$executeRaw` não passam pela
         // extensão `$allOperations` (só intercepta operações de model, ver comentário em
-        // `withRlsContext`, src/lib/prisma.ts), então `requestContext.run({bypassRls:true}, () =>
-        // prisma.$queryRaw(...))` sozinho NUNCA aplica o contexto de tenant/bypass à query crua —
-        // ela roda sem app.bypass_rls/app.current_tenant_id setados e FORCE ROW LEVEL SECURITY
-        // bloqueia por padrão (retornaria sempre vazio, não porque a linha não existe, mas porque a
-        // policy nega acesso). `withRlsContext` é o helper correto para SQL cru: abre a transação
-        // interativa e faz o `SET LOCAL` explicitamente antes de rodar a query passada.
-        const raw = await withRlsBypass(() =>
+        // `withRlsContext`, src/lib/prisma.ts), então `requestContext.run({tenantId}, () =>
+        // prisma.$queryRaw(...))` sozinho NUNCA aplica o contexto de tenant à query crua — ela roda
+        // sem app.current_tenant_id setado e FORCE ROW LEVEL SECURITY bloqueia por padrão
+        // (retornaria sempre vazio, não porque a linha não existe, mas porque a policy nega
+        // acesso). `withRlsContext` é o helper correto para SQL cru: abre a transação interativa e
+        // faz o `SET LOCAL` explicitamente antes de rodar a query passada. ThreeCXConnection não
+        // está no allowlist de bypass (BYPASS_RLS_ALLOWED_MODELS, src/lib/prisma.ts) — ITEM-02
+        // fechou a RLS dessa tabela pra bypass — por isso roda no contexto do próprio tenant A, não
+        // sob bypass.
+        const raw = await asOrg(ORG_A, () =>
             withRlsContext((tx) =>
                 tx.$queryRaw<Array<{ apiKey: string | null; apiSecret: string | null }>>`
                     SELECT "apiKey", "apiSecret" FROM "ThreeCXConnection" WHERE id = ${created.id}
@@ -109,7 +115,7 @@ describe('Persistência de ThreeCXConnection contra Postgres real', () => {
         // Mas a leitura via Prisma (que passa pela extensão de decrypt) devolve o valor original —
         // list3CXConnections nunca expõe isso na UI, então lê a tabela completa para provar o
         // round-trip de criptografia em si, não o contrato da API pública.
-        const decrypted = await withRlsBypass(() => get3CXConnectionsForOrg(ORG_A));
+        const decrypted = await asOrg(ORG_A, () => get3CXConnectionsForOrg(ORG_A));
         const match = decrypted.find((c) => c.id === created.id);
         expect(match?.apiKey).toBe('chave-em-texto-puro');
         expect(match?.apiSecret).toBe('segredo-em-texto-puro');

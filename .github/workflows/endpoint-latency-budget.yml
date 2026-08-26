@@ -1,0 +1,154 @@
+name: Endpoint Latency Budget
+
+# ITEM-15 (remediacao de divida tecnica): materializa os SLOs de latencia ja documentados em
+# docs/SRE.md (secao 1) como um gate mensuravel, em vez de ficarem so em prosa. Sobe a aplicacao
+# real (Postgres + Redis + Express, o mesmo processo que tests/e2e usa via `npm run start:e2e`) e
+# roda tests/load/k6-api.js contra /health/live e /health/ready, com threshold de p95 por rota.
+#
+# Nao e um required check do repositorio (nao bloqueia merge por branch protection) — roda em PR
+# que mexe no bootstrap do servidor/infra de health check, e tambem por schedule/dispatch para
+# publicar a tendencia de latencia mesmo sem PR. Ver docs/development/PERFORMANCE_BUDGETS.md.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'server.ts'
+      - 'src/bootstrap/**'
+      - 'tests/load/**'
+      - '.github/workflows/endpoint-latency-budget.yml'
+  schedule:
+    # 06:00 UTC, todo dia — publica a tendencia de latencia independente de PR.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: endpoint-latency-budget-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  K6_VERSION: '0.54.0'
+
+jobs:
+  latency:
+    name: Critical endpoint latency (k6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: prospector
+          POSTGRES_PASSWORD: prospector_test_pass
+          POSTGRES_DB: prospectordb_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://prospector_app:ci_app_test_pass@localhost:5434/prospectordb_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      MEILI_HOST: http://localhost:7700
+      MEILI_MASTER_KEY: ci-test-meili-key
+      PORT: 3000
+      BETTER_AUTH_SECRET: ci-e2e-test-only-secret-not-for-production
+      ALLOW_DEV_AUTH_BYPASS: true
+      ALLOWED_ORIGINS: http://localhost:3000
+      AUTH_RATE_LIMIT_MAX: 500
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bootstrap papel NOSUPERUSER da aplicacao
+        env:
+          PGPASSWORD: prospector_test_pass
+          APP_DB_PASSWORD: ci_app_test_pass
+        run: bash scripts/db/bootstrap-app-role.sh localhost 5434 prospector prospectordb_test
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run Migrations
+        run: npx prisma migrate deploy
+
+      - name: Criar .env.test
+        run: |
+          cat > .env.test <<EOF
+          NODE_ENV=$NODE_ENV
+          PORT=$PORT
+          DATABASE_URL=$DATABASE_URL
+          REDIS_URL=$REDIS_URL
+          MEILI_HOST=$MEILI_HOST
+          MEILI_MASTER_KEY=$MEILI_MASTER_KEY
+          BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+          ALLOWED_ORIGINS=$ALLOWED_ORIGINS
+          AUTH_RATE_LIMIT_MAX=$AUTH_RATE_LIMIT_MAX
+          EOF
+
+      - name: Instalar k6 (binario oficial, pinado)
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/grafana/k6/releases/download/v${K6_VERSION}/k6-v${K6_VERSION}-linux-amd64.tar.gz" \
+            -o /tmp/k6.tar.gz
+          tar -xzf /tmp/k6.tar.gz -C /tmp
+          sudo mv "/tmp/k6-v${K6_VERSION}-linux-amd64/k6" /usr/local/bin/k6
+          k6 version
+
+      - name: Subir a aplicacao (mesmo processo que tests/e2e usa)
+        run: npx dotenv-cli -e .env.test -- npx tsx server.ts &
+
+      - name: Aguardar /health/live responder
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "http://localhost:${PORT}/health/live" > /dev/null 2>&1; then
+              echo "App pronta."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App nao respondeu /health/live a tempo."
+          exit 1
+
+      - name: Rodar k6 contra endpoints criticos
+        run: |
+          k6 run tests/load/k6-api.js \
+            --summary-export=k6-latency-report.json \
+            --env BASE_URL="http://localhost:${PORT}"
+
+      - name: Upload da tendencia de latencia
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: endpoint-latency-trend-${{ github.sha }}
+          path: k6-latency-report.json
+          retention-days: 90
