@@ -47,9 +47,14 @@ export function OnboardingTour() {
     const hasSeen = localStorage.getItem('@prospector:has_seen_tour');
     if (!hasSeen) {
       // Delay before starting the tour
+      // Sem chime aqui: tocar áudio sem nenhuma interação do usuário viola a regra de mídia da
+      // Constituição (CLAUDE.md §9 — áudio nunca toca automaticamente por conveniência estética,
+      // só com controle do usuário) e este componente não expõe nenhum controle de mute (o
+      // `SoundFX.toggleMute()` existe na lib mas nunca é chamado daqui). O clique em "Avançar"
+      // (handleNext, abaixo) já tem SoundFX.playClick(), que é som disparado por gesto real do
+      // usuário — mantido. Achado desta auditoria.
       const timer = setTimeout(() => {
         setIsVisible(true);
-        SoundFX.playSuccess(); // small chime
       }, 1500);
       return () => clearTimeout(timer);
     }
