@@ -21,12 +21,11 @@ if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.sho
     };
 }
 
-// `onUnhandledRequest: 'bypass'` (em vez de 'error') porque o interceptor de `msw/node` é global
-// no processo: alguns testes (ex.: tests/unit/features/companies/routes/company.routes.test.ts)
-// usam supertest para bater direto num servidor Express real via socket TCP local — não é HTTP
-// que devêssemos mockar. Com 'bypass' essas chamadas passam direto para a rede real/local em vez
-// de o MSW tentar (e falhar) interceptá-las.
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+server.listen({ onUnhandledRequest: 'bypass' });
+if (typeof window !== 'undefined') {
+    window.fetch = globalThis.fetch;
+}
+
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
