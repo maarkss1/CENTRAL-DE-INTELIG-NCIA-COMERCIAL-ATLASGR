@@ -37,13 +37,14 @@ Sem essa ordem, `api-deployment.yaml` pode subir e passar no `readinessProbe` (q
 `SELECT 1`, não se o schema está atualizado) servindo tráfego contra um banco com migração
 pendente. Ver `/AGENTS.md` → bloqueador #5.
 
-## Caveat conhecido: CLI do Prisma na imagem
+## CLI do Prisma na imagem: resolvido
 
 `migration-job.yaml` roda `npx prisma migrate deploy` usando a mesma imagem
 `prospector-atlas:latest` do `api-deployment.yaml`. O `Dockerfile` da raiz (propriedade do
 Agente 08) roda `npm prune --omit=dev` no estágio final, removendo o pacote `prisma` (a CLI, hoje
-em devDependencies) — só `@prisma/client` (runtime) sobra na imagem final. Nesse estado, o Job de
-migração falha. Handoff aberto:
+em devDependencies) — mas reinstala só a CLI (`npm install --no-save prisma@...`, mesma versão
+fixada em devDependencies) logo em seguida, antes do estágio runner copiar `node_modules`.
+Confirmado lendo o `Dockerfile` atual e o handoff (Status: resolvido):
 `.agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md`.
 
 ## Rollback

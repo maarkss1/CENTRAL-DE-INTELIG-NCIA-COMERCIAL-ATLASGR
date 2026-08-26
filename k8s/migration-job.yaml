@@ -13,10 +13,10 @@
 # `npm run start`, ver Dockerfile) pode subir e servir tráfego contra um schema desatualizado ou
 # inexistente. Ver /AGENTS.md → bloqueador #5.
 #
-# Mesmo caveat conhecido do chart Helm (ver charts/README.md): a imagem publicada pelo Dockerfile
-# da raiz roda `npm prune --omit=dev`, removendo a CLI `prisma` — este Job só funciona se a
-# imagem local usada aqui (`prospector-atlas:latest`, buildada sem esse prune, ou com a etapa de
-# prune ajustada) ainda contiver a CLI. Handoff:
+# CLI do prisma na imagem: resolvido (mesmo caveat do chart Helm, ver charts/README.md). O
+# Dockerfile da raiz roda `npm prune --omit=dev` (remove a CLI `prisma` de devDependencies) mas
+# reinstala só ela em seguida, antes do estágio final — confirmado no Dockerfile atual e no
+# handoff (Status: resolvido):
 # .agents/handoffs/onda-4/10-para-08-prisma-cli-imagem-producao.md.
 apiVersion: batch/v1
 kind: Job
