@@ -23,8 +23,8 @@ aprendizado incorporado aqui e um registro curto em `.claude/PILOTS.md`. Ver Pil
   reescreve os tokens de cor via `document.documentElement.style.setProperty`.
 - **Stack:** React 19 + TypeScript + Vite 6 + React Router 7 + Express/Prisma no backend.
   Tailwind CSS 4 **CSS-first** (sem `tailwind.config.*`, tudo via `@theme` em
-  `src/styles/globals.css`). Framer Motion para animação. `@dnd-kit`/`@hello-pangea/dnd` para
-  drag-and-drop (Kanban do CRM). `recharts` para gráficos. `lucide-react` para ícones.
+  `src/styles/globals.css`). Framer Motion para animação. `@dnd-kit` para drag-and-drop (Kanban do
+  CRM). `recharts` para gráficos. `lucide-react` para ícones.
   `@react-three/fiber` + `drei` + `three` já são dependências reais, usadas hoje só num widget de
   gamificação decorativo (`src/features/gamification/components/SpaceGame.tsx`) e no
   `AtlasOrb.tsx`.
