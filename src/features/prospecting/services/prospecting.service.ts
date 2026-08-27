@@ -14,6 +14,8 @@ import { ExclusionSet } from '../utils/exclusionSet.js';
 import { searchCompanyNews } from './news.service.js';
 import { findCompanyDomain } from '../utils/domain.js';
 import { validContactEmails } from '../../../shared/utils/contact-links';
+import { buildSearchIntent } from '../domain/searchIntent.js';
+import { planCompanyDiscovery, planShortfallFallback, type ProviderPlanStep } from '../domain/queryPlanner.js';
 
 export interface ProspectCriteria {
     /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
@@ -214,8 +216,32 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
 }
 
 /**
- * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim).
- * — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
+ * Executa UM passo do `QueryPlan` (`domain/queryPlanner.ts`) contra o provider real que ele indica
+ * — o único lugar que ainda conhece as três funções concretas de busca (`fetchApolloCandidates`,
+ * `discoverViaGooglePlaces`, `discoverViaNominatim`). O planner decide QUAIS providers chamar, com
+ * que cota e em que ordem; este dispatcher só traduz essa decisão em chamada real, normalizando o
+ * retorno de cada provider (só a Apollo hoje devolve `error` junto dos candidatos) para o mesmo
+ * formato `{ candidates, error? }`.
+ */
+async function executeDiscoveryStep(
+    step: ProviderPlanStep,
+    criteria: ProspectCriteria,
+    exclusions: ExclusionSet
+): Promise<{ candidates: ProspectCandidate[]; error?: string }> {
+    switch (step.provider) {
+        case 'apollo':
+            return fetchApolloCandidates(criteria, step.quota, exclusions);
+        case 'googlePlaces':
+            return { candidates: await discoverViaGooglePlaces(criteria, step.quota, exclusions) };
+        case 'nominatim':
+            return { candidates: await discoverViaNominatim(criteria, step.quota, exclusions) };
+    }
+}
+
+/**
+ * Descoberta de candidatos: combina Apollo.io, Google Places e OpenStreetMap (Nominatim), na
+ * ordem/cota que o `QueryPlanner` (`domain/queryPlanner.ts`) decidir para o `SearchIntent` desta
+ * busca — nenhuma chamada a modelos generativos. Cada candidato ainda passa pelo pipeline de
  * enriquecimento real (Receita Federal + Google Places + Apollo People) antes de virar um Lead confiável.
  * `organizationId`, quando informado, exclui do resultado empresas já cadastradas no CRM do tenant
  * ou já rejeitadas (ver `fetchKnownExclusions`) — opcional só para não quebrar chamadas de teste
@@ -223,12 +249,12 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
  * Google Places (precisão geográfica real), em vez de só entrar como fallback se a Apollo não
  * preencher a cota sozinha. `criteria.pagina` avança pro próximo lote do ranking da Apollo.
  */
-// Teto de leads por busca — priorizamos qualidade (enriquecimento completo: CNPJ, decisores,
-// notícias) em vez de volume. Ver MAX_LEADS_PER_SEARCH espelhado em discoverCriteria.schema.ts.
-const MAX_LEADS_PER_SEARCH = 20;
-
 export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
+    // `SearchIntent` normaliza `criteria.quantidade` (clamp a MAX_LEADS_PER_SEARCH) da mesma forma
+    // que este serviço já fazia antes — `total` é só um apelido local de `intent.quantityRequested`
+    // para o restante da função (ranking/corte final) não precisar recalcular o mesmo clamp.
+    const intent = buildSearchIntent(criteria);
+    const total = intent.quantityRequested;
     const allCandidates: ProspectCandidate[] = [];
     const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
     const providerMode = getProspectingProviderMode();
@@ -241,16 +267,16 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
 
     let apolloError: string | undefined;
 
-    // Executa os motores de busca em PARALELO para tempo de resposta ultrarrápido (300%+ mais rápido)
-    const placesTarget = criteria.cidade ? Math.max(1, Math.round(total * 0.4)) : Math.min(total, 25);
+    // A ORDEM e a COTA de cada provider deixaram de ser um array hardcoded e passaram a ser uma
+    // decisão explícita do QueryPlanner (`domain/queryPlanner.ts`) — dado o mesmo `SearchIntent` e
+    // `providerMode`, `planCompanyDiscovery` devolve o MESMO cascade que existia antes (Apollo →
+    // Google Places → Nominatim, com a mesma aritmética de cota), só que agora nomeado, comentado
+    // e testado (ver queryPlanner.test.ts). A leva primária continua rodando em PARALELO — o plano
+    // decide QUEM e QUANTO, não quando; o tempo de resposta ultrarrápido (Promise.allSettled) é
+    // preservado.
+    const plan = planCompanyDiscovery(intent, providerMode);
 
-    const [apolloResult, placesResult, nominatimResult] = await Promise.allSettled([
-        providerMode === 'hybrid'
-            ? fetchApolloCandidates(criteria, total, exclusions)
-            : Promise.resolve({ candidates: [] as ProspectCandidate[], error: undefined }),
-        discoverViaGooglePlaces(criteria, placesTarget, exclusions),
-        total > 15 ? discoverViaNominatim(criteria, Math.min(total, 20), exclusions) : Promise.resolve([] as ProspectCandidate[]),
-    ]);
+    const results = await Promise.allSettled(plan.steps.map((step) => executeDiscoveryStep(step, criteria, exclusions)));
 
     function absorb(found: ProspectCandidate[]) {
         for (const candidate of found) {
@@ -260,23 +286,25 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
         }
     }
 
-    if (apolloResult.status === 'fulfilled') {
-        absorb(apolloResult.value.candidates);
-        apolloError = apolloResult.value.error;
-    }
-    if (placesResult.status === 'fulfilled') {
-        absorb(placesResult.value);
-    }
-    if (nominatimResult.status === 'fulfilled') {
-        absorb(nominatimResult.value);
-    }
+    // A ordem de absorção segue `plan.steps` (maior prioridade primeiro) — quando o mesmo nome de
+    // empresa aparece em mais de um provider da leva, o resultado do provider mais prioritário
+    // "vence" o dedupe (ver `scoreProvider` em queryPlanner.ts). Mesmo comportamento do cascade
+    // anterior (Apollo processado antes de Google Places antes de Nominatim), só que agora a ordem
+    // vem do plano, não da posição literal no array de código.
+    plan.steps.forEach((step, index) => {
+        const result = results[index];
+        if (result.status !== 'fulfilled') return;
+        absorb(result.value.candidates);
+        if (step.provider === 'apollo') apolloError = result.value.error;
+    });
 
-    // Se faltarem candidatos para completar a cota desejada, executa fallback rápido
-    if (allCandidates.length < total && providerMode === 'hybrid') {
-        const remaining = total - allCandidates.length;
+    // Se faltarem candidatos para completar a cota desejada, o planner decide se (e como) reforçar
+    // — mesma regra do cascade anterior: só em modo 'hybrid', sempre via Google Places.
+    const fallbackStep = planShortfallFallback(intent, providerMode, allCandidates.length);
+    if (fallbackStep) {
         try {
-            const extraPlaces = await discoverViaGooglePlaces(criteria, remaining, exclusions);
-            absorb(extraPlaces);
+            const fallbackResult = await executeDiscoveryStep(fallbackStep, criteria, exclusions);
+            absorb(fallbackResult.candidates);
         } catch {
             // Best effort
         }
