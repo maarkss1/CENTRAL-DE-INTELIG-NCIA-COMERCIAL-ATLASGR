@@ -8,7 +8,11 @@ This document outlines the steps to take in the event of a security breach.
 - Review trace IDs (`X-Trace-Id`) across systems to build a timeline.
 
 ## Phase 2: Containment
-- Immediately rotate all `JWT_SECRET` and `JWT_REFRESH_SECRET` environment variables.
+- Immediately rotate `BETTER_AUTH_SECRET` (invalidates all active sessions — see
+  `docs/security/SECRETS_MANAGER_MIGRATION.md` for sequencing). This project authenticates via a
+  Better Auth session cookie, not JWT Access/Refresh tokens — see `docs/security/THREAT_MODEL.md`.
+- If the incident involves a leaked integration credential, rotate the source credential and
+  re-encrypt via `CREDENTIALS_ENCRYPTION_KEY` (`src/lib/crypto/secretFields.ts`).
 - Expire active API keys.
 - If data exfiltration is detected, restrict database network access to read-only.
 

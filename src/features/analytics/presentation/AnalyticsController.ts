@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnalyticsUseCases } from '../application/AnalyticsUseCases';
+import { AnalyticsUseCases, buildCohortCsv } from '../application/AnalyticsUseCases';
 import { AuthRequest } from '../../../shared/middlewares/authenticateToken';
 
 /** Limites do parâmetro `months` do dashboard. */
@@ -45,25 +45,41 @@ export class AnalyticsController {
         }
     };
 
+    /**
+     * Cohort de conversão real (`AnalyticsUseCases.cohortAnalysis`), tenant-scoped. Antes desta
+     * correção esta rota devolvia 3 linhas fixas no código-fonte ("Fake data just for the
+     * prototype") para QUALQUER organização — nunca rastreável a um dado real, violando a regra
+     * de "Dados reais x demonstração" do módulo. Também não usava `organizationId` nenhum, então
+     * um número inventado idêntico teria vazado para todo tenant.
+     */
     getCohort = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            // Fake data just for the prototype
-            const cohorts = [
-                { month: '2026-05', total: 120, month1: 85, month2: 70 },
-                { month: '2026-06', total: 150, month1: 88, month2: 75 },
-                { month: '2026-07', total: 200, month1: 90, month2: 80 }
-            ];
-            res.json({ success: true, cohorts });
+            const { organizationId } = (req as AuthRequest).user;
+            const cohorts = await this.analyticsUseCases.cohortAnalysis(organizationId);
+            res.json({ success: true, data: { cohorts } });
         } catch (error) {
             next(error);
         }
     };
 
-    exportPdf = async (req: Request, res: Response, next: NextFunction) => {
+    /**
+     * Exporta o mesmo relatório de cohort em CSV real. Antes desta correção a rota respondia com
+     * `Content-Type: application/pdf` e um buffer fixo (`PDF_FAKE_CONTENT_FOR_NOW`) que não é um
+     * PDF válido — todo download produzia um arquivo corrompido. Sem biblioteca de geração de PDF
+     * disponível no projeto (adicionar uma exige aprovação do Agente 00 em `package.json`, fora do
+     * escopo desta auditoria), CSV é o formato honesto que já existe como padrão neste módulo (ver
+     * `commercial-intelligence/application/executiveExport.ts` e o mesmo padrão de download em
+     * `commercialIntelligence.api.ts` → `downloadExecutiveExport`). Conteúdo cru (não o envelope
+     * `{success,data}`), igual ao padrão já usado por aquele outro export.
+     */
+    exportCohortCsv = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', 'attachment; filename="relatorio-cohort.pdf"');
-            res.send(Buffer.from('PDF_FAKE_CONTENT_FOR_NOW'));
+            const { organizationId } = (req as AuthRequest).user;
+            const cohorts = await this.analyticsUseCases.cohortAnalysis(organizationId);
+            const csv = buildCohortCsv(cohorts);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', 'attachment; filename="relatorio-cohort.csv"');
+            res.send(csv);
         } catch (error) {
             next(error);
         }

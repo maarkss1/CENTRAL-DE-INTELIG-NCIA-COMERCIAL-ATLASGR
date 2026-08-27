@@ -1,11 +1,13 @@
 import csv
 import gzip
 import json
+import os
 import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 MODULE_DIR = Path(__file__).resolve().parents[3] / "public" / "tools" / "atlas-market-intelligence"
 sys.path.insert(0, str(MODULE_DIR))
@@ -18,7 +20,15 @@ from cnpj_company_pipeline import (  # noqa: E402
     normalize_search,
     split_secondary_cnaes,
 )
-from import_companies import company_select_expression, validate_manifest  # noqa: E402
+import import_companies  # noqa: E402
+from import_companies import (  # noqa: E402
+    company_select_expression,
+    decompress_to_temp,
+    manifest_artifact,
+    manifest_item_uf,
+    prepare_copy_source,
+    validate_manifest,
+)
 
 
 def write_zip(path: Path, rows: list[list[str]]) -> None:
@@ -41,6 +51,82 @@ def ibge_ribeirao() -> list[dict]:
 
 
 class CnpjCompanyPipelineTest(unittest.TestCase):
+    def test_decompression_removes_nul_bytes_without_changing_source(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "companies.csv.gz"
+            payload = b"cnpj,complemento\n123,AB\x00\x00CD\n"
+            with gzip.open(source, "wb") as handle:
+                handle.write(payload)
+
+            original = source.read_bytes()
+            plain = decompress_to_temp(source)
+            try:
+                self.assertEqual(plain.read_bytes(), b"cnpj,complemento\n123,ABCD\n")
+                self.assertEqual(source.read_bytes(), original)
+            finally:
+                plain.unlink(missing_ok=True)
+
+    def test_manifest_item_uf_accepts_windows_paths(self) -> None:
+        self.assertEqual(manifest_item_uf({"path": r"uf=RS\companies.csv.gz"}), "RS")
+
+    def test_streaming_copy_resolves_gzip_on_postgres_host(self) -> None:
+        compressed = Path("/srv/snapshot/uf=SP/companies.csv.gz")
+        with patch.dict(os.environ, {"ATLAS_MI_STREAM_GZIP": "1"}, clear=True):
+            source, temporary = prepare_copy_source(compressed)
+
+        self.assertIsNone(temporary)
+        self.assertTrue(source.startswith("PROGRAM 'gzip -dc -- "))
+        self.assertIn(str(compressed.resolve()).replace("'", "''"), source)
+        self.assertNotIn("/usr/bin/gzip", source)
+
+    def test_company_stage_uses_default_postgres_tablespace(self) -> None:
+        class CapturingPsql:
+            sql = ""
+
+            def run(self, sql: str, *, tuples_only: bool = False) -> str:
+                del tuples_only
+                self.sql = sql
+                return ""
+
+        psql = CapturingPsql()
+        with patch.object(
+            import_companies,
+            "prepare_copy_source",
+            return_value=("PROGRAM 'gzip -dc -- /srv/input.csv.gz'", None),
+        ):
+            import_companies.import_company_file(psql, "dataset-fixture", Path("/srv/input.csv.gz"))
+
+        self.assertIn("SET LOCAL temp_tablespaces='pg_default';", psql.sql)
+        self.assertIn('ON CONFLICT ("datasetId","cnpj") DO NOTHING', psql.sql)
+
+    def test_bulk_mode_does_not_require_unique_index_during_copy(self) -> None:
+        class CapturingPsql:
+            sql = ""
+
+            def run(self, sql: str, *, tuples_only: bool = False) -> str:
+                del tuples_only
+                self.sql = sql
+                return ""
+
+        psql = CapturingPsql()
+        with (
+            patch.dict(os.environ, {"ATLAS_MI_BULK_WITHOUT_UNIQUE_INDEX": "1"}, clear=True),
+            patch.object(
+                import_companies,
+                "prepare_copy_source",
+                return_value=("PROGRAM 'gzip -dc -- /srv/input.csv.gz'", None),
+            ),
+        ):
+            import_companies.import_company_file(psql, "dataset-fixture", Path("/srv/input.csv.gz"))
+
+        self.assertNotIn("ON CONFLICT", psql.sql)
+
+    def test_manifest_artifact_normalizes_windows_separators(self) -> None:
+        self.assertEqual(
+            manifest_artifact(Path("/snapshot"), r"uf=SP\companies.csv.gz"),
+            Path("/snapshot/uf=SP/companies.csv.gz"),
+        )
+
     def test_normalizers_preserve_unknown_as_empty(self) -> None:
         self.assertEqual(normalize_date("20260818"), "2026-08-18")
         self.assertEqual(normalize_date("00000000"), "")

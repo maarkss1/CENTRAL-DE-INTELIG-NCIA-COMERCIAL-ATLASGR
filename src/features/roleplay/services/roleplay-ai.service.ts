@@ -82,13 +82,17 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
 
             return cleanAndParseJson<RoleplayTurnOutput>(response.content);
         } catch (error) {
+            // roleplay/AGENTS.md: "Simulação nunca deve afirmar que executou ação real" e "estados
+            // de simulação e falhas de IA são explícitos e testados". Antes, uma falha do provedor
+            // (timeout, JSON inválido) devolvia uma réplica de persona genérica fixa com
+            // `currentLeadInterest: 50` e `success: true` na rota — o vendedor treinando via
+            // /api/intelligence/suite/roleplay/turn via a simulação "responder" normalmente sem
+            // nenhum sinal de que a IA não rodou de fato. Propaga o erro (mesmo padrão já usado por
+            // `studio/generators/roleplay.ts`, o gerador real usado pela tela principal de roleplay)
+            // para a rota devolver `success: false` e o consumidor tratar como falha explícita, não
+            // como um turno de simulação válido.
             logger.error({ err: error }, 'Erro no turno de roleplay');
-            return {
-                personaReply: 'Entendi o seu ponto, mas hoje já temos um fornecedor atendendo nossa frota. O que você tem de diferente?',
-                currentLeadInterest: 50,
-                isDealClosed: false,
-                isDealLost: false,
-            };
+            throw error;
         }
     }
 
@@ -133,16 +137,12 @@ Retorne SEMPRE e APENAS um JSON válido no formato:
 
             return cleanAndParseJson<RoleplayEvaluationResult>(response.content);
         } catch (error) {
+            // Mesmo raciocínio de simulateCustomerResponse acima: uma avaliação fabricada
+            // (overallScore: 75 fixo, elogios genéricos) quando a IA falhou é pior que nenhuma
+            // avaliação — o vendedor recebe uma nota e feedback que nunca vieram de uma leitura real
+            // da própria sessão. Propaga o erro para o chamador tratar como falha explícita.
             logger.error({ err: error }, 'Erro ao avaliar sessão de roleplay');
-            return {
-                overallScore: 75,
-                strengths: ['Boa postura durante o contato inicial'],
-                weaknesses: ['Reforçar justificativa de ROI'],
-                objectionHandlingScore: 70,
-                clarityScore: 80,
-                closingAttemptScore: 75,
-                actionableFeedback: 'Excelente iniciativa. Na próxima rodada, aprofunde a investigação das dores financeiras antes de apresentar a solução.',
-            };
+            throw error;
         }
     }
 }

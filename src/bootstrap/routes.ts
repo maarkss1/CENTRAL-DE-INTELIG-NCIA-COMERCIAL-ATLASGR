@@ -84,7 +84,10 @@ export function mountFeatureRoutes(app: Express): void {
     });
 
     app.use('/api/automations', authenticateToken, requireTenant, automationRoutes);
-    app.use('/api/usage', authenticateToken, requireTenant, usageRoutes);
+    // ADMIN-only: consumo/custo de IA da organização. A Sidebar (src/components/layout/Sidebar.tsx)
+    // já trata este item como admin-only na navegação — este era o lado que faltava (rota
+    // administrativa sem autorização real por cargo, achado da Onda 1/Roadmap v2, Agente 02).
+    app.use('/api/usage', authenticateToken, requireTenant, requireRole(['ADMIN']), usageRoutes);
     app.use('/api/whatsapp', authenticateToken, requireTenant, whatsappRoutes);
     app.use('/api/integrations/birth-voice', authenticateToken, requireTenant, birthVoiceRoutes);
     app.use('/api/integrations/3cx', authenticateToken, requireTenant, threecxRoutes);

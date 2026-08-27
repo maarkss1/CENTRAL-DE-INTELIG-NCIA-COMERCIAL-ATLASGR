@@ -57,6 +57,14 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
     };
   }, [onClose, preventClose]);
 
+  // Bug real de acessibilidade/teclado corrigido (Onda 3, Agente 03): este componente tinha um
+  // onKeyDown('Enter') no <dialog> que chamava onClose() a cada Enter, sem checar o alvo do
+  // evento. Como Enter borbulha de qualquer <input>/<textarea>/<button> focado dentro do corpo
+  // (todo formulário em Dialog — ContactForm, CompanyForm, PropostaForm, GoalEditorDialog etc. —
+  // tem campos de texto), digitar num campo e apertar Enter fechava o modal e descartava o que a
+  // pessoa tinha acabado de preencher, sem aviso. Escape para fechar já é tratado nativamente
+  // acima ('cancel', disparado pelo <dialog>); Enter deve continuar tendo o comportamento nativo
+  // de cada controle focado (ativar o botão em foco, ou nada em texto livre), não fechar o modal.
   const handleBackdropClick = (e: React.MouseEvent<HTMLDialogElement>) => {
     if (preventClose) return;
     const dialog = dialogRef.current;
@@ -78,7 +86,6 @@ export function Dialog({ isOpen, onClose, title, children, maxWidth = 'max-w-md'
     <dialog
       ref={dialogRef}
       onClick={handleBackdropClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' && !preventClose) onClose(); }}
       className={cn(
         'backdrop:bg-ink/50 backdrop:backdrop-blur-sm bg-surface rounded-card-lg shadow-card w-full p-0 outline-none overflow-hidden max-h-[90vh] open:flex open:flex-col',
         maxWidth

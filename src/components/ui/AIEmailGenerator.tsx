@@ -149,6 +149,8 @@ export function AIEmailGenerator({
           ] as [Tone, string][]).map(([value, label]) => (
             <button
               key={value}
+              type="button"
+              aria-pressed={tone === value}
               onClick={() => setTone(value)}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
                 tone === value ? 'bg-brand-active text-white font-bold shadow-sm' : 'text-ink-2 hover:text-ink'
@@ -167,6 +169,8 @@ export function AIEmailGenerator({
           return (
             <button
               key={c}
+              type="button"
+              aria-pressed={channel === c}
               onClick={() => { setChannel(c); setError(''); setCopied(false); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 channel === c ? 'bg-brand-active text-white shadow-sm' : 'text-ink-2 hover:text-ink'

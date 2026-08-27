@@ -167,6 +167,26 @@ paths:
         '200': { description: Identificação, CNAE, endereço, contato público, ICP, RNTRC e proveniência }
         '400': { description: CNPJ inválido }
         '404': { description: CNPJ ausente no snapshot publicado }
+  /market-intelligence/companies/{cnpj}/approve-to-pipeline:
+    parameters:
+      - name: cnpj
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Market Intelligence]
+      summary: >-
+        Promove uma empresa do catálogo público de Market Intelligence para o pipeline comercial
+        do tenant (cria/vincula `Company` no CRM) — Agente 18, achado de auditoria: endpoint real,
+        sem entrada aqui.
+      responses:
+        '201':
+          description: Empresa aprovada e promovida ao pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400': { description: CNPJ inválido }
   /market-intelligence/territories:
     get:
       tags: [Market Intelligence]
@@ -210,6 +230,47 @@ paths:
                     type: boolean
                   data:
                     type: object
+
+  /mesa-tratamento/lead/{id}/register:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Mesa de Tratamento]
+      summary: >-
+        Registra o resultado de um contato de tratamento (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui). CLOSER/SDR só registra em leads que são seus. Exige
+        Bitrix24 conectado e o lead já vinculado ao Bitrix (`bitrixLeadId`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, note]
+              properties:
+                outcome:
+                  type: string
+                  enum: [contato, reuniao_agendada, reuniao_realizada, retorno, convertido, sem_fit, dados_invalidos, revisao]
+                note: { type: string }
+                bitrixStatusId: { type: string }
+                lossReasonId:
+                  type: string
+                  description: Obrigatório quando `outcome` é `sem_fit` ou `dados_invalidos`
+                nextActionTitle: { type: string }
+                nextActionWhen: { type: string, format: date-time }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: Campo obrigatório ausente, ou Bitrix24 não conectado
+        '403':
+          description: Lead não pertence ao usuário (CLOSER/SDR)
+        '404':
+          description: Lead não encontrado
 
   # ───────────────────────────── Auth (better-auth) ─────────────────────────────
   /auth/sign-up/email:
@@ -551,6 +612,39 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /leads/batch-update:
+    post:
+      tags: [Leads]
+      summary: >-
+        Atualiza em lote (status/owner/tags) um conjunto de leads (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadIds, updates]
+              properties:
+                leadIds: { type: array, items: { type: string }, minItems: 1 }
+                updates:
+                  type: object
+                  properties:
+                    status: { type: string }
+                    owner: { type: string }
+                    tags: { type: array, items: { type: string } }
+                    addTags: { type: array, items: { type: string } }
+                    removeTags: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: leadIds ou updates ausente/inválido
+
   /leads/{id}:
     parameters:
       - $ref: '#/components/parameters/IdParam'
@@ -736,6 +830,62 @@ paths:
         '204':
           description: Removida
 
+  /activities/templates:
+    get:
+      tags: [Activities]
+      summary: >-
+        Lista os modelos de follow-up pré-definidos (Agente 18, achado de auditoria: endpoint
+        real, sem entrada aqui).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /activities/feed.ics:
+    get:
+      tags: [Activities]
+      summary: >-
+        Feed iCalendar (`.ics`) da agenda de atividades do usuário/organização, para assinatura
+        em app de calendário externo (Agente 18, achado de auditoria: endpoint real, sem entrada
+        aqui).
+      parameters:
+        - name: owner
+          in: query
+          description: 'Nome do responsável a filtrar (padrão: usuário autenticado)'
+          schema: { type: string }
+      responses:
+        '200':
+          description: Arquivo iCalendar
+          content:
+            text/calendar:
+              schema: { type: string }
+
+  /activities/{id}/snooze:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Activities]
+      summary: >-
+        Adia (snooze) uma atividade por um intervalo pré-definido (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                duration: { type: string, enum: ['2h', tomorrow, next_week], default: tomorrow }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
   # ───────────────────────────── Calendar & Booking ─────────────────────────────
   /calendar/booking-links:
     get:
@@ -910,6 +1060,138 @@ paths:
         '400':
           $ref: '#/components/responses/BadRequest'
 
+  /prospecting/reject:
+    post:
+      tags: [Prospecting]
+      summary: >-
+        Marca um candidato da Descoberta como "não é esse perfil" — passa a ser excluído de
+        buscas futuras deste tenant (Agente 18, achado de auditoria: endpoint real, sem entrada
+        aqui).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '201':
+          description: Candidato marcado como rejeitado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+
+  /prospecting/companies/{id}/enrich-cascade:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Prospecting]
+      summary: >-
+        Enriquecimento em cascata de uma empresa (Apollo → Hunter → Google Places), Agente 18,
+        achado de auditoria: endpoint real, sem entrada aqui. Com `async: true` no corpo e fila
+        disponível, enfileira o job em vez de rodar de forma síncrona.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                async: { type: boolean, default: false }
+      responses:
+        '200':
+          description: Resultado do enriquecimento (síncrono)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '202':
+          description: Enfileirado (modo assíncrono)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string }
+                  jobId: { type: string }
+
+  /prospecting/saved-searches:
+    get:
+      tags: [Prospecting]
+      summary: >-
+        Lista as buscas salvas de prospecção da organização autenticada (Agente 18, achado de
+        auditoria: endpoint real, sem entrada aqui).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Prospecting]
+      summary: >-
+        Cria uma busca salva de prospecção, com agendamento opcional (Agente 18, achado de
+        auditoria: endpoint real, sem entrada aqui).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                criteria: { type: object }
+                schedule: { type: string, enum: [daily, weekly] }
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: name ausente
+
+  /prospecting/saved-searches/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    delete:
+      tags: [Prospecting]
+      summary: >-
+        Remove uma busca salva de prospecção da organização autenticada (Agente 18, achado de
+        auditoria: endpoint real, sem entrada aqui).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string }
+
+  /prospecting/saved-searches/{id}/run:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Prospecting]
+      summary: >-
+        Executa manualmente (fora do agendamento) uma busca salva de prospecção (Agente 18,
+        achado de auditoria: endpoint real, sem entrada aqui).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Busca salva não encontrada
+
   /prospecting/decision-makers:
     post:
       tags: [Prospecting]
@@ -1066,6 +1348,58 @@ paths:
           $ref: '#/components/responses/BadRequest'
 
   # ───────────────────────────── Intelligence ─────────────────────────────
+  /intelligence/chatbook/history:
+    get:
+      tags: [Intelligence]
+      summary: >-
+        Histórico de mensagens do Chatbook (assistente conversacional) do usuário, por marca
+        (Agente 18, achado de auditoria: endpoint real, sem entrada aqui).
+      parameters:
+        - name: brand
+          in: query
+          required: true
+          schema: { type: string, enum: [atlasgr, totaltrac] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: brand ausente ou inválido
+
+  /intelligence/studio/stream:
+    post:
+      tags: [Intelligence]
+      summary: >-
+        Streaming (SSE) do Chatbook — mesma entrada de `/intelligence/studio`, mas só o `kind`
+        "assistant" (texto livre), transmitido em chunks (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui). Grava o turno de usuário+assistente no histórico ao
+        final da resposta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brandKey, inputs]
+              properties:
+                brandKey: { type: string, enum: [atlasgr, totaltrac] }
+                inputs:
+                  type: object
+                  properties:
+                    question: { type: string }
+      responses:
+        '200':
+          description: 'Stream `text/event-stream`, terminando em `event: end`'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: brandKey ausente
+
   /intelligence/studio:
     post:
       tags: [Intelligence]
@@ -1306,6 +1640,30 @@ paths:
                 properties:
                   result: { type: string }
 
+  /intelligence/report/stream:
+    post:
+      tags: [Intelligence]
+      summary: >-
+        Mesma leitura executiva de `/intelligence/report`, em streaming (SSE) em vez de resposta
+        única (Agente 18, achado de auditoria: endpoint real, sem entrada aqui).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [metrics]
+              properties:
+                metrics: { type: object }
+                brandId: { type: string, enum: [atlasgr, totaltrac], default: atlasgr }
+      responses:
+        '200':
+          description: 'Stream `text/event-stream`, terminando em `event: end`'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
   /intelligence/toolkit/execute:
     post:
       tags: [Intelligence]
@@ -1505,6 +1863,65 @@ paths:
                   success: { type: boolean }
                   learnedGuidelines: { type: string }
 
+  /agent/swarm/slo:
+    get:
+      tags: [Agent]
+      summary: >-
+        Snapshot de SLO (latência/sucesso/custo) do enxame de agentes nos últimos N dias (Agente
+        18, achado de auditoria: endpoint real, sem entrada aqui — a rota nunca tinha sido
+        registrada, ver `.agents/handoffs/onda-7/13-para-07-rota-slo-swarm.md`). Não usa o
+        envelope `{success,data}` padrão — devolve o snapshot diretamente.
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          description: 'Query inválida (`days` fora do intervalo 1-90)'
+
+  /agent/evaluation-metrics:
+    get:
+      tags: [Agent]
+      summary: >-
+        Snapshot das 9 dimensões de avaliação (harness AI-006) do enxame de agentes nos últimos N
+        dias (Agente 18, achado de auditoria: endpoint real, sem entrada aqui). Não usa o envelope
+        `{success,data}` padrão — devolve o snapshot diretamente.
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 30 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          description: 'Query inválida (`days` fora do intervalo 1-90)'
+
+  /agent/golden-dataset/summary:
+    get:
+      tags: [Agent]
+      summary: >-
+        Resumo do Golden Dataset versionado (AI-005) e validação dos casos de uso de ferramentas
+        (Agente 18, achado de auditoria: endpoint real, sem entrada aqui). Não usa o envelope
+        `{success,data}` padrão.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary: { type: object }
+                  toolUseValidation: { type: object }
+
   # ───────────────────────────── Prompts ─────────────────────────────
   /prompts:
     get:
@@ -1596,6 +2013,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+
+  /analytics/cohort:
+    get:
+      tags: [Analytics]
+      summary: >-
+        Análise de retenção por cohort mensal, tenant-scoped (`AnalyticsUseCases.cohortAnalysis`).
+        Corrigido na Onda 2/Roadmap v2 (Agente 04) — antes devolvia uma lista fixa de exemplo
+        ("Fake data just for the prototype"); ver
+        `.agents/runs/roadmap-v2-onda-2.md`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    required: [cohorts]
+                    properties:
+                      cohorts:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            month: { type: string, example: '2026-07' }
+                            total: { type: integer, example: 200 }
+                            month1: { type: integer, example: 90 }
+                            month2: { type: integer, example: 80 }
+
+  /analytics/export/csv:
+    get:
+      tags: [Analytics]
+      summary: >-
+        Exporta o mesmo relatório de cohort (`/analytics/cohort`) em CSV real. Renomeado de
+        `/analytics/export/pdf` na Onda 2/Roadmap v2 (Agente 04) — a rota antiga devolvia um
+        `Buffer` fixo (`PDF_FAKE_CONTENT_FOR_NOW`) sob `Content-Type: application/pdf`, nunca um
+        PDF válido; CSV é o formato honesto já usado pelo mesmo padrão de export em
+        `commercial-intelligence` (sem biblioteca de geração de PDF disponível no projeto). Ver
+        `.agents/runs/roadmap-v2-onda-2.md`.
+      responses:
+        '200':
+          description: Arquivo CSV (`text/csv`) com o mesmo conteúdo de `/analytics/cohort`
+          content:
+            text/csv:
+              schema: { type: string }
 
   # ───────────────────────────── Knowledge ─────────────────────────────
   /knowledge:
@@ -1739,6 +2205,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+
+  /knowledge/editor-assist:
+    post:
+      tags: [Knowledge]
+      summary: >-
+        Assistente de redação via IA (expandir/resumir/reescrever focando em dores) para o editor
+        de documentos da base de conhecimento (Agente 18, achado de auditoria: endpoint real, sem
+        entrada aqui). Não usa o envelope `{success,data}` padrão, e sim `{ "success", "result" }`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, text]
+              properties:
+                action: { type: string, enum: [expand, concise, pain] }
+                text: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  result: { type: string }
+
+  /knowledge/generate-faq:
+    post:
+      tags: [Knowledge]
+      summary: >-
+        Gera um FAQ via IA a partir de um documento já ingerido na base de conhecimento (Agente
+        18, achado de auditoria: endpoint real, sem entrada aqui).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentId]
+              properties:
+                documentId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Documento não encontrado
 
   # ───────────────────────────── Notifications ─────────────────────────────
   /notifications:
@@ -2081,6 +2600,94 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
 
+  /cadence/templates:
+    get:
+      tags: [Cadence]
+      summary: >-
+        Lista os modelos de jornada de cadência pré-definidos (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui — `CADENCE_JOURNEY_TEMPLATES`, catálogo estático no
+        código, não por tenant).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+
+  /cadence/sequences:
+    get:
+      tags: [Cadence]
+      summary: >-
+        Lista as sequências de cadência ativas da organização autenticada (Agente 18, achado de
+        auditoria: endpoint real, sem entrada aqui).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Cria uma sequência de cadência (1 a 10 toques) para a organização autenticada (Agente 18,
+        achado de auditoria: endpoint real, sem entrada aqui). Restrito a
+        ADMIN/GESTOR/CLOSER/SDR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, touches]
+              properties:
+                name: { type: string, maxLength: 160 }
+                touches:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: object
+                    required: [order, channel, delayHoursFromPrevious]
+                    properties:
+                      order: { type: integer, minimum: 1 }
+                      channel: { type: string, enum: [email, whatsapp, voice] }
+                      delayHoursFromPrevious: { type: integer, minimum: 0, maximum: 720 }
+                      maxAttempts: { type: integer, minimum: 1, maximum: 5 }
+                      templateRef: { type: string, maxLength: 4000 }
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '400':
+          description: Sequência inválida (ver regras de `validateSequence`)
+
+  /cadence/sequences/from-template/{templateId}:
+    parameters:
+      - name: templateId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Cadence]
+      summary: >-
+        Cria uma sequência de cadência a partir de um modelo de jornada pré-definido (Agente 18,
+        achado de auditoria: endpoint real, sem entrada aqui). Restrito a
+        ADMIN/GESTOR/CLOSER/SDR.
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Modelo de jornada não encontrado
+
   /cadence/runs:
     get:
       tags: [Cadence]
@@ -2097,6 +2704,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataEnvelope'
+    post:
+      tags: [Cadence]
+      summary: >-
+        Inicia uma execução de cadência para um lead a partir de uma sequência (Agente 18, achado
+        de auditoria: endpoint real, sem entrada aqui — pré-requisito para o runtime de
+        `cadenceRun.worker.ts` ter efeito prático). Restrito a ADMIN/GESTOR/CLOSER/SDR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leadId, sequenceId]
+              properties:
+                leadId: { type: string }
+                sequenceId: { type: string }
+      responses:
+        '201':
+          description: Criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Lead ou sequência não encontrados nesta organização
+        '409':
+          description: Este lead já tem uma cadência ativa em andamento
 
   /cadence/runs/{id}/pause:
     parameters:
@@ -2904,6 +3538,67 @@ paths:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/filter-options:
+    get:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Opções válidas para os filtros da tela (vendedores/produtos/origens/ICPs conhecidos)
+        (Agente 18, achado de auditoria: endpoint real, sem entrada aqui). Somente ADMIN/GESTOR.
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/trends:
+    get:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Série histórica dos indicadores, para o mesmo filtro de mês/vendedor/produto/origem/ICP
+        das demais telas do módulo (Agente 18, achado de auditoria: endpoint real, sem entrada
+        aqui). Somente ADMIN/GESTOR.
+      parameters:
+        - name: month
+          in: query
+          schema: { type: string }
+        - name: owner
+          in: query
+          schema: { type: string }
+        - name: product
+          in: query
+          schema: { type: string }
+        - name: source
+          in: query
+          schema: { type: string }
+        - name: icp
+          in: query
+          schema: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/export:
+    get:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Exporta o painel executivo no formato pedido (csv/json/html), mesmo filtro das demais
+        telas do módulo (Agente 18, achado de auditoria: endpoint real, sem entrada aqui). Devolve
+        o conteúdo bruto do arquivo (`Content-Disposition: attachment`), não o envelope
+        `{success,data}` padrão. Somente ADMIN/GESTOR.
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, json, html], default: json }
+        - name: month
+          in: query
+          schema: { type: string }
+        - name: owner
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Arquivo de exportação
+          content:
+            text/csv: { schema: { type: string } }
+            application/json: { schema: { type: string } }
+            text/html: { schema: { type: string } }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /commercial-intelligence/goals:
     get:
       tags: [Comercial Inteligente]
@@ -2922,6 +3617,17 @@ paths:
       responses:
         '200': { description: Atualizada, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /commercial-intelligence/ai/mentor-playbook:
+    post:
+      tags: [Comercial Inteligente]
+      summary: >-
+        Gera um playbook de mentoria via IA a partir das métricas do filtro atual (Agente 18,
+        achado de auditoria: endpoint real, sem entrada aqui; somente ADMIN/GESTOR, mesmo
+        limitador de IA dedicado dos demais endpoints `ai/*` deste módulo).
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /commercial-intelligence/ai/executive-summary:
     post:
       tags: [Comercial Inteligente]
@@ -2984,6 +3690,30 @@ paths:
                 properties:
                   message: { type: string }
                   result: { type: object }
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /lgpd/audit-logs:
+    get:
+      tags: [LGPD]
+      summary: >-
+        Lista os logs de auditoria de segurança/LGPD da organização autenticada (Agente 18, achado
+        de auditoria: endpoint real, sem entrada aqui). Somente ADMIN/GESTOR.
+      parameters:
+        - name: limit
+          in: query
+          description: Máximo de registros (padrão 50, teto 100)
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  logs: { type: array, items: { type: object } }
         '403':
           $ref: '#/components/responses/Forbidden'
 
@@ -3253,6 +3983,60 @@ paths:
       responses:
         '200': { description: Publicado, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/leads/{leadId}/export:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Bitrix24]
+      summary: >-
+        Exporta (ou reexporta) um lead do CRM para o Bitrix24 imediatamente (Agente 18, achado de
+        auditoria: endpoint real, sem entrada aqui).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                connectionId: { type: string }
+                statusId: { type: string }
+                assignedById: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/leads/export-batch:
+    post:
+      tags: [Bitrix24]
+      summary: >-
+        Exporta leads em lote para o Bitrix24 sob demanda (Agente 18, achado de auditoria:
+        endpoint real, sem entrada aqui). Sem `leadIds` no corpo, exporta todos os leads
+        elegíveis da organização.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                leadIds: { type: array, items: { type: string } }
+                connectionId: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      exportedCount: { type: integer }
+                      skippedCount: { type: integer }
+                      total: { type: integer }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /bitrix/sync-rules:
     get:
       tags: [Bitrix24]
@@ -3292,6 +4076,20 @@ paths:
       responses:
         '204': { description: Removida }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /bitrix/sync-logs:
+    get:
+      tags: [Bitrix24]
+      summary: >-
+        Histórico real de sincronização Bitrix24 (webhook de entrada + push/pull automático ou
+        manual), tenant-scoped. Backing real do Monitor de Webhooks — corrigido na Onda 1/Roadmap
+        v2 (Agente 06); antes o painel chamava um endpoint inexistente e caía para eventos
+        fabricados. Ver `.agents/runs/roadmap-v2-onda-1.md`.
+      parameters:
+        - name: take
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
   /bitrix/extractions:
     get:
       tags: [Bitrix24]
@@ -3410,15 +4208,18 @@ paths:
   # Montados em server.ts ANTES do express.json() global — corpo não é JSON parseado pelo
   # middleware padrão, e a autenticidade não vem de sessão de usuário. Ver env vars citadas em
   # cada um (fail-closed: sem o segredo configurado, o endpoint rejeita toda requisição).
-  /integrations/birth-voice:
+  /integrations/birth-voice/webhook:
     post:
       tags: [Webhooks]
       summary: >-
-        Webhook de resultado de chamada do Birth Voices Hub. Corpo cru (`express.raw`), assinatura
-        HMAC no header `x-birthvoices-signature` sobre os bytes crus, segredo
-        `BIRTH_VOICES_WEBHOOK_SECRET`. Mesmo prefixo de path que `/integrations/birth-voice/*`
-        (endpoints autenticados da tag Birth Voice) — este router é montado ANTES e só intercepta
-        o path exato do webhook, os demais sub-paths caem no router autenticado.
+        Webhook de resultado de chamada do Birth Voices Hub (Agente 18, achado de auditoria de
+        contrato: path documentado estava incompleto — faltava o segmento `/webhook`; o mount é em
+        `/api/integrations/birth-voice`, mas o router do webhook só reage ao sub-path
+        `/webhook` que ele mesmo declara). Corpo cru (`express.raw`), assinatura HMAC no header
+        `x-birthvoices-signature` sobre os bytes crus, segredo `BIRTH_VOICES_WEBHOOK_SECRET`.
+        Mesmo prefixo de mount que `/integrations/birth-voice/*` (endpoints autenticados da tag
+        Birth Voice) — este router é montado ANTES e só intercepta o path exato do webhook, os
+        demais sub-paths caem no router autenticado.
       requestBody:
         required: true
         content:
@@ -3545,16 +4346,23 @@ paths:
         '503':
           description: SIGNATURE_INBOUND_WEBHOOK_SECRET não configurado (fail-closed)
 
-  /integrations/bitrix:
+  /integrations/bitrix/webhook/{connectionId}:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        schema: { type: string }
     post:
       tags: [Webhooks]
       summary: >-
         Webhook de entrada do Bitrix24 ("исходящий вебхук") — leads/eventos criados no Bitrix
-        chegam aqui. Corpo form-encoded (`express.urlencoded`, não JSON — é como o Bitrix24 envia
-        webhooks de saída). Autenticidade por segredo por conexão (`auth.application_token`)
-        comparado em tempo constante, identificado por `:connectionId` na URL real (ex.
-        `/api/integrations/bitrix/:connectionId`) — a URL completa, incluindo o id da conexão, é a
-        credencial.
+        chegam aqui (Agente 18, achado de auditoria de contrato: path documentado estava errado —
+        `/integrations/bitrix`, sem o segmento `/webhook` que o próprio router declara nem
+        `{connectionId}` como parâmetro real; a prosa já citava a URL certa mas o `path:` do YAML
+        não batia com ela). Corpo form-encoded (`express.urlencoded`, não JSON — é como o Bitrix24
+        envia webhooks de saída). Autenticidade por segredo por conexão
+        (`auth.application_token`) comparado em tempo constante — a URL completa, incluindo o id
+        da conexão, é a credencial.
       requestBody:
         required: true
         content:
@@ -3568,9 +4376,13 @@ paths:
 
   # ─────────────── Endpoints avulsos ausentes em routers já documentados ───────────────
   /leads/import/bitrix24:
-    get:
+    post:
       tags: [Leads]
-      summary: Lista leads do Bitrix24 candidatos à importação direta (view a partir do módulo de Leads)
+      summary: >-
+        Importa leads recentes do Bitrix24 para o CRM (Agente 18, achado de auditoria de
+        contrato: método documentado estava errado — `GET`, o real é `POST`; o código
+        (`LeadController.importFromBitrix24` → `leadUseCases.importRecentBitrixLeads`) não aceita
+        query nem corpo, só usa o `organizationId` da sessão). Restrito a ADMIN/GESTOR.
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DataEnvelope' } } } }
 

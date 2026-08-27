@@ -1,6 +1,6 @@
 # Resumo Executivo
 
-A plataforma (AtlasGR / TotalTrac) é um CRM inteligente de aceleração comercial B2B. Sua proposta central é organizar a operação de vendas desde a prospecção até o fechamento, incorporando recursos avançados de Inteligência Artificial para facilitar a tomada de decisão, geração de relatórios e treinamento simulado (Roleplay).
+A plataforma (AtlasGR / Total Trac) é um CRM inteligente de aceleração comercial B2B. Sua proposta central é organizar a operação de vendas desde a prospecção até o fechamento, incorporando recursos avançados de Inteligência Artificial para facilitar a tomada de decisão, geração de relatórios e treinamento simulado (Roleplay).
 
 O público-alvo inclui gestores comerciais, SDRs, BDRs, Closers e profissionais de Inteligência de Mercado.
 

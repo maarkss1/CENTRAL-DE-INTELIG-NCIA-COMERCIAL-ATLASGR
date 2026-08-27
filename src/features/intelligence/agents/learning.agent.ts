@@ -3,6 +3,7 @@ import { getAiModel } from '../../../lib/ai/gateway.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { saveAgentMemory, loadAgentMemory } from './agentMemory.store.js';
+import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 // AgentMemory não tem colunas dedicadas para "perfil de aprendizado", mas sessionId+agentType já
 // bastam pra guardar um registro por (tenant, ator) sem precisar de migração nova.
@@ -44,6 +45,20 @@ export async function getLearningProfile(tenantId: string, actorId: string): Pro
  */
 export class LearningAgent {
     async reflectAndLearn(actorId: string, tenantId: string) {
+        // AI-007 (parte 3): mesmo gate fail-closed já em vigor em base.agent.ts/
+        // sdrQualification.agent.ts/ops.agent.ts/supervisor.agent.ts — até esta correção, este era
+        // o único dos agentes do enxame que montava e enviava um prompt a um provedor de IA externo
+        // (getAiModel) sem nenhuma checagem de base legal LGPD. `AuditLog.details` rotineiramente
+        // carrega PII real de um titular (nome/e-mail/telefone de lead ou contato citado nos
+        // detalhes de uma ação manual do vendedor — ex: "Lead atualizado: contato joão@empresa.com"),
+        // então o mesmo risco que motivou a checagem nos demais agentes se aplica aqui.
+        try {
+            assertPiiExternalConsent(tenantId);
+        } catch (error) {
+            logger.warn({ err: error, actorId, tenantId }, 'LearningAgent bloqueado: sem base legal LGPD registrada para enviar dado pessoal (AuditLog) a provedor de IA externo.');
+            return null;
+        }
+
         try {
             // Busca as últimas 50 ações manuais do usuário (ex: mudanças de lead, qualificações, e-mails enviados)
             const recentActions = await prisma.auditLog.findMany({

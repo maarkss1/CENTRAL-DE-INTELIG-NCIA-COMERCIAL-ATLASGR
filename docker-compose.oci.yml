@@ -36,7 +36,7 @@ services:
       dockerfile: Dockerfile
     container_name: atlasgr_worker
     restart: unless-stopped
-    command: ["npm", "run", "start:worker"]
+    command: ["sh", "-c", "npx prisma migrate deploy && exec npm run start:worker"]
     depends_on:
       postgres:
         condition: service_healthy

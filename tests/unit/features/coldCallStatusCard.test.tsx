@@ -6,7 +6,7 @@ import { server } from '../../mocks/server';
 
 import { ColdCallStatusCard } from '@/features/automations/components/ColdCallStatusCard';
 
-const STATUS_URL = '/api/integrations/birth-voice/cold-call/status';
+const STATUS_URL = '*/api/integrations/birth-voice/cold-call/status';
 
 function render(ui: React.ReactElement) {
     return rtlRender(ui);
