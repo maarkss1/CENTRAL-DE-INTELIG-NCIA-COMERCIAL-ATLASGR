@@ -213,11 +213,11 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                         <button
                             onClick={searchCompanies}
                             disabled={isSearchingCompanies}
-                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:brightness-110 disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                         >
                             {isSearchingCompanies ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Empresas</>)}
                         </button>
-                        {companyError && <p className="text-xs text-danger">{companyError}</p>}
+                        {companyError && <p className="text-xs text-danger-active dark:text-danger">{companyError}</p>}
                     </div>
 
                     <div className="xl:col-span-8 space-y-4">
@@ -277,11 +277,11 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                         <button
                             onClick={searchPeople}
                             disabled={isSearchingPeople}
-                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                            className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:brightness-110 disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                         >
                             {isSearchingPeople ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Decisores</>)}
                         </button>
-                        {peopleError && <p className="text-xs text-danger">{peopleError}</p>}
+                        {peopleError && <p className="text-xs text-danger-active dark:text-danger">{peopleError}</p>}
                     </div>
 
                     <div className="xl:col-span-8 space-y-3">
@@ -310,7 +310,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                                     </a>
                                     <div className="ml-auto">
                                         {isPromoted ? (
-                                            <span className="flex items-center gap-1.5 text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
+                                            <span className="flex items-center gap-1.5 text-success-active dark:text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
                                         ) : (
                                             <button
                                                 onClick={() => promotePerson(dm, idx)}
@@ -347,7 +347,7 @@ export function LinkedInTool({ configured }: { configured: boolean }) {
                                 <ExternalLink size={12} /> {manualLink.isDirectProfile ? 'Abrir perfil no LinkedIn' : 'Buscar no LinkedIn'}
                             </a>
                             {promoted['li-manual'] ? (
-                                <span className="flex items-center gap-1.5 text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
+                                <span className="flex items-center gap-1.5 text-success-active dark:text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
                             ) : (
                                 <button onClick={promoteManual} disabled={promotingKey === 'li-manual'} className="bg-brand-active text-white px-4 py-2 rounded-xl font-bold text-xs hover:brightness-110 flex items-center gap-2 disabled:opacity-60">
                                     {promotingKey === 'li-manual' ? <Loader2 className="animate-spin" size={13} /> : <ShieldCheck size={13} />}

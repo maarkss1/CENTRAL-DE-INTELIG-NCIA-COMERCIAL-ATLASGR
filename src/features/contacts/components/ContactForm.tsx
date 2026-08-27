@@ -21,7 +21,7 @@ interface ContactFormProps {
     onSave: () => void;
 }
 
-const errorClass = "text-xs text-danger mt-1";
+const errorClass = "text-xs text-danger-active dark:text-danger mt-1";
 
 // contactSchema.companyId é só `z.string()` (o backend recebe o id já resolvido por outros
 // fluxos, ex. promoção de candidato) - aqui o campo vem de um <select>, então precisa da

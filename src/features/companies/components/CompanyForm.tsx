@@ -20,7 +20,7 @@ interface CompanyFormProps {
     onSave: () => void;
 }
 
-const errorClass = "text-xs text-danger mt-1";
+const errorClass = "text-xs text-danger-active dark:text-danger mt-1";
 
 // Validação do dígito verificador oficial do CNPJ (mesma regra usada em
 // src/features/prospecting/services/cnpj.util.ts) — reimplementada aqui, em vez de

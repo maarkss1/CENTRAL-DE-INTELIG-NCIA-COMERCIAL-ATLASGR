@@ -9,7 +9,7 @@ const TREND_ICON = { up: TrendingUp, down: TrendingDown, flat: Minus } as const;
 /** Sparkline de 4 barras (uma por semana da janela de `movingAverage4w`) — a série já era calculada no backend e descartada; só passou a ser exposta. Mais antiga → mais recente, da esquerda pra direita. */
 function Sparkline({ series, trend }: { series: number[]; trend: 'up' | 'down' | 'flat' }) {
     const max = Math.max(...series, 1);
-    const barClass = trend === 'up' ? 'bg-[#0ca30c]/70' : trend === 'down' ? 'bg-critical/70' : 'bg-ink-2/50';
+    const barClass = trend === 'up' ? 'bg-success-active/70' : trend === 'down' ? 'bg-critical/70' : 'bg-ink-2/50';
     return (
         <div className="flex items-end gap-0.5 h-6 w-12 ml-auto" role="img" aria-label={`Últimas 4 semanas: ${series.join(', ')}`}>
             {series.map((value, i) => (
@@ -65,7 +65,7 @@ export function LeadingIndicatorsTab() {
                     <tbody className="[font-variant-numeric:tabular-nums]">
                         {data.indicators.map((point) => {
                             const Icon = TREND_ICON[point.trend];
-                            const toneClass = point.trend === 'up' ? 'text-[#0ca30c]' : point.trend === 'down' ? 'text-critical' : 'text-ink-2';
+                            const toneClass = point.trend === 'up' ? 'text-success-active dark:text-success' : point.trend === 'down' ? 'text-critical' : 'text-ink-2';
                             return (
                                 <tr key={point.label} className="border-b border-line last:border-0">
                                     <td className="py-2 text-ink font-semibold">{point.label}</td>

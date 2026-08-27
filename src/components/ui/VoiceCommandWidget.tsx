@@ -167,8 +167,8 @@ export function VoiceCommandWidget() {
             )}
 
             {lastAction && (
-              <div className="p-2.5 rounded-xl bg-success/10 border border-success/30 text-success flex items-center gap-2">
-                <Check className="w-4 h-4 text-success shrink-0" />
+              <div className="p-2.5 rounded-xl bg-success/10 border border-success/30 text-success-active dark:text-success flex items-center gap-2">
+                <Check className="w-4 h-4 text-success-active dark:text-success shrink-0" />
                 <span className="font-bold">{lastAction}</span>
               </div>
             )}

@@ -27,8 +27,8 @@ import {
 const AUTO_REFRESH_INTERVAL_MS = 3 * 60 * 1000;
 
 const PROTECTION_STATUS_STYLE: Record<CoverageProtectionStatus, { label: string; className: string }> = {
-    saudavel: { label: 'Saudável', className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
-    atencao: { label: 'Atenção', className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
+    saudavel: { label: 'Saudável', className: 'text-success-active dark:text-success bg-success/10 border-success/20' },
+    atencao: { label: 'Atenção', className: 'text-warning-active dark:text-warning bg-warning/10 border-warning/20' },
     critico: { label: 'Crítico', className: 'text-critical bg-critical/10 border-critical/20' },
     sem_dados: { label: 'Sem dados', className: 'text-ink-2 bg-surface-2 border-line' },
 };
@@ -348,7 +348,7 @@ export function ExecutiveOverviewTab({ filter }: ExecutiveOverviewTabProps) {
                                 <div className="rounded-xl border border-line bg-surface px-3 py-2 min-w-[128px]">
                                     <p className="text-[10px] uppercase tracking-wide text-ink-2 font-semibold">{point.label}</p>
                                     <p className="text-lg font-black text-ink [font-variant-numeric:tabular-nums]">{point.current}</p>
-                                    <p className={`text-[10px] ${point.trend === 'up' ? 'text-[#0ca30c]' : point.trend === 'down' ? 'text-critical' : 'text-ink-2'}`}>
+                                    <p className={`text-[10px] ${point.trend === 'up' ? 'text-success-active dark:text-success' : point.trend === 'down' ? 'text-critical' : 'text-ink-2'}`}>
                                         {point.trend === 'up' ? '↑' : point.trend === 'down' ? '↓' : '→'} vs. {point.previousWeek} sem. anterior
                                     </p>
                                 </div>
