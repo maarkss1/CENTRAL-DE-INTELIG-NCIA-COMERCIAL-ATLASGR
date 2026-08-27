@@ -137,10 +137,24 @@ enum CrmDocumentStatus {
 
 /// Classifica a natureza epistemica de cada item do LDR. O valor fica estruturado no banco para
 /// que fato observado, inferencia e recomendacao nunca dependam de convencao em texto livre.
+///
+/// CPI — item "Enum de evidencia incompleto": ESTIMATE/UNKNOWN/CONFLICT adicionados nesta rodada
+/// (migration prisma/migrations/20260826140000_expand_intelligence_evidence_type) porque o LDR
+/// real produz esses tres casos e nao tinha onde representa-los sem forcar um valor errado
+/// (ex.: uma confianca desconhecida sendo gravada como FACT). RECOMMENDATION nao e um tipo
+/// epistemico de dado (fato/inferencia/estimativa/desconhecido/conflito descrevem a natureza de
+/// uma OBSERVACAO; recomendacao e uma SAIDA/acao sugerida a partir de observacoes) — e
+/// semanticamente estranho no mesmo enum, mas nao foi removido nesta rodada: e valor already em
+/// uso por AccountSignal.evidenceType/DecisionMaker.roleEvidenceType e remove-lo exige investigar
+/// e migrar quem grava esse valor hoje, fora do escopo aditivo pedido (so ADICIONAR os que
+/// faltam). Ver relatorio da tarefa para o registro completo desta decisao.
 enum IntelligenceEvidenceType {
   FACT
   INFERENCE
   RECOMMENDATION
+  ESTIMATE
+  UNKNOWN
+  CONFLICT
 }
 
 enum IntelligenceSnapshotStatus {
@@ -718,6 +732,7 @@ model Organization {
   crmCommercialDocuments        CrmCommercialDocument[]
   commercialGoals               CommercialGoal[]
   leadStageHistories            LeadStageHistory[]
+  forecastSnapshots             ForecastSnapshot[]
   featureFlagOverrides          OrganizationFeatureFlag[]
   bugReports                    BugReport[]
   // Onda 10 (Agente 01A) — schema de cadência/agendamento/proposta-assinatura proposto pelo
@@ -809,6 +824,30 @@ model LeadStageHistory {
   @@index([organizationId, leadId, enteredAt])
   @@index([organizationId, stageId])
   @@index([leadId, exitedAt])
+}
+
+// Onda 39 (Agente 04, handoff .agents/handoffs/onda-39/04-para-01-schema-forecast-snapshot.md):
+// snapshot semanal append-only do Forecast (Commit/Best Case/Forecast por categoria + versão das
+// regras que o gerou), necessário para o erro histórico real (previsto x realizado) do Health
+// Score de Forecast — sem persistência, esse pilar nunca tem um snapshot antigo pra comparar
+// contra o realizado e fica permanentemente "não disponível" em produção. Nunca sobrescrito nem
+// truncado: cada corrida do snapshot semanal insere uma linha nova, mesmo período incluído
+// (histórico de revisões), nunca um upsert por período.
+model ForecastSnapshot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Período (mês) que este snapshot está prevendo — "YYYY-MM", mesma granularidade de CommercialGoal.
+  period         String
+  snapshotAt     DateTime     @default(now())
+  rulesVersion   String
+  commitAmount   Decimal      @db.Decimal(14, 2)
+  bestCaseAmount Decimal      @db.Decimal(14, 2)
+  forecastAmount Decimal      @db.Decimal(14, 2)
+  currency       String       @default("BRL")
+
+  @@index([organizationId, period])
+  @@index([organizationId, period, snapshotAt])
 }
 
 // ─── LDR / Account Intelligence ────────────────────────────────────────────

@@ -64,15 +64,33 @@ describe('getSwarmSloSnapshot — painel de SLO por agente', () => {
         expect(snapshot.cost.note).toContain('não fatiado por agente');
     });
 
-    it('OPS sempre aparece como estado vazio explicado — não usa o ledger AIPendingAction', async () => {
+    it('OPS entra no mesmo cálculo genérico das outras linhas (GOV-13) — sem base, vazio explícito; sem nota especial de exclusão', async () => {
         pendingActionFindMany.mockResolvedValue([]);
         aiLogAggregate.mockResolvedValue(emptyAiLogAggregate());
 
         const snapshot = await getSwarmSloSnapshot('org-1', 30, NOW);
         const ops = snapshot.agents.find((agent) => agent.role === 'OPS')!;
 
-        expect(ops.dataSourceNote).toContain('AIPendingAction');
+        // Igual às demais linhas sem base: vazio explícito, não fabricado — nunca mais um
+        // dataSourceNote fixo dizendo que OPS "não usa o ledger" (GOV-13 removeu esse caso especial).
+        expect(ops.dataSourceNote).toBeUndefined();
         expect(ops.conversion.emptyReason).toBeTruthy();
+    });
+
+    it('OPS agora produz AIPendingAction como os demais papéis (GOV-13) — cobertura/conversão calculadas do ledger, não mais um estado vazio fixo', async () => {
+        pendingActionFindMany.mockResolvedValue([
+            // OPS: 2 propostas (create_follow_up/notify_team), 1 executada após aprovação humana.
+            { agentRole: 'OPS', approved: true, discardedAt: null, executed: true, executedAt: new Date('2026-08-10T10:05:00Z'), executionError: null, attempts: 1, createdAt: new Date('2026-08-10T10:00:00Z') },
+            { agentRole: 'OPS', approved: true, discardedAt: null, executed: false, executedAt: null, executionError: null, attempts: 0, createdAt: new Date('2026-08-10T10:30:00Z') },
+        ]);
+        aiLogAggregate.mockResolvedValue(emptyAiLogAggregate());
+
+        const snapshot = await getSwarmSloSnapshot('org-1', 30, NOW);
+        const ops = snapshot.agents.find((agent) => agent.role === 'OPS')!;
+
+        expect(ops.coverage).toBe(2);
+        expect(ops.conversion).toEqual({ value: 0.5, numerator: 1, denominator: 2 });
+        expect(ops.dataSourceNote).toBeUndefined();
     });
 
     it('com dados reais, calcula cobertura/conversão/override/erro por papel a partir de AIPendingAction', async () => {

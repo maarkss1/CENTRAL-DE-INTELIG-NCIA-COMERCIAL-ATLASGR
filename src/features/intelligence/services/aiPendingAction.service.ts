@@ -6,6 +6,7 @@ import { container } from '../../../shared/di/container.js';
 import type { NoteUseCases } from '../../notes/application/NoteUseCases.js';
 import { activityService } from '../../activities/services/activity.service.js';
 import type { ActivityType } from '../../../lib/zod.js';
+import { notificationService, type NotificationKind } from '../../notifications/notification.service.js';
 
 export interface ExecutionResult {
     /** Mantido como `sent` por compatibilidade com a API/UI: true significa que a ação foi executada. */
@@ -31,6 +32,15 @@ interface CreateFollowUpPayload {
     type?: ActivityType;
     observations?: string;
     owner?: string;
+}
+
+/** GOV-13 (OpsAgent): payload de `notify_team` — mesmo shape aceito pela ferramenta de IA em
+ * `agents/opsPendingActions.tool.ts`. */
+interface NotifyTeamPayload {
+    leadId?: string | null;
+    title?: string;
+    body?: string | null;
+    kind?: NotificationKind;
 }
 
 type ExecutableAction = Pick<AIPendingAction, 'id' | 'action' | 'payload' | 'organizationId'>;
@@ -97,6 +107,28 @@ export async function executeAction(action: ExecutableAction): Promise<Execution
                 owner: resolvedOwner,
                 observations: payload.observations ?? null,
             });
+            return { sent: true };
+        }
+
+        if (action.action === 'notify_team') {
+            // GOV-13: contraparte de execução do `notify_team` proposto pelo OpsAgent
+            // (`agents/opsPendingActions.tool.ts`) — antes desta correção o Ops chamava
+            // `notificationService.create` direto do tool-calling, sem aprovação humana no meio.
+            const payload = action.payload as NotifyTeamPayload;
+            if (!action.organizationId || !payload.title) {
+                return { sent: false, reason: 'unsupported_action' };
+            }
+            const notification = await notificationService.create({
+                organizationId: action.organizationId,
+                title: payload.title,
+                body: payload.body ?? null,
+                kind: payload.kind ?? 'Info',
+                entity: payload.leadId ? 'Lead' : null,
+                entityId: payload.leadId ?? null,
+            });
+            if (!notification) {
+                return { sent: false, reason: 'send_failed' };
+            }
             return { sent: true };
         }
 

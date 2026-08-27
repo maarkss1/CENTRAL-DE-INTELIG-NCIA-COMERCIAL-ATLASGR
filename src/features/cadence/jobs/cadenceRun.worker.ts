@@ -13,6 +13,8 @@ import { prismaLeadSubjectResolver } from '../infra/PrismaLeadSubjectResolver.js
 import { hasLeadReplied } from '../infra/hasLeadReplied.js';
 import { productionCadenceDispatcher } from '../infra/dispatchers/CadenceDispatchers.js';
 import { redisCadenceRunLock } from '../infra/RedisCadenceRunLock.js';
+import { prismaCadenceRateLimitPort } from '../infra/PrismaCadenceRateLimitPort.js';
+import { loadCadenceRateLimitPolicy } from '../application/rateLimitConfig.js';
 
 /**
  * Runtime real da cadência multicanal (CYC-008, onda-19) — até aqui `advanceCadenceRun` (domínio
@@ -76,6 +78,12 @@ function buildDeps(): AdvanceCadenceRunDeps {
         lock: redisCadenceRunLock,
         isWithinBusinessWindow: (now) => isWithinCallWindow(now),
         hasLeadReplied,
+        // Rate limit por contato/domínio (auditoria transversal, Agente 17) — ver
+        // `application/rateLimitService.ts`/`rateLimitConfig.ts`. Política lida do ambiente a cada
+        // tick (custo irrelevante) para que uma mudança de env var em produção valha a partir do
+        // próximo scan, sem exigir redeploy do worker.
+        rateLimit: prismaCadenceRateLimitPort,
+        rateLimitPolicy: loadCadenceRateLimitPolicy(),
     };
 }
 

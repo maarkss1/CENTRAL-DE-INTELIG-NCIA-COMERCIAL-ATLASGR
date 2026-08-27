@@ -17,6 +17,21 @@ function timingSafeStringEqual(a: string, b: string): boolean {
     return timingSafeEqual(bufA, bufB);
 }
 
+/**
+ * Núcleo de validação reutilizado por consumidores que não são Express (ex.: o `http.createServer`
+ * cru de `worker.ts`, que expõe seu próprio `/metrics` fora do app Express e por isso não pode
+ * montar este middleware diretamente).
+ */
+export function isPlatformOperatorTokenConfigured(): boolean {
+    return Boolean(env.PLATFORM_OPERATOR_TOKEN);
+}
+
+export function isValidPlatformOperatorToken(candidate: string | null | undefined): boolean {
+    if (!env.PLATFORM_OPERATOR_TOKEN) return false;
+    if (!candidate) return false;
+    return timingSafeStringEqual(candidate, env.PLATFORM_OPERATOR_TOKEN);
+}
+
 // Este app não monta `cookie-parser` globalmente (`req.cookies` não existe) — em vez de adicionar
 // uma dependência nova só para um único cookie de uso estreito, parseia o header `Cookie` cru.
 function readRawCookie(req: Request, name: string): string | null {
@@ -51,7 +66,7 @@ function readRawCookie(req: Request, name: string): string | null {
  * aberto" quando o operador esquece de configurar o segredo.
  */
 export function requirePlatformOperator(req: Request, res: Response, next: NextFunction): void {
-    if (!env.PLATFORM_OPERATOR_TOKEN) {
+    if (!isPlatformOperatorTokenConfigured()) {
         res.status(503).json({
             success: false,
             error: 'Recurso de operador de plataforma não habilitado — configure PLATFORM_OPERATOR_TOKEN.',
@@ -69,7 +84,7 @@ export function requirePlatformOperator(req: Request, res: Response, next: NextF
         (typeof cookieToken === 'string' && cookieToken) ||
         null;
 
-    if (!candidate || !timingSafeStringEqual(candidate, env.PLATFORM_OPERATOR_TOKEN)) {
+    if (!isValidPlatformOperatorToken(candidate)) {
         res.status(403).json({ success: false, error: 'Acesso negado.' });
         return;
     }

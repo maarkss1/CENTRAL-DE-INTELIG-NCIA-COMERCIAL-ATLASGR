@@ -91,7 +91,7 @@ describe('getEvaluationMetricsSnapshot — harness de avaliação do enxame (AI-
         }
     });
 
-    it('humanOverride e toolCorrectness agregam através dos papéis com ledger (exclui OPS)', async () => {
+    it('humanOverride e toolCorrectness agregam através de todos os papéis com ledger', async () => {
         routePendingActionFindMany([
             { agentRole: 'SDR', approved: true, discardedAt: null, executed: true, executedAt: new Date('2026-08-10T10:05:00Z'), executionError: null, attempts: 1, createdAt: new Date('2026-08-10T10:00:00Z') },
             { agentRole: 'SDR', approved: false, discardedAt: new Date('2026-08-10T11:00:00Z'), executed: false, executedAt: null, executionError: null, attempts: 0, createdAt: new Date('2026-08-10T10:30:00Z') },
@@ -115,6 +115,29 @@ describe('getEvaluationMetricsSnapshot — harness de avaliação do enxame (AI-
         expect(dimensions.toolCorrectness.available).toBe(true);
         if (dimensions.toolCorrectness.available) {
             expect(dimensions.toolCorrectness.value).toEqual({ value: 0.5, numerator: 1, denominator: 2 });
+        }
+    });
+
+    // GOV-13 (onda 39): OPS deixou de ser caso especial em getSwarmSloSnapshot — este harness não
+    // pode voltar a descartá-lo silenciosamente do agregado de 9 dimensões (ver
+    // .agents/handoffs/onda-39/13-para-07-evaluationmetrics-exclui-ops.md).
+    it('inclui OPS no agregado de humanOverride/toolCorrectness quando ele tiver AIPendingAction na janela', async () => {
+        routePendingActionFindMany([
+            { agentRole: 'SDR', approved: true, discardedAt: null, executed: true, executedAt: new Date('2026-08-10T10:05:00Z'), executionError: null, attempts: 1, createdAt: new Date('2026-08-10T10:00:00Z') },
+            { agentRole: 'OPS', approved: true, discardedAt: null, executed: true, executedAt: new Date('2026-08-10T10:05:00Z'), executionError: null, attempts: 1, createdAt: new Date('2026-08-10T10:00:00Z') },
+            { agentRole: 'OPS', approved: false, discardedAt: new Date('2026-08-10T11:00:00Z'), executed: false, executedAt: null, executionError: null, attempts: 0, createdAt: new Date('2026-08-10T10:30:00Z') },
+        ], []);
+        aiLogAggregate.mockResolvedValue(emptyAiLogAggregate());
+        aiLogCount.mockResolvedValue(0);
+        guardrailEventCount.mockResolvedValue(0);
+
+        const { dimensions } = await getEvaluationMetricsSnapshot('org-1', 30, NOW);
+
+        // humanOverride: 1 descarte (OPS row2) / 3 decisões revisadas — sem a correção, as 2 linhas
+        // de OPS seriam descartadas e sobraria só a linha da SDR (denominador 1, não 3).
+        expect(dimensions.humanOverride.available).toBe(true);
+        if (dimensions.humanOverride.available) {
+            expect(dimensions.humanOverride.value).toEqual({ value: 1 / 3, numerator: 1, denominator: 3 });
         }
     });
 

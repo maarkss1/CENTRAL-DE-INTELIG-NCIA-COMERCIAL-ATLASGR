@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card.js';
 import { Button } from '../../../components/ui/Button.js';
+import { Badge } from '../../../components/ui/Badge.js';
 import { EmptyState } from '../../../components/ui/EmptyState.js';
 import { Skeleton } from '../../../components/ui/Skeleton.js';
 import { Building2, AlertCircle, Loader2, ArrowLeft, Target, TrendingUp, Zap, Users, BrainCircuit } from 'lucide-react';
@@ -334,6 +335,21 @@ export function Account360() {
 
 const EXECUTABLE_RECOMMENDATION_STATUSES = new Set(['Pending', 'Approved', 'Failed']);
 
+// CPI (auditoria de qualidade epistêmica): AccountSignal/IntelligenceEvidence gravam evidenceType
+// (IntelligenceEvidenceType no schema) desde a Onda 9, mas nenhuma tela mostrava a diferença entre
+// um fato confirmado e uma inferência/estimativa — só "Confiança" numérica aparecia em telas
+// isoladas (ver TerritoryEconomicSimulator.tsx). Este mapa existe só para as abas "Sinais"/"CRM /
+// Histórico" (as únicas cujo item real carrega `evidenceType`), reaproveitando as variantes de
+// Badge já existentes (nenhum token novo).
+const EVIDENCE_TYPE_META: Record<string, { label: string; variant: 'success' | 'info' | 'warning' | 'danger' | 'outline' }> = {
+    FACT: { label: 'Fato confirmado', variant: 'success' },
+    INFERENCE: { label: 'Inferência', variant: 'info' },
+    ESTIMATE: { label: 'Estimativa', variant: 'warning' },
+    CONFLICT: { label: 'Conflitante', variant: 'danger' },
+    UNKNOWN: { label: 'Desconhecido', variant: 'outline' },
+    RECOMMENDATION: { label: 'Recomendação', variant: 'info' },
+};
+
 function AccountRecordCard({
     tab,
     item,
@@ -351,6 +367,11 @@ function AccountRecordCard({
     const recommendationId = item.id as string | undefined;
     const canExecute = tab === 'recommendations' && Boolean(onExecute) && Boolean(recommendationId) && EXECUTABLE_RECOMMENDATION_STATUSES.has(status ?? '');
     const isExecuting = executingId === recommendationId;
+    // Só 'signals' e 'crm' carregam evidenceType real (AccountSignal/IntelligenceEvidence) —
+    // nas outras abas o campo não existe no item, então o badge simplesmente não aparece.
+    const evidenceType = (tab === 'signals' || tab === 'crm') ? (item.evidenceType as string | undefined) : undefined;
+    const evidenceMeta = evidenceType ? EVIDENCE_TYPE_META[evidenceType] : undefined;
+    const confidence = typeof item.confidence === 'number' ? item.confidence : null;
 
     return (
         <Card className="border-white/10 bg-white/5">
@@ -360,6 +381,10 @@ function AccountRecordCard({
                     {subtitle && <p className="text-sm text-white/50 mt-0.5">{subtitle}</p>}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                    {evidenceMeta && <Badge variant={evidenceMeta.variant}>{evidenceMeta.label}</Badge>}
+                    {confidence != null && (
+                        <span className="text-xs text-white/50 whitespace-nowrap">{Math.round(confidence * 100)}% confiança</span>
+                    )}
                     {status && (
                         <span className="text-xs px-2 py-1 rounded-full border border-white/10 text-white/70 whitespace-nowrap">
                             {status}
