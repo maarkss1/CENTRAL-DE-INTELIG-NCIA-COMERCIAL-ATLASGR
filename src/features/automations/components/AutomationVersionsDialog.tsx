@@ -60,8 +60,6 @@ interface AutomationVersionsDialogProps {
 /**
  * Histórico de versões da REGRA (trigger/condições/ação) — não das execuções dela (isso já existe
  * em outro lugar, ver `automation-history.service.ts`). Onda 42 (dossiê CPI, DEC-14, opção A).
- * Persistência hoje é um protótipo em memória (ver `InMemoryAutomationVersionStore.ts`) — histórico
- * pode ficar vazio após um reinício do servidor até o schema real existir.
  */
 export function AutomationVersionsDialog({ automation, onClose }: AutomationVersionsDialogProps) {
     const [loading, setLoading] = useState(false);

@@ -13,16 +13,9 @@ import { getCostPerCallUsd, type ProspectingCostProvider } from './providerCostM
  * acompanha os logs estruturados da execução inteira e é persistido ao final (sucesso ou erro) no
  * model `ProspectingSearchExecution`.
  *
- * IMPORTANTE — model ainda não migrado: `prisma/schema.prisma` e as migrations são arquivos de
- * dono único (não editados diretamente por este agente). O model completo está proposto em
- * `.agents/handoffs/onda-42/06-para-00-model-search-execution.md`, junto com a policy de RLS
- * (`tenant_isolation_policy`) que a migration precisa trazer. Até essa migration ser aplicada,
- * `prisma.prospectingSearchExecution` NÃO existe na Prisma Client gerada — `searchExecutionDelegate()`
- * abaixo é um cast controlado para o shape proposto, só para este arquivo poder ser escrito com o
- * código Prisma "real" (mesmos nomes de campo do handoff) sem quebrar `tsc --noEmit` enquanto o
- * model não existe. Assim que a migration for aplicada e `prisma generate` rodar de novo: apague
- * `ProspectingSearchExecutionRecord`/`ProspectingSearchExecutionDelegate`/`searchExecutionDelegate`
- * abaixo e troque toda chamada por `prisma.prospectingSearchExecution` direto (tipos gerados).
+ * Migration aplicada em 20260827210000_onda42_decisoes_schema (ver
+ * `.agents/handoffs/onda-42/06-para-00-model-search-execution.md` para o raciocínio completo do
+ * model, incluindo a policy de RLS `tenant_isolation_policy`).
  */
 
 export type SearchExecutionStatus = 'success' | 'partial' | 'error';
@@ -47,40 +40,9 @@ export interface SearchExecutionProviderCall {
     errorMessage?: string;
 }
 
-/** Espelha o model `ProspectingSearchExecution` proposto no handoff (ver cabeçalho do arquivo). */
-export interface ProspectingSearchExecutionRecord {
-    id: string;
-    organizationId: string;
-    savedSearchId: string | null;
-    /** Mesmo formato de `SavedSearch.criteria` (JSON livre — `ProspectCriteria` serializado). */
-    criteria: Prisma.JsonValue;
-    providerMode: string;
-    /** `SearchExecutionProviderCall[]` serializado. */
-    providersCalled: Prisma.JsonValue;
-    totalResults: number;
-    costUsd: number;
-    status: string;
-    errorMessage: string | null;
-    startedAt: Date;
-    finishedAt: Date | null;
-    durationMs: number | null;
-    createdAt: Date;
-    updatedAt: Date;
-}
-
-type ProspectingSearchExecutionCreateData = Omit<ProspectingSearchExecutionRecord, 'createdAt' | 'updatedAt'>;
-
-interface ProspectingSearchExecutionDelegate {
-    create(args: { data: ProspectingSearchExecutionCreateData }): Promise<ProspectingSearchExecutionRecord>;
-    findFirst(args: { where: { id: string; organizationId: string } }): Promise<ProspectingSearchExecutionRecord | null>;
-}
-
-/** Ver nota "IMPORTANTE" no topo do arquivo — remover este cast assim que o model existir na
- * Prisma Client gerada. */
-function searchExecutionDelegate(): ProspectingSearchExecutionDelegate {
-    return (prisma as unknown as { prospectingSearchExecution: ProspectingSearchExecutionDelegate })
-        .prospectingSearchExecution;
-}
+/** Re-exportado para consumidores externos (ex.: `findSearchExecution`) não precisarem importar
+ * `@prisma/client` diretamente só para o tipo de retorno. */
+export type ProspectingSearchExecutionRecord = Prisma.ProspectingSearchExecutionGetPayload<Record<string, never>>;
 
 const BILLABLE_PROVIDERS = new Set<ProspectingCostProvider>(['apollo', 'hunter']);
 
@@ -206,14 +168,14 @@ export class SearchExecutionTracker {
         if (!this.organizationId) return;
 
         try {
-            await searchExecutionDelegate().create({
+            await prisma.prospectingSearchExecution.create({
                 data: {
                     id: this.searchId,
                     organizationId: this.organizationId,
                     savedSearchId: this.savedSearchId,
-                    criteria: this.criteria as Prisma.JsonValue,
+                    criteria: this.criteria as Prisma.InputJsonValue,
                     providerMode: this.providerMode,
-                    providersCalled: this.calls as unknown as Prisma.JsonValue,
+                    providersCalled: this.calls as unknown as Prisma.InputJsonValue,
                     totalResults: input.totalResults,
                     costUsd,
                     status: input.status,
@@ -244,7 +206,7 @@ export async function findSearchExecution(
     organizationId: string
 ): Promise<ProspectingSearchExecutionRecord | null> {
     try {
-        return await searchExecutionDelegate().findFirst({ where: { id: searchId, organizationId } });
+        return await prisma.prospectingSearchExecution.findFirst({ where: { id: searchId, organizationId } });
     } catch (error) {
         logger.error({ err: error, searchId, organizationId }, 'Falha ao buscar ProspectingSearchExecution');
         return null;

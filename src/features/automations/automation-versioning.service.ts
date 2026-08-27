@@ -8,14 +8,14 @@ import {
     type AutomationVersionSnapshot,
     type AutomationVersionStore,
 } from './domain/AutomationVersion';
-import { InMemoryAutomationVersionStore } from './infra/InMemoryAutomationVersionStore.js';
+import { PrismaAutomationVersionStore } from './infra/PrismaAutomationVersionStore.js';
 
 /**
- * PROTÓTIPO em memória (ver `InMemoryAutomationVersionStore` para a justificativa completa e o
- * handoff correspondente). Único ponto de composição desta feature: trocar a store real (assim
- * que `AutomationVersion` existir no schema) é editar só esta linha.
+ * Único ponto de composição desta feature — implementação real (Postgres), ver
+ * `PrismaAutomationVersionStore`. `InMemoryAutomationVersionStore` continua existindo para os
+ * testes unitários deste módulo (não sobrevive a reinício de processo, nunca usada em produção).
  */
-const store: AutomationVersionStore = new InMemoryAutomationVersionStore();
+const store: AutomationVersionStore = new PrismaAutomationVersionStore();
 
 export interface AutomationVersionActor {
     userId: string | null;
