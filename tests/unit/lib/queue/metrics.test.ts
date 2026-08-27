@@ -110,4 +110,57 @@ describe('src/lib/queue/metrics.ts', () => {
             ]),
         );
     });
+
+    // CPI (auditoria — "Alerta real de Redis health" nunca tinha métrica real, ver
+    // .agents/handoffs/onda-39/*). redis_connection_up expõe `.status` de cada conexão ioredis
+    // registrada, mas só para papéis habilitados nesta configuração — uma conexão que nunca
+    // deveria ligar de propósito (enabled() === false) não deve gerar série (evitaria alerta
+    // falso-positivo).
+    describe('registerRedisConnectionForMetrics / redisConnectionUp', () => {
+        it('reporta 1 quando a conexão está "ready" e 0 caso contrário, só para papéis habilitados', async () => {
+            const { registerRedisConnectionForMetrics } = await import('../../../../src/lib/queue/metrics.js');
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const readyRedis = { status: 'ready' } as any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const reconnectingRedis = { status: 'reconnecting' } as any;
+
+            registerRedisConnectionForMetrics('bullmq', readyRedis, () => true);
+            registerRedisConnectionForMetrics('rate-limit', reconnectingRedis, () => true);
+            registerRedisConnectionForMetrics('cache', reconnectingRedis, () => false);
+
+            const metrics = await client.register.getMetricsAsJSON();
+            const up = metrics.find((m) => m.name === 'redis_connection_up');
+            const values = (up as unknown as { values: Array<{ value: number; labels: { role: string } }> })?.values ?? [];
+
+            expect(values).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ value: 1, labels: { role: 'bullmq' } }),
+                    expect.objectContaining({ value: 0, labels: { role: 'rate-limit' } }),
+                ]),
+            );
+            // 'cache' está desabilitado nesta config (enabled() === false) — nunca deveria reportar
+            // série, ou o dashboard/alerta veria uma conexão "caída" que nunca deveria estar ligada.
+            expect(values.find((v) => v.labels.role === 'cache')).toBeUndefined();
+        });
+
+        it('ignora um segundo registro do mesmo papel (evita duplicar série)', async () => {
+            const { registerRedisConnectionForMetrics } = await import('../../../../src/lib/queue/metrics.js');
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const first = { status: 'ready' } as any;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const second = { status: 'reconnecting' } as any;
+
+            registerRedisConnectionForMetrics('bullmq', first, () => true);
+            registerRedisConnectionForMetrics('bullmq', second, () => true);
+
+            const metrics = await client.register.getMetricsAsJSON();
+            const up = metrics.find((m) => m.name === 'redis_connection_up');
+            const values = (up as unknown as { values: Array<{ value: number; labels: { role: string } }> })?.values ?? [];
+
+            expect(values.filter((v) => v.labels.role === 'bullmq')).toHaveLength(1);
+            expect(values.find((v) => v.labels.role === 'bullmq')).toMatchObject({ value: 1 });
+        });
+    });
 });

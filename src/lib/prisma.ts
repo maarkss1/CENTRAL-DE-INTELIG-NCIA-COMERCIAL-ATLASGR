@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Pool } from 'pg';
+import client from 'prom-client';
 import { AuditService, type AuditAction } from './audit/audit.service.js';
 
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -15,13 +16,14 @@ import {
 } from './crypto/piiFields.js';
 const connectionString = env.DATABASE_URL || process.env.DATABASE_URL || "";
 
-// Campos de credencial de integração e de PII de Contact que são cifrados em repouso
-// (AES-256-GCM, ver src/lib/crypto/secretFields.ts) — cifra ao gravar/decifra ao ler, de forma
-// transparente para todo o resto do código (services continuam lendo texto puro em memória; só o
-// valor persistido no Postgres é cifrado). Config e helpers movidos para
-// src/lib/crypto/piiFields.ts (ver ali o mapa completo de models/campos e o comentário sobre o
-// impacto conhecido em busca por contains/groupBy em Contact) — mantido apenas o mesmo nome local
-// `ENCRYPTED_FIELDS` abaixo para não alterar o resto deste arquivo.
+// Campos de credencial de integração cifrados em repouso (AES-256-GCM, ver
+// src/lib/crypto/secretFields.ts) — cifra ao gravar/decifra ao ler, de forma transparente para
+// todo o resto do código (services continuam lendo texto puro em memória; só o valor persistido
+// no Postgres é cifrado). Config e helpers em src/lib/crypto/piiFields.ts (ver ali o mapa completo
+// de models/campos) — mantido apenas o mesmo nome local `ENCRYPTED_FIELDS` abaixo para não alterar
+// o resto deste arquivo. `Contact` NÃO está neste mapa (chegou a entrar e foi revertido na onda 39
+// — quebrava busca/leitura por e-mail/telefone contra Postgres real; ver
+// .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md).
 
 // Production-ready connection pool configuration
 const pool = new Pool({
@@ -35,6 +37,35 @@ const pool = new Pool({
 // Error handling for idle clients — usa logger estruturado (não console.error) para aparecer no Pino/Datadog.
 pool.on('error', (err) => {
   logger.error({ err }, 'Unexpected error on idle database client');
+});
+
+// CPI (auditoria — "Alerta real de DB pool saturation" nunca tinha métrica real, só texto
+// aspiracional em infrastructure/observability/alert.rules.yml). `pg.Pool` já mantém essas 3
+// contagens internamente (nenhuma instrumentação nova de query necessária) — só faltava expô-las
+// como Gauge Prometheus, mesmo padrão pull-based de src/lib/queue/metrics.ts. Consumida pelo grupo
+// `prospector-atlas.database.ativos-hoje` em alert.rules.yml.
+export const dbPoolTotalConnections = new client.Gauge({
+  name: 'pg_pool_total_connections',
+  help: 'Total de clientes (conectados + sendo criados) no pool pg deste processo.',
+  collect() {
+    this.set(pool.totalCount);
+  },
+});
+
+export const dbPoolIdleConnections = new client.Gauge({
+  name: 'pg_pool_idle_connections',
+  help: 'Clientes ociosos (livres para uso imediato) no pool pg deste processo.',
+  collect() {
+    this.set(pool.idleCount);
+  },
+});
+
+export const dbPoolWaitingRequests = new client.Gauge({
+  name: 'pg_pool_waiting_requests',
+  help: 'Requisições aguardando um client livre do pool pg deste processo — > 0 sustentado indica pool saturado (max: 20).',
+  collect() {
+    this.set(pool.waitingCount);
+  },
 });
 
 const adapter = new PrismaPg(pool);
