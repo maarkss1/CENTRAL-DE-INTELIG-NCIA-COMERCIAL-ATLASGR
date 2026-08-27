@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { assertSafeExternalUrl } from '../../../shared/security/urlGuard.js';
 import { isSuppressed } from '../birth-voice/callSuppression.service.js';
 import { requestContext } from '../../../lib/async-context.js';
 import { classifyCallOutcome, callResultedInConversation, callMarker } from '../birth-voice/birthVoice.helpers.js';
@@ -98,7 +98,7 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
     }
 
     const pbxUrl = input.pbxUrl.trim().replace(/\/$/, '');
-    await assertSafeWebhookUrl(pbxUrl);
+    await assertSafeExternalUrl(pbxUrl);
 
     const connectionId = `3cx-${Date.now()}-${randomUUID().slice(0, 8)}`;
     const newConn = {
@@ -125,11 +125,21 @@ export async function connect3CX(organizationId: string, input: ThreeCXConnectio
     };
 }
 
-/** Testa a comunicação com o servidor 3CX PABX */
+/**
+ * Testa a comunicação com o servidor 3CX PABX.
+ *
+ * Revalida `conn.pbxUrl` contra o guard de SSRF aqui, mesmo já validado uma vez em `connect3CX`
+ * antes de persistir — sem isto, um DNS rebinding (host resolvia IP público no cadastro, IP
+ * privado agora, no momento real do fetch) só seria pego na primeira vez, nunca nos testes de
+ * conexão seguintes contra a URL já salva no banco. Mesmo padrão aplicado a `testWebhook`
+ * (Bitrix24, `client.ts`).
+ */
 export async function test3CXConnection(organizationId: string, connectionId: string): Promise<{ success: boolean; message: string; pbxUrl: string }> {
     const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId);
     if (!conn) throw new AppError('Conexão 3CX PABX não encontrada.', 404);
+
+    await assertSafeExternalUrl(conn.pbxUrl);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
@@ -234,6 +244,11 @@ export async function make3CXCall(
     if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null, email: email ?? null })) {
         throw new AppError('Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.', 409);
     }
+
+    // Revalida contra SSRF (DNS rebinding) imediatamente antes da chamada de rede real — ver
+    // comentário em `test3CXConnection` acima; `conn.pbxUrl` já foi validado uma vez em
+    // `connect3CX`, mas o servidor pode responder outro IP agora.
+    await assertSafeExternalUrl(conn.pbxUrl);
 
     const callId = `3cx-call-${Date.now()}`;
     const controller = new AbortController();
