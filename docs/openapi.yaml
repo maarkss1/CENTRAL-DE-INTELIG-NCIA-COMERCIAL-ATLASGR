@@ -2688,6 +2688,68 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /automations/{id}/versions:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    get:
+      tags: [Automations]
+      summary: >-
+        Histórico de versões da regra (Onda 42, dossiê CPI DEC-14 opção A): estado atual mais uma
+        linha de tempo de edições anteriores (quem/quando trocou, e o diff textual campo a campo
+        até o estado seguinte), mais recente primeiro. Restrito a ADMIN/GESTOR — revela histórico
+        de configuração comercial da automação.
+      responses:
+        '200':
+          description: >-
+            OK. `data` é `{ automationId, current: { name, enabled, trigger, conditions, action,
+            actionConfig }, currentUpdatedAt, history: [{ id, editedAt, editedByUserId,
+            editedByEmail, changeReason: 'update'|'delete', snapshot: {...}, diffToNext: [{ field,
+            before, after }] }] }`. `history` vazio quando a regra nunca foi editada desde a
+            criação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /automations/{id}/dry-run:
+    parameters:
+      - $ref: '#/components/parameters/IdParam'
+    post:
+      tags: [Automations]
+      summary: >-
+        Simula a regra contra uma amostra dos dados reais e atuais da organização, sem executar
+        nenhuma ação de verdade (Onda 42, dossiê CPI DEC-14 opção A) — nenhum e-mail, atividade ou
+        ligação é disparado. Restrito a ADMIN/GESTOR — lê uma amostra de leads/atividades reais da
+        organização.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  description: Tamanho da amostra de registros candidatos. Padrão 25, teto 100.
+                  minimum: 1
+                  maximum: 100
+      responses:
+        '200':
+          description: >-
+            OK. `data` é `{ automationId, automationName, trigger, action, enabled, generatedAt,
+            sampleSize, matchedCount, wouldFireCount, methodologyNote, records: [{ entity:
+            'Lead'|'Activity', entityId, label, outcome: { action, wouldFire, blockedReason?,
+            details } }] }`. `wouldFire` reflete o mesmo critério de bloqueio do motor real
+            (janela comercial, opt-out, config inválida etc.) sem produzir nenhum efeito colateral.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # ───────────────────────────── Usage / Billing ─────────────────────────────
   /usage:
     get:
