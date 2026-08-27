@@ -212,6 +212,23 @@ paths:
       summary: Lista fontes, competências, hashes e status dos snapshots
       responses:
         '200': { description: Histórico de importações e snapshot ativo }
+  /market-intelligence/data-quality-report:
+    get:
+      tags: [Market Intelligence]
+      summary: >-
+        Relatório único de qualidade/proveniência de dados de Account Intelligence do tenant
+        (cálculo real contra o banco, não documento estático — ver
+        src/features/market-intelligence/server/dataQualityReport.service.ts)
+      description: >-
+        Consolida sinais já reais e computáveis que antes só existiam dispersos: cobertura de
+        contas com AccountIntelligenceSnapshot, distribuição de sourceStatus (crm/enrichment) do
+        snapshot mais recente por conta, idade desse snapshot (média/mín/máx) e obsolescência,
+        cobertura de IntelligenceEvidence/AccountSignal por tipo, e taxa de DecisionMaker/
+        EconomicRelationship verificados vs. não verificados. Cada seção da resposta traz
+        `available: boolean` e `reason` quando a população subjacente está vazia — nenhum campo
+        numérico é fabricado quando o dado não existe.
+      responses:
+        '200': { description: Relatório de qualidade de dados agregado do tenant autenticado }
 
   # ───────────────────────────── Mesa de Tratamento ─────────────────────────────
   /mesa-tratamento/queue:
