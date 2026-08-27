@@ -22,6 +22,8 @@ export interface KnowledgeSearchHit {
     matchedBy: Array<'semantic' | 'keyword'>;
     similarity: number | null;
     score: number;
+    /** Pontuação (0-100) do estágio de reranking via LLM (DEC-11), quando habilitado no backend. */
+    rerankScore?: number;
 }
 
 export interface KnowledgeSearchResponse {
