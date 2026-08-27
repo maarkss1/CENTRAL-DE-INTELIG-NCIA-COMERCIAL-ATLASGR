@@ -42,11 +42,75 @@ export const ACTIONS: AutomationAction[] = ['Notificar equipe', 'Criar atividade
  * Negócio que antes ficavam de fora deste filtro mesmo já sendo estágios válidos de lead. */
 export const LEAD_STATUSES: string[] = [...LEAD_STATUS];
 
+/** Ver `automation-dry-run.service.ts` (backend) para a metodologia completa. */
+export interface DryRunActionOutcome {
+    action: AutomationAction;
+    wouldFire: boolean;
+    blockedReason?: string;
+    details: Record<string, unknown>;
+}
+
+export interface DryRunRecord {
+    entity: 'Lead' | 'Activity';
+    entityId: string;
+    label: string;
+    outcome: DryRunActionOutcome;
+}
+
+export interface DryRunResult {
+    automationId: string;
+    automationName: string;
+    trigger: AutomationTrigger;
+    action: AutomationAction;
+    enabled: boolean;
+    generatedAt: string;
+    sampleSize: number;
+    matchedCount: number;
+    wouldFireCount: number;
+    records: DryRunRecord[];
+    methodologyNote: string;
+}
+
+/** Ver `automation-versioning.service.ts` (backend). */
+export interface AutomationVersionSnapshot {
+    name: string;
+    enabled: boolean;
+    trigger: AutomationTrigger;
+    conditions: AutomationConditions | null;
+    action: AutomationAction;
+    actionConfig: Record<string, unknown>;
+}
+
+export interface AutomationDiffLine {
+    field: string;
+    before: string;
+    after: string;
+}
+
+export interface AutomationVersionTimelineEntry {
+    id: string;
+    editedAt: string;
+    editedByUserId: string | null;
+    editedByEmail: string | null;
+    changeReason: 'update' | 'delete';
+    snapshot: AutomationVersionSnapshot;
+    diffToNext: AutomationDiffLine[];
+}
+
+export interface AutomationVersionTimeline {
+    automationId: string;
+    current: AutomationVersionSnapshot;
+    currentUpdatedAt: string;
+    history: AutomationVersionTimelineEntry[];
+}
+
 export const automationsApi = {
     list: () => api.get<Automation[]>('/api/automations'),
     create: (draft: AutomationDraft) => api.post<Automation>('/api/automations', draft),
     update: (id: string, patch: Partial<AutomationDraft>) => api.put<Automation>(`/api/automations/${id}`, patch),
     remove: (id: string) => api.delete<void>(`/api/automations/${id}`),
+    dryRun: (id: string, limit?: number) => api.post<DryRunResult>(`/api/automations/${id}/dry-run`, limit ? { limit } : {}),
+    versions: (id: string) => api.get<AutomationVersionTimeline>(`/api/automations/${id}/versions`),
 };
 
 const OPERATOR_SYMBOL: Record<keyof AutomationConditionOperator, string> = { gte: '≥', lte: '≤', gt: '>', lt: '<' } as never;
