@@ -6,6 +6,21 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "allowScripts": {
+    "@prisma/engines@7.9.1": true,
+    "@scarf/scarf@1.4.0": true,
+    "@whiskeysockets/baileys@7.0.0-rc13": true,
+    "bcrypt@6.0.0": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.1": true,
+    "libxmljs2@0.37.0": true,
+    "msgpackr-extract@3.0.4": true,
+    "msw@2.15.0": true,
+    "prisma@7.9.1": true,
+    "protobufjs@7.6.5": true,
+    "ssh2@1.17.0": true,
+    "tesseract.js@7.0.0": true
+  },
   "scripts": {
     "postinstall": "prisma generate",
     "ship": "tsc --noEmit && npm run build && git add . && git commit -m \"update: melhorias e ajustes\" && git push origin main",
