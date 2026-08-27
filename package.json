@@ -62,7 +62,7 @@
     "reset:passwords": "tsx scripts/reset-passwords.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1112.0",
+    "@aws-sdk/client-s3": "^3.1116.0",
     "@aws-sdk/s3-request-presigner": "^3.1111.0",
     "@bull-board/api": "^8.6.1",
     "@bull-board/express": "^8.6.1",
