@@ -3,7 +3,8 @@ import { logger } from '../logger.js';
 import { requestContext } from '../async-context.js';
 import { cacheConnection } from '../queue/redis.js';
 import { env } from '../../config/env.js';
-import { recordAiBudgetBlocked } from './metrics.js';
+import { AppError } from '../../shared/middlewares/errorHandler.js';
+import { recordAiBudgetBlocked, recordOrgAiBudgetBlocked } from './metrics.js';
 
 /**
  * Circuit breaker de orçamento mensal de IA (AI-011). Diferente do circuit breaker por provedor
@@ -14,10 +15,10 @@ import { recordAiBudgetBlocked } from './metrics.js';
  * deixava em aberto "o que 'cortar' significa"): exceder o teto BLOQUEIA novas chamadas de IA, não
  * degrada para outro modelo nem só notifica.
  *
- * Orçamento é GLOBAL (soma de todas as organizações), não por tenant: `AI_MONTHLY_BUDGET_USD` já é
- * hoje um único valor escalar (ao contrário de outros pares flag+allowlist-por-organização deste
- * repo, como SWARM_SCHEDULER_ORGANIZATIONS) — orçamento por tenant exigiria uma coluna/tabela nova,
- * fora do escopo desta correção.
+ * O teto descrito acima (`AI_MONTHLY_BUDGET_USD`) é GLOBAL (soma de todas as organizações), não por
+ * tenant — continua existindo tal como foi implementado em AI-011. Desde DEC-09 (onda 42, ver
+ * seção "Orçamento por organização" mais abaixo) ele passou a coexistir com um segundo teto, esse
+ * sim por tenant (`Organization.monthlyAiBudgetUsd`).
  */
 
 const CACHE_KEY = 'ai-gateway:budget:month-cost-usd';
@@ -112,14 +113,169 @@ export class AiBudgetExceededError extends Error {
     }
 }
 
+// ─── Orçamento por organização (DEC-09, onda 42) ───────────────────────────────────────────────
+//
+// Diferente do teto global acima (uma única leitura agregada, cross-tenant, exigindo o bypass de
+// RLS documentado no topo do arquivo), o teto por organização é uma leitura ESCOPADA à própria
+// organização — roda dentro do `requestContext` já ativo da chamada (tenantId == organizationId
+// sendo checado), então RLS comum já restringe a leitura sem precisar de bypass nenhum: mesmo
+// padrão já usado por `usageService.summary()` (src/features/billing/usage.service.ts).
+//
+// `Organization.monthlyAiBudgetUsd` ainda NÃO existe no schema (fora do meu boundary nesta
+// execução alterar `prisma/schema.prisma` — ver
+// `.agents/handoffs/onda-42/03-para-00-campo-orcamento-organization.md`). As duas funções abaixo
+// que leem esse campo usam um cast de `select`/resultado para o TypeScript aceitar hoje mesmo sem
+// o campo existir no client gerado; qualquer erro de leitura (coluna ausente até a migration
+// rodar, ou Postgres indisponível) é tratado como "sem teto configurado" — fail-OPEN nessa
+// ausência/erro, nunca um teto implícito. Assim que a migration do handoff rodar e
+// `npx prisma generate` regenerar os tipos, trocar o `select`/cast por um `select` normal e
+// remover o try/catch "coluna ainda não existe".
+
+const ORG_CACHE_KEY_PREFIX = 'ai-gateway:budget:org:';
+const ORG_CACHE_TTL_SECONDS = 60;
+
+interface LocalOrgCacheState {
+    value: number;
+    expiresAt: number;
+}
+const localOrgCostCache = new Map<string, LocalOrgCacheState>();
+
+/** Só para testes: limpa o fallback em memória por organização entre casos. */
+export function __resetOrgAiBudgetCacheForTests(): void {
+    localOrgCostCache.clear();
+}
+
+function currentMonthKey(date: Date = new Date()): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Soma real de `AILog.cost` do mês corrente de UMA organização — mesma fonte de verdade que
+ * `usageService.summary`, mas só o número que a checagem de orçamento precisa. Escopada por
+ * `organizationId` explícito (nunca vaza custo de outro tenant) e por `createdAt >= início do mês
+ * corrente` (nunca herda custo de um mês anterior).
+ */
+async function computeOrgMonthCostUsd(organizationId: string): Promise<number> {
+    const result = await prisma.aILog.aggregate({
+        where: { organizationId, createdAt: { gte: currentMonthStart() } },
+        _sum: { cost: true },
+    });
+    return result._sum.cost ?? 0;
+}
+
+/**
+ * Custo do mês corrente de UMA organização, cacheado por até ORG_CACHE_TTL_SECONDS — mesmo
+ * raciocínio de `getMonthCostUsd` (evita um aggregate no Postgres por chamada de IA), mas chaveado
+ * por organização E por mês (`YYYY-MM` na própria chave), então a virada do mês nunca mistura o
+ * total antigo com o novo: o primeiro check do mês novo simplesmente recalcula do zero.
+ */
+async function getOrgMonthCostUsd(organizationId: string): Promise<number> {
+    const cacheKey = `${ORG_CACHE_KEY_PREFIX}${organizationId}:${currentMonthKey()}`;
+    try {
+        const cached = await cacheConnection.get(cacheKey);
+        if (cached !== null) return Number(cached);
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[AI Budget] Redis indisponível ao ler cache por organização, recalculando direto do Postgres');
+    }
+
+    const now = Date.now();
+    const local = localOrgCostCache.get(cacheKey);
+    if (local && local.expiresAt > now) return local.value;
+
+    let fresh: number;
+    try {
+        fresh = await computeOrgMonthCostUsd(organizationId);
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[AI Budget] Falha ao calcular custo do mês da organização (Postgres indisponível) — tratando como custo desconhecido, não como orçamento excedido');
+        return 0;
+    }
+
+    localOrgCostCache.set(cacheKey, { value: fresh, expiresAt: now + ORG_CACHE_TTL_SECONDS * 1000 });
+    try {
+        await cacheConnection.set(cacheKey, fresh.toString(), 'EX', ORG_CACHE_TTL_SECONDS);
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[AI Budget] Redis indisponível ao gravar cache por organização — fallback em memória local já cobre a janela');
+    }
+    return fresh;
+}
+
+interface OrgAiBudgetRow {
+    monthlyAiBudgetUsd: number | null;
+}
+
+/**
+ * Teto mensal de IA configurado para UMA organização. `null`/ausente = sem teto (nunca bloqueia) —
+ * ver nota grande no topo desta seção sobre o cast temporário até a migration do handoff rodar.
+ */
+async function getOrgAiBudgetUsd(organizationId: string): Promise<number | null> {
+    try {
+        const org = await prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { monthlyAiBudgetUsd: true } as unknown as { id: true },
+        }) as unknown as OrgAiBudgetRow | null;
+        return org?.monthlyAiBudgetUsd ?? null;
+    } catch (err) {
+        logger.warn({ err, organizationId }, '[AI Budget] Falha ao ler o teto mensal de IA da organização (campo monthlyAiBudgetUsd pode ainda não existir) — tratando como sem teto configurado');
+        return null;
+    }
+}
+
+export class AiOrgBudgetExceededError extends AppError {
+    constructor(
+        public readonly organizationId: string,
+        public readonly monthCostUsd: number,
+        public readonly budgetUsd: number,
+    ) {
+        super(
+            `Orçamento mensal de IA desta organização foi atingido (US$ ${monthCostUsd.toFixed(2)} de US$ ${budgetUsd.toFixed(2)}). ` +
+            'Novas chamadas de IA estão bloqueadas para esta organização até o início do próximo mês ou até o teto ' +
+            'mensal de IA da organização ser aumentado.',
+            429,
+        );
+        this.name = 'AiOrgBudgetExceededError';
+    }
+}
+
+/**
+ * DEC-09 (dossiê CPI, onda 42, opção B escolhida pelo usuário): teto REAL por organização, além do
+ * teto global de plataforma já existente (AI-011, acima). Chamada de dentro de
+ * `assertAiBudgetNotExceeded` — os mesmos 3 pontos de chamada reais (gateway/chat-model.ts,
+ * gateway/streaming.ts, base.agent.ts::runWithTools) ganham a checagem por organização
+ * automaticamente, sem precisar tocar em nenhum deles.
+ *
+ * Fail-OPEN (nunca bloqueia) quando: (a) não há organização conhecida no `requestContext` —
+ * chamada de worker/script sem tenant, mesmo tratamento que `AILog.organizationId` nulo já recebe
+ * hoje; ou (b) a organização não tem teto configurado (`monthlyAiBudgetUsd` nulo — nullable
+ * significa SEM LIMITE, nunca um teto implícito de US$0). Fail-CLOSED (bloqueia) só quando um teto
+ * real está configurado E foi atingido/excedido — essa é a decisão de segurança/produto registrada
+ * no handoff (`.agents/handoffs/onda-42/03-para-00-campo-orcamento-organization.md`) para
+ * confirmação.
+ */
+async function assertOrgAiBudgetNotExceeded(): Promise<void> {
+    const organizationId = requestContext.getStore()?.tenantId;
+    if (!organizationId) return;
+
+    const budgetUsd = await getOrgAiBudgetUsd(organizationId);
+    if (budgetUsd === null) return;
+
+    const monthCostUsd = await getOrgMonthCostUsd(organizationId);
+    if (monthCostUsd >= budgetUsd) {
+        recordOrgAiBudgetBlocked(organizationId);
+        throw new AiOrgBudgetExceededError(organizationId, monthCostUsd, budgetUsd);
+    }
+}
+
 /**
  * Ponto único de checagem, chamado antes de QUALQUER chamada de IA — `getAiModel().invoke()`
  * (gateway.ts) e `BaseAgent.runWithTools()` (base.agent.ts), os dois caminhos reais de saída para
- * um provedor (ver docs/AI-SWARM-GOVERNANCE-AUDIT.md, AI-011). Sem `AI_MONTHLY_BUDGET_USD`
- * configurada, é sempre um no-op — mesmo comportamento "sem teto" que a métrica passiva já tinha,
- * não inventa um teto implícito.
+ * um provedor (ver docs/AI-SWARM-GOVERNANCE-AUDIT.md, AI-011). Verifica primeiro o teto POR
+ * ORGANIZAÇÃO (mais específico, acionável pelo próprio tenant) e só depois o teto GLOBAL de
+ * plataforma. Sem `AI_MONTHLY_BUDGET_USD` configurada, a parte global é sempre um no-op — mesmo
+ * comportamento "sem teto" que a métrica passiva já tinha, não inventa um teto implícito.
  */
 export async function assertAiBudgetNotExceeded(): Promise<void> {
+    await assertOrgAiBudgetNotExceeded();
+
     if (env.AI_MONTHLY_BUDGET_USD === undefined) return;
     const monthCostUsd = await getMonthCostUsd();
     if (monthCostUsd >= env.AI_MONTHLY_BUDGET_USD) {
