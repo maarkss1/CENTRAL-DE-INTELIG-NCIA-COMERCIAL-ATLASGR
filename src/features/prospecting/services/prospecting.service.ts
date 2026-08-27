@@ -1,7 +1,8 @@
 import { logger } from '../../../lib/logger';
-import { prisma, withRlsContext } from '../../../lib/prisma.js';
+import { prisma } from '../../../lib/prisma.js';
 import { Prisma } from '@prisma/client';
-import { isValidCnpj, sanitizeCnpj, discoverCnpjByName } from './cnpj.util';
+import { toDeterministicCnpj, discoverCnpjByName } from './cnpj.util';
+import { resolveCompanyIdentity } from './companyIdentity.service';
 import { enrichCompany } from './enrichment.service';
 import { fetchApolloCandidates, searchDecisionMakersAdvanced, enrichOrganizationWithContacts } from './apollo.service';
 import type { DecisionMakerCriteria } from './apollo.service';
@@ -439,53 +440,21 @@ function splitLocation(location?: string | null): { city?: string; state?: strin
 }
 
 /**
- * Localiza uma empresa já cadastrada na organização que corresponda ao candidato
- * (mesmo CNPJ ou mesmo nome fantasia/razão social) — evita duplicar empresas ao
- * promover o mesmo candidato mais de uma vez.
- *
- * `$queryRaw` não passa pela extensão `$allOperations` de `src/lib/prisma.ts` (RLS/tenant
- * scoping) — roda via `withRlsContext` (seta `app.current_tenant_id` na transação; sem isso a
- * policy de RLS de "Company" com FORCE ROW LEVEL SECURITY devolve zero linhas sempre, mesmo com
- * o WHERE certo) e mantém o filtro explícito de `organizationId` como defesa em profundidade,
- * igual ao padrão já usado em `src/lib/ai/vectorStore.ts`.
+ * Localiza uma empresa já cadastrada na organização que corresponda ao candidato — via
+ * `resolveCompanyIdentity` (`companyIdentity.service.ts`): CNPJ normalizado+validado como
+ * identidade determinística quando disponível, com fallback para a heurística por nome fantasia/
+ * razão social só quando não há CNPJ confiável. Evita duplicar empresas ao promover o mesmo
+ * candidato mais de uma vez. Ver `companyIdentity.service.ts` para o raciocínio completo (dossiê
+ * CPI, DEC-16, opção A) e `tests/integration/prospecting-rls.test.ts` para a cobertura de RLS.
  */
 async function findExistingCompany(input: PromoteInput) {
-    try {
-        const cnpj = input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null;
-        if (cnpj) {
-            // CNPJs de Company nem sempre chegam ao banco no mesmo formato (alguns fluxos
-            // gravam só dígitos, outros com pontuação) — normaliza no próprio Postgres via
-            // regexp_replace em vez de carregar todas as empresas do tenant para comparar em
-            // memória, o que não escalaria com a base de clientes.
-            //
-            // '\\D' (barra dupla) de propósito: dentro de um template literal comum do JS, `\D`
-            // não é uma sequência de escape reconhecida, então o parser descarta a barra e o texto
-            // "cooked" enviado ao driver do Postgres vira só `D` — Prisma usa esse texto "cooked"
-            // (não `strings.raw`) para montar o SQL da query crua. Com barra simples, o
-            // regexp_replace comparava contra o caractere literal "D" (que um CNPJ nunca tem), e a
-            // busca por CNPJ nunca encontrava nada, mesmo já dentro do withRlsContext — confirmado
-            // empiricamente contra Postgres real (ver tests/integration/prospecting-rls.test.ts).
-            const [found] = await withRlsContext((tx) => tx.$queryRaw<{ id: string }[]>`
-                SELECT id FROM "Company"
-                WHERE "organizationId" = ${input.organizationId}
-                  AND cnpj IS NOT NULL
-                  AND regexp_replace(cnpj, '\\D', '', 'g') = ${cnpj}
-                LIMIT 1
-            `);
-            if (found) return prisma.company.findUnique({ where: { id: found.id } });
-        }
-        return await prisma.company.findFirst({
-            where: {
-                organizationId: input.organizationId,
-                OR: [
-                    { tradeName: { equals: input.tradeName, mode: 'insensitive' } },
-                    { legalName: { equals: input.legalName || input.tradeName, mode: 'insensitive' } },
-                ],
-            },
-        });
-    } catch {
-        return null;
-    }
+    const { company } = await resolveCompanyIdentity({
+        organizationId: input.organizationId,
+        cnpj: input.cnpj,
+        tradeName: input.tradeName,
+        legalName: input.legalName,
+    });
+    return company;
 }
 
 /**
@@ -509,7 +478,7 @@ export async function promoteToCrm(input: PromoteInput) {
         data: {
             legalName: input.legalName || input.tradeName,
             tradeName: input.tradeName,
-            cnpj: input.cnpj && isValidCnpj(input.cnpj) ? sanitizeCnpj(input.cnpj) : null,
+            cnpj: toDeterministicCnpj(input.cnpj),
             segment: input.segment,
             size: input.size,
             city,
