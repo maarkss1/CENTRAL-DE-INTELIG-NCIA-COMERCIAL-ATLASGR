@@ -6,6 +6,7 @@ import { APOLLO_PEOPLE_SEARCH_URL, APOLLO_PEOPLE_MATCH_URL, MAX_DECISION_MAKER_L
 import type { ApolloOrganization, ApolloContact, ApolloPersonRaw, DecisionMakerCriteria } from './types.js';
 import { checkProviderRateLimit } from '../providerRateLimit.js';
 import { withProviderCache, buildProviderCacheKey } from '../providerCache.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
 
 /**
  * Enriquecimento de UMA pessoa específica já identificada (nome + empresa/domínio) via
@@ -61,6 +62,7 @@ async function enrichPersonByNameUncached(
             return { contact: null, error: `Apollo People Match respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const p = data?.person;
         if (!p) return { contact: null };
@@ -182,6 +184,7 @@ async function enrichOrganizationWithContactsUncached(
             return { contacts: [], error: `Apollo People API respondeu ${res.status}: ${text.slice(0, 100)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
@@ -291,6 +294,7 @@ async function searchDecisionMakersAdvancedUncached(
             return { contacts: [], error: `Apollo People API respondeu ${res.status}: ${text.slice(0, 100)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = await res.json();
         const people: ApolloPersonRaw[] = data.people || data.contacts || [];
 
