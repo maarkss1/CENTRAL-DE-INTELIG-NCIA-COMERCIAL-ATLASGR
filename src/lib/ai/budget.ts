@@ -121,15 +121,8 @@ export class AiBudgetExceededError extends Error {
 // sendo checado), então RLS comum já restringe a leitura sem precisar de bypass nenhum: mesmo
 // padrão já usado por `usageService.summary()` (src/features/billing/usage.service.ts).
 //
-// `Organization.monthlyAiBudgetUsd` ainda NÃO existe no schema (fora do meu boundary nesta
-// execução alterar `prisma/schema.prisma` — ver
-// `.agents/handoffs/onda-42/03-para-00-campo-orcamento-organization.md`). As duas funções abaixo
-// que leem esse campo usam um cast de `select`/resultado para o TypeScript aceitar hoje mesmo sem
-// o campo existir no client gerado; qualquer erro de leitura (coluna ausente até a migration
-// rodar, ou Postgres indisponível) é tratado como "sem teto configurado" — fail-OPEN nessa
-// ausência/erro, nunca um teto implícito. Assim que a migration do handoff rodar e
-// `npx prisma generate` regenerar os tipos, trocar o `select`/cast por um `select` normal e
-// remover o try/catch "coluna ainda não existe".
+// Qualquer erro de leitura (Postgres indisponível) é tratado como "sem teto configurado" —
+// fail-OPEN nesse erro, nunca um teto implícito.
 
 const ORG_CACHE_KEY_PREFIX = 'ai-gateway:budget:org:';
 const ORG_CACHE_TTL_SECONDS = 60;
@@ -199,23 +192,18 @@ async function getOrgMonthCostUsd(organizationId: string): Promise<number> {
     return fresh;
 }
 
-interface OrgAiBudgetRow {
-    monthlyAiBudgetUsd: number | null;
-}
-
 /**
- * Teto mensal de IA configurado para UMA organização. `null`/ausente = sem teto (nunca bloqueia) —
- * ver nota grande no topo desta seção sobre o cast temporário até a migration do handoff rodar.
+ * Teto mensal de IA configurado para UMA organização. `null`/ausente = sem teto (nunca bloqueia).
  */
 async function getOrgAiBudgetUsd(organizationId: string): Promise<number | null> {
     try {
         const org = await prisma.organization.findUnique({
             where: { id: organizationId },
-            select: { monthlyAiBudgetUsd: true } as unknown as { id: true },
-        }) as unknown as OrgAiBudgetRow | null;
+            select: { monthlyAiBudgetUsd: true },
+        });
         return org?.monthlyAiBudgetUsd ?? null;
     } catch (err) {
-        logger.warn({ err, organizationId }, '[AI Budget] Falha ao ler o teto mensal de IA da organização (campo monthlyAiBudgetUsd pode ainda não existir) — tratando como sem teto configurado');
+        logger.warn({ err, organizationId }, '[AI Budget] Falha ao ler o teto mensal de IA da organização — tratando como sem teto configurado');
         return null;
     }
 }

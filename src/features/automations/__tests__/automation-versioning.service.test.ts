@@ -1,12 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { diffAutomationSnapshots } from '../domain/AutomationVersion';
-import { automationVersioningService } from '../automation-versioning.service';
 import type { Automation } from '../domain/Automation';
 
 // Versionamento de regras (Onda 42 — dossiê CPI DEC-14, opção A): cada edição/remoção grava o
 // estado ANTERIOR como uma versão histórica, com timestamp e quem editou. Cobre: gravação
 // correta a cada edição, diff textual básico entre estados, e a linha do tempo completa
 // (histórico + estado atual) na ordem certa.
+//
+// `automation-versioning.service.ts` compõe `PrismaAutomationVersionStore` (persistência real,
+// desde a migration 20260827210000_onda42_decisoes_schema) — este é um teste UNITÁRIO puro da
+// lógica de diff/timeline, sem Postgres real disponível, então trocamos a store real pela mesma
+// `InMemoryAutomationVersionStore` que já implementa a interface `AutomationVersionStore`
+// corretamente (usada em produção só até esta migration existir). A prova contra Postgres real
+// (RLS incluída) fica para um teste de integração dedicado, não para este arquivo.
+vi.mock('../infra/PrismaAutomationVersionStore.js', async () => {
+    const { InMemoryAutomationVersionStore } = await import('../infra/InMemoryAutomationVersionStore.js');
+    return { PrismaAutomationVersionStore: InMemoryAutomationVersionStore };
+});
+
+const { automationVersioningService } = await import('../automation-versioning.service');
 
 function makeAutomation(overrides: Partial<Automation> = {}): Automation {
     return {

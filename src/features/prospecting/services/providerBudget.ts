@@ -127,33 +127,21 @@ export async function getOrgMonthProspectingCostUsd(organizationId: string): Pro
     return memoryTotals.get(key) ?? 0;
 }
 
-interface OrgProspectingBudgetRow {
-    monthlyProspectingBudgetUsd: number | null;
-}
-
 /**
  * Teto mensal de prospecção configurado para UMA organização
  * (`Organization.monthlyProspectingBudgetUsd`). `null`/ausente = sem teto (nunca bloqueia).
- *
- * Igual ao equivalente de IA em `src/lib/ai/budget.ts::getOrgAiBudgetUsd`: o campo ainda não
- * existe no schema (ver `.agents/handoffs/onda-42/03-para-00-campo-orcamento-organization.md`),
- * então o `select`/resultado usa um cast para o TypeScript aceitar hoje mesmo sem o campo existir
- * no client gerado; qualquer erro de leitura (coluna ausente até a migration rodar, ou Postgres
- * indisponível) é tratado como "sem teto configurado" — fail-OPEN nessa ausência/erro. Assim que a
- * migration do handoff rodar e `npx prisma generate` regenerar os tipos, trocar por um `select`
- * normal e remover o try/catch "coluna ainda não existe".
  */
 async function getOrgProspectingBudgetUsd(organizationId: string): Promise<number | null> {
     try {
         const org = await prisma.organization.findUnique({
             where: { id: organizationId },
-            select: { monthlyProspectingBudgetUsd: true } as unknown as { id: true },
-        }) as unknown as OrgProspectingBudgetRow | null;
+            select: { monthlyProspectingBudgetUsd: true },
+        });
         return org?.monthlyProspectingBudgetUsd ?? null;
     } catch (err) {
         logger.warn(
             { err, organizationId },
-            'providerBudget: falha ao ler o teto mensal de prospecção da organização (campo monthlyProspectingBudgetUsd pode ainda não existir) — tratando como sem teto configurado',
+            'providerBudget: falha ao ler o teto mensal de prospecção da organização — tratando como sem teto configurado',
         );
         return null;
     }
