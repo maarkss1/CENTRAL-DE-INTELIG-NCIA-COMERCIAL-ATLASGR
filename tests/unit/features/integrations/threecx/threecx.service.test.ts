@@ -36,10 +36,11 @@ vi.mock('@/lib/prisma', () => ({
     },
 }));
 
-// assertSafeWebhookUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
+// assertSafeExternalUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed
 // (mesmo padrão de src/features/integrations/bitrix/service/__tests__/client.test.ts).
-vi.mock('@/lib/adapters/crm/Bitrix24Adapter', () => ({
-    assertSafeWebhookUrl: vi.fn().mockResolvedValue(undefined),
+const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/shared/security/urlGuard', () => ({
+    assertSafeExternalUrl: (...args: unknown[]) => assertSafeExternalUrlMock(...args),
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
@@ -63,6 +64,7 @@ beforeEach(() => {
     threeCXStore = [];
     deleteManyThreeCXMock.mockResolvedValue({ count: 0 });
     isSuppressedMock.mockResolvedValue(false);
+    assertSafeExternalUrlMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -166,5 +168,22 @@ describe('make3CXCall — honestidade sobre chamada real (nunca finge sucesso)',
             leadId: null,
             email: 'contato-optout@exemplo.com',
         });
+    });
+
+    // Gap real de auditoria: `conn.pbxUrl` já passou pelo guard de SSRF uma vez em `connect3CX`,
+    // mas nunca era revalidado no momento de discar de verdade — um DNS rebinding (host resolvia
+    // IP público no cadastro, IP privado agora) passaria batido em toda chamada seguinte pela
+    // mesma conexão já persistida.
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes de discar de verdade', async () => {
+        const conn = await seedConnection();
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(make3CXCall(ORG_ID, conn.id, '11987654321')).rejects.toThrow(/IP privado\/reservado/);
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

@@ -171,10 +171,10 @@ export function LdrAccountIntelligence() {
 
   return (
     <div className="space-y-5 p-4 md:p-6 lg:p-8">
-      <header className="overflow-hidden rounded-[28px] bg-[#333333] px-5 py-6 text-white md:px-8 md:py-8">
+      <header className="overflow-hidden rounded-[28px] bg-atlas-dark px-5 py-6 text-white md:px-8 md:py-8">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-[#FFC500]"><Bot className="h-5 w-5" /><span className="text-[10px] font-black uppercase tracking-[0.2em]">LDR Atlas · Account Intelligence</span></div>
+            <div className="flex items-center gap-2 text-atlas-yellow"><Bot className="h-5 w-5" /><span className="text-[10px] font-black uppercase tracking-[0.2em]">LDR Atlas · Account Intelligence</span></div>
             <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] md:text-4xl">Empresa real → inteligência → próxima ação</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Primeiro corte funcional do LDR. Fit, proveniência e cadastro oficial entram como evidência; sinais, decisores e ações só aparecem quando houver fonte real e contexto do tenant.</p>
           </div>

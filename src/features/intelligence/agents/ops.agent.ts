@@ -11,7 +11,7 @@ import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 import { assertPiiExternalConsent } from '../services/guardrails.service.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
@@ -59,7 +59,9 @@ DIRETRIZES DE EXECUÇÃO:
 3. Se faltar critério ou regra de negócio (ex: quando agendar follow-up, o que vale um alerta), use 'search_playbook'.
 4. Para propor um lembrete/tarefa de acompanhamento, use 'create_follow_up_task' com uma data ISO 8601 concreta e um leadId real — isto registra uma proposta pendente, não cria a tarefa imediatamente.
 5. Para propor um alerta à equipe comercial sobre um risco, oportunidade ou resultado importante, use 'notify_team' — isto também registra uma proposta pendente, não envia a notificação imediatamente.
-6. Encerre sempre com uma síntese clara da ação PROPOSTA (ex: tarefa/notificação registrada e aguardando aprovação humana), detalhando responsável, prazo e objetivo — nunca diga que a ação já foi executada/enviada/criada. ${SWARM_OUTPUT_CONTRACT}`,
+6. Encerre sempre com uma síntese clara da ação PROPOSTA (ex: tarefa/notificação registrada e aguardando aprovação humana), detalhando responsável, prazo e objetivo — nunca diga que a ação já foi executada/enviada/criada. ${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`,
     );
 
     const startTime = Date.now();

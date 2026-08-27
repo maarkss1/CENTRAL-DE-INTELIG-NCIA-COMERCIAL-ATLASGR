@@ -1,5 +1,5 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 
 /**
  * Agente de CRM & Revenue Operations de Elite: diagnóstico cirúrgico de funil,
@@ -56,7 +56,9 @@ REGRAS DE FORMATAÇÃO:
 ### 🚦 Red Flags (Alertas)
 > 🚨 **Cuidado com:** [Sinal de que o deal pode ser perdido agora]
 
-${SWARM_OUTPUT_CONTRACT}`;
+${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
         return learnedStyle
             ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`
