@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // assertSafeWebhookUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed.
 // A proteção SSRF em si (rejeitar IP privado/loopback) é responsabilidade do Agente 01
@@ -23,9 +23,15 @@ function jsonResponse(body: unknown, init: { status?: number; headers?: Record<s
     return new Response(JSON.stringify(body), { status: init.status ?? 200, headers: init.headers });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
     vi.clearAllMocks();
     assertSafeWebhookUrlMock.mockResolvedValue(undefined);
+    // Estado do circuit breaker é module-level (Map em memória) e o módulo fica cacheado entre
+    // `await import(...)` dentro do mesmo arquivo de teste — sem isto, falhas registradas por um
+    // teste vazariam para o próximo e poderiam abrir o circuito de forma imprevisível conforme a
+    // ordem de execução.
+    const { __resetBitrixCircuitBreakerForTests } = await import('../client.js');
+    __resetBitrixCircuitBreakerForTests();
 });
 
 describe('callBitrix — resiliência (bloqueador #11: sincronização não pode falhar silenciosamente)', () => {
@@ -171,6 +177,91 @@ describe('callBitrix — resiliência (bloqueador #11: sincronização não pode
 
         await expect(callBitrix('https://127.0.0.1/rest/1/token/', 'crm.lead.list', {})).rejects.toThrow(/não permitido/);
         expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockRestore();
+    });
+});
+
+describe('callBitrix — circuit breaker de saúde do provedor (gap de auditoria: nada parava de tentar sob falha sustentada)', () => {
+    afterEach(() => {
+        delete process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD;
+        delete process.env.BITRIX_CIRCUIT_BREAKER_COOLDOWN_MS;
+        delete process.env.BITRIX_CIRCUIT_BREAKER_ENABLED;
+        // Os limiares são lidos de process.env na hora em que o módulo é carregado — força um
+        // reimport limpo (com os defaults) para não vazar a configuração deste describe para os
+        // outros testes do arquivo.
+        vi.resetModules();
+    });
+
+    it('abre o circuito após N falhas consecutivas, falha rápido (fail-fast) durante o cooldown, e fecha assim que o cooldown expira', async () => {
+        process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD = '2';
+        process.env.BITRIX_CIRCUIT_BREAKER_COOLDOWN_MS = '50';
+        vi.resetModules();
+
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'boom' }, { status: 502 }));
+        const { callBitrix, BitrixCircuitOpenError } = await import('../client.js');
+        const { AppError } = await import('@/shared/middlewares/errorHandler');
+
+        // Duas chamadas que esgotam as tentativas (maxAttempts:1 — sem gastar backoff real) contam
+        // como 2 falhas consecutivas, batendo no limiar configurado acima.
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toBeInstanceOf(AppError);
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toBeInstanceOf(AppError);
+        fetchMock.mockClear();
+
+        // Circuito aberto: a 3ª chamada falha imediatamente, SEM tentar rede (fail-fast), com o
+        // mesmo shape de erro (AppError) que uma falha real teria.
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toBeInstanceOf(BitrixCircuitOpenError);
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toBeInstanceOf(AppError);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        // Espera o cooldown (50ms) expirar de verdade.
+        await new Promise((resolve) => setTimeout(resolve, 120));
+
+        fetchMock.mockResolvedValueOnce(jsonResponse({ result: [] }));
+        const data = await callBitrix<{ result: unknown[] }>(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 });
+
+        expect(data.result).toEqual([]);
+        expect(fetchMock).toHaveBeenCalledTimes(1); // circuito fechado de novo: a chamada tentou a rede
+        fetchMock.mockRestore();
+    });
+
+    it('NÃO abre o circuito por erro definitivo "comum" (filtro/campo inválido) — só 401/403 e esgotamento de tentativas contam', async () => {
+        process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD = '2';
+        vi.resetModules();
+
+        // mockImplementation (não mockResolvedValue) — cada chamada precisa de um objeto Response
+        // novo, já que `.json()` consome o corpo e o código de produção lê o corpo em vez de
+        // curto-circuitar antes (diferente do caminho de 401/403/5xx, que nunca chega a ler json).
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+            jsonResponse({ error: 'INVALID_ARGUMENT_VALUE', error_description: 'Campo desconhecido' }),
+        );
+        const { callBitrix } = await import('../client.js');
+
+        // Duas chamadas com erro definitivo "de payload" (não 401/403) — não deveriam contar para
+        // o breaker, mesmo com o limiar baixo (2) configurado acima.
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toThrow(/Campo desconhecido/);
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toThrow(/Campo desconhecido/);
+
+        // Circuito continua fechado: a 3ª chamada ainda tenta a rede normalmente.
+        fetchMock.mockClear();
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toThrow(/Campo desconhecido/);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        fetchMock.mockRestore();
+    });
+
+    it('respeita BITRIX_CIRCUIT_BREAKER_ENABLED=false — nunca abre o circuito, mesmo sob falha sustentada', async () => {
+        process.env.BITRIX_CIRCUIT_BREAKER_ENABLED = 'false';
+        process.env.BITRIX_CIRCUIT_BREAKER_THRESHOLD = '1';
+        vi.resetModules();
+
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({}, { status: 401 }));
+        const { callBitrix } = await import('../client.js');
+
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toThrow(/permissão|revogado/i);
+        await expect(callBitrix(WEBHOOK, 'crm.lead.list', {}, { maxAttempts: 1 })).rejects.toThrow(/permissão|revogado/i);
+
+        // Com o breaker desligado, mesmo já tendo estourado o limiar (1), a chamada seguinte
+        // continua tentando a rede de verdade em vez de falhar rápido.
+        expect(fetchMock).toHaveBeenCalledTimes(2);
         fetchMock.mockRestore();
     });
 });
