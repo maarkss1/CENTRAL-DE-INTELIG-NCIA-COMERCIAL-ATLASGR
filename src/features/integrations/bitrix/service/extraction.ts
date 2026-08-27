@@ -5,6 +5,7 @@ import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';
 import { callBitrix, getConnectionWebhookUrl } from './client.js';
+import { BITRIX_FIELD_MAP_VERSION } from '../bitrixFieldMap.js';
 import { bitrixExtractionFailuresTotal, bitrixExtractionPartialTotal } from './metrics.js';
 import {
     ALL_EXTRACTION_ENTITIES, EXTRACTION_ENTITY_SPECS, isExtractionEntity,
@@ -399,6 +400,7 @@ export async function createExtractionRun(organizationId: string, userId: string
             filters: input.filters as unknown as Prisma.InputJsonValue,
             status: 'queued',
             correlationId,
+            schemaVersion: BITRIX_FIELD_MAP_VERSION,
         },
     });
 

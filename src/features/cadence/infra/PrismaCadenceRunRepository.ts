@@ -108,6 +108,7 @@ type CadenceRunRow = {
     lastTouchAt: Date | null;
     pausedAt: Date | null;
     stoppedAt: Date | null;
+    createdBy: string | null;
     touchAttempts: CadenceTouchAttemptRow[];
 };
 
@@ -137,6 +138,7 @@ function toDomain(row: CadenceRunRow): CadenceRunState {
         lastTouchAt: row.lastTouchAt,
         pausedAt: row.pausedAt,
         stoppedAt: row.stoppedAt,
+        createdBy: row.createdBy,
         attempts: row.touchAttempts.map(toDomainAttempt),
     };
 }
@@ -164,6 +166,7 @@ export class PrismaCadenceRunRepository implements CadenceRunRepository {
                     lastTouchAt: run.lastTouchAt,
                     pausedAt: run.pausedAt,
                     stoppedAt: run.stoppedAt,
+                    createdBy: run.createdBy,
                 },
                 update: {
                     status: STATUS_TO_DB[run.status],

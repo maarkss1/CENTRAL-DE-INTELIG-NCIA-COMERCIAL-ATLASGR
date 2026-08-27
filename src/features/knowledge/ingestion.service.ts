@@ -232,7 +232,7 @@ export class IngestionService {
 
         const updated = await prisma.document.update({
             where: { id: documentId },
-            data: { title, content, chunkCount: chunks.length },
+            data: { title, content, chunkCount: chunks.length, version: { increment: 1 } },
         });
 
         logger.info({ documentId, chunks: chunks.length }, 'Documento reindexado');

@@ -1050,6 +1050,7 @@ paths:
               properties:
                 tradeName: { type: string }
                 source: { type: string }
+                savedSearchId: { type: string, nullable: true, description: 'Id da SavedSearch cujo candidato está sendo promovido, quando aplicável (onda 40 — rastreabilidade busca→lead).' }
       responses:
         '201':
           description: Recursos criados no CRM
