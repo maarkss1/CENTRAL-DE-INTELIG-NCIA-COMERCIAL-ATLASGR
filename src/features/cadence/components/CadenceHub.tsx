@@ -161,7 +161,7 @@ function OptOutsSection() {
                     <Skeleton className="h-9 w-full" />
                 </div>
             ) : error ? (
-                <div className="flex items-center justify-between gap-3 text-sm text-danger py-4" role="alert">
+                <div className="flex items-center justify-between gap-3 text-sm text-danger-active dark:text-danger py-4" role="alert">
                     <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> {error}</span>
                     <button type="button" onClick={load} className="text-xs font-semibold underline shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">
                         Tentar de novo
@@ -252,7 +252,7 @@ function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: 
                     disabled={pending !== null}
                     aria-label={`Parar cadência do lead ${run.leadId}`}
                     title="Parar"
-                    className="p-1.5 text-ink-2 hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="p-1.5 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                     <Square className="w-3.5 h-3.5" />
                 </button>
@@ -282,7 +282,7 @@ function CadenceRunActions({ run, onChanged }: { run: CadenceRunDTO; onChanged: 
                     disabled={pending !== null}
                     aria-label={`Parar cadência do lead ${run.leadId}`}
                     title="Parar"
-                    className="p-1.5 text-ink-2 hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    className="p-1.5 text-ink-2 hover:text-danger-active dark:hover:text-danger hover:bg-surface-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                     <Square className="w-3.5 h-3.5" />
                 </button>
@@ -449,7 +449,7 @@ function CadenceRunsSection() {
                     <Skeleton className="h-9 w-full" />
                 </div>
             ) : error ? (
-                <div className="flex items-center justify-between gap-3 text-sm text-danger py-4" role="alert">
+                <div className="flex items-center justify-between gap-3 text-sm text-danger-active dark:text-danger py-4" role="alert">
                     <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /> {error}</span>
                     <button type="button" onClick={load} className="text-xs font-semibold underline shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded">
                         Tentar de novo
@@ -583,7 +583,7 @@ function NewSequenceDialog({ isOpen, onClose, onCreated }: { isOpen: boolean; on
                                         type="button"
                                         onClick={() => removeTouch(index)}
                                         aria-label={`Remover toque ${touch.order}`}
-                                        className="p-1 text-ink-2 hover:text-danger rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                        className="p-1 text-ink-2 hover:text-danger-active dark:hover:text-danger rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                                     >
                                         <Trash2 className="w-3.5 h-3.5" />
                                     </button>

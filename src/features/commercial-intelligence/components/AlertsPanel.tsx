@@ -4,9 +4,9 @@ import type { ExecutiveAlert } from '../commercialIntelligence.api';
 
 const SEVERITY_STYLE: Record<ExecutiveAlert['severity'], { icon: typeof AlertTriangle; className: string }> = {
     critical: { icon: AlertTriangle, className: 'text-critical bg-critical/10 border-critical/20' },
-    warning: { icon: AlertCircle, className: 'text-[#b8860b] bg-[#b8860b]/10 border-[#b8860b]/20' },
-    info: { icon: Info, className: 'text-info bg-info/10 border-info/20' },
-    positive: { icon: CheckCircle2, className: 'text-[#0ca30c] bg-[#0ca30c]/10 border-[#0ca30c]/20' },
+    warning: { icon: AlertCircle, className: 'text-warning-active dark:text-warning bg-warning/10 border-warning/20' },
+    info: { icon: Info, className: 'text-info-active dark:text-info bg-info/10 border-info/20' },
+    positive: { icon: CheckCircle2, className: 'text-success-active dark:text-success bg-success/10 border-success/20' },
 };
 
 const SEVERITY_ORDER: Record<ExecutiveAlert['severity'], number> = { critical: 0, warning: 1, info: 2, positive: 3 };
@@ -17,8 +17,8 @@ export function AlertsPanel({ alerts, loading }: { alerts: ExecutiveAlert[]; loa
 
     if (alerts.length === 0) {
         return (
-            <Card padding="sm" className="border-[#0ca30c]/20 bg-[#0ca30c]/5">
-                <p className="text-sm font-semibold text-[#0ca30c]">Nenhum risco identificado no momento.</p>
+            <Card padding="sm" className="border-success/20 bg-success/5">
+                <p className="text-sm font-semibold text-success-active dark:text-success">Nenhum risco identificado no momento.</p>
             </Card>
         );
     }

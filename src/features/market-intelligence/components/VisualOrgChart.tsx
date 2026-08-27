@@ -52,9 +52,9 @@ const HIERARCHY_LEVELS: LevelConfig[] = [
         id: 'managers',
         title: 'Gerência & Coordenação (Frota/Logística)',
         icon: UserCheck,
-        colorBadge: 'bg-info-base/10 text-info-base border-info-base/20',
-        borderAccent: 'border-info-base/30',
-        bgAccent: 'bg-info-base/5',
+        colorBadge: 'bg-info/10 text-info-active dark:text-info border-info/20',
+        borderAccent: 'border-info/30',
+        bgAccent: 'bg-info/5',
     },
     {
         id: 'operational',

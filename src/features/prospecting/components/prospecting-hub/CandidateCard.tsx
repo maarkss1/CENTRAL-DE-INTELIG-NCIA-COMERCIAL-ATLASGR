@@ -134,7 +134,7 @@ export function CandidateCard({
                     </div>
 
                     {validContactEmails(candidate.emails).length > 0 && (
-                        <div className="flex flex-wrap gap-3 text-xs font-semibold text-success mb-2">
+                        <div className="flex flex-wrap gap-3 text-xs font-semibold text-success-active dark:text-success mb-2">
                             {validContactEmails(candidate.emails).map((email) => (
                                 <a key={email} href={`mailto:${email}`} className="flex items-center gap-1.5 hover:underline">
                                     <Mail size={14} /> {email}
@@ -209,7 +209,7 @@ export function CandidateCard({
                                             <strong className="text-ink text-sm">{dm.name}</strong>
                                             {dm.title && <span className="text-ink-2 bg-surface-2 px-2 py-0.5 rounded-md">{dm.title}</span>}
                                             {dm.email && (
-                                                <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success hover:underline">
+                                                <a href={`mailto:${dm.email}`} className="flex items-center gap-1 text-success-active dark:text-success hover:underline">
                                                     <Mail size={12} /> {dm.email}
                                                     {dm.emailSource === 'hunter' ? (
                                                         <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-full font-bold ml-1">HUNTER</span>
@@ -316,7 +316,7 @@ export function CandidateCard({
                                 onClick={onReject}
                                 disabled={isPromoting || isRejecting}
                                 title="Descarta este candidato e o exclui de buscas futuras"
-                                className="bg-surface-2 border border-line text-ink-2 px-4 py-2.5 rounded-xl font-bold text-xs hover:border-danger/50 hover:text-danger transition-all flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
+                                className="bg-surface-2 border border-line text-ink-2 px-4 py-2.5 rounded-xl font-bold text-xs hover:border-danger/50 hover:text-danger-active dark:hover:text-danger transition-all flex items-center gap-2 w-full sm:w-auto justify-center disabled:opacity-60 cursor-pointer"
                             >
                                 {isRejecting ? <Loader2 className="animate-spin" size={15} /> : <ThumbsDown size={15} />}
                                 {isRejecting ? 'Descartando...' : 'Não é esse perfil'}
