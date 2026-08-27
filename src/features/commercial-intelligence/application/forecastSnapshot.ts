@@ -6,9 +6,9 @@
  * `predictiveForecast.ts`) e `randomUUID`/`now` são as únicas dependências externas, ambas
  * injetáveis.
  *
- * Persistência real (tabela dedicada em `prisma/schema.prisma`) depende de handoff para o Agente
- * 01 — ver `.agents/handoffs/` desta onda. Até lá, `infra/InMemoryForecastSnapshotStore.ts`
- * implementa a mesma porta (`ForecastSnapshotStore`) só para permitir testar a lógica de cálculo.
+ * Persistência real: `infra/PrismaForecastSnapshotStore.ts` (model `ForecastSnapshot`, migration
+ * `20260827020000`). `infra/InMemoryForecastSnapshotStore.ts` continua existindo só para testar a
+ * lógica de cálculo sem depender de Postgres.
  */
 import { randomUUID } from 'node:crypto';
 import type { ExecutiveOverview, ForecastSnapshotRecord } from '../domain/CommercialIntelligence';

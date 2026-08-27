@@ -307,7 +307,7 @@ export const METRICS_DICTIONARY: MetricDefinition[] = [
         name: 'Snapshot do Forecast (backtest)',
         description: 'Registro append-only do que o Forecast previa para um período em um instante específico — base para medir o erro real do motor depois que o período fecha.',
         formula: `Copia Commit/Best Case/Forecast de ExecutiveOverview no momento do snapshot, junto da versão das regras do motor (rulesVersion = "${FORECAST_RULES_VERSION}").`,
-        source: 'application/forecastSnapshot.ts (persistência real pendente de handoff de schema para o Agente 01 — hoje só há um repositório em memória para teste, application/infra/InMemoryForecastSnapshotStore.ts)',
+        source: 'application/forecastSnapshot.ts, persistido via infra/PrismaForecastSnapshotStore.ts (model ForecastSnapshot, migration 20260827020000). Ainda falta o disparo periódico real (cron/worker) que chama ForecastSnapshotStore.save — hoje só é exercitado por teste/uso manual.',
         period: 'Instantâneo, um registro por (organização, período previsto, momento do snapshot)',
         inclusionRules: 'Nunca sobrescrito — cada snapshot é um registro novo, mesmo para o mesmo período (permite comparar como a previsão evoluiu até o fechamento).',
         exclusionRules: '—',

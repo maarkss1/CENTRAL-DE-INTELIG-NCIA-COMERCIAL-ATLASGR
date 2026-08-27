@@ -1,21 +1,17 @@
 /**
  * Implementação em memória de `ForecastSnapshotStore` — PROTÓTIPO, não persistência real.
  *
- * O snapshot semanal do forecast (`application/forecastSnapshot.ts`) precisa sobreviver a
- * reinícios de processo para servir de base ao "erro histórico do forecast"
- * (`application/forecastAccuracy.ts`) semanas/meses depois de ter sido tirado — isso exige uma
- * tabela nova em `prisma/schema.prisma` (ex.: `ForecastSnapshot`), que é propriedade exclusiva do
- * Agente 01/01A (ver `/AGENTS.md` → "Propriedade exclusiva de arquivos" e
- * `src/features/commercial-intelligence/AGENTS.md` → "Não pode: criar migration sem handoff").
- *
- * Esta classe existe só para:
+ * A implementação real (Postgres, via `PrismaForecastSnapshotStore.ts`) já existe desde a
+ * migration `20260827020000_forecast_snapshot` — o handoff
+ * `.agents/handoffs/onda-39/04-para-01-schema-forecast-snapshot.md` que motivou esta classe está
+ * resolvido. Esta classe continua existindo só para:
  * 1. deixar a lógica de cálculo (`buildForecastSnapshot`/`computeForecastAccuracy`/
- *    `summarizeForecastAccuracy`) testável hoje, sem banco;
- * 2. documentar o contrato exato (`ForecastSnapshotStore`) que a implementação real (Prisma)
- *    precisa satisfazer quando a tabela existir.
+ *    `summarizeForecastAccuracy`) testável em unidade, sem depender de Postgres real;
+ * 2. servir de referência do contrato (`ForecastSnapshotStore`) para quem for escrever outro
+ *    teste que precise de um fake em memória.
  *
- * NÃO usar em produção — os dados somem a cada reinício do processo. Handoff aberto:
- * `.agents/handoffs/onda-39/04-para-01-schema-forecast-snapshot.md`.
+ * NÃO usar em produção — os dados somem a cada reinício do processo; use
+ * `PrismaForecastSnapshotStore` fora de teste.
  */
 import type { ForecastSnapshotRecord, ForecastSnapshotStore } from '../domain/CommercialIntelligence';
 

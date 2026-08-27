@@ -1,7 +1,7 @@
 - De: Agente 04 (CRM e BI)
 - Para: Agente 01 (Plataforma, Segurança e Dados)
 - Onda: 39 (auditoria CPI — gaps de forecast backtest/versionamento e Health Score composto)
-- Status: aberto
+- Status: resolvido
 - Prioridade: alto
 
 ## Problema
@@ -81,6 +81,22 @@ Também em aberto (não é bloqueador de schema, mas depende dele): quem dispara
   (`src/features/commercial-intelligence/__tests__/forecastSnapshot.unit.test.ts`,
   `forecastAccuracy.unit.test.ts`) continuam passando sem alteração (testam a lógica pura, não a
   implementação da store).
+
+## Resolução
+
+Model `ForecastSnapshot` criado em `prisma/schema.prisma` (nomes/tipos da proposta preservados,
+`Decimal(14,2)` para os 3 valores monetários), migration `20260827020000_forecast_snapshot`
+(RLS ativado/forçado + policy padrão, mesmo formato de `CommercialGoal`/`LeadStageHistory` — não
+entrou na allowlist de bypass de bootstrap porque toda query já roda com `app.current_tenant_id`
+setado). `PrismaForecastSnapshotStore` implementado (`save`/`findByPeriod`/`findAll`, append-only,
+converte `Decimal`→`number` na leitura) e testado em unidade
+(`tests/unit/features/commercial-intelligence/infra/PrismaForecastSnapshotStore.test.ts`). Os
+testes de lógica pura já existentes (`forecastSnapshot.unit.test.ts`, `forecastAccuracy.unit.test.ts`)
+não precisaram de nenhuma alteração — testam a lógica, não a persistência.
+
+Ainda em aberto, mas fora do escopo deste handoff (é sobre persistência, não sobre quem dispara o
+snapshot): o cron/worker que chama `PrismaForecastSnapshotStore.save` periodicamente ainda não
+existe — ver novo handoff `.agents/handoffs/onda-39/04-para-16-cron-forecast-snapshot-semanal.md`.
 
 ## Contexto adicional
 

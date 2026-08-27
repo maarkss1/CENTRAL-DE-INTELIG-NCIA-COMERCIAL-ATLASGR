@@ -1863,6 +1863,80 @@ paths:
                   success: { type: boolean }
                   learnedGuidelines: { type: string }
 
+  /agent/swarm/learn/history:
+    get:
+      tags: [Agent]
+      summary: >-
+        Histórico versionado do perfil de estilo aprendido pelo LearningAgent (todas as versões +
+        qual está ativa) do (tenant, usuário) autenticado — GOV-13, onda 39. Ver
+        `.agents/handoffs/onda-39/13-para-07-rota-rollback-learning-profile.md`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      activeVersion: { type: integer }
+                      lastAuditLogAt: { type: string, nullable: true, format: date-time }
+                      versions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            version: { type: integer }
+                            guidelines: { type: string }
+                            createdAt: { type: string, format: date-time }
+                            metrics: { type: object }
+
+  /agent/swarm/learn/rollback:
+    post:
+      tags: [Agent]
+      summary: >-
+        Reverte o perfil de estilo aprendido do (tenant, usuário) autenticado para uma versão
+        anterior já existente no histórico — nunca apaga nem sobrescreve versões, só move o
+        ponteiro ativo. GOV-13, onda 39.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetVersion]
+              properties:
+                targetVersion: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Rollback aplicado (ou já era a versão ativa)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      success: { type: boolean }
+                      activeVersion: { type: integer }
+                      guidelines: { type: string }
+        '400':
+          description: 'Corpo inválido (`targetVersion` ausente ou menor que 1)'
+        '404':
+          description: Versão pedida não existe no histórico deste perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  error: { type: string }
+
   /agent/swarm/slo:
     get:
       tags: [Agent]
