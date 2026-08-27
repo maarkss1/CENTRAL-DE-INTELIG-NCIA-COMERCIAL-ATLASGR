@@ -1,5 +1,5 @@
 import { BaseAgent } from './base.agent.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 
 /**
  * Closer Autônomo Enterprise: estrategista de negociação B2B de alta complexidade.
@@ -56,7 +56,9 @@ REGRAS DE FORMATAÇÃO:
 - **Exigência em Troca (Give-Get):** [Ex: "Se baixar 5%, exigir contrato de 24 meses"]
 - **Próximo Passo:** [Ação concreta com responsável e prazo]
 
-${SWARM_OUTPUT_CONTRACT}`;
+${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`;
 
         return learnedStyle
             ? `${base}\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}`

@@ -320,8 +320,8 @@ function SellerSimulator() {
                         </button>
                     ))}
                 </div>
-                <div className="rounded-3xl bg-[#333333] p-6 text-white">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FFC500]">Resultado calculado · {SCENARIO_LABELS[result.scenario]}</p>
+                <div className="rounded-3xl bg-atlas-dark p-6 text-white">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-atlas-yellow">Resultado calculado · {SCENARIO_LABELS[result.scenario]}</p>
                     <dl className="mt-5 space-y-4">
                         <div><dt className="text-xs text-white/60">Custo fixo / mês</dt><dd className="mt-1 text-3xl font-black tracking-tight">{money.format(result.monthlyFixedCost)}</dd></div>
                         <div><dt className="text-xs text-white/60">Contribuição por contrato</dt><dd className="mt-1 text-xl font-black">{result.contributionPerContract === null ? 'NÃO CALCULÁVEL' : money.format(result.contributionPerContract)}</dd></div>
@@ -412,17 +412,17 @@ export function MarketIntelligenceApp() {
     return (
         <main className="flex-1 overflow-y-auto bg-bg p-4 md:p-7">
             <div className="mx-auto w-full max-w-[1600px] space-y-5">
-                <header className="relative overflow-hidden rounded-[28px] bg-[#333333] px-5 py-6 text-white md:px-8 md:py-8">
+                <header className="relative overflow-hidden rounded-[28px] bg-atlas-dark px-5 py-6 text-white md:px-8 md:py-8">
                     <div className="absolute inset-y-0 right-0 w-2 bg-brand" aria-hidden="true" />
                     <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                         <div className="max-w-4xl">
                             <img src="/tools/atlas-market-intelligence/atlas-logo-negative.png" alt="Atlas GR" className="h-auto w-28" />
-                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#FFC500]">National Market & Territory Intelligence System</p>
+                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-atlas-yellow">National Market & Territory Intelligence System</p>
                             <h1 className="mt-2 text-3xl font-black leading-tight tracking-[-0.04em] md:text-5xl">Onde a Atlas GR deve contratar o próximo vendedor?</h1>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Geointeligência, demanda, risco, logística, concorrência e unit economics com evidência rastreável. Sem converter lacuna de dados em certeza comercial.</p>
                         </div>
-                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-[#FFC500]/30 bg-[#FFC500]/10'}`}>
-                            <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-[#FFC500]" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
+                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-[#FFC500]/30 bg-warn/10'}`}>
+                            <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-warn" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
                             <p className="mt-1 text-[10px] text-white/60">Metodologia {manifest.methodologyVersion} · gerado {new Date(manifest.generatedAt).toLocaleString('pt-BR')}</p>
                         </div>
                     </div>
