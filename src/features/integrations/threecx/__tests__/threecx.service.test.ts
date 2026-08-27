@@ -29,9 +29,9 @@ const prismaMock = {
 };
 vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }));
 
-const assertSafeWebhookUrlMock = vi.fn().mockResolvedValue(undefined);
-vi.mock('../../../../lib/adapters/crm/Bitrix24Adapter.js', () => ({
-    assertSafeWebhookUrl: assertSafeWebhookUrlMock,
+const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../../../shared/security/urlGuard.js', () => ({
+    assertSafeExternalUrl: assertSafeExternalUrlMock,
 }));
 
 const isSuppressedMock = vi.fn().mockResolvedValue(false);
@@ -47,7 +47,7 @@ vi.mock('@/lib/logger', () => ({ logger: loggerMock }));
 
 beforeEach(() => {
     vi.clearAllMocks();
-    assertSafeWebhookUrlMock.mockResolvedValue(undefined);
+    assertSafeExternalUrlMock.mockResolvedValue(undefined);
     isSuppressedMock.mockResolvedValue(false);
 });
 
@@ -156,9 +156,9 @@ describe('connect3CX', () => {
         expect(prismaMock.threeCXConnection.create).not.toHaveBeenCalled();
     });
 
-    it('valida a URL contra SSRF (assertSafeWebhookUrl) antes de persistir', async () => {
+    it('valida a URL contra SSRF (assertSafeExternalUrl) antes de persistir', async () => {
         const { connect3CX } = await import('../threecx.service.js');
-        assertSafeWebhookUrlMock.mockRejectedValueOnce(new Error('Endereço de webhook não permitido (IP privado/reservado).'));
+        assertSafeExternalUrlMock.mockRejectedValueOnce(new Error('Endereço de webhook não permitido (IP privado/reservado).'));
         prismaMock.threeCXConnection.create.mockResolvedValueOnce({});
 
         await expect(
@@ -296,6 +296,72 @@ describe('make3CXCall', () => {
                 }),
             }),
         );
+
+        vi.unstubAllGlobals();
+    });
+
+    // Gap real de auditoria: `conn.pbxUrl` já foi validado uma vez em `connect3CX`, mas nunca era
+    // revalidado no momento da chamada real — um DNS rebinding (host resolvia IP público no
+    // cadastro, IP privado agora) passaria batido em toda chamada Click-to-Call seguinte.
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes de discar de verdade', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
+            'IP privado/reservado',
+        );
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+    });
+});
+
+describe('test3CXConnection', () => {
+    const conn = {
+        id: 'conn-1',
+        organizationId: 'org-a',
+        label: '3CX Ramal 101',
+        pbxUrl: 'https://pbx.example.com',
+        extension: '101',
+        apiKey: null,
+        apiSecret: null,
+        autoDialEnabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+    };
+
+    beforeEach(() => {
+        prismaMock.threeCXConnection.findMany.mockResolvedValue([conn]);
+    });
+
+    it('revalida a URL persistida contra SSRF (assertSafeExternalUrl) antes do healthcheck', async () => {
+        const { test3CXConnection } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await test3CXConnection('org-a', 'conn-1');
+
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith('https://pbx.example.com');
+        vi.unstubAllGlobals();
+    });
+
+    // Mesmo gap de DNS rebinding do make3CXCall: pbxUrl já validado no cadastro, mas o botão
+    // "Testar conexão" reusa a URL persistida — sem revalidação aqui, uma mudança de DNS depois do
+    // cadastro nunca seria pega de novo por este caminho.
+    it('nunca bate na rede quando a URL persistida falha na revalidação de SSRF', async () => {
+        const { test3CXConnection } = await import('../threecx.service.js');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new Error('Endereço não permitido (resolve para IP privado/reservado).'),
+        );
+
+        await expect(test3CXConnection('org-a', 'conn-1')).rejects.toThrow('IP privado/reservado');
+        expect(fetchMock).not.toHaveBeenCalled();
 
         vi.unstubAllGlobals();
     });

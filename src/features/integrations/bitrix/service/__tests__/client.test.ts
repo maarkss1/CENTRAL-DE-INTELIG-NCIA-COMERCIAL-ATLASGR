@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// assertSafeWebhookUrl faz DNS lookup real — indisponível/instável em ambiente de teste sandboxed.
-// A proteção SSRF em si (rejeitar IP privado/loopback) é responsabilidade do Agente 01
-// (Bitrix24Adapter.ts); aqui testamos que ela É CHAMADA antes de qualquer requisição, não a
-// reimplementamos.
-const assertSafeWebhookUrlMock = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/lib/adapters/crm/Bitrix24Adapter', () => ({
-    assertSafeWebhookUrl: (...args: unknown[]) => assertSafeWebhookUrlMock(...args),
+// assertSafeExternalUrl faz DNS lookup real — indisponível/instável em ambiente de teste
+// sandboxed. A proteção SSRF em si (rejeitar IP privado/loopback) é responsabilidade do Agente 01
+// (src/shared/security/urlGuard.ts); aqui testamos que ela É CHAMADA antes de qualquer
+// requisição, não a reimplementamos.
+const assertSafeExternalUrlMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/shared/security/urlGuard', () => ({
+    assertSafeExternalUrl: (...args: unknown[]) => assertSafeExternalUrlMock(...args),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -25,7 +25,7 @@ function jsonResponse(body: unknown, init: { status?: number; headers?: Record<s
 
 beforeEach(async () => {
     vi.clearAllMocks();
-    assertSafeWebhookUrlMock.mockResolvedValue(undefined);
+    assertSafeExternalUrlMock.mockResolvedValue(undefined);
     // Estado do circuit breaker é module-level (Map em memória) e o módulo fica cacheado entre
     // `await import(...)` dentro do mesmo arquivo de teste — sem isto, falhas registradas por um
     // teste vazariam para o próximo e poderiam abrir o circuito de forma imprevisível conforme a
@@ -43,7 +43,7 @@ describe('callBitrix — resiliência (bloqueador #11: sincronização não pode
 
         expect(data.result).toHaveLength(1);
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        expect(assertSafeWebhookUrlMock).toHaveBeenCalledWith(WEBHOOK);
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith(WEBHOOK);
         fetchMock.mockRestore();
     });
 
@@ -169,14 +169,45 @@ describe('callBitrix — resiliência (bloqueador #11: sincronização não pode
         fetchMock.mockRestore();
     });
 
-    it('rejeita webhook para IP privado/loopback antes de qualquer fetch (SSRF) — via assertSafeWebhookUrl', async () => {
+    it('rejeita webhook para IP privado/loopback antes de qualquer fetch (SSRF) — via assertSafeExternalUrl', async () => {
         const { AppError } = await import('@/shared/middlewares/errorHandler');
-        assertSafeWebhookUrlMock.mockRejectedValueOnce(new AppError('Endereço de webhook não permitido (IP privado/reservado).', 400));
+        assertSafeExternalUrlMock.mockRejectedValueOnce(new AppError('Endereço de webhook não permitido (IP privado/reservado).', 400));
         const fetchMock = vi.spyOn(globalThis, 'fetch');
         const { callBitrix } = await import('../client.js');
 
         await expect(callBitrix('https://127.0.0.1/rest/1/token/', 'crm.lead.list', {})).rejects.toThrow(/não permitido/);
         expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockRestore();
+    });
+});
+
+describe('testWebhook — revalida SSRF a cada chamada, não só no cadastro', () => {
+    // Gap real de auditoria: `testWebhook` é chamado tanto por `connectBitrix` (que já validava a
+    // URL logo antes) quanto por `testBitrixConnection` (botão "Testar conexão" de uma conexão JÁ
+    // persistida, sem nenhuma validação prévia do chamador). Sem o guard aqui dentro, uma URL que
+    // sofreu DNS rebinding depois do cadastro nunca seria pega de novo por esse segundo caminho.
+    it('rejeita webhook para IP privado/loopback antes de qualquer fetch', async () => {
+        const { AppError } = await import('@/shared/middlewares/errorHandler');
+        assertSafeExternalUrlMock.mockRejectedValueOnce(
+            new AppError('Endereço não permitido (IP privado/reservado).', 400),
+        );
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+        const { testWebhook } = await import('../client.js');
+
+        await expect(testWebhook('https://169.254.169.254/rest/1/token/')).rejects.toThrow(/não permitido/);
+        expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockRestore();
+    });
+
+    it('testa a URL de verdade quando o guard de SSRF aprova (URL pública normal)', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ result: 'ok' }));
+        const { testWebhook } = await import('../client.js');
+
+        const { portalDomain } = await testWebhook(WEBHOOK);
+
+        expect(assertSafeExternalUrlMock).toHaveBeenCalledWith(WEBHOOK);
+        expect(fetchMock).toHaveBeenCalledWith(`${WEBHOOK}profile.json`, expect.anything());
+        expect(portalDomain).toBe('atlasgr.bitrix24.com.br');
         fetchMock.mockRestore();
     });
 });
