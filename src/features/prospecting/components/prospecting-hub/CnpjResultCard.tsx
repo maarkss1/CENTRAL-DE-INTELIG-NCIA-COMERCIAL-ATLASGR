@@ -1,8 +1,27 @@
 import {
-    ShieldCheck, CheckCircle2, Building2, Users, TrendingUp, MapPin, UserPlus, Loader2,
+    ShieldCheck, CheckCircle2, Building2, Users, TrendingUp, MapPin, UserPlus, Loader2, Truck,
 } from 'lucide-react';
 import type { CnpjLookupResult } from '../../services/enrichment.service';
+import type { RntrcRiskTier } from '../../../market-intelligence/server/rntrcTerritorial';
+import { Badge } from '../../../../components/ui/Badge';
 import { InfoTile } from './InfoTile';
+
+const number = new Intl.NumberFormat('pt-BR');
+
+// MI-014 (dossiê CPI, DEC-15 opção A): tiers relativos de concentração de transportadoras RNTRC
+// na UF (ver `rntrcRiskByUf`) — não usa danger/warning porque não é literalmente um alerta de
+// risco (a Sinesp/roubo-furto que fundamentaria isso não roda ao vivo hoje, ver o comentário em
+// `rntrcTerritorial.ts`), é intensidade de mercado.
+const RNTRC_TIER_LABEL: Record<RntrcRiskTier, string> = {
+    ALTA: 'Concentração alta de transportadoras RNTRC',
+    MEDIA: 'Concentração média de transportadoras RNTRC',
+    BAIXA: 'Concentração baixa de transportadoras RNTRC',
+};
+const RNTRC_TIER_VARIANT: Record<RntrcRiskTier, 'info' | 'default' | 'outline'> = {
+    ALTA: 'info',
+    MEDIA: 'default',
+    BAIXA: 'outline',
+};
 
 export function CnpjResultCard({
     result, onPromote, isPromoting, promoted,
@@ -45,6 +64,31 @@ export function CnpjResultCard({
                 <p className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2">Endereço</p>
                 <p className="text-sm text-ink-2">{d.address}, {d.city} - {d.state}, {d.zipCode}</p>
             </div>
+
+            {result.marketRisk && (
+                <div>
+                    <p className="text-[10px] tracking-wider font-bold uppercase text-ink-2 mb-2 flex items-center gap-1.5">
+                        <Truck size={12} /> Sinal territorial RNTRC (ANTT) — {result.marketRisk.uf ?? d.state}
+                    </p>
+                    {result.marketRisk.available ? (
+                        <div className="space-y-1.5">
+                            <Badge variant={RNTRC_TIER_VARIANT[result.marketRisk.tier!]}>
+                                {RNTRC_TIER_LABEL[result.marketRisk.tier!]}
+                            </Badge>
+                            <p className="text-sm text-ink-2">
+                                {number.format(result.marketRisk.transporters!)} transportadoras registradas no RNTRC em {result.marketRisk.uf}
+                                {' '}· percentil {result.marketRisk.percentile} entre as UFs do Brasil
+                                {result.marketRisk.metadata?.competencia ? ` · competência ${result.marketRisk.metadata.competencia}` : ''}.
+                            </p>
+                            <p className="text-xs text-ink-2">
+                                Indicador de intensidade do mercado de transporte rodoviário de cargas na UF (fonte ANTT, mesmo dado já publicado em Market Intelligence) — não é uma medida de sinistralidade (roubo/furto).
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-ink-2">RNTRC territorial NÃO DISPONÍVEL — {result.marketRisk.reason}</p>
+                    )}
+                </div>
+            )}
 
             {d.qsa.length > 0 && (
                 <div>
