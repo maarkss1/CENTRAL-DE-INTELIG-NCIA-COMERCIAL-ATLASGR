@@ -1,5 +1,12 @@
 import client from 'prom-client';
-import { recordProspectingProviderSpend } from './providerBudget.js';
+import { recordProspectingProviderSpend, type ProspectingCostProvider } from './providerBudget.js';
+
+// Onda 42 (DEC-09): `ProspectingCostProvider` é definido em `providerBudget.ts`, não aqui — este
+// arquivo já depende daquele em runtime (`recordProspectingProviderSpend`, logo abaixo), então
+// manter a definição do tipo lá também evita um ciclo de import entre os dois módulos
+// (dependency-cruiser `no-circular`). Reexportado aqui para não quebrar quem já importa o tipo
+// deste arquivo (searchExecution.service.ts).
+export type { ProspectingCostProvider };
 
 /**
  * Gap de auditoria (05 — Prospecção): `providerRateLimit.ts` e `providerCache.ts` (já criados
@@ -48,8 +55,6 @@ import { recordProspectingProviderSpend } from './providerBudget.js';
  * PROSPECTING_HUNTER_COST_PER_CALL_USD assim que o custo real do plano contratado for conhecido —
  * mesmo padrão de override por env já usado por getRateLimitPerMinute (providerRateLimit.ts).
  */
-
-export type ProspectingCostProvider = 'apollo' | 'hunter';
 
 export const DEFAULT_PROVIDER_COST_PER_CALL_USD: Record<ProspectingCostProvider, number> = {
     apollo: 0.01,

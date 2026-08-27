@@ -8,7 +8,7 @@ import {
 } from '../../../lib/ai/gateway.js';
 import { logger } from '../../../lib/logger.js';
 import { env } from '../../../config/env.js';
-import type { SearchHit } from '../search.service.js';
+import type { SearchHit } from '../knowledge.types.js';
 
 /**
  * DEC-11 (dossiê CPI, opção A): estágio de reranking sobre o resultado já fundido por RRF

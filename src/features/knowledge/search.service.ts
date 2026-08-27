@@ -6,41 +6,15 @@ import { toVectorLiteral } from './ingestion.service.js';
 import { hasVectorSupport } from './vector-support.js';
 import { env } from '../../config/env.js';
 import { rerankerService } from './services/reranker.service.js';
+import type { SearchHit, SearchResponse } from './knowledge.types.js';
+
+export type { SearchHit, SearchResponse } from './knowledge.types.js';
 
 /** Constante de suavização do Reciprocal Rank Fusion. 60 é o valor do paper original (Cormack et al.). */
 const RRF_K = 60;
 
 /** Quantos candidatos cada estratégia traz antes da fusão. Maior que o `limit` final de propósito. */
 const CANDIDATES_PER_STRATEGY = 20;
-
-export interface SearchHit {
-    chunkId: string;
-    documentId: string;
-    documentTitle: string;
-    content: string;
-    chunkIndex: number;
-    /** De onde veio o resultado: só semântico, só palavra-chave, ou ambos. */
-    matchedBy: Array<'semantic' | 'keyword'>;
-    /** Similaridade de cosseno (0..1) quando o trecho veio da busca vetorial. */
-    similarity: number | null;
-    /** Score final de fusão (RRF) — só faz sentido comparado aos outros hits da mesma consulta. */
-    score: number;
-    /**
-     * Pontuação de relevância (0-100) atribuída pelo estágio de reranking via LLM (DEC-11), quando
-     * habilitado (`KNOWLEDGE_RERANK_ENABLED`) e a chamada teve sucesso para este trecho. `undefined`
-     * quando o reranking está desligado, falhou (fallback fail-safe para a ordem do RRF), ou o
-     * trecho caiu fora da janela de candidatos re-rankeados (`KNOWLEDGE_RERANK_CANDIDATES`) — nesses
-     * casos `score` (RRF) continua sendo o único critério de ordenação real.
-     */
-    rerankScore?: number;
-}
-
-export interface SearchResponse {
-    hits: SearchHit[];
-    /** `false` quando o provedor de embeddings falhou e caímos só em palavra-chave. */
-    semanticAvailable: boolean;
-    query: string;
-}
 
 interface RawRow {
     chunkId: string;

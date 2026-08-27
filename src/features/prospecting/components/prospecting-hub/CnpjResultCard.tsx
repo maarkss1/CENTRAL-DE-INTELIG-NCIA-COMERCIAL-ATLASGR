@@ -2,7 +2,7 @@ import {
     ShieldCheck, CheckCircle2, Building2, Users, TrendingUp, MapPin, UserPlus, Loader2, Truck,
 } from 'lucide-react';
 import type { CnpjLookupResult } from '../../services/enrichment.service';
-import type { RntrcRiskTier } from '../../../market-intelligence/server/rntrcTerritorial';
+import type { RntrcRiskTier } from '../../../../shared/services/rntrcTerritorialRisk.service';
 import { Badge } from '../../../../components/ui/Badge';
 import { InfoTile } from './InfoTile';
 
