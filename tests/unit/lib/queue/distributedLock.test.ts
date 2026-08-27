@@ -88,4 +88,42 @@ describe('acquireDistributedLock', () => {
         await expect(lock.release()).resolves.toBeUndefined();
         expect(cacheGet).not.toHaveBeenCalled();
     });
+
+    it('renew estende o TTL via compare-and-expire quando ainda é o dono', async () => {
+        cacheSet.mockResolvedValue('OK');
+        const lock = await acquireDistributedLock('k:lock', 60);
+        cacheEval.mockResolvedValue(1);
+
+        await expect(lock.renew(60)).resolves.toBe(true);
+        expect(cacheEval).toHaveBeenCalledWith(
+            expect.stringContaining("redis.call('get', KEYS[1])"),
+            1,
+            'k:lock',
+            lock.runId,
+            60,
+        );
+    });
+
+    it('renew devolve false (perda de posse) quando outra execução já é dona', async () => {
+        cacheSet.mockResolvedValue('OK');
+        const lock = await acquireDistributedLock('k:lock', 60);
+        cacheEval.mockResolvedValue(0);
+
+        await expect(lock.renew(60)).resolves.toBe(false);
+    });
+
+    it('renew falha fechado (false) quando Redis fica indisponível durante a renovação', async () => {
+        cacheSet.mockResolvedValue('OK');
+        const lock = await acquireDistributedLock('k:lock', 60);
+        cacheEval.mockRejectedValue(new Error('ECONNREFUSED'));
+
+        await expect(lock.renew(60)).resolves.toBe(false);
+    });
+
+    it('renew é sempre true (single instance) sem Redis configurado', async () => {
+        redisConfiguredValue = false;
+        const lock = await acquireDistributedLock('k:lock', 60);
+        await expect(lock.renew(60)).resolves.toBe(true);
+        expect(cacheEval).not.toHaveBeenCalled();
+    });
 });

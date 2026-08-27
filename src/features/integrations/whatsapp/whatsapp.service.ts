@@ -16,6 +16,7 @@ import { toE164BR } from '../../../lib/phone.js';
 import { isOptedOut } from '../../cadence/application/optOutService.js';
 import { prismaOptOutRepository } from '../../cadence/infra/PrismaOptOutRepository.js';
 import { useRedisAuthState } from './useRedisAuthState.js';
+import { acquireDistributedLock, type DistributedLock } from '../../../lib/queue/distributedLock.js';
 
 const BAILEYS_CALL_TIMEOUT_MS = 15_000;
 
@@ -27,11 +28,31 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_BASE_DELAY_MS = 2000;
 const RECONNECT_MAX_DELAY_MS = 60000;
 
+// RUN-011 (Onda 41/Agente 16): o WASocket é um objeto em memória por processo — sem trava, duas
+// réplicas de `prospector-atlas-worker` (worker.replicaCount > 1 + HPA) poderiam abrir, para a
+// MESMA organização, duas conexões WhatsApp Web simultâneas do mesmo dispositivo vinculado. O
+// protocolo do Baileys/WhatsApp não tolera isso bem (desconexões, mensagens perdidas/duplicadas,
+// em casos extremos banimento do número). A trava distribuída abaixo garante posse exclusiva por
+// organização; TTL curto + heartbeat de renovação garantem failover real se a réplica dona cair
+// sem liberar a trava (não é um lock permanente).
+const WHATSAPP_LOCK_TTL_SECONDS = 30;
+const WHATSAPP_LOCK_HEARTBEAT_MS = 10_000; // renova a ~1/3 do TTL — folga de 2 tentativas perdidas
+const MAX_LOCK_ACQUIRE_ATTEMPTS = 5;
+const LOCK_RETRY_BASE_DELAY_MS = 3_000;
+const LOCK_RETRY_MAX_DELAY_MS = 30_000;
+
+function sessionLockKey(organizationId: string): string {
+    return `whatsapp:session-lock:${organizationId}`;
+}
+
 interface TenantSession {
     sock: WASocket | null;
     currentQr: string | null;
     status: 'disconnected' | 'connecting' | 'connected';
     reconnectAttempts: number;
+    lock: DistributedLock | null;
+    lockHeartbeat: ReturnType<typeof setInterval> | null;
+    lockRetryAttempts: number;
 }
 
 const sessions = new Map<string, TenantSession>();
@@ -39,10 +60,93 @@ const sessions = new Map<string, TenantSession>();
 function getSession(organizationId: string): TenantSession {
     let session = sessions.get(organizationId);
     if (!session) {
-        session = { sock: null, currentQr: null, status: 'disconnected', reconnectAttempts: 0 };
+        session = {
+            sock: null,
+            currentQr: null,
+            status: 'disconnected',
+            reconnectAttempts: 0,
+            lock: null,
+            lockHeartbeat: null,
+            lockRetryAttempts: 0,
+        };
         sessions.set(organizationId, session);
     }
     return session;
+}
+
+function stopLockHeartbeat(session: TenantSession): void {
+    if (session.lockHeartbeat) {
+        clearInterval(session.lockHeartbeat);
+        session.lockHeartbeat = null;
+    }
+}
+
+function startLockHeartbeat(organizationId: string, session: TenantSession): void {
+    stopLockHeartbeat(session);
+    const timer = setInterval(() => {
+        void (async () => {
+            const lock = session.lock;
+            if (!lock) return;
+            const renewed = await lock.renew(WHATSAPP_LOCK_TTL_SECONDS);
+            if (renewed) return;
+            // Fail-closed: se não confirmamos a renovação, tratamos como perda de posse (outra
+            // réplica pode ter assumido após o TTL expirar). NUNCA seguimos operando o socket
+            // local como se ainda fôssemos donos — isso é exatamente o cenário de duas conexões
+            // simultâneas que a trava existe para prevenir.
+            logger.error(
+                { organizationId },
+                'WhatsApp: perdeu a posse da trava distribuída da sessão (TTL expirado ou Redis indisponível); encerrando socket local para evitar conexão duplicada.',
+            );
+            stopLockHeartbeat(session);
+            session.lock = null;
+            const sock = session.sock;
+            session.sock = null;
+            session.status = 'disconnected';
+            session.currentQr = null;
+            if (sock) {
+                try {
+                    sock.end(new Error('distributed lock lost'));
+                } catch (err) {
+                    logger.warn({ err, organizationId }, 'WhatsApp: erro ao fechar socket após perda da trava');
+                }
+            }
+            await persistStatusToRedis(organizationId, session);
+            whatsappEvents.emit('status', { organizationId, status: session.status });
+        })();
+    }, WHATSAPP_LOCK_HEARTBEAT_MS);
+    timer.unref?.();
+    session.lockHeartbeat = timer;
+}
+
+async function releaseSessionLock(organizationId: string, session: TenantSession): Promise<void> {
+    stopLockHeartbeat(session);
+    const lock = session.lock;
+    session.lock = null;
+    if (!lock) return;
+    try {
+        await lock.release();
+    } catch (err) {
+        logger.warn({ err, organizationId }, 'WhatsApp: falha ao liberar a trava distribuída da sessão; TTL fará a limpeza.');
+    }
+}
+
+function scheduleLockRetry(organizationId: string, session: TenantSession): void {
+    if (session.lockRetryAttempts >= MAX_LOCK_ACQUIRE_ATTEMPTS) {
+        logger.error(
+            { organizationId, attempts: session.lockRetryAttempts },
+            'WhatsApp: desistindo de adquirir a trava distribuída após múltiplas tentativas; outra réplica parece manter a sessão ativa.',
+        );
+        session.lockRetryAttempts = 0;
+        return;
+    }
+    session.lockRetryAttempts += 1;
+    const delay = Math.min(
+        LOCK_RETRY_BASE_DELAY_MS * 2 ** (session.lockRetryAttempts - 1),
+        LOCK_RETRY_MAX_DELAY_MS,
+    );
+    setTimeout(() => {
+        initWhatsApp(organizationId).catch(() => undefined);
+    }, delay).unref?.();
 }
 
 const WHATSAPP_STATUS_KEY_PREFIX = 'whatsapp:session-status';
@@ -68,6 +172,27 @@ function authFolderFor(organizationId: string): string {
 export async function initWhatsApp(organizationId: string) {
     const session = getSession(organizationId);
     if (session.status === 'connected') return;
+
+    // Posse exclusiva do WASocket por organização entre réplicas. Se já detemos a trava (ex.:
+    // reconexão automática após um `close` recuperável na mesma réplica), não tentamos readquirir
+    // — um SET NX contra a própria chave que já detemos falharia (contended) e nos faria desistir
+    // de reconectar por engano.
+    if (!session.lock?.acquired) {
+        const lock = await acquireDistributedLock(sessionLockKey(organizationId), WHATSAPP_LOCK_TTL_SECONDS);
+        if (!lock.acquired) {
+            logger.warn(
+                { organizationId, reason: lock.reason },
+                'WhatsApp: outra réplica já detém a trava da sessão desta organização; conexão NÃO será aberta aqui para evitar WASocket duplicado.',
+            );
+            session.status = 'disconnected';
+            await persistStatusToRedis(organizationId, session);
+            scheduleLockRetry(organizationId, session);
+            return;
+        }
+        session.lock = lock;
+        session.lockRetryAttempts = 0;
+        startLockHeartbeat(organizationId, session);
+    }
 
     session.status = 'connecting';
     await persistStatusToRedis(organizationId, session);
@@ -95,6 +220,7 @@ export async function initWhatsApp(organizationId: string) {
     } catch (err) {
         session.status = 'disconnected';
         await persistStatusToRedis(organizationId, session);
+        await releaseSessionLock(organizationId, session);
         logger.error({ err, organizationId }, 'WhatsApp: falha ao inicializar sessão.');
         throw err;
     }
@@ -117,14 +243,22 @@ export async function initWhatsApp(organizationId: string) {
             session.currentQr = null;
             await persistStatusToRedis(organizationId, session);
             if (shouldReconnect && session.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                // Ainda vamos reconectar nesta mesma réplica — mantemos a trava e o heartbeat
+                // vivos (não é uma perda de posse, é o mesmo dono reabrindo o socket).
                 session.reconnectAttempts += 1;
                 const delay = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** (session.reconnectAttempts - 1), RECONNECT_MAX_DELAY_MS);
                 setTimeout(() => {
                     initWhatsApp(organizationId).catch(() => undefined);
                 }, delay);
-            } else if (!shouldReconnect) {
-                const keys = await cacheConnection.keys(`wa-auth:${organizationId}:*`);
-                if (keys.length > 0) await cacheConnection.del(...keys);
+            } else {
+                // Desistimos de vez (logout definitivo ou esgotamos as tentativas de reconexão
+                // automática): liberamos a trava explicitamente para permitir failover imediato de
+                // outra réplica, em vez de depender só do TTL expirar.
+                await releaseSessionLock(organizationId, session);
+                if (!shouldReconnect) {
+                    const keys = await cacheConnection.keys(`wa-auth:${organizationId}:*`);
+                    if (keys.length > 0) await cacheConnection.del(...keys);
+                }
             }
             whatsappEvents.emit('status', { organizationId, status: session.status });
         } else if (connection === 'open') {
@@ -179,6 +313,9 @@ export async function logoutWhatsApp(organizationId: string) {
         session.status = 'disconnected';
         session.currentQr = null;
         session.reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+        // Logout definitivo: liberamos a trava distribuída explicitamente em vez de esperar o TTL
+        // expirar, para que outra réplica possa assumir imediatamente se um novo `connect` chegar.
+        await releaseSessionLock(organizationId, session);
         await persistStatusToRedis(organizationId, session);
     }
 }
@@ -189,6 +326,9 @@ export async function shutdownWhatsAppSessions(): Promise<void> {
             session.reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
             session.status = 'disconnected';
             session.currentQr = null;
+            // Shutdown gracioso (requisito 4): libera a trava explicitamente em vez de deixar o
+            // TTL expirar, para que outra réplica assuma a sessão sem esperar o TTL inteiro.
+            await releaseSessionLock(organizationId, session);
             const sock = session.sock;
             session.sock = null;
             if (sock) {
