@@ -1,5 +1,6 @@
 import express, { Router, Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
+import type { Prisma } from '@prisma/client';
 import { env } from '../../../config/env.js';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
@@ -7,6 +8,7 @@ import { requestContext } from '../../../lib/async-context.js';
 import { isGenuineLeadReply, handleEmailReply, type InboundEmailReply } from '../../cadence/domain/replyTracking.js';
 import { emailIntentClassifier } from '../../cadence/infra/emailIntentClassifier.js';
 import { prismaConversationSignalPort } from '../../cadence/infra/PrismaConversationSignalPort.js';
+import { hashEmailForSearchIndex } from '../../../lib/security/piiSearchIndex.js';
 
 /**
  * CYC-003 (onda 26) — transporte de ENTRADA de e-mail, hoje um stub: nenhum provedor real
@@ -53,17 +55,27 @@ function isValidSignature(rawBody: Buffer, receivedSignature: string | undefined
 }
 
 /**
- * Resolve o lead em aberto cujo contato tem este e-mail, dentro da organização do contexto —
- * mesmo raciocínio de `findContactByPhone` em `whatsappMessage.service.ts`, mas por e-mail em vez
- * de telefone (não precisa de `$queryRaw`/normalização de dígitos: e-mail já é um campo exato).
+ * Resolve o lead em aberto cujo contato tem este e-mail, dentro da organização do contexto.
+ *
+ * Busca pelo hash determinístico (`Contact.emailHash`, ver
+ * src/lib/security/piiSearchIndex.ts — DEC-01/onda-42), não mais pelo valor puro: `Contact.email`
+ * pode voltar a ser cifrado em repouso a qualquer momento (IV aleatório por valor, nunca produz o
+ * mesmo ciphertext duas vezes — foi exatamente essa igualdade sobre coluna cifrada que quebrou este
+ * mesmo fluxo na onda 39, ver
+ * .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md). `emailHash` é
+ * calculado a partir do e-mail já normalizado (trim + lowercase), então continua case-insensitive
+ * como antes sem precisar de `mode: 'insensitive'`.
  */
 async function findOpenLeadByEmail(organizationId: string, email: string): Promise<{ id: string } | null> {
+    const emailHash = hashEmailForSearchIndex(email);
+    if (!emailHash) return null;
+    const where = {
+        organizationId,
+        status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
+        contact: { emailHash },
+    } as unknown as Prisma.LeadWhereInput;
     const lead = await prisma.lead.findFirst({
-        where: {
-            organizationId,
-            status: { notIn: ['Negocios_Ganhos', 'Negocios_Perdidos', 'Lead_Desqualificado'] },
-            contact: { email: { equals: email, mode: 'insensitive' } },
-        },
+        where,
         orderBy: { createdAt: 'desc' },
         select: { id: true },
     });

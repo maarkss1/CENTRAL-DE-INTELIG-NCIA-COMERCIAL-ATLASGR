@@ -1,6 +1,7 @@
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, type Prisma } from '@prisma/client';
 import { prisma } from '../../../../lib/prisma.js';
 import { notificationService } from '../../../notifications/notification.service.js';
+import { hashEmailForSearchIndex, hashPhoneForSearchIndex } from '../../../../lib/security/piiSearchIndex.js';
 
 /**
  * Status terminais usados só para decidir se um Lead/Negócio já existente ainda "conta" como
@@ -40,6 +41,11 @@ export interface OwnershipConflict {
  * `existing.owner` legado (nome) nunca bate por igualdade com um `incomingOwnerId` novo (id), então
  * a checagem trata como conflito mesmo quando é o mesmo dono na prática. É uma falha para o lado
  * seguro (bloqueia e notifica em vez de deixar passar), não uma regressão de segurança.
+ *
+ * Casa por `Contact.phoneHash`/`emailHash` (índice de busca determinístico, ver
+ * src/lib/security/piiSearchIndex.ts — DEC-01/onda-42), não mais pelo valor puro: mesmo raciocínio
+ * de `emailReply.webhook.ts` → `findOpenLeadByEmail` (o campo original pode voltar a ser cifrado em
+ * repouso a qualquer momento, e uma cifra com IV aleatório nunca casa por igualdade).
  */
 export async function findOwnershipConflict(
     organizationId: string,
@@ -48,18 +54,23 @@ export async function findOwnershipConflict(
 ): Promise<OwnershipConflict | null> {
     if (!contact.phone && !contact.email) return null;
 
+    const phoneHash = hashPhoneForSearchIndex(contact.phone);
+    const emailHash = hashEmailForSearchIndex(contact.email);
+    const or = [
+        phoneHash ? { phoneHash } : undefined,
+        emailHash ? { emailHash } : undefined,
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
+    if (or.length === 0) return null;
+
+    const where = {
+        organizationId,
+        status: { notIn: TERMINAL_STATUSES },
+        owner: { not: null },
+        contact: { OR: or },
+    } as unknown as Prisma.LeadWhereInput;
+
     const existing = await prisma.lead.findFirst({
-        where: {
-            organizationId,
-            status: { notIn: TERMINAL_STATUSES },
-            owner: { not: null },
-            contact: {
-                OR: [
-                    contact.phone ? { phone: contact.phone } : undefined,
-                    contact.email ? { email: { equals: contact.email, mode: 'insensitive' as const } } : undefined,
-                ].filter((c): c is NonNullable<typeof c> => c !== undefined),
-            },
-        },
+        where,
         select: { id: true, owner: true, title: true },
         orderBy: { updatedAt: 'desc' },
     });
