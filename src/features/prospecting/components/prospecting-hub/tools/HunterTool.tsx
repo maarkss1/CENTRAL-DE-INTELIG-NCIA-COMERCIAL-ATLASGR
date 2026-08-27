@@ -131,7 +131,7 @@ export function HunterTool({ configured }: { configured: boolean }) {
                 <button
                     onClick={handleSearch}
                     disabled={isSearching}
-                    className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                    className="w-full bg-brand-active text-white py-3.5 rounded-xl font-bold hover:brightness-110 disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (<><Loader2 className="animate-spin" size={18} /> Buscando...</>) : (<><Search size={18} /> Buscar Pessoas</>)}
                 </button>
@@ -155,13 +155,13 @@ export function HunterTool({ configured }: { configured: boolean }) {
                     {verifyResult && (
                         <p className="text-xs text-ink-2">
                             {verifyResult.email
-                                ? <>E-mail encontrado: <a href={`mailto:${verifyResult.email}`} className="text-success hover:underline">{verifyResult.email}</a>{verifyResult.score != null && ` (confiança ${verifyResult.score}%)`}</>
+                                ? <>E-mail encontrado: <a href={`mailto:${verifyResult.email}`} className="text-success-active dark:text-success hover:underline">{verifyResult.email}</a>{verifyResult.score != null && ` (confiança ${verifyResult.score}%)`}</>
                                 : 'Nenhum e-mail encontrado para este nome neste domínio.'}
                         </p>
                     )}
                 </div>
 
-                {error && <p className="text-xs text-danger">{error}</p>}
+                {error && <p className="text-xs text-danger-active dark:text-danger">{error}</p>}
             </div>
 
             <div className="xl:col-span-8 space-y-3">
@@ -187,7 +187,7 @@ export function HunterTool({ configured }: { configured: boolean }) {
                                 {contact.title && <p className="text-xs text-ink-2">{contact.title}</p>}
                             </div>
                             {contact.email && (
-                                <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-xs text-success hover:underline"><Mail size={12} /> {contact.email}</a>
+                                <a href={`mailto:${contact.email}`} className="flex items-center gap-1 text-xs text-success-active dark:text-success hover:underline"><Mail size={12} /> {contact.email}</a>
                             )}
                             {getTelephoneLink(contact.phone) && (
                                 <a href={getTelephoneLink(contact.phone)} className="flex items-center gap-1 text-xs text-ink-2 hover:text-ink"><Phone size={12} /> {contact.phone}</a>
@@ -200,7 +200,7 @@ export function HunterTool({ configured }: { configured: boolean }) {
                             </a>
                             <div className="ml-auto">
                                 {isPromoted ? (
-                                    <span className="flex items-center gap-1.5 text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
+                                    <span className="flex items-center gap-1.5 text-success-active dark:text-success font-bold text-xs"><CheckCircle2 size={14} /> No CRM</span>
                                 ) : (
                                     <button
                                         onClick={() => promoteContact(contact, idx)}

@@ -160,7 +160,7 @@ export function QualificationMatrixPage() {
                                                 onClick={() => handleCopy(item.questionText, item.id)}
                                                 className="text-xs text-ink-2 hover:text-ink flex items-center gap-1.5"
                                             >
-                                                {copiedKey === item.id ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                                                {copiedKey === item.id ? <Check size={14} className="text-success-active dark:text-success" /> : <Copy size={14} />}
                                                 {copiedKey === item.id ? 'Copiado' : 'Copiar'}
                                             </button>
                                             <button
@@ -172,7 +172,7 @@ export function QualificationMatrixPage() {
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(item)}
-                                                className="text-xs text-danger hover:text-danger/80 flex items-center gap-1.5"
+                                                className="text-xs text-danger-active dark:text-danger hover:text-danger/80 flex items-center gap-1.5"
                                                 aria-label="Excluir pergunta"
                                             >
                                                 <Trash2 size={14} /> Excluir

@@ -106,7 +106,7 @@ export function WhatsAppChatPanel({
                         </div>
 
                         <div className="p-3 border-t border-line">
-                            {error && <p className="text-xs text-danger mb-2">{error}</p>}
+                            {error && <p className="text-xs text-danger-active dark:text-danger mb-2">{error}</p>}
                             <div className="flex items-center gap-2">
                                 <input
                                     type="text"

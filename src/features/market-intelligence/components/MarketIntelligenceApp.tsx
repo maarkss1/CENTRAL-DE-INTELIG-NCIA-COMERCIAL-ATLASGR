@@ -421,7 +421,7 @@ export function MarketIntelligenceApp() {
                             <h1 className="mt-2 text-3xl font-black leading-tight tracking-[-0.04em] md:text-5xl">Onde a Atlas GR deve contratar o próximo vendedor?</h1>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Geointeligência, demanda, risco, logística, concorrência e unit economics com evidência rastreável. Sem converter lacuna de dados em certeza comercial.</p>
                         </div>
-                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-[#FFC500]/30 bg-warn/10'}`}>
+                        <div className={`rounded-2xl border px-4 py-3 ${manifest.decisionReady ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-warn/30 bg-warn/10'}`}>
                             <div className="flex items-center gap-2 text-xs font-black">{manifest.decisionReady ? <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden="true" /> : <AlertTriangle className="h-4 w-4 text-warn" aria-hidden="true" />}{manifest.decisionReady ? 'DECISÃO PRONTA' : 'DECISÃO BLOQUEADA'}</div>
                             <p className="mt-1 text-[10px] text-white/60">Metodologia {manifest.methodologyVersion} · gerado {new Date(manifest.generatedAt).toLocaleString('pt-BR')}</p>
                         </div>

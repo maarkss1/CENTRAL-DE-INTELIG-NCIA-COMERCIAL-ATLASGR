@@ -18,13 +18,13 @@ export function CnpjResultCard({
                 <div>
                     <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-black text-2xl text-ink">{d.tradeName}</h3>
-                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isActive ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
+                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isActive ? 'bg-success/15 text-success-active dark:text-success' : 'bg-danger/15 text-danger-active dark:text-danger'}`}>
                             <ShieldCheck size={10} /> {d.situacaoCadastral}
                         </span>
                     </div>
                     <p className="text-sm text-ink-2">{d.legalName} · {result.cnpj}</p>
                 </div>
-                <span className="flex items-center gap-1.5 bg-info/10 text-info px-3 py-1.5 rounded-full text-xs font-bold">
+                <span className="flex items-center gap-1.5 bg-info/10 text-info-active dark:text-info px-3 py-1.5 rounded-full text-xs font-bold">
                     <CheckCircle2 size={12} /> ✅ Dados oficiais — Receita Federal
                 </span>
             </div>
