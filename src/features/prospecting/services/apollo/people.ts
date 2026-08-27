@@ -7,6 +7,7 @@ import type { ApolloOrganization, ApolloContact, ApolloPersonRaw, DecisionMakerC
 import { checkProviderRateLimit } from '../providerRateLimit.js';
 import { withProviderCache, buildProviderCacheKey } from '../providerCache.js';
 import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * Enriquecimento de UMA pessoa específica já identificada (nome + empresa/domínio) via
@@ -40,6 +41,10 @@ async function enrichPersonByNameUncached(
 ): Promise<{ contact: ApolloContact | null; error?: string }> {
     const rateLimit = checkProviderRateLimit('apollo');
     if (!rateLimit.allowed) return { contact: null, error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     const [firstName, ...rest] = fullName.trim().split(/\s+/);
     const lastName = rest.join(' ');
@@ -158,6 +163,10 @@ async function enrichOrganizationWithContactsUncached(
     const rateLimit = checkProviderRateLimit('apollo');
     if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
 
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
+
     try {
         const res = await fetchWithProviderRetry(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
@@ -233,6 +242,10 @@ async function searchDecisionMakersAdvancedUncached(
 ): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
     const rateLimit = checkProviderRateLimit('apollo');
     if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     try {
         const body: Record<string, unknown> = {

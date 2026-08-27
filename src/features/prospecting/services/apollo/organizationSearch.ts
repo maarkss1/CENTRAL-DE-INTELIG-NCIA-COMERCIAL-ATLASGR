@@ -10,6 +10,7 @@ import { enrichCandidatesWithDecisionMakers } from './people.js';
 import { ExclusionSet } from '../../utils/exclusionSet.js';
 import { checkProviderRateLimit } from '../providerRateLimit.js';
 import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * As opções de "Região de Atuação (ampla)" do ICP (icp-options.ts) usam rótulos do playbook
@@ -129,6 +130,10 @@ export async function fetchApolloCandidates(
 
     const rateLimit = checkProviderRateLimit('apollo');
     if (!rateLimit.allowed) return { candidates: [], error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     const extraKeywords = criteria.palavrasChave
         ? criteria.palavrasChave.split(',').map((k) => k.trim()).filter(Boolean)
