@@ -9,6 +9,7 @@ import type { ApolloSearchResponse } from './types.js';
 import { enrichCandidatesWithDecisionMakers } from './people.js';
 import { ExclusionSet } from '../../utils/exclusionSet.js';
 import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
 
 /**
  * As opções de "Região de Atuação (ampla)" do ICP (icp-options.ts) usam rótulos do playbook
@@ -226,6 +227,7 @@ export async function fetchApolloCandidates(
             return { candidates: [], error: `Apollo API respondeu ${res.status}: ${text.slice(0, 200)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = (await res.json()) as ApolloSearchResponse;
         let organizations = data.organizations || [];
 

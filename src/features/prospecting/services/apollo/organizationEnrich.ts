@@ -3,6 +3,7 @@ import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch
 import { APOLLO_ORG_ENRICH_URL } from './client.js';
 import type { ApolloOrganization } from './types.js';
 import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { recordProviderCallCost } from '../providerCostMetrics.js';
 
 /**
  * Enriquecimento firmográfico completo de UMA empresa via domínio (Apollo Organization Enrich).
@@ -30,6 +31,7 @@ export async function enrichOrganizationByDomain(
             return { organization: null, error: `Apollo Organization Enrich respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
 
+        recordProviderCallCost('apollo');
         const data = (await res.json()) as { organization?: ApolloOrganization };
         return { organization: data.organization || null };
     } catch (error) {

@@ -3,6 +3,7 @@ import { getPaidProspectingKey } from '../../../config/prospecting-integrations.
 import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js';
 import { checkProviderRateLimit } from './providerRateLimit.js';
 import { withProviderCache, buildProviderCacheKey } from './providerCache.js';
+import { recordProviderCallCost } from './providerCostMetrics.js';
 
 export interface HunterEmailResult {
     email: string | null;
@@ -80,6 +81,7 @@ async function findEmailViaHunterUncached(
             logger.error({ status: res.status, domain }, 'Hunter.io Email Finder respondeu erro');
             return { email: null, error: `Hunter Email Finder respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
+        recordProviderCallCost('hunter');
         const data = await res.json() as HunterEmailFinderResponse;
         return { email: data?.data?.email || null, score: data?.data?.score };
     } catch (error) {
@@ -131,6 +133,7 @@ async function findPeopleViaDomainSearchUncached(
             const text = await res.text().catch(() => '');
             return { contacts: [], error: `Hunter Domain Search respondeu ${res.status}: ${text.slice(0, 150)}` };
         }
+        recordProviderCallCost('hunter');
         const data = await res.json() as HunterDomainSearchResponse;
         const emails = data?.data?.emails || [];
 
