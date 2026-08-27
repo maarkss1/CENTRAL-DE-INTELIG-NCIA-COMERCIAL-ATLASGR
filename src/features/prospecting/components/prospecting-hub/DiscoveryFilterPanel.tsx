@@ -265,7 +265,7 @@ export function DiscoveryFilterPanel({
                                         type="button"
                                         onClick={() => removeCargoRow(index)}
                                         aria-label={`Remover cargo ${index + 1}`}
-                                        className="shrink-0 w-11 flex items-center justify-center rounded-xl border border-line text-ink-2 hover:border-danger/50 hover:text-danger transition-colors"
+                                        className="shrink-0 w-11 flex items-center justify-center rounded-xl border border-line text-ink-2 hover:border-danger/50 hover:text-danger-active dark:hover:text-danger transition-colors"
                                     >
                                         <X size={16} />
                                     </button>
@@ -420,7 +420,7 @@ export function DiscoveryFilterPanel({
                     id="btn-discover"
                     onClick={onDiscover}
                     disabled={isSearching}
-                    className="w-full bg-brand-active text-white py-4 rounded-xl font-bold hover:bg-[#E04B12] disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
+                    className="w-full bg-brand-active text-white py-4 rounded-xl font-bold hover:brightness-110 disabled:opacity-80 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand/20"
                 >
                     {isSearching ? (
                         <><Loader2 className="animate-spin" size={20} /> <span>⏳ Buscando...</span></>

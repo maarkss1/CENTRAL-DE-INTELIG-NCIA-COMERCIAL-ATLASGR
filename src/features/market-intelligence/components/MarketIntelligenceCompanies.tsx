@@ -265,7 +265,7 @@ function DetailPanel({ cnpj, onClose }: { cnpj: string; onClose: () => void }) {
               <div><dt className="font-bold text-ink-2">ICP</dt><dd className="mt-1 text-ink">{data.provenance.icp}</dd></div>
             </dl>
             {data.provenance.sourceUrl && (
-              <a href={data.provenance.sourceUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-xs font-black text-[#C43E0E] hover:underline">
+              <a href={data.provenance.sourceUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-xs font-black text-[#C43E0E] dark:text-atlas-orange hover:underline">
                 Abrir fonte registrada <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
@@ -361,7 +361,7 @@ export function MarketIntelligenceCompanies() {
             } catch (err) {
               toast.error(err instanceof Error ? err.message : 'Falha ao aprovar');
             }
-          }} title="Aprovar direto para o Pipeline CRM" className="inline-flex items-center gap-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white px-2.5 py-1.5 font-bold transition-colors"><Sparkles className="h-3.5 w-3.5" /> Pipeline</button><button type="button" onClick={() => setSelectedCnpj(company.cnpj)} className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 font-black text-ink hover:border-brand hover:text-[#C43E0E]">Abrir <FileSearch className="h-3.5 w-3.5" /></button></td></tr>)}</tbody></table></div>
+          }} title="Aprovar direto para o Pipeline CRM" className="inline-flex items-center gap-1 rounded-lg bg-brand/10 hover:bg-brand text-brand hover:text-white px-2.5 py-1.5 font-bold transition-colors"><Sparkles className="h-3.5 w-3.5" /> Pipeline</button><button type="button" onClick={() => setSelectedCnpj(company.cnpj)} className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 font-black text-ink hover:border-brand hover:text-[#C43E0E] dark:hover:text-atlas-orange">Abrir <FileSearch className="h-3.5 w-3.5" /></button></td></tr>)}</tbody></table></div>
         ) : response?.dataset ? <div className="p-10 text-center text-sm text-ink-2"><FileSearch className="mx-auto h-8 w-8 text-ink-2" /><p className="mt-3 font-bold text-ink">Nenhuma empresa encontrada com estes filtros.</p><p className="mt-1">A API não completa a lista com registros artificiais.</p></div> : null}
         {response?.meta && response.meta.totalPages > 1 && <div className="flex items-center justify-between border-t border-line px-5 py-4 text-xs"><span className="text-ink-2">Página {response.meta.page} de {response.meta.totalPages}</span><div className="flex gap-2"><button type="button" disabled={page <= 1} onClick={() => setPage((v) => Math.max(1, v - 1))} className="rounded-lg border border-line p-2 disabled:opacity-40" aria-label="Página anterior"><ChevronLeft className="h-4 w-4" /></button><button type="button" disabled={page >= response.meta.totalPages} onClick={() => setPage((v) => v + 1)} className="rounded-lg border border-line p-2 disabled:opacity-40" aria-label="Próxima página"><ChevronRight className="h-4 w-4" /></button></div></div>}
       </section>
