@@ -15,8 +15,8 @@ no git desde 2026-08-21 (commit `9a186bc`, junto de um commit não relacionado
 O arquivo é um script de teste manual/debug que:
 - dispara uma chamada real via Bland AI (`https://api.bland.ai/v1/calls`) usando
   `process.env.BLAND_API_KEY` fora de qualquer contexto de organização/tenant;
-- contém um número de telefone (`+5516982220000`) e um nome de contato/empresa
-  (`Jhonatan` / `Nova Geração`) hardcoded no corpo do script — não dá para confirmar, sem contexto
+- contém um número de telefone (`[REDACTED-PHONE]`) e um nome de contato/empresa
+  (`[REDACTED-NAME]` / `[REDACTED-EMPRESA]`) hardcoded no corpo do script — não dá para confirmar, sem contexto
   adicional, se são dados reais de um lead de prospecção ou valores de teste inventados, mas o
   padrão (nome próprio + empresa real com grafia específica) é consistente com dado de lead real,
   não um placeholder óbvio como "Fulano"/"Empresa Teste".
@@ -61,10 +61,10 @@ chamada real de produção sem nenhuma das travas de opt-out/tenant/janela que o
 voz exige, exatamente o padrão de risco descrito acima. Nenhum outro arquivo do repositório o
 referenciava (`grep` confirmou).
 
-**Não resolvido, decisão humana explícita conforme `/AGENTS.md` → "Segurança e higiene"**: o
-conteúdo permanece recuperável no histórico do git (commit `9a186bc`, 2026-08-21), incluindo o
-nome/telefone/empresa hardcoded que podem ser dado real de um lead. Reescrever histórico
-(`git filter-repo`/BFG) para remover isso definitivamente exige coordenação com o dono do
-repositório (reescreve hashes de commit, afeta qualquer PR/branch que dependa desse histórico) —
-mesma ressalva já registrada para o caso do dump em `backups/**`. Fica pendente como decisão do
-usuário, não resolvida automaticamente por este ciclo.
+**Atualização (Coordenador, 00) — decisão humana recebida**: reescrita de histórico
+(`git filter-repo`) autorizada e preparada localmente para `scratch_call.ts`, removendo também o
+conteúdo original (nome/telefone/empresa) de todo o histórico do git — pendente apenas do
+force-push, ainda não executado. O nome/telefone/empresa citados acima foram redigidos NESTE
+arquivo (que ainda está no HEAD atual, fora do histórico rescrito) pelo mesmo motivo: mesmo depois
+do force-push, este texto continuaria expondo o dado em um commit novo se não fosse redigido aqui
+também.
