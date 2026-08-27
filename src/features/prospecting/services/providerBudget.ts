@@ -4,7 +4,12 @@ import { logger } from '../../../lib/logger.js';
 import { getTenantId } from '../../../lib/async-context.js';
 import { cacheConnection, redisConfigured } from '../../../lib/queue/redis.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
-import type { ProspectingCostProvider } from './providerCostMetrics.js';
+
+/** Providers de prospecção faturáveis — definido aqui (não em `providerCostMetrics.ts`) para
+ * evitar um ciclo de import: `providerCostMetrics.ts` já depende deste arquivo em runtime
+ * (`recordProspectingProviderSpend`), então a dependência do tipo segue a mesma direção.
+ * `providerCostMetrics.ts` reexporta este tipo para quem já importava de lá. */
+export type ProspectingCostProvider = 'apollo' | 'hunter';
 
 /**
  * DEC-09 (dossiê CPI, onda 42, opção B escolhida pelo usuário): teto REAL (bloqueante) de gasto

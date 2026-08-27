@@ -1,7 +1,7 @@
 import { isValidCnpj, sanitizeCnpj, formatCnpj } from '../cnpj.util';
 import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { HttpTimeoutError } from '../../../../lib/http.js';
-import type { RntrcUfRisk } from '../../../market-intelligence/server/rntrcTerritorial.js';
+import type { RntrcUfRisk } from '../../../../shared/services/rntrcTerritorialRisk.service.js';
 
 const BRASIL_API_BASE = 'https://brasilapi.com.br/api';
 
