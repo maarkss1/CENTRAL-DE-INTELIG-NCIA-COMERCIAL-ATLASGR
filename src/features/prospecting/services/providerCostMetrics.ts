@@ -1,4 +1,5 @@
 import client from 'prom-client';
+import { recordProspectingProviderSpend } from './providerBudget.js';
 
 /**
  * Gap de auditoria (05 — Prospecção): `providerRateLimit.ts` e `providerCache.ts` (já criados
@@ -10,6 +11,16 @@ import client from 'prom-client';
  * bem-sucedida ao provider — nunca um teto/bloqueio (orçamento é decisão de produto, fora de
  * escopo desta tarefa; outra ferramenta pode alertar em cima deste contador, como o alerta
  * AIBudgetOverrun já faz hoje para IA em cima de `ai_usage_cost_usd_total`).
+ *
+ * ATUALIZAÇÃO (DEC-09, onda 42): o parágrafo acima ("nunca um teto/bloqueio") descrevia o estado
+ * ANTES desta rodada — a decisão de produto mudou (dossiê CPI, opção B). O Counter Prometheus
+ * abaixo continua sendo só observação (sem rótulo de organização, sem corte por mês), mas
+ * `recordProviderCallCost` agora TAMBÉM alimenta `providerBudget.ts` (armazenamento durável por
+ * organização/mês, ver o comentário grande no topo daquele arquivo), que é o que
+ * `assertProspectingBudgetNotExceeded` usa para bloquear de verdade uma chamada nova quando o teto
+ * mensal por organização (`Organization.monthlyProspectingBudgetUsd`) é excedido. O bloqueio em si
+ * acontece ANTES da chamada de rede (nos 7 pontos onde `checkProviderRateLimit` já é checado);
+ * este arquivo só registra o gasto DEPOIS de uma chamada bem-sucedida, como sempre fez.
  *
  * Fonte do custo por chamada: nem Apollo nem Hunter devolvem custo/crédito consumido no corpo da
  * resposta de nenhum dos endpoints usados neste domínio (Organization Search/Enrich, People
@@ -76,6 +87,14 @@ export const prospectingProviderCostUsdTotal = new client.Counter({
  * cacheado não bateu o provider de novo, então não deve contar custo de novo) — ou seja, sempre
  * dentro da função "Uncached" de cada operação, nunca no wrapper público que primeiro checa o
  * cache.
+ *
+ * Desde DEC-09 (onda 42), também dispara (fire-and-forget, nunca aguardado pelo chamador — uma
+ * falha ao persistir o gasto nunca deve atrasar ou derrubar uma resposta que o provider já deu de
+ * verdade) `recordProspectingProviderSpend`, que soma esse mesmo custo ao acumulado do mês
+ * corrente da organização ativa (`getTenantId()`), usado por
+ * `assertProspectingBudgetNotExceeded` (providerBudget.ts) para decidir se a PRÓXIMA chamada deve
+ * ser bloqueada. Erros dessa persistência são só logados dentro de `recordProspectingProviderSpend`
+ * — nunca propagam para cá.
  */
 export function recordProviderCallCost(
     provider: ProspectingCostProvider,
@@ -84,4 +103,5 @@ export function recordProviderCallCost(
     const costUsd = getCostPerCallUsd(provider, environment);
     if (!Number.isFinite(costUsd) || costUsd <= 0) return;
     prospectingProviderCostUsdTotal.inc({ provider }, costUsd);
+    void recordProspectingProviderSpend(provider, costUsd);
 }
