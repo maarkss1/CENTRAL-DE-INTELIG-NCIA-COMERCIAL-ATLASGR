@@ -267,7 +267,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
             <div className="rounded-3xl border border-line bg-surface p-5 md:p-7">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Unit Economics territorial · v1.4</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Unit Economics territorial · v1.4</p>
                         <h2 id="territory-economics-title" className="mt-1 text-2xl font-black tracking-tight text-ink">O território paga a contratação?</h2>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-2">O mapa define o TAM ICP observado. O CRM pode calibrar ticket ganho, Win Rate e Sales Cycle com histórico real. SAM, margem, custos, capacidade e política financeira continuam explícitos.</p>
                     </div>
@@ -323,7 +323,7 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                                 Período: <strong>{crmCalibration.fromPeriod ?? 'N/A'} → {crmCalibration.toPeriod ?? 'N/A'}</strong>
                                 {calibrationApplied && <span className="ml-2 font-black text-emerald-700">✓ aplicado ao cenário atual</span>}
                             </div>
-                            <button type="button" aria-label="Aplicar dados do CRM" disabled={!crmCalibration.eligible} onClick={applyCrmCalibration} className="rounded-xl bg-[#333333] px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40">Aplicar dados do CRM</button>
+                            <button type="button" aria-label="Aplicar dados do CRM" disabled={!crmCalibration.eligible} onClick={applyCrmCalibration} className="rounded-xl bg-atlas-dark px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40">Aplicar dados do CRM</button>
                         </div>
                         {!crmCalibration.eligible && crmCalibration.blockers.length > 0 && <ul className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">{crmCalibration.blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}</ul>}
                     </div>
@@ -376,8 +376,8 @@ export function TerritoryEconomicSimulator({ territories }: Props) {
                         {issues.length > 0 && <ul className="mt-3 space-y-1 text-xs leading-5">{issues.map((issue) => <li key={issue}>• {issue}</li>)}</ul>}
                     </div>
 
-                    <div className="rounded-3xl bg-[#333333] p-6 text-white">
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FFC500]">Unit economics · {SCENARIO_LABELS[scenario]}</p>
+                    <div className="rounded-3xl bg-atlas-dark p-6 text-white">
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-atlas-yellow">Unit economics · {SCENARIO_LABELS[scenario]}</p>
                         <dl className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
                             <div><dt className="text-xs text-white/60">Investimento inicial</dt><dd className="mt-1 text-xl font-black">{money.format(assessment.economics.upfrontInvestment)}</dd></div>
                             <div><dt className="text-xs text-white/60">Custo fixo / mês</dt><dd className="mt-1 text-2xl font-black">{money.format(assessment.economics.monthlyFixedCost)}</dd></div>

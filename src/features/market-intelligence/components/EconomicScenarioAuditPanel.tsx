@@ -78,9 +78,9 @@ export function EconomicScenarioAuditPanel({ input, onLoad }: Props) {
         <section className="rounded-3xl border border-line bg-surface p-5 md:p-7" aria-labelledby="economic-audit-title">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex gap-3">
-                    <div className="rounded-2xl bg-surface-2 p-2.5 text-[#FF5618]"><Archive className="h-5 w-5" aria-hidden="true" /></div>
+                    <div className="rounded-2xl bg-surface-2 p-2.5 text-brand"><Archive className="h-5 w-5" aria-hidden="true" /></div>
                     <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#FF5618]">Registro de decisão · v1.4</p>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand">Registro de decisão · v1.4</p>
                         <h3 id="economic-audit-title" className="mt-1 text-lg font-black text-ink">Snapshots econômicos imutáveis</h3>
                         <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-2">Salva território canônico, premissas, política, calibração CRM e o cálculo refeito no servidor. Reabrir um snapshot restaura as premissas, mas não reaplica automaticamente uma calibração CRM histórica em uma nova versão.</p>
                     </div>
@@ -92,7 +92,7 @@ export function EconomicScenarioAuditPanel({ input, onLoad }: Props) {
                 <label className="flex-1 text-xs font-bold text-ink-2">Nome do snapshot
                     <input aria-label="Nome do snapshot" maxLength={120} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Ex.: Expansão SP · orçamento aprovado" className="mt-1 w-full rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand" />
                 </label>
-                <button type="button" aria-label="Salvar snapshot auditável" disabled={saving} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#333333] px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="button" aria-label="Salvar snapshot auditável" disabled={saving} onClick={() => void save()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-atlas-dark px-4 py-2.5 text-xs font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50">
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Save className="h-4 w-4" aria-hidden="true" />}
                     Salvar snapshot
                 </button>
