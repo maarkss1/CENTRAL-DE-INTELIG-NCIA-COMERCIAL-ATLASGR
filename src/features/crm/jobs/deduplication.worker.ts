@@ -11,25 +11,36 @@ export function createDeduplicationWorker() {
         logger.info('Iniciando job de deduplicação (Limpeza de Base)');
         
         try {
-            // Buscando contatos duplicados por e-mail
-            const duplicateEmails = await prisma.contact.groupBy({
-                by: ['email'],
-                having: {
-                    email: { _count: { gt: 1 } }
-                }
-            });
+            // Agrupa por `emailHash`/`phoneHash` (índice de busca determinístico — HMAC-SHA256 do
+            // valor normalizado, ver src/lib/security/piiSearchIndex.ts, DEC-01/onda-42), não mais
+            // pelo valor puro de `email`/`phone`: além de continuar funcionando no dia em que esses
+            // campos voltarem a ser cifrados em repouso (cifra com IV aleatório nunca agrupa por
+            // igualdade), agrupar pelo hash do valor NORMALIZADO também passa a pegar duplicatas que
+            // o agrupamento por valor puro deixava passar (ex.: "Ana@Empresa.com" e
+            // "ana@empresa.com" — mesmo e-mail, formatação diferente — nunca eram a mesma linha de
+            // `groupBy`). O grupo "duplicado por WhatsApp" (via `whatsappHash`) existe no índice mas
+            // não é varrido aqui — o job histórico nunca cobriu WhatsApp, mantido assim para não
+            // mudar o formato do resultado (`duplicatesByEmail`/`duplicatesByPhone`) sem necessidade.
+            // `Contact.emailHash`/`phoneHash` ainda não existem nos tipos gerados do Prisma Client
+            // (schema/migration são de dono único deste repositório — ver
+            // .agents/handoffs/onda-42/01-para-00-pii-hash-fields.md); o cast para `any` é só para
+            // isso, não para contornar um erro de lógica. Depois de `prisma generate` rodar com o
+            // schema atualizado, dá para trocar por `Prisma.ContactGroupByArgs` tipado de verdade.
+            const contactDelegate = prisma.contact as unknown as {
+                groupBy: (args: unknown) => Promise<Array<Record<string, unknown>>>;
+            };
 
-            const emailDupes = duplicateEmails.filter(e => !!e.email);
-            
-            // Buscando contatos duplicados por telefone
-            const duplicatePhones = await prisma.contact.groupBy({
-                by: ['phone'],
-                having: {
-                    phone: { _count: { gt: 1 } }
-                }
+            const duplicateEmails = await contactDelegate.groupBy({
+                by: ['emailHash'],
+                having: { emailHash: { _count: { gt: 1 } } },
             });
+            const emailDupes = duplicateEmails.filter((e) => !!e.emailHash);
 
-            const phoneDupes = duplicatePhones.filter(e => !!e.phone);
+            const duplicatePhones = await contactDelegate.groupBy({
+                by: ['phoneHash'],
+                having: { phoneHash: { _count: { gt: 1 } } },
+            });
+            const phoneDupes = duplicatePhones.filter((e) => !!e.phoneHash);
             
             // No futuro, isso poderia realizar o "merge" usando os IDs dos Leads associados.
             // Por enquanto, apenas detecta e envia logs para a organização ou diretoria sobre a base suja.
