@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { discoverCandidates, promoteToCrm, discoverDecisionMakers, rejectCandidate } from '../services/prospecting.service.js';
 import { checkApolloConnection } from '../services/apollo.service.js';
 import { fetchCnpjData } from '../services/enrichment.service.js';
+import { rntrcRiskByUf } from '../../market-intelligence/server/rntrcTerritorial.js';
 import { normalizeCompanyDomain } from '../utils/domain.js';
 import { extractTextFromImage, structureOcrCandidate, OcrValidationError } from '../services/ocr.service.js';
 import { IcebreakerService } from '../../intelligence/services/IcebreakerService.js';
@@ -84,7 +85,12 @@ router.post('/enrich-cnpj', async (req: Request, res: Response, next: NextFuncti
             return;
         }
         const result = await fetchCnpjData(cnpj);
-        res.json({ success: true, data: result });
+        // MI-014 (dossiê CPI, DEC-15 opção A): a UF devolvida pela Receita Federal já basta para
+        // reaproveitar o indicador RNTRC/ANTT territorial que o módulo de Market Intelligence
+        // publica (ver `rntrcRiskByUf` — mesmo dataset/cache de `rntrcTerritorialSnapshot`, sem
+        // recalcular nada). `marketRisk` fica `null` só quando a Receita não devolveu empresa.
+        const marketRisk = result.found && result.data ? rntrcRiskByUf(result.data.state) : null;
+        res.json({ success: true, data: { ...result, marketRisk } });
     } catch (error) {
         next(error);
     }

@@ -41,6 +41,108 @@ export type RntrcTerritorialSnapshot = {
 
 let cached: RntrcTerritorialSnapshot | null = null;
 
+/**
+ * MI-014 (dossiê CPI, DEC-15 opção A): reaproveita `rntrcTerritorialSnapshot()` — mesma leitura,
+ * mesmo cache, mesmos metadados — para dar ao card de empresa individual da Prospecção (que só
+ * conhece UF/cidade, não o código IBGE do município) uma leitura territorial por UF do indicador
+ * RNTRC/ANTT já publicado em Market Intelligence. Não recalcula nem duplica a lógica de leitura do
+ * dataset: soma as linhas municipais já carregadas, por UF.
+ *
+ * Importante (para não confundir com o outro "risco" documentado em
+ * `public/tools/atlas-market-intelligence/METODOLOGIA_RISCO_TERRITORIO.md`): isto é densidade de
+ * transportadoras registradas no RNTRC (ANTT) — um indicador de intensidade do mercado de
+ * transporte rodoviário de cargas na UF. NÃO é o índice de risco criminal (roubo/furto Sinesp
+ * MJSP) descrito naquele documento — esse pipeline (`domain/coreEvidence.ts`,
+ * `domain/MarketIntelligence.ts`) roda hoje só no gerador estático de `public/tools/`, nunca foi
+ * ligado a nenhuma rota Express nem componente React da aplicação viva, e não deve ser apresentado
+ * como se fosse dado ao vivo.
+ */
+export type RntrcRiskTier = 'ALTA' | 'MEDIA' | 'BAIXA';
+
+export type RntrcUfRisk = {
+    available: boolean;
+    reason: string | null;
+    uf: string | null;
+    transporters: number | null;
+    etc: number | null;
+    tac: number | null;
+    ctc: number | null;
+    etcEquiparada: number | null;
+    municipalitiesCount: number | null;
+    /** Posição percentual (0-100) da UF entre todas as UFs com dado, pelo total de transportadores. */
+    percentile: number | null;
+    tier: RntrcRiskTier | null;
+    metadata: RntrcTerritorialSnapshot['metadata'] | null;
+};
+
+function normalizeUf(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const trimmed = value.trim().toUpperCase();
+    return /^[A-Z]{2}$/.test(trimmed) ? trimmed : null;
+}
+
+function tierFromPercentile(percentile: number): RntrcRiskTier {
+    if (percentile >= 66) return 'ALTA';
+    if (percentile >= 33) return 'MEDIA';
+    return 'BAIXA';
+}
+
+function unavailable(reason: string, uf: string | null, metadata: RntrcTerritorialSnapshot['metadata'] | null): RntrcUfRisk {
+    return {
+        available: false, reason, uf, transporters: null, etc: null, tac: null, ctc: null,
+        etcEquiparada: null, municipalitiesCount: null, percentile: null, tier: null, metadata,
+    };
+}
+
+/**
+ * Agrega o snapshot territorial (municipal) do RNTRC/ANTT por UF e devolve, para uma UF, o total
+ * de transportadoras registradas e sua posição relativa (percentil) entre as demais UFs do
+ * dataset. Puro em relação ao dataset: `rntrcTerritorialSnapshot()` é quem faz a única leitura de
+ * disco (com cache), esta função só soma e ordena o que já foi carregado.
+ */
+export function rntrcRiskByUf(ufRaw: string | null | undefined): RntrcUfRisk {
+    const uf = normalizeUf(ufRaw);
+    const snapshot = rntrcTerritorialSnapshot();
+
+    if (!uf) return unavailable('UF não informada para esta empresa — não é possível localizar o indicador territorial.', null, snapshot.rows.length ? snapshot.metadata : null);
+    if (!snapshot.rows.length) return unavailable('Indicador territorial RNTRC (ANTT) indisponível no momento.', uf, null);
+
+    const totals = new Map<string, { transporters: number; etc: number; tac: number; ctc: number; etcEquiparada: number; municipalities: number }>();
+    for (const row of snapshot.rows) {
+        const current = totals.get(row.uf) ?? { transporters: 0, etc: 0, tac: 0, ctc: 0, etcEquiparada: 0, municipalities: 0 };
+        current.transporters += row.transporters;
+        current.etc += row.etc;
+        current.tac += row.tac;
+        current.ctc += row.ctc;
+        current.etcEquiparada += row.etcEquiparada;
+        current.municipalities += 1;
+        totals.set(row.uf, current);
+    }
+
+    const target = totals.get(uf);
+    if (!target) return unavailable(`Nenhum dado RNTRC (ANTT) publicado para ${uf} no snapshot atual.`, uf, snapshot.metadata);
+
+    const ranked = [...totals.entries()].sort((a, b) => a[1].transporters - b[1].transporters);
+    const n = ranked.length;
+    const index = ranked.findIndex(([key]) => key === uf);
+    const percentile = n <= 1 ? 100 : Math.round((index / (n - 1)) * 100);
+
+    return {
+        available: true,
+        reason: null,
+        uf,
+        transporters: target.transporters,
+        etc: target.etc,
+        tac: target.tac,
+        ctc: target.ctc,
+        etcEquiparada: target.etcEquiparada,
+        municipalitiesCount: target.municipalities,
+        percentile,
+        tier: tierFromPercentile(percentile),
+        metadata: snapshot.metadata,
+    };
+}
+
 export function rntrcTerritorialSnapshot(): RntrcTerritorialSnapshot {
     if (cached) return cached;
     const base = resolve(process.cwd(), 'public', 'tools', 'atlas-market-intelligence', 'data');
