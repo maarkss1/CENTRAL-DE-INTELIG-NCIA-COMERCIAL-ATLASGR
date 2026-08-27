@@ -142,8 +142,29 @@ describe('make3CXCall — honestidade sobre chamada real (nunca finge sucesso)',
             /lista interna de bloqueio/,
         );
         expect(fetchMock).not.toHaveBeenCalled();
-        // Terceiro argumento: contexto do opt-out unificado entre canais (leadId, quando informado
-        // — aqui não foi) — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
-        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', { leadId: null });
+        // Terceiro argumento: contexto do opt-out unificado entre canais (leadId/email, quando
+        // informados — aqui não foram) — ver .agents/handoffs/onda-7/17-para-05-06-12-contrato-optout.md.
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', { leadId: null, email: null });
+    });
+
+    // Gap real de auditoria: sem leadId resolvido (ex.: número digitado manualmente, ou dial a
+    // partir de um contato sem lead vinculado), o Click-to-Call ainda tem o e-mail do contato em
+    // mãos — e um opt-out registrado só por e-mail (sem esse telefone em comum) precisa continuar
+    // bloqueando, exatamente como já bloqueia para os outros canais (WhatsApp/e-mail/voz).
+    it('recusa a chamada quando não há leadId mas o e-mail do contato está na lista de opt-out', async () => {
+        const conn = await seedConnection();
+        isSuppressedMock.mockResolvedValue(true);
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        await expect(
+            make3CXCall(ORG_ID, conn.id, '11987654321', undefined, 'contato-optout@exemplo.com'),
+        ).rejects.toThrow(/lista interna de bloqueio/);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(isSuppressedMock).toHaveBeenCalledWith(ORG_ID, '11987654321', {
+            leadId: null,
+            email: 'contato-optout@exemplo.com',
+        });
     });
 });

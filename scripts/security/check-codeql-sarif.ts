@@ -14,6 +14,19 @@
 // deste repositório é excluir a regra específica (por `id`) via `query-filters` em
 // `.github/codeql/codeql-config.yml`, com um comentário obrigatório (dono, data, motivo) acima da
 // exclusão — mesmo padrão de governança usado em docs/security/AUDIT_WAIVERS.md para npm audit.
+//
+// AUDITORIA (27/08/2026) — "`npm run security:codeql-sarif` sai com exit 0 e nenhum .sarif é
+// gerado neste ambiente": comportamento esperado, não um bug. Este script nunca gera SARIF — ele
+// só LÊ o que `github/codeql-action/analyze` (a CodeQL Action real do GitHub, que embute o CLI e
+// os bancos de dados de query) já gravou em `results/` antes dele, no mesmo job de
+// `.github/workflows/codeql.yml`. Um sandbox/dev local não tem esse passo anterior (não há
+// instalação do CodeQL CLI/Action aqui), então `results/` não existe, cai no ramo "nenhum arquivo
+// .sarif encontrado" abaixo e sai 0 de propósito — ausência de SARIF é tratada como "nada a
+// checar", não como "nenhum achado", e a mensagem de log já diz isso explicitamente. Isto NÃO é a
+// fonte de verdade de segurança: o gate real roda em CI, onde o SARIF existe de verdade (ver
+// `tests/unit/security-codeql-sarif.test.ts` para a lógica de `findBlockingResults` testada com
+// SARIF sintético). Rodar `npx tsx scripts/security/check-codeql-sarif.ts <dir>` localmente só é
+// significativo depois de gerar SARIF de verdade nesse `<dir>` (ex.: rodando o CodeQL CLI à mão).
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

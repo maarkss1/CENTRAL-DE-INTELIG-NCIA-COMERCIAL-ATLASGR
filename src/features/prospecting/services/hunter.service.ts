@@ -1,6 +1,8 @@
 import { logger } from '../../../lib/logger';
 import { getPaidProspectingKey } from '../../../config/prospecting-integrations.js';
 import { fetchWithProviderRetry } from '../../../lib/enrichment/providerFetch.js';
+import { checkProviderRateLimit } from './providerRateLimit.js';
+import { withProviderCache, buildProviderCacheKey } from './providerCache.js';
 
 export interface HunterEmailResult {
     email: string | null;
@@ -48,6 +50,23 @@ export async function findEmailViaHunter(domain: string, fullName: string): Prom
     const lastName = rest.join(' ');
     if (!firstName || !lastName) return { email: null };
 
+    const cacheKey = buildProviderCacheKey('hunter', 'email-finder', { domain, fullName });
+    return withProviderCache(
+        cacheKey,
+        () => findEmailViaHunterUncached(domain, firstName, lastName, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function findEmailViaHunterUncached(
+    domain: string,
+    firstName: string,
+    lastName: string,
+    apiKey: string
+): Promise<HunterEmailResult> {
+    const rateLimit = checkProviderRateLimit('hunter');
+    if (!rateLimit.allowed) return { email: null, error: rateLimit.message };
+
     try {
         const params = new URLSearchParams({
             domain,
@@ -83,6 +102,22 @@ export async function findPeopleViaDomainSearch(
 ): Promise<{ contacts: HunterPersonContact[]; error?: string }> {
     const apiKey = getPaidProspectingKey('HUNTER_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
+
+    const cacheKey = buildProviderCacheKey('hunter', 'domain-search', { domain, limit });
+    return withProviderCache(
+        cacheKey,
+        () => findPeopleViaDomainSearchUncached(domain, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function findPeopleViaDomainSearchUncached(
+    domain: string,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: HunterPersonContact[]; error?: string }> {
+    const rateLimit = checkProviderRateLimit('hunter');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
 
     try {
         const params = new URLSearchParams({

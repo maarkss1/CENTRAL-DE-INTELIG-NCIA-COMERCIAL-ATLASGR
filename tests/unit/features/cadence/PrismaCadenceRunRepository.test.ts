@@ -54,6 +54,7 @@ const DB_ROW = {
     lastTouchAt: new Date('2026-08-01T10:05:00Z'),
     pausedAt: null,
     stoppedAt: null,
+    createdBy: 'user-1',
     touchAttempts: [
         {
             touchOrder: 1,
@@ -86,6 +87,7 @@ describe('PrismaCadenceRunRepository.findById', () => {
             lastTouchAt: DB_ROW.lastTouchAt,
             pausedAt: null,
             stoppedAt: null,
+            createdBy: 'user-1',
             attempts: [
                 {
                     touchOrder: 1,
@@ -173,6 +175,7 @@ describe('PrismaCadenceRunRepository.save', () => {
         lastTouchAt: new Date('2026-08-01T10:05:00Z'),
         pausedAt: null,
         stoppedAt: null,
+        createdBy: 'user-1',
         attempts: [
             { touchOrder: 1, attemptNumber: 1, channel: 'email', attemptedAt: new Date('2026-08-01T10:05:00Z'), result: 'sent', error: null },
         ],
@@ -192,6 +195,21 @@ describe('PrismaCadenceRunRepository.save', () => {
                 update: expect.objectContaining({ status: 'Active', currentTouchOrder: 2, stopReason: null }),
             }),
         );
+    });
+
+    // Onda 40 (auditoria CPI — "sem campo Owner explícito no estado da cadência"): createdBy
+    // (userId de quem iniciou o run) só é gravado na criação — nunca sobrescrito num `update`
+    // (o "dono" de um run não muda quando ele avança/pausa/para).
+    it('grava createdBy no create, mas nunca no update (owner não muda depois de criado)', async () => {
+        mockedPrisma.cadenceTouchAttempt.count.mockResolvedValue(0);
+        mockedPrisma.cadenceRun.upsert.mockResolvedValue({});
+        mockedPrisma.cadenceTouchAttempt.createMany.mockResolvedValue({ count: 1 });
+
+        await repo.save(RUN);
+
+        const call = mockedPrisma.cadenceRun.upsert.mock.calls[0][0];
+        expect(call.create).toEqual(expect.objectContaining({ createdBy: 'user-1' }));
+        expect(call.update).not.toHaveProperty('createdBy');
     });
 
     it('só insere as tentativas NOVAS (além das já persistidas) — nunca duplica um `save()` repetido com o mesmo histórico', async () => {

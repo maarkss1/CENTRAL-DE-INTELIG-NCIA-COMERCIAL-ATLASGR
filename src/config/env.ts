@@ -175,6 +175,19 @@ const envSchema = z.object({
   // nunca finge que o arquivo ainda existe.
   BITRIX_EXTRACTION_STORAGE_DIR: z.string().default('./data/bitrix-extractions'),
 
+  // ── Retenção de memória de agentes de IA (AgentMemory) ───────────────────
+  // AgentMemory acumula uma linha por (sessionId, agentType, organizationId) para cada execução de
+  // agente do enxame (SDR/BDR/CLOSER/CRM/OPS/LearningAgent) e nunca teve expurgo — cresce para
+  // sempre. Mesmo padrão de janela configurável já usado para BitrixExtractionRun acima
+  // (BITRIX_EXTRACTION_RETENTION_DAYS): 90 dias por padrão, ver
+  // agentMemoryCleanup.worker.ts. Diferente do expurgo de extrações Bitrix, este worker roda sem
+  // flag de "enabled" adicional — não há decisão de negócio pendente aqui, é remediação direta do
+  // gap de retenção (mesmo critério de "correção de dívida técnica" do freeze de escopo em
+  // AGENTS.md). `agentType = 'LEARNING_PROFILE'` (perfil de estilo aprendido, persistente por
+  // tenant+ator) é deliberadamente excluído do expurgo por idade — ver comentário em
+  // agentMemoryCleanup.worker.ts.
+  AGENT_MEMORY_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
+
   // ── Base legal LGPD para dado pessoal enviado a provedor de IA externo ──────
   // Ponto único de verificação em guardrails.service.ts (hasPiiExternalConsent/
   // assertPiiExternalConsent), consumido pelos caminhos reais que buscam dado pessoal de um

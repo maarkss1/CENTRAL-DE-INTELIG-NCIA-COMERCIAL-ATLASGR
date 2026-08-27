@@ -222,7 +222,7 @@ describe('make3CXCall', () => {
             'lista interna de bloqueio',
         );
         expect(fetch).not.toHaveBeenCalled();
-        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: null });
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: null, email: null });
 
         vi.unstubAllGlobals();
     });
@@ -238,7 +238,26 @@ describe('make3CXCall', () => {
         await expect(make3CXCall('org-a', 'conn-1', '11999998888', 'lead-1')).rejects.toThrow(
             'lista interna de bloqueio',
         );
-        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: 'lead-1' });
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', { leadId: 'lead-1', email: null });
+
+        vi.unstubAllGlobals();
+    });
+
+    // Gap fechado nesta auditoria: sem leadId resolvido, o e-mail do contato agora também entra
+    // no contexto do opt-out unificado — antes disso o Click-to-Call só era barrado por telefone
+    // ou por leadId, nunca por e-mail sozinho.
+    it('propaga o email, quando informado sem leadId, como contexto do opt-out unificado', async () => {
+        const { make3CXCall } = await import('../threecx.service.js');
+        isSuppressedMock.mockResolvedValue(true);
+        vi.stubGlobal('fetch', vi.fn());
+
+        await expect(
+            make3CXCall('org-a', 'conn-1', '11999998888', undefined, 'ana@exemplo.com'),
+        ).rejects.toThrow('lista interna de bloqueio');
+        expect(isSuppressedMock).toHaveBeenCalledWith('org-a', '11999998888', {
+            leadId: null,
+            email: 'ana@exemplo.com',
+        });
 
         vi.unstubAllGlobals();
     });

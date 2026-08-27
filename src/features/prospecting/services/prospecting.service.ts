@@ -416,6 +416,10 @@ export interface PromoteInput {
     state?: string | null;
     location?: string | null;
     source: string;
+    /** Onda 40 (auditoria CPI — "funil quebra no primeiro elo, busca→lead"): id da SavedSearch cujo
+     * candidato está sendo promovido, quando aplicável — nunca inferido, só passado quando o
+     * chamador realmente sabe a origem. */
+    savedSearchId?: string | null;
     contact?: { name: string; role?: string } | null;
     autoEnrich?: boolean;
     organizationId: string;
@@ -591,6 +595,7 @@ export async function promoteToCrm(input: PromoteInput) {
             companyId: finalCompany.id,
             contactId: contact?.id,
             organizationId: input.organizationId,
+            savedSearchId: input.savedSearchId ?? null,
             timeline: {
                 create: {
                     type: 'creation',

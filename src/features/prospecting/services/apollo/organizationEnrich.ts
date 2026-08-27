@@ -2,6 +2,7 @@ import { getPaidProspectingKey } from '../../../../config/prospecting-integratio
 import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_ORG_ENRICH_URL } from './client.js';
 import type { ApolloOrganization } from './types.js';
+import { checkProviderRateLimit } from '../providerRateLimit.js';
 
 /**
  * Enriquecimento firmográfico completo de UMA empresa via domínio (Apollo Organization Enrich).
@@ -14,6 +15,9 @@ export async function enrichOrganizationByDomain(
 ): Promise<{ organization: ApolloOrganization | null; error?: string }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { organization: null };
+
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { organization: null, error: rateLimit.message };
 
     try {
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;

@@ -88,6 +88,11 @@ export interface CadenceRunState {
     lastTouchAt: Date | null;
     pausedAt: Date | null;
     stoppedAt: Date | null;
+    /** Onda 40 (auditoria CPI — "sem campo Owner explícito no estado da cadência"): userId de quem
+     * iniciou este run (ator autenticado da rota `POST /cadence/runs`), nunca inferido. Null só
+     * para runs que já existiam antes desta coluna, ou disparados sem contexto de usuário
+     * (ex.: worker automático) — nunca um valor fabricado. Nunca muda depois da criação. */
+    createdBy: string | null;
     attempts: CadenceTouchAttempt[];
 }
 
@@ -189,6 +194,7 @@ export function startCadenceRun(input: {
     leadId: string;
     sequenceId: string;
     startedAt: Date;
+    createdBy?: string | null;
 }): CadenceRunState {
     return {
         id: input.id,
@@ -202,6 +208,7 @@ export function startCadenceRun(input: {
         lastTouchAt: null,
         pausedAt: null,
         stoppedAt: null,
+        createdBy: input.createdBy ?? null,
         attempts: [],
     };
 }
