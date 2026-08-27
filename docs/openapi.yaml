@@ -1210,6 +1210,32 @@ paths:
         '404':
           description: Busca salva não encontrada
 
+  /prospecting/searches/{searchId}:
+    parameters:
+      - name: searchId
+        in: path
+        required: true
+        schema: { type: string }
+        description: >-
+          Search-ID (cuid) de uma execução real de busca de prospecção, devolvido em
+          `data.searchId` pelas respostas de /prospecting/discover e
+          /prospecting/saved-searches/{id}/run.
+    get:
+      tags: [Prospecting]
+      summary: >-
+        Onda 42 (dossiê CPI, DEC-13, opção A): consulta uma EXECUÇÃO de busca específica pelo
+        Search-ID — critério usado, providers chamados (em ordem, com resultado e custo de cada
+        um), total de resultados, status e timestamps. Sempre escopado ao tenant autenticado.
+      responses:
+        '200':
+          description: Execução de busca encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataEnvelope'
+        '404':
+          description: Execução de busca não encontrada (ou pertence a outro tenant)
+
   /prospecting/decision-makers:
     post:
       tags: [Prospecting]
