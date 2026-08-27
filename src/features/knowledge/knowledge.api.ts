@@ -30,8 +30,12 @@ export interface KnowledgeSearchResponse {
     query: string;
 }
 
-/** Extensões aceitas pelo backend (ver `extractText` em knowledge.routes.ts). */
-export const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json', '.docx', '.html', '.htm'];
+/**
+ * Extensões aceitas pelo backend (ver `extractText` em knowledge.routes.ts). `.doc` binário
+ * legado fica de fora por decisão deliberada (onda 42, CPI DEC-10 opção A) — ver o comentário de
+ * `extractText` e o handoff `.agents/handoffs/onda-42/04-para-00-dependencias-parsing-pdf-docx.md`.
+ */
+export const ACCEPTED_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json', '.docx', '.pdf', '.html', '.htm'];
 
 export const knowledgeApi = {
     list: () => api.get<KnowledgeDocumentSummary[]>('/api/knowledge'),
@@ -43,7 +47,10 @@ export const knowledgeApi = {
 
     /**
      * Ingestão a partir de arquivo. O upload vai como base64 num JSON comum porque o servidor não
-     * tem middleware de multipart — o limite do `express.json` (10mb) é o teto efetivo.
+     * tem middleware de multipart — o limite do `express.json` (`JSON_BODY_LIMIT` em
+     * `src/config/env.ts`, hoje 2mb por padrão) é o teto efetivo, já apertado o bastante para conter
+     * um PDF/DOCX gigante travando o parsing no servidor (ver `MAX_PDF_PAGES` em
+     * `knowledge.routes.ts` para a defesa adicional contra PDFs com páginas em excesso).
      */
     upload: (fileName: string, base64: string, title?: string) =>
         api.post<IngestResult>('/api/knowledge/upload', { fileName, data: base64, title }, {

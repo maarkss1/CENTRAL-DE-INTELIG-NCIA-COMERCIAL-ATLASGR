@@ -1,6 +1,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import mammoth from 'mammoth';
+// Onda 42 (CPI, DEC-10 opção A): suporte real a PDF. `pdf-parse` ainda não está no
+// package.json/lockfile deste worktree — ver handoff
+// `.agents/handoffs/onda-42/04-para-00-dependencias-parsing-pdf-docx.md` para o pacote exato e a
+// justificativa. O import é estático de propósito (mesmo padrão do `mammoth` acima): assim que a
+// dependência for instalada pelo dono do package.json, este arquivo compila sem outra mudança.
+import pdfParse from 'pdf-parse';
 
 import { ingestionService } from './ingestion.service.js';
 import { searchService } from './search.service.js';
@@ -41,6 +47,16 @@ const searchSchema = z.object({
 /** Extensões que sabemos transformar em texto puro. */
 const TEXT_EXTENSIONS = ['.txt', '.md', '.markdown', '.csv', '.json'];
 const HTML_EXTENSIONS = ['.html', '.htm'];
+
+/**
+ * Teto de páginas de PDF processadas por upload — defesa contra um PDF pequeno em bytes mas com
+ * milhares de páginas (ex.: vetorial/gerado programaticamente), que consumiria CPU de forma
+ * desproporcional ao tamanho do corpo aceito pelo `express.json` (ver MAX_CONTENT_CHARS e o
+ * `JSON_BODY_LIMIT` em `src/config/env.ts`, hoje 2mb — já um teto apertado em bytes, mas não em
+ * número de páginas). Mesmo espírito do `MAX_CHUNKS_PER_DOCUMENT` em `ingestion.service.ts`: corta
+ * o excedente em vez de travar o processo.
+ */
+const MAX_PDF_PAGES = 500;
 
 function extensionOf(fileName: string): string {
     const dot = fileName.lastIndexOf('.');
@@ -83,17 +99,37 @@ function htmlToPlainText(html: string): string {
 
 /**
  * Converte o arquivo enviado em texto.
- * `.docx` passa pelo mammoth; `.html`/`.htm` tem as tags removidas; formatos de texto são
- * decodificados direto como UTF-8.
+ * `.pdf` passa pelo pdf-parse; `.docx` passa pelo mammoth; `.html`/`.htm` tem as tags removidas;
+ * formatos de texto são decodificados direto como UTF-8.
+ *
+ * Onda 42 (CPI, DEC-10 opção A): `.doc` (binário legado, pré-Office 2007) continua fora de escopo
+ * — decisão deliberada, não limitação técnica esquecida. Parsers Node maduros para `.doc` binário
+ * são raros e pesados (ex.: exigem `antiword`/LibreOffice via `child_process`, ou libs C++ nativas
+ * empacotadas), o formato é incomum em uploads B2B modernos (a esmagadora maioria já é `.docx`), e
+ * nenhuma dependência já presente no projeto resolve. Ver o handoff de dependências para o
+ * raciocínio completo; se aparecer demanda real por `.doc`, é uma decisão nova, não uma correção
+ * desta.
  */
-async function extractText(fileName: string, base64: string): Promise<string> {
+export async function extractText(fileName: string, base64: string): Promise<string> {
     const buffer = Buffer.from(base64, 'base64');
     if (buffer.length === 0) throw new Error('Arquivo vazio ou corrompido.');
 
     const ext = extensionOf(fileName);
 
+    if (ext === '.pdf') {
+        return extractPdfText(buffer);
+    }
+
     if (ext === '.docx') {
-        const { value } = await mammoth.extractRawText({ buffer });
+        let value: string;
+        try {
+            ({ value } = await mammoth.extractRawText({ buffer }));
+        } catch (err) {
+            logger.error({ err, fileName }, 'Falha ao extrair texto de DOCX na ingestão da Base de Conhecimento');
+            throw new Error(
+                'Não foi possível ler este .docx. O arquivo pode estar corrompido ou não ser um Word válido.',
+            );
+        }
         return value;
     }
 
@@ -105,11 +141,71 @@ async function extractText(fileName: string, base64: string): Promise<string> {
         return buffer.toString('utf-8');
     }
 
-    // `.doc` (binário antigo) e `.pdf` exigem dependências que o projeto não tem hoje; recusamos
-    // explicitamente em vez de gravar um documento com texto ilegível.
+    // `.doc` (binário antigo) continua fora de escopo — ver o comentário do JSDoc acima.
     throw new Error(
-        `Formato ${ext || 'desconhecido'} não suportado. Envie .txt, .md, .csv, .json, .html ou .docx.`,
+        `Formato ${ext || 'desconhecido'} não suportado. Envie .txt, .md, .csv, .json, .html, .docx ou .pdf.`,
     );
+}
+
+/**
+ * Extrai texto de um PDF via pdf-parse (pdf.js por baixo). Nunca devolve sucesso com texto vazio —
+ * um PDF escaneado sem OCR é tratado como falha explícita, não como documento vazio válido, porque
+ * um documento "ingerido com sucesso" mas sem nenhum trecho pesquisável engana o usuário que confia
+ * na busca da Base de Conhecimento.
+ */
+async function extractPdfText(buffer: Buffer): Promise<string> {
+    // pdf-parse@1.x embute uma versão bem antiga do pdf.js (v1.10.100, de 2015/2016) que lê o
+    // conteúdo errado (bytes de outro lugar do heap) quando recebe um `Buffer` do Node diretamente
+    // — encontrado testando este código contra um PDF real de fixture, não é hipotético. Um
+    // `Uint8Array` "puro" (não um `Buffer`, que sobrescreve `slice()` com semântica de view em vez
+    // de cópia) evita o bug. `new Uint8Array(buffer)` copia os bytes para um array novo — barato
+    // para os tamanhos de arquivo aceitos aqui (teto efetivo de poucos MB, ver JSON_BODY_LIMIT).
+    // `@types/pdf-parse` tipa o parâmetro como `Buffer` (mais estrito do que o parser realmente
+    // precisa — só indexa bytes, nunca chama método específico de `Buffer`), então o cast abaixo é
+    // só para satisfazer o compilador; em runtime o valor passado é deliberadamente um
+    // `Uint8Array` puro, não um `Buffer` (ver comentário acima).
+    const bytes = new Uint8Array(buffer) as unknown as Buffer;
+
+    let parsed: { text: string; numpages: number };
+    try {
+        parsed = await pdfParse(bytes, { max: MAX_PDF_PAGES });
+    } catch (err) {
+        const name = (err as { name?: string } | null)?.name;
+
+        // pdf.js (usado internamente pelo pdf-parse) nomeia essas exceções — ver
+        // https://github.com/mozilla/pdf.js/blob/master/src/shared/util.js.
+        if (name === 'PasswordException') {
+            throw new Error('Este PDF está protegido por senha. Remova a proteção e envie novamente.');
+        }
+        if (name === 'InvalidPDFException' || name === 'MissingPDFException' || name === 'UnexpectedResponseException') {
+            throw new Error('Este PDF está corrompido ou não é um arquivo PDF válido.');
+        }
+
+        logger.error({ err }, 'Falha ao extrair texto de PDF na ingestão da Base de Conhecimento');
+        throw new Error(
+            'Não foi possível ler este PDF. Verifique se o arquivo não está corrompido ou protegido por senha.',
+        );
+    }
+
+    if (parsed.numpages > MAX_PDF_PAGES) {
+        logger.warn(
+            { totalPages: parsed.numpages, kept: MAX_PDF_PAGES },
+            'PDF excedeu o limite de páginas processadas na ingestão; o excedente foi descartado',
+        );
+    }
+
+    const text = parsed.text ?? '';
+    if (text.trim().length === 0) {
+        // Cobre tanto o PDF puramente escaneado (imagem, zero texto selecionável) quanto o PDF
+        // gerado só com desenhos vetoriais sem texto real.
+        throw new Error(
+            'Não foi possível extrair texto deste PDF — provavelmente é um documento escaneado (imagem) ' +
+            'sem OCR. Esta base de conhecimento não faz reconhecimento óptico de caracteres; envie a ' +
+            'versão com texto selecionável, ou cole o conteúdo manualmente.',
+        );
+    }
+
+    return text;
 }
 
 /** GET /api/knowledge — lista os documentos do tenant. */
