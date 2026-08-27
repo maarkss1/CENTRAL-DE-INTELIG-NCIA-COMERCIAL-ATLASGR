@@ -22,6 +22,15 @@ const envSchema = z.object({
   // secretFields.ts, não aqui, para não derrubar a aplicação inteira ao subir só por causa deste
   // schema quando NODE_ENV ainda não foi resolvido nesta camada.
   CREDENTIALS_ENCRYPTION_KEY: z.string().optional(),
+  // Segredo do índice de busca determinístico (HMAC-SHA256) de PII de Contact (phone/email/
+  // whatsapp) — ver src/lib/security/piiSearchIndex.ts. Permite `WHERE`/dedup por igualdade exata
+  // continuar funcionando no dia em que esses campos voltarem a ser cifrados em repouso (cifra com
+  // IV aleatório nunca produz o mesmo ciphertext duas vezes — ver
+  // .agents/handoffs/onda-39/01-para-00-pii-contact-revertida-quebra-integration.md). Separado de
+  // CREDENTIALS_ENCRYPTION_KEY/BETTER_AUTH_SECRET pelo mesmo motivo que aqueles são separados entre
+  // si: um segredo comprometido não deve comprometer os outros. Opcional aqui (mesmo padrão) — a
+  // obrigatoriedade em produção é reforçada em runtime por piiSearchIndex.ts.
+  PII_SEARCH_HMAC_SECRET: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),

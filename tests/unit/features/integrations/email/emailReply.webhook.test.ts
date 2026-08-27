@@ -61,6 +61,7 @@ const mockEnv: Record<string, string | undefined> = { EMAIL_INBOUND_WEBHOOK_SECR
 vi.mock('../../../../../src/config/env.js', () => ({ env: mockEnv }));
 
 const { emailReplyWebhookRoutes } = await import('../../../../../src/features/integrations/email/emailReply.webhook');
+const { hashEmailForSearchIndex } = await import('../../../../../src/lib/security/piiSearchIndex');
 
 function buildApp() {
     const app = express();
@@ -218,13 +219,13 @@ describe('POST /api/webhooks/email/webhook', () => {
         });
     });
 
-    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização)', async () => {
+    it('sem dica de leadId, resolve o lead pelo e-mail do contato (aberto, dentro da organização) via emailHash — não mais por igualdade sobre o valor puro (DEC-01/onda-42, ver src/lib/security/piiSearchIndex.ts)', async () => {
         await post(inboundPayload());
 
         expect(leadFindFirst).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 organizationId: 'org-1',
-                contact: { email: { equals: 'lead@empresa.com', mode: 'insensitive' } },
+                contact: { emailHash: hashEmailForSearchIndex('lead@empresa.com') },
             }),
         }));
     });
