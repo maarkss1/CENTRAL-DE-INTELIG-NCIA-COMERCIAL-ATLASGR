@@ -4756,7 +4756,9 @@ components:
         idempotencyKey: { type: string, nullable: true }
         approved: { type: boolean }
         approvedAt: { type: string, format: date-time, nullable: true }
+        approvedBy: { type: string, nullable: true, description: 'Id do usuário (User.id) que aprovou — onda 39, trilha de aprovação.' }
         discardedAt: { type: string, format: date-time, nullable: true }
+        discardedBy: { type: string, nullable: true, description: 'Id do usuário (User.id) que descartou — onda 39, trilha de aprovação.' }
         executed: { type: boolean }
         executedAt: { type: string, format: date-time, nullable: true }
         executionError: { type: string, nullable: true }

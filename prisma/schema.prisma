@@ -2087,7 +2087,12 @@ model AIPendingAction {
   idempotencyKey String?
   approved       Boolean       @default(false)
   approvedAt     DateTime?
+  /// Onda 39 (auditoria CPI — "trilha completa de aprovação"): id do usuário (User.id) que
+  /// aprovou/descartou esta ação, nunca inferido — ambos vêm de req.user na rota autenticada, o
+  /// mesmo usuário já responsável pelo RBAC de /pending/:id (ver pending-actions.service.ts).
+  approvedBy     String?
   discardedAt    DateTime?
+  discardedBy    String?
   /// Se a ação aprovada foi de fato executada (ex: e-mail enviado de verdade via SMTP). Sem este
   /// campo, "aprovar" só marcava um flag no banco e nada consumia isso depois (IA-005) — o
   /// executor real fica em src/features/intelligence/services/aiPendingAction.service.ts.

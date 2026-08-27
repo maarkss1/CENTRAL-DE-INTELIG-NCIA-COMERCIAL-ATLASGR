@@ -19,7 +19,7 @@ export async function listPendingActions(db: Db, organizationId: string) {
  * banco e nada consumia isso depois. `execution.sent` diz pro chamador se realmente foi enviado;
  * quando não (`not_configured`/`send_failed`), a tela ainda pode cair no fallback manual.
  */
-export async function approvePendingAction(db: Db, organizationId: string, id: string): Promise<{ action: Awaited<ReturnType<typeof db.aIPendingAction.update>>; execution: ExecutionResult } | null> {
+export async function approvePendingAction(db: Db, organizationId: string, id: string, actorId: string): Promise<{ action: Awaited<ReturnType<typeof db.aIPendingAction.update>>; execution: ExecutionResult } | null> {
     const pendingAction = await db.aIPendingAction.findFirst({
         where: { id, organizationId, approved: false, discardedAt: null },
     });
@@ -28,13 +28,13 @@ export async function approvePendingAction(db: Db, organizationId: string, id: s
     }
     const action = await db.aIPendingAction.update({
         where: { id },
-        data: { approved: true, approvedAt: new Date() },
+        data: { approved: true, approvedAt: new Date(), approvedBy: actorId },
     });
     const execution = await executeAndRecord(action);
     return { action, execution };
 }
 
-export async function discardPendingAction(db: Db, organizationId: string, id: string) {
+export async function discardPendingAction(db: Db, organizationId: string, id: string, actorId: string) {
     const pendingAction = await db.aIPendingAction.findFirst({
         where: { id, organizationId, approved: false, discardedAt: null },
     });
@@ -44,7 +44,7 @@ export async function discardPendingAction(db: Db, organizationId: string, id: s
     // Preserva a decisão para auditoria e aprendizado; descartar não deve apagar o rastro da IA.
     await db.aIPendingAction.update({
         where: { id: pendingAction.id },
-        data: { discardedAt: new Date() },
+        data: { discardedAt: new Date(), discardedBy: actorId },
     });
     return true;
 }
