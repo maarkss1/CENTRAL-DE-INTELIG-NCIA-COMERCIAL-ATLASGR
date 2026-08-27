@@ -402,7 +402,8 @@ def export_selected(
       SELECT e.*,c.legal_name,c.legal_nature_code,c.responsible_qualification_code,
       c.capital_social,c.company_size_code,c.federative_entity,c.simples,c.simples_start,
       c.simples_end,c.mei,c.mei_start,c.mei_end FROM selected_establishment e
-      LEFT JOIN company_info c ON c.cnpj_basic=e.cnpj_basic ORDER BY e.uf,e.cnpj_basic,e.cnpj_order
+      LEFT JOIN company_info c ON c.cnpj_basic=e.cnpj_basic
+      ORDER BY e.cnpj_basic,e.cnpj_order,e.cnpj_dv
     """
     for row in db.execute(query):
         establishment, company = row[:28], row[28:]

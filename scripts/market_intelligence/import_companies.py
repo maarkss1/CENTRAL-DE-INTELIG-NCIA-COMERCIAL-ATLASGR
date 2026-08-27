@@ -13,6 +13,7 @@ import gzip
 import hashlib
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -71,6 +72,42 @@ def psql_copy_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/").replace("'", "''")
 
 
+def manifest_artifact(root: Path, value: str) -> Path:
+    """Resolve caminhos do manifest produzido em Windows também no Linux."""
+    return root / Path(value.replace("\\", "/"))
+
+
+def manifest_item_uf(item: dict[str, Any]) -> str:
+    """Extrai a UF do item sem depender do separador do sistema operacional."""
+    if item.get("uf"):
+        return str(item["uf"]).upper()
+    for part in str(item.get("path") or "").replace("\\", "/").split("/"):
+        if part.lower().startswith("uf="):
+            return part.split("=", 1)[1].upper()
+    raise ValueError(f"UF ausente no item do manifest: {item.get('path')}")
+
+
+def prepare_copy_source(compressed: Path) -> tuple[str, Path | None]:
+    """Retorna uma origem para o comando copy, usando streaming gzip quando solicitado."""
+    if os.getenv("ATLAS_MI_STREAM_GZIP") == "1":
+        # O PROGRAM de COPY roda no host do PostgreSQL (por exemplo, dentro do
+        # container), nao no host deste processo. Um caminho absoluto obtido por
+        # shutil.which() aqui pode, portanto, nao existir onde o servidor executa.
+        gzip_program = os.getenv("ATLAS_MI_GZIP_PROGRAM", "gzip").strip()
+        if not gzip_program:
+            raise RuntimeError("ATLAS_MI_GZIP_PROGRAM nao pode ser vazio")
+        command = f"{shlex.quote(gzip_program)} -dc -- {shlex.quote(str(compressed.resolve()))}"
+        return f"PROGRAM {sql_literal(command)}", None
+
+    plain = decompress_to_temp(compressed)
+    return f"'{psql_copy_path(plain)}'", plain
+
+
+def remove_remote_copy_after_import(compressed: Path) -> None:
+    if os.getenv("ATLAS_MI_DELETE_SOURCE_AFTER_IMPORT") == "1":
+        compressed.unlink()
+
+
 class Psql:
     def __init__(self, executable: str, database_url: str) -> None:
         self.executable = executable
@@ -93,6 +130,10 @@ class Psql:
         lines = [line.strip() for line in output.splitlines() if line.strip() and line.strip() != "SET"]
         return lines[-1] if lines else ""
 
+    def rows(self, sql: str) -> list[str]:
+        output = self.run("SET app.bypass_rls='on';\n" + sql, tuples_only=True)
+        return [line.strip() for line in output.splitlines() if line.strip() and line.strip() != "SET"]
+
 
 def validate_manifest(manifest_path: Path) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -107,7 +148,7 @@ def validate_manifest(manifest_path: Path) -> dict[str, Any]:
     root = manifest_path.parent
     total = 0
     for item in manifest["files"]:
-        path = root / item["path"]
+        path = manifest_artifact(root, item["path"])
         if not path.is_file() or path.suffix != ".gz":
             raise ValueError(f"Arquivo normalizado ausente/invalido: {path}")
         if sha256_file(path) != item["sha256"]:
@@ -120,7 +161,7 @@ def validate_manifest(manifest_path: Path) -> dict[str, Any]:
     if total != int(manifest["stats"].get("recordsExported", -1)):
         raise ValueError(f"Contagem do manifest diverge dos arquivos: {total}")
     mapping = manifest.get("municipalityMappingFile") or {}
-    mapping_path = root / str(mapping.get("path") or "")
+    mapping_path = manifest_artifact(root, str(mapping.get("path") or ""))
     if not mapping_path.is_file() or sha256_file(mapping_path) != mapping.get("sha256"):
         raise ValueError("Crosswalk municipal ausente ou com hash divergente")
     with gzip.open(mapping_path, "rt", encoding="utf-8", newline="") as handle:
@@ -168,8 +209,17 @@ def decompress_to_temp(source: Path) -> Path:
     target = Path(handle.name)
     handle.close()
     try:
+        nul_bytes_removed = 0
         with gzip.open(source, "rb") as input_handle, target.open("wb") as output_handle:
-            shutil.copyfileobj(input_handle, output_handle, length=1024 * 1024)
+            for chunk in iter(lambda: input_handle.read(1024 * 1024), b""):
+                nul_bytes_removed += chunk.count(b"\x00")
+                output_handle.write(chunk.replace(b"\x00", b""))
+        if nul_bytes_removed:
+            print(json.dumps({
+                "phase": "SANITIZED_NUL",
+                "file": str(source),
+                "bytesRemoved": nul_bytes_removed,
+            }), flush=True)
         return target
     except Exception:
         target.unlink(missing_ok=True)
@@ -178,16 +228,17 @@ def decompress_to_temp(source: Path) -> Path:
 
 def import_mapping(psql: Psql, manifest_path: Path, manifest: dict[str, Any]) -> None:
     item = manifest["municipalityMappingFile"]
-    compressed = manifest_path.parent / item["path"]
-    plain = decompress_to_temp(compressed)
+    compressed = manifest_artifact(manifest_path.parent, item["path"])
+    source, plain = prepare_copy_source(compressed)
     try:
         sql = f"""
 BEGIN;
 SET LOCAL app.bypass_rls='on';
+SET LOCAL temp_tablespaces='pg_default';
 CREATE TEMP TABLE mi_mapping_stage (
 {text_stage_definition(MAPPING_COLUMNS)}
 ) ON COMMIT DROP;
-\\copy mi_mapping_stage ({copy_columns(MAPPING_COLUMNS)}) FROM '{psql_copy_path(plain)}' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
+\\copy mi_mapping_stage ({copy_columns(MAPPING_COLUMNS)}) FROM {source} WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
 INSERT INTO "MarketIntelligenceMunicipalityMapping" (
   "id","receitaCode","receitaName","uf","ibgeCode","ibgeName","region","mappingMethod","sourceVersion","importedAt"
 )
@@ -201,12 +252,14 @@ ON CONFLICT ("receitaCode") DO UPDATE SET
 COMMIT;
 """
         psql.run(sql)
+        remove_remote_copy_after_import(compressed)
     finally:
-        plain.unlink(missing_ok=True)
+        if plain:
+            plain.unlink(missing_ok=True)
 
 
 def import_company_file(psql: Psql, dataset_id: str, compressed: Path) -> None:
-    plain = decompress_to_temp(compressed)
+    source, plain = prepare_copy_source(compressed)
     target_columns = ["id", "datasetId", *COMPANY_COLUMNS, "importedAt"]
     select_values = [
         f"md5({sql_literal(dataset_id)} || ':' || s.\"cnpj\")",
@@ -214,22 +267,28 @@ def import_company_file(psql: Psql, dataset_id: str, compressed: Path) -> None:
         *(company_select_expression(column) for column in COMPANY_COLUMNS),
         "CURRENT_TIMESTAMP",
     ]
+    conflict_clause = ""
+    if os.getenv("ATLAS_MI_BULK_WITHOUT_UNIQUE_INDEX") != "1":
+        conflict_clause = 'ON CONFLICT ("datasetId","cnpj") DO NOTHING'
     try:
         sql = f"""
 BEGIN;
 SET LOCAL app.bypass_rls='on';
+SET LOCAL temp_tablespaces='pg_default';
 CREATE TEMP TABLE mi_company_stage (
 {text_stage_definition(COMPANY_COLUMNS)}
 ) ON COMMIT DROP;
-\\copy mi_company_stage ({copy_columns(COMPANY_COLUMNS)}) FROM '{psql_copy_path(plain)}' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
+\\copy mi_company_stage ({copy_columns(COMPANY_COLUMNS)}) FROM {source} WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
 INSERT INTO "MarketIntelligenceCompany" ({copy_columns(target_columns)})
 SELECT {','.join(select_values)} FROM mi_company_stage s
-ON CONFLICT ("datasetId","cnpj") DO NOTHING;
+{conflict_clause};
 COMMIT;
 """
         psql.run(sql)
+        remove_remote_copy_after_import(compressed)
     finally:
-        plain.unlink(missing_ok=True)
+        if plain:
+            plain.unlink(missing_ok=True)
 
 
 def create_or_reset_dataset(psql: Psql, manifest: dict[str, Any]) -> tuple[str, bool]:
@@ -243,6 +302,13 @@ def create_or_reset_dataset(psql: Psql, manifest: dict[str, Any]) -> tuple[str, 
         dataset_id, status = existing.split("|", 1)
         if status == "READY":
             return dataset_id, True
+        if os.getenv("ATLAS_MI_RESUME") == "1":
+            psql.run(f"""
+SET app.bypass_rls='on';
+UPDATE "MarketIntelligenceDataset" SET "status"='PROCESSING',"finishedAt"=NULL,"error"=NULL,
+  "updatedAt"=CURRENT_TIMESTAMP WHERE "id"={sql_literal(dataset_id)};
+""")
+            return dataset_id, False
         psql.run(f"""
 BEGIN;
 SET LOCAL app.bypass_rls='on';
@@ -317,13 +383,36 @@ def run_import(manifest_path: Path, psql: Psql) -> dict[str, Any]:
 
     try:
         import_mapping(psql, manifest_path, manifest)
-        imported = 0
-        for index, item in enumerate(manifest["files"], start=1):
-            source = manifest_path.parent / item["path"]
+        imported_by_uf: dict[str, int] = {}
+        if os.getenv("ATLAS_MI_RESUME") == "1":
+            for row in psql.rows(
+                f"SELECT \"uf\" || '|' || count(*) FROM \"MarketIntelligenceCompany\" "
+                f"WHERE \"datasetId\"={sql_literal(dataset_id)} GROUP BY \"uf\";"
+            ):
+                uf_value, count_value = row.rsplit("|", 1)
+                imported_by_uf[uf_value] = int(count_value)
+        imported = sum(imported_by_uf.values())
+        files = list(manifest["files"])
+        if os.getenv("ATLAS_MI_LARGEST_FIRST") == "1":
+            files.sort(key=lambda item: int(item["records"]), reverse=True)
+        for index, item in enumerate(files, start=1):
+            source = manifest_artifact(manifest_path.parent, item["path"])
+            uf = manifest_item_uf(item)
+            expected_for_uf = int(item["records"])
+            imported_for_uf = imported_by_uf.get(uf, 0)
+            if imported_for_uf == expected_for_uf:
+                print(json.dumps({"phase": "SKIPPED_COMPLETE", "file": item["path"],
+                                  "index": index, "files": len(files),
+                                  "records": imported_for_uf}), flush=True)
+                continue
+            if imported_for_uf:
+                raise RuntimeError(
+                    f"UF {uf} parcialmente importada: banco={imported_for_uf} manifest={expected_for_uf}"
+                )
             print(json.dumps({"phase": "COPY", "file": item["path"], "index": index,
-                              "files": len(manifest["files"]), "records": item["records"]}))
+                              "files": len(files), "records": item["records"]}), flush=True)
             import_company_file(psql, dataset_id, source)
-            imported += int(item["records"])
+            imported += expected_for_uf
             psql.run(f"""
 SET app.bypass_rls='on';
 UPDATE "MarketIntelligenceDataset" SET "recordsImported"={imported},"updatedAt"=CURRENT_TIMESTAMP
