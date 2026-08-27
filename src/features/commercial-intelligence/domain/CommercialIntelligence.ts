@@ -777,5 +777,12 @@ export interface CommercialIntelligenceRepository {
     getFilterOptions(organizationId: string): Promise<FilterOptions>;
 
     getGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric): Promise<CommercialGoalDTO | null>;
+    /**
+     * Mesma leitura de `getGoal`, mas para vários períodos numa única consulta — usada por
+     * `buildExecutiveOverview` (Proteção 90 dias, seção 11) para não fazer 4 chamadas sequenciais
+     * de `getGoal` num loop (N+1: auditoria completa de listagem/dashboards, onda 42). Só os
+     * períodos com meta cadastrada aparecem no Map retornado.
+     */
+    getGoals(organizationId: string, periods: PeriodMonth[], metric: GoalMetric): Promise<Map<PeriodMonth, CommercialGoalDTO>>;
     upsertGoal(organizationId: string, period: PeriodMonth, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO>;
 }
