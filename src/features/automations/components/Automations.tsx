@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Cpu, Plus, Trash2, Loader2, AlertTriangle, X, Zap, Play, Filter, ZapIcon } from 'lucide-react';
+import { Cpu, Plus, Trash2, Loader2, AlertTriangle, X, Zap, Play, Filter, ZapIcon, FlaskConical, History } from 'lucide-react';
 
 import { Card } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
@@ -10,6 +10,8 @@ import {
     type Automation, type AutomationTrigger, type AutomationAction, type AutomationConditions,
 } from '../automations.api';
 import { ColdCallStatusCard } from './ColdCallStatusCard';
+import { AutomationDryRunDialog } from './AutomationDryRunDialog';
+import { AutomationVersionsDialog } from './AutomationVersionsDialog';
 
 const inputClass =
     'w-full bg-surface-2 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-2 outline-none focus:border-brand transition-colors';
@@ -259,6 +261,8 @@ export function Automations() {
     const [error, setError] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [dryRunTarget, setDryRunTarget] = useState<Automation | null>(null);
+    const [versionsTarget, setVersionsTarget] = useState<Automation | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -375,6 +379,22 @@ export function Automations() {
 
                             <div className="flex items-center gap-1 shrink-0">
                                 <button
+                                    onClick={() => setDryRunTarget(item)}
+                                    title="Simular esta regra antes de confiar nela"
+                                    aria-label={`Simular automação ${item.name}`}
+                                    className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
+                                >
+                                    <FlaskConical className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setVersionsTarget(item)}
+                                    title="Ver histórico de versões desta regra"
+                                    aria-label={`Ver histórico de versões de ${item.name}`}
+                                    className="p-2 rounded-lg text-ink-2 hover:text-ink hover:bg-line/50 transition-colors"
+                                >
+                                    <History className="w-4 h-4" />
+                                </button>
+                                <button
                                     onClick={() => void toggle(item)}
                                     role="switch"
                                     aria-checked={item.enabled}
@@ -409,6 +429,9 @@ export function Automations() {
                     onSaved={() => { setCreating(false); void load(); }}
                 />
             )}
+
+            <AutomationDryRunDialog automation={dryRunTarget} onClose={() => setDryRunTarget(null)} />
+            <AutomationVersionsDialog automation={versionsTarget} onClose={() => setVersionsTarget(null)} />
         </div>
     );
 }
