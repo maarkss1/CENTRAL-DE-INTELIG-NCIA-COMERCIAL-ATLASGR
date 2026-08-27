@@ -99,7 +99,7 @@ describe('POST /api/intelligence/pending/:id/approve — autorização (ação d
 
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
-        expect(approvePendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1');
+        expect(approvePendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1', 'test-user');
     });
 
     it('VISUALIZADOR recebe 403 e não aprova (papel negado)', async () => {
@@ -127,7 +127,7 @@ describe('DELETE /api/intelligence/pending/:id — autorização (descarte de a�
         const res = await request(buildApp(role)).delete('/api/intelligence/pending/pending-1');
 
         expect(res.status).toBe(204);
-        expect(discardPendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1');
+        expect(discardPendingActionMock).toHaveBeenCalledWith(expect.anything(), 'test-org-id', 'pending-1', 'test-user');
     });
 
     it('VISUALIZADOR recebe 403 e não descarta (papel negado)', async () => {

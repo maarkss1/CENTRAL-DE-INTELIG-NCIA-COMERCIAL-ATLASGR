@@ -13,6 +13,7 @@ vi.mock('../../../../../../src/lib/logger.js', () => ({
 
 import { fetchApolloCandidates } from '../../../../../../src/features/prospecting/services/apollo/organizationSearch.js';
 import type { ProspectCriteria } from '../../../../../../src/features/prospecting/services/prospecting.service.js';
+import { resetProviderRateLimitersForTests } from '../../../../../../src/features/prospecting/services/providerRateLimit.js';
 
 function jsonResponse(status: number, body: unknown = {}): Response {
     return new Response(JSON.stringify(body), { status });
@@ -29,6 +30,9 @@ const originalEnv = { ...process.env };
 beforeEach(() => {
     process.env.PROSPECTING_PROVIDER_MODE = 'hybrid';
     process.env.APOLLO_API_KEY = 'test-apollo-key';
+    // Isola o bucket do rate limiter entre testes deste arquivo (estado em memória, escopo de
+    // processo) — nenhum destes testes quer exercitar o limite em si, só o comportamento de busca.
+    resetProviderRateLimitersForTests();
 });
 
 afterEach(() => {

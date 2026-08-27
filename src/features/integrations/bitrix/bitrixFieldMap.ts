@@ -23,6 +23,16 @@
  * real.
  */
 
+/**
+ * Onda 40 (auditoria CPI — "Extrações Bitrix sem schema versionado"): versão deste mapeamento
+ * UF_CRM_*, carimbada em cada `BitrixExtractionRun.schemaVersion` no momento da extração (ver
+ * `service/extraction.ts`). Se o portal Bitrix for reconfigurado (campo custom removido/renomeado)
+ * e este mapa for atualizado, incrementar aqui — permite, ao investigar uma extração antiga,
+ * confirmar contra qual versão do mapeamento os dados exportados foram interpretados, sem
+ * depender de adivinhar pela data. Formato livre (não semver) — só precisa ser comparável/legível.
+ */
+export const BITRIX_FIELD_MAP_VERSION = '2026-08-05';
+
 export type BitrixFieldValueType = 'string' | 'enumeration' | 'double' | 'date' | 'boolean_sim_nao' | 'url';
 
 /** Onde este campo mora na Lead da plataforma. */

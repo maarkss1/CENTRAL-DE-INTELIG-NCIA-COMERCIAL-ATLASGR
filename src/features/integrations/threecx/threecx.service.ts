@@ -197,7 +197,11 @@ export async function make3CXCall(
     organizationId: string,
     connectionId: string,
     destinationNumber: string,
-    leadId?: string
+    leadId?: string,
+    /** Opcional: e-mail do contato/lead, quando o chamador o tiver em mãos mesmo sem leadId
+     *  resolvido — fortalece o casamento do opt-out unificado (ver comentário abaixo). Nunca
+     *  obrigatório: um Click-to-Call continua funcionando só com telefone. */
+    email?: string
 ): Promise<{ success: boolean; callId: string; status: string }> {
     const connections = await get3CXConnectionsForOrg(organizationId);
     const conn = connections.find((c) => c.id === connectionId) || connections[0];
@@ -214,12 +218,20 @@ export async function make3CXCall(
     // pela ligação de IA não impedia um vendedor humano de disparar outra chamada pelo 3CX para o
     // mesmo número minutos depois.
     //
-    // `isSuppressed` também consulta o opt-out unificado entre canais (`OptOutRecord`) — leadId,
-    // quando informado pela rota, é o casamento mais forte para pegar um opt-out feito por e-mail
-    // (05) ou WhatsApp (06) do mesmo lead, mesmo que o número discado aqui não seja o mesmo em
-    // comum. Não busca o e-mail do lead à parte: o Click-to-Call é uma ação de latência sensível de
-    // um vendedor humano, e o casamento por leadId já cobre o caso central deste contrato.
-    if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null })) {
+    // `isSuppressed` já normaliza `destinationNumber` para `phoneE164` e consulta o opt-out
+    // unificado (`OptOutRecord`) por ele independentemente de `leadId` estar presente — então um
+    // Click-to-Call sem leadId (número digitado manualmente) NUNCA pulava a checagem por telefone.
+    //
+    // CORREÇÃO (gap real de auditoria): o que faltava era `email` — quando o vendedor dispara a
+    // chamada a partir de um contato do CRM (formulário/UI) sem `leadId` resolvido, ou quando quer
+    // reforçar o casamento mesmo tendo leadId (contato pode ter opinado por e-mail com um telefone
+    // diferente do discado agora), o e-mail do contato agora também entra no contexto do opt-out
+    // unificado — mesmo padrão de `SuppressionCheckContext` já usado pelo SDR de voz
+    // (`callSuppression.service.ts`), sem duplicar a query: `isSuppressed`/`isOptedOut` já sabem
+    // casar por leadId OU email OU phoneE164 (`PrismaOptOutRepository.findMatches`). leadId e email
+    // são independentes um do outro — nenhum dos dois enfraquece a checagem por telefone que já
+    // valia antes.
+    if (await isSuppressed(organizationId, destinationNumber, { leadId: leadId ?? null, email: email ?? null })) {
         throw new AppError('Número na lista interna de bloqueio (opt-out): a ligação não foi disparada.', 409);
     }
 

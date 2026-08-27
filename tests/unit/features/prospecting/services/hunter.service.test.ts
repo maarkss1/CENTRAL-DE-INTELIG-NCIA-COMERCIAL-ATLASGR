@@ -12,6 +12,8 @@ vi.mock('@/lib/logger.js', () => ({
 }));
 
 import { findEmailViaHunter, findPeopleViaDomainSearch } from '@/features/prospecting/services/hunter.service.js';
+import { resetProviderCacheForTests } from '@/features/prospecting/services/providerCache.js';
+import { resetProviderRateLimitersForTests } from '@/features/prospecting/services/providerRateLimit.js';
 
 function jsonResponse(status: number, body: unknown = {}): Response {
     return new Response(JSON.stringify(body), { status });
@@ -22,6 +24,12 @@ const originalEnv = { ...process.env };
 beforeEach(() => {
     process.env.PROSPECTING_PROVIDER_MODE = 'hybrid';
     process.env.HUNTER_API_KEY = 'test-hunter-key';
+    // Vários testes deste arquivo reutilizam o mesmo domínio/nome com respostas HTTP diferentes
+    // (sucesso, 401, falha de rede) — sem resetar o cache/rate limit (ambos em memória, escopo de
+    // processo) entre eles, uma chamada bem-sucedida "vazaria" como cache hit para o próximo teste
+    // que espera exercitar um caminho de erro.
+    resetProviderCacheForTests();
+    resetProviderRateLimitersForTests();
 });
 
 afterEach(() => {

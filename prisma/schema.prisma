@@ -561,6 +561,13 @@ model Lead {
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  /// Onda 40 (auditoria CPI — "funil técnico-comercial quebra no primeiro elo, busca→lead"):
+  /// preenchido quando este Lead foi promovido a partir de um candidato descoberto por uma busca
+  /// salva (ver prospecting.service.ts, promoteToCrm). `SetNull`: apagar a busca salva não deve
+  /// apagar o lead já promovido, só desvincular o histórico de proveniência.
+  savedSearchId String?
+  savedSearch   SavedSearch? @relation(fields: [savedSearchId], references: [id], onDelete: SetNull)
+
   pipelineId      String?
   pipeline        CrmPipeline?      @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
   pipelineStageId String?
@@ -602,6 +609,7 @@ model Lead {
   @@index([organizationId, pipelineId, pipelineStageId])
   @@index([bitrixLeadId])
   @@index([bitrixDealId])
+  @@index([savedSearchId])
 }
 
 model Activity {
@@ -1369,6 +1377,12 @@ model Document {
   sourceName     String?
   // Contagem materializada: evita um COUNT por documento na listagem.
   chunkCount     Int             @default(0)
+  // Onda 40 (auditoria CPI — "RAG: document version/freshness ausente"): incrementado só quando o
+  // CONTEÚDO é reindexado (ingestion.service.ts updateDocument, ramo contentChanged) — editar só o
+  // título não conta como nova versão. Sem histórico de versões anteriores (reindexação continua
+  // in-place, chunks antigos são apagados), mas já permite saber se um documento retornado por uma
+  // busca é a versão mais recente indexada ou uma referência potencialmente desatualizada.
+  version        Int             @default(1)
   createdBy      String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -1923,6 +1937,12 @@ model BitrixExtractionRun {
 
   status BitrixExtractionStatus @default(queued)
 
+  /// Versão de BITRIX_FIELD_MAP (bitrixFieldMap.ts) vigente no momento desta extração — permite
+  /// confirmar contra qual mapeamento UF_CRM_* os dados foram interpretados se o portal for
+  /// reconfigurado depois. Nullable: extrações anteriores a esta coluna não têm esse dado (nunca
+  /// inferido retroativamente).
+  schemaVersion String?
+
   /// Progresso por entidade: total estimado, processado, página/lote atual, erros parciais.
   progress      Json?
   totalCount    Int   @default(0)
@@ -2087,7 +2107,12 @@ model AIPendingAction {
   idempotencyKey String?
   approved       Boolean       @default(false)
   approvedAt     DateTime?
+  /// Onda 39 (auditoria CPI — "trilha completa de aprovação"): id do usuário (User.id) que
+  /// aprovou/descartou esta ação, nunca inferido — ambos vêm de req.user na rota autenticada, o
+  /// mesmo usuário já responsável pelo RBAC de /pending/:id (ver pending-actions.service.ts).
+  approvedBy     String?
   discardedAt    DateTime?
+  discardedBy    String?
   /// Se a ação aprovada foi de fato executada (ex: e-mail enviado de verdade via SMTP). Sem este
   /// campo, "aprovar" só marcava um flag no banco e nada consumia isso depois (IA-005) — o
   /// executor real fica em src/features/intelligence/services/aiPendingAction.service.ts.
@@ -2602,6 +2627,12 @@ model SavedSearch {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+
+  /// Onda 40 (auditoria CPI — "funil técnico-comercial quebra no primeiro elo, busca→lead"):
+  /// leads promovidos a partir de um candidato descoberto por esta busca salva. `leadsDiscovered`
+  /// acima já contava quantos candidatos uma execução encontrou, mas nenhum Lead real guardava de
+  /// qual busca salva ele veio — este relation fecha essa rastreabilidade.
+  leads Lead[]
 
   @@index([organizationId])
 }

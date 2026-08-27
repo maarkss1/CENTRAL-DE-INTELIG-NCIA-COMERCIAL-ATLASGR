@@ -87,4 +87,40 @@ describe('promoteToCrm', () => {
         expect(result.lead.id).toBe('lead-1');
         expect(result.enrichment).toBeNull();
     });
+
+    // Onda 40 (auditoria CPI — "funil quebra no primeiro elo, busca→lead"): quando o candidato
+    // promovido veio de uma SavedSearch, o Lead criado precisa guardar essa proveniência.
+    it('persiste savedSearchId no Lead quando informado', async () => {
+        companyMock.create.mockResolvedValue({ id: 'comp-1', cnpj: null });
+        mockEnrichCompany.mockResolvedValue(undefined as never);
+        leadMock.create.mockResolvedValue({
+            id: 'lead-1',
+            status: 'Novo_Lead',
+            company: { id: 'comp-1', status: 'Ativo' },
+            contact: null,
+        });
+
+        await promoteToCrm({ ...baseInput, savedSearchId: 'search-1' });
+
+        expect(leadMock.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ savedSearchId: 'search-1' }) }),
+        );
+    });
+
+    it('savedSearchId fica null quando o candidato não veio de uma busca salva', async () => {
+        companyMock.create.mockResolvedValue({ id: 'comp-1', cnpj: null });
+        mockEnrichCompany.mockResolvedValue(undefined as never);
+        leadMock.create.mockResolvedValue({
+            id: 'lead-1',
+            status: 'Novo_Lead',
+            company: { id: 'comp-1', status: 'Ativo' },
+            contact: null,
+        });
+
+        await promoteToCrm(baseInput);
+
+        expect(leadMock.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ savedSearchId: null }) }),
+        );
+    });
 });
