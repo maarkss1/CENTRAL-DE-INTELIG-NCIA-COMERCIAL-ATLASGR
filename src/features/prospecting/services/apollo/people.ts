@@ -4,6 +4,8 @@ import { getPaidProspectingKey } from '../../../../config/prospecting-integratio
 import { fetchWithProviderRetry } from '../../../../lib/enrichment/providerFetch.js';
 import { APOLLO_PEOPLE_SEARCH_URL, APOLLO_PEOPLE_MATCH_URL, MAX_DECISION_MAKER_LOOKUPS, parsePlanRestriction } from './client.js';
 import type { ApolloOrganization, ApolloContact, ApolloPersonRaw, DecisionMakerCriteria } from './types.js';
+import { checkProviderRateLimit } from '../providerRateLimit.js';
+import { withProviderCache, buildProviderCacheKey } from '../providerCache.js';
 
 /**
  * Enriquecimento de UMA pessoa específica já identificada (nome + empresa/domínio) via
@@ -18,6 +20,25 @@ export async function enrichPersonByName(
 ): Promise<{ contact: ApolloContact | null; error?: string }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !fullName.trim()) return { contact: null };
+
+    // Cache por (nome, domínio, empresa) — checado ANTES do rate limit: um acerto de cache não
+    // deve consumir a vaga do token bucket, só uma chamada de rede real deve.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-match', { fullName, domain: domain || null, organizationName: organizationName || null });
+    return withProviderCache(
+        cacheKey,
+        () => enrichPersonByNameUncached(fullName, domain, organizationName, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function enrichPersonByNameUncached(
+    fullName: string,
+    domain: string | null | undefined,
+    organizationName: string | null | undefined,
+    apiKey: string
+): Promise<{ contact: ApolloContact | null; error?: string }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contact: null, error: rateLimit.message };
 
     const [firstName, ...rest] = fullName.trim().split(/\s+/);
     const lastName = rest.join(' ');
@@ -116,6 +137,25 @@ export async function enrichOrganizationWithContacts(
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
 
+    // Mesmo domínio+limite buscado duas vezes no mesmo TTL (ex: vendedor reabre a tela de
+    // decisores, ou a Descoberta pré-busca o mesmo domínio que a promoção do lead busca de novo)
+    // não deve bater a Apollo/Hunter de novo — ver providerCache.ts.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-search-by-domain', { domain, limit });
+    return withProviderCache(
+        cacheKey,
+        () => enrichOrganizationWithContactsUncached(domain, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function enrichOrganizationWithContactsUncached(
+    domain: string,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: ApolloContact[]; error?: string; source?: 'apollo' | 'hunter' }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
+
     try {
         const res = await fetchWithProviderRetry(APOLLO_PEOPLE_SEARCH_URL, {
             method: 'POST',
@@ -171,6 +211,25 @@ export async function searchDecisionMakersAdvanced(
 ): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
     const apiKey = getPaidProspectingKey('APOLLO_API_KEY');
     if (!apiKey || !domain) return { contacts: [] };
+
+    // Mesmo domínio+critérios buscado de novo no mesmo TTL (o operador clicou "Buscar Decisores"
+    // outra vez para o mesmo domínio, sem mudar os filtros) não deve bater o provider de novo.
+    const cacheKey = buildProviderCacheKey('apollo', 'people-search-advanced', { domain, limit, criteria: criteria as unknown as Record<string, unknown> });
+    return withProviderCache(
+        cacheKey,
+        () => searchDecisionMakersAdvancedUncached(domain, criteria, limit, apiKey),
+        { shouldCache: (result) => !result.error }
+    );
+}
+
+async function searchDecisionMakersAdvancedUncached(
+    domain: string,
+    criteria: DecisionMakerCriteria,
+    limit: number,
+    apiKey: string
+): Promise<{ contacts: DecisionMaker[]; error?: string; source?: 'apollo' | 'hunter' }> {
+    const rateLimit = checkProviderRateLimit('apollo');
+    if (!rateLimit.allowed) return { contacts: [], error: rateLimit.message };
 
     try {
         const body: Record<string, unknown> = {
