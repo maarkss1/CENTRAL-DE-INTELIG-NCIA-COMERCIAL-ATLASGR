@@ -13,7 +13,7 @@ import { getLearningProfile } from './learning.agent.js';
 import { logAiUsage } from '../../../lib/ai/gateway.js';
 import { saveAgentMemory, recordAgentFailure } from './agentMemory.store.js';
 import { checkpointer, ensureCheckpointerReady } from '../../../lib/ai/checkpointer.js';
-import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT } from './swarm.constants.js';
+import { SWARM_IDENTITY, SWARM_OUTPUT_CONTRACT, SWARM_UNTRUSTED_CONTENT_GUARD } from './swarm.constants.js';
 import { rehydratePii, assertPiiExternalConsent } from '../services/guardrails.service.js';
 
 // As ferramentas que o SDR Autônomo tem acesso
@@ -96,7 +96,9 @@ DIRETRIZES DE EXECUÇÃO:
 [O que o BDR ou Closer deve fazer nos próximos 5 minutos?]
 *(Nota: O histórico foi resumido e uma Copy de E-mail foi gerada e salva no sistema para uso imediato).*
 
-Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'. ${SWARM_OUTPUT_CONTRACT}`
+Trabalhe silenciosamente e não faça perguntas ao usuário. Aja até completar a tarefa chamando 'update_lead_qualification'. ${SWARM_OUTPUT_CONTRACT}
+
+${SWARM_UNTRUSTED_CONTENT_GUARD}`
         + (learnedStyle ? `\n\nEstilo aprendido do usuário (aplique como preferência de tom):\n${learnedStyle}` : '')
     );
 

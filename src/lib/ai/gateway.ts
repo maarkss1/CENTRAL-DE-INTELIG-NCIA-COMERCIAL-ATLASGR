@@ -19,6 +19,8 @@
  *   gateway/chat-model.ts        — orquestra orçamento → cadeia de fallback de provedores → custo/trace
  *   gateway/streaming.ts         — streaming de tokens (só Groq, sem fallback no meio do stream)
  *   gateway/prompt-registry.ts   — catálogo dos promptId usados em ../usage-log.ts
+ *   gateway/prompt-safety.ts     — delimitador estrutural para conteúdo externo/não confiável
+ *                                  interpolado num prompt (defesa contra prompt injection)
  *
  * `../budget.ts` (política de orçamento mensal) e `../metrics.ts` (métricas Prometheus) já
  * viviam fora deste arquivo antes do ITEM-09 e continuam onde estavam — só passaram a ser
@@ -51,3 +53,4 @@ export { getAiModel } from './gateway/chat-model.js';
 export { streamChatCompletion } from './gateway/streaming.js';
 export { generateEmbedding } from './gateway/embeddings.js';
 export { logAiUsage } from './usage-log.js';
+export { wrapUntrustedContent, UNTRUSTED_CONTENT_GUARD_INSTRUCTION } from './gateway/prompt-safety.js';
