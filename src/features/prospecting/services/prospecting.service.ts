@@ -14,6 +14,7 @@ import { ExclusionSet } from '../utils/exclusionSet.js';
 import { searchCompanyNews } from './news.service.js';
 import { findCompanyDomain } from '../utils/domain.js';
 import { validContactEmails } from '../../../shared/utils/contact-links';
+import { SearchExecutionTracker, type SearchExecutionStatus } from './searchExecution.service.js';
 
 export interface ProspectCriteria {
     /** Detalhes adicionais do ICP além dos campos estruturados abaixo (texto livre, nuance qualitativa). */
@@ -104,6 +105,11 @@ export interface DiscoverResult {
     sources: Array<{ title: string; uri: string }>;
     apolloError?: string;
     providerMode: 'free' | 'hybrid';
+    /** Onda 42 (dossiê CPI, DEC-13, opção A): id único desta EXECUÇÃO de busca (cuid) — amarra
+     * critério usado, providers chamados, resultados e custo, persistido em
+     * `ProspectingSearchExecution` (ver searchExecution.service.ts) e consultável depois via
+     * `GET /api/prospecting/searches/:searchId`. */
+    searchId: string;
 }
 
 /** Monta a localização mais precisa disponível: cidade + estado > estado > região ampla do playbook. */
@@ -227,94 +233,168 @@ export async function fetchKnownExclusions(organizationId: string): Promise<Excl
 // notícias) em vez de volume. Ver MAX_LEADS_PER_SEARCH espelhado em discoverCriteria.schema.ts.
 const MAX_LEADS_PER_SEARCH = 20;
 
-export async function discoverCandidates(criteria: ProspectCriteria, organizationId?: string): Promise<DiscoverResult> {
-    const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
-    const allCandidates: ProspectCandidate[] = [];
-    const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
+export async function discoverCandidates(
+    criteria: ProspectCriteria,
+    organizationId?: string,
+    /** Onda 42 (dossiê CPI, DEC-13, opção A): id da SavedSearch cuja reexecução gerou esta busca,
+     * quando aplicável (ver `/saved-searches/:id/run` em prospecting.routes.ts) — nunca inferido,
+     * só passado quando o chamador realmente sabe a origem. Persistido no
+     * ProspectingSearchExecution como relação opcional para amarrar "esta execução veio desta
+     * busca salva". */
+    savedSearchId?: string | null
+): Promise<DiscoverResult> {
     const providerMode = getProspectingProviderMode();
-
-    if (criteria.excludeNames && criteria.excludeNames.length > 0) {
-        for (const name of criteria.excludeNames) {
-            exclusions.add(name);
-        }
-    }
-
-    let apolloError: string | undefined;
-
-    // Executa os motores de busca em PARALELO para tempo de resposta ultrarrápido (300%+ mais rápido)
-    const placesTarget = criteria.cidade ? Math.max(1, Math.round(total * 0.4)) : Math.min(total, 25);
-
-    const [apolloResult, placesResult, nominatimResult] = await Promise.allSettled([
-        providerMode === 'hybrid'
-            ? fetchApolloCandidates(criteria, total, exclusions)
-            : Promise.resolve({ candidates: [] as ProspectCandidate[], error: undefined }),
-        discoverViaGooglePlaces(criteria, placesTarget, exclusions),
-        total > 15 ? discoverViaNominatim(criteria, Math.min(total, 20), exclusions) : Promise.resolve([] as ProspectCandidate[]),
-    ]);
-
-    function absorb(found: ProspectCandidate[]) {
-        for (const candidate of found) {
-            if (exclusions.has(candidate.tradeName, candidate.website)) continue;
-            exclusions.add(candidate.tradeName, candidate.website);
-            allCandidates.push(candidate);
-        }
-    }
-
-    if (apolloResult.status === 'fulfilled') {
-        absorb(apolloResult.value.candidates);
-        apolloError = apolloResult.value.error;
-    }
-    if (placesResult.status === 'fulfilled') {
-        absorb(placesResult.value);
-    }
-    if (nominatimResult.status === 'fulfilled') {
-        absorb(nominatimResult.value);
-    }
-
-    // Se faltarem candidatos para completar a cota desejada, executa fallback rápido
-    if (allCandidates.length < total && providerMode === 'hybrid') {
-        const remaining = total - allCandidates.length;
-        try {
-            const extraPlaces = await discoverViaGooglePlaces(criteria, remaining, exclusions);
-            absorb(extraPlaces);
-        } catch {
-            // Best effort
-        }
-    }
-
-    // RANKING DE ALTA QUALIDADE: eleva ao topo os candidatos com maior acionabilidade (decisores, e-mails, fones, site)
-    allCandidates.sort((a, b) => {
-        const scoreA = (a.fitScoreEstimate || 50) + (a.decisionMakers?.length ? 30 : 0) + (a.emails?.length ? 20 : 0) + (a.phone ? 10 : 0) + (a.website ? 10 : 0);
-        const scoreB = (b.fitScoreEstimate || 50) + (b.decisionMakers?.length ? 30 : 0) + (b.emails?.length ? 20 : 0) + (b.phone ? 10 : 0) + (b.website ? 10 : 0);
-        return scoreB - scoreA;
+    // Search-ID gerado ANTES de qualquer chamada a provider — precisa existir mesmo que a busca
+    // falhe logo no início, para os logs estruturados da execução inteira poderem carregá-lo.
+    const tracker = new SearchExecutionTracker({
+        organizationId,
+        savedSearchId: savedSearchId ?? null,
+        criteria,
+        providerMode,
     });
 
-    const finalCandidates = allCandidates.slice(0, total);
-
-    // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
-    // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
-    // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
-    // decisores só vinham para os candidatos originados da Apollo).
     try {
-        await Promise.race([
-            enrichCandidatesWithQualityData(finalCandidates),
-            new Promise<void>((resolve) => setTimeout(resolve, 9000)),
-        ]);
-    } catch {
-        // Non-blocking best-effort
-    }
+        const total = Math.max(1, Math.min(MAX_LEADS_PER_SEARCH, criteria.quantidade || MAX_LEADS_PER_SEARCH));
+        const allCandidates: ProspectCandidate[] = [];
+        const exclusions = organizationId ? await fetchKnownExclusions(organizationId) : new ExclusionSet();
 
-    return {
-        candidates: finalCandidates,
-        sources: [
-            {
-                title: 'Apollo.io / Google Places / OpenStreetMap',
-                uri: 'https://apollo.io',
-            },
-        ],
-        apolloError: providerMode === 'hybrid' ? apolloError : undefined,
-        providerMode,
-    };
+        if (criteria.excludeNames && criteria.excludeNames.length > 0) {
+            for (const name of criteria.excludeNames) {
+                exclusions.add(name);
+            }
+        }
+
+        let apolloError: string | undefined;
+
+        // Executa os motores de busca em PARALELO para tempo de resposta ultrarrápido (300%+ mais rápido)
+        const placesTarget = criteria.cidade ? Math.max(1, Math.round(total * 0.4)) : Math.min(total, 25);
+        const runNominatim = total > 15;
+
+        const [apolloResult, placesResult, nominatimResult] = await Promise.allSettled([
+            providerMode === 'hybrid'
+                ? fetchApolloCandidates(criteria, total, exclusions)
+                : Promise.resolve({ candidates: [] as ProspectCandidate[], error: undefined }),
+            discoverViaGooglePlaces(criteria, placesTarget, exclusions),
+            runNominatim ? discoverViaNominatim(criteria, Math.min(total, 20), exclusions) : Promise.resolve([] as ProspectCandidate[]),
+        ]);
+
+        function absorb(found: ProspectCandidate[]) {
+            for (const candidate of found) {
+                if (exclusions.has(candidate.tradeName, candidate.website)) continue;
+                exclusions.add(candidate.tradeName, candidate.website);
+                allCandidates.push(candidate);
+            }
+        }
+
+        function reasonMessage(reason: unknown): string {
+            return reason instanceof Error ? reason.message : String(reason);
+        }
+
+        if (providerMode === 'hybrid') {
+            if (apolloResult.status === 'fulfilled') {
+                absorb(apolloResult.value.candidates);
+                apolloError = apolloResult.value.error;
+                tracker.recordProviderCall({
+                    provider: 'apollo',
+                    resultCount: apolloResult.value.candidates.length,
+                    status: apolloError ? 'error' : 'ok',
+                    errorMessage: apolloError,
+                });
+            } else {
+                apolloError = reasonMessage(apolloResult.reason);
+                tracker.recordProviderCall({ provider: 'apollo', resultCount: 0, status: 'error', errorMessage: apolloError });
+            }
+        }
+        if (placesResult.status === 'fulfilled') {
+            absorb(placesResult.value);
+            tracker.recordProviderCall({ provider: 'google_places', resultCount: placesResult.value.length, status: 'ok' });
+        } else {
+            tracker.recordProviderCall({ provider: 'google_places', resultCount: 0, status: 'error', errorMessage: reasonMessage(placesResult.reason) });
+        }
+        if (runNominatim) {
+            if (nominatimResult.status === 'fulfilled') {
+                absorb(nominatimResult.value);
+                tracker.recordProviderCall({ provider: 'nominatim', resultCount: nominatimResult.value.length, status: 'ok' });
+            } else {
+                tracker.recordProviderCall({ provider: 'nominatim', resultCount: 0, status: 'error', errorMessage: reasonMessage(nominatimResult.reason) });
+            }
+        }
+
+        // Se faltarem candidatos para completar a cota desejada, executa fallback rápido
+        if (allCandidates.length < total && providerMode === 'hybrid') {
+            const remaining = total - allCandidates.length;
+            try {
+                const extraPlaces = await discoverViaGooglePlaces(criteria, remaining, exclusions);
+                absorb(extraPlaces);
+                tracker.recordProviderCall({ provider: 'google_places', resultCount: extraPlaces.length, status: 'ok' });
+            } catch (err) {
+                tracker.recordProviderCall({
+                    provider: 'google_places',
+                    resultCount: 0,
+                    status: 'error',
+                    errorMessage: err instanceof Error ? err.message : 'Falha no fallback do Google Places',
+                });
+            }
+        }
+
+        // RANKING DE ALTA QUALIDADE: eleva ao topo os candidatos com maior acionabilidade (decisores, e-mails, fones, site)
+        allCandidates.sort((a, b) => {
+            const scoreA = (a.fitScoreEstimate || 50) + (a.decisionMakers?.length ? 30 : 0) + (a.emails?.length ? 20 : 0) + (a.phone ? 10 : 0) + (a.website ? 10 : 0);
+            const scoreB = (b.fitScoreEstimate || 50) + (b.decisionMakers?.length ? 30 : 0) + (b.emails?.length ? 20 : 0) + (b.phone ? 10 : 0) + (b.website ? 10 : 0);
+            return scoreB - scoreA;
+        });
+
+        const finalCandidates = allCandidates.slice(0, total);
+
+        // Enriquecimento de qualidade (CNPJ, decisores + LinkedIn/e-mail/telefone, notícias/quebra-gelo)
+        // direto na busca — o teto de MAX_LEADS_PER_SEARCH candidatos é o que torna isto viável em
+        // termos de tempo/custo (antes, com até 500 candidatos, só os 10 primeiros recebiam notícia e
+        // decisores só vinham para os candidatos originados da Apollo).
+        try {
+            await Promise.race([
+                enrichCandidatesWithQualityData(finalCandidates, tracker),
+                new Promise<void>((resolve) => setTimeout(resolve, 9000)),
+            ]);
+        } catch {
+            // Non-blocking best-effort
+        }
+
+        const hadProviderError = tracker.providerCalls.some((c) => c.status === 'error');
+        const finishStatus: SearchExecutionStatus = !hadProviderError
+            ? 'success'
+            : finalCandidates.length > 0
+                ? 'partial'
+                : 'error';
+
+        await tracker.finish({
+            status: finishStatus,
+            totalResults: finalCandidates.length,
+            errorMessage: providerMode === 'hybrid' ? apolloError : undefined,
+        });
+
+        return {
+            searchId: tracker.searchId,
+            candidates: finalCandidates,
+            sources: [
+                {
+                    title: 'Apollo.io / Google Places / OpenStreetMap',
+                    uri: 'https://apollo.io',
+                },
+            ],
+            apolloError: providerMode === 'hybrid' ? apolloError : undefined,
+            providerMode,
+        };
+    } catch (error) {
+        // Search-ID precisa ser persistido mesmo quando a execução inteira quebra antes de gerar
+        // qualquer candidato — é exatamente o cenário que a auditoria de execução (Onda 42) existe
+        // para capturar ("a busca rodou, com este critério, e falhou assim").
+        await tracker.finish({
+            status: 'error',
+            totalResults: 0,
+            errorMessage: error instanceof Error ? error.message : 'Erro desconhecido na execução de busca',
+        });
+        throw error;
+    }
 }
 
 /**
@@ -325,7 +405,14 @@ export async function discoverCandidates(criteria: ProspectCriteria, organizatio
  * rodam em paralelo entre si, e todos os candidatos rodam em paralelo entre eles — o tempo total
  * fica limitado pelo orçamento em `discoverCandidates` (Promise.race), não pela soma dos custos.
  */
-export async function enrichCandidatesWithQualityData(candidates: ProspectCandidate[]): Promise<void> {
+export async function enrichCandidatesWithQualityData(
+    candidates: ProspectCandidate[],
+    /** Onda 42: quando informado, cada chamada real de provider feita aqui (CNPJ/Receita Federal,
+     * decisores via Apollo/Hunter, notícias) entra na mesma execução de busca rastreada pelo
+     * Search-ID do chamador (ver discoverCandidates). Opcional — chamadores fora do fluxo de busca
+     * (ex.: reprocessamento manual) continuam funcionando sem tracker. */
+    tracker?: SearchExecutionTracker
+): Promise<void> {
     await Promise.allSettled(
         candidates.map(async (candidate) => {
             await Promise.allSettled([
@@ -334,8 +421,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                     try {
                         const cnpj = await discoverCnpjByName(candidate.tradeName);
                         if (cnpj) candidate.cnpjGuess = cnpj;
+                        tracker?.recordProviderCall({ provider: 'receita_federal', resultCount: cnpj ? 1 : 0, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName }, 'Falha ao descobrir CNPJ do candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'receita_federal',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao descobrir CNPJ',
+                        });
                     }
                 })(),
                 (async () => {
@@ -355,8 +449,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                         if (candidate.decisionMakers.length > 0) {
                             candidate.emails = validContactEmails(candidate.decisionMakers.map((dm) => dm.email));
                         }
+                        tracker?.recordProviderCall({ provider: source ?? 'apollo', resultCount: contacts.length, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName, domain }, 'Falha ao buscar decisores do candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'apollo',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao buscar decisores',
+                        });
                     }
                 })(),
                 (async () => {
@@ -366,8 +467,15 @@ export async function enrichCandidatesWithQualityData(candidates: ProspectCandid
                             candidate.webInsights = mentions.map((m) => ({ title: m.title, url: m.url, domain: m.domain }));
                             candidate.icebreakerHook = `📰 Fato Relevante / Notícia: "${mentions[0].title}" (${mentions[0].domain})`;
                         }
+                        tracker?.recordProviderCall({ provider: 'news_search', resultCount: mentions?.length ?? 0, status: 'ok' });
                     } catch (err) {
-                        logger.error({ err, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                        logger.error({ err, searchId: tracker?.searchId, companyName: candidate.tradeName }, 'Falha ao buscar notícias para candidato');
+                        tracker?.recordProviderCall({
+                            provider: 'news_search',
+                            resultCount: 0,
+                            status: 'error',
+                            errorMessage: err instanceof Error ? err.message : 'Falha ao buscar notícias',
+                        });
                     }
                 })(),
             ]);
