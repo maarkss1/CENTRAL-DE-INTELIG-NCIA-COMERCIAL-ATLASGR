@@ -296,3 +296,132 @@ describe('dryRunAutomation — amostra por gatilho', () => {
         expect(call.take).toBe(25);
     });
 });
+
+describe('dryRunAutomation — casos de borda da amostra de Lead', () => {
+    it('sem lastInteraction, calcula daysSinceLastInteraction a partir de createdAt', async () => {
+        leadFindMany.mockResolvedValue([{ ...LEAD_ROW, lastInteraction: null }]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation());
+
+        expect(typeof result.records[0].entityId).toBe('string');
+    });
+
+    it('label cai para o nome da empresa quando o lead não tem contato vinculado', async () => {
+        leadFindMany.mockResolvedValue([{ ...LEAD_ROW, contact: null }]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation());
+
+        expect(result.records[0].label).toBe('Empresa X');
+    });
+
+    it('label cai para o id do lead quando não há contato nem empresa', async () => {
+        leadFindMany.mockResolvedValue([{ ...LEAD_ROW, contact: null, company: null }]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation());
+
+        expect(result.records[0].label).toBe('lead-1');
+    });
+});
+
+describe('dryRunAutomation — preview de "Notificar equipe", casos adicionais', () => {
+    it('canal in_app com body configurado: renderiza o body no template', async () => {
+        leadFindMany.mockResolvedValue([LEAD_ROW]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            actionConfig: { body: 'Olá {{owner}}, novo lead!' },
+        }));
+
+        expect(result.records[0].outcome.details.body).toBe('Olá Marcelo, novo lead!');
+    });
+});
+
+describe('dryRunAutomation — preview de "Criar atividade", casos adicionais', () => {
+    it('usa o owner explícito da config quando informado', async () => {
+        leadFindMany.mockResolvedValue([LEAD_ROW]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            action: 'Criar atividade',
+            actionConfig: { owner: 'Ana' },
+        }));
+
+        expect(result.records[0].outcome.details.owner).toBe('Ana');
+    });
+
+    it('gatilho "Atividade concluída": resolve o leadId a partir do candidato de Activity', async () => {
+        activityFindMany.mockResolvedValue([
+            { id: 'act-1', type: 'Ligacao', owner: 'Marcelo', leadId: 'lead-9', updatedAt: new Date() },
+        ]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            trigger: 'Atividade concluída',
+            action: 'Criar atividade',
+            conditions: null,
+        }));
+
+        expect(result.records[0].outcome.wouldFire).toBe(true);
+        expect(result.records[0].outcome.details.leadId).toBe('lead-9');
+    });
+
+    it('gatilho "Atividade concluída" sem leadId no registro: wouldFire false por falta de lead vinculado', async () => {
+        activityFindMany.mockResolvedValue([
+            { id: 'act-2', type: 'Ligacao', owner: 'Marcelo', leadId: null, updatedAt: new Date() },
+        ]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            trigger: 'Atividade concluída',
+            action: 'Criar atividade',
+            conditions: null,
+        }));
+
+        expect(result.records[0].outcome.wouldFire).toBe(false);
+        expect(result.records[0].outcome.blockedReason).toMatch(/lead/i);
+    });
+});
+
+describe('dryRunAutomation — preview de "Ligar via SDR de Voz", casos adicionais', () => {
+    it('gatilho "Atividade concluída": a ação de voz só se aplica a eventos de lead', async () => {
+        activityFindMany.mockResolvedValue([
+            { id: 'act-3', type: 'Ligacao', owner: 'Marcelo', leadId: 'lead-1', updatedAt: new Date() },
+        ]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            trigger: 'Atividade concluída',
+            action: 'Ligar via SDR de Voz',
+            conditions: null,
+        }));
+
+        expect(result.records[0].outcome.wouldFire).toBe(false);
+        expect(result.records[0].outcome.blockedReason).toMatch(/lead/i);
+    });
+
+    it('lead sem contato/empresa vinculados: contact/company chegam como null em pickCallablePhone', async () => {
+        leadFindMany.mockResolvedValue([{ ...LEAD_ROW, contact: null, company: null }]);
+        pickCallablePhoneMock.mockReturnValue(null);
+
+        await dryRunAutomation('org-1', baseAutomation({ action: 'Ligar via SDR de Voz' }));
+
+        expect(pickCallablePhoneMock).toHaveBeenCalledWith(null, null);
+    });
+});
+
+describe('dryRunAutomation — casos de borda gerais', () => {
+    it('actionConfig ausente (null) é tratado como objeto vazio', async () => {
+        leadFindMany.mockResolvedValue([LEAD_ROW]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({ actionConfig: null }));
+
+        expect(result.records[0].outcome.wouldFire).toBe(true);
+    });
+
+    it('ação desconhecida (fora do enum atual): wouldFire false com motivo explícito', async () => {
+        leadFindMany.mockResolvedValue([LEAD_ROW]);
+
+        const result = await dryRunAutomation('org-1', baseAutomation({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            action: 'Ação removida' as any,
+        }));
+
+        expect(result.records[0].outcome.wouldFire).toBe(false);
+        expect(result.records[0].outcome.blockedReason).toMatch(/desconhecida/i);
+    });
+});
