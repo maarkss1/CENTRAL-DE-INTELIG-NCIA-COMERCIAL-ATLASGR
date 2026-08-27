@@ -2078,20 +2078,6 @@ model ColdCallRun {
   @@index([organizationId, runAt])
 }
 
-model AIGovernancePolicy {
-  id       String @id @default(cuid())
-  name     String
-  rules    Json
-  tenantId String
-}
-
-model AIEvaluation {
-  id                 String @id @default(cuid())
-  logId              String
-  precisionScore     Float
-  hallucinationScore Float
-}
-
 model AIPendingAction {
   id             String        @id @default(cuid())
   entity         String
