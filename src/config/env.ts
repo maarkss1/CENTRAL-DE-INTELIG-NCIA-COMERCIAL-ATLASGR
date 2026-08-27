@@ -200,6 +200,23 @@ const envSchema = z.object({
   // SDR_COLD_CALL_*: lista vazia = nenhuma organização autorizada, mesmo que o restante do enxame
   // esteja ligado. `*`/`all` libera todas (mesma sintaxe de SWARM_SCHEDULER_ORGANIZATIONS).
   AI_PII_EXTERNAL_CONSENT_ORGANIZATIONS: z.string().optional(),
+
+  // ── Reranking da Base de Conhecimento (DEC-11, dossiê CPI, opção A) ─────────
+  // O RRF (`src/features/knowledge/search.service.ts`) já entrega um resultado final hoje — este
+  // estágio roda DEPOIS da fusão, sobre os top-N candidatos, só para reordenar por relevância real
+  // via LLM (ver `src/features/knowledge/services/reranker.service.ts` para a decisão LLM vs.
+  // cross-encoder). Default false: feature nova, opt-in — sem isto configurado o comportamento de
+  // busca é idêntico ao de antes desta mudança (RRF puro), inclusive nos testes de integração
+  // existentes que mockam o gateway de IA sem `getAiModel`.
+  KNOWLEDGE_RERANK_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  // Quantos candidatos do topo da lista já fundida por RRF entram na janela reordenada pelo
+  // reranker — o restante (se `hybridSearch` pedir mais que isto) mantém a ordem do RRF sem custo
+  // de IA adicional. 20 casa com `CANDIDATES_PER_STRATEGY` (o que cada perna da busca já traz).
+  KNOWLEDGE_RERANK_CANDIDATES: z.coerce.number().int().positive().default(20),
+  // Nome lógico de modelo (roteado por src/lib/ai/gateway/model-routing.ts) — o mesmo alias "fast"
+  // que KnowledgeCopilotService já usa para responder a pergunta em si: pontuar relevância é uma
+  // tarefa mais barata que gerar a resposta final, não precisa do modelo "grande".
+  KNOWLEDGE_RERANK_MODEL: z.string().default('local-llama3-fast'),
 })
   // Uma janela invertida (início 18, fim 9) nunca deixaria a campanha rodar, e o sintoma seria
   // "o SDR não liga" — muito mais difícil de diagnosticar do que uma falha na subida.
