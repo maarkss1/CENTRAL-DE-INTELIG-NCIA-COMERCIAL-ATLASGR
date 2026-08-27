@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { ThreeCXConnection } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../../lib/prisma.js';
 import { logger } from '../../../lib/logger.js';
 import { AppError } from '../../../shared/middlewares/errorHandler.js';
 import { assertSafeWebhookUrl } from '../../../lib/adapters/crm/Bitrix24Adapter.js';
 import { isSuppressed } from '../birth-voice/callSuppression.service.js';
+import { requestContext } from '../../../lib/async-context.js';
+import { classifyCallOutcome, callResultedInConversation, callMarker } from '../birth-voice/birthVoice.helpers.js';
 
 export interface ThreeCXConnectionInput {
     label?: string;
@@ -279,8 +282,319 @@ export async function make3CXCall(
     };
 }
 
-/** Processa webhooks de chamada recebidos do 3CX Call Flow / CRM Webhook */
-export async function process3CXWebhook(payload: Record<string, unknown>): Promise<{ status: string }> {
-    logger.info({ payload }, '[3cx] Webhook de evento de chamada recebido do 3CX');
-    return { status: 'processed' };
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// process3CXWebhook — persistência real do evento de chamada do 3CX Call Flow
+//
+// CORREÇÃO (achado de auditoria): esta função só fazia `logger.info({ payload })` (payload cru,
+// que pode conter o telefone completo) e devolvia `{status:'processed'}` sem gravar nada — nenhum
+// evento de chamada real (atendida, perdida, transferida) deixava rastro, nunca se associava a um
+// Lead, e nenhuma Activity era criada. Mesmo padrão de honestidade já aplicado a
+// `voiceResult.webhook.ts`/`birthVoice.webhook.ts`: tenant resolvido antes de qualquer query,
+// idempotência por marcador, classificação honesta do resultado (`classifyCallOutcome`/
+// `callResultedInConversation`, reaproveitados de `birthVoice.helpers.ts` — lógica pura, sem nada
+// específico de voz), nunca logar o telefone completo.
+//
+// LACUNA REAL QUE PERMANECE (documentada, não inventada): o contrato exato do payload que o 3CX
+// Call Flow envia nunca foi validado contra um servidor 3CX real (mesma ressalva já registrada em
+// `make3CXCall` acima e nos handoffs `.agents/handoffs/onda-1/06-para-01-persistencia-3cx.md`,
+// `.agents/handoffs/onda-7/06-para-12-3cx-webhook-persistencia.md` e
+// `.agents/handoffs/onda-7/12-para-01-3cx-call-event-persistence.md`). O parser abaixo aceita um
+// conjunto de nomes de campo plausíveis (e o formato mínimo já coberto por
+// `tests/unit/features/integrations/threecx/threecx.routes.test.ts`: `event`/`extension`/`callId`)
+// — se o PABX real usar outro vocabulário, os campos não reconhecidos ficam `null` e o evento é
+// tratado com a informação que sobrar (nunca inventa um valor), preservado sempre em `rawPayload`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Tipo mínimo de leitura devolvido por `prisma.organization.findMany({ select: { id: true } })`. */
+interface OrgIdRow {
+    id: string;
+}
+
+/** Limite de segurança para o scan cross-tenant abaixo — nunca deveria ser atingido em uso normal. */
+const MAX_ORGS_SCAN_FOR_EXTENSION_MATCH = 5_000;
+
+/**
+ * Resolve a organização dona de um evento de webhook do 3CX a partir do ramal (`extension`) do
+ * payload.
+ *
+ * Por que isto é um scan cross-tenant, e não um `findMany({ where: { extension } })` direto:
+ * `THREECX_WEBHOOK_SECRET` é um segredo GLOBAL (uma env só, compartilhada por toda organização que
+ * conecta um PABX 3CX) — uma assinatura válida não identifica, por si só, o tenant. A única pista
+ * de tenant no payload é o ramal, cruzado com `ThreeCXConnection.extension`. Mas `ThreeCXConnection`
+ * tem FORCE ROW LEVEL SECURITY cuja policy (migration `20260825120000_scope_rls_bypass_to_bootstrap_allowlist`)
+ * exige `app.current_tenant_id = organizationId` — SEM cláusula de bypass (a versão original da
+ * tabela tinha `OR app.bypass_rls = 'on'`; essa cláusula foi removida nessa migration, então nem
+ * `requestContext.run({ bypassRls: true }, …)` resolveria isto hoje). E mesmo que a policy ainda
+ * permitisse bypass, `ThreeCXConnection` não está em `BYPASS_RLS_ALLOWED_MODELS`
+ * (`src/lib/prisma.ts`) — adicioná-la ali, ou reabrir a cláusula de bypass na policy via nova
+ * migration, está fora do escopo de arquivos desta tarefa (`src/features/integrations/threecx/**`
+ * apenas) e do que o AGENTS.md deste diretório autoriza ("Não pode: criar/editar migration").
+ *
+ * A forma correta e segura disponível dentro deste escopo: `Organization` está em
+ * `BYPASS_RLS_ALLOWED_MODELS` (usada para o mesmo tipo de "descoberta de bootstrap" que
+ * `followUp.worker.ts`/`cadenceRun.worker.ts` já fazem antes de saber qual tenant escopar) — listar
+ * os ids de organização via bypass não expõe nenhum dado de `ThreeCXConnection` em si, e a busca
+ * real do ramal em cada organização roda com RLS normal (sem bypass), escopada uma a uma pelo
+ * tenant real. Nenhum `organizationId` é aceito sem ter sido confirmado por uma query que já rodava
+ * dentro do contexto daquele mesmo tenant.
+ *
+ * Varre TODAS as organizações (sem early-exit) de propósito: parar no primeiro achado esconderia
+ * uma ambiguidade real (dois tenants com o mesmo ramal) atrás de "resolvido" — e resolver o tenant
+ * errado aqui é exatamente a classe de bug que o AGENTS.md trata como bloqueador de isolamento de
+ * dados. Sem match: descarta. Mais de um match: descarta (nunca adivinha).
+ *
+ * CUSTO CONHECIDO, NÃO RESOLVIDO NESTA TAREFA: isto é uma query por organização a cada webhook
+ * recebido — não escala para uma base grande de tenants. A correção arquitetural correta (mesmo
+ * padrão já usado pelo webhook de entrada do Bitrix, `bitrix.webhook.ts`: um identificador de
+ * conexão opaco no PATH da URL do webhook, uma por organização) exige mudança de rota + schema/
+ * migration — fora do escopo desta tarefa (arquivos fora de `threecx/**`), documentado aqui como
+ * gap real para o Agente 01/12 endereçarem.
+ */
+async function resolveConnectionByExtension(
+    extension: string,
+): Promise<{ organizationId: string; connection: ThreeCXConnection } | 'not-found' | 'ambiguous'> {
+    const orgIds: OrgIdRow[] = await requestContext.run({ bypassRls: true }, () =>
+        prisma.organization.findMany({ select: { id: true } }),
+    );
+
+    if (orgIds.length > MAX_ORGS_SCAN_FOR_EXTENSION_MATCH) {
+        logger.error(
+            { orgCount: orgIds.length },
+            '[3cx] Número de organizações excede o limite de segurança do scan por ramal — evento descartado.',
+        );
+        return 'not-found';
+    }
+
+    const matches: { organizationId: string; connection: ThreeCXConnection }[] = [];
+    for (const { id: organizationId } of orgIds) {
+        const found = await requestContext.run({ tenantId: organizationId }, () =>
+            prisma.threeCXConnection.findFirst({ where: { extension } }),
+        );
+        if (found) matches.push({ organizationId, connection: found });
+    }
+
+    if (matches.length === 0) return 'not-found';
+    if (matches.length > 1) return 'ambiguous';
+    return matches[0];
+}
+
+function asString(value: unknown): string | null {
+    return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+    return null;
+}
+
+function asBoolean(value: unknown): boolean | null {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true' || value === '1') return true;
+    if (value === 'false' || value === '0') return false;
+    return null;
+}
+
+/** Eventos de progresso de chamada (nomenclatura plausível, não confirmada) — nunca carregam
+ * resultado final, então nunca viram Activity: só o rastro em `ThreeCXCallEvent` é gravado. */
+const NON_TERMINAL_EVENT_TYPES = new Set([
+    'ringing', 'ring', 'initiated', 'initiating', 'trying', 'progress', 'connecting', 'dialing', 'answered',
+]);
+
+function isUniqueConstraintViolation(err: unknown): boolean {
+    return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
+
+export interface ThreeCXWebhookResult {
+    status: 'processed' | 'ignored' | 'discarded';
+    reason?: string;
+    organizationId?: string;
+    leadId?: string | null;
+    duplicate?: boolean;
+}
+
+/**
+ * Processa webhooks de chamada recebidos do 3CX Call Flow / CRM Webhook.
+ *
+ * Nunca loga o payload cru nem o número de telefone completo (o payload pode carregar `from`/`to`)
+ * — só ids (`callId`, `organizationId`, `leadId`, `connectionId`), mesmo padrão de
+ * `voiceResult.webhook.ts` (linha ~118).
+ */
+export async function process3CXWebhook(payload: Record<string, unknown>): Promise<ThreeCXWebhookResult> {
+    const eventType = asString(payload.event) ?? asString(payload.eventType) ?? asString(payload.type) ?? 'unknown';
+    const extension = asString(payload.extension) ?? asString(payload.Extension) ?? asString(payload.dn) ?? asString(payload.DN);
+    const callId = asString(payload.callId) ?? asString(payload.call_id) ?? asString(payload.CallId) ?? asString(payload.id);
+
+    if (!extension) {
+        // Fail-closed: sem ramal não há como resolver a organização com segurança nenhuma — nunca
+        // adivinha (ver detecção de ambiguidade em resolveConnectionByExtension).
+        logger.warn({ eventType, callId }, '[3cx] Webhook sem ramal (extension) — organização não pôde ser resolvida. Descartado.');
+        return { status: 'discarded', reason: 'sem-extension' };
+    }
+
+    const resolved = await resolveConnectionByExtension(extension);
+    if (resolved === 'not-found') {
+        logger.warn({ eventType, callId, extension }, '[3cx] Nenhuma conexão 3CX cadastrada para este ramal — evento descartado.');
+        return { status: 'discarded', reason: 'ramal-desconhecido' };
+    }
+    if (resolved === 'ambiguous') {
+        logger.error(
+            { eventType, callId, extension },
+            '[3cx] Ramal ambíguo entre múltiplas organizações — evento descartado (nunca adivinha o tenant).',
+        );
+        return { status: 'discarded', reason: 'ramal-ambiguo' };
+    }
+
+    const { organizationId, connection } = resolved;
+
+    return requestContext.run({ tenantId: organizationId }, async () => {
+        // Idempotência do rastro de auditoria: reentrega do mesmo (organizationId, callId, eventType)
+        // não duplica a linha. Só se aplica quando o PABX manda um callId — sem ele não há chave
+        // para comparar (mesmo tratamento de "sem-id" já usado em birthVoice.webhook.ts).
+        let alreadyRecorded = false;
+        if (callId) {
+            const existingEvent = await prisma.threeCXCallEvent.findFirst({
+                where: { organizationId, callId, eventType },
+                select: { id: true },
+            });
+            alreadyRecorded = existingEvent !== null;
+        }
+
+        if (!alreadyRecorded) {
+            try {
+                await prisma.threeCXCallEvent.create({
+                    data: {
+                        organizationId,
+                        connectionId: connection.id,
+                        extension,
+                        callId,
+                        eventType,
+                        rawPayload: payload as unknown as Prisma.InputJsonValue,
+                    },
+                });
+            } catch (err) {
+                if (isUniqueConstraintViolation(err)) {
+                    alreadyRecorded = true;
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        if (alreadyRecorded) {
+            logger.info(
+                { callId, organizationId, connectionId: connection.id },
+                '[3cx] Evento de chamada já processado (reentrega) — ignorado.',
+            );
+            return { status: 'processed', duplicate: true, organizationId };
+        }
+
+        if (NON_TERMINAL_EVENT_TYPES.has(eventType.toLowerCase())) {
+            // Evento intermediário (tocando, discando, etc.) — sem resultado final para registrar
+            // ainda. O rastro de auditoria acima já foi gravado; nenhuma Activity é criada por um
+            // evento que não representa o desfecho da chamada.
+            logger.info({ eventType, callId, organizationId, connectionId: connection.id }, '[3cx] Evento intermediário de chamada recebido — sem resultado final ainda.');
+            return { status: 'ignored', organizationId };
+        }
+
+        // Extração honesta do resultado — campos ausentes ficam null, nunca inventados.
+        const disposition = asString(payload.disposition) ?? asString(payload.status) ?? asString(payload.reason) ?? asString(payload.result);
+        const durationSeconds =
+            asNumber(payload.durationSeconds) ?? asNumber(payload.duration) ?? asNumber(payload.call_duration) ?? asNumber(payload.talkTime);
+        const machineDetected = asBoolean(payload.machineDetected) ?? asBoolean(payload.amd) ?? asBoolean(payload.voicemailDetected);
+        const toNumber = asString(payload.to) ?? asString(payload.destination) ?? asString(payload.callee) ?? asString(payload.dialedNumber) ?? asString(payload.external_number);
+        const fromNumber = asString(payload.from) ?? asString(payload.caller) ?? asString(payload.source);
+        const explicitLeadId = asString(payload.leadId) ?? asString(payload.lead_id);
+
+        // Descarta o próprio ramal da lista de candidatos a "número do lead" — numa chamada
+        // originada/recebida por este PABX, um dos dois lados (from/to) é sempre o ramal interno.
+        const extDigits = extension.replace(/\D/g, '');
+        const candidateNumbers = [toNumber, fromNumber].filter(
+            (n): n is string => !!n && n.replace(/\D/g, '') !== extDigits,
+        );
+
+        let lead = explicitLeadId
+            ? await prisma.lead.findFirst({ where: { id: explicitLeadId, organizationId }, include: { contact: true } })
+            : null;
+
+        if (!lead) {
+            for (const num of candidateNumbers) {
+                const digits = num.replace(/\D/g, '');
+                const pattern = digits.length >= 8 ? digits.slice(-8) : digits;
+                if (!pattern) continue;
+                lead = await prisma.lead.findFirst({
+                    where: {
+                        organizationId,
+                        OR: [
+                            { contact: { phone: { contains: pattern } } },
+                            { contact: { whatsapp: { contains: pattern } } },
+                        ],
+                    },
+                    include: { contact: true },
+                });
+                if (lead) break;
+            }
+        }
+
+        if (!lead) {
+            logger.info({ callId, organizationId, connectionId: connection.id }, '[3cx] Evento de chamada sem lead correspondente nesta organização.');
+            return { status: 'processed', organizationId, leadId: null };
+        }
+
+        // Idempotência da Activity em si (além da idempotência do rastro de auditoria acima): o
+        // mesmo callId nunca produz uma segunda nota, mesmo que o rastro de auditoria já exista por
+        // outro motivo (ex.: dois eventos diferentes do mesmo call, ver NON_TERMINAL_EVENT_TYPES).
+        if (callId) {
+            const marker = callMarker(callId);
+            const existingActivity = await prisma.activity.findFirst({
+                where: { leadId: lead.id, observations: { contains: marker } },
+            });
+            if (existingActivity) {
+                logger.info({ callId, organizationId, leadId: lead.id }, '[3cx] Atividade já registrada para esta chamada — reentrega ignorada.');
+                return { status: 'processed', duplicate: true, organizationId, leadId: lead.id };
+            }
+        }
+
+        // Estado honesto — reaproveita a classificação já usada pelo SDR de voz (birth-voice): AMD,
+        // não-atendimento, ocupado, número inválido e falha nunca colapsam em "conversa". 3CX não
+        // manda transcrição (é só telefonia), por isso `text: null` — a classificação aqui depende
+        // só de disposition/duration/machineDetected, quando o payload real os expuser.
+        const outcome = classifyCallOutcome({
+            providerOutcome: disposition,
+            machineDetected,
+            durationSeconds,
+            text: null,
+        });
+        const hadConversation = callResultedInConversation(outcome);
+
+        const observations = [
+            `Evento de chamada 3CX (${eventType}) via ramal ${extension}.`,
+            disposition ? `Status informado pelo PABX: ${disposition}.` : null,
+            typeof durationSeconds === 'number' ? `Duração: ${durationSeconds}s.` : null,
+            `Estado classificado: ${outcome}.`,
+            callId ? callMarker(callId) : null,
+        ]
+            .filter(Boolean)
+            .join('\n');
+
+        await prisma.activity.create({
+            data: {
+                organizationId,
+                leadId: lead.id,
+                type: 'Ligacao' as never,
+                status: (hadConversation ? 'Concluida' : 'Cancelada') as never,
+                owner: `3CX Ramal ${extension}`,
+                date: new Date(),
+                observations,
+            },
+        });
+
+        // Nunca loga o telefone completo — só ids, mesmo padrão de voiceResult.webhook.ts:118.
+        logger.info(
+            { callId, organizationId, leadId: lead.id, connectionId: connection.id },
+            '[3cx] Resultado da chamada registrado no lead.',
+        );
+
+        return { status: 'processed', organizationId, leadId: lead.id, duplicate: false };
+    });
 }

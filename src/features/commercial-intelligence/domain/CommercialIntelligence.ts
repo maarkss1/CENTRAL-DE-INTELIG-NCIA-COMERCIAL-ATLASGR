@@ -495,6 +495,116 @@ export interface TrendMomentum {
     deltaPercentagePoints: number;
 }
 
+// ─── Forecast Snapshot / Backtest (rastreabilidade do motor de forecast) ────
+//
+// Gap encontrado em auditoria: `forecastEngine.ts` é 100% regras fixas, sem nenhum registro
+// histórico do que foi previsto nem comparação previsto-vs-realizado. Este bloco formaliza um
+// snapshot append-only (nunca sobrescrito) e o cálculo de erro real, sem introduzir nenhum
+// modelo estatístico/ML — ver `application/forecastSnapshot.ts`/`application/forecastAccuracy.ts`.
+
+/** Versão das regras do motor de forecast (`FORECAST_RULES_VERSION`, `application/forecastEngine.ts`) vigente no momento do snapshot. */
+export type ForecastRulesVersion = string;
+
+/**
+ * Um registro append-only do forecast em um instante — "o que o motor previa para este período,
+ * tirado neste momento, com esta versão de regras". Nunca é editado depois de criado; um novo
+ * snapshot do mesmo período é sempre um registro novo (permite comparar como a previsão evoluiu
+ * semana a semana até o período fechar).
+ */
+export interface ForecastSnapshotRecord {
+    id: string;
+    organizationId: string;
+    /** Período (mês) que este snapshot está prevendo — YYYY-MM. Pode ser diferente do mês em que o snapshot foi tirado (snapshot de julho prevendo agosto, por exemplo). */
+    period: PeriodMonth;
+    /** Momento em que o snapshot foi tirado. */
+    snapshotAt: string;
+    rulesVersion: ForecastRulesVersion;
+    /** Os 3 valores previstos no momento do snapshot — mesmos campos de `ExecutiveOverview`, nunca recalculados depois. */
+    commitAmount: number;
+    bestCaseAmount: number;
+    forecastAmount: number;
+    currency: string;
+}
+
+/**
+ * Porta de persistência do snapshot semanal — implementação real depende de tabela nova em
+ * `prisma/schema.prisma` (fora do escopo deste agente, ver handoff para o Agente 01). Até lá,
+ * `infra/InMemoryForecastSnapshotStore.ts` prototipa a mesma interface para permitir testar a
+ * lógica de cálculo de erro isoladamente.
+ */
+export interface ForecastSnapshotStore {
+    save(record: ForecastSnapshotRecord): Promise<void>;
+    findByPeriod(organizationId: string, period: PeriodMonth): Promise<ForecastSnapshotRecord[]>;
+    findAll(organizationId: string): Promise<ForecastSnapshotRecord[]>;
+}
+
+/** Por que `ForecastAccuracyResult.available` é `false` — nunca um número fabricado nesses casos. */
+export type ForecastAccuracyUnavailableReason = 'periodo_nao_fechou' | 'sem_snapshot' | 'sem_realizado';
+
+/**
+ * Comparação previsto-vs-realizado de UM período — "erro histórico do forecast" (seção da
+ * auditoria CPI). Só existe quando (1) o período de referência do snapshot já fechou, (2) existe
+ * ao menos um snapshot daquele período, e (3) o valor realizado (fechado) do período é conhecido.
+ */
+export interface ForecastAccuracyResult {
+    available: boolean;
+    period: PeriodMonth;
+    reason: ForecastAccuracyUnavailableReason | null;
+    snapshotAt: string | null;
+    rulesVersion: ForecastRulesVersion | null;
+    predictedForecastAmount: number | null;
+    realizedClosedAmount: number | null;
+    /** previsto − realizado. Positivo = motor superestimou; negativo = motor subestimou. */
+    errorAmount: number | null;
+    /** |erro| / realizado, em %. `null` quando o realizado é 0 (nunca divide por zero). */
+    errorPercent: number | null;
+    direction: 'superestimou' | 'subestimou' | 'acertou' | null;
+}
+
+/**
+ * Agregado do erro histórico do forecast ao longo de vários períodos já fechados — o número que
+ * `healthScore.ts` usa no pilar "Confiabilidade de Forecast". `available: false` com amostra
+ * insuficiente é uma resposta válida e esperada logo após a implementação (ainda não há snapshot
+ * antigo o bastante para ter fechado) — nunca um erro inventado só para preencher o pilar.
+ */
+export interface ForecastAccuracySummary {
+    available: boolean;
+    reason: 'sem_historico_suficiente' | null;
+    sampleSize: number;
+    /** Média do erro percentual absoluto entre os períodos avaliáveis. `null` sem amostra. */
+    meanAbsoluteErrorPercent: number | null;
+    samples: ForecastAccuracyResult[];
+}
+
+// ─── Health Score composto (pilares nomeados) ───────────────────────────────
+//
+// Gap encontrado em auditoria: existiam scores isolados (qualidade de CRM, forecast confidence...)
+// mas nada que agregasse em pilares nomeados, como o CPI pede. `application/healthScore.ts` agrega
+// métricas JÁ EXISTENTES (nunca recalcula do zero) em uma média simples e explicável por pilar.
+
+export type HealthPillarKey = 'pipeline' | 'conversao' | 'produtividade' | 'qualidadeCrm' | 'followUp' | 'confiabilidadeForecast';
+
+export interface HealthPillarScore {
+    pillar: HealthPillarKey;
+    label: string;
+    /** 0-100. `null` quando o pilar não tem dado suficiente — nunca um score fabricado. */
+    score: number | null;
+    classification: 'saudavel' | 'atencao' | 'critico' | null;
+    /** Explicação em texto de qual fórmula/quais métricas alimentam este pilar — sempre populada, mesmo quando `score` é `null` (explica por que não há dado). */
+    explanation: string;
+    /** Nomes dos campos/relatórios de onde este pilar foi derivado — rastreabilidade, não a fórmula em si (essa está em `explanation`). */
+    metricsUsed: string[];
+    unavailableReason: string | null;
+}
+
+export interface HealthScoreResult {
+    period: PeriodMonth;
+    pillars: HealthPillarScore[];
+    /** Média simples (não ponderada) dos pilares com `score` não-nulo. `null` se nenhum pilar tiver dado suficiente. */
+    overallScore: number | null;
+    generatedAt: string;
+}
+
 // ─── Mentor Comercial por IA (playbook de recomendações) ────────────────────
 
 export type MentorRecommendationPriority = 'alta' | 'media' | 'baixa';

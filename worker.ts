@@ -22,6 +22,10 @@ import {
 import { registerWorkerForRuntimeMetrics, setWorkerProcessUp } from './src/lib/queue/metrics.js';
 
 import { createLeadsWorker } from './src/lib/queue/index.js';
+import {
+    isPlatformOperatorTokenConfigured,
+    isValidPlatformOperatorToken,
+} from './src/shared/middlewares/requirePlatformOperator.js';
 import { createAgentWorker } from './src/lib/queue/agent.worker.js';
 import { createEnrichmentWorker } from './src/lib/queue/enrichment.queue.js';
 import { createSearchWorker } from './src/lib/queue/search.queue.js';
@@ -179,7 +183,35 @@ async function startWorkerProcess() {
             return;
         }
 
-        if (req.url === '/metrics' && env.EXPOSE_METRICS) {
+        // SEC-002 (Sprint 01/Onda 13) exigia o token de operador de plataforma em `/metrics` só no
+        // processo HTTP principal (`src/bootstrap/observability.ts`) — este `/metrics` do worker é
+        // um servidor `http` cru à parte (não monta o app Express), então a mesma trava nunca foi
+        // aplicada aqui e reabria a mesma classe de exposição sem auth num segundo processo.
+        const requestPath = (req.url ?? '/').split('?', 1)[0];
+        if (requestPath === '/metrics' && env.EXPOSE_METRICS) {
+            if (!isPlatformOperatorTokenConfigured()) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Recurso de operador de plataforma não habilitado — configure PLATFORM_OPERATOR_TOKEN.',
+                }));
+                return;
+            }
+
+            const requestUrl = new URL(req.url ?? '/metrics', 'http://internal');
+            const headerToken = req.headers['x-platform-operator-token'];
+            const queryToken = requestUrl.searchParams.get('operator_token');
+            const candidate =
+                (typeof headerToken === 'string' && headerToken) ||
+                (typeof queryToken === 'string' && queryToken) ||
+                null;
+
+            if (!isValidPlatformOperatorToken(candidate)) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'Acesso negado.' }));
+                return;
+            }
+
             try {
                 res.writeHead(200, { 'Content-Type': client.register.contentType });
                 res.end(await client.register.metrics());

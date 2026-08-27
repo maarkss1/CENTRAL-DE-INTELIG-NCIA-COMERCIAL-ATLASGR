@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CommercialIntelligenceUseCases, classifyCoverageProtection } from '../application/CommercialIntelligenceUseCases';
+import { summarizeForecastAccuracy, computeForecastAccuracy } from '../application/forecastAccuracy';
+import { HEALTH_PILLAR_ORDER } from '../application/healthScore';
 import type {
     CommercialIntelligenceRepository, DealRow, StageDefinition, CommercialGoalDTO, GoalMetric,
 } from '../domain/CommercialIntelligence';
@@ -740,5 +742,44 @@ describe('CommercialIntelligenceUseCases', () => {
         expect(quality.bitrixSync.lastSyncAt).toBeNull();
         expect(quality.bitrixSync.syncedCount30d).toBe(0);
         expect(quality.bitrixSync.failedCount30d).toBe(0);
+    });
+
+    // ─── Health Score composto (gap de auditoria CPI) ──────────────────────────
+
+    it('healthScore: sem nenhum negócio, todos os 6 pilares ficam "não disponível" e o score geral é null', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        expect(result.pillars.map((p) => p.pillar)).toEqual(HEALTH_PILLAR_ORDER);
+        expect(result.pillars.every((p) => p.score === null)).toBe(true);
+        expect(result.overallScore).toBeNull();
+    });
+
+    it('healthScore: agrega os relatórios reais do módulo (win rate real vira o pilar Conversão)', async () => {
+        const won = deal({ id: 'w1', amount: 30_000, stageIsWon: true, pipelineStageId: 'stage-ganho', closedAt: new Date('2026-08-10T00:00:00Z') });
+        const lost = deal({ id: 'l1', amount: 10_000, stageIsLost: true, pipelineStageId: 'stage-perdido', closedAt: new Date('2026-08-11T00:00:00Z') });
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([won, lost]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        const conversao = result.pillars.find((p) => p.pillar === 'conversao')!;
+        expect(conversao.score).toBe(50); // 1 ganho / (1 ganho + 1 perdido)
+        expect(conversao.classification).toBe('saudavel'); // 50% >= limiar saudável (30%) documentado em HEALTH_SCORE_RULES
+    });
+
+    it('healthScore: o pilar Confiabilidade de Forecast reflete o parâmetro forecastAccuracy explícito passado por quem chama', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const accuracySummary = summarizeForecastAccuracy([
+            computeForecastAccuracy('2026-07', { id: 's1', organizationId: ORG, period: '2026-07', snapshotAt: '2026-07-20T00:00:00.000Z', rulesVersion: 'v1', commitAmount: 0, bestCaseAmount: 0, forecastAmount: 110_000, currency: 'BRL' }, 100_000, NOW),
+        ]);
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW, accuracySummary);
+        const confiabilidade = result.pillars.find((p) => p.pillar === 'confiabilidadeForecast')!;
+        expect(confiabilidade.score).toBe(90); // 100 - 10% de erro
+        expect(confiabilidade.unavailableReason).toBeNull();
+    });
+
+    it('healthScore: sem o parâmetro forecastAccuracy, o pilar Confiabilidade de Forecast fica "não disponível" (nunca fabricado por omissão)', async () => {
+        const useCases = new CommercialIntelligenceUseCases(new FakeRepository([]));
+        const result = await useCases.healthScore(ORG, { month: PERIOD }, NOW);
+        const confiabilidade = result.pillars.find((p) => p.pillar === 'confiabilidadeForecast')!;
+        expect(confiabilidade.score).toBeNull();
+        expect(confiabilidade.unavailableReason).toBe('sem_historico_suficiente');
     });
 });

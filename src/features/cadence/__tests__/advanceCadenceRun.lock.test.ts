@@ -1,8 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { startCadenceRun, type CadenceSequenceDefinition, type CadenceTouch } from '../domain/cadence';
-import { advanceCadenceRun, type CadenceDispatcher, type CadenceRunLockPort, type LeadSubjectResolver } from '../application/cadenceService';
+import { advanceCadenceRun, type CadenceDispatcher, type CadenceRateLimitPort, type CadenceRunLockPort, type LeadSubjectResolver } from '../application/cadenceService';
 import { InMemoryCadenceRunRepository } from '../infra/InMemoryCadenceRunRepository';
 import { InMemoryOptOutRepository } from '../infra/InMemoryOptOutRepository';
+
+/** Rate limit sempre liberado — o comportamento real do rate limit é coberto à parte, em `rateLimitService.test.ts`. */
+function noopRateLimit(): CadenceRateLimitPort {
+    return {
+        async countSentTouchesForContact() { return 0; },
+        async countDistinctEmailRecipientsForDomain() { return { distinctRecipientsToday: 0, currentLeadAlreadyCounted: false }; },
+    };
+}
 
 // CYC-008 (onda-19): advanceCadenceRun não tinha nenhuma trava entre ler o run e gravar o
 // resultado do dispatch — dois ciclos concorrentes para o MESMO runId podiam ambos decidir
@@ -67,6 +75,7 @@ describe('advanceCadenceRun — trava de concorrência (CYC-008/onda-19)', () =>
             subjectResolver: alwaysResolveSubject(),
             dispatcher,
             lock,
+            rateLimit: noopRateLimit(),
             isWithinBusinessWindow: () => true,
             hasLeadReplied: async () => false,
         };
@@ -98,6 +107,7 @@ describe('advanceCadenceRun — trava de concorrência (CYC-008/onda-19)', () =>
                 subjectResolver: alwaysResolveSubject(),
                 dispatcher,
                 lock: alwaysContended(),
+                rateLimit: noopRateLimit(),
                 isWithinBusinessWindow: () => true,
                 hasLeadReplied: async () => false,
             },
@@ -139,6 +149,7 @@ describe('advanceCadenceRun — trava de concorrência (CYC-008/onda-19)', () =>
                     subjectResolver: alwaysResolveSubject(),
                     dispatcher: throwingDispatcher,
                     lock,
+                    rateLimit: noopRateLimit(),
                     isWithinBusinessWindow: () => true,
                     hasLeadReplied: async () => false,
                 },

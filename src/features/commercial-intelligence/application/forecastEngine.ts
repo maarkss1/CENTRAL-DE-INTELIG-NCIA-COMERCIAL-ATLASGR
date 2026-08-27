@@ -54,6 +54,16 @@ export const FORECAST_RULES = {
     PIPELINE_THRESHOLD: 10,
 } as const;
 
+/**
+ * Versão das regras do motor (rastreabilidade de backtest — item "Forecast sem versionamento" da
+ * auditoria CPI). Incrementar (ex.: `'v2'`) sempre que `FORECAST_RULES`/`scoreOpportunity` mudar de
+ * um jeito que altera o número final calculado — um snapshot antigo (`application/forecastSnapshot.ts`)
+ * carrega a versão vigente no momento em que foi tirado, então comparar erro histórico entre
+ * versões diferentes da fórmula é uma decisão explícita de quem lê o relatório, nunca um número
+ * silenciosamente incomparável apresentado como se fosse a mesma régua.
+ */
+export const FORECAST_RULES_VERSION = 'v1' as const;
+
 /** Pontua uma única oportunidade. Clampa a probabilidade final em [0, 100]. */
 export function scoreOpportunity(signals: ForecastSignals): ForecastResult {
     const positiveFactors: string[] = [];
