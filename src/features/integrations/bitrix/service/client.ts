@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../../../../lib/prisma.js';
 import { logger } from '../../../../lib/logger.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
-import { assertSafeWebhookUrl } from '../../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { assertSafeExternalUrl } from '../../../../shared/security/urlGuard.js';
 
 export function normalizeWebhookUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -53,8 +53,16 @@ function retryAfterMs(response: Response): number | null {
  * Confirma que a URL realmente fala com um portal Bitrix24 antes de salvar — sem isto, um typo
  * na URL ou um token revogado só apareceria na hora de exportar o primeiro lead, silenciosamente
  * salvo como "conectado".
+ *
+ * Revalida a URL contra o guard de SSRF (`assertSafeExternalUrl`) aqui dentro, e não só no
+ * cadastro (`connectBitrix`) — esta função também é chamada por `testBitrixConnection` para uma
+ * conexão JÁ persistida (botão "Testar conexão"), sem revalidação prévia do chamador. Sem isto
+ * aqui, um DNS rebinding (host resolvia IP público no cadastro, IP privado agora) só seria pego
+ * na primeira vez, nunca nos testes de conexão seguintes.
  */
 export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: string }> {
+    await assertSafeExternalUrl(webhookUrl);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
@@ -89,7 +97,7 @@ export async function testWebhook(webhookUrl: string): Promise<{ portalDomain: s
     try {
         portalDomain = new URL(webhookUrl).hostname;
     } catch {
-        // já validado por assertSafeWebhookUrl antes de chegar aqui
+        // já validado por assertSafeExternalUrl antes de chegar aqui
     }
     return { portalDomain };
 }
@@ -276,7 +284,7 @@ export async function callBitrix<T>(webhookUrl: string, method: string, params?:
         throw new BitrixCircuitOpenError();
     }
 
-    await assertSafeWebhookUrl(webhookUrl);
+    await assertSafeExternalUrl(webhookUrl);
     const maxAttempts = options.maxAttempts ?? BITRIX_MAX_ATTEMPTS;
 
     let lastError: TransientBitrixError | null = null;

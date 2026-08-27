@@ -4,7 +4,7 @@ import { logger } from '../../../../lib/logger.js';
 import { env } from '../../../../config/env.js';
 import { AppError } from '../../../../shared/middlewares/errorHandler.js';
 import { AuditService } from '../../../../lib/audit/audit.service.js';
-import { assertSafeWebhookUrl } from '../../../../lib/adapters/crm/Bitrix24Adapter.js';
+import { assertSafeExternalUrl } from '../../../../shared/security/urlGuard.js';
 import { normalizeWebhookUrl, testWebhook, hostnameOf, getConnectionWebhookUrl } from './client.js';
 
 export interface BitrixConnectionSummary {
@@ -86,7 +86,7 @@ export async function connectBitrix(organizationId: string, rawWebhookUrl: unkno
     }
 
     const webhookUrl = normalizeWebhookUrl(rawWebhookUrl);
-    await assertSafeWebhookUrl(webhookUrl);
+    await assertSafeExternalUrl(webhookUrl);
     const { portalDomain } = await testWebhook(webhookUrl);
     const label = (typeof rawLabel === 'string' && rawLabel.trim()) || portalDomain || 'Bitrix24';
 
