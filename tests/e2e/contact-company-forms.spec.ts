@@ -37,7 +37,11 @@ test.describe('Formulários de Empresas e Contatos (migrados pra ui/Dialog)', ()
     await page.getByRole('button', { name: /Nova Empresa|Adicionar/ }).first().click();
     await page.getByRole('button', { name: 'Criar Empresa' }).click();
 
-    await expect(page.getByText('String must contain at least 1 character(s)').or(page.locator('.text-danger')).first()).toBeVisible();
+    // Onda 42 (DEC-17, auditoria de contraste WCAG AA): a classe de erro do formulário passou a
+    // ser `text-danger-active dark:text-danger` (contraste insuficiente de `text-danger` sozinho no
+    // tema claro) — `[class*="text-danger"]` casa com as duas variantes por substring, em vez do
+    // seletor de classe exata `.text-danger`, que só bateria no tema escuro.
+    await expect(page.getByText('String must contain at least 1 character(s)').or(page.locator('[class*="text-danger"]')).first()).toBeVisible();
     // Dialog continua aberto — erro de validação não fecha o form.
     await expect(page.getByRole('heading', { name: 'Nova Empresa', exact: true })).toBeVisible();
   });
