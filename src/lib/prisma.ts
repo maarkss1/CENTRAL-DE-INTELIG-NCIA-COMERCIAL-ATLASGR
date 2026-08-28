@@ -160,6 +160,14 @@ export const prisma = basePrisma.$extends({
         // próprio gateway de IA, uma decisão interna de bloquear ou não a chamada). Continua sem
         // bypass a leitura por-organização já existente (`usageService.summary`/`GET /api/usage`,
         // escopada normalmente por `requestContext.run({ tenantId })`).
+        // Company foi CONSIDERADO para esta allowlist (accountIntelligenceInsights.worker.ts/
+        // newsMonitor.worker.ts precisavam descobrir contas cross-tenant) e revertido:
+        // `tests/integration/rls-bypass-allowlist.test.ts` prova, a nível de banco, que Company foi
+        // deliberadamente excluído do bypass pela migration 20260825120000 (ITEM-02) — dado
+        // comercial sensível, raio de explosão maior que as tabelas de bootstrap/sessão já aqui. Os
+        // dois workers descobrem organização por organização via bypass em `Organization` (já
+        // permitido abaixo) e escopam `Company` por tenant real (`requestContext.run({ tenantId })`)
+        // a cada organização — nunca leem `Company` sob bypass.
         const BYPASS_RLS_ALLOWED_MODELS = ['User', 'Organization', 'Session', 'Account', 'Verification', 'BitrixConnection', 'FeatureFlag', 'CadenceRun', 'CadenceSequence', 'Lead', 'CrmCommercialDocument', 'CrmDocumentSignatureRequest', 'AILog'];
         const bypassRls = rawBypassRls && (env.NODE_ENV !== 'production' || BYPASS_RLS_ALLOWED_MODELS.includes(model as string));
 
