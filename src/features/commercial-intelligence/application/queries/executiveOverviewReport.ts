@@ -75,7 +75,13 @@ export async function buildExecutiveOverview(
     const inScope = applyScope(scored, filter);
     const historyLeadIds = new Set(history.map((h) => h.leadId));
 
-    const goal = await repository.getGoal(organizationId, filter.month, 'NEW_MRR');
+    // N+1 (onda 42): busca de uma vez a meta do mês do filtro + os 3 meses seguintes (Proteção 90
+    // dias, seção 11 abaixo) — antes desta correção, o loop de Proteção 90 dias chamava
+    // `getGoal` (findUnique) sequencialmente a cada iteração além da primeira (até 3 queries
+    // evitáveis por chamada deste relatório, o mais lido do módulo).
+    const protectionPeriods = [0, 1, 2, 3].map((i) => shiftMonth(filter.month, i));
+    const goalsByPeriod = await repository.getGoals(organizationId, protectionPeriods, 'NEW_MRR');
+    const goal = goalsByPeriod.get(filter.month) ?? null;
 
     const closed = inScope.filter((s) => (s.deal.stageIsWon || s.deal.stageIsLost) && s.deal.closedAt && s.deal.closedAt >= start && s.deal.closedAt < end);
     const won = closed.filter((s) => s.deal.stageIsWon);
@@ -129,9 +135,9 @@ export async function buildExecutiveOverview(
     // ─── Proteção 90 dias (seção 11): mês do filtro + M+1 + M+2 + M+3, em meses de calendário ──
     const coverageProtection: CoverageProtectionEntry[] = [];
     for (let i = 0; i <= 3; i++) {
-        const period = shiftMonth(filter.month, i);
+        const period = protectionPeriods[i];
         const range = monthRange(period);
-        const periodGoal = i === 0 ? goal : await repository.getGoal(organizationId, period, 'NEW_MRR');
+        const periodGoal = goalsByPeriod.get(period) ?? null;
         const pipelineEligibleInPeriod = eligibleInRange(range.start, range.end);
         const closedInPeriod = i === 0 ? closedAmount : 0;
         const remainingGoal = periodGoal ? Math.max(0, roundMoney(periodGoal.amount - closedInPeriod)) : null;

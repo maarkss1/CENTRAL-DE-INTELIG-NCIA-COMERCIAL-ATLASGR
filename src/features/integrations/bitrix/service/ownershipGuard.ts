@@ -41,6 +41,11 @@ export interface OwnershipConflict {
  * `existing.owner` legado (nome) nunca bate por igualdade com um `incomingOwnerId` novo (id), então
  * a checagem trata como conflito mesmo quando é o mesmo dono na prática. É uma falha para o lado
  * seguro (bloqueia e notifica em vez de deixar passar), não uma regressão de segurança.
+ *
+ * Casa por `Contact.phoneIndex`/`emailIndex` (índice cego determinístico, ver
+ * src/lib/crypto/piiIndex.ts), não pelo valor puro: `Contact.phone`/`email` são cifrados em
+ * repouso (ver src/lib/crypto/piiFields.ts) — mesmo raciocínio de `emailReply.webhook.ts` →
+ * `findOpenLeadByEmail`.
  */
 export async function findOwnershipConflict(
     organizationId: string,

@@ -4,6 +4,7 @@ import { APOLLO_ORG_ENRICH_URL } from './client.js';
 import type { ApolloOrganization } from './types.js';
 import { checkProviderRateLimit } from '../providerRateLimit.js';
 import { recordProviderCallCost } from '../providerCostMetrics.js';
+import { assertProspectingBudgetNotExceeded } from '../providerBudget.js';
 
 /**
  * Enriquecimento firmográfico completo de UMA empresa via domínio (Apollo Organization Enrich).
@@ -19,6 +20,10 @@ export async function enrichOrganizationByDomain(
 
     const rateLimit = checkProviderRateLimit('apollo');
     if (!rateLimit.allowed) return { organization: null, error: rateLimit.message };
+
+    // DEC-09: bloqueio real de orçamento por organização — lança de propósito (ver
+    // src/features/prospecting/services/providerBudget.ts).
+    await assertProspectingBudgetNotExceeded('apollo');
 
     try {
         const url = `${APOLLO_ORG_ENRICH_URL}?domain=${encodeURIComponent(domain)}`;

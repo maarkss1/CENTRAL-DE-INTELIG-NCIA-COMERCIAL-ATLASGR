@@ -197,6 +197,30 @@ export class PrismaCommercialIntelligenceRepository implements CommercialIntelli
         };
     }
 
+    // N+1 (onda 42, auditoria de listagens): buildExecutiveOverview precisa da meta de até 4
+    // períodos (mês do filtro + Proteção 90 dias) — antes desta correção, cada período além do
+    // primeiro disparava um `getGoal` (findUnique) sequencial dentro de um loop. `period` não é
+    // @unique sozinho (só a composta organizationId_period_metric é), então o batch usa `in` em
+    // vez de `findMany({ where: { period } })` — continua respeitando `organizationId` no `where`,
+    // mesmo isolamento de tenant de `getGoal`.
+    async getGoals(organizationId: string, periods: string[], metric: GoalMetric): Promise<Map<string, CommercialGoalDTO>> {
+        if (periods.length === 0) return new Map();
+        const goals = await prisma.commercialGoal.findMany({
+            where: { organizationId, metric, period: { in: periods } },
+        });
+        return new Map(goals.map((goal) => [
+            goal.period,
+            {
+                period: goal.period,
+                metric: goal.metric as GoalMetric,
+                amount: goal.amount,
+                currency: goal.currency,
+                updatedAt: goal.updatedAt.toISOString(),
+                createdBy: goal.createdBy,
+            },
+        ]));
+    }
+
     async upsertGoal(organizationId: string, period: string, metric: GoalMetric, amount: number, currency: string, createdBy: string): Promise<CommercialGoalDTO> {
         const goal = await prisma.commercialGoal.upsert({
             where: { organizationId_period_metric: { organizationId, period, metric } },

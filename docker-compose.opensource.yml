@@ -162,6 +162,20 @@ services:
       BASE_URL: http://host.docker.internal:3000
     extra_hosts: ["host.docker.internal:host-gateway"]
 
+  # Onda 42 (dossie CPI DEC-20 opcao A): mesma ideia do servico `k6` acima, mas contra rotas
+  # AUTENTICADAS reais do CRM (ver tests/load/k6-crm-authenticated.js) em vez de so /health/*.
+  # `npm run load:k6:crm` monta este servico. A app alvo precisa estar de pe com
+  # API_RATE_LIMIT_MAX bem mais alto do que o default de producao (600/15min por IP) — ver o
+  # comentario no topo do proprio script k6 para o porque.
+  k6-crm:
+    image: grafana/k6:latest
+    profiles: [tools]
+    command: ["run", "/tests/k6-crm-authenticated.js"]
+    volumes: ["./tests/load/k6-crm-authenticated.js:/tests/k6-crm-authenticated.js:ro"]
+    environment:
+      BASE_URL: http://host.docker.internal:3000
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
   zap:
     image: ghcr.io/zaproxy/zaproxy:stable
     profiles: [tools]

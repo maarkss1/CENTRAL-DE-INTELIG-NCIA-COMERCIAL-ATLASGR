@@ -32,10 +32,10 @@ import {
     DEFAULT_PROVIDER_CACHE_TTL_SECONDS,
 } from '../providerCache.js';
 
-beforeEach(() => {
+beforeEach(async () => {
     vi.clearAllMocks();
     redisConfiguredValue = false;
-    resetProviderCacheForTests();
+    await resetProviderCacheForTests();
 });
 
 describe('buildProviderCacheKey', () => {
